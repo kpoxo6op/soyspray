@@ -25,6 +25,41 @@ autoinstall process.
 This repository was created using guidance from Farhad's video, Kubespray's
 `integration.md`, and Kubespray Ansible installation docs.
 
-A virtual environment
-(venv) was used for dependency management. Kubespray was integrated as a
-submodule in this repository.
+### Hosts YAML Generation
+
+To generate the `hosts.yaml` file, the following steps were used:
+
+```sh
+# Copy sample inventory
+# Declare the IPs and hostnames for the nodes
+# Generate the hosts.yaml file
+# View the generated hosts.yaml
+cp -rfp inventory/sample inventory/soycluster
+declare -a IPS=(node-0,192.168.1.100 node-1,192.168.1.101 node-2,192.168.1.102)
+CONFIG_FILE=inventory/soycluster/hosts.yaml python3 contrib/inventory_builder/inventory.py ${IPS[@]}
+cat inventory/soycluster/hosts.yaml
+```
+
+A virtual environment (`soyspray-venv`) was used for dependency management and is included in `.gitignore` to keep environment-specific files out of the repository. Kubespray was integrated as a submodule in this repository.
+
+```sh
+# Create virtual environment
+# Activate virtual environment
+# Install requirements from the kubespray submodule
+python3 -m venv soyspray-venv
+source soyspray-venv/bin/activate
+cd kubespray
+pip install -U -r requirements.txt
+```
+
+## Cluster Creation
+
+```sh
+ansible-playbook -i inventory/soycluster/hosts.yml --tags preinstall,facts --skip-tags=download,bootstrap-os cluster.yml
+```
+
+## TODO
+
+Explore Ansible [tags](https://github.com/kubernetes-sigs/kubespray/blob/master/docs/ansible/ansible.md#installing-ansible)
+
+Explore how to integrate submodule runbooks into my custom books using [integration.md](https://github.com/kubernetes-sigs/kubespray/blob/master/docs/operations/integration.md)
