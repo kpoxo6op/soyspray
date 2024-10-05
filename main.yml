@@ -7,3 +7,11 @@
   tasks:
     - name: Import Kubespray playbook for cluster setup
       ansible.builtin.import_playbook: kubespray/cluster.yml
+
+    - name: Import playbook to reboot cluster nodes
+      ansible.builtin.import_playbook: playbooks/reboot.yml
+      tags: reboot
+
+    - name: Import playbook to prepare local storage
+      ansible.builtin.import_playbook: playbooks/prepare_local_storage.yml
+      tags: storage
