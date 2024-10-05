@@ -1,0 +1,9 @@
+---
+- name: Main Playbook for Kubernetes Cluster
+  hosts: all
+  become: yes
+  gather_facts: no
+
+  tasks:
+    - name: Import Kubespray playbook for cluster setup
+      ansible.builtin.import_playbook: kubespray/cluster.yml
