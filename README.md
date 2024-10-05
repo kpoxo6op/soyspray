@@ -55,7 +55,8 @@ pip install -U -r requirements.txt
 ## Cluster Creation
 
 ```sh
-ansible-playbook -i inventory/soycluster/hosts.yml --tags preinstall,facts --skip-tags=download,bootstrap-os cluster.yml
+cd kubespray
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu cluster.yml
 ```
 
 ## TODO
@@ -63,3 +64,7 @@ ansible-playbook -i inventory/soycluster/hosts.yml --tags preinstall,facts --ski
 Explore Ansible [tags](https://github.com/kubernetes-sigs/kubespray/blob/master/docs/ansible/ansible.md#installing-ansible)
 
 Explore how to integrate submodule runbooks into my custom books using [integration.md](https://github.com/kubernetes-sigs/kubespray/blob/master/docs/operations/integration.md)
+
+```sh
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/prepare_local_storage.yml --tags storage
+```
