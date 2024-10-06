@@ -59,6 +59,13 @@ cd kubespray
 ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu cluster.yml
 ```
 
+## How to provision [addons](kubespray/inventory/soycluster/group_vars/k8s_cluster/addons.yml) only
+
+```sh
+cd kubespray
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu cluster.yml --tags apps
+```
+
 ## TODO
 
 Explore Ansible [tags](https://github.com/kubernetes-sigs/kubespray/blob/master/docs/ansible/ansible.md#installing-ansible)
@@ -66,5 +73,8 @@ Explore Ansible [tags](https://github.com/kubernetes-sigs/kubespray/blob/master/
 Explore how to integrate submodule runbooks into my custom books using [integration.md](https://github.com/kubernetes-sigs/kubespray/blob/master/docs/operations/integration.md)
 
 ```sh
+cd soyspray
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/prepare_local_storage.yml --tags storage
 ```
+
+Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its address
