@@ -99,7 +99,7 @@ Use - or _ consistently in my file names
 
 Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its address
 
-Check how to codify ConfigMap change to switch ArgoCD from HTTP to HTTPS
+## Backlog
 
 Ensure DNS is properly configured if using cert-manager with DNS-01 challenge
 for certificate validation
