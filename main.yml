@@ -1,17 +1,8 @@
 ---
-- name: Main Playbook for Kubernetes Cluster
-  hosts: all
-  become: yes
-  gather_facts: no
+- import_playbook: kubespray/cluster.yml
 
-  tasks:
-    - name: Import Kubespray playbook for cluster setup
-      ansible.builtin.import_playbook: kubespray/cluster.yml
+- import_playbook: playbooks/prepare_local_storage.yml
+  tags: storage
 
-    - name: Import playbook to reboot cluster nodes
-      ansible.builtin.import_playbook: playbooks/reboot.yml
-      tags: reboot
-
-    - name: Import playbook to prepare local storage
-      ansible.builtin.import_playbook: playbooks/prepare_local_storage.yml
-      tags: storage
+- import_playbook: playbooks/expose_argocd.yml
+  tags: expose_argocd
