@@ -59,6 +59,33 @@ cd kubespray
 ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu cluster.yml
 ```
 
+## Storage
+
+```sh
+cd soyspray
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/prepare_local_storage.yml --tags storage
+```
+
+## Expose ArgoCD
+
+To expose ArgoCD, the service was configured as a LoadBalancer in Kubernetes and
+assigned the IP 192.168.1.121 using MetalLB.
+
+The `argocd-cmd-params-cm` config map was updated to ensure that ArgoCD would
+operate in insecure mode by keeping the `server.insecure` key set to "true". This
+change enabled HTTP access without requiring HTTPS.
+
+After updating the configuration, the argocd-server deployment was restarted to
+apply the changes. The new pod was successfully started, exposing ArgoCD via
+HTTP.
+
+ArgoCD was then available at `http://192.168.1.121`.
+
+```sh
+cd soyspray
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu main.yml --tags expose_argocd
+```
+
 ## How to provision [addons](kubespray/inventory/soycluster/group_vars/k8s_cluster/addons.yml) only
 
 ```sh
@@ -68,13 +95,11 @@ ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root -
 
 ## TODO
 
-Explore Ansible [tags](https://github.com/kubernetes-sigs/kubespray/blob/master/docs/ansible/ansible.md#installing-ansible)
-
-Explore how to integrate submodule runbooks into my custom books using [integration.md](https://github.com/kubernetes-sigs/kubespray/blob/master/docs/operations/integration.md)
-
-```sh
-cd soyspray
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/prepare_local_storage.yml --tags storage
-```
-
 Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its address
+
+Check how to codify ConfigMap change to switch ArgoCD from HTTP to HTTPS
+
+Ensure DNS is properly configured if using cert-manager with DNS-01 challenge
+for certificate validation
+
+Explore cert-manager for HTTPS access
