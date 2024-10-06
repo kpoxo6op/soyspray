@@ -2,9 +2,6 @@
 - name: Common tasks for every playbook
   import_playbook: kubespray/playbooks/boilerplate.yml
 
-- name: Gather facts
-  import_playbook: kubespray/playbooks/boilerplate.yml
-
 - name: Reboot all nodes in the cluster
   hosts: etcd:k8s_cluster:calico_rr
   gather_facts: false
