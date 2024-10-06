@@ -1,0 +1,23 @@
+---
+- name: Common tasks for every playbook
+  import_playbook: ../kubespray/playbooks/boilerplate.yml
+
+- name: Expose ArgoCD server via MetalLB
+  hosts: localhost
+  become: false
+  tasks:
+    - name: Copy the ArgoCD Service manifest to the Kubernetes master node
+      ansible.builtin.copy:
+        src: infra_configs/argocd-server-service.yaml
+        dest: /tmp/argocd-server-service.yaml
+
+    - name: Apply the ArgoCD Service manifest via kubectl
+      ansible.builtin.command:
+        cmd: kubectl apply -f /tmp/argocd-server-service.yaml
+      args:
+        chdir: /tmp
+      register: apply_result
+
+    - name: Output the result of kubectl apply
+      debug:
+        var: apply_result.stdout
