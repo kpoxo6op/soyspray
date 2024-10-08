@@ -95,8 +95,6 @@ ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root -
 
 ## TODO
 
-Use - or _ consistently in my file names
-
 Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its address
 
 ## Backlog
