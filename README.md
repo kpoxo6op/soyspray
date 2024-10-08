@@ -63,7 +63,7 @@ ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root -
 
 ```sh
 cd soyspray
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/prepare_local_storage.yml --tags storage
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/prepare-local-storage.yml --tags storage
 ```
 
 ## Expose ArgoCD
@@ -83,7 +83,7 @@ ArgoCD was then available at `http://192.168.1.121`.
 
 ```sh
 cd soyspray
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu main.yml --tags expose_argocd
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu main.yml --tags expose-argocd
 ```
 
 ## How to provision [addons](kubespray/inventory/soycluster/group_vars/k8s_cluster/addons.yml) only

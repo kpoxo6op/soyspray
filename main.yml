@@ -1,8 +1,8 @@
 ---
 - import_playbook: kubespray/cluster.yml
 
-- import_playbook: playbooks/prepare_local_storage.yml
+- import_playbook: playbooks/prepare-local-storage.yml
   tags: storage
 
-- import_playbook: playbooks/expose_argocd.yml
-  tags: expose_argocd
+- import_playbook: playbooks/expose-argocd.yml
+  tags: expose-argocd
