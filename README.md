@@ -153,3 +153,10 @@ for certificate validation
 Explore cert-manager for HTTPS access
 
 linter to force `.yml` extension and `-` in file names
+
+Codify List of local DNS domains setting <http://192.168.1.122/admin/dns_records.php>
+
+```sh
+#domain           IP
+pihole.local      192.168.1.122
+```
