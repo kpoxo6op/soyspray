@@ -103,9 +103,41 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-u
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/manage-argocd-apps.yml
 ```
 
+## Testing Pi Hole
+
+Updated my PC DNS to Pi Hole service
+
+```sh
+nslookup doubleclick.net
+Server:  UnKnown
+Address:  192.168.1.122
+
+Name:    doubleclick.net
+Addresses:  ::
+          0.0.0.0
+```
+
+NZ Herald is full of ads in Edge, it is clean in FIrefox (uBlock Origin).
+
+Updated Gravity (list of blocked domains) <http://192.168.1.122/admin/gravity.php>
+
+Read <https://github.com/gorhill/uBlock/wiki/About-%22Why-uBlock-Origin-works-so-much-better-than-Pi%E2%80%91hole-does%3F%22>
+
+Read <https://forum.level1techs.com/t/anyone-know-of-ublock-lists-for-pihole/212747>
+
+Added Green lists from <https://firebog.net/>
+
+Never try to add uBlock etc lists <https://www.reddit.com/r/pihole/comments/kv5rgp/ublock_origin_blocklists/>
+
+Same experience by other dude <https://discourse.pi-hole.net/t/ads-are-displayed-everywhere-unsure-if-pi-hole-is-correctly-set-up/71127>
+
+Check tips about secondary DNS. Check IPv6 toggling on router.
+
 ## TODO
 
 Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its address
+
+Check if Pi Hole blocks ADs.
 
 ## Backlog
 
