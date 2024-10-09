@@ -1,0 +1,17 @@
+# playbooks/install-k8s-python-libs.yml
+# This playbook installs the Kubernetes Python library system-wide on the nodes using the apt package manager, adhering to the system's managed environment policies.
+
+---
+- name: Common tasks for every playbook
+  import_playbook: ../kubespray/playbooks/boilerplate.yml
+
+- name: Install Kubernetes Python dependencies via apt
+  hosts: kube_control_plane,kube_node
+  become: true
+  tasks:
+
+    - name: Ensure python3-kubernetes is installed via apt
+      ansible.builtin.apt:
+        name: python3-kubernetes
+        state: present
+        update_cache: true
