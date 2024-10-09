@@ -115,3 +115,5 @@ Ensure DNS is properly configured if using cert-manager with DNS-01 challenge
 for certificate validation
 
 Explore cert-manager for HTTPS access
+
+linter to force `.yml` extension and `-` in file names
