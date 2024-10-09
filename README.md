@@ -133,7 +133,11 @@ Same experience by other dude <https://discourse.pi-hole.net/t/ads-are-displayed
 
 Check tips about secondary DNS. Check IPv6 toggling on router.
 
+Looks like adding filters and not using secondary DNS helps.
+
 ## TODO
+
+Test Pi Hole with secondary DNS and without secondary DNS.
 
 Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its address
 
