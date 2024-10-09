@@ -93,6 +93,16 @@ cd kubespray
 ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu cluster.yml --tags apps
 ```
 
+## How to Apply Argo CD Applications
+
+```sh
+cd soyspray
+
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/install-k8s-python-libs.yml
+
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/manage-argocd-apps.yml
+```
+
 ## TODO
 
 Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its address
