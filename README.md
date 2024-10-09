@@ -2,6 +2,58 @@
 
 Home Cluster created with Kubespray on Soyo miniPCs.
 
+## Temporary section - plan for Friday presentation
+
+hardware
+
+3d printed case
+
+commercial shop, blockhouse bay library, westgate library, central library experience
+
+show 3d printed parts on camera
+
+temporary solution cable box
+
+crimping experience
+
+choosing home cluster software
+
+talos os
+
+out ot the box repos
+
+kubespray
+
+compiling ethernet driver from source
+
+destroying the OS by installing incompatible packages
+
+using correct WSL2 ubuntu server
+
+bringing it together with ubuntu autoinstall
+
+autoinstall is a mix of Canoninal made syntax with cloudinit in it
+
+destroying the OS by updating kernel
+
+testing pi-hole with manual helm install
+
+destroying the OS by mounting k8s local storage to /
+
+properly intregrating kubespray into my own repo
+
+exposing argoCD over plain http
+
+installing Pi Hole via ArgoCD
+
+importing filters to Pi Hole
+
+my thoughts on ansible
+
+my thoughts on ChatGPT 4o and o1
+
+what is next
+
 ## Network Configuration
 
 The router DHCP range was updated to 192.168.1.50-192.168.1.99.
