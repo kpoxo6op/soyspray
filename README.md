@@ -66,6 +66,13 @@ cd soyspray
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/prepare-local-storage.yml --tags storage
 ```
 
+## How to provision [addons](kubespray/inventory/soycluster/group_vars/k8s_cluster/addons.yml) only
+
+```sh
+cd kubespray
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu cluster.yml --tags apps
+```
+
 ## Expose ArgoCD
 
 To expose ArgoCD, the service was configured as a LoadBalancer in Kubernetes and
@@ -84,13 +91,6 @@ ArgoCD was then available at `http://192.168.1.121`.
 ```sh
 cd soyspray
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu main.yml --tags expose-argocd
-```
-
-## How to provision [addons](kubespray/inventory/soycluster/group_vars/k8s_cluster/addons.yml) only
-
-```sh
-cd kubespray
-ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu cluster.yml --tags apps
 ```
 
 ## How to Apply Argo CD Applications
@@ -138,6 +138,8 @@ Check tips about secondary DNS. Check IPv6 toggling on router.
 Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its address
 
 Check if Pi Hole blocks ADs.
+
+Can't login to ArgoCD this time. How ArgoCD password is set? Workaround: run addons and expose argocd again.
 
 ## Backlog
 
