@@ -141,8 +141,6 @@ Test Pi Hole with secondary DNS and without secondary DNS.
 
 Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its address
 
-Check if Pi Hole blocks ADs.
-
 Can't login to ArgoCD this time. How ArgoCD password is set? Workaround: run addons and expose argocd again.
 
 ## Backlog
