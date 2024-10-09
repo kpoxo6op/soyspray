@@ -6,7 +6,19 @@ Home Cluster created with Kubespray on Soyo miniPCs.
 
 hardware
 
+<https://www.aliexpress.com/item/1005006320947006.html?spm=a2g0o.order_list.order_list_main.11.b4cc1802ibY2k1>
+
+no coolers, cheap, x86
+
+issues with widescreen monitor, issues at BPTech
+
+does not have wake up on LAN
+
 3d printed case
+
+<https://github.com/jazwa/rackstack>
+
+google [rackstack reddit](https://www.google.com/search?sca_esv=247a3cc0ba513c42&rlz=1C1GCEA_enNZ1125NZ1125&sxsrf=ADLYWILfr1QEWB3epzfxn33ovoS6t2Rowg:1728515483876&q=rackstack+reddit&udm=2&fbs=AEQNm0Aa4sjWe7Rqy32pFwRj0UkWd8nbOJfsBGGB5IQQO6L3J5MIFhvnvU242yFxzEEp3BfRFWcyM5BvpTgNzM3vKj4sd0YwvsXKiE93XEiAQkwpov3q73VlvX-t4vUzh_CK-Q9-yrbrCA6jPEVhd5czRbqluzhmH8XK9o0zlN-IQ8mQEpGRrtLGIAdoJ0yGhjmjrgJq5y1FNfejqu22xT_9bOL7drs8ig&sa=X&ved=2ahUKEwj4zJ77tYKJAxXtrlYBHS6sCkcQtKgLegQIFBAB&biw=1383&bih=1180&dpr=1&safe=active&ssui=on#vhid=re_s3Yssn2FUfM&vssid=mosaic)
 
 commercial shop, blockhouse bay library, westgate library, central library experience
 
@@ -16,15 +28,25 @@ temporary solution cable box
 
 crimping experience
 
+pass through vs classic connectors
+
 choosing home cluster software
 
 talos os
 
 out ot the box repos
 
+<https://github.com/onedr0p/cluster-template>
+
 kubespray
 
+<https://github.com/kubernetes-sigs/kubespray>
+
 compiling ethernet driver from source
+
+other people reported HomeOS not working with Motorcomm ethernet adapter
+
+<https://github.com/silent-reader-cn/yt6801>
 
 destroying the OS by installing incompatible packages
 
@@ -36,9 +58,15 @@ autoinstall is a mix of Canoninal made syntax with cloudinit in it
 
 destroying the OS by updating kernel
 
+ubuntu server power saving mode
+
 testing pi-hole with manual helm install
 
 destroying the OS by mounting k8s local storage to /
+
+local storage provisioner
+
+<https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner>
 
 properly intregrating kubespray into my own repo
 
@@ -48,9 +76,19 @@ installing Pi Hole via ArgoCD
 
 importing filters to Pi Hole
 
+learnings
+
+kubespray is fire
+
+linux commands `lshw`, `ip link show`
+
+kernel pin
+
 my thoughts on ansible
 
 my thoughts on ChatGPT 4o and o1
+
+<https://repo2txt.simplebasedomain.com/>
 
 what is next
 
