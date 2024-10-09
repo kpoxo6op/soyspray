@@ -30,6 +30,12 @@ crimping experience
 
 pass through vs classic connectors
 
+pinning Chinese devices in Taiwanese router by MAC
+
+web interface throws 'Invalid MAC error'
+
+ASUS mobile app allows pinning
+
 choosing home cluster software
 
 talos os
