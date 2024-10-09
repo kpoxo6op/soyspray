@@ -40,6 +40,8 @@ choosing home cluster software
 
 talos os
 
+<https://www.talos.dev/v1.8/introduction/quickstart/>
+
 out ot the box repos
 
 <https://github.com/onedr0p/cluster-template>
