@@ -10,7 +10,7 @@ metadata:
     app.kubernetes.io/part-of: argocd
 spec:
   type: LoadBalancer
-  loadBalancerIP: 192.168.1.121  # Use one of the free MetalLB IPs
+  loadBalancerIP: 192.168.1.121
   ports:
     - name: http
       port: 80
