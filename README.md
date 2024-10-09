@@ -109,6 +109,8 @@ Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its a
 
 ## Backlog
 
+Find out how Pi Hole gets its default password so we don't have to reset it
+
 Ensure DNS is properly configured if using cert-manager with DNS-01 challenge
 for certificate validation
 
