@@ -1,0 +1,34 @@
+# playbooks/manage-argocd-apps.yml
+---
+- name: Common tasks for every playbook
+  import_playbook: ../kubespray/playbooks/boilerplate.yml
+
+- name: Apply Argo CD Applications
+  hosts: kube_control_plane
+  become: true  # Ensure root access to read the kubeconfig
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Ensure namespaces exist for Argo CD Applications
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ item }}"
+      loop:
+        - pihole  # Add more namespaces here for future applications
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Apply Argo CD Applications from infra_configs/argocd-apps
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', item) }}"
+      loop: "{{ lookup('fileglob', 'infra_configs/argocd-apps/*.yaml', wantlist=True) }}"
+      loop_control:
+        label: "{{ item | basename }}"
