@@ -12,9 +12,9 @@ Elliot Raspberry Pie on the Wall
 
 David's own Kafka for learning
 
-My son's intolerance to ads on mum's iPhone
+Jake's old gaming PC as single node cluster
 
-Me staying at home most of the time
+My son's intolerance to ads on mum's iPhone
 
 ### hardware
 
