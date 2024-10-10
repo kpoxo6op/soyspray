@@ -4,7 +4,7 @@ Home Cluster created with Kubespray on Soyo miniPCs.
 
 ## Temporary section - plan for Friday presentation
 
-inspiration
+### inspiration
 
 Alex "Private DNS"
 
@@ -14,7 +14,7 @@ David's own Kafka for learning
 
 My son's intolenarnce to ads on mum's iPhone
 
-hardware choice
+### hardware
 
 <https://www.aliexpress.com/item/1005006320947006.html?spm=a2g0o.order_list.order_list_main.11.b4cc1802ibY2k1>
 
@@ -48,7 +48,7 @@ web interface throws 'Invalid MAC error'
 
 ASUS mobile app allows pinning
 
-choosing home cluster software
+### software
 
 talos os
 
@@ -69,6 +69,8 @@ bare kubeadm is hard
 minikube and k3s are too stripped
 
 kubespray is 16k stars, integratable, ansible, made by k8s sig
+
+### my journey so far
 
 started with Farhad's video
 
@@ -106,9 +108,11 @@ installing Pi Hole via ArgoCD
 
 importing filters to Pi Hole
 
-learnings
+### learnings
 
 kubespray is fire
+
+andible vs terraform
 
 linux commands `lshw`, `ip link show`
 
@@ -124,7 +128,9 @@ my thoughts on ChatGPT 4o and o1
 
 <https://repo2txt.simplebasedomain.com/>
 
-what is next
+### what is next
+
+?
 
 ## Network Configuration
 
