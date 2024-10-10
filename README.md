@@ -22,11 +22,17 @@ My son's intolerance to ads on mum's iPhone
 
 raspberries are expensive, arm, power over ethernet, silent
 
-Soyo no coolers, cheap, x86, power over 12v adapter
+buying miniPCs locally is very expensive
 
-issues with widescreen monitor, issues at BPTech
+Soyo: no coolers, cheap, x86, power over 12v adapter, high build quality
 
-does not have wake up on LAN
+refubrished miniPCs would be my second choice
+
+issues with my widescreen monitor, same issues at BPTech
+
+run smoothly on normal screens
+
+do not have wake up on LAN functionality
 
 3d printed case
 
