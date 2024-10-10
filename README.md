@@ -291,8 +291,8 @@ Set Up Pi-hole to Handle Local DNS Entries
 
 | Domain                                         | IP               | Note          |
 | ---------------------------------------------- | ---------------- | ------------- |
-| [argocd.lan](http://argocd.lan/applications)              | 192.168.1.121    |               |
-| [pihole.lan](http://pihole.lan/admin/login.php)| 192.168.1.122    |              |
+| [argocd.lan](http://argocd.lan/applications)   | 192.168.1.121    |               |
+| [pihole.lan](http://pihole.lan/admin/login.php)| 192.168.1.122    |               |
 
 ## TODO
 
