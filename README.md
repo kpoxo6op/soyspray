@@ -52,6 +52,10 @@ pass through vs classic connectors
 
 pinning Chinese devices in Taiwanese router by MAC
 
+network USB poweed switch from Temu
+
+Ethernet over power from PB Tech
+
 web interface throws 'Invalid MAC error'
 
 ASUS mobile app allows pinning
