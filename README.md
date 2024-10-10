@@ -12,7 +12,9 @@ Elliot Raspberry Pie on the Wall
 
 David's own Kafka for learning
 
-My son's intolenarnce to ads on mum's iPhone
+My son's intolerance to ads on mum's iPhone
+
+Me staying at home most of the time
 
 ### hardware
 
