@@ -4,11 +4,23 @@ Home Cluster created with Kubespray on Soyo miniPCs.
 
 ## Temporary section - plan for Friday presentation
 
-hardware
+inspiration
+
+Alex "Private DNS"
+
+Elliot Raspberry Pie on the Wall
+
+David's own Kafka for learning
+
+My son's intolenarnce to ads on mum's iPhone
+
+hardware choice
 
 <https://www.aliexpress.com/item/1005006320947006.html?spm=a2g0o.order_list.order_list_main.11.b4cc1802ibY2k1>
 
-no coolers, cheap, x86
+raspberries are expensive, arm, power over ethernet, silent
+
+Soyo no coolers, cheap, x86, power over 12v adapter
 
 issues with widescreen monitor, issues at BPTech
 
@@ -50,6 +62,16 @@ kubespray
 
 <https://github.com/kubernetes-sigs/kubespray>
 
+cringey talosctl soyctl hide what is going on
+
+bare kubeadm is hard
+
+minikube and k3s are too stripped
+
+kubespray is 16k stars, integratable, ansible, made by k8s sig
+
+started with Farhad's video
+
 compiling ethernet driver from source
 
 other people reported HomeOS not working with Motorcomm ethernet adapter
@@ -89,6 +111,10 @@ learnings
 kubespray is fire
 
 linux commands `lshw`, `ip link show`
+
+kernel verion folders
+
+compiled device driver files in kernel folder
 
 kernel pin
 
