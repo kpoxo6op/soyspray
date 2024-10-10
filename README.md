@@ -50,8 +50,6 @@ crimping experience
 
 pass through vs classic connectors
 
-pinning Chinese devices in Taiwanese router by MAC
-
 network USB poweed switch from Temu
 
 Ethernet over power from PB Tech
@@ -59,6 +57,9 @@ Ethernet over power from PB Tech
 web interface throws 'Invalid MAC error'
 
 ASUS mobile app allows pinning
+
+ASUS mobile app allows to select Primary and Secondary DNS, can't see it in web
+version
 
 ### software
 
@@ -277,9 +278,27 @@ Check tips about secondary DNS. Check IPv6 toggling on router.
 
 Looks like adding filters and not using secondary DNS helps.
 
+## Testing Pi-Hole as DNS Server
+
+Update Router DNS settings via mobile app
+
+| Type      | IP               | Note          |
+| --------- | ---------------- | ------------- |
+| Primary   | 192.168.1.122    |  Pi Hole      |
+| Secondary | 8.8.8.8          |  Google       |
+
+Set Up Pi-hole to Handle Local DNS Entries
+
+| Domain                                         | IP               | Note          |
+| ---------------------------------------------- | ---------------- | ------------- |
+| [argocd.lan](http://argocd.lan/applications)              | 192.168.1.121    |               |
+| [pihole.lan](http://pihole.lan/admin/login.php)| 192.168.1.122    |              |
+
 ## TODO
 
 Test Pi Hole with secondary DNS and without secondary DNS.
+
+Automate DNS Management in Pi Hole
 
 Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its address
 
