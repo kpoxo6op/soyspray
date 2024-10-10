@@ -1,4 +1,4 @@
-# Soyspray
+# Soyspray 🌱💦
 
 Home Cluster created with Kubespray on Soyo miniPCs.
 
