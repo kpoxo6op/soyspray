@@ -2,149 +2,6 @@
 
 Home Cluster created with Kubespray on Soyo miniPCs.
 
-## Temporary section - plan for Friday presentation
-
-### inspiration
-
-Alex "Private DNS"
-
-Elliot Raspberry Pie on the Wall
-
-David's own Kafka for learning
-
-Jake's old gaming PC as single node cluster
-
-My son's intolerance to ads on mum's iPhone
-
-### hardware
-
-<https://www.aliexpress.com/item/1005006320947006.html?spm=a2g0o.order_list.order_list_main.11.b4cc1802ibY2k1>
-
-raspberries are expensive, arm, power over ethernet, silent
-
-buying miniPCs locally is very expensive
-
-Soyo: no coolers, cheap, x86, power over 12v adapter, high build quality
-
-refubrished miniPCs would be my second choice
-
-issues with my widescreen monitor, same issues at BPTech
-
-run smoothly on normal screens
-
-do not have wake up on LAN functionality
-
-3d printed case
-
-<https://github.com/jazwa/rackstack>
-
-google [rackstack reddit](https://www.google.com/search?sca_esv=247a3cc0ba513c42&rlz=1C1GCEA_enNZ1125NZ1125&sxsrf=ADLYWILfr1QEWB3epzfxn33ovoS6t2Rowg:1728515483876&q=rackstack+reddit&udm=2&fbs=AEQNm0Aa4sjWe7Rqy32pFwRj0UkWd8nbOJfsBGGB5IQQO6L3J5MIFhvnvU242yFxzEEp3BfRFWcyM5BvpTgNzM3vKj4sd0YwvsXKiE93XEiAQkwpov3q73VlvX-t4vUzh_CK-Q9-yrbrCA6jPEVhd5czRbqluzhmH8XK9o0zlN-IQ8mQEpGRrtLGIAdoJ0yGhjmjrgJq5y1FNfejqu22xT_9bOL7drs8ig&sa=X&ved=2ahUKEwj4zJ77tYKJAxXtrlYBHS6sCkcQtKgLegQIFBAB&biw=1383&bih=1180&dpr=1&safe=active&ssui=on#vhid=re_s3Yssn2FUfM&vssid=mosaic)
-
-commercial shop, blockhouse bay library, westgate library, central library experience
-
-show 3d printed parts on camera
-
-temporary solution cable box
-
-crimping experience
-
-pass through vs classic connectors
-
-network USB poweed switch from Temu
-
-Ethernet over power from PB Tech
-
-web interface throws 'Invalid MAC error'
-
-ASUS mobile app allows pinning
-
-ASUS mobile app allows to select Primary and Secondary DNS, can't see it in web
-version
-
-### software
-
-talos os
-
-<https://www.talos.dev/v1.8/introduction/quickstart/>
-
-out ot the box repos
-
-<https://github.com/onedr0p/cluster-template>
-
-kubespray
-
-<https://github.com/kubernetes-sigs/kubespray>
-
-cringey talosctl soyctl hide what is going on
-
-bare kubeadm is hard
-
-minikube and k3s are too stripped
-
-kubespray is 16k stars, integratable, ansible, made by k8s sig
-
-### my journey so far
-
-started with Farhad's video
-
-compiling ethernet driver from source
-
-other people reported HomeOS not working with Motorcomm ethernet adapter
-
-<https://github.com/silent-reader-cn/yt6801>
-
-destroying the OS by installing incompatible packages
-
-using correct WSL2 ubuntu server
-
-bringing it together with ubuntu autoinstall
-
-autoinstall is a mix of Canoninal made syntax with cloudinit in it
-
-destroying the OS by updating kernel
-
-ubuntu server power saving mode
-
-testing pi-hole with manual helm install
-
-destroying the OS by mounting k8s local storage to /
-
-local storage provisioner
-
-<https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner>
-
-properly intregrating kubespray into my own repo
-
-exposing argoCD over plain http
-
-installing Pi Hole via ArgoCD
-
-importing filters to Pi Hole
-
-### learnings
-
-kubespray is fire
-
-andible vs terraform
-
-linux commands `lshw`, `ip link show`
-
-kernel verion folders
-
-compiled device driver files in kernel folder
-
-kernel pin
-
-my thoughts on ansible
-
-my thoughts on ChatGPT 4o and o1
-
-<https://repo2txt.simplebasedomain.com/>
-
-### what is next
-
-?
-
 ## Network Configuration
 
 The router DHCP range was updated to 192.168.1.50-192.168.1.99.
@@ -296,10 +153,6 @@ Set Up Pi-hole to Handle Local DNS Entries
 
 ## TODO
 
-Test Pi Hole with secondary DNS and without secondary DNS.
-
-Automate DNS Management in Pi Hole
-
 Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its address
 
 Can't login to ArgoCD this time. How ArgoCD password is set? Workaround: run addons and expose argocd again.
@@ -321,3 +174,5 @@ Codify List of local DNS domains setting <http://192.168.1.122/admin/dns_records
 #domain           IP
 pihole.local      192.168.1.122
 ```
+
+Codify Pi Hole Filters management
