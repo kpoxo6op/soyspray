@@ -103,38 +103,6 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-u
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/manage-argocd-apps.yml
 ```
 
-## Testing Pi Hole
-
-Updated my PC DNS to Pi Hole service
-
-```sh
-nslookup doubleclick.net
-Server:  UnKnown
-Address:  192.168.1.122
-
-Name:    doubleclick.net
-Addresses:  ::
-          0.0.0.0
-```
-
-NZ Herald is full of ads in Edge, it is clean in FIrefox (uBlock Origin).
-
-Updated Gravity (list of blocked domains) <http://192.168.1.122/admin/gravity.php>
-
-Read <https://github.com/gorhill/uBlock/wiki/About-%22Why-uBlock-Origin-works-so-much-better-than-Pi%E2%80%91hole-does%3F%22>
-
-Read <https://forum.level1techs.com/t/anyone-know-of-ublock-lists-for-pihole/212747>
-
-Added Green lists from <https://firebog.net/>
-
-Never try to add uBlock etc lists <https://www.reddit.com/r/pihole/comments/kv5rgp/ublock_origin_blocklists/>
-
-Same experience by other dude <https://discourse.pi-hole.net/t/ads-are-displayed-everywhere-unsure-if-pi-hole-is-correctly-set-up/71127>
-
-Check tips about secondary DNS. Check IPv6 toggling on router.
-
-Looks like adding filters and not using secondary DNS helps.
-
 ## Testing Pi-Hole as DNS Server
 
 Update Router DNS settings via mobile app
@@ -151,30 +119,4 @@ Set Up Pi-hole to Handle Local DNS Entries
 | [argocd.lan](http://argocd.lan/applications)   | 192.168.1.121    |               |
 | [pihole.lan](http://pihole.lan/admin/login.php)| 192.168.1.122    |               |
 
-## TODO
-
-move TODO and backlog to the [project](https://github.com/users/kpoxo6op/projects/2)
-
-Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its address
-
-Can't login to ArgoCD this time. How ArgoCD password is set? Workaround: run addons and expose argocd again.
-
-## Backlog
-
-Find out how Pi Hole gets its default password so we don't have to reset it
-
-Ensure DNS is properly configured if using cert-manager with DNS-01 challenge
-for certificate validation
-
-Explore cert-manager for HTTPS access
-
-linter to force `.yml` extension and `-` in file names
-
-Codify List of local DNS domains setting <http://192.168.1.122/admin/dns_records.php>
-
-```sh
-#domain           IP
-pihole.local      192.168.1.122
-```
-
-Codify Pi Hole Filters management
+Looks like adding filters and not using secondary DNS helps.
