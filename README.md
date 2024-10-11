@@ -153,6 +153,8 @@ Set Up Pi-hole to Handle Local DNS Entries
 
 ## TODO
 
+move TODO and backlog to the [project](https://github.com/users/kpoxo6op/projects/2)
+
 Check how to pin nginx to `192.168.1.120` to metalLB so nothing else takes its address
 
 Can't login to ArgoCD this time. How ArgoCD password is set? Workaround: run addons and expose argocd again.
