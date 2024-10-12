@@ -92,7 +92,7 @@ dnsmasq:
   staticDhcpEntries: []
   upstreamServers: []
   customDnsEntries:
-    - "192.168.1.122 pihole.lan"
+    - "address=/pihole.lan/192.168.1.122"
   customSettings: []
   additionalHostsEntries: []
   customCnameEntries: []
