@@ -8,7 +8,7 @@ spec:
   project: default
   source:
     repoURL: 'https://github.com/kpoxo6op/soyspray.git'
-    targetRevision: main
+    targetRevision: work
     path: playbooks/infra_configs/argocd-apps/pihole
     helm:
       chart: pihole
