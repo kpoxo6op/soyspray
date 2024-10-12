@@ -6,13 +6,16 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  source:
-    repoURL: 'https://mojo2600.github.io/pihole-kubernetes'  # External Helm chart repo
-    targetRevision: 2.26.1   # Chart version from external repo
-    chart: pihole            # Helm chart name
-    helm:
-      valueFiles:
-        - https://raw.githubusercontent.com/kpoxo6op/soyspray/work/playbooks/infra_configs/argocd-apps/pihole/values.yaml  # URL to your custom values.yaml in your GitHub repo
+  sources:
+    - repoURL: 'https://mojo2600.github.io/pihole-kubernetes'
+      targetRevision: 2.26.1
+      chart: pihole
+      helm:
+        valueFiles:
+          - https://raw.githubusercontent.com/kpoxo6op/soyspray/work/playbooks/infra_configs/argocd-apps/pihole/values.yaml  # URL to your custom values.yaml in your GitHub repo
+    - repoURL: 'https://github.com/kpoxo6op/soyspray.git'
+      targetRevision: work
+      path: playbooks/infra_configs/argocd-apps/pihole/configmaps
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: pihole

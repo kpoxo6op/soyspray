@@ -1,0 +1,11 @@
+# File: playbooks/infra_configs/argocd-apps/pihole/configmaps/custom-dns-configmap.yaml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pihole-custom-dnsmasq
+  namespace: pihole
+data:
+  02-custom.conf: |
+    192.168.1.122 pihole.test
+    192.168.1.121 argocd.test
