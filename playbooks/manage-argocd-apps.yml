@@ -1,11 +1,8 @@
 # playbooks/manage-argocd-apps.yml
 ---
-- name: Common tasks for every playbook
-  import_playbook: ../kubespray/playbooks/boilerplate.yml
-
-- name: Apply Argo CD Applications
+- name: Apply Argo CD Applications - Prepare Namespaces
   hosts: kube_control_plane
-  become: true  # Ensure root access to read the kubeconfig
+  become: true
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
   tasks:
@@ -23,12 +20,33 @@
       loop_control:
         label: "{{ item }}"
 
+- name: Apply Argo CD Applications - Gather Manifests
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Gather Argo CD Application manifests
+      find:
+        paths: "{{ playbook_dir }}/infra_configs/argocd-apps"
+        patterns: "*-application.yaml"
+        recurse: yes
+      register: argo_app_files
+
+    - name: Debug the list of application manifests found
+      debug:
+        var: argo_app_files.files | map(attribute='path') | list
+
+- name: Apply Argo CD Applications - Deploy Applications
+  hosts: kube_control_plane
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
     - name: Apply Argo CD Applications from infra_configs/argocd-apps
       kubernetes.core.k8s:
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', item) }}"
-      loop: "{{ lookup('fileglob', 'infra_configs/argocd-apps/*.yaml', wantlist=True) }}"
+        definition: "{{ lookup('file', item.path) }}"
+      loop: "{{ hostvars['localhost']['argo_app_files']['files'] }}"
       loop_control:
-        label: "{{ item | basename }}"
+        label: "{{ item.path | basename }}"
