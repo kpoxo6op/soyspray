@@ -92,7 +92,8 @@ dnsmasq:
   staticDhcpEntries: []
   upstreamServers: []
   customDnsEntries: []
-  customSettings: []
+  customSettings:
+    - "192.168.1.1 router.local"
   additionalHostsEntries: []
   customCnameEntries: []
 
@@ -116,3 +117,7 @@ probes:
     enabled: false
   readiness:
     enabled: false
+
+adlists:
+  - https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+  - https://example.com/custom-adlist.txt
