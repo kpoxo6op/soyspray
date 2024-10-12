@@ -118,5 +118,7 @@ probes:
   readiness:
     enabled: false
 
+# https://firebog.net/
 adlists:
   - https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+  - https://raw.githubusercontent.com/PolishFiltersTeam/KADhosts/master/KADhosts.txt

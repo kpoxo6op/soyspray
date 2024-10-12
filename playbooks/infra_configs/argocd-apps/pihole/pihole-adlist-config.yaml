@@ -1,9 +1,0 @@
-# playbooks/infra_configs/argocd-apps/pihole/pihole-adlist-config.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: pihole-adlist-config
-  namespace: pihole
-data:
-  adlists.list: |
-    https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts

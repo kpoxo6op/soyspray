@@ -1,9 +1,0 @@
-# playbooks/infra_configs/argocd-apps/pihole/pihole-dns-config.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: pihole-dns-config
-  namespace: pihole
-data:
-  custom.list: |
-    192.168.1.1 router.local
