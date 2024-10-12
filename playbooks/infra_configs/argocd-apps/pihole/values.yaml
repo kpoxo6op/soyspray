@@ -93,7 +93,7 @@ dnsmasq:
   upstreamServers: []
   customDnsEntries: []
   customSettings:
-    - "192.168.1.1 router.local"
+    - "192.168.1.122 pihole.lan"
   additionalHostsEntries: []
   customCnameEntries: []
 
@@ -120,4 +120,3 @@ probes:
 
 adlists:
   - https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
-  - https://example.com/custom-adlist.txt
