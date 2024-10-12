@@ -1,3 +1,4 @@
+# playbooks/manage-argocd-apps.yml
 ---
 - name: Apply Argo CD Applications - Prepare Namespaces
   hosts: kube_control_plane
@@ -15,7 +16,7 @@
           metadata:
             name: "{{ item }}"
       loop:
-        - pihole  # You can add more namespaces here if needed
+        - pihole  # Add more namespaces here for future applications
       loop_control:
         label: "{{ item }}"
 
@@ -34,9 +35,11 @@
       set_fact:
         argo_filtered_files: "{{ argo_app_files.files | selectattr('path', 'search', '^((?!values.yaml).)*$') | list }}"
 
-    - name: Debug the list of filtered application manifests
-      debug:
-        var: argo_filtered_files | map(attribute='path') | list
+    - name: Pass filtered manifests to remote hosts
+      add_host:
+        name: "{{ item }}"
+        argo_filtered_files: "{{ argo_filtered_files }}"
+      loop: "{{ groups['kube_control_plane'] }}"
 
 - name: Apply Argo CD Applications - Deploy Applications
   hosts: kube_control_plane
@@ -44,18 +47,11 @@
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
   tasks:
-    - name: Read namespace from Application manifest
-      shell: "yq eval '.spec.destination.namespace' {{ item.path }}"
-      register: app_namespace
-      loop: "{{ argo_filtered_files }}"
-      loop_control:
-        label: "{{ item.path | basename }}"
-
     - name: Apply Argo CD Application manifests (deploy per namespace)
       kubernetes.core.k8s:
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
-        namespace: "{{ app_namespace.stdout }}"  # Use namespace from the Application manifest
+        namespace: argocd  # ArgoCD's namespace for managing applications
         definition: "{{ lookup('file', item.path) }}"
       loop: "{{ argo_filtered_files }}"
       loop_control:
