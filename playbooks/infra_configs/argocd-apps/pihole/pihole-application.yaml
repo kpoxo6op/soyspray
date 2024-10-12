@@ -7,14 +7,17 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/MoJo2600/pihole-kubernetes
-    path: charts/pihole
-    targetRevision: pihole-2.26.1
+    repoURL: 'https://github.com/kpoxo6op/pihole-helm.git'
+    targetRevision: main
+    path: '.'
     helm:
+      chart: pihole
+      repoURL: https://mojo2600.github.io/pihole-kubernetes
+      version: 2.26.1
       valueFiles:
         - values.yaml
   destination:
-    server: https://kubernetes.default.svc
+    server: 'https://kubernetes.default.svc'
     namespace: pihole
   syncPolicy:
     automated:
