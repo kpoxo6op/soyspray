@@ -7,15 +7,12 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/kpoxo6op/soyspray.git'
-    targetRevision: work
-    path: playbooks/infra_configs/argocd-apps/pihole
+    repoURL: 'https://mojo2600.github.io/pihole-kubernetes'
+    targetRevision: 2.26.1  # Upstream chart version
+    chart: pihole           # Helm chart name
     helm:
-      chart: pihole
-      repoURL: https://mojo2600.github.io/pihole-kubernetes
-      version: 2.26.1
       valueFiles:
-        - values.yaml
+        - playbooks/infra_configs/argocd-apps/pihole/values.yaml  # Path to your custom values
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: pihole
