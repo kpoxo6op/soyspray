@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://github.com/MoJo2600/pihole-kubernetes
     path: charts/pihole
-    targetRevision: 2.26.1
+    targetRevision: main
     helm:
       valueFiles:
         - values.yaml
