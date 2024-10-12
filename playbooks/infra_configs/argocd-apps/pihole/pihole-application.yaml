@@ -7,12 +7,13 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: 'https://github.com/kpoxo6op/pihole-helm.git'
+    repoURL: 'https://github.com/kpoxo6op/soyspray.git'
     targetRevision: main
-    path: '.'
+    path: playbooks/infra_configs/argocd-apps/pihole  # Path to your values and ConfigMaps
     helm:
       chart: pihole
-      repoURL: https://mojo2600.github.io/pihole-kubernetes
+      repoURL: https://mojo2600.github.io/pihole-kubernetes  # External chart repo
+      version: 2.26.1
       valueFiles:
         - values.yaml
   destination:

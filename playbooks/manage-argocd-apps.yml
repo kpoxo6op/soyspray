@@ -1,4 +1,3 @@
-# playbooks/manage-argocd-apps.yml
 ---
 - name: Apply Argo CD Applications - Prepare Namespaces
   hosts: kube_control_plane
@@ -16,7 +15,7 @@
           metadata:
             name: "{{ item }}"
       loop:
-        - pihole  # Add more namespaces here for future applications
+        - pihole  # You can add more namespaces here if needed
       loop_control:
         label: "{{ item }}"
 
@@ -27,13 +26,17 @@
     - name: Gather Argo CD Application manifests
       find:
         paths: "{{ playbook_dir }}/infra_configs/argocd-apps"
-        patterns: "*-application.yaml"
+        patterns: "*.yaml"
         recurse: yes
       register: argo_app_files
 
-    - name: Debug the list of application manifests found
+    - name: Filter out values.yaml and non-Kubernetes files
+      set_fact:
+        argo_filtered_files: "{{ argo_app_files.files | selectattr('path', 'search', '^((?!values.yaml).)*$') | list }}"
+
+    - name: Debug the list of filtered application manifests
       debug:
-        var: argo_app_files.files | map(attribute='path') | list
+        var: argo_filtered_files | map(attribute='path') | list
 
 - name: Apply Argo CD Applications - Deploy Applications
   hosts: kube_control_plane
@@ -41,12 +44,19 @@
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
   tasks:
-    - name: Apply Argo CD Applications from infra_configs/argocd-apps
+    - name: Read namespace from Application manifest
+      shell: "yq eval '.spec.destination.namespace' {{ item.path }}"
+      register: app_namespace
+      loop: "{{ argo_filtered_files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+
+    - name: Apply Argo CD Application manifests (deploy per namespace)
       kubernetes.core.k8s:
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
-        namespace: argocd
+        namespace: "{{ app_namespace.stdout }}"  # Use namespace from the Application manifest
         definition: "{{ lookup('file', item.path) }}"
-      loop: "{{ hostvars['localhost']['argo_app_files']['files'] }}"
+      loop: "{{ argo_filtered_files }}"
       loop_control:
         label: "{{ item.path | basename }}"
