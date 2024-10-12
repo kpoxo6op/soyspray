@@ -1,4 +1,4 @@
-apiVersion: v1
+apiVersion: v2
 description: Installs pihole in kubernetes
 home: https://github.com/kpoxo6op/pihole-helm
 name: pihole
