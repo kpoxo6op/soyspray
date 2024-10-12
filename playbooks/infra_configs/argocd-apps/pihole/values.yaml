@@ -91,8 +91,8 @@ podDnsConfig:
 dnsmasq:
   staticDhcpEntries: []
   upstreamServers: []
-  customDnsEntries:
-    - "address=/pihole.lan/192.168.1.122"
+  customDnsEntries: []
+    # - address=/pihole.lan/192.168.1.122
   customSettings: []
   additionalHostsEntries: []
   customCnameEntries: []
