@@ -16,43 +16,19 @@
           metadata:
             name: "{{ item }}"
       loop:
-        - pihole  # Add more namespaces here for future applications
+        - pihole
       loop_control:
         label: "{{ item }}"
 
-- name: Apply Argo CD Applications - Gather Manifests
-  hosts: localhost
-  gather_facts: false
-  tasks:
-    - name: Gather Argo CD Application manifests
-      find:
-        paths: "{{ playbook_dir }}/infra_configs/argocd-apps"
-        patterns: "*.yaml"
-        recurse: yes
-      register: argo_app_files
-
-    - name: Filter out values.yaml and non-Kubernetes files
-      set_fact:
-        argo_filtered_files: "{{ argo_app_files.files | selectattr('path', 'search', '^((?!values.yaml).)*$') | list }}"
-
-    - name: Pass filtered manifests to remote hosts
-      add_host:
-        name: "{{ item }}"
-        argo_filtered_files: "{{ argo_filtered_files }}"
-      loop: "{{ groups['kube_control_plane'] }}"
-
-- name: Apply Argo CD Applications - Deploy Applications
+- name: Apply Argo CD Applications - Deploy Application Manifests
   hosts: kube_control_plane
   become: true
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
   tasks:
-    - name: Apply Argo CD Application manifests (deploy per namespace)
+    - name: Apply Argo CD Application manifest (pihole application)
       kubernetes.core.k8s:
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
-        namespace: argocd  # ArgoCD's namespace for managing applications
-        definition: "{{ lookup('file', item.path) }}"
-      loop: "{{ argo_filtered_files }}"
-      loop_control:
-        label: "{{ item.path | basename }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/infra_configs/argocd-apps/pihole/pihole-application.yaml') }}"
