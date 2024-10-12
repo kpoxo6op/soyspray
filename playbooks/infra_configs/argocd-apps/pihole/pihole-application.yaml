@@ -1,4 +1,4 @@
-# playbooks/infra_configs/argocd-apps/pihole-application.yaml
+# playbooks/infra_configs/argocd-apps/pihole/pihole-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -9,13 +9,13 @@ spec:
   source:
     repoURL: https://github.com/MoJo2600/pihole-kubernetes
     path: charts/pihole
-    targetRevision: main
+    targetRevision: pihole-2.26.1
     helm:
       valueFiles:
         - values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: pihole  # Pi-hole will be installed in this namespace
+    namespace: pihole
   syncPolicy:
     automated:
       prune: true
