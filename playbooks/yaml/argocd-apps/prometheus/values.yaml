@@ -1,0 +1,18 @@
+# playbooks/yaml/argocd-apps/prometheus/values.yaml
+
+alertmanager:
+  enabled: true
+  replicas: 2
+
+prometheus:
+  prometheusSpec:
+    replicas: 1
+    retention: 15d
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: local-storage
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 10Gi

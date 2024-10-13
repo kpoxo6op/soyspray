@@ -1,0 +1,25 @@
+# playbooks/yaml/argocd-apps/prometheus/prometheus-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: 'https://prometheus-community.github.io/helm-charts'  # Upstream Helm repo
+      targetRevision: 51.2.0   # Helm chart version for Prometheus
+      chart: kube-prometheus-stack  # Helm chart name
+      helm:
+        valueFiles:
+          - values.yaml  # Local values.yaml file to customize the chart
+    - repoURL: 'https://github.com/kpoxo6op/soyspray.git'  # Your repo for custom manifests
+      targetRevision: work
+      path: playbooks/yaml/argocd-apps/prometheus/custom-resources  # General path for additional custom resources
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: monitoring  # Where Prometheus will be installed
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
