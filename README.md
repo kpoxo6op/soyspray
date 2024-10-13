@@ -2,6 +2,12 @@
 
 Home Cluster created with Kubespray on Soyo miniPCs.
 
+[hosts.yml](kubespray/inventory/soycluster/hosts.yml)
+
+[addons.yml](kubespray/inventory/soycluster/group_vars/k8s_cluster/addons.yml)
+
+[argocd-apps](playbooks/yaml/argocd-apps)
+
 ## Network Configuration
 
 The router DHCP range was updated to 192.168.1.50-192.168.1.99.
