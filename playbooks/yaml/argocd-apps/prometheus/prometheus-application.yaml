@@ -8,7 +8,7 @@ spec:
   project: default
   sources:
     - repoURL: 'https://prometheus-community.github.io/helm-charts'  # Upstream Helm repo
-      targetRevision: 51.2.0   # Helm chart version for Prometheus
+      targetRevision: 65.2.0   # Helm chart version for Prometheus
       chart: kube-prometheus-stack  # Helm chart name
       helm:
         valueFiles:
