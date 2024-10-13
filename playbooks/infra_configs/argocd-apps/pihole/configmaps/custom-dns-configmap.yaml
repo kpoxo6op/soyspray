@@ -9,3 +9,4 @@ data:
   custom.list: |
     192.168.1.122 pihole.lan
     192.168.1.121 argocd.lan
+    192.168.1.120 ingress.lan
