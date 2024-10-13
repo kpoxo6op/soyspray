@@ -3,9 +3,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: pihole-custom-dnsmasq
+  name: custom-dns-configmap
   namespace: pihole
 data:
   02-custom.conf: |
-    192.168.1.122 pihole.test
-    192.168.1.121 argocd.test
+    192.168.1.122 pihole.lan
+    192.168.1.121 argocd.lan
