@@ -1,4 +1,4 @@
-# playbooks/infra_configs/argocd-cmd-params-cm.yaml
+# playbooks/yaml/argocd-cmd-params-cm.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:

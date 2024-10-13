@@ -1,4 +1,4 @@
-# File: playbooks/infra_configs/argocd-apps/pihole/configmaps/custom-dns-configmap.yaml
+# File: playbooks/yaml/argocd-apps/pihole/configmaps/custom-dns-configmap.yaml
 
 apiVersion: v1
 kind: ConfigMap

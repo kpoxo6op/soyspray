@@ -1,4 +1,4 @@
-# playbooks/infra_configs/argocd-apps/pihole/pihole-application.yaml
+# playbooks/yaml/argocd-apps/pihole/pihole-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -12,10 +12,10 @@ spec:
       chart: pihole
       helm:
         valueFiles:
-          - https://raw.githubusercontent.com/kpoxo6op/soyspray/work/playbooks/infra_configs/argocd-apps/pihole/values.yaml  # URL to your custom values.yaml in your GitHub repo
+          - https://raw.githubusercontent.com/kpoxo6op/soyspray/work/playbooks/yaml/argocd-apps/pihole/values.yaml  # URL to your custom values.yaml in your GitHub repo
     - repoURL: 'https://github.com/kpoxo6op/soyspray.git'
       targetRevision: work
-      path: playbooks/infra_configs/argocd-apps/pihole/configmaps
+      path: playbooks/yaml/argocd-apps/pihole/configmaps
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: pihole

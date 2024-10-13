@@ -9,7 +9,7 @@
   tasks:
     - name: Copy the ArgoCD Service manifest to the Kubernetes master node
       ansible.builtin.copy:
-        src: infra_configs/argocd-server-service.yaml
+        src: yaml/argocd-server-service.yaml
         dest: /tmp/argocd-server-service.yaml
 
     - name: Apply the ArgoCD Service manifest via kubectl
@@ -25,7 +25,7 @@
 
     - name: Copy the ArgoCD ConfigMap manifest to the Kubernetes master node
       ansible.builtin.copy:
-        src: infra_configs/argocd-cmd-params-cm.yaml
+        src: yaml/argocd-cmd-params-cm.yaml
         dest: /tmp/argocd-cmd-params-cm.yaml
 
     - name: Apply the ArgoCD ConfigMap via kubectl

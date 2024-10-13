@@ -1,4 +1,4 @@
-# playbooks/infra_configs/argocd-server-service.yaml
+# playbooks/yaml/argocd-server-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
