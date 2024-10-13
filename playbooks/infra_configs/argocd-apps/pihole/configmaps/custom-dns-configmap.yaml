@@ -6,6 +6,6 @@ metadata:
   name: custom-dns-configmap
   namespace: pihole
 data:
-  02-custom.conf: |
+  custom.list: |
     192.168.1.122 pihole.lan
     192.168.1.121 argocd.lan
