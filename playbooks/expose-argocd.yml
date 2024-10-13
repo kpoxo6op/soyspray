@@ -1,3 +1,4 @@
+# playbooks/expose-argocd.yml
 ---
 - name: Common tasks for every playbook
   import_playbook: ../kubespray/playbooks/boilerplate.yml
@@ -37,3 +38,12 @@
     - name: Output the result of kubectl apply for the config map
       debug:
         var: apply_configmap_result.stdout
+
+    - name: Restart the ArgoCD server deployment
+      ansible.builtin.command:
+        cmd: kubectl rollout restart deployment argocd-server -n argocd
+      register: restart_deployment_result
+
+    - name: Output the result of ArgoCD server deployment restart
+      debug:
+        var: restart_deployment_result.stdout
