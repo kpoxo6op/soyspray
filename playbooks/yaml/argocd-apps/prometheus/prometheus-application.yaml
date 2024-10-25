@@ -7,18 +7,18 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: 'https://prometheus-community.github.io/helm-charts'  # Upstream Helm repo
-      targetRevision: 65.2.0   # Helm chart version for Prometheus
-      chart: kube-prometheus-stack  # Helm chart name
+    - repoURL: 'https://prometheus-community.github.io/helm-charts'
+      targetRevision: 65.2.0
+      chart: kube-prometheus-stack
       helm:
         valueFiles:
-          - values.yaml  # Local values.yaml file to customize the chart
-    - repoURL: 'https://github.com/kpoxo6op/soyspray.git'  # Your repo for custom manifests
+          - values.yaml
+    - repoURL: 'https://github.com/kpoxo6op/soyspray.git'
       targetRevision: work
-      path: playbooks/yaml/argocd-apps/prometheus/custom-resources  # General path for additional custom resources
+      path: playbooks/yaml/argocd-apps/prometheus/custom-resources
   destination:
     server: 'https://kubernetes.default.svc'
-    namespace: monitoring  # Where Prometheus will be installed
+    namespace: monitoring
   syncPolicy:
     automated:
       prune: true
