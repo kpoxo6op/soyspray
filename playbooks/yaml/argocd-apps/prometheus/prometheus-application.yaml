@@ -23,11 +23,3 @@ spec:
     automated:
       prune: true
       selfHeal: true
-  syncOptions:
-    - ServerSideApply=true
-    - CreateNamespace=true
-  ignoreDifferences:
-    - group: monitoring.coreos.com
-      kind: ServiceMonitor
-      jqPathExpressions:
-      - .spec.endpoints[]?.relabelings[]?.action
