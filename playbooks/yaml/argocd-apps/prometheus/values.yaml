@@ -2,7 +2,7 @@
 
 alertmanager:
   enabled: true
-  replicas: 2
+  replicas: 1
 
 prometheus:
   prometheusSpec:
@@ -18,7 +18,6 @@ prometheus:
               storage: 10Gi
 
 grafana:
-  enabled: true
   service:
     type: LoadBalancer
     loadBalancerIP: 192.168.1.123
