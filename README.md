@@ -151,3 +151,74 @@ kubeconform -h
 ```sh
 kubeconform -summary -schema-location default -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/refs/heads/main/argoproj.io/application_v1alpha1.json' playbooks/yaml/argocd-apps/prometheus/prometheus-application.yaml
 ```
+
+## Check rendered charts
+
+```sh
+helm template prometheus-stack prometheus-community/kube-prometheus-stack -f playbooks/yaml/argocd-apps/prometheus/values.yaml > rendered.yaml
+
+---
+# Source: kube-prometheus-stack/charts/grafana/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-stack-grafana
+  namespace: default
+  labels:
+    helm.sh/chart: grafana-8.5.2
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: prometheus-stack
+    app.kubernetes.io/version: "11.2.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.1.123
+  ports:
+    - name: http-web
+      port: 80
+      protocol: TCP
+      targetPort: 3000
+  selector:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: prometheus-stack
+---
+```
+
+```sh
+kubectl get svc prometheus-grafana -n monitoring -oyaml
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2024-10-26T04:09:08Z"
+  labels:
+    app.kubernetes.io/instance: prometheus
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/version: 11.2.2-security-01
+    helm.sh/chart: grafana-8.5.8
+  name: prometheus-grafana
+  namespace: monitoring
+  resourceVersion: "3893040"
+  uid: 6ed00623-259d-4151-8b76-d61ada293e65
+spec:
+  clusterIP: 10.233.35.73
+  clusterIPs:
+  - 10.233.35.73
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  loadBalancerIP: 192.168.1.123
+  ports:
+  - name: http-web
+    port: 80
+    protocol: TCP
+    targetPort: 3000
+  selector:
+    app.kubernetes.io/instance: prometheus
+    app.kubernetes.io/name: grafana
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}
+```

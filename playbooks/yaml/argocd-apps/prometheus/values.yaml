@@ -1,9 +1,4 @@
 # playbooks/yaml/argocd-apps/prometheus/values.yaml
-
-alertmanager:
-  enabled: true
-  replicas: 1
-
 prometheus:
   prometheusSpec:
     replicas: 1
