@@ -6,16 +6,16 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  sources:
-    - repoURL: 'https://prometheus-community.github.io/helm-charts'
-      targetRevision: 65.5.0
+  source:
+    repoURL: 'https://github.com/kpoxo6op/soyspray.git'
+    targetRevision: work
+    path: playbooks/yaml/argocd-apps/prometheus
+    helm:
       chart: kube-prometheus-stack
-      helm:
-        valueFiles:
-          - values.yaml
-    - repoURL: 'https://github.com/kpoxo6op/soyspray.git'
-      targetRevision: work
-      path: playbooks/yaml/argocd-apps/prometheus/custom-resources
+      repoURL: 'https://prometheus-community.github.io/helm-charts'
+      targetRevision: 65.5.0
+      valueFiles:
+        - values.yaml
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: monitoring
