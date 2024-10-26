@@ -19,12 +19,6 @@ prometheus:
 
 prometheusOperator:
   createCustomResource: true
-  admissionWebhooks:
-    failurePolicy: Ignore
-
-prometheus-node-exporter:
-  hostRootFsMount:
-    enabled: false
 
 grafana:
   service:
