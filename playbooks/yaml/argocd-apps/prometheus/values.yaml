@@ -21,6 +21,8 @@ prometheusOperator:
   createCustomResource: true
 
 grafana:
+  enabled: true
   service:
+    enabled: true
     type: LoadBalancer
     loadBalancerIP: 192.168.1.123
