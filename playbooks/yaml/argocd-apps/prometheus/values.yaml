@@ -17,13 +17,8 @@ prometheus:
             requests:
               storage: 10Gi
 
-prometheusOperator:
-  createCustomResource: true
-
 grafana:
   enabled: true
   service:
     type: LoadBalancer
     loadBalancerIP: 192.168.1.123
-    port: 80
-    targetPort: 3000
