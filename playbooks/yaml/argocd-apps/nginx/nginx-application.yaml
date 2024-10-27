@@ -15,7 +15,7 @@ spec:
     #     replicaCount: 5
       parameters:
         - name: replicaCount
-          value: "5"
+          value: "1"
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: nginx
