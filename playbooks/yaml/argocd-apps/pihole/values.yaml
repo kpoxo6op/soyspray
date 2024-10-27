@@ -14,7 +14,7 @@ persistentVolumeClaim:
   storageClass: local-storage
   size: 500Mi
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
 
 extraVolumes:
   dnsmasq-conf:
