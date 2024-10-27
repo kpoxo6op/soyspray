@@ -11,11 +11,11 @@ spec:
     chart: nginx
     targetRevision: '15.0.0'
     helm:
-      valuesObject:
-        replicaCount: 5
-    #   parameters:
-    #     - name: replicaCount
-    #       value: "4"
+    #   valuesObject:
+    #     replicaCount: 5
+      parameters:
+        - name: replicaCount
+          value: "5"
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: nginx
