@@ -132,3 +132,4 @@ probes:
 adlists:
   - https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
   - https://raw.githubusercontent.com/PolishFiltersTeam/KADhosts/master/KADhosts.txt
+  - https://v.firebog.net/hosts/static/w3kbl.txt
