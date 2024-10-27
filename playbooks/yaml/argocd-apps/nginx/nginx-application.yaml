@@ -11,36 +11,9 @@ spec:
     chart: nginx
     targetRevision: '15.0.0'
     helm:
-      values: |-
-        replicaCount: 2
-
-        image:
-          tag: 1.21.6-debian-10-r0
-
-        service:
-          type: LoadBalancer
-          port: 80
-
-        ingress:
-          enabled: false
-
-        resources:
-          limits:
-            cpu: 100m
-            memory: 128Mi
-          requests:
-            cpu: 100m
-            memory: 128Mi
-
-        livenessProbe:
-          enabled: true
-          initialDelaySeconds: 30
-          periodSeconds: 10
-
-        readinessProbe:
-          enabled: true
-          initialDelaySeconds: 5
-          periodSeconds: 10
+      parameters:
+        - name: replicaCount
+          value: "2"
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: nginx
