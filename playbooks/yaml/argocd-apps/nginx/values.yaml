@@ -1,2 +1,2 @@
 # playbooks/yaml/argocd-apps/nginx/values.yaml
-replicaCount: 2
+replicaCount: 5
