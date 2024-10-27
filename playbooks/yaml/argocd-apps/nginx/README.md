@@ -15,3 +15,5 @@ Push changes to remote
 ```sh
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/manage-argocd-apps.yml --tags nginx
 ```
+
+Synced automatically, replica count updated.
