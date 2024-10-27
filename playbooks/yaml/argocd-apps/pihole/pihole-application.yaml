@@ -6,17 +6,16 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  source:
-    repoURL: 'https://github.com/kpoxo6op/soyspray.git'
-    targetRevision: work
-    path: playbooks/yaml/argocd-apps/pihole
-    helm:
-      chart: pihole
-      repoURL: 'https://mojo2600.github.io/pihole-kubernetes'
+  sources:
+    - repoURL: 'https://mojo2600.github.io/pihole-kubernetes'
       targetRevision: 2.26.1
-      valueFiles:
-        - values.yaml
-    chart: pihole
+      chart: pihole
+      helm:
+        valueFiles:
+          - https://raw.githubusercontent.com/kpoxo6op/soyspray/work/playbooks/yaml/argocd-apps/pihole/values.yaml  # URL to your custom values.yaml in your GitHub repo
+    - repoURL: 'https://github.com/kpoxo6op/soyspray.git'
+      targetRevision: work
+      path: playbooks/yaml/argocd-apps/pihole/configmaps
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: pihole
