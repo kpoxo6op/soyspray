@@ -19,4 +19,4 @@ grafana:
   adminPassword: '123'
 
   image:
-    tag: 11.3.0-ubuntu
+    tag: 11.3.0
