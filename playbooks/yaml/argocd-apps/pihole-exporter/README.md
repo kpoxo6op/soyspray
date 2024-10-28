@@ -17,3 +17,5 @@ left ear
 right ear
 
 `curl http://localhost:9617/metrics`
+
+kustomization is work in progress

@@ -14,11 +14,8 @@ spec:
       targetRevision: master
       path: '.'
       helm:
-        releaseName: pihole-exporter
-    - repoURL: 'https://github.com/kpoxo6op/soyspray'
-      targetRevision: work
-      path: playbooks/yaml/argocd-apps/pihole-exporter
-      kustomize: {}
+        valueFiles:
+          - playbooks/yaml/argocd-apps/pihole-exporter/values.yaml
   syncPolicy:
     automated:
       prune: true
