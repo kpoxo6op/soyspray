@@ -7,8 +7,7 @@ helmCharts:
     version: 65.5.0
     repo: https://prometheus-community.github.io/helm-charts
     releaseName: prometheus
-    valuesFiles:
-      - values.yaml
+    valuesFile: values.yaml
 
 resources:
   - custom-resources/
