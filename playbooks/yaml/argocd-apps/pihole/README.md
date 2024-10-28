@@ -1,6 +1,11 @@
 # pihole
 
-includes list of local DNS and ad filters source from configmaps
+Includes list of local DNS and ad filters source from configmaps
+
+## Helm Inflate
+
+Uses Helm inflate to apply configmap and values. Could not male  Kustomize
+post-renderer work, rolled back.
 
 ## Custom DNS list
 
