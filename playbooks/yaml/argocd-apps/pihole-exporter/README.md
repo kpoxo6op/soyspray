@@ -18,4 +18,6 @@ right ear
 
 `curl http://localhost:9617/metrics`
 
-kustomization is work in progress
+NOT WORKING YET
+
+pure deployment or helm/kustomization is work in progress
