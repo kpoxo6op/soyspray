@@ -6,9 +6,4 @@ Prometheus and Grafana
 
 Uses Helm Inflate to apply values and custom resources.
 
-looks like it fully works in pihole app - custom configmaps and values are
-applied automatically.
-
-custom resources seem to work in prometheus
-
-`playbooks/yaml/argocd-apps/prometheus/values.yaml` are not applied in prometheus
+Testing setting grafana replicas to 2 and waiting for ArgoCD to do the sync.
