@@ -14,7 +14,7 @@ cat /etc/pihole/custom.list
 
 ## Adlists
 
-See what lists the pod uses. Note how the pod did not pick up the last added entry
+See what lists the pod uses. Note how the pod did not pick up the last added entry `w3kbl.txt`
 
 ```sh
 sqlite3 /etc/pihole/gravity.db "SELECT * FROM adlist"
