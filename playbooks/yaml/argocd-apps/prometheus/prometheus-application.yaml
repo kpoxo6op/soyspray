@@ -1,4 +1,4 @@
-# playbooks/yaml/argocd-apps/prometheus/prometheus-application.yaml
+# playbooks/yaml/argocd-apps/prometheus/application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -6,23 +6,17 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  sources:
-    - repoURL: 'https://prometheus-community.github.io/helm-charts'
-      targetRevision: 65.5.0
-      chart: kube-prometheus-stack
-      helm:
-        valueFiles:
-          - https://raw.githubusercontent.com/kpoxo6op/soyspray/work/playbooks/yaml/argocd-apps/prometheus/values.yaml
-    - repoURL: 'https://github.com/kpoxo6op/soyspray.git'
-      targetRevision: work
-      path: playbooks/yaml/argocd-apps/prometheus/custom-resources
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: monitoring
+  source:
+    repoURL: 'https://github.com/kpoxo6op/soyspray.git'
+    targetRevision: work
+    path: playbooks/yaml/argocd-apps/prometheus
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-    - ServerSideApply=true
-    - CreateNamespace=true
+      - ServerSideApply=true
+      - CreateNamespace=true

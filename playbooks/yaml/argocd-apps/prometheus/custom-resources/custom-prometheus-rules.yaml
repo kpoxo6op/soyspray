@@ -1,5 +1,4 @@
 # playbooks/yaml/argocd-apps/prometheus/custom-resources/custom-prometheus-rules.yaml
-
 apiVersion: v1
 kind: ConfigMap
 metadata:
