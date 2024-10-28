@@ -13,7 +13,8 @@ data:
       - name: custom-rules
         rules:
           - alert: HighMemoryUsage
-            expr: node_memory_Active_bytes > 85 * 1024 * 1024 * 1024  # 85GB of active memory
+            # 85GB of active memory
+            expr: node_memory_Active_bytes > 85 * 1024 * 1024 * 1024
             for: 5m
             labels:
               severity: warning
