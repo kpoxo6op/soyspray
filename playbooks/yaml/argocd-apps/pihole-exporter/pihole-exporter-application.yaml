@@ -1,0 +1,27 @@
+# playbooks/yaml/argocd-apps/pihole-exporter/pihole-exporter-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pihole-exporter
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: pihole
+  source:
+    repoURL: 'https://github.com/ben-kemister/pihole-exporter-helm-chart'
+    targetRevision: master
+    path: .
+    helm:
+      parameters:
+        - name: serviceMonitor.enable
+          value: "true"
+        - name: secret.secretEnvVars.PIHOLE_PASSWORD
+          value: "admin"
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
