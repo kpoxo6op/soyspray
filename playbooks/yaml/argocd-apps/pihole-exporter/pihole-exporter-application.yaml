@@ -9,16 +9,16 @@ spec:
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: pihole
-  source:
-    repoURL: 'https://github.com/ben-kemister/pihole-exporter-helm-chart'
-    targetRevision: master
-    path: .
-    helm:
-      parameters:
-        - name: serviceMonitor.enable
-          value: "true"
-        - name: secret.secretEnvVars.PIHOLE_PASSWORD
-          value: "admin"
+  sources:
+    - repoURL: 'https://github.com/ben-kemister/pihole-exporter-helm-chart'
+      targetRevision: master
+      path: '.'
+      helm:
+        releaseName: pihole-exporter
+    - repoURL: 'https://github.com/kpoxo6op/soyspray'
+      targetRevision: work
+      path: playbooks/yaml/argocd-apps/pihole-exporter
+      kustomize: {}
   syncPolicy:
     automated:
       prune: true

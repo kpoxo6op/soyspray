@@ -7,3 +7,13 @@ Prometheus exporter for Pihole
 `Raw API Token: 9xxxxxxxxxxxxxREDACTEDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxbb`
 
 Trying using current Pihole password for now.
+
+## Check the Exporter
+
+left ear
+
+`kubectl port-forward svc/pihole-exporter -n pihole 9617:9617`
+
+right ear
+
+`curl http://localhost:9617/metrics`
