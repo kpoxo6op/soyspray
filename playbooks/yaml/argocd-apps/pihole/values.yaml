@@ -2,7 +2,7 @@
 webHttp: "80"
 webHttps: "443"
 
-replicaCount: 2
+replicaCount: 1
 strategyType: RollingUpdate
 hostNetwork: false
 hostname: ""
