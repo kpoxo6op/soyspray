@@ -6,3 +6,6 @@
 
 - import_playbook: playbooks/expose-argocd.yml
   tags: expose-argocd
+
+- import_playbook: playbooks/enable-kustomize-argocd.yml
+  tags: enable-kustomize-argocd
