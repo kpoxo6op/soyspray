@@ -9,7 +9,7 @@ spec:
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: monitoring
-  source:
+  sources:
     - repoURL: 'https://github.com/kpoxo6op/soyspray.git'
       targetRevision: work
       path: playbooks/yaml/argocd-apps/prometheus
