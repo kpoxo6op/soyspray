@@ -1,0 +1,15 @@
+# playbooks/hello-soy.yml
+---
+- name: Common tasks for every playbook
+  import_playbook: ../kubespray/playbooks/boilerplate.yml
+
+- name: Soy Hello 
+  hosts: etcd:k8s_cluster:calico_rr
+  gather_facts: false
+  become: yes
+  become_user: root
+  serial: 1
+  tasks:
+    - name: Print Hello Soy
+      ansible.builtin.command:
+        cmd: echo "Hello Soy"

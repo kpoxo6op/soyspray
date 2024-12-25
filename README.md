@@ -48,18 +48,25 @@ node-2   Ready    <none>          81d   v1.31.1
 Venv
 
 ```sh
-cd kubespray
 sudo apt-get install python3-pip python3.12-venv -y
 python3 -m venv soyspray-venv
 source soyspray-venv/bin/activate
+cd kubespray
 pip install -U -r requirements.txt
 ```
 
-Kubespray Runbook
+Run Kubespray Runbook
 
 ```sh
 cd kubespray
 ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu cluster.yml --tags apps
+```
+
+Run Soyspray Runbook
+
+```sh
+cd soyspray
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/hello-soy.yml
 ```
 
 ## Bookmarks
