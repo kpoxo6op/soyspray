@@ -66,7 +66,7 @@ Run Soyspray Runbook
 
 ```sh
 cd soyspray
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/hello-soy.yml
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/expose-argocd.yml
 ```
 
 ## Bookmarks
