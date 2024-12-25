@@ -45,6 +45,23 @@ node-1   Ready    control-plane   81d   v1.31.1
 node-2   Ready    <none>          81d   v1.31.1
 ```
 
+Venv
+
+```sh
+cd kubespray
+sudo apt-get install python3-pip python3.12-venv -y
+python3 -m venv soyspray-venv
+source soyspray-venv/bin/activate
+pip install -U -r requirements.txt
+```
+
+Kubespray Runbook
+
+```sh
+cd kubespray
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu cluster.yml --tags apps
+```
+
 ## Bookmarks
 
 [hosts.yml](kubespray/inventory/soycluster/hosts.yml)
