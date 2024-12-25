@@ -39,3 +39,13 @@ kubectl delete pvc pihole  -n pihole
 kubectl patch pvc pihole -n pihole -p '{"metadata":{"finalizers":null}}'
 kubectl delete po pihole-9f9f9d8f7-8p48t -n pihole
 ```
+
+## `Switch-DNS`
+
+Toggle DNS between Pi-hole and default on Windows.
+
+```powershell
+code $PROFILE
+. $PROFILE
+Switch-DNS -WhatIf
+```
