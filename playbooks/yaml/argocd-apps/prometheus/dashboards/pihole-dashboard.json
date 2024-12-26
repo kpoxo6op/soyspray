@@ -20,7 +20,7 @@
     "editable": true,
     "fiscalYearStartMonth": 0,
     "graphTooltip": 0,
-    "id": 31,
+    "id": 32,
     "links": [],
     "panels": [
       {
@@ -1226,6 +1226,7 @@
         "fieldConfig": {
           "defaults": {
             "custom": {
+              "align": "auto",
               "cellOptions": {
                 "type": "auto"
               },
@@ -1524,7 +1525,9 @@
     "preload": false,
     "refresh": "",
     "schemaVersion": 40,
-    "tags": [],
+    "tags": [
+      "pihole"
+    ],
     "templating": {
       "list": [
         {
@@ -1552,8 +1555,8 @@
       "nowDelay": ""
     },
     "timezone": "",
-    "title": "Pi-hole Exporter manual exported",
-    "uid": "Pi-hole-Exporter-manual-exported",
+    "title": "Pi-hole Exporter",
+    "uid": "Pi-hole-Exporter",
     "version": 1,
     "weekStart": ""
   }
