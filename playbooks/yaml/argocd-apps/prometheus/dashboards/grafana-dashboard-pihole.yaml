@@ -8,4 +8,40 @@ metadata:
     grafana_dashboard: "1" # Sidecar will load dashboards with this label
 data:
   pihole-dashboard.json: |
-    # Paste the JSON content here
+    {
+      "title": "Pi-hole Basic Dashboard",
+      "panels": [
+        {
+          "title": "Pi-hole Status",
+          "type": "stat",
+          "gridPos": { "h": 3, "w": 6, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "pihole_status",
+              "format": "time_series",
+              "legendFormat": "Status",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "steps": [
+                  { "color": "red", "value": 0 },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "time": {
+        "from": "now-15m",
+        "to": "now"
+      },
+      "schemaVersion": 39,
+      "version": 1
+    }
