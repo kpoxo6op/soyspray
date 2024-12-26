@@ -1,59 +1,50 @@
 # Prometheus and Grafana Setup
 
-Custom Scrape Jobs defined in Kubernetes Secrets and referenced in Prometheus
-  values.
+This setup uses Prometheus to scrape metrics and Grafana to visualize them.
 
-`values.yaml`
+## Prometheus Configuration
 
-```yaml
-prometheus:
-  prometheusSpec:
-    replicas: 1
-    retention: 15d
-    storageSpec:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: local-storage
-          accessModes: ["ReadWriteOnce"]
-          resources:
-            requests:
-              storage: 10Gi
-    additionalScrapeConfigs:
-      name: additional-scrape-configs
-      key: additional-scrape-configs.yaml
-```
+Prometheus uses a Kubernetes Secret to define custom scrape jobs. This is
+referenced in the Prometheus Helm chart's `values.yaml`.
 
-How It Works
-
-Prometheus scrape jobs are stored in a Kubernetes
+A Secret named `additional-scrape-configs` in the monitoring namespace stores
+these scrape job configurations.
 
 ```yaml
 apiVersion: v1
 kind: Secret
 metadata:
-    name: additional-scrape-configs
-    namespace: monitoring
-    labels:
-    app.kubernetes.io/managed-by: argo-cd
+  name: additional-scrape-configs
+  namespace: monitoring
 stringData:
-    additional-scrape-configs.yaml: |
+  additional-scrape-configs.yaml: |
     - job_name: 'pihole-exporter'
-        scrape_interval: 15s
-        metrics_path: /metrics
-        static_configs:
+      scrape_interval: 15s
+      metrics_path: /metrics
+      static_configs:
         - targets:
             - "pihole-exporter.pihole.svc.cluster.local:9617"
 ```
 
-Prometheus Links the Secret referenced in `values.yaml` under
-   `additionalScrapeConfigs`.
+The Prometheus configuration in `values.yaml` points to this Secret.
+
+```yaml
+prometheus:
+  prometheusSpec:
+    additionalScrapeConfigs:
+      name: additional-scrape-configs
+      key: additional-scrape-configs.yaml
+```
 
 ## Grafana Configuration
 
-Sidecar for Dashboards loads dashboards dynamically from ConfigMaps based on a
-label.
+Grafana uses a sidecar container for dashboards which loads them dynamically
+from ConfigMaps.
 
-`values.yaml`
+The sidecar searches for ConfigMaps in the `monitoring` namespace with the label
+`grafana_dashboard: "1"`.
+
+Grafana's `values.yaml` includes settings for the sidecar.
 
 ```yaml
 grafana:
@@ -67,15 +58,11 @@ grafana:
   adminPassword: 'admin'
   image:
     tag: 11.3.0
-  namespace: monitoring
-  labels:
-    grafana_dashboard: "1"
 ```
 
-The sidecar watches for ConfigMaps in the `monitoring` namespace labeled with
-   `grafana_dashboard: "1"`.
-
-ConfigMap Example
+A ConfigMap, like `grafana-dashboard-pihole`, contains the Grafana dashboard
+JSON and uses the required label. This ConfigMap is generated using Kustomize's
+`configMapGenerator`.
 
 ```yaml
 apiVersion: v1
@@ -90,33 +77,4 @@ data:
     { ...JSON dashboard definition... }
 ```
 
-Any matching ConfigMap created or updated is loaded automatically by the
-   sidecar.
-
-```text
-
-Prometheus                             Grafana
-
-+--values.yaml-------+                  +--------------------+
-| Prometheus Config  |                  | Grafana Config     |
-| - Retention: 15d   |                  | - Sidecar enabled  |
-| - Storage: Local   |                  | - Label: dashboard |
-| - Scrape configs   |                  | - LoadBalancer IP  |
-+--------------------+                  +--------------------+
-          |                                        |
-          v                                        v
-+additional-scrape-configs-+            +--------------------+
-| Kubernetes Secret  |                  | grafana-dashboard-pihole ConfigMap |
-| - Stores scrape    |                  | - Dashboard JSON   |
-|   job configs      |                  | - Label: dashboard |
-| - Target: pihole   |                  +--------------------+
-+--------------------+                            |
-          |                                        |
-          v                                        v
-+--values.yaml-------+                  +--------------------+
-| Prometheus         | <-- Connects --> | Grafana           |
-| - Collects metrics |                  | - Visualizes data |
-| - Exposes data     |                  | - Sidecar loads   |
-+--------------------+                  |   dashboards      |
-                                        +--------------------+
-```
+Grafana's sidecar loads any matching ConfigMap when it's created or updated.
