@@ -1,0 +1,12 @@
+# playbooks/yaml/argocd-apps/pihole/ftl-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ftl-configmap
+  namespace: pihole
+data:
+  pihole-FTL.conf: |
+    #; Pi-hole FTL config file
+    MACVENDORDB=/macvendor.db
+    LOCAL_IPV4=0.0.0.0
+    CHECK_LOAD=false

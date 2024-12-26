@@ -20,11 +20,17 @@ extraVolumes:
   dnsmasq-conf:
     configMap:
       name: custom-dns-configmap
+  ftl-config:
+    configMap:
+      name: ftl-configmap
 
 extraVolumeMounts:
   dnsmasq-conf:
     mountPath: /etc/pihole/custom.list
     subPath: custom.list
+  ftl-config:
+    mountPath: /etc/pihole/pihole-FTL.conf
+    subPath: pihole-FTL.conf
 
 serviceWeb:
   loadBalancerIP: 192.168.1.122
