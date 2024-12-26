@@ -13,3 +13,4 @@ helmCharts:
 
 resources:
   - custom-prometheus-rules.yaml
+  - dashboards/grafana-dashboard-pihole.yaml

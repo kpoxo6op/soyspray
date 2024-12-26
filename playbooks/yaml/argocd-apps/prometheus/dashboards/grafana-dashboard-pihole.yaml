@@ -1,0 +1,11 @@
+# playbooks/yaml/argocd-apps/prometheus/dashboards/grafana-dashboard-pihole.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-pihole
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1" # Sidecar will load dashboards with this label
+data:
+  pihole-dashboard.json: |
+    # Paste the JSON content here
