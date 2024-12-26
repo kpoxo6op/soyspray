@@ -11,6 +11,14 @@ helmCharts:
     releaseName: prometheus
     valuesFile: values.yaml
 
+configMapGenerator:
+  - name: grafana-dashboard-pihole
+    namespace: monitoring
+    labels:
+      grafana_dashboard: "1"
+    files:
+      - pihole-dashboard.json=dashboards/pihole-dashboard.json
+
 resources:
   - custom-prometheus-rules.yaml
-  - dashboards/grafana-dashboard-pihole.yaml
+  - additional-scrape-configs.yaml
