@@ -20,13 +20,11 @@ resources:
   - custom-prometheus-rules.yaml
   - additional-scrape-configs.yaml
 
-patches:
-  - target:
-      kind: ConfigMap
+patchesStrategicMerge:
+  - |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
       name: grafana-dashboard-pihole
-    patch: |-
-      apiVersion: v1
-      kind: ConfigMap
-      metadata:
-        labels:
-          grafana_dashboard: "1"
+      labels:
+        grafana_dashboard: "1"
