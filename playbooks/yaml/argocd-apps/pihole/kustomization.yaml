@@ -10,4 +10,3 @@ helmCharts:
 
 resources:
   - custom-dns-configmap.yaml
-  - ftl-configmap.yaml
