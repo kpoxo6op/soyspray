@@ -21,3 +21,9 @@ right ear
 NOT WORKING YET
 
 pure deployment or helm/kustomization is work in progress
+
+Manual patch to remove finalizers
+
+```sh
+kubectl patch application pihole-exporter -n argocd --type=json --patch='[{"op": "remove", "path": "/metadata/finalizers"}]'
+```

@@ -6,16 +6,14 @@ metadata:
   namespace: argocd
 spec:
   project: default
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: work
+    path: playbooks/yaml/argocd-apps/pihole-exporter
+    kustomize:
   destination:
-    server: 'https://kubernetes.default.svc'
+    server: https://kubernetes.default.svc
     namespace: pihole
-  sources:
-    - repoURL: 'https://github.com/ben-kemister/pihole-exporter-helm-chart'
-      targetRevision: master
-      path: '.'
-      helm:
-        valueFiles:
-          - playbooks/yaml/argocd-apps/pihole-exporter/values.yaml
   syncPolicy:
     automated:
       prune: true
