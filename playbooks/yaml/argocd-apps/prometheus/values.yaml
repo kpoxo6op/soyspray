@@ -18,6 +18,9 @@ prometheus:
       key: additional-scrape-configs.yaml
 
 grafana:
+  grafana.ini:
+    date:
+      default_timezone: "Pacific/Auckland"
   sidecar:
     dashboards:
       enabled: true
