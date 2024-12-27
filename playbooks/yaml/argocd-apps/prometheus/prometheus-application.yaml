@@ -11,7 +11,7 @@ spec:
     namespace: monitoring
   sources:
     - repoURL: 'https://github.com/kpoxo6op/soyspray.git'
-      targetRevision: '1.0.0'
+      targetRevision: 'v1.0.0'
       path: playbooks/yaml/argocd-apps/prometheus
       kustomize:
   syncPolicy:
