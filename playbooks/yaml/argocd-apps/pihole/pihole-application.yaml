@@ -1,0 +1,22 @@
+# playbooks/yaml/argocd-apps/pihole/pihole-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pihole
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: pihole
+  sources:
+    - repoURL: 'https://github.com/kpoxo6op/soyspray.git'
+      targetRevision: work
+      path: playbooks/yaml/argocd-apps/pihole
+      kustomize:
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

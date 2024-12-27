@@ -1,0 +1,27 @@
+# playbooks/yaml/argocd-apps/nginx/nginx-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: 'https://charts.bitnami.com/bitnami'
+      chart: nginx
+      targetRevision: '15.0.0'
+      helm:
+        valueFiles:
+        - $values/playbooks/yaml/argocd-apps/nginx/values.yaml
+    - repoURL: 'https://github.com/kpoxo6op/soyspray.git'
+      targetRevision: work
+      ref: values
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: nginx
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true

@@ -1,0 +1,16 @@
+# playbooks/yaml/argocd-apps/prometheus/additional-scrape-configs.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: additional-scrape-configs
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/managed-by: argo-cd
+stringData:
+  additional-scrape-configs.yaml: |
+    - job_name: 'pihole-exporter'
+      scrape_interval: 15s
+      metrics_path: /metrics
+      static_configs:
+        - targets:
+            - "pihole-exporter.pihole.svc.cluster.local:9617"

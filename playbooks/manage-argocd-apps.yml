@@ -1,0 +1,68 @@
+# playbooks/manage-argocd-apps.yml
+---
+- name: Apply Argo CD Applications - Prepare Namespaces
+  hosts: kube_control_plane
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Ensure namespaces exist for Argo CD Applications
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: "{{ item }}"
+      loop:
+        - pihole
+        - monitoring
+      loop_control:
+        label: "{{ item }}"
+
+- name: Apply Argo CD Applications - Deploy Application Manifests
+  hosts: kube_control_plane
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Apply Argo CD Application manifest (pihole application)
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/pihole/pihole-application.yaml') }}"
+      tags: pihole
+
+    - name: Apply Argo CD Application manifest (Pihole Exporter application)
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/pihole-exporter/pihole-exporter-application.yaml') }}"
+      tags: pihole-exporter
+
+    - name: Apply Argo CD Application manifest (prometheus application)
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prometheus/prometheus-application.yaml') }}"
+      tags: prometheus
+
+    - name: Apply Argo CD Application manifest (nginx application)
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/nginx/nginx-application.yaml') }}"
+      tags: nginx
+
+    - name: Apply Argo CD Application manifest (Pi-hole Exporter application)
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/pihole-exporter/pihole-exporter-application.yaml') }}"
+      tags: pihole-exporter

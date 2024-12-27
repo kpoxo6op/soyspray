@@ -1,0 +1,12 @@
+# File: playbooks/yaml/argocd-apps/pihole/configmaps/custom-dns-configmap.yaml
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: custom-dns-configmap
+  namespace: pihole
+data:
+  custom.list: |
+    192.168.1.123 grafana.lan
+    192.168.1.122 pihole.lan
+    192.168.1.121 argocd.lan

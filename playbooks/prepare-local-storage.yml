@@ -1,0 +1,76 @@
+# Ansible Playbook: prepare-local-storage.yml
+# This playbook automates the preparation of local storage directories for the
+# Local Static Storage Provisioner in Kubernetes.
+
+- name: Common tasks for every playbook
+  import_playbook: ../kubespray/playbooks/boilerplate.yml
+
+- name: Prepare local storage for Local Static Provisioner
+  hosts: all
+  become: yes
+  gather_facts: true
+  vars:
+    local_volumes:
+      - vol1  # You can adjust this to have only one volume or more
+    local_storage_base_dir: /mnt/disks
+    storage_usage_percentage: 80
+  tasks:
+    - name: Get available disk space on the node
+      shell: |
+        df --output=avail -BG "{{ local_storage_base_dir }}" | tail -n 1 | tr -d 'G'
+      register: available_disk_space
+      changed_when: false
+      tags: storage
+
+    - name: Calculate usable disk space
+      set_fact:
+        usable_disk_space: "{{ (available_disk_space.stdout | int) * storage_usage_percentage // 100 }}Gi"
+      tags: storage
+
+    - name: Log usable disk space
+      debug:
+        msg: "Usable disk space on node: {{ usable_disk_space }}"
+      tags: storage
+
+    - name: Create base directory for local storage
+      file:
+        path: "{{ local_storage_base_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      tags: storage
+
+    - name: Create local volume directories
+      loop: "{{ local_volumes }}"
+      loop_control:
+        loop_var: volume
+      file:
+        path: "{{ local_storage_base_dir }}/{{ volume }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+      tags: storage
+
+    - name: Perform bind mount on local volume directories
+      loop: "{{ local_volumes }}"
+      loop_control:
+        loop_var: volume
+      shell: |
+        mountpoint -q "{{ local_storage_base_dir }}/{{ volume }}" || \
+        mount --bind "{{ local_storage_base_dir }}/{{ volume }}" "{{ local_storage_base_dir }}/{{ volume }}"
+      args:
+        executable: /bin/bash
+      tags: storage
+
+    - name: Ensure bind mount is persistent in /etc/fstab
+      lineinfile:
+        path: /etc/fstab
+        line: "{{ local_storage_base_dir }}/{{ volume }} {{ local_storage_base_dir }}/{{ volume }} none bind 0 0"
+        state: present
+        create: yes
+      loop: "{{ local_volumes }}"
+      loop_control:
+        loop_var: volume
+      tags: storage

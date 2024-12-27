@@ -1,0 +1,23 @@
+# playbooks/yaml/argocd-apps/prometheus/application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: monitoring
+  sources:
+    - repoURL: 'https://github.com/kpoxo6op/soyspray.git'
+      targetRevision: work
+      path: playbooks/yaml/argocd-apps/prometheus
+      kustomize:
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
+      - CreateNamespace=true

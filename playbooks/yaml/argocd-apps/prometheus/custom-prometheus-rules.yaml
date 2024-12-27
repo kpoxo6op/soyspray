@@ -1,0 +1,23 @@
+# playbooks/yaml/argocd-apps/prometheus/custom-prometheus-rules.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: custom-prometheus-rules
+  namespace: monitoring
+  labels:
+    prometheus: kube-prometheus
+    role: alert-rules
+data:
+  custom-rules.yaml: |
+    groups:
+      - name: custom-rules
+        rules:
+          - alert: HighMemoryUsage
+            # 85GB of active memory
+            expr: node_memory_Active_bytes > 85 * 1024 * 1024 * 1024
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High Memory usage detected on {{ $labels.instance }}"
+              description: "Memory usage on {{ $labels.instance }} is above 85GB for more than 5 minutes."
