@@ -3,10 +3,10 @@
 - name: Common tasks for every playbook
   import_playbook: ../kubespray/playbooks/boilerplate.yml
 
-- name: Soy Hello 
+- name: Soy Hello
   hosts: etcd:k8s_cluster:calico_rr
   gather_facts: false
-  become: yes
+  become: true
   become_user: root
   serial: 1
   tasks:
