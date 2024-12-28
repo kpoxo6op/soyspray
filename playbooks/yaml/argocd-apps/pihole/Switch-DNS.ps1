@@ -1,9 +1,9 @@
-<# 
+<#
 .SYNOPSIS
 Switches the DNS configuration between a Pi-hole DNS server and the default DNS.
 
 .DESCRIPTION
-The `Switch-DNS` function toggles the DNS server settings for the active network adapter. 
+The `Switch-DNS` function toggles the DNS server settings for the active network adapter.
 If the current DNS server is set to the Pi-hole IP, it resets to the default (automatic DNS).
 If not, it switches to the specified Pi-hole IP.
 
@@ -23,7 +23,7 @@ Switch-DNS -WhatIf
 Previews the DNS changes without applying them.
 
 .NOTES
-This script modifies the DNS configuration for the active network adapter and requires 
+This script modifies the DNS configuration for the active network adapter and requires
 elevated permissions to run.
 #>
 
