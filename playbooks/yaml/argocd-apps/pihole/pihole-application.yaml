@@ -7,11 +7,11 @@ metadata:
 spec:
   project: default
   destination:
-    server: 'https://kubernetes.default.svc'
+    server: "https://kubernetes.default.svc"
     namespace: pihole
   sources:
-    - repoURL: 'https://github.com/kpoxo6op/soyspray.git'
-      targetRevision: 'v1.0.0'
+    - repoURL: "https://github.com/kpoxo6op/soyspray.git"
+      targetRevision: "v1.1.0"
       path: playbooks/yaml/argocd-apps/pihole
       kustomize:
   syncPolicy:
