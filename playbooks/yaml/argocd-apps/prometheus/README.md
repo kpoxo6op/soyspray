@@ -1,80 +1,87 @@
-# Prometheus and Grafana Setup
+# Prometheus, AlertManager, and Telegram Integration
 
-This setup uses Prometheus to scrape metrics and Grafana to visualize them.
+## Architecture
 
-## Prometheus Configuration
-
-Prometheus uses a Kubernetes Secret to define custom scrape jobs. This is
-referenced in the Prometheus Helm chart's `values.yaml`.
-
-A Secret named `additional-scrape-configs` in the monitoring namespace stores
-these scrape job configurations.
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: additional-scrape-configs
-  namespace: monitoring
-stringData:
-  additional-scrape-configs.yaml: |
-    - job_name: 'pihole-exporter'
-      scrape_interval: 15s
-      metrics_path: /metrics
-      static_configs:
-        - targets:
-            - "pihole-exporter.pihole.svc.cluster.local:9617"
+```text
+                                                    ┌─────────────────┐
+                                                    │                 │
+                                                    │  Telegram Bot   │
+                                                    │                 │
+                                                    └────────▲────────┘
+                                                            │
+                                                            │
+┌──────────────┐         ┌──────────────┐         ┌────────┴────────┐
+│              │         │              │         │                 │
+│  Prometheus  ├────────►│ AlertManager ├────────►│ Secret:        │
+│              │  Alert  │              │   Uses  │ bot_token      │
+└──────┬───────┘         └──────────────┘         │                 │
+       │                                          └─────────────────┘
+       │
+       │ Evaluates
+       ▼
+┌──────────────┐
+│ PrometheusRules:
+│ - temperature│
+│ - other      │
+└──────────────┘
 ```
 
-The Prometheus configuration in `values.yaml` points to this Secret.
+## Components Overview
+
+### 1. Prometheus Rules
+
+- Located in `alerts/` directory
+- Each rule file defines conditions for specific alerts
+- Example rules:
+  - Temperature monitoring
+  - Node status
+  - Application metrics
+
+### 2. AlertManager Configuration (values.yaml)
 
 ```yaml
-prometheus:
-  prometheusSpec:
-    additionalScrapeConfigs:
-      name: additional-scrape-configs
-      key: additional-scrape-configs.yaml
+alertmanager:
+  config:
+    route:
+      receiver: 'telegram'
+      routes:
+        - matchers:
+          - severity=~"warning|critical"
+    receivers:
+    - name: 'telegram'
+      telegram_configs:
+      - bot_token_file: /etc/alertmanager/telegram/TELEGRAM_BOT_TOKEN
+        chat_id: 336642153
 ```
 
-## Grafana Configuration
+### 3. Telegram Integration (managed by Ansible)
 
-Grafana uses a sidecar container for dashboards which loads them dynamically
-from ConfigMaps.
+- Bot token stored in .env file
+- Ansible creates secret: `alertmanager-telegram-secret`
+- Mounted in AlertManager pod
 
-The sidecar searches for ConfigMaps in the `monitoring` namespace with the label
-`grafana_dashboard: "1"`.
+## Flow
 
-Grafana's `values.yaml` includes settings for the sidecar.
+1. Prometheus continuously evaluates alert rules
+2. When any rule triggers, alert sent to AlertManager
+3. AlertManager routes based on severity/labels
+4. Notifications sent to Telegram via bot
 
-```yaml
-grafana:
-  sidecar:
-    dashboards:
-      enabled: true
-      label: grafana_dashboard
-  service:
-    type: LoadBalancer
-    loadBalancerIP: 192.168.1.123
-  adminPassword: 'admin'
-  image:
-    tag: 11.3.0
-```
+## Adding New Alerts
 
-A ConfigMap, like `grafana-dashboard-pihole`, contains the Grafana dashboard
-JSON and uses the required label. This ConfigMap is generated using Kustomize's
-`configMapGenerator`.
+1. Create new rule file in `alerts/` directory
+2. Add appropriate labels for routing
+3. Update kustomization.yaml if needed
+4. Test with temporary thresholds
 
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: grafana-dashboard-pihole
-  namespace: monitoring
-  labels:
-    grafana_dashboard: "1"
-data:
-  pihole-dashboard.json: |
-    { ...JSON dashboard definition... }
-```
+## Maintenance
 
-Grafana's sidecar loads any matching ConfigMap when it's created or updated.
+- Alert rules managed in individual yaml files
+- Bot credentials through .env and Ansible
+- AlertManager config in values.yaml
+
+## Verification
+
+- Prometheus UI: `/alerts`
+- AlertManager: `/alertmanager/config`
+- Test new rules by lowering thresholds

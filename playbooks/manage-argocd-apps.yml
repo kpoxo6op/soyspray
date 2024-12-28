@@ -43,6 +43,27 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/pihole-exporter/pihole-exporter-application.yaml') }}"
       tags: pihole-exporter
 
+    - name: Load .env file and set Telegram bot secrets
+      set_fact:
+        telegram_bot_token: "{{ (lookup('file', playbook_dir + '/../.env') | regex_search('^TELEGRAM_BOT_TOKEN=(.*)$', '\\1')) | first | trim }}"
+      tags: prometheus
+
+    - name: Create Kubernetes Secret for Alertmanager Telegram Integration
+      kubernetes.core.k8s:
+        state: present
+        namespace: monitoring
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: alertmanager-telegram-secret
+            namespace: monitoring
+          data:
+            TELEGRAM_BOT_TOKEN: "{{ telegram_bot_token | b64encode }}"
+      vars:
+        telegram_bot_token: "{{ lookup('env', 'TELEGRAM_BOT_TOKEN') }}"
+      tags: prometheus
+
     - name: Apply Argo CD Application manifest (prometheus application)
       kubernetes.core.k8s:
         state: present
@@ -58,11 +79,3 @@
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/nginx/nginx-application.yaml') }}"
       tags: nginx
-
-    - name: Apply Argo CD Application manifest (Pi-hole Exporter application)
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/pihole-exporter/pihole-exporter-application.yaml') }}"
-      tags: pihole-exporter

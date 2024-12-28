@@ -7,21 +7,21 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: 'https://charts.bitnami.com/bitnami'
+    - repoURL: "https://charts.bitnami.com/bitnami"
       chart: nginx
-      targetRevision: '15.0.0'
+      targetRevision: "15.0.0"
       helm:
         valueFiles:
-        - $values/playbooks/yaml/argocd-apps/nginx/values.yaml
-    - repoURL: 'https://github.com/kpoxo6op/soyspray.git'
-      targetRevision: 'v1.0.0'
+          - $values/playbooks/yaml/argocd-apps/nginx/values.yaml
+    - repoURL: "https://github.com/kpoxo6op/soyspray.git"
+      targetRevision: "v1.0.0"
       ref: values
   destination:
-    server: 'https://kubernetes.default.svc'
+    server: "https://kubernetes.default.svc"
     namespace: nginx
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-    - CreateNamespace=true
+      - CreateNamespace=true

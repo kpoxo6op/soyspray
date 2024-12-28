@@ -14,17 +14,16 @@ helmCharts:
 configMapGenerator:
   - name: grafana-dashboard-pihole
     files:
-      - pihole-dashboard.json=dashboards/pihole-dashboard.json
-
-resources:
-  - custom-prometheus-rules.yaml
-  - additional-scrape-configs.yaml
-
-patchesStrategicMerge:
-  - |
-    apiVersion: v1
-    kind: ConfigMap
-    metadata:
-      name: grafana-dashboard-pihole
+      - dashboards/pihole-dashboard.json
+    options:
       labels:
         grafana_dashboard: "1"
+  - name: grafana-dashboard-thermal
+    files:
+      - dashboards/thermal-dashboard.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+resources:
+  - alerts/temperature-alerts.yaml

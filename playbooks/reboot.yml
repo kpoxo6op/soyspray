@@ -5,10 +5,10 @@
 - name: Reboot all nodes in the cluster
   hosts: etcd:k8s_cluster:calico_rr
   gather_facts: false
-  become: yes
+  become: true
   become_user: root
-  serial: 1  # Reboot one node at a time to avoid full cluster downtime
- tasks:
+  serial: 1
+  tasks:
     - name: Reboot the node
       ansible.builtin.reboot:
         msg: "Reboot initiated by Ansible"

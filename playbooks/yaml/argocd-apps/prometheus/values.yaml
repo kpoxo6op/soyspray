@@ -14,13 +14,28 @@ prometheus:
             requests:
               storage: 10Gi
     additionalScrapeConfigs:
-      name: additional-scrape-configs
-      key: additional-scrape-configs.yaml
+      - job_name: pihole-exporter
+        static_configs:
+          - targets: ["pihole-exporter.pihole.svc.cluster.local:9617"]
+        metrics_path: /metrics
+        scrape_interval: 15s
+        scrape_timeout: 10s
+    ruleSelector:
+      matchLabels:
+        release: prometheus
+  service:
+    type: LoadBalancer
+    loadBalancerIP: 192.168.1.125
 
 grafana:
   grafana.ini:
-    date:
+    auth.anonymous:
+      enabled: true
+      org_name: "Main Org."
+      org_role: "Viewer"
+    date_formats:
       default_timezone: "Pacific/Auckland"
+  defaultDashboardsTimezone: "Pacific/Auckland"
   sidecar:
     dashboards:
       enabled: true
@@ -28,7 +43,36 @@ grafana:
   service:
     type: LoadBalancer
     loadBalancerIP: 192.168.1.123
-  adminPassword: 'admin'
-
+  adminPassword: "admin"
   image:
     tag: 11.3.0
+
+alertmanager:
+  alertmanagerSpec:
+    volumes:
+      - name: telegram-secret
+        secret:
+          secretName: alertmanager-telegram-secret
+    volumeMounts:
+      - name: telegram-secret
+        mountPath: /etc/alertmanager/telegram
+        readOnly: true
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ['alertname']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: 'telegram'
+      routes:
+        - matchers:
+          - severity=~"warning|critical"
+          receiver: 'telegram'
+    receivers:
+    - name: 'telegram'
+      telegram_configs:
+      - api_url: 'https://api.telegram.org'
+        bot_token_file: /etc/alertmanager/telegram/TELEGRAM_BOT_TOKEN
+        chat_id: 336642153

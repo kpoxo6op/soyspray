@@ -7,7 +7,7 @@
 
 - name: Prepare local storage for Local Static Provisioner
   hosts: all
-  become: yes
+  become: true
   gather_facts: true
   vars:
     local_volumes:
@@ -69,7 +69,7 @@
         path: /etc/fstab
         line: "{{ local_storage_base_dir }}/{{ volume }} {{ local_storage_base_dir }}/{{ volume }} none bind 0 0"
         state: present
-        create: yes
+        create: true
       loop: "{{ local_volumes }}"
       loop_control:
         loop_var: volume
