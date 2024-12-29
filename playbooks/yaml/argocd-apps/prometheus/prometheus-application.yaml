@@ -13,7 +13,6 @@ spec:
     targetRevision: "v1.1.0"
     path: playbooks/yaml/argocd-apps/prometheus
     kustomize:
-      version: v5.0.0
   destination:
     server: "https://kubernetes.default.svc"
     namespace: monitoring
