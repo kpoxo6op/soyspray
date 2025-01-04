@@ -57,22 +57,25 @@ alertmanager:
       - name: telegram-secret
         mountPath: /etc/alertmanager/telegram
         readOnly: true
+  service:
+    type: LoadBalancer
+    loadBalancerIP: 192.168.1.126
   config:
     global:
       resolve_timeout: 5m
     route:
-      group_by: ['alertname']
+      group_by: ["alertname"]
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 4h
-      receiver: 'telegram'
+      receiver: "telegram"
       routes:
         - matchers:
-          - severity=~"warning|critical"
-          receiver: 'telegram'
+            - severity=~"warning|critical"
+          receiver: "telegram"
     receivers:
-    - name: 'telegram'
-      telegram_configs:
-      - api_url: 'https://api.telegram.org'
-        bot_token_file: /etc/alertmanager/telegram/TELEGRAM_BOT_TOKEN
-        chat_id: 336642153
+      - name: "telegram"
+        telegram_configs:
+          - api_url: "https://api.telegram.org"
+            bot_token_file: /etc/alertmanager/telegram/TELEGRAM_BOT_TOKEN
+            chat_id: 336642153

@@ -3,7 +3,7 @@ kind: Kustomization
 
 helmCharts:
   - name: pihole
-    version: 2.26.1
+    version: 2.27.0
     repo: https://mojo2600.github.io/pihole-kubernetes
     releaseName: pihole
     valuesFile: values.yaml
