@@ -49,3 +49,17 @@ code $PROFILE
 . $PROFILE
 Switch-DNS -WhatIf
 ```
+
+## Whitelists
+
+Whitelists via volume mounts or values.yaml don't work.
+
+Wait for pihole 6 to be released.
+
+```sh
+pihole -w joyreactor.cc
+pihole -w joyreactor.ru
+pihole -w joyreactor.com
+pihole -w reactor.cc
+pihole -w t.co
+```
