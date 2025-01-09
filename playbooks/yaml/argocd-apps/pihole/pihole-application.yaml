@@ -11,7 +11,7 @@ spec:
     namespace: pihole
   sources:
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "v1.2.0"
+      targetRevision: "kubespray/2.26.0"
       path: playbooks/yaml/argocd-apps/pihole
       kustomize:
   syncPolicy:
