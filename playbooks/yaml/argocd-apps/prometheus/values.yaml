@@ -2,6 +2,9 @@
 namespaceOverride: monitoring
 
 prometheus:
+  service:
+    type: LoadBalancer
+    loadBalancerIP: 192.168.1.125
   prometheusSpec:
     replicas: 1
     retention: 15d
