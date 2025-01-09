@@ -22,6 +22,10 @@ ssh-keygen -lf ~/.ssh/id_rsa
 ```sh
 IP_CONTROLLER_0=192.168.1.100
 mkdir -p ~/.kube
+ssh ubuntu@IP_CONTROLLER_0
+USERNAME=$(whoami)
+sudo chown -R $USERNAME:$USERNAME /etc/kubernetes/admin.conf
+exit
 scp ubuntu@$IP_CONTROLLER_0:/etc/kubernetes/admin.conf ~/.kube/config
 sed -i "s/127.0.0.1/$IP_CONTROLLER_0/" ~/.kube/config
 chmod 600 ~/.kube/config
@@ -112,8 +116,8 @@ To generate the `hosts.yaml` file, the following steps were used:
 # View the generated hosts.yaml
 cp -rfp inventory/sample inventory/soycluster
 declare -a IPS=(node-0,192.168.1.100 node-1,192.168.1.101 node-2,192.168.1.102)
-CONFIG_FILE=inventory/soycluster/hosts.yaml python3 contrib/inventory_builder/inventory.py ${IPS[@]}
-cat inventory/soycluster/hosts.yaml
+CONFIG_FILE=inventory/soycluster/hosts.yml python3 contrib/inventory_builder/inventory.py ${IPS[@]}
+cat inventory/soycluster/hosts.yml
 ```
 
 A virtual environment (`soyspray-venv`) was used for dependency management and is included in `.gitignore` to keep environment-specific files out of the repository. Kubespray was integrated as a submodule in this repository.
@@ -133,6 +137,8 @@ pip install -U -r requirements.txt
 ```sh
 cd kubespray
 ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu cluster.yml
+# or
+# ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu kubespray/cluster.yml
 ```
 
 ## Storage
