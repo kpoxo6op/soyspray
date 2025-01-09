@@ -1,2 +1,19 @@
 # playbooks/yaml/argocd-apps/nginx/values.yaml
-replicaCount: 2
+service:
+  type: LoadBalancer
+  ports:
+    http: 80
+    https: 443
+  loadBalancerIP: "192.168.1.127"
+  annotations:
+    metallb.universe.tf/allow-shared-ip: nginx-ip
+
+replicaCount: 1
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi

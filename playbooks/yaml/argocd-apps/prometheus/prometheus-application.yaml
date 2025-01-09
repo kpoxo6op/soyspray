@@ -4,15 +4,19 @@ kind: Application
 metadata:
   name: prometheus
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "v1.2.0"
+    targetRevision: "v1.3.0"
     path: playbooks/yaml/argocd-apps/prometheus
     kustomize:
+      helm:
+        skipCrds: true
   destination:
     server: "https://kubernetes.default.svc"
     namespace: monitoring
@@ -21,11 +25,4 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - ServerSideApply=true
       - CreateNamespace=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m

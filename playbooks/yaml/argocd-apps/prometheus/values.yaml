@@ -2,6 +2,9 @@
 namespaceOverride: monitoring
 
 prometheus:
+  service:
+    type: LoadBalancer
+    loadBalancerIP: 192.168.1.125
   prometheusSpec:
     replicas: 1
     retention: 15d
@@ -23,9 +26,6 @@ prometheus:
     ruleSelector:
       matchLabels:
         release: prometheus
-  service:
-    type: LoadBalancer
-    loadBalancerIP: 192.168.1.125
 
 grafana:
   grafana.ini:
@@ -79,3 +79,8 @@ alertmanager:
           - api_url: "https://api.telegram.org"
             bot_token_file: /etc/alertmanager/telegram/TELEGRAM_BOT_TOKEN
             chat_id: 336642153
+
+# Disabled until proper etcd certificates are configured for Prometheus to
+# access etcd metrics
+kubeEtcd:
+  enabled: false
