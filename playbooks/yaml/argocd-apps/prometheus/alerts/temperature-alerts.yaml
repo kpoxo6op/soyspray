@@ -9,21 +9,21 @@ spec:
     - name: temperature
       rules:
         - alert: HighTemperatureWarning
-          expr: node_thermal_zone_temp > 60
+          expr: node_thermal_zone_temp > 70
           for: 5m
           labels:
             severity: warning
           annotations:
             summary: "High temperature on {{ $labels.instance }}"
-            description: "Temperature above 60°C on {{ $labels.instance }}"
+            description: "Temperature above 70°C on {{ $labels.instance }}"
             value: "{{ $value }}°C"
 
         - alert: HighTemperatureCritical
-          expr: node_thermal_zone_temp > 70
+          expr: node_thermal_zone_temp > 80
           for: 5m
           labels:
             severity: critical
           annotations:
             summary: "Critical temperature on {{ $labels.instance }}"
-            description: "Temperature above 70°C on {{ $labels.instance }}"
+            description: "Temperature above 80°C on {{ $labels.instance }}"
             value: "{{ $value }}°C"
