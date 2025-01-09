@@ -57,9 +57,10 @@ Whitelists via volume mounts or values.yaml don't work.
 Wait for pihole 6 to be released.
 
 ```sh
-pihole -w joyreactor.cc
-pihole -w joyreactor.ru
-pihole -w joyreactor.com
-pihole -w reactor.cc
-pihole -w t.co
+POD=$(kubectl get po -n pihole -l app=pihole -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -it $POD -n pihole -- pihole -w joyreactor.cc
+kubectl exec -it $POD -n pihole -- pihole -w joyreactor.ru
+kubectl exec -it $POD -n pihole -- pihole -w joyreactor.com
+kubectl exec -it $POD -n pihole -- pihole -w reactor.cc
+kubectl exec -it $POD -n pihole -- pihole -w t.co
 ```
