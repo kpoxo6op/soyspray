@@ -1,0 +1,45 @@
+persistence:
+  defaultClass: true
+  defaultClassReplicaCount: 1
+  defaultDataLocality: best-effort
+  migratable: true
+
+defaultSettings:
+  defaultDataPath: "/storage"
+  createDefaultDiskLabeledNodes: false
+  defaultDataLocality: "disabled"
+  storageOverProvisioningPercentage: 200
+  storageMinimalAvailablePercentage: 10
+
+longhornManager:
+  priorityClass: longhorn-critical
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+longhornDriver:
+  priorityClass: longhorn-critical
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+longhornUI:
+  replicas: 1
+
+csi:
+  attacherReplicaCount: 1
+  provisionerReplicaCount: 1
+  resizerReplicaCount: 1
+  snapshotterReplicaCount: 1
+
+preUpgradeChecker:
+  jobEnabled: false
+  upgradeVersionCheck: false
