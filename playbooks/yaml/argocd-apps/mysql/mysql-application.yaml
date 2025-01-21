@@ -13,7 +13,7 @@ spec:
         valueFiles:
           - $values/playbooks/yaml/argocd-apps/mysql/values.yaml
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "add-storage-provider"
+      targetRevision: "v1.4.0"
       ref: values
   destination:
     server: "https://kubernetes.default.svc"
