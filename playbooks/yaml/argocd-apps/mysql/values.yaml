@@ -1,0 +1,24 @@
+auth:
+  rootPassword: "admin"
+  database: "testdb"
+  username: "testuser"
+  password: "testpass"
+
+primary:
+  persistence:
+    storageClass: "longhorn"
+    size: 10Gi
+
+service:
+  type: ClusterIP
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+volumePermissions:
+  enabled: true

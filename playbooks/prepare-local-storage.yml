@@ -1,62 +1,20 @@
-# Ansible Playbook: prepare-local-storage.yml
-# This playbook automates the preparation of local storage directories for the
-# Local Static Storage Provisioner in Kubernetes.
+# DEPRECATED: This playbook has been split into two separate playbooks:
+# - clean-sda-devices.yml: For cleaning SDA devices for Longhorn
+# - setup-local-volumes.yml: For setting up local volumes
+#
+# Please use those playbooks instead.
 
-- name: Common tasks for every playbook
-  import_playbook: ../kubespray/playbooks/boilerplate.yml
-
-- name: Prepare local storage for Local Static Provisioner
-  hosts: all
-  become: true
-  gather_facts: true
-  vars:
-    local_volumes:
-      - vol1
-    local_storage_base_dir: /mnt/disks
-
-  pre_tasks:
-    - name: Storage Reset Confirmation
-      pause:
-        prompt: "This will delete all data in {{ local_storage_base_dir }}. Type 'yes' to continue."
-      register: storage_confirmation_prompt
-      run_once: true
-      when: not (skip_confirmation | default(false) | bool)
-
-    - name: Check confirmation
-      fail:
-        msg: "Storage cleanup cancelled by user"
-      when:
-        - not (skip_confirmation | default(false) | bool)
-        - not storage_confirmation_prompt.user_input | default("") == "yes"
-
+- name: Show deprecation warning
+  hosts: localhost
+  gather_facts: false
   tasks:
-    - name: Ensure clean storage state
-      block:
-        - name: Unmount if mounted
-          command: umount {{ local_storage_base_dir }}/{{ item }}
-          with_items: "{{ local_volumes }}"
-          ignore_errors: true
+    - name: Display deprecation message
+      fail:
+        msg: |
+          This playbook is deprecated.
 
-        - name: Remove old directory
-          file:
-            path: "{{ local_storage_base_dir }}"
-            state: absent
+          Please use instead:
+          - ansible-playbook playbooks/clean-sda-devices.yml  # For cleaning SDA devices
+          - ansible-playbook playbooks/setup-local-volumes.yml  # For local volume setup
 
-    - name: Create and mount storage
-      block:
-        - name: Create volume directories
-          file:
-            path: "{{ local_storage_base_dir }}/{{ item }}"
-            state: directory
-            mode: '0755'
-            recurse: yes
-          with_items: "{{ local_volumes }}"
-
-        - name: Setup bind mounts
-          mount:
-            path: "{{ local_storage_base_dir }}/{{ item }}"
-            src: "{{ local_storage_base_dir }}/{{ item }}"
-            fstype: none
-            opts: bind
-            state: mounted
-          with_items: "{{ local_volumes }}"
+          This playbook will be removed in future updates.

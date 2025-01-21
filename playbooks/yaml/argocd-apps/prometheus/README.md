@@ -85,3 +85,9 @@ alertmanager:
 - Prometheus UI: `/alerts`
 - AlertManager: `/alertmanager/config`
 - Test new rules by lowering thresholds
+
+## Deletion patch if stuck
+
+```sh
+kubectl patch application prometheus -n argocd -p '{"metadata":{"finalizers":null}}' --type=merge
+```

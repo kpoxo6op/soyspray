@@ -1,25 +1,25 @@
-# playbooks/yaml/argocd-apps/prometheus/application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: prometheus
+  name: longhorn
   namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
-  source:
-    repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "v1.4.0"
-    path: playbooks/yaml/argocd-apps/prometheus
-    kustomize:
+  sources:
+    - repoURL: "https://charts.longhorn.io"
+      chart: longhorn
+      targetRevision: "1.7.2"
       helm:
-        skipCrds: true
+        valueFiles:
+          - $values/playbooks/yaml/argocd-apps/longhorn/values.yaml
+    - repoURL: "https://github.com/kpoxo6op/soyspray.git"
+      targetRevision: "v1.4.0"
+      ref: values
   destination:
     server: "https://kubernetes.default.svc"
-    namespace: monitoring
+    namespace: longhorn-system
   syncPolicy:
     automated:
       prune: true

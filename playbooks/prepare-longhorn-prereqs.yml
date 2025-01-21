@@ -1,0 +1,187 @@
+# Ansible Playbook: prepare-longhorn-prereqs.yml
+# longhornctl check preflight --kube-config ~/.kube/config
+- name: Common tasks for every playbook
+  import_playbook: ../kubespray/playbooks/boilerplate.yml
+
+- name: Prepare storage for Longhorn
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Device Preparation Confirmation
+      pause:
+        prompt: "WARNING: This will erase all data on /dev/sda devices and configure them for Longhorn. Type 'yes' to continue."
+      register: confirmation_prompt
+      run_once: true
+      when: not (skip_confirmation | default(false) | bool)
+
+    - name: Check confirmation
+      fail:
+        msg: "Storage preparation cancelled by user"
+      when:
+        - not (skip_confirmation | default(false) | bool)
+        - not confirmation_prompt.user_input | default("") == "yes"
+
+    - name: Install required packages
+      apt:
+        name:
+          - nfs-common
+          - open-iscsi
+          - cryptsetup
+          - dmsetup
+        state: present
+        update_cache: yes
+
+    - name: Create multipath configuration
+      copy:
+        dest: /etc/multipath.conf
+        content: |
+          blacklist {
+              devnode "^sd[a-z0-9]+"
+          }
+        mode: "0644"
+      register: multipath_conf
+
+    - name: Restart multipathd if config changed
+      systemd:
+        name: multipathd
+        state: restarted
+        daemon_reload: yes
+      when: multipath_conf.changed
+
+    - name: Enable and start iscsid service
+      systemd:
+        name: iscsid
+        state: started
+        enabled: true
+
+    - name: Load iscsi_tcp module
+      modprobe:
+        name: iscsi_tcp
+        state: present
+
+    - name: Load required kernel modules
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      with_items:
+        - iscsi_tcp
+        - dm_crypt
+
+    # Optional but recommended - ensure modules load on boot
+    - name: Ensure modules load on boot
+      copy:
+        dest: /etc/modules-load.d/longhorn.conf
+        content: |
+          iscsi_tcp
+          dm_crypt
+        mode: "0644"
+
+  tasks:
+    - name: Prepare storage devices
+      block:
+        # Unmount if already mounted
+        - name: Unmount /dev/sda if mounted
+          mount:
+            path: /storage
+            state: unmounted
+          ignore_errors: true
+
+        - name: Remove from fstab if exists
+          mount:
+            path: /storage
+            state: absent
+          ignore_errors: true
+
+        # Clean the device
+        - name: Remove filesystem signatures from /dev/sda
+          command: wipefs -a /dev/sda
+
+        - name: Remove partition table from /dev/sda
+          command: sgdisk -Z /dev/sda
+
+        - name: Wait for device changes to settle
+          command: udevadm settle
+
+        # Create filesystem
+        - name: Create ext4 filesystem on /dev/sda
+          filesystem:
+            fstype: ext4
+            dev: /dev/sda
+
+        # Create mount point
+        - name: Create storage directory
+          file:
+            path: /storage
+            state: directory
+            mode: "0755"
+
+        # Mount the device
+        - name: Mount /dev/sda to /storage
+          mount:
+            path: /storage
+            src: /dev/sda
+            fstype: ext4
+            state: mounted
+
+        # Add to fstab
+        - name: Add mount to fstab
+          mount:
+            path: /storage
+            src: /dev/sda
+            fstype: ext4
+            state: present
+            opts: defaults
+            dump: 0
+            passno: 0
+
+        # Set permissions for Longhorn
+        - name: Set storage directory permissions
+          file:
+            path: /storage
+            owner: root
+            group: root
+            mode: "0755"
+            state: directory
+
+    # Verification steps
+    - name: Verify storage setup
+      block:
+        - name: Get filesystem info
+          command: df -h /storage
+          register: df_output
+
+        - name: Get mount info
+          shell: "mount | grep /storage"
+          register: mount_output
+          ignore_errors: true
+
+        - name: Get fstab entry
+          shell: "grep /storage /etc/fstab"
+          register: fstab_output
+          ignore_errors: true
+
+        - name: Get directory permissions
+          command: ls -ld /storage
+          register: ls_output
+          ignore_errors: true
+
+        - name: Display verification results
+          debug:
+            msg: |
+              Storage Setup Verification:
+              ---------------------------
+              1. Filesystem Usage:
+              {{ df_output.stdout }}
+
+              2. Mount Information:
+              {{ mount_output.stdout | default('No mount information found') }}
+
+              3. Fstab Configuration:
+              {{ fstab_output.stdout | default('No fstab entry found') }}
+
+              4. Directory Permissions:
+              {{ ls_output.stdout | default('Directory permissions not available') }}
+
+              Storage is ready for Longhorn!
