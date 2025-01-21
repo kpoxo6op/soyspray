@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mysql
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: "https://charts.bitnami.com/bitnami"
+      chart: mysql
+      targetRevision: "9.10.5"
+      helm:
+        valueFiles:
+          - $values/playbooks/yaml/argocd-apps/mysql/values.yaml
+    - repoURL: "https://github.com/kpoxo6op/soyspray.git"
+      targetRevision: "add-storage-provider"
+      ref: values
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: mysql
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
