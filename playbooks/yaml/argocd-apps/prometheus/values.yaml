@@ -28,6 +28,7 @@ prometheus:
         release: prometheus
 
 grafana:
+  namespaceOverride: monitoring
   grafana.ini:
     auth.anonymous:
       enabled: true
@@ -79,6 +80,12 @@ alertmanager:
           - api_url: "https://api.telegram.org"
             bot_token_file: /etc/alertmanager/telegram/TELEGRAM_BOT_TOKEN
             chat_id: 336642153
+
+prometheus-node-exporter:
+  namespaceOverride: monitoring
+
+kube-state-metrics:
+  namespaceOverride: monitoring
 
 # Disabled until proper etcd certificates are configured for Prometheus to
 # access etcd metrics
