@@ -83,3 +83,19 @@
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/nginx/nginx-application.yaml') }}"
       tags: nginx
+
+    - name: Apply Longhorn
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/longhorn/longhorn-application.yaml') }}"
+      tags: longhorn
+
+    - name: Apply MySQL
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/mysql/mysql-application.yaml') }}"
+      tags: mysql
