@@ -22,10 +22,13 @@ ssh-keygen -lf ~/.ssh/id_rsa
 ```sh
 IP_CONTROLLER_0=192.168.1.100
 mkdir -p ~/.kube
-ssh ubuntu@IP_CONTROLLER_0
+ssh ubuntu@$IP_CONTROLLER_0
+
 USERNAME=$(whoami)
 sudo chown -R $USERNAME:$USERNAME /etc/kubernetes/admin.conf
 exit
+
+IP_CONTROLLER_0=192.168.1.100
 scp ubuntu@$IP_CONTROLLER_0:/etc/kubernetes/admin.conf ~/.kube/config
 sed -i "s/127.0.0.1/$IP_CONTROLLER_0/" ~/.kube/config
 chmod 600 ~/.kube/config
@@ -69,7 +72,7 @@ ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root -
 Run Soyspray Runbook
 
 ```sh
-cd soyspray
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu main.yml --tags argocd,storage
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/hello-soy.yml
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/manage-argocd-apps.yml --tags pihole
 ```
@@ -135,24 +138,20 @@ pip install -U -r requirements.txt
 ## Cluster Creation
 
 ```sh
-cd kubespray
-ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu cluster.yml
-# or
-# ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu kubespray/cluster.yml
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu kubespray/cluster.yml
 ```
 
 ## Storage
 
 ```sh
 cd soyspray
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/prepare-local-storage.yml --tags storage
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/setup-local-volumes.yml --tags storage
 ```
 
 ## How to provision [addons](kubespray/inventory/soycluster/group_vars/k8s_cluster/addons.yml) only
 
 ```sh
-cd kubespray
-ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu cluster.yml --tags apps
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu kubespray/cluster.yml --tags apps
 ```
 
 ## Expose ArgoCD
@@ -238,4 +237,16 @@ kubeconform -summary -schema-location default -schema-location 'https://raw.gith
 
 ```sh
 helm template prometheus-stack prometheus-community/kube-prometheus-stack -f playbooks/yaml/argocd-apps/prometheus/values.yaml > rendered.yaml
+```
+
+## Upgrade Kubespray 2.26->2.27
+
+Checked out Kubespray submodule at tag 2.27, reapplied my customisations.
+
+Created 2.27 branch in main soyspray repo.
+
+Updated `kube_version` in my inventory
+
+```sh
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu  kubespray/upgrade-cluster.yml
 ```
