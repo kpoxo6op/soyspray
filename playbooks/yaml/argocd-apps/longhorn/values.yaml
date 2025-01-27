@@ -8,8 +8,18 @@ defaultSettings:
   defaultDataPath: "/storage"
   createDefaultDiskLabeledNodes: false
   defaultDataLocality: "disabled"
-  storageOverProvisioningPercentage: 200
-  storageMinimalAvailablePercentage: 10
+  deletingConfirmationFlag: true
+  orphanAutoDeletion: true
+
+longhornUI:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
 
 longhornManager:
   priorityClass: longhorn-critical
@@ -20,6 +30,16 @@ longhornManager:
     requests:
       cpu: 100m
       memory: 128Mi
+  livenessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 5
+  readinessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 20
+    timeoutSeconds: 5
+    failureThreshold: 5
 
 longhornDriver:
   priorityClass: longhorn-critical
@@ -31,15 +51,78 @@ longhornDriver:
       cpu: 100m
       memory: 128Mi
 
-longhornUI:
-  replicas: 1
+engineImage:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 256Mi
+  livenessProbe:
+    initialDelaySeconds: 45
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 5
+  readinessProbe:
+    initialDelaySeconds: 45
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 5
+
+preUpgradeChecker:
+  jobEnabled: false
+  upgradeVersionCheck: false
 
 csi:
+  attacher:
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  provisioner:
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  resizer:
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
+  snapshotter:
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 100m
+        memory: 128Mi
   attacherReplicaCount: 1
   provisionerReplicaCount: 1
   resizerReplicaCount: 1
   snapshotterReplicaCount: 1
 
-preUpgradeChecker:
-  jobEnabled: false
-  upgradeVersionCheck: false
+# Sets priority above system-node-critical
+priorityClass:
+  create: true
+  name: longhorn-critical
+  value: 2000001001
+
+service:
+  ui:
+    type: LoadBalancer
+    loadBalancerIP: 192.168.1.127
+    nodePort: null
+  manager:
+    type: ClusterIP
+    nodePort: ""
