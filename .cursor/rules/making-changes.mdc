@@ -1,0 +1,12 @@
+---
+description: this project is ansible provisioned kubernetes cluster with integrated kubespray submodule
+globs: 
+---
+
+# Rules for making changes
+
+- all cluster apps are defined in argoCD and applied to argoCD as @manage-argocd-apps.yml
+- k8s cluster itsled id k8s absible project kubespray customised by my playbooks such as [main.py](mdc:kubespray/scripts/openstack-cleanup/main.py)
+- we always do GitOps. If any repeated manual step required we writa ansible book such as [prepare-longhorn-prereqs.yml](mdc:playbooks/prepare-longhorn-prereqs.yml)
+- One off actions or troubleshooting can be done as one of shell scripts or kubectl commands
+- run [upgrade-cluster.yml](mdc:kubespray/upgrade-cluster.yml) book as per [README.md](mdc:README.md)

@@ -3,26 +3,25 @@ kind: Application
 metadata:
   name: longhorn
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   sources:
     - repoURL: "https://charts.longhorn.io"
       chart: longhorn
-      targetRevision: "1.7.2"
+      targetRevision: "1.8.0"
       helm:
         valueFiles:
           - $values/playbooks/yaml/argocd-apps/longhorn/values.yaml
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "v1.4.0"
+      targetRevision: "v1.5.0"
       ref: values
   destination:
     server: "https://kubernetes.default.svc"
     namespace: longhorn-system
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+    # disable autsync while debugging
+    # automated:
+    #   prune: true
+    #   selfHeal: true
     syncOptions:
       - CreateNamespace=true

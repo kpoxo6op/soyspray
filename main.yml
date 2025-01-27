@@ -1,11 +1,18 @@
 ---
 - import_playbook: kubespray/cluster.yml
 
-- import_playbook: playbooks/prepare-local-storage.yml
-  tags: storage
-
 - import_playbook: playbooks/expose-argocd.yml
-  tags: expose-argocd
+  tags: argocd
 
 - import_playbook: playbooks/enable-kustomize-argocd.yml
-  tags: enable-kustomize-argocd
+  tags: argocd
+
+- import_playbook: playbooks/setup-local-volumes.yml
+  vars:
+    skip_confirmation: true
+  tags: storage
+
+- import_playbook: playbooks/prepare-longhorn-prereqs.yml
+  vars:
+    skip_confirmation: true
+  tags: storage
