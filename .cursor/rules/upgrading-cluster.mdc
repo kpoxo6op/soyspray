@@ -1,5 +1,5 @@
 ---
-description: this project is ansible provisioned kubernetes cluster with integrated kubespray submodule
+description: how to upgrade my home k8s cluster
 globs: 
 ---
 

@@ -26,7 +26,7 @@ venv:
 	@echo "Virtual environment created. To activate, run: source $(VENV_NAME)/bin/activate"
 
 act:
-	@echo ". source $(VENV_NAME)/bin/activate"
+	@echo "source $(VENV_NAME)/bin/activate"
 
 ans:
 	@echo "\nansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/ --tags TAG\n"

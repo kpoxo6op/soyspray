@@ -250,3 +250,24 @@ Updated `kube_version` in my inventory
 ```sh
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu  kubespray/upgrade-cluster.yml
 ```
+
+## Cert Manager
+
+see what kubespray is doing with cert manager
+
+```sh
+(
+echo "=== Searching for cert-manager related terms and their contexts ===" && \
+for term in "cert_manager" "cert-manager" "certificate" "ClusterIssuer" "issuer" "acme" "letsencrypt" "tls" "https" "ssl" "ingress.*ssl" "ingress.*tls"; do
+    echo -e "\n\n=== Files containing: $term ===" && \
+    find kubespray -type f -exec grep -l "$term" {} \; && \
+    echo -e "\n=== Grep matches for: $term ===" && \
+    find kubespray -type f -exec grep -H "$term" {} \; 2>/dev/null && \
+    echo -e "\n=== Full contents of YAML files containing: $term ===" && \
+    for file in $(find kubespray -name "*.y*ml" -type f -exec grep -l "$term" {} \;); do
+        echo -e "\n--- Contents of: $file ---" && \
+        cat "$file"
+    done
+done
+) > cert-manager-search-results.txt
+```
