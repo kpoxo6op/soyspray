@@ -1,28 +1,19 @@
-# playbooks/yaml/argocd-apps/prometheus/application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: prometheus
+  name: cert-manager-config
   namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "1"
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
     targetRevision: "v1.6.0"
-    path: playbooks/yaml/argocd-apps/prometheus
+    path: playbooks/yaml/argocd-apps/cert-manager
     kustomize:
-      helm:
-        skipCrds: true
   destination:
     server: "https://kubernetes.default.svc"
-    namespace: monitoring
+    namespace: cert-manager
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
