@@ -12,7 +12,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "v1.7.0"
+    targetRevision: "onzack"
     path: playbooks/yaml/argocd-apps/prometheus
     kustomize:
       helm:
