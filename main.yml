@@ -16,3 +16,6 @@
   vars:
     skip_confirmation: true
   tags: storage
+
+- import_playbook: playbooks/ensure-node-labels.yml
+  tags: monitoring, labels
