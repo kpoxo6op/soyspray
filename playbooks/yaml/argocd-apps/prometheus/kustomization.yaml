@@ -25,3 +25,5 @@ configMapGenerator:
 
 resources:
   - alerts/temperature-alerts.yaml
+  - onzack-cluster-monitoring-recording-rules.yaml
+  - onzack-namespace-monitoring-recording-rules.yaml

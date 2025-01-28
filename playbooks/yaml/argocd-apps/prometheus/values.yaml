@@ -114,3 +114,6 @@ kube-state-metrics:
 # access etcd metrics
 kubeEtcd:
   enabled: false
+
+# https://github.com/onzack/grafana-dashboards/tree/main?tab=readme-ov-file#troubleshooting
+ruleSelectorNilUsesHelmValues: false
