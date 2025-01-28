@@ -26,6 +26,8 @@
 └──────────────┘
 ```
 
+May take 10 mins to sync in ArgoCD
+
 ## Components Overview
 
 ### 1. Prometheus Rules
