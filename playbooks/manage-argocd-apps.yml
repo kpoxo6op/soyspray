@@ -155,6 +155,21 @@
             api-token: "{{ cloudflare_api_token | b64encode }}"
       tags: cert-manager
 
+    # Create secret for external-dns using the same Cloudflare token
+    - name: Create External DNS Cloudflare API Token Secret
+      kubernetes.core.k8s:
+        state: present
+        namespace: external-dns
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: cloudflare-api-token
+            namespace: external-dns
+          data:
+            api-token: "{{ cloudflare_api_token | b64encode }}"
+      tags: external-dns
+
     - name: Apply Cert Manager Configuration
       kubernetes.core.k8s:
         state: present
@@ -162,6 +177,14 @@
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cert-manager/cert-manager-application.yaml') }}"
       tags: cert-manager
+
+    - name: Apply External DNS Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/external-dns/external-dns-application.yaml') }}"
+      tags: external-dns
 
     - name: Verify and load Tailscale OAuth credentials from .env
       block:

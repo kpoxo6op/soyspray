@@ -1,0 +1,18 @@
+# Configure provider and authentication
+provider:
+  name: cloudflare
+
+# Configure Cloudflare API token
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: cloudflare-api-token
+        key: api-token
+
+# Manage only soyspray.vip domain
+domainFilters:
+  - soyspray.vip
+
+# Ensure DNS records are synced (created and deleted)
+policy: sync
