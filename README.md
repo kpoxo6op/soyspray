@@ -154,6 +154,12 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-u
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu kubespray/cluster.yml --tags apps
 ```
 
+## How to provision [nginx ingress controller](kubespray/roles/kubernetes-apps/ingress_controller/meta/main.yml) only
+
+```sh
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu kubespray/cluster.yml --tags ingress-nginx
+```
+
 ## Expose ArgoCD
 
 To expose ArgoCD, the service was configured as a LoadBalancer in Kubernetes and
@@ -271,3 +277,55 @@ for term in "cert_manager" "cert-manager" "certificate" "ClusterIssuer" "issuer"
 done
 ) > cert-manager-search-results.txt
 ```
+
+## Tailscale VPN Access
+
+Enables secure VPN access to `*.soyspray.vip` services via DNS resolution.
+
+## Current Setup
+
+- Test service: <https://soyspray.vip>
+- Future services:
+  - photos.soyspray.vip
+  - cameras.soyspray.vip
+  - etc.
+
+## DNS Configuration
+
+Uses NextDNS for VPN DNS resolution:
+
+- NextDNS Profile ID: 28b397
+- Rewrite rule: `*.soyspray.vip → 100.100.115.18`
+- Configured as global nameserver in Tailscale
+- "Override local DNS" enabled
+
+## Components
+
+- Tailscale Client (basic setup, no operator needed)
+- Existing ingress-nginx
+- NextDNS for DNS resolution
+- Let's Encrypt certificates
+
+## How It Works
+
+1. User connects to Tailscale VPN
+2. Visits `*.soyspray.vip`
+3. NextDNS resolves to Tailscale IP (100.100.115.18)
+4. Traffic routes through VPN
+5. ingress-nginx handles the request
+6. Let's Encrypt certificates ensure secure connection
+
+## Benefits
+
+- Valid SSL certificates
+- No browser security warnings
+- Works from anywhere with VPN
+- Simple maintenance
+- Easy to add new subdomains
+
+## Adding New Services
+
+1. Create new ingress with `*.soyspray.vip` hostname
+2. Ensure Let's Encrypt certificate
+3. NextDNS wildcard rule handles DNS resolution automatically
+4. Access via Tailscale VPN
