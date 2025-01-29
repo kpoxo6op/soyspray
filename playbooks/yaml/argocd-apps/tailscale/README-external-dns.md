@@ -46,9 +46,11 @@ via helm and there are no values to set other than the OAuth credentials that
 tailscale requires you to setup. An example `values.yaml` file could look this:
 
 ```
+
 oauth:
   clientId: xxxx
   clientSecret: xxxx
+
 ```
 
 Second, we are going to deploy cert-manager; again this is pretty
@@ -64,17 +66,20 @@ follow the configuration steps according. For Cloudflare, an example
 `values.yaml` file would be like this:
 
 ```
+
 provider:
   name: cloudflare
 env:
-  - name: CF_API_TOKEN
+
+- name: CF_API_TOKEN
     value: xxxx
 serviceMonitor:
   enabled: true
 txtOwnerId: <a static ID that identifies this k8s cluster>
 domainFilters:
-  - domain.com
+- domain.com
 policy: sync # Important to note that if not set to sync (by default is write-only), DNS records wont't be deleted when we delete ingress resources
+
 ```
 
 Lastly, we need to install and expose the ingress controller only on the
@@ -136,6 +141,7 @@ simply reconfigure the service) with a `tailscale` `LoadBalancer` . Let’s depl
 `values.yaml` file:
 
 ```
+
 controller:
   config:
     ssl-redirect: "true"
@@ -151,6 +157,7 @@ controller:
     enabled: true
     serviceMonitor:
       enabled: true
+
 ```
 
 The `ssl-redirect` is enabled because I want to force services to work only via
@@ -160,8 +167,10 @@ You should see the deployment up and running, with 1 pod ready, and a `Service`
 like this:
 
 ```
+
 NAME                                 TYPE           CLUSTER-IP       EXTERNAL-IP                                                       PORT(S)                      AGE
 ingress-nginx-controller             LoadBalancer   10.109.177.63    100.xxx.xxx.xxx,ingress-ingress-nginx-controller.tailxxxx.ts.net   80:31164/TCP,443:31468/TCP   21h
+
 ```
 
 After deploying the nginx ingress, [we can configure a Let’s Encrypt
@@ -170,6 +179,7 @@ Issuer](https://cert-manager.io/docs/tutorials/acme/nginx-ingress/#step-6---conf
 strict rate limits):
 
 ```
+
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -177,7 +187,7 @@ metadata:
 spec:
   acme:
     email: "<email>"
-    server: https://acme-v02.api.letsencrypt.org/directory
+    server: <https://acme-v02.api.letsencrypt.org/directory>
     privateKeySecretRef:
       name: letsencrypt-prod
     solvers:
@@ -186,6 +196,7 @@ spec:
             apiTokenSecretRef:
               name: cloudflare-api-token-secret
               key: api-token
+
 ```
 
 The most important thing to note is that we are using the dns01 challenge
@@ -207,6 +218,7 @@ You need to define the ingress with a few annotations, to let external-dns and
 cert-manager do their jobs:
 
 ```
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -219,10 +231,11 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: grafana.foo.com
+
+- host: grafana.foo.com
     http:
       paths:
-      - backend:
+  - backend:
           service:
             name: prometheus-kps-grafana
             port:
@@ -230,9 +243,10 @@ spec:
         path: /
         pathType: Prefix
   tls:
-  - secretName: grafana.foo.com
+- secretName: grafana.foo.com
     hosts:
-    - grafana.foo.com
+  - grafana.foo.com
+
 ```
 
 Once you create the ingress, the following will happen:
@@ -251,41 +265,43 @@ You can now try to connect to Tailscale with any registered device (you can
 ingress:
 
 ```
-curl -v https://grafana.foo.com
-*   Trying 100.xxx.xxx.xxx:443...
-* Connected to grafana.foo.com (100.xxx.xxx.xxx) port 443 (#0)
-* ALPN, offering h2
-* ALPN, offering http/1.1
-*  CAfile: /etc/ssl/certs/ca-certificates.crt
-*  CApath: /etc/ssl/certs
-* TLSv1.0 (OUT), TLS header, Certificate Status (22):
-* TLSv1.3 (OUT), TLS handshake, Client hello (1):
-* TLSv1.2 (IN), TLS header, Certificate Status (22):
-* TLSv1.3 (IN), TLS handshake, Server hello (2):
-* TLSv1.2 (IN), TLS header, Finished (20):
-* TLSv1.2 (IN), TLS header, Supplemental data (23):
-* TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8):
-* TLSv1.2 (IN), TLS header, Supplemental data (23):
-* TLSv1.3 (IN), TLS handshake, Certificate (11):
-* TLSv1.2 (IN), TLS header, Supplemental data (23):
-* TLSv1.3 (IN), TLS handshake, CERT verify (15):
-* TLSv1.2 (IN), TLS header, Supplemental data (23):
-* TLSv1.3 (IN), TLS handshake, Finished (20):
-* TLSv1.2 (OUT), TLS header, Finished (20):
-* TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1):
-* TLSv1.2 (OUT), TLS header, Supplemental data (23):
-* TLSv1.3 (OUT), TLS handshake, Finished (20):
-* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384
-* ALPN, server accepted to use h2
-* Server certificate:
-*  subject: CN=grafana.foo.com
-*  start date: Jun 22 13:47:21 2024 GMT
-*  expire date: Sep 20 13:47:20 2024 GMT
-*  subjectAltName: host "grafana.foo.com" matched cert's "grafana.foo.com"
-*  issuer: C=US; O=Let's Encrypt; CN=R10
-*  SSL certificate verify ok.
+
+curl -v <https://grafana.foo.com>
+- Trying 100.xxx.xxx.xxx:443...
+- Connected to grafana.foo.com (100.xxx.xxx.xxx) port 443 (#0)
+- ALPN, offering h2
+- ALPN, offering http/1.1
+- CAfile: /etc/ssl/certs/ca-certificates.crt
+- CApath: /etc/ssl/certs
+- TLSv1.0 (OUT), TLS header, Certificate Status (22):
+- TLSv1.3 (OUT), TLS handshake, Client hello (1):
+- TLSv1.2 (IN), TLS header, Certificate Status (22):
+- TLSv1.3 (IN), TLS handshake, Server hello (2):
+- TLSv1.2 (IN), TLS header, Finished (20):
+- TLSv1.2 (IN), TLS header, Supplemental data (23):
+- TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8):
+- TLSv1.2 (IN), TLS header, Supplemental data (23):
+- TLSv1.3 (IN), TLS handshake, Certificate (11):
+- TLSv1.2 (IN), TLS header, Supplemental data (23):
+- TLSv1.3 (IN), TLS handshake, CERT verify (15):
+- TLSv1.2 (IN), TLS header, Supplemental data (23):
+- TLSv1.3 (IN), TLS handshake, Finished (20):
+- TLSv1.2 (OUT), TLS header, Finished (20):
+- TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1):
+- TLSv1.2 (OUT), TLS header, Supplemental data (23):
+- TLSv1.3 (OUT), TLS handshake, Finished (20):
+- SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384
+- ALPN, server accepted to use h2
+- Server certificate:
+- subject: CN=grafana.foo.com
+- start date: Jun 22 13:47:21 2024 GMT
+- expire date: Sep 20 13:47:20 2024 GMT
+- subjectAltName: host "grafana.foo.com" matched cert's "grafana.foo.com"
+- issuer: C=US; O=Let's Encrypt; CN=R10
+- SSL certificate verify ok.
 ...
-* Connection #0 to host grafana.foo.com left intact
+- Connection #0 to host grafana.foo.com left intact
+
 ```
 
 
