@@ -288,21 +288,181 @@ curl -v https://grafana.foo.com
 * Connection #0 to host grafana.foo.com left intact
 ```
 
-Final thoughts
---------------
 
-We exposed a private ingress on the tailnet, on a custom domain `foo.bar` with
-Let’s Encrypt valid certificates and a zero-trust posture. The configuration is
-all automatic due to the integration with external-dns and cert-manager, so it’s
-a really easy and rapid solution for enabling access to private ingresses in
-kubernetes clusters (wherever they are located, whether on prem or on cloud)
-only to authorized devices via Tailscale.
+## o1 reply
 
-I’d really like to hear your thoughts and experiences on zero-trust
-architectures in Kubernetes, VPNs and networking related stuff, especially in
-small to medium startups; feel free to reach out to me via email or by
-commenting this article if you want to have a chat on this topic or others :)
+Below is a conceptual “recipe” that pulls from Mattia’s article and from typical local/home-lab Kubernetes setups (with MetalLB, Ingress-NGINX, etc.) to help you get a stable Tailscale IP and avoid having to constantly update DNS entries or NextDNS rewrites. The gist is to let Tailscale Operator + external-dns handle the Tailscale IP automatically, so that Cloudflare DNS entries follow any changes if they do happen. You end up with a configuration where:
 
-Thanks so much for reading, you can follow me here on Medium, on
-[Linkedin](http://www.linkedin.com/in/mattia-forcellese-353887144) or
-[Github](https://github.com/mattiaforc) for more! See you next time!
+    Your Ingress Controller is published to Tailscale as a “LoadBalancer Service.”
+    Tailscale Operator allocates (and tries to keep) a stable Tailscale IP for that Service.
+    external-dns automatically publishes that IP to your domain on Cloudflare.
+    cert-manager issues certificates via DNS-01 challenge, so you get valid TLS even though the IP is private and not publicly routable.
+
+Because external-dns is also “watching” your Kubernetes resources, if the Tailscale IP does change (e.g., if you delete the Service and re-create it, or the Tailscale Operator decides it must move the IP), external-dns will automatically update Cloudflare’s A record in the background—no manual rewriting or fiddling with NextDNS.
+
+Below is the overall process in more detail.
+1. Install Tailscale Operator
+
+Follow Tailscale Operator’s official docs/Helm chart. The main setting you need is the OAuth client credentials. You’ll end up with something like:
+
+oauth:
+  clientId: <TAILSCALE_OAUTH_CLIENT_ID>
+  clientSecret: <TAILSCALE_OAUTH_CLIENT_SECRET>
+
+Deploy that into your cluster. (You may also need to set appropriate RBAC if you have a locked-down cluster.)
+2. Install external-dns (pointing to Cloudflare)
+
+You’ll want external-dns to manage your *.soyspray.vip DNS records. A sample values.yaml for Helm might look like:
+
+provider:
+  name: cloudflare
+env:
+  - name: CF_API_TOKEN
+    value: <YOUR_CLOUDFLARE_API_TOKEN>
+domainFilters:
+  - soyspray.vip
+txtOwnerId: local-k8s-cluster
+policy: sync   # ensures DNS records get deleted if you remove an Ingress
+
+Make sure you have granted that Cloudflare token the correct permissions.
+
+Installing external-dns:
+
+helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
+helm install external-dns external-dns/external-dns -f values.yaml
+
+3. Install cert-manager (for Let’s Encrypt via DNS-01 challenge)
+
+Cert-manager can be installed via Helm or static manifests. After that, define a ClusterIssuer that uses DNS-01 with Cloudflare:
+
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: "your.email@example.com"
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+      - dns01:
+          cloudflare:
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
+
+You’ll need a Secret named cloudflare-api-token containing the api-token key. Same Cloudflare token used in external-dns can be reused if permissions match.
+4. Deploy the Ingress Controller as a Tailscale LoadBalancer
+
+Now comes the important part: we want to “pin” the Ingress Controller behind a single Tailscale IP that rarely changes. By default, Tailscale Operator’s LoadBalancerClass tries to keep the assigned IP stable as long as you don’t delete and recreate that Service object. If you are in “day-to-day” usage and just re-deploy the Helm chart (without removing the Service), that Tailscale IP is likely to remain the same.
+Example Helm values.yaml for NGINX Ingress
+
+controller:
+  ingressClassResource:
+    name: nginx
+    default: false
+  watchIngressWithoutClass: false
+
+  service:
+    type: LoadBalancer
+    # This is the key so Tailscale Operator picks it up
+    loadBalancerClass: tailscale
+
+  # Force HTTPS
+  config:
+    ssl-redirect: "true"
+    force-ssl-redirect: "true"
+
+  replicaCount: 1
+
+Then install (or upgrade) the official NGINX Ingress chart:
+
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm install ingress-nginx ingress-nginx/ingress-nginx -f values.yaml
+
+Once it’s up, you should see a Service of type LoadBalancer with a Tailscale IP, for example:
+
+NAME                      TYPE           CLUSTER-IP      EXTERNAL-IP                            PORT(S)                      AGE
+ingress-nginx-controller  LoadBalancer  10.109.177.63   100.x.y.z,ingress-nginx.tailXXXX.ts.net 80:31164/TCP,443:31468/TCP   10m
+
+5. Create the Ingress for your workload
+
+Finally, you create an Ingress in your cluster referencing your real domain, soyspray.vip, plus the usual external-dns and cert-manager annotations:
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: myapp-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    external-dns.alpha.kubernetes.io/hostname: "myapp.soyspray.vip"
+    kubernetes.io/tls-acme: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: myapp.soyspray.vip
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: myapp-svc
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - myapp.soyspray.vip
+      secretName: myapp-sso-tls
+
+    The external-dns.alpha.kubernetes.io/hostname annotation instructs external-dns to create a DNS A record (myapp.soyspray.vip) in Cloudflare, pointing to the Tailscale IP assigned to the NGINX Ingress.
+    cert-manager.io/cluster-issuer: "letsencrypt-prod" plus kubernetes.io/tls-acme: "true" ensures that cert-manager automatically generates a valid Let’s Encrypt certificate using DNS-01.
+
+Result:
+
+    Tailscale Operator sees that your ingress controller is a Tailscale LB and ensures the cluster has a stable 100.x.y.z IP.
+    external-dns sees an Ingress with external-dns.alpha.kubernetes.io/hostname: "myapp.soyspray.vip", so it creates an A record in Cloudflare → 100.x.y.z.
+    cert-manager fetches a Let’s Encrypt certificate for myapp.soyspray.vip, storing it in the Secret myapp-sso-tls. NGINX Ingress uses that for TLS.
+    You connect from your phone’s Tailscale client. The domain myapp.soyspray.vip resolves to 100.x.y.z, your cluster is only accessible to Tailscale peers, and the certificate is fully valid.
+
+6. What if the Tailscale IP changes anyway?
+
+    In general, if you simply “helm upgrade” or “kubectl apply -f …” on the same Service, Tailscale Operator tries to preserve the same IP.
+    If you delete and recreate the Service (or blow away the entire Tailscale operator instance), then you may get a new IP.
+    But with external-dns, your DNS record will be automatically updated with that new IP. You do not need to manually track or reconfigure NextDNS rewrites.
+
+Hence, the entire process becomes:
+
+    Stable in everyday use (the IP usually stays the same).
+    Self-healing if the IP does change: external-dns updates the Cloudflare record.
+    Hands-off for certificate generation (cert-manager does it).
+
+7. What if you want to keep NextDNS in the mix?
+
+You mentioned using a NextDNS rewrite rule previously. If you prefer that approach to global DNS updates in Cloudflare, you can do something similar:
+
+    Instead of letting external-dns manage Cloudflare’s public DNS, you could point NextDNS rewrite to the Tailscale IP.
+    The big advantage of using external-dns & Cloudflare, though, is that if your Tailscale IP changes, that update is fully automated. If you rely on NextDNS rewrite alone, you have to update it manually.
+
+Therefore, the easiest path to “no more rewriting” is to let external-dns manage the domain in Cloudflare so that myapp.soyspray.vip will always point to your Tailscale IP—no matter what.
+8. Summary: The “Zero (Manual) Touch” Approach
+
+The solution in Mattia’s article is exactly the same pattern you can use in a local cluster:
+
+    Local cluster with MetalLB + NGINX Ingress.
+    Tailscale Operator as a “LoadBalancer Class.”
+    external-dns manages your Cloudflare zone (soyspray.vip).
+    cert-manager issues certificates with DNS-01.
+
+From then on, everything just works:
+
+    Tailscale Operator supplies an IP.
+    external-dns publishes that IP to your domain.
+    cert-manager auto-issues TLS certificates.
+    You connect over Tailscale from anywhere, securely, and the domain always has the correct record.
+
+You should no longer need to do any manual fiddling with NextDNS rewrites or pinned ephemeral IPs. Whenever the Tailscale LB IP changes (rarely), external-dns catches the new IP and updates Cloudflare automatically. That is exactly the “idempotent” setup that Mattia’s article describes.
+Good luck!
+
+Feel free to tweak the approach depending on your specific homelab environment, but this pattern—Tailscale LB → external-dns → Cloudflare + cert-manager for DNS-01—provides you with a stable, zero-maintenance setup.
