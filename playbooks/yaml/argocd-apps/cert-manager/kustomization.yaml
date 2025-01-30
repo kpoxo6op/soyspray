@@ -8,3 +8,4 @@ resources:
   - test-workload.yaml
   - test-ingress.yaml
   - prod-workload.yaml
+  - test-service.yaml

@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: test-ingress
+  namespace: default
+  annotations:
+    # Enable external-dns to manage this record
+    external-dns.alpha.kubernetes.io/hostname: test.home.arpa
+    # Use Tailscale loadbalancer class
+    service.kubernetes.io/load-balancer-class: "tailscale"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: test.home.arpa
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: test-service
+            port:
+              number: 80

@@ -1,18 +1,20 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: ingress-nginx-tailscale
+  name: test-ingress
   namespace: argocd
 spec:
   project: default
   source:
-    repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: feature/tailscale-vpn
-    path: playbooks/yaml/argocd-apps/ingress-nginx-tailscale
+    repoURL: https://github.com/your-repo/soyspray.git
+    targetRevision: HEAD
+    path: playbooks/yaml/argocd-apps/cert-manager
   destination:
     server: https://kubernetes.default.svc
-    namespace: ingress-nginx
+    namespace: default
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
