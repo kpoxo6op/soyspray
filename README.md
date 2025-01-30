@@ -314,7 +314,15 @@ The goal is to provide secure access to cluster services (*.soyspray.vip) throug
          auto_assign: true
    ```
 
-2. **Dual-Access Implementation**:
+2. **Tailscale Access Options**:
+   The Tailscale operator provides three ways to expose services:
+   - Create a LoadBalancer service with `loadBalancerClass: tailscale`
+   - Annotate existing services with `tailscale.com/expose: "true"`
+   - Use Tailscale's ingress class
+
+   We're currently using the annotation approach but will switch to LoadBalancer for better control.
+
+3. **Dual-Access Implementation**:
    - IMPORTANT: Keep existing MetalLB-based ingress-nginx service untouched (managed by Kubespray)
    - Create additional ingress-nginx service with Tailscale LoadBalancer:
 
@@ -322,7 +330,7 @@ The goal is to provide secure access to cluster services (*.soyspray.vip) throug
      apiVersion: v1
      kind: Service
      metadata:
-       name: ingress-nginx-tailscale
+       name: ingress-nginx-tailscale  # Different name to avoid conflict
        namespace: ingress-nginx
        annotations:
          external-dns.alpha.kubernetes.io/hostname: "*.soyspray.vip"
@@ -355,6 +363,7 @@ Current progress:
 - [x] Tailscale operator installed
 - [x] External-DNS configured with Cloudflare
 - [x] MetalLB service working (192.168.1.120)
+- [x] Cert-manager with DNS01 challenge (required for private ingress)
 - [ ] Tailscale LoadBalancer service
 - [ ] DNS records for dual access
 
@@ -365,8 +374,6 @@ Next steps:
 3. Test VPN access
 4. Document final configuration
 
-Note: This setup requires ArgoCD for deployment, Tailscale operator with OAuth credentials, and External-DNS with Cloudflare access.
-
 ### Implementation Notes
 
 - The MetalLB ingress-nginx service is managed by Kubespray through addons.yml
@@ -374,3 +381,22 @@ Note: This setup requires ArgoCD for deployment, Tailscale operator with OAuth c
 - All changes for Tailscale access should be done through additional resources
 - Use ArgoCD to manage the additional Tailscale LoadBalancer service
 - Changes to the base configuration should be made through Kubespray's inventory
+- Must use DNS01 challenge for cert-manager since ingress isn't publicly accessible
+- External-DNS policy should be set to "sync" to properly manage DNS records
+
+### Prerequisites
+
+1. Tailscale:
+   - Operator installed with OAuth credentials
+   - Proper ACL tags configured
+2. External-DNS:
+   - Configured with Cloudflare credentials
+   - Policy set to "sync"
+3. Cert-Manager:
+   - DNS01 challenge configured
+   - Cloudflare API token with proper permissions
+4. ArgoCD:
+   - Used for managing all additional resources
+5. Existing Setup (Managed by Kubespray):
+   - MetalLB (192.168.1.120-140 range)
+   - Ingress-NGINX base installation
