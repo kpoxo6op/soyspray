@@ -6,9 +6,9 @@ metadata:
 spec:
   project: default
   sources:
-    - repoURL: oci://registry-1.docker.io/bitnamicharts/external-dns
+    - repoURL: https://kubernetes-sigs.github.io/external-dns
       chart: external-dns
-      targetRevision: 8.7.3
+      targetRevision: 1.14.0
       helm:
         valueFiles:
           - $values/playbooks/yaml/argocd-apps/external-dns/values.yaml
