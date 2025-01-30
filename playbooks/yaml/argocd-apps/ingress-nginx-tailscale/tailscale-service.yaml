@@ -4,7 +4,8 @@ metadata:
   name: ingress-nginx-tailscale
   namespace: ingress-nginx
   annotations:
-    service.kubernetes.io/load-balancer-class: tailscale
+    kubernetes.io/ingress.class: nginx
+    service.kubernetes.io/load-balancer-class: "tailscale"
 spec:
   type: LoadBalancer
   ports:
