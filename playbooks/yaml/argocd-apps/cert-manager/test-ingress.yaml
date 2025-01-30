@@ -4,9 +4,13 @@ metadata:
   name: test-ingress
   namespace: cert-manager
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # Add external-dns annotations to automatically update DNS
+    external-dns.alpha.kubernetes.io/hostname: "test.soyspray.vip"
+    external-dns.alpha.kubernetes.io/ttl: "120"
 spec:
-  ingressClassName: nginx
+  # Change to tailscale class
+  ingressClassName: tailscale
   tls:
     - hosts:
         - test.soyspray.vip
