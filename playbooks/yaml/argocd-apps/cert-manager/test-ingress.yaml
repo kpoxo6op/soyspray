@@ -5,13 +5,13 @@ metadata:
   namespace: default
   annotations:
     # Enable external-dns to manage this record
-    external-dns.alpha.kubernetes.io/hostname: test.home.arpa
+    external-dns.alpha.kubernetes.io/hostname: test.soyspray.vip
     # Use Tailscale loadbalancer class
     service.kubernetes.io/load-balancer-class: "tailscale"
 spec:
   ingressClassName: nginx
   rules:
-  - host: test.home.arpa
+  - host: test.soyspray.vip
     http:
       paths:
       - path: /
