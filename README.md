@@ -280,3 +280,97 @@ done
 
 ## Tailscale VPN Access
 
+The goal is to provide secure access to cluster services (*.soyspray.vip) through Tailscale VPN while maintaining local network access. This is achieved using a dual-ingress setup:
+
+1. **Current Setup**:
+   - MetalLB provides IP (192.168.1.120) for local network access
+   - External-DNS updates Cloudflare DNS records
+   - Ingress-NGINX handles traffic routing
+   - Cert-Manager manages SSL certificates
+
+   Important: The current ingress-nginx configuration is managed by Kubespray in `kubespray/inventory/soycluster/group_vars/k8s_cluster/addons.yml`:
+
+   ```yaml
+   # DO NOT MODIFY these settings directly - they are managed by Kubespray
+   ingress_nginx_enabled: true
+   ingress_nginx_host_network: false
+   ingress_nginx_service_type: LoadBalancer
+   ingress_nginx_service_annotations:
+     external-dns.alpha.kubernetes.io/hostname: "*.soyspray.vip"
+     tailscale.com/expose: "true"
+   ```
+
+   MetalLB configuration in the same file:
+
+   ```yaml
+   # DO NOT MODIFY these settings directly - they are managed by Kubespray
+   metallb_enabled: true
+   metallb_speaker_enabled: "{{ metallb_enabled }}"
+   metallb_config:
+     address_pools:
+       primary:
+         ip_range:
+           - 192.168.1.120-192.168.1.140
+         auto_assign: true
+   ```
+
+2. **Dual-Access Implementation**:
+   - IMPORTANT: Keep existing MetalLB-based ingress-nginx service untouched (managed by Kubespray)
+   - Create additional ingress-nginx service with Tailscale LoadBalancer:
+
+     ```yaml
+     apiVersion: v1
+     kind: Service
+     metadata:
+       name: ingress-nginx-tailscale
+       namespace: ingress-nginx
+       annotations:
+         external-dns.alpha.kubernetes.io/hostname: "*.soyspray.vip"
+     spec:
+       type: LoadBalancer
+       loadBalancerClass: tailscale
+       ports:
+         - name: http
+           port: 80
+         - name: https
+           port: 443
+       selector:
+         app.kubernetes.io/name: ingress-nginx
+     ```
+
+   Note: The additional service uses the same selector to route to the existing ingress-nginx pods, avoiding duplication of the ingress controller itself.
+
+### End Goal
+
+- Access *.soyspray.vip domains from anywhere using Tailscale VPN
+- Maintain local network access without VPN
+- Keep all ingress-nginx features (SSL termination, path routing)
+- Automatic DNS updates when IPs change
+- No manual intervention needed for Tailscale IP changes
+
+### Implementation State
+
+Current progress:
+
+- [x] Tailscale operator installed
+- [x] External-DNS configured with Cloudflare
+- [x] MetalLB service working (192.168.1.120)
+- [ ] Tailscale LoadBalancer service
+- [ ] DNS records for dual access
+
+Next steps:
+
+1. Create Tailscale LoadBalancer service
+2. Verify External-DNS updates
+3. Test VPN access
+4. Document final configuration
+
+Note: This setup requires ArgoCD for deployment, Tailscale operator with OAuth credentials, and External-DNS with Cloudflare access.
+
+### Implementation Notes
+
+- The MetalLB ingress-nginx service is managed by Kubespray through addons.yml
+- DO NOT modify the existing ingress-nginx service or MetalLB configuration directly
+- All changes for Tailscale access should be done through additional resources
+- Use ArgoCD to manage the additional Tailscale LoadBalancer service
+- Changes to the base configuration should be made through Kubespray's inventory
