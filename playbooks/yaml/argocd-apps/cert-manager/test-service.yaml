@@ -12,6 +12,25 @@ spec:
   selector:
     app: nginx
 ---
+# Adding Tailscale LoadBalancer service
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-service-tailscale
+  namespace: default
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: test.soyspray.vip
+spec:
+  type: LoadBalancer
+  loadBalancerClass: tailscale
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  selector:
+    app: nginx
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
