@@ -365,3 +365,65 @@ kubectl get certificaterequests -A
 # 5. Verify Tailscale Status
 kubectl logs -n tailscale-system -l app.kubernetes.io/name=operator
 ```
+
+### Current Architecture
+
+```
+External Clients                                     Local Network Clients
+(with Tailscale VPN)                                (192.168.1.0/24)
+       │                                                   │
+       │                                                   │
+       ▼                                                   ▼
+   Tailscale                                         Local Router
+[100.102.114.103]                                [192.168.1.120]
+       │                                                   │
+       │                                                   │
+       └──────────────────────┬───────────────────────────┘
+                             │
+                             ▼
+                    DNS: *.soyspray.vip
+                    [Cloudflare DNS]
+                    A → 192.168.1.120
+                    A → 100.102.114.103
+                             │
+                             │
+              ┌──────────────┴──────────────┐
+              │                             │
+              ▼                             ▼
+    Service: ingress-nginx      Service: ingress-nginx-tailscale
+    Type: LoadBalancer          Type: LoadBalancer
+    IP: 192.168.1.120          IP: 100.102.114.103
+    (Managed by Kubespray)      (Managed by ArgoCD)
+              │                             │
+              └──────────────┬──────────────┘
+                            │
+                            ▼
+                   Ingress-NGINX Pods
+                   (Same pods for both services)
+                            │
+                            ▼
+                   Kubernetes Services
+                   (Various applications)
+```
+
+### Components
+
+1. **DNS Layer**:
+   - External-DNS managing Cloudflare records
+   - Dual A records for *.soyspray.vip
+   - Automatic updates when IPs change
+
+2. **Access Layer**:
+   - Tailscale VPN access: 100.102.114.103
+   - Local network access: 192.168.1.120
+   - Zero-trust security model
+
+3. **Service Layer**:
+   - Two LoadBalancer services
+   - Same ingress-nginx backend pods
+   - Shared SSL termination
+
+4. **Management**:
+   - MetalLB service: Managed by Kubespray
+   - Tailscale service: Managed by ArgoCD
+   - Cert-Manager: DNS01 challenges via Cloudflare
