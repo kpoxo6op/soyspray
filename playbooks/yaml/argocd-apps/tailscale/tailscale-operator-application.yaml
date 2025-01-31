@@ -14,8 +14,10 @@ spec:
           - $values/playbooks/yaml/argocd-apps/tailscale/values.yaml
     - repoURL: https://github.com/kpoxo6op/soyspray.git
       targetRevision: feature/tailscale-vpn
+      ref: values
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: feature/tailscale-vpn
       path: playbooks/yaml/argocd-apps/tailscale
-      ref: values-config
   destination:
     server: https://kubernetes.default.svc
     namespace: tailscale-system
