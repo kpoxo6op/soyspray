@@ -492,3 +492,156 @@ Next steps:
 ### Links
 
 <https://medium.com/@mattiaforc/zero-trust-kubernetes-ingress-with-tailscale-operator-cert-manager-and-external-dns-8f42272f8647>
+
+### DNS Strategy
+
+We will use a single wildcard domain (*.soyspray.vip) with dual A records:
+
+1. Local MetalLB IP (192.168.1.120)
+2. Tailscale IP (dynamic, managed by Tailscale operator)
+
+This approach means:
+
+- Local network clients will use the MetalLB IP directly (faster)
+- Remote clients using Tailscale VPN will use the Tailscale IP
+- DNS resolution behavior:
+  - Local network: Both IPs returned, local IP preferred due to network proximity
+  - Remote/VPN: Both IPs returned, Tailscale IP accessible through VPN
+  - Public internet: Both IPs returned but neither accessible (security by design)
+
+Example DNS configuration:
+
+```
+*.soyspray.vip.    300    IN    A    192.168.1.120        # MetalLB IP
+*.soyspray.vip.    300    IN    A    100.x.y.z            # Tailscale IP (dynamic)
+```
+
+This setup ensures:
+
+- Single domain for all services (simpler certificate management)
+- Automatic failover if one access method is unavailable
+- No manual DNS updates needed when Tailscale IPs change
+- Zero-trust security (services only accessible via local network or VPN)
+
+### Common Pitfalls
+
+When running dual A records with MetalLB and Tailscale LoadBalancer, be aware of these potential issues:
+
+#### 1. DNS Resolution Behavior
+
+- **Random IP Selection**:
+  - DNS resolvers may randomize A record order
+  - Clients might try unreachable IP first (brief delay)
+  - Solution: Rely on OS routing preferences and connection timeouts
+
+- **VPN vs Local Network**:
+  - Local devices with Tailscale might prefer VPN route
+  - Usually mitigated by lower latency of local network
+  - Monitor client connection patterns if performance issues arise
+
+- **Public Internet Access**:
+  - Both IPs (192.168.1.x and 100.x.x.x) are non-routable
+  - Expect connection attempts from internet scanners
+  - Monitor logs but no action needed (security by design)
+
+#### 2. Certificate Management
+
+- **Wildcard Certificate Requirements**:
+  - Using single wildcard cert for all ingresses
+  - Must use DNS01 challenge (HTTP01 impossible for private IPs)
+  - Ensure Cloudflare token permissions remain valid
+
+- **DNS Propagation**:
+  - DNS01 challenges depend on proper external-dns setup
+  - Watch cert-manager logs for renewal issues
+  - Keep Cloudflare API token permissions updated
+
+#### 3. Tailscale IP Management
+
+- **IP Address Changes**:
+  - Tailscale IPs can change on operator restart
+  - External-DNS handles updates automatically
+  - Expect brief propagation delays during changes
+
+- **Service Recreation**:
+  - New services might get different Tailscale IPs
+  - Operator tries to maintain IP consistency
+  - Monitor during cluster maintenance
+
+#### 4. External-DNS Configuration
+
+- **Multiple Services, Same Hostname**:
+
+  ```yaml
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: "*.soyspray.vip"
+  ```
+
+  - Both services update same DNS record
+  - Use `policy: sync` to prevent ownership conflicts
+  - Watch for repeated record updates in logs
+
+#### 5. Traffic Management
+
+- **Shared Ingress Controller**:
+  - Both paths use same ingress-nginx pods
+  - Logs don't distinguish traffic source (MetalLB vs Tailscale)
+  - Consider adding source annotations if needed
+
+- **Monitoring Considerations**:
+  - Single wildcard cert for all traffic
+  - TLS handshakes look identical
+  - Add custom headers/logging for path tracking
+
+#### 6. Network Routing
+
+- **Path Selection**:
+  - OS routing usually prefers available path
+  - Local network typically chosen over Tailscale
+  - Test both paths during implementation
+
+- **Firewall Rules**:
+  - Check NAT handling for both paths
+  - Ensure return traffic isn't blocked
+  - Document any special firewall rules
+
+#### 7. Kubespray Integration
+
+- **Service Management**:
+
+  ```yaml
+  # Kubespray-managed (DO NOT MODIFY):
+  - ingress-nginx service (MetalLB)
+  - MetalLB configuration
+
+  # Managed separately:
+  - ingress-nginx-tailscale service
+  - Tailscale operator configuration
+  ```
+
+- **Upgrade Considerations**:
+  - Keep Tailscale services in separate manifests
+  - Watch for Kubespray changes during upgrades
+  - Document service ownership clearly
+
+#### Monitoring Checklist
+
+Regular checks for healthy dual-access:
+
+```bash
+# 1. Check DNS Records
+dig *.soyspray.vip
+
+# 2. Verify Services
+kubectl get svc -n ingress-nginx
+
+# 3. Monitor External-DNS
+kubectl logs -n external-dns -l app.kubernetes.io/name=external-dns
+
+# 4. Check Cert-Manager
+kubectl get certificates -A
+kubectl get certificaterequests -A
+
+# 5. Verify Tailscale Status
+kubectl logs -n tailscale-system -l app.kubernetes.io/name=operator
+```
