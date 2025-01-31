@@ -361,9 +361,97 @@ The goal is to provide secure access to cluster services (*.soyspray.vip) throug
 Current progress:
 
 - [x] Tailscale operator installed
+
+  ```bash
+  # Check Tailscale operator pods
+  kubectl get pods -n tailscale-system
+  ```
+
+  Output:
+
+  ```
+  NAME                       READY   STATUS    RESTARTS   AGE
+  operator-96dc568bb-f7vfx   1/1     Running   0          16h
+  ts-ingress-nginx-vmcwj-0   1/1     Running   0          42h
+  ```
+
 - [x] External-DNS configured with Cloudflare
+
+  ```bash
+  # Check External-DNS pods and logs
+  kubectl get pods -n external-dns
+  kubectl logs -n external-dns -l app.kubernetes.io/name=external-dns --tail=5
+  ```
+
+  Output:
+
+  ```
+  NAME                            READY   STATUS    RESTARTS   AGE
+  external-dns-564cb7b895-jnnrt   1/1     Running   0          16h
+  # Logs show: "All records are already up to date"
+  ```
+
 - [x] MetalLB service working (192.168.1.120)
+
+  ```bash
+  # Check MetalLB components
+  kubectl get pods -n metallb-system
+
+  # Check ingress-nginx service
+  kubectl get svc -n ingress-nginx ingress-nginx
+  ```
+
+  Output:
+
+  ```
+  # MetalLB components
+  NAME                          READY   STATUS    RESTARTS   AGE
+  controller-7f649565d4-gtbcx   1/1     Running   0          4d13h
+  speaker-dg8p6                 1/1     Running   6          4d13h
+  speaker-gdrj4                 1/1     Running   13         4d13h
+  speaker-rwxjd                 1/1     Running   0          4d13h
+
+  # Ingress Service
+  NAME            TYPE           CLUSTER-IP     EXTERNAL-IP     PORT(S)
+  ingress-nginx   LoadBalancer   10.233.25.42   192.168.1.120   80:32078/TCP,443:31244/TCP
+  ```
+
 - [x] Cert-manager with DNS01 challenge (required for private ingress)
+
+  ```bash
+  # Check cert-manager pods
+  kubectl get pods -n cert-manager
+
+  # Check ClusterIssuers
+  kubectl get clusterissuers
+
+  # Check DNS01 configuration
+  kubectl get clusterissuer letsencrypt-prod -o yaml | grep -A 10 solvers
+  ```
+
+  Output:
+
+  ```
+  # Cert-manager pods
+  NAME                                      READY   STATUS    RESTARTS   AGE
+  cert-manager-79747c8677-pcxpl             1/1     Running   1          3d18h
+  cert-manager-cainjector-966b79998-s8vz2   1/1     Running   4          3d18h
+  cert-manager-webhook-58ff58d95b-ckcp4     1/1     Running   0          3d18h
+
+  # ClusterIssuers
+  NAME                  READY   AGE
+  letsencrypt-prod      True    3d19h
+  letsencrypt-staging   True    3d19h
+
+  # DNS01 Cloudflare configuration verified
+  solvers:
+    - dns01:
+        cloudflare:
+          apiTokenSecretRef:
+            key: api-token
+            name: cloudflare-api-token
+  ```
+
 - [ ] Tailscale LoadBalancer service
 - [ ] DNS records for dual access
 
@@ -400,3 +488,7 @@ Next steps:
 5. Existing Setup (Managed by Kubespray):
    - MetalLB (192.168.1.120-140 range)
    - Ingress-NGINX base installation
+
+### Links
+
+<https://medium.com/@mattiaforc/zero-trust-kubernetes-ingress-with-tailscale-operator-cert-manager-and-external-dns-8f42272f8647>
