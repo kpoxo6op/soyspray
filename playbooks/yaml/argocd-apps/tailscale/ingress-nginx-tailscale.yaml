@@ -4,11 +4,12 @@ metadata:
   name: ingress-nginx-tailscale
   namespace: ingress-nginx
   annotations:
-    # Add Tailscale IP to the wildcard record
+    # Force A record creation and specify target IP
     external-dns.alpha.kubernetes.io/hostname: "*.soyspray.vip"
     external-dns.alpha.kubernetes.io/ttl: "300"
-    # Ensure this service can modify the record
-    external-dns/owner-id: default
+    external-dns.alpha.kubernetes.io/record-type: "A"
+    external-dns.alpha.kubernetes.io/target: "100.102.114.103"
+    external-dns/owner-id: "default"
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
