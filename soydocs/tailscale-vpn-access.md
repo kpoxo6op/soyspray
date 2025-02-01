@@ -370,64 +370,168 @@ kubectl get certificaterequests -A
 kubectl logs -n tailscale-system -l app.kubernetes.io/name=operator
 ```
 
-### Current Architecture
+### Expected Flow from iPhone with Tailscale VPN to my local nginx service with evidence
 
 ```
-External Clients                                     Local Network Clients
-(with Tailscale VPN)                                (192.168.1.0/24)
-       │                                                   │
-       │                                                   │
-       ▼                                                   ▼
-   Tailscale                                         Local Router
-[100.102.114.103]                                [192.168.1.120]
-       │                                                   │
-       │                                                   │
-       └──────────────────────┬───────────────────────────┘
-                             │
-                             ▼
-                    DNS: *.soyspray.vip
-                    [Cloudflare DNS]
-                    A → 192.168.1.120
-                    A → 100.102.114.103
-                             │
-                             │
-              ┌──────────────┴──────────────┐
-              │                             │
-              ▼                             ▼
-    Service: ingress-nginx      Service: ingress-nginx-tailscale
-    Type: LoadBalancer          Type: LoadBalancer
-    IP: 192.168.1.120          IP: 100.102.114.103
-    (Managed by Kubespray)      (Managed by ArgoCD)
-              │                             │
-              └──────────────┬──────────────┘
-                            │
-                            ▼
-                   Ingress-NGINX Pods
-                   (Same pods for both services)
-                            │
-                            ▼
-                   Kubernetes Services
-                   (Various applications)
+External:
++----------------+     (1) DNS Query      +----------------+
+|  iPhone with   | -------------------->  |   Cloudflare   |
+|Tailscale Client| <-------------------- |      DNS       |
++----------------+     (2) Returns IPs    +----------------+
+        |
+        | (3) HTTPS 443
+        | via Tailscale
+        v
+Kubernetes Cluster:
+    ingress-nginx namespace:
+    +------------------------+     (4) Forward 443    +------------------+
+    |Tailscale LoadBalancer | -------------------->  | ingress-nginx    |
+    |   100.102.114.103     |                       |      pods        |
+    +------------------------+                       | [TLS Termination] |
+                                                    +------------------+
+                                                           |
+                                                           | (5) HTTP 80
+                                                           v
+    nginx namespace:
+                                                    +------------------+
+                                                    |  nginx service   |
+                                                    |                 |
+                                                    +------------------+
+                                                           |
+                                                           | (6) Route
+                                                           v
+                                                    +------------------+
+                                                    |   nginx pod     |
+                                                    |                 |
+                                                    +------------------+
 ```
 
-### Components
+Each step with evidence:
 
-1. **DNS Layer**:
-   - External-DNS managing Cloudflare records
-   - Dual A records for *.soyspray.vip
-   - Automatic updates when IPs change
+1. **DNS Query Flow**:
 
-2. **Access Layer**:
-   - Tailscale VPN access: 100.102.114.103
-   - Local network access: 192.168.1.120
-   - Zero-trust security model
+   ```
+   iPhone -> Cloudflare DNS
+   Request: nginx.soyspray.vip
+   ```
 
-3. **Service Layer**:
-   - Two LoadBalancer services
-   - Same ingress-nginx backend pods
-   - Shared SSL termination
+   Evidence:
 
-4. **Management**:
-   - MetalLB service: Managed by Kubespray
-   - Tailscale service: Managed by ArgoCD
-   - Cert-Manager: DNS01 challenges via Cloudflare
+   ```bash
+   # Verify DNS records in Cloudflare
+   dig nginx.soyspray.vip
+
+   Expected output:
+   ;; ANSWER SECTION:
+   nginx.soyspray.vip.    300    IN    A    192.168.1.120        # MetalLB IP
+   nginx.soyspray.vip.    300    IN    A    100.102.114.103      # Tailscale IP
+   ```
+
+2. **Tailscale LoadBalancer Service**:
+
+   ```
+   Cloudflare DNS -> iPhone
+   Returns: Both IPs (Tailscale IP accessible via VPN)
+   ```
+
+   Evidence:
+
+   ```bash
+   # Verify Tailscale service exists and has correct IP
+   kubectl get svc -n ingress-nginx ingress-nginx-tailscale
+
+   Expected output:
+   NAME                      TYPE           CLUSTER-IP     EXTERNAL-IP                                                               PORTS
+   ingress-nginx-tailscale   LoadBalancer   10.233.8.142   100.102.114.103,ingress-nginx-ingress-nginx-tailscale.tail370c02.ts.net   80:31069/TCP,443:30114/TCP
+   ```
+
+3. **HTTPS Connection via Tailscale**:
+
+   ```
+   iPhone -> Tailscale LoadBalancer
+   Protocol: HTTPS (443)
+   Path: Through Tailscale encrypted tunnel
+   ```
+
+   Evidence:
+
+   ```bash
+   # Verify ingress configuration has Tailscale and HTTPS enabled
+   kubectl get ingress -n nginx nginx -o yaml | grep -A 10 "annotations:"
+
+   Expected output:
+   annotations:
+     cert-manager.io/cluster-issuer: letsencrypt-prod
+     tailscale.com/funnel: "true"
+     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+   ```
+
+4. **Ingress-Nginx Handling**:
+
+   ```
+   Tailscale LoadBalancer -> ingress-nginx pods
+   Protocol: HTTP/HTTPS
+   TLS: Terminated at ingress
+   ```
+
+   Evidence:
+
+   ```bash
+   # Verify ingress-nginx pods are running
+   kubectl get pods -n ingress-nginx -l app.kubernetes.io/component=controller
+
+   # Verify TLS certificate is ready
+   kubectl get certificate -n nginx nginx-tls
+   ```
+
+5. **Backend Service**:
+
+   ```
+   ingress-nginx -> nginx service
+   Protocol: HTTP (internal)
+   Port: 80
+   ```
+
+   Evidence:
+
+   ```bash
+   # Verify nginx service is running
+   kubectl get svc -n nginx nginx
+
+   # Verify nginx pods are running
+   kubectl get pods -n nginx
+   ```
+
+**Real-time Flow Verification**:
+
+```bash
+# 1. Watch Tailscale operator logs for connection
+kubectl logs -n tailscale-system -l app.kubernetes.io/name=operator -f
+
+# 2. Watch ingress-nginx access logs
+kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller -f
+
+# 3. Watch nginx pod logs
+kubectl logs -n nginx -l app.kubernetes.io/name=nginx -f
+```
+
+**Client-side Testing Steps**:
+
+1. On iPhone:
+   - Open Tailscale app
+   - Verify connected status
+   - Note assigned Tailscale IP
+
+2. Test Connection:
+
+   ```bash
+   # From iPhone terminal app or computer
+   curl -v https://nginx.soyspray.vip
+   # Should show TLS handshake and valid certificate
+   ```
+
+3. Browser Test:
+   - Open Safari/Chrome
+   - Navigate to <https://nginx.soyspray.vip>
+   - Verify green padlock (valid TLS)
+   - Page loads successfully
