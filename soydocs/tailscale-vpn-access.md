@@ -172,12 +172,16 @@ Current progress:
             name: cloudflare-api-token
   ```
 
-- [ ] Tailscale LoadBalancer service
+- [~] Tailscale LoadBalancer service (In Progress)
+  - Working on ingress configuration in `playbooks/yaml/argocd-apps/nginx/ingress.yaml`
+  - Added Tailscale Funnel support with `tailscale.com/funnel: "true"` annotation
+  - Verified annotations from official documentation
+  - Next: Test and verify the configuration
 - [ ] DNS records for dual access
 
 Next steps:
 
-1. Create Tailscale LoadBalancer service
+1. Complete and verify Tailscale LoadBalancer service configuration
 2. Verify External-DNS updates
 3. Test VPN access
 4. Document final configuration
