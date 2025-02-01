@@ -532,6 +532,47 @@ kubectl logs -n nginx -l app.kubernetes.io/name=nginx -f
 
 3. Browser Test:
    - Open Safari/Chrome
-   - Navigate to <https://nginx.soyspray.vip>
+   - Navigate to https://nginx.soyspray.vip
    - Verify green padlock (valid TLS)
    - Page loads successfully
+
+**Android Termux Verification Steps**:
+
+1. Setup Termux:
+   ```bash
+   pkg update
+   pkg install curl
+   ```
+
+2. Verify Tailscale Connection:
+   ```bash
+   ifconfig
+   # Should show tun0 interface with Tailscale IP (100.x.x.x)
+   ```
+
+3. Test Direct Tailscale Access:
+   ```bash
+   # Test with Tailscale IP
+   curl -v -k https://100.102.114.103
+   ```
+   Expected: 404 Not Found (because Host header not set)
+
+4. Test with Proper Host Header:
+   ```bash
+   # Test with correct Host header
+   curl -v -k -H "Host: nginx.soyspray.vip" https://100.102.114.103
+   ```
+   Expected: 200 OK with nginx welcome page
+
+5. Test Tailscale DNS:
+   ```bash
+   # Test using Tailscale DNS name
+   curl -v -k https://ingress-nginx-ingress-nginx-tailscale.tail370c02.ts.net
+   ```
+   Expected: 404 Not Found (because Host header not set)
+
+Successful verification should show:
+- TLS handshake with self-signed certificate
+- HTTP/2 connection
+- Proper routing when Host header is set
+- 200 OK response with nginx welcome page
