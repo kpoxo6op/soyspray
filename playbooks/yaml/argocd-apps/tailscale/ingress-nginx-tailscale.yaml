@@ -4,11 +4,9 @@ metadata:
   name: ingress-nginx-tailscale
   namespace: ingress-nginx
   annotations:
-    # Use specific hostname to avoid conflict with Kubespray-managed wildcard
-    external-dns.alpha.kubernetes.io/hostname: "nginx.soyspray.vip,tailscale.soyspray.vip"
+    # Only manage specific records, let Kubespray handle wildcard
+    external-dns.alpha.kubernetes.io/hostname: "nginx.soyspray.vip"
     external-dns.alpha.kubernetes.io/ttl: "300"
-    external-dns/owner-id: "tailscale"
-    external-dns/resource-policy: "sync"
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
