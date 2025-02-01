@@ -7,6 +7,7 @@ metadata:
     external-dns.alpha.kubernetes.io/hostname: "*.ts.soyspray.vip"
     external-dns.alpha.kubernetes.io/record-type: "A"
     external-dns.alpha.kubernetes.io/ttl: "300"
+    external-dns.alpha.kubernetes.io/target: "100.102.114.103"
     external-dns/owner-id: "default"
     tailscale.com/hostname-publish: "false"  # Prevent hostname publishing
   labels:
