@@ -5,6 +5,9 @@ metadata:
   namespace: ingress-nginx
   annotations:
     external-dns.alpha.kubernetes.io/hostname: "*.soyspray.vip"
+    external-dns.alpha.kubernetes.io/ttl: "300"
+    external-dns/owner-id: "tailscale"
+    external-dns/resource-policy: "sync"
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
