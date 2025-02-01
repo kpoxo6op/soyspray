@@ -4,23 +4,36 @@ metadata:
   name: nginx
   namespace: nginx
   annotations:
-    cert-manager.io/cluster-issuer: "letsencrypt-prod"
-    tailscale.com/funnel: "true"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    tailscale.com/funnel: "true"
+  labels:
+    app.kubernetes.io/instance: nginx
 spec:
   ingressClassName: nginx
-  tls:
-    - hosts:
-        - "nginx.soyspray.vip"
-      secretName: nginx-tls
   rules:
-    - host: nginx.soyspray.vip
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: nginx
-                port:
-                  number: 80
+  - host: nginx.soyspray.vip
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 80
+  - host: nginx.ts.soyspray.vip
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx
+            port:
+              number: 80
+  tls:
+  - hosts:
+    - nginx.soyspray.vip
+    - nginx.ts.soyspray.vip
+    secretName: nginx-tls
