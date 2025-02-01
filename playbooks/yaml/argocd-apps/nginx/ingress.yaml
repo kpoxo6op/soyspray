@@ -36,6 +36,8 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     tailscale.com/funnel: "true"
+    nginx.ingress.kubernetes.io/upstream-vhost: "nginx.ts.soyspray.vip"
+    nginx.ingress.kubernetes.io/service-upstream: "true"
   labels:
     app.kubernetes.io/instance: nginx
 spec:
@@ -48,7 +50,7 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: nginx
+            name: ingress-nginx-tailscale
             port:
               number: 80
   tls:

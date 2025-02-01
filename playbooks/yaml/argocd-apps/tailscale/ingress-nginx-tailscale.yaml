@@ -9,13 +9,15 @@ metadata:
     external-dns.alpha.kubernetes.io/ttl: "300"
     external-dns.alpha.kubernetes.io/target: "100.102.114.103"
     external-dns/owner-id: "default"
-    tailscale.com/hostname-publish: "false"  # Prevent hostname publishing
+    tailscale.com/hostname-publish: "false"
+    tailscale.com/funnel: "true"
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/part-of: ingress-nginx
 spec:
   type: LoadBalancer
   loadBalancerClass: tailscale
+  externalTrafficPolicy: Local
   ports:
     - name: http
       port: 80
