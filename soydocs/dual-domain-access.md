@@ -30,10 +30,12 @@ graph TB
 ## DNS Strategy
 
 We use dual A records for each service:
+
 - `service.soyspray.vip` → MetalLB IP (local access)
 - `service.ts.soyspray.vip` → Tailscale IP (VPN access)
 
 Example for nginx:
+
 ```mermaid
 graph LR
     subgraph DNS Records
@@ -65,6 +67,7 @@ graph LR
 For each service that needs dual access:
 
 1. Create two ingress resources:
+
    ```yaml
    # Local access
    - host: service.soyspray.vip
@@ -76,6 +79,7 @@ For each service that needs dual access:
    ```
 
 2. Add required annotations:
+
    ```yaml
    # For Tailscale
    tailscale.com/funnel: "true"
@@ -108,13 +112,96 @@ sequenceDiagram
 ## Testing Access
 
 1. Local network:
+
    ```bash
    curl https://nginx.soyspray.vip
    ```
 
 2. Over VPN:
+
    ```bash
    curl https://nginx.ts.soyspray.vip
    ```
 
 Both should return the same content, just routed differently.
+
+## Checking Resources
+
+### DNS Records
+
+```bash
+# Check DNS resolution for both domains
+dig +short nginx.soyspray.vip
+dig +short nginx.ts.soyspray.vip
+```
+
+### Kubernetes Resources
+
+```bash
+# Check ingress resources
+kubectl get ingress -n nginx
+kubectl get ingress -n nginx nginx-tailscale -o yaml
+
+# Check certificates
+kubectl get certificate -n nginx
+kubectl get certificate -n nginx nginx-tls -o yaml
+kubectl get certificate -n nginx nginx-ts-tls -o yaml
+
+# Check services
+kubectl get svc -n nginx nginx
+kubectl get svc -n ingress-nginx ingress-nginx-tailscale -o yaml
+
+# Check external-dns logs
+kubectl logs -n external-dns -l app.kubernetes.io/name=external-dns --tail=20
+
+# Check ingress controller pods
+kubectl get pods -n ingress-nginx
+```
+
+### Testing Connectivity
+
+```bash
+# Test local access (from home network)
+curl -v https://nginx.soyspray.vip
+
+# Test VPN access (requires Tailscale connection)
+curl -v https://nginx.ts.soyspray.vip
+
+# Force Tailscale IP for testing
+curl -v --resolve nginx.ts.soyspray.vip:443:100.102.114.103 https://nginx.ts.soyspray.vip
+```
+
+### Common Issues
+
+1. **Certificate Issues**:
+
+   ```bash
+   # Check certificate status
+   kubectl describe certificate -n nginx nginx-tls
+   kubectl describe certificate -n nginx nginx-ts-tls
+   ```
+
+2. **DNS Issues**:
+
+   ```bash
+   # Check external-dns logs for errors
+   kubectl logs -n external-dns -l app.kubernetes.io/name=external-dns
+   ```
+
+3. **Ingress Issues**:
+
+   ```bash
+   # Check ingress controller logs
+   kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller
+   ```
+
+## Implementation Notes
+
+1. **Kubespray Integration**:
+   - Ingress NGINX controller is managed by Kubespray
+   - Located in `kubespray/roles/kubernetes-apps/ingress_controller/ingress_nginx`
+   - Configuration changes should be made through Kubespray inventory
+
+2. **Rate Limits**:
+   - Let's Encrypt has a rate limit of 5 certificates per domain per week
+   - If hit, wait for reset or use `letsencrypt-staging` issuer temporarily
