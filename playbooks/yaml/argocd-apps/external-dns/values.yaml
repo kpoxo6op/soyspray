@@ -20,4 +20,7 @@ policy: sync
 # Add annotations for Tailscale IP
 extraArgs:
   - --txt-owner-id=k8s
-  - --annotation-filter=external-dns.alpha.kubernetes.io/target
+  - --ignore-ingress-tls-spec=true
+  - --ignore-ingress-rules-spec=false
+  - --publish-host-ip=false
+  - --publish-internal-services=false
