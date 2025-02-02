@@ -15,6 +15,9 @@ spec:
     - repoURL: https://github.com/kpoxo6op/soyspray.git
       targetRevision: "feature/tailscale-vpn"
       ref: values
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: "feature/tailscale-vpn"
+      path: playbooks/yaml/argocd-apps/podinfo
   destination:
     server: "https://kubernetes.default.svc"
     namespace: podinfo
