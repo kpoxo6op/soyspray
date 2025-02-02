@@ -55,3 +55,19 @@ sequenceDiagram
         Client->>K8s: Access via Tailscale
     end
 ```
+
+## Notes
+
+Local access
+
+```sh
+dig +short podinfo.test.soyspray.vip @192.168.1.122
+curl -v -k https://podinfo.test.soyspray.vip
+```
+
+VPN access. Run on device connected to VPN.
+
+```sh
+dig +short podinfo.test.soyspray.vip
+curl -v -k https://podinfo.test.soyspray.vip
+```
