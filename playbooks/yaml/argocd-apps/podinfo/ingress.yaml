@@ -8,8 +8,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: podinfo.soyspray.vip
-      http:
+    - http:
         paths:
           - path: /
             pathType: Prefix
