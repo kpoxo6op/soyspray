@@ -5,6 +5,8 @@ metadata:
   namespace: ingress-nginx
   annotations:
     external-dns.alpha.kubernetes.io/hostname: "*.soyspray.vip"
+    # Using the Tailscale IP of ingress-nginx node
+    external-dns.alpha.kubernetes.io/target: "100.100.115.18"
 spec:
   ingressClassName: nginx
   defaultBackend:

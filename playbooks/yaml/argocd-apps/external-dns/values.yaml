@@ -16,3 +16,8 @@ domainFilters:
 
 # Ensure DNS records are synced (created and deleted)
 policy: sync
+
+# Add annotations for Tailscale IP
+extraArgs:
+  - --txt-owner-id=k8s
+  - --annotation-filter=external-dns.alpha.kubernetes.io/target

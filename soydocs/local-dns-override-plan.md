@@ -78,5 +78,3 @@ sequenceDiagram
     end
 ```
 
-## Implementation Components
-
