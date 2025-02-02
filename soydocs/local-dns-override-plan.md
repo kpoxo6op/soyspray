@@ -58,27 +58,23 @@ sequenceDiagram
 
 ## Notes
 
-Local access
+### Validation Commands
+
+Check local network access when connected to home network. Use local DNS server:
 
 ```sh
 dig +short podinfo.test.soyspray.vip @192.168.1.122
 curl -v -k https://podinfo.test.soyspray.vip
 ```
 
-VPN access. Run on device connected to VPN.
+Check VPN access when connected via Tailscale:
 
 ```sh
 dig +short podinfo.test.soyspray.vip
 curl -v -k https://podinfo.test.soyspray.vip
 ```
 
-With Tailscale Search Domain `test.soyspray.vip` added
-
-```sh
-curl -v -k https://podinfo
-```
-
-Target DNS servers
+Verify DNS resolution through specific servers:
 
 ```sh
 dig @100.100.100.100 podinfo.test.soyspray.vip
