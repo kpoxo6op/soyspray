@@ -71,3 +71,16 @@ VPN access. Run on device connected to VPN.
 dig +short podinfo.test.soyspray.vip
 curl -v -k https://podinfo.test.soyspray.vip
 ```
+
+With Tailscale Search Domain `test.soyspray.vip` added
+
+```sh
+curl -v -k https://podinfo
+```
+
+Target DNS servers
+
+```sh
+dig @100.100.100.100 podinfo.test.soyspray.vip
+dig @1.1.1.1 podinfo.test.soyspray.vip
+```
