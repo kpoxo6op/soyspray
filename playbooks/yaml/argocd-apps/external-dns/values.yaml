@@ -22,3 +22,13 @@ registry: txt
 txtOwnerId: k8s
 sources:
   - ingress
+
+# Only use annotation-specified targets, ignore ingress status
+ignoreHostnameAnnotation: false
+publishInternalServices: false
+publishHostIP: false
+
+extraArgs:
+  - --ignore-ingress-tls-spec=false
+  - --txt-prefix=external-dns-
+  - --ignore-ingress-rules-spec=false
