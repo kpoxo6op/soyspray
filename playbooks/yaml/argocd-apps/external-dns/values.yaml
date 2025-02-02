@@ -29,5 +29,4 @@ extraArgs:
   - --ignore-ingress-tls-spec
   - --ignore-ingress-rules-spec
   - --fqdn-template={{.Name}}.{{.Namespace}}.soyspray.vip
-  - --annotation-filter=external-dns.alpha.kubernetes.io/target
-  - --sync-policy=sync
+  - --annotation-filter=external-dns.alpha.kubernetes.io/target in (100.69.17.31)

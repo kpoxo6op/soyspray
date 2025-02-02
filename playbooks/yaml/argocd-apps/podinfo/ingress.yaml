@@ -9,7 +9,7 @@ metadata:
     cert-manager.io/common-name: podinfo.test.soyspray.vip
     external-dns.alpha.kubernetes.io/target: "100.69.17.31"
     external-dns.alpha.kubernetes.io/ttl: "60"
-    external-dns/set-identifier: "tailscale"
+    external-dns.alpha.kubernetes.io/set-identifier: "tailscale"
   labels:
     app.kubernetes.io/instance: podinfo
 spec:
