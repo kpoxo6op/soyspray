@@ -11,4 +11,5 @@ spec:
     name: letsencrypt-staging
     kind: ClusterIssuer
   dnsNames:
-    - test.soyspray.vip
+    - "*.test.soyspray.vip"
+    - "test.soyspray.vip"
