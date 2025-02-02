@@ -5,7 +5,6 @@ metadata:
   namespace: ingress-nginx
   annotations:
     external-dns.alpha.kubernetes.io/hostname: "*.soyspray.vip"
-    tailscale.com/funnel: "true"
 spec:
   ingressClassName: nginx
   defaultBackend:
