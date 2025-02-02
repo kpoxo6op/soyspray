@@ -6,6 +6,7 @@ metadata:
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-staging
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    cert-manager.io/common-name: podinfo.test.soyspray.vip
   labels:
     app.kubernetes.io/instance: podinfo
 spec:
@@ -24,4 +25,4 @@ spec:
   tls:
     - hosts:
         - podinfo.test.soyspray.vip
-      secretName: test-cert-tls
+      secretName: podinfo-cert-tls
