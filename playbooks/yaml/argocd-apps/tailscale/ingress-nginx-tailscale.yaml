@@ -1,32 +1,15 @@
-apiVersion: v1
-kind: Service
+apiVersion: networking.k8s.io/v1
+kind: Ingress
 metadata:
   name: ingress-nginx-tailscale
   namespace: ingress-nginx
   annotations:
-    external-dns.alpha.kubernetes.io/hostname: "*.ts.soyspray.vip"
-    external-dns.alpha.kubernetes.io/record-type: "A"
-    external-dns.alpha.kubernetes.io/ttl: "300"
-    external-dns.alpha.kubernetes.io/target: "100.102.114.103"
-    external-dns/owner-id: "default"
-    tailscale.com/hostname-publish: "false"
+    external-dns.alpha.kubernetes.io/hostname: "*.soyspray.vip"
     tailscale.com/funnel: "true"
-  labels:
-    app.kubernetes.io/name: ingress-nginx
-    app.kubernetes.io/part-of: ingress-nginx
 spec:
-  type: LoadBalancer
-  loadBalancerClass: tailscale
-  externalTrafficPolicy: Local
-  ports:
-    - name: http
-      port: 80
-      protocol: TCP
-      targetPort: 80
-    - name: https
-      port: 443
-      protocol: TCP
-      targetPort: 443
-  selector:
-    app.kubernetes.io/name: ingress-nginx
-    app.kubernetes.io/part-of: ingress-nginx
+  ingressClassName: nginx
+  defaultBackend:
+    service:
+      name: ingress-nginx-controller
+      port:
+        number: 80
