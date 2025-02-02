@@ -20,7 +20,6 @@ policy: sync
 # Add annotations for Tailscale IP
 extraArgs:
   - --txt-owner-id=k8s
-  - --ignore-ingress-tls-spec=true
-  - --ignore-ingress-rules-spec=false
+  - --ignore-ingress-tls-spec
   - --publish-host-ip=false
   - --publish-internal-services=false

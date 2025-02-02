@@ -4,28 +4,6 @@
 
 This document outlines the plan to implement local DNS override (split-horizon DNS) for unified domain access to cluster services. The goal is to use a single hostname that resolves to different IPs based on the client's location (local vs. VPN/external).
 
-## Current Architecture
-
-```mermaid
-graph TB
-    subgraph "Current DNS Resolution"
-        subgraph "Local Access"
-            L[Local Users] --> D1[podinfo.test.soyspray.vip/]
-            D1 --> IP1[192.168.1.x]
-        end
-
-        subgraph "VPN Access"
-            V[VPN Users] --> D2[nginx.ts.soyspray.vip]
-            D2 --> IP2[100.x.x.x]
-        end
-
-        subgraph "Certificates"
-            C1[Certificate 1] --> D1
-            C2[Certificate 2] --> D2
-        end
-    end
-```
-
 ## Target Architecture
 
 ```mermaid
@@ -77,4 +55,3 @@ sequenceDiagram
         Client->>K8s: Access via Tailscale
     end
 ```
-
