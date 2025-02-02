@@ -10,7 +10,7 @@ This document outlines the plan to implement local DNS override (split-horizon D
 graph TB
     subgraph "Current DNS Resolution"
         subgraph "Local Access"
-            L[Local Users] --> D1[nginx.soyspray.vip]
+            L[Local Users] --> D1[podinfo.test.soyspray.vip/]
             D1 --> IP1[192.168.1.x]
         end
 
@@ -43,7 +43,7 @@ graph TB
         end
 
         subgraph "Unified Resources"
-            H[nginx.soyspray.vip]
+            H[podinfo.test.soyspray.vip/]
             C[Single Certificate]
             ING[Single Ingress]
 
@@ -68,11 +68,11 @@ sequenceDiagram
     alt Local Network Query
         Client->>Router: DHCP Request
         Router-->>Client: Use Local DNS Server
-        Client->>LocalDNS: Query nginx.soyspray.vip
+        Client->>LocalDNS: Query podinfo.test.soyspray.vip/
         LocalDNS-->>Client: Return 192.168.1.x
         Client->>K8s: Direct Access
     else External/VPN Query
-        Client->>Cloudflare: Query nginx.soyspray.vip
+        Client->>Cloudflare: Query podinfo.test.soyspray.vip/
         Cloudflare-->>Client: Return 100.x.x.x
         Client->>K8s: Access via Tailscale
     end
