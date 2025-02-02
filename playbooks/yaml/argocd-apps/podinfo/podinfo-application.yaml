@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: podinfo
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://stefanprodan.github.io/podinfo
+      chart: podinfo
+      targetRevision: 6.5.3
+      helm:
+        valueFiles:
+          - $values/playbooks/yaml/argocd-apps/podinfo/values.yaml
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: "feature/tailscale-vpn"
+      ref: values
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: podinfo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

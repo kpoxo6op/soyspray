@@ -1,0 +1,13 @@
+# playbooks/yaml/argocd-apps/podinfo/values.yaml
+replicaCount: 1
+
+ui:
+  message: "Welcome to SoySpray Test App"
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
