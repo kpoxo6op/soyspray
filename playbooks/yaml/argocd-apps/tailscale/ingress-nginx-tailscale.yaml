@@ -5,9 +5,7 @@ metadata:
   namespace: ingress-nginx
   annotations:
     external-dns.alpha.kubernetes.io/hostname: "podinfo.test.soyspray.vip"
-    # Using the Tailscale IP of ingress-nginx node
-    external-dns.alpha.kubernetes.io/target: "100.100.115.18"
-    # Force update
+    external-dns.alpha.kubernetes.io/target: "100.69.17.31"
     external-dns.alpha.kubernetes.io/ttl: "60"
     external-dns.alpha.kubernetes.io/set-identifier: "tailscale"
 spec:
