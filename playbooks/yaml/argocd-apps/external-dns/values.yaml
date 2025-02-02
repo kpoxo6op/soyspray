@@ -16,3 +16,9 @@ domainFilters:
 
 # Ensure DNS records are synced (created and deleted)
 policy: sync
+
+# Clean up old records
+registry: txt
+txtOwnerId: k8s
+sources:
+  - ingress
