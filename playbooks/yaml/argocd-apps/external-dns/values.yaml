@@ -23,12 +23,8 @@ txtOwnerId: k8s
 sources:
   - ingress
 
-# Only use annotation-specified targets, ignore ingress status
-ignoreHostnameAnnotation: false
-publishInternalServices: false
-publishHostIP: false
-
+# Configure DNS record management
 extraArgs:
-  - --ignore-ingress-tls-spec=false
   - --txt-prefix=external-dns-
-  - --ignore-ingress-rules-spec=false
+  - --ignore-ingress-tls-spec
+  - --ignore-ingress-rules-spec
