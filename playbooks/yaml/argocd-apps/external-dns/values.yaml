@@ -14,8 +14,8 @@ env:
 domainFilters:
   - soyspray.vip
 
-# Ensure DNS records are synced (created and deleted)
-policy: sync
+# Never delete records, only create/update
+policy: upsert-only
 
 # Clean up old records
 registry: txt
@@ -28,5 +28,6 @@ extraArgs:
   - --txt-prefix=external-dns-
   - --ignore-ingress-tls-spec
   - --ignore-ingress-rules-spec
+  - --ignore-ingress-status
   - --fqdn-template={{.Name}}.{{.Namespace}}.soyspray.vip
   - --annotation-filter=external-dns.alpha.kubernetes.io/target in (100.69.17.31)
