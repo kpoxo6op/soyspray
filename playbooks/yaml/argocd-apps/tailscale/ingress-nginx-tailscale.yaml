@@ -12,8 +12,14 @@ metadata:
     external-dns.alpha.kubernetes.io/set-identifier: "tailscale"
 spec:
   ingressClassName: nginx
-  defaultBackend:
-    service:
-      name: ingress-nginx-controller
-      port:
-        number: 80
+  rules:
+  - host: podinfo.test.soyspray.vip
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ingress-nginx-controller
+            port:
+              number: 80
