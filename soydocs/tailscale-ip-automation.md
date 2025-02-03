@@ -2,7 +2,7 @@
 
 ## Current Setup
 
-We have hardcoded Tailscale IP in two places:
+Hardcoded Tailscale IP exists in two places:
 
 ```yaml
 extraArgs:
@@ -16,7 +16,7 @@ annotations:
 
 ## Problem
 
-The Tailscale IP changes when operator restarts. Screenshot shows different IPs after operator restart:
+Tailscale IP changes when operator restarts. Example IPs after operator restart:
 
 ```
 ingress-nginx-ingress-nginx: 100.100.115.18
@@ -25,8 +25,7 @@ ingress-nginx-ingress-nginx-1: 100.69.17.31
 
 ## Solution
 
-Use dual ingress setup:
-
+Dual ingress setup:
 1. Keep nginx ingress for internal routing
 2. Add Tailscale ingress for dynamic IP management
 3. Let ExternalDNS read IPs from Tailscale ingress status
@@ -54,7 +53,7 @@ provider:
   name: cloudflare
 ```
 
-2. Keep existing nginx ingress but remove IP annotations:
+2. Modify existing nginx ingress to remove IP annotations:
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -87,7 +86,7 @@ spec:
       secretName: podinfo-cert-tls
 ```
 
-3. Add new Tailscale ingress:
+3. Create new Tailscale ingress:
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -126,7 +125,7 @@ spec:
 
 ## Verification
 
-Check both ingress statuses:
+Check ingress statuses:
 
 ```sh
 kubectl get ingress -n podinfo
@@ -148,7 +147,7 @@ curl -v https://podinfo.test.soyspray.vip
 
 ## Additional Options
 
-Use Tailscale Funnel to expose service publicly:
+Enable Tailscale Funnel for public access:
 
 ```yaml
 metadata:
@@ -158,7 +157,7 @@ spec:
   ingressClassName: tailscale
 ```
 
-Use LoadBalancer service instead of Ingress:
+Alternative: Use LoadBalancer service:
 
 ```yaml
 spec:
