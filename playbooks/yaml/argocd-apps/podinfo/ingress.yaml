@@ -8,16 +8,12 @@ metadata:
     cert-manager.io/cluster-issuer: letsencrypt-staging
     cert-manager.io/common-name: podinfo.test.soyspray.vip
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    # External DNS annotations for Cloudflare to point to Tailscale IP
     external-dns.alpha.kubernetes.io/hostname: "podinfo.test.soyspray.vip"
-    external-dns.alpha.kubernetes.io/target: "100.69.17.31"
     external-dns.alpha.kubernetes.io/ttl: "60"
-    external-dns.alpha.kubernetes.io/set-identifier: "tailscale"
-    external-dns.alpha.kubernetes.io/ignore-ingress-status: "true"
   labels:
     app.kubernetes.io/instance: podinfo
 spec:
-  ingressClassName: nginx
+  ingressClassName: tailscale
   rules:
     - host: podinfo.test.soyspray.vip
       http:

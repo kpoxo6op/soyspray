@@ -1,9 +1,7 @@
 # playbooks/yaml/argocd-apps/external-dns/values.yaml
-# Configure provider and authentication
 provider:
   name: cloudflare
 
-# Configure Cloudflare API token
 env:
   - name: CF_API_TOKEN
     valueFrom:
@@ -11,23 +9,17 @@ env:
         name: cloudflare-api-token
         key: api-token
 
-# Manage only soyspray.vip domain
 domainFilters:
   - soyspray.vip
 
-# Never delete records, only create/update
 policy: upsert-only
-
-# Clean up old records
 registry: txt
 txtOwnerId: k8s
+
 sources:
   - ingress
 
-# Configure DNS record management
 extraArgs:
   - --txt-prefix=external-dns-
   - --ignore-ingress-tls-spec
   - --ignore-ingress-rules-spec
-  - --fqdn-template={{.Name}}.{{.Namespace}}.soyspray.vip
-  - --annotation-filter=external-dns.alpha.kubernetes.io/target in (100.69.17.31)
