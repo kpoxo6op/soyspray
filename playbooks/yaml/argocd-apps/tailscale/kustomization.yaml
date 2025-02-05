@@ -3,5 +3,4 @@ kind: Kustomization
 
 namespace: podinfo
 
-resources:
-  - ingress.yaml
+resources: []

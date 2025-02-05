@@ -5,4 +5,4 @@ namespace: podinfo
 
 resources:
   - podinfo-application.yaml
-  - ingress.yaml
+

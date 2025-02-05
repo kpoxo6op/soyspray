@@ -13,7 +13,7 @@ operatorConfig:
       memory: 256Mi
 
 ingressClass:
-  enabled: true
+  enabled: false
 
 proxyConfig:
   defaultTags: tag:k8s
