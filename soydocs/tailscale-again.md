@@ -1,73 +1,85 @@
-# trying again
+# Exposing Services with Tailscale in Home K8s Cluster
 
-High-Level Architecture
+## High-Level Architecture
 
 ```mermaid
 flowchart LR
-    A[Tailscale Operator] -->|Watches| B[Ingress Controller Service - LoadBalancerClass: tailscale]
-    B -->|Has Tailscale IP| C(((100.x.x.x - Tailscale LoadBalancer)))
-    C -->|Accessible only via Tailscale| F[User on Tailscale Device]
+    A[Tailscale Operator] -->|Watches| B[Nginx Ingress Service - LoadBalancerClass: tailscale]
+    B -->|Has Tailscale IP| C(((100.x.x.x)))
+    C -->|Accessible via Tailscale| F[User on Tailscale Device]
 
     subgraph "Kubernetes Cluster"
       B
-      D[Application Service - e.g., Grafana]
+      D[Podinfo Service]
       E[Ingress Resource]
 
       B -->|Routes Traffic| E
       E -->|Routes to Service| D
     end
-
-    A -->|Registers IP & Name in Tailscale Control Plane| G[(Tailscale Control Plane)]
-
-    subgraph "DNS Providers (Cloudflare, Route53, etc.)"
-      H[external-dns Controller]
-    end
-
-    E -->|Has Domain Annotation| H
-    H -->|Creates DNS A Record| I[(foo.com DNS)]
-    I -->|Resolves grafana.foo.com to 100.x.x.x| F
-
-    subgraph "cert-manager"
-      J[ClusterIssuer - DNS-01 Challenge]
-      K[Let's Encrypt / ACME CA]
-    end
-
-    E -->|Triggers Certificate Request| J
-    J -->|Performs DNS-01 Challenge| I
-    J -->|Obtains Certificate from ACME| K
 ```
 
-Certificate & DNS Flow
+## Certificate & DNS Flow
 
 ```mermaid
 sequenceDiagram
     participant User as Tailscale User
-    participant Ingress as K8s Ingress Resource
-    participant externalDNS as external-dns
-    participant DNSProvider as DNS Provider
-    participant certManager as cert-manager
-    participant ACME as Let's Encrypt/ACME
+    participant DNS as DNS Provider
+    participant Ingress as Nginx Ingress
+    participant Pod as Podinfo Pod
 
-    rect rgba(200, 255, 200, 0.1)
-    Note over Ingress: You create the Ingress with a host=foo.com & appropriate annotations
-    end
-
-    Ingress->>externalDNS: "Create A record for grafana.foo.com"
-    externalDNS->>DNSProvider: "Add A record (grafana.foo.com -> 100.x.x.x)"
-
-    Note over DNSProvider: Now <br> grafana.foo.com resolves to Tailscale IP
-
-    Ingress->>certManager: "I need a certificate for grafana.foo.com"
-    certManager->>DNSProvider: "Create TXT record for DNS-01 challenge"
-    DNSProvider->>certManager: "TXT record created, domain ownership verified"
-
-    certManager->>ACME: "Request certificate from Let's Encrypt"
-    ACME->>certManager: "Signed certificate for grafana.foo.com"
-    certManager->>Ingress: "Certificate stored in grafana-foo-com-tls secret"
-
-    Note over User: On any Tailscale device <br> user visits https://grafana.foo.com
-    User->>DNSProvider: "DNS lookup for grafana.foo.com"
-    DNSProvider-->>User: "=> 100.x.x.x"
-    User->>Ingress: "TLS handshake with valid cert <br> over Tailscale"
-    Ingress->>User: "Secure connection established <br> [app content returned]"
+    User->>DNS: Resolve podinfo.yourdomain.com
+    DNS-->>User: Returns Tailscale IP (100.x.x.x)
+    User->>Ingress: HTTPS request to podinfo.yourdomain.com
+    Ingress->>Pod: Routes to podinfo service
+    Pod-->>User: Returns podinfo content
 ```
+
+## Implementation Steps
+
+1. Update nginx-ingress service to use Tailscale:
+```yaml
+# values.yaml for nginx-ingress or direct service edit
+controller:
+  service:
+    type: LoadBalancer
+    loadBalancerClass: tailscale
+```
+
+2. Create ingress for podinfo:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: podinfo
+  namespace: default  # or your namespace
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/hostname: podinfo.yourdomain.com
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: podinfo.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: podinfo
+            port:
+              number: 9898
+  tls:
+  - hosts:
+    - podinfo.yourdomain.com
+    secretName: podinfo-tls
+```
+
+## Notes
+- This setup leverages existing cluster components:
+  - nginx-ingress (with metallb)
+  - cert-manager
+  - external-dns
+  - tailscale operator
+  - argocd for deployments
+- Local resources will still be accessed via pihole DNS directly
+- Only services that need external access will be exposed through Tailscale
