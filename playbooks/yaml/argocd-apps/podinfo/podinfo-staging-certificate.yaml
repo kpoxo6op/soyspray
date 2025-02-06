@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: podinfo-tls
+  namespace: podinfo
+spec:
+  duration: 2160h
+  renewBefore: 360h
+  secretName: podinfo-tls
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
+  dnsNames:
+    - podinfo.soyspray.vip
