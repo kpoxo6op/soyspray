@@ -1,12 +1,12 @@
-# Exposing Kubernetes Ingress over Tailscale: Two Approaches
+# Exposing Kubernetes Ingress over Tailscale
 
-This document explains how to expose your Kubernetes services (Podinfo in this case) privately via Tailscale. Based on recent experiments and insights from Mattia Forcellese's article "Private kubernetes ingress with tailscale operator, cert-manager and external-dns", there are two main methods to achieve this. Each method comes with its own advantages and constraints.
+This document explains how to expose your Kubernetes services (Podinfo in this case) privately via Tailscale. While there are multiple approaches possible, we specifically chose to use the Tailscale LoadBalancer for the ingress controller as it provides the most flexible and maintainable solution.
 
----
+> Note: We explicitly chose not to use the per-Ingress Tailscale proxy approach as it bypasses our existing ingress controller features, requires separate proxies for each ingress (increasing complexity), and makes DNS/certificate management more complex. Instead, we leverage our existing MetalLB + Nginx ingress setup with Tailscale integration at the ingress controller level.
 
-## Method 1: Tailscale LoadBalancer for the Ingress Controller
+## Implementation Approach: Tailscale LoadBalancer for the Ingress Controller
 
-In this method, you reconfigure the ingress controller (e.g., Nginx Ingress) to use a Tailscale-specific loadBalancer. This approach makes your ingress controller receive a Tailscale IP (in the 100.x.x.x range) and a corresponding MagicDNS entry. The flow is as follows:
+In this method, you reconfigure the ingress controller (e.g., Nginx Ingress) to use a Tailscale-specific loadBalancer. This approach makes your ingress controller receive a Tailscale IP (in the 100.x.x.x range) and enables secure access through your Tailnet. The flow is as follows:
 
 1. **Deployment Changes:**
    - Update the ingress controller's Service to be of type `LoadBalancer` and specify a `loadBalancerClass: tailscale`.
@@ -28,89 +28,37 @@ In this method, you reconfigure the ingress controller (e.g., Nginx Ingress) to 
    ```
 
 2. **DNS Setup:**
-   - External-dns will then be able to publish an A record for your custom domain (e.g. grafana.foo.com or podinfo.soyspray.vip) that points to the Tailscale-assigned IP instead of the local MetalLB IP.
+   - External-dns will then be able to publish an A record for your custom domain (e.g. podinfo.soyspray.vip) that points to the Tailscale-assigned IP instead of the local MetalLB IP.
 
-3. **Benefits & Limitations:**
-   - *Benefits:* Provides a single ingress controller endpoint exclusively accessible via your Tailnet with standard TLS termination, integrated with cert-manager for Let's Encrypt certificates.
-   - *Limitations:* You are restricted to the Tailscale-provided IP and MagicDNS name (if you use that), which might not be as memorable or customizable as your company domain unless managed via external-dns.
-
----
-
-## Method 2: Tailscale Ingress Annotation for a Dedicated Ingress Resource
-
-Alternatively, you can annotate a specific Ingress resource such that the Tailscale operator creates a dedicated proxy for it. This method does not require reconfiguring your entire ingress controller service. Instead, it works on a per-Ingress basis:
-
-1. **Ingress Resource Annotation:**
-   - Add the appropriate annotation (e.g. `loadBalancerClass: tailscale` or a specific annotation supported by your Tailscale operator) to your Ingress resource.
-
-   Example Ingress configuration for Podinfo:
-
-   ```yaml
-   apiVersion: networking.k8s.io/v1
-   kind: Ingress
-   metadata:
-     name: podinfo
-     namespace: podinfo
-     annotations:
-       cert-manager.io/cluster-issuer: "letsencrypt-staging"
-       external-dns.alpha.kubernetes.io/hostname: "podinfo.soyspray.vip"
-       # This annotation signals the Tailscale operator to create a dedicated proxy
-       loadBalancerClass: tailscale
-   spec:
-     ingressClassName: nginx
-     tls:
-     - hosts:
-       - podinfo.soyspray.vip
-       secretName: podinfo-tls
-     rules:
-     - host: podinfo.soyspray.vip
-       http:
-         paths:
-         - path: /
-           pathType: Prefix
-           backend:
-             service:
-               name: podinfo
-               port:
-                 number: 9898
-   ```
-
-2. **Operational Flow:**
-   - The Tailscale operator watches for Ingress resources with the proper annotation and then automatically provisions a proxy that listens on a Tailscale IP (like 100.xxx.xxx.xxx) and assigns a MagicDNS name if enabled.
-   - External-dns can update DNS to point to this Tailscale IP, ensuring that when accessed via your custom domain, traffic is routed over the Tailnet.
-
-3. **Benefits & Limitations:**
-   - *Benefits:* Fine-grained control per Ingress. Ideal if you want to expose only specific applications over Tailscale while leaving others under local network management.
-   - *Limitations:* May require more granular DNS and certificate management. Some ingress controller features might be bypassed if the Tailscale proxy handles traffic directly.
-
----
+3. **Benefits:**
+   - Provides a single ingress controller endpoint exclusively accessible via your Tailnet with standard TLS termination
+   - Integrated with cert-manager for Let's Encrypt certificates
+   - Maintains existing ingress controller features and configuration
+   - Centralizes Tailscale integration at the ingress level
+   - *Note:* In this configuration, you are not restricted to the Tailscale-provided IP and MagicDNS name. You can fully manage and customize your DNS records via external-dns to use your company domain as desired.
 
 ## Additional Considerations
 
 - **Cert-manager & DNS-01 Challenges:**
-  Both methods rely on cert-manager for obtaining valid TLS certificates via Let’s Encrypt using the dns01 challenge. Ensure your Cloudflare credentials and configuration are correct.
+  Both methods rely on cert-manager for obtaining valid TLS certificates via Let's Encrypt using the dns01 challenge. Ensure your Cloudflare credentials and configuration are correct.
 
 - **External-dns Integration:**
   External-dns will update your domain records based on the Tailscale IP if correctly annotated. Verify that the TXT records for DNS ownership and the A records for your domain are correctly managed.
 
 - **Testing:**
   - Verify that the Tailscale operator is running:
+
     ```bash
     kubectl get po -n tailscale-operator
     ```
+
   - On a Tailscale-connected device, test using:
+
     ```bash
     curl -v https://podinfo.soyspray.vip
     ```
+
   - Confirm DNS resolution returns a Tailscale IP (100.x.x.x) rather than a local MetalLB IP.
-
-## Conclusion
-
-Both approaches aim to securely expose your Kubernetes Ingress to Tailscale clients. Method 1 changes the ingress controller’s exposure by using a Tailscale-specific LoadBalancer, while Method 2 targets individual Ingresses by leveraging dedicated annotations. Choose the method that best fits your operational model and DNS management strategy.
-
----
-
-*This update integrates insights from Mattia Forcellese’s article and recent troubleshooting logs to ensure your service is reachable over Tailnet.*
 
 ## Implementation Plan
 
@@ -447,3 +395,11 @@ kubectl get certificaterequest -n podinfo
 - Access working from all Tailscale devices
 - No exposure outside Tailscale network
 - External-dns successfully managing Cloudflare DNS records
+
+## Conclusion
+
+By using the Tailscale LoadBalancer approach for our ingress controller, we maintain a clean and manageable architecture while gaining the security benefits of Tailscale's overlay network. This method integrates seamlessly with our existing cert-manager and external-dns setup, allowing for automated certificate management and DNS record updates.
+
+---
+
+*This implementation is based on practical experience and has been refined to avoid the complexity of per-ingress Tailscale proxies while maintaining full functionality.*
