@@ -263,17 +263,15 @@ controller:
       metallb.universe.tf/ip-allocated-from-pool: primary  # Maintain MetalLB config
 ```
 
+```bash
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu kubespray/cluster.yml --tags ingress-nginx
+```
+
 Verification:
 
 ```bash
 # Check service has both MetalLB and Tailscale configuration
-kubectl get svc -n ingress-nginx nginx-ingress-controller -o wide
-
-# Verify MetalLB IP is still assigned
-kubectl get svc -n ingress-nginx nginx-ingress-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-
-# Verify Tailscale proxy is ready
-kubectl get svc -n ingress-nginx nginx-ingress-controller -o jsonpath='{.status.conditions[?(@.type=="TailscaleProxyReady")].status}'
+kubectl get svc ingress-nginx -n ingress-nginx -o yaml
 ```
 
 ### 3. Configure Podinfo Ingress
@@ -286,7 +284,7 @@ kind: Ingress
 metadata:
   name: podinfo
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    cert-manager.io/cluster-issuer: letsencrypt-staging
     external-dns.alpha.kubernetes.io/hostname: podinfo.soyspray.vip
 spec:
   ingressClassName: nginx

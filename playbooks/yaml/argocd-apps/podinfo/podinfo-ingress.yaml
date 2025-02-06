@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: podinfo
+  namespace: podinfo
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+    external-dns.alpha.kubernetes.io/hostname: podinfo.soyspray.vip
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - podinfo.soyspray.vip
+    secretName: podinfo-tls
+  rules:
+  - host: podinfo.soyspray.vip
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: podinfo
+            port:
+              number: 9898
