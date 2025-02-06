@@ -6,4 +6,5 @@ namespace: podinfo
 resources:
   - podinfo-application.yaml
   - podinfo-ingress.yaml
+  - podinfo-staging-certificate.yaml
 
