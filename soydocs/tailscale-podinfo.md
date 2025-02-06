@@ -1,228 +1,118 @@
-# Exposing Podinfo via Tailscale - Implementation Plan
+# Exposing Kubernetes Ingress over Tailscale: Two Approaches
 
-## Overview
+This document explains how to expose your Kubernetes services (Podinfo in this case) privately via Tailscale. Based on recent experiments and insights from Mattia Forcellese's article "Private kubernetes ingress with tailscale operator, cert-manager and external-dns", there are two main methods to achieve this. Each method comes with its own advantages and constraints.
 
-This document outlines the step-by-step plan to expose the podinfo application via Tailscale in our home Kubernetes cluster, using Cloudflare DNS (soyspray.vip) and our existing cert-manager setup. The cluster is provisioned with Kubespray and uses MetalLB for load balancing. All components are managed via ArgoCD, following GitOps principles.
+---
 
-## Current Setup Analysis
+## Method 1: Tailscale LoadBalancer for the Ingress Controller
 
-### Component Configuration Files
+In this method, you reconfigure the ingress controller (e.g., Nginx Ingress) to use a Tailscale-specific loadBalancer. This approach makes your ingress controller receive a Tailscale IP (in the 100.x.x.x range) and a corresponding MagicDNS entry. The flow is as follows:
 
-1. **Ingress Controller (ingress-nginx)**
-   - Service Type: LoadBalancer (MetalLB)
-   - Current IP: 192.168.1.120 (assigned by MetalLB)
-   - Status: Running with MetalLB integration
-   - Configuration: Service has both MetalLB annotation and Tailscale finalizer
+1. **Deployment Changes:**
+   - Update the ingress controller's Service to be of type `LoadBalancer` and specify a `loadBalancerClass: tailscale`.
+   - Example snippet for the Nginx ingress controller:
 
    ```yaml
-   metadata:
-     annotations:
-       metallb.universe.tf/ip-allocated-from-pool: primary
-     finalizers:
-     - tailscale.com/finalizer
+   controller:
+     replicaCount: 1
+     service:
+       type: LoadBalancer
+       loadBalancerClass: tailscale
+     ingressClassResource:
+       default: false
+     watchIngressWithoutClass: false
+     metrics:
+       enabled: true
+       serviceMonitor:
+         enabled: true
    ```
 
-2. **Certificate Management**
-   - Location: `playbooks/yaml/argocd-apps/cert-manager/`
-   - Key Files:
-     - `prod-certificate.yaml`: Wildcard certificate for *.soyspray.vip
-     - `letsencrypt-issuers.yaml`: Production and staging ClusterIssuers
-   - Status: Configured for DNS01 challenges via Cloudflare
+2. **DNS Setup:**
+   - External-dns will then be able to publish an A record for your custom domain (e.g. grafana.foo.com or podinfo.soyspray.vip) that points to the Tailscale-assigned IP instead of the local MetalLB IP.
 
-3. **DNS Management**
-   - Location: `playbooks/yaml/argocd-apps/external-dns/`
-   - Key Files:
-     - `values.yaml`: Cloudflare configuration and domain filters
-     - `external-dns-application.yaml`: ArgoCD application definition
+3. **Benefits & Limitations:**
+   - *Benefits:* Provides a single ingress controller endpoint exclusively accessible via your Tailnet with standard TLS termination, integrated with cert-manager for Let's Encrypt certificates.
+   - *Limitations:* You are restricted to the Tailscale-provided IP and MagicDNS name (if you use that), which might not be as memorable or customizable as your company domain unless managed via external-dns.
 
-4. **Podinfo Application**
-   - Location: `playbooks/yaml/argocd-apps/podinfo/`
-   - Key Files:
-     - `podinfo-application.yaml`: Main application definition
-     - `values.yaml`: Helm chart configuration
+---
 
-5. **Tailscale Operator**
-   - Location: `playbooks/yaml/argocd-apps/tailscale/`
-   - Key Files:
-     - `tailscale-operator-application.yaml`: Operator deployment
-     - `values.yaml`: Tailscale configuration and tags
+## Method 2: Tailscale Ingress Annotation for a Dedicated Ingress Resource
+
+Alternatively, you can annotate a specific Ingress resource such that the Tailscale operator creates a dedicated proxy for it. This method does not require reconfiguring your entire ingress controller service. Instead, it works on a per-Ingress basis:
+
+1. **Ingress Resource Annotation:**
+   - Add the appropriate annotation (e.g. `loadBalancerClass: tailscale` or a specific annotation supported by your Tailscale operator) to your Ingress resource.
+
+   Example Ingress configuration for Podinfo:
+
+   ```yaml
+   apiVersion: networking.k8s.io/v1
+   kind: Ingress
+   metadata:
+     name: podinfo
+     namespace: podinfo
+     annotations:
+       cert-manager.io/cluster-issuer: "letsencrypt-staging"
+       external-dns.alpha.kubernetes.io/hostname: "podinfo.soyspray.vip"
+       # This annotation signals the Tailscale operator to create a dedicated proxy
+       loadBalancerClass: tailscale
+   spec:
+     ingressClassName: nginx
+     tls:
+     - hosts:
+       - podinfo.soyspray.vip
+       secretName: podinfo-tls
+     rules:
+     - host: podinfo.soyspray.vip
+       http:
+         paths:
+         - path: /
+           pathType: Prefix
+           backend:
+             service:
+               name: podinfo
+               port:
+                 number: 9898
+   ```
+
+2. **Operational Flow:**
+   - The Tailscale operator watches for Ingress resources with the proper annotation and then automatically provisions a proxy that listens on a Tailscale IP (like 100.xxx.xxx.xxx) and assigns a MagicDNS name if enabled.
+   - External-dns can update DNS to point to this Tailscale IP, ensuring that when accessed via your custom domain, traffic is routed over the Tailnet.
+
+3. **Benefits & Limitations:**
+   - *Benefits:* Fine-grained control per Ingress. Ideal if you want to expose only specific applications over Tailscale while leaving others under local network management.
+   - *Limitations:* May require more granular DNS and certificate management. Some ingress controller features might be bypassed if the Tailscale proxy handles traffic directly.
+
+---
+
+## Additional Considerations
+
+- **Cert-manager & DNS-01 Challenges:**
+  Both methods rely on cert-manager for obtaining valid TLS certificates via Let’s Encrypt using the dns01 challenge. Ensure your Cloudflare credentials and configuration are correct.
+
+- **External-dns Integration:**
+  External-dns will update your domain records based on the Tailscale IP if correctly annotated. Verify that the TXT records for DNS ownership and the A records for your domain are correctly managed.
+
+- **Testing:**
+  - Verify that the Tailscale operator is running:
+    ```bash
+    kubectl get po -n tailscale-operator
+    ```
+  - On a Tailscale-connected device, test using:
+    ```bash
+    curl -v https://podinfo.soyspray.vip
+    ```
+  - Confirm DNS resolution returns a Tailscale IP (100.x.x.x) rather than a local MetalLB IP.
+
+## Conclusion
+
+Both approaches aim to securely expose your Kubernetes Ingress to Tailscale clients. Method 1 changes the ingress controller’s exposure by using a Tailscale-specific LoadBalancer, while Method 2 targets individual Ingresses by leveraging dedicated annotations. Choose the method that best fits your operational model and DNS management strategy.
+
+---
+
+*This update integrates insights from Mattia Forcellese’s article and recent troubleshooting logs to ensure your service is reachable over Tailnet.*
 
 ## Implementation Plan
-
-### 1. Update Ingress Controller Configuration
-
-The ingress-nginx service already has both MetalLB and Tailscale integration. No immediate changes required as it's working with:
-
-- MetalLB IP (192.168.1.120) for local access
-- Tailscale finalizer for remote access
-
-### 2. Configure Podinfo Service
-
-Update Podinfo's service configuration in `playbooks/yaml/argocd-apps/podinfo/values.yaml`:
-
-```yaml
-service:
-  type: LoadBalancer
-  loadBalancerClass: tailscale
-  annotations:
-    metallb.universe.tf/ip-allocated-from-pool: primary
-```
-
-### 3. Certificate Management
-
-Current configuration in `playbooks/yaml/argocd-apps/cert-manager/prod-certificate.yaml` already covers our needs:
-
-```yaml
-spec:
-  dnsNames:
-    - "*.soyspray.vip"
-    - "soyspray.vip"
-```
-
-### 4. DNS Configuration
-
-The external-dns configuration in `playbooks/yaml/argocd-apps/external-dns/values.yaml` is already set up for Cloudflare:
-
-```yaml
-provider:
-  name: cloudflare
-domainFilters:
-  - soyspray.vip
-```
-
-### 5. Network Flow
-
-```mermaid
-sequenceDiagram
-    participant Local as Local Network
-    participant MetalLB as MetalLB (192.168.1.120)
-    participant TS as Tailscale Network
-    participant Ingress as Nginx Ingress
-    participant App as Podinfo App
-
-    Local->>MetalLB: Access via local IP
-    MetalLB->>Ingress: Forward to ingress
-    Ingress->>App: Route to podinfo
-
-    TS->>Ingress: Access via Tailscale
-    Ingress->>App: Route to podinfo
-```
-
-## Verification Steps
-
-1. **Local Access Check**
-
-```bash
-curl -v https://podinfo.soyspray.vip --resolve podinfo.soyspray.vip:443:192.168.1.120
-```
-
-2. **Tailscale Access Check**
-
-```bash
-# From any Tailscale device
-curl -v https://podinfo.soyspray.vip
-```
-
-3. **Certificate Verification**
-
-```bash
-# Check certificate status
-kubectl get certificate -n cert-manager
-```
-
-4. **DNS Record Verification**
-
-```bash
-# Check DNS records
-dig podinfo.soyspray.vip
-```
-
-## Success Criteria
-
-1. Local network access works via MetalLB IP (192.168.1.120)
-2. Remote access works via Tailscale network
-3. HTTPS works with valid certificates
-4. DNS records are properly managed by external-dns
-5. Both ingress-nginx and podinfo services are accessible via both networks
-
-## Troubleshooting
-
-1. **MetalLB IP Issues**
-   - Check MetalLB pool configuration
-   - Verify service annotations
-
-   ```bash
-   kubectl get svc -n ingress-nginx -o yaml | grep metallb
-   ```
-
-2. **Tailscale Connectivity**
-   - Check Tailscale operator logs
-
-   ```bash
-   kubectl logs -n tailscale-system -l app=tailscale-operator
-   ```
-
-3. **Certificate Issues**
-   - Verify cert-manager challenges
-
-   ```bash
-   kubectl get challenges -n cert-manager
-   ```
-
-4. **DNS Issues**
-   - Check external-dns logs
-
-   ```bash
-   kubectl logs -n external-dns -l app=external-dns
-   ```
-
-## Architecture
-
-```mermaid
-graph TB
-    subgraph "Kubernetes Cluster"
-        direction TB
-        TO[Tailscale Operator]
-        NI[Nginx Ingress<br/>MetalLB + Tailscale]
-        PI[Podinfo Service]
-        CM[Cert Manager]
-        ED[External DNS]
-        MLB[MetalLB<br/>192.168.1.120]
-        
-        TO -->|Manages| NI
-        MLB -->|Assigns Local IP| NI
-        NI -->|Routes| PI
-        CM -->|Issues Cert| NI
-        ED -->|Updates Cloudflare DNS| NI
-    end
-    
-    TP[Tailscale Phone] -->|Access via HTTPS| NI
-    PC[Tailscale PC] -->|Access via HTTPS| NI
-    LC[Local Client] -->|Access via 192.168.1.120| NI
-```
-
-## Network Flow
-
-```mermaid
-sequenceDiagram
-    participant Local as Local Client
-    participant TS as Tailscale Device
-    participant DNS as Cloudflare DNS
-    participant NI as Nginx Ingress
-    participant Pod as Podinfo
-
-    Note over Local,Pod: Local Network Access
-    Local->>NI: Direct access via 192.168.1.120
-    NI->>Pod: Forward Request
-
-    Note over TS,Pod: Remote Access via Tailscale
-    TS->>DNS: Query podinfo.soyspray.vip
-    DNS-->>TS: Return IP (managed by External DNS)
-    TS->>NI: HTTPS Request via Tailscale
-    NI->>Pod: Forward Request
-```
-
-## Implementation Steps
 
 ### 1. Prerequisites Verification
 
@@ -418,12 +308,142 @@ For optimal routing:
    - Consider implementing Kubernetes Network Policies to restrict pod-to-pod communication
    - Ensure ingress-nginx can only be accessed via intended paths
 
+## Integrating Podinfo with Tailscale
+
+This document outlines the steps to expose the Podinfo application securely over Tailscale.
+
+## Prerequisites
+
+- Kubernetes cluster with MetalLB configured
+- Cert-manager installed and configured with Cloudflare DNS
+- External-DNS configured for automatic DNS management
+- Tailscale operator installed in the cluster
+- A Cloudflare-managed domain (soyspray.vip)
+
+## Architecture Overview
+
+The setup involves multiple components working together:
+
+1. MetalLB provides local network load balancing (192.168.1.x range)
+2. Nginx Ingress handles TLS termination and routing
+3. Cert-manager manages TLS certificates via Let's Encrypt
+4. Tailscale provides secure remote access via its overlay network
+
+## Required Steps
+
+### 1. Configure Tailscale Operator for Service Access
+
+The Tailscale operator must be configured to either:
+
+- Set up subnet routing to advertise the cluster's service network
+- Create a proxy that listens on a Tailscale IP (100.x.x.x) for ingress traffic
+
+This is crucial as MetalLB IPs (192.168.1.x) are not directly accessible over Tailscale.
+
+### 2. Configure Ingress Resource
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: podinfo
+  namespace: podinfo
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
+    external-dns.alpha.kubernetes.io/hostname: "podinfo.soyspray.vip"
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - podinfo.soyspray.vip
+    secretName: podinfo-tls
+  rules:
+  - host: podinfo.soyspray.vip
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: podinfo
+            port:
+              number: 9898
+```
+
+### 3. Certificate Configuration
+
+```yaml
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: podinfo-tls
+  namespace: podinfo
+spec:
+  secretName: podinfo-tls
+  duration: 2160h
+  renewBefore: 360h
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
+  dnsNames:
+  - podinfo.soyspray.vip
+```
+
+## Networking Flow
+
+1. Remote Tailscale Client (e.g., phone) → Tailscale Overlay Network (100.x.x.x)
+2. Tailscale Operator (proxy/router) → MetalLB Service IP (192.168.1.x)
+3. Nginx Ingress → Podinfo Service → Podinfo Pod
+
+## Testing and Verification
+
+1. Verify Tailscale operator configuration:
+
+```bash
+kubectl get po -n tailscale-operator
+```
+
+2. Check if service is properly advertised on Tailscale:
+
+```bash
+# On a Tailscale-connected device
+curl -v https://podinfo.soyspray.vip
+```
+
+3. Monitor certificate status:
+
+```bash
+kubectl get certificate -n podinfo
+kubectl get certificaterequest -n podinfo
+```
+
+## Troubleshooting
+
+1. DNS Resolution
+   - Ensure podinfo.soyspray.vip resolves to the correct Tailscale IP
+   - Check external-dns logs for any synchronization issues
+
+2. Tailscale Connectivity
+   - Verify Tailscale operator is running and healthy
+   - Check if the service is properly advertised in Tailscale admin console
+   - Ensure proper subnet routes or proxy configuration is in place
+
+3. Certificate Issues
+   - Monitor cert-manager logs
+   - Verify Cloudflare DNS-01 challenge records
+   - Check certificate and secret creation in the podinfo namespace
+
+## Next Steps
+
+1. Configure Tailscale operator for proper service advertisement (subnet routing or proxy mode)
+2. Test connectivity from Tailscale-connected devices
+3. Once verified with staging certificates, switch to production Let's Encrypt issuer
+
 ## Success Criteria
 
 - Podinfo accessible via HTTPS on podinfo.soyspray.vip
 - Valid Let's Encrypt TLS certificate issued by cert-manager
 - DNS resolution working through Cloudflare
-- Local access working via MetalLB IP (192.168.1.120)
-- Remote access working from all Tailscale devices
-- No direct external exposure outside Tailscale network
+- Access working from all Tailscale devices
+- No exposure outside Tailscale network
 - External-dns successfully managing Cloudflare DNS records
