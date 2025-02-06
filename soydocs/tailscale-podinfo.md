@@ -230,8 +230,8 @@ Verify all required components are running:
 
 ```bash
 # Check Tailscale Operator
-kubectl get pods -n tailscale
-kubectl get tailscale -n tailscale
+kubectl get pods -n tailscale-system
+kubectl get tailscale -n tailscale-system
 
 # Check Nginx Ingress and its MetalLB IP
 kubectl get svc -n ingress-nginx
