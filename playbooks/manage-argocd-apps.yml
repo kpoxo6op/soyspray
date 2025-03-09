@@ -20,7 +20,7 @@
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/pihole-exporter/pihole-exporter-application.yaml') }}"
-      tags: pihole-exporter
+      tags: pihole
 
     - name: Verify and load Telegram token from .env
       block:
@@ -90,14 +90,6 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prometheus/prometheus-application.yaml') }}"
       tags: prometheus
 
-    - name: Apply Nginx
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/nginx/nginx-application.yaml') }}"
-      tags: nginx
-
     - name: Apply Longhorn
       kubernetes.core.k8s:
         state: present
@@ -106,15 +98,8 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/longhorn/longhorn-application.yaml') }}"
       tags: longhorn
 
-    - name: Apply MySQL
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/mysql/mysql-application.yaml') }}"
-      tags: mysql
-
-    - name: Verify and load Cloudflare token from .env
+    # Verify and load Cloudflare token for cert-manager
+    - name: Verify and load Cloudflare token from .env for cert-manager
       block:
         - name: Load CLOUDFLARE_API_TOKEN from .env
           set_fact:
@@ -162,3 +147,66 @@
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cert-manager/cert-manager-application.yaml') }}"
       tags: cert-manager
+
+    # Create namespace for external-dns
+    - name: Create external-dns namespace
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: external-dns
+      tags: external-dns
+
+    # Verify and load Cloudflare token for external-dns
+    - name: Verify and load Cloudflare token from .env for external-dns
+      block:
+        - name: Load CLOUDFLARE_API_TOKEN from .env
+          set_fact:
+            cloudflare_api_token: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('CLOUDFLARE_API_TOKEN=([^\n]+)') | first
+                | default('') | trim
+              }}
+
+        - name: Debug token length
+          debug:
+            msg: >-
+              Token length: {{ cloudflare_api_token | length }}
+              First chars: {{ cloudflare_api_token | truncate(5, True, '') }}
+
+        - name: Validate CLOUDFLARE_API_TOKEN
+          fail:
+            msg: "CLOUDFLARE_API_TOKEN is empty/missing in .env file"
+          when: cloudflare_api_token | length == 0
+      rescue:
+        - name: Fail with helpful message
+          fail:
+            msg: "Error: .env file not found or CLOUDFLARE_API_TOKEN invalid"
+      tags: external-dns
+
+    # Create secret for external-dns using the same Cloudflare token
+    - name: Create External DNS Cloudflare API Token Secret
+      kubernetes.core.k8s:
+        state: present
+        namespace: external-dns
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: cloudflare-api-token
+            namespace: external-dns
+          data:
+            api-token: "{{ cloudflare_api_token | b64encode }}"
+      tags: external-dns
+
+    - name: Apply External DNS Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/external-dns/external-dns-application.yaml') }}"
+      tags: external-dns
