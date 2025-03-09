@@ -1,0 +1,12 @@
+---
+# Not implemented yet
+
+- name: Common tasks for every playbook
+  import_playbook: ../kubespray/playbooks/boilerplate.yml
+
+- name: Remove WireGuard and cleanup configurations
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    wireguard_conf_dir: /etc/wireguard
+    wireguard_interface: wg0

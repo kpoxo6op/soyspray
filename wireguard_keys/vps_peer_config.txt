@@ -1,0 +1,6 @@
+# Add to /etc/wireguard/wg0.conf on your VPS
+
+# Home Cluster (Node-A)
+[Peer]
+PublicKey = Q0KR1RbbYYn+p5SRHrT/h7EwQ1zKbC/QfEMlce/kMV0=
+AllowedIPs = 10.8.0.3/32, 192.168.1.0/24

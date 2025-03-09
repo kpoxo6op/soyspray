@@ -64,3 +64,21 @@ kubectl exec -it $POD -n pihole -- pihole -w joyreactor.com
 kubectl exec -it $POD -n pihole -- pihole -w reactor.cc
 kubectl exec -it $POD -n pihole -- pihole -w t.co
 ```
+
+## Testing Pi-Hole as DNS Server
+
+Update Router DNS settings via mobile app
+
+| Type      | IP               | Note          |
+| --------- | ---------------- | ------------- |
+| Primary   | 192.168.1.122    |  Pi Hole      |
+| Secondary | 8.8.8.8          |  Google       |
+
+Set Up Pi-hole to Handle Local DNS Entries
+
+| Domain                                         | IP               | Note          |
+| ---------------------------------------------- | ---------------- | ------------- |
+| [argocd.lan](http://argocd.lan/applications)   | 192.168.1.121    |               |
+| [pihole.lan](http://pihole.lan/admin/login.php)| 192.168.1.122    |               |
+
+Looks like adding filters and not using secondary DNS helps.

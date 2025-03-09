@@ -5,6 +5,3 @@ resources:
   - letsencrypt-issuers.yaml
   - test-certificate.yaml
   - prod-certificate.yaml
-  - test-workload.yaml
-  - test-ingress.yaml
-  - prod-workload.yaml
