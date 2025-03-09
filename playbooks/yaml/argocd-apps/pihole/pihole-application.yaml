@@ -11,7 +11,7 @@ spec:
     namespace: pihole
   sources:
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "feature/tailscale-vpn"
+      targetRevision: "v1.7.1"
       path: playbooks/yaml/argocd-apps/pihole
       kustomize:
   syncPolicy:

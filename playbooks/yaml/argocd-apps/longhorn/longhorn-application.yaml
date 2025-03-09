@@ -13,7 +13,7 @@ spec:
         valueFiles:
           - $values/playbooks/yaml/argocd-apps/longhorn/values.yaml
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "v1.7.0"
+      targetRevision: "v1.7.1"
       ref: values
   destination:
     server: "https://kubernetes.default.svc"
