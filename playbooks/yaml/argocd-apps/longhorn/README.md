@@ -43,3 +43,16 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-u
 For maintenance procedures, including uninstallation and cleanup, see:
 
 - [Longhorn Maintenance Procedures](docs/README.md)
+
+## Prometheus Storage Plan
+
+We will create a high-performance storage solution for Prometheus using Longhorn on miniPC SSDs:
+
+1. Create a dedicated `longhorn-monitoring` StorageClass with optimized settings
+2. Configure single-replica volumes backed by the fastest SSD on each node
+3. Configure Prometheus to use this storage via PersistentVolumeClaims
+4. Implement proper retention and compaction settings
+
+For detailed implementation plans, performance benchmarks, and configuration parameters, see:
+
+- [Prometheus Storage Implementation Plan](docs/prometheus-storage.md)
