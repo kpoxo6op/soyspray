@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "v1.7.0"
+    targetRevision: feature/tailscale-vpn
     path: playbooks/yaml/argocd-apps/cert-manager
     kustomize:
   destination:
