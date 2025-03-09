@@ -6,7 +6,7 @@ helmCharts:
   - name: kube-prometheus-stack
     version: 67.7.0
     repo: https://prometheus-community.github.io/helm-charts
-    releaseName: prometheus
+    releaseName: kube-prometheus-stack
     valuesFile: values.yaml
 
 configMapGenerator:

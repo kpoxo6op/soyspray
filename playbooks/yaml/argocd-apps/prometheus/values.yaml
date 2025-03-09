@@ -117,3 +117,12 @@ kubeEtcd:
 
 # https://github.com/onzack/grafana-dashboards/tree/main?tab=readme-ov-file#troubleshooting
 ruleSelectorNilUsesHelmValues: false
+
+prometheusOperator:
+  admissionWebhooks:
+    enabled: true
+  service:
+    port: 8443
+    targetPort: 8443
+  containerArgs:
+    - --web.listen-address=:8443
