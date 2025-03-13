@@ -10,18 +10,101 @@ helmCharts:
     valuesFile: values.yaml
 
 configMapGenerator:
+  - name: grafana-dashboard-argocd
+    files:
+      - dashboards/argocd-dashboard.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  - name: grafana-dashboard-cert-manager
+    files:
+      - dashboards/cert-manager-chrede88.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  - name: grafana-dashboard-k8s-leospbru
+    files:
+      - dashboards/k8s-leospbru.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  - name: grafana-dashboard-longhorn-adegoodyer
+    files:
+      - dashboards/longhorn-dashboard-adegoodyer.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  - name: grafana-dashboard-longhorn-onzack
+    files:
+      - dashboards/longhorn-onzack.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  # Commented out large dashboard that causes "Too long" errors
+  # - name: grafana-dashboard-node-exporter-full
+  #   files:
+  #     - dashboards/node-exporter-full-rfmoz.json
+  #   options:
+  #     labels:
+  #       grafana_dashboard: "1"
+  #     annotations:
+  #       kustomize.toolkit.fluxcd.io/substitute: disabled
+  #     disableNameSuffixHash: true
+
   - name: grafana-dashboard-pihole
     files:
       - dashboards/pihole-dashboard.json
     options:
       labels:
         grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  # Commented out large dashboard that causes "Too long" errors
+  # - name: grafana-dashboard-std-cluster-monitoring
+  #   files:
+  #     - dashboards/standard-cluster-monitoring-onzack.json
+  #   options:
+  #     labels:
+  #       grafana_dashboard: "1"
+  #     annotations:
+  #       kustomize.toolkit.fluxcd.io/substitute: disabled
+  #     disableNameSuffixHash: true
+
+  # Commented out large dashboard that causes "Too long" errors
+  # - name: grafana-dashboard-std-namespace-monitoring
+  #   files:
+  #     - dashboards/standard-namespace-monitoring-onzack.json
+  #   options:
+  #     labels:
+  #       grafana_dashboard: "1"
+  #     annotations:
+  #       kustomize.toolkit.fluxcd.io/substitute: disabled
+  #     disableNameSuffixHash: true
+
   - name: grafana-dashboard-thermal
     files:
       - dashboards/thermal-dashboard.json
     options:
       labels:
         grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
 
 resources:
   - alerts/temperature-alerts.yaml
