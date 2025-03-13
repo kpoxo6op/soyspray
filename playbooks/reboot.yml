@@ -1,16 +1,63 @@
+# playbooks/reboot.yml
+# ansible-playbook playbooks/reboot.yml -e "node=node-2"
 ---
 - name: Common tasks for every playbook
-  import_playbook: kubespray/playbooks/boilerplate.yml
+  import_playbook: ../kubespray/playbooks/boilerplate.yml
 
-- name: Reboot all nodes in the cluster
-  hosts: etcd:k8s_cluster:calico_rr
-  gather_facts: false
+- name: Reboot a specific node in the cluster
+  hosts: "{{ node | default('etcd:k8s_cluster:calico_rr') }}"
+  gather_facts: true
   become: true
   become_user: root
   serial: 1
   tasks:
+    - name: Ensure kubectl is installed
+      package:
+        name: kubectl
+        state: present
+      when: inventory_hostname == ansible_hostname
+      ignore_errors: true
+      tags:
+        - drain
+        - uncordon
+
+    - name: Drain the node before reboot
+      shell: >
+        kubectl drain {{ inventory_hostname }}
+        --ignore-daemonsets
+        --delete-emptydir-data
+        --timeout={{ drain_timeout | default('2m') }}
+      delegate_to: "{{ groups['kube_control_plane'][0] }}"
+      register: drain_result
+      ignore_errors: true
+      failed_when: false
+      tags: drain
+
+    - name: Show drain result
+      debug:
+        var: drain_result.stdout_lines
+      tags: drain
+      when: drain_result.stdout_lines is defined
+
     - name: Reboot the node
       ansible.builtin.reboot:
         msg: "Reboot initiated by Ansible"
-        reboot_timeout: 60
+        reboot_timeout: "{{ reboot_timeout | default(300) }}"
       tags: reboot
+
+    - name: Wait for node to be ready after reboot
+      pause:
+        seconds: 30
+      tags: uncordon
+
+    - name: Uncordon the node after reboot
+      shell: kubectl uncordon {{ inventory_hostname }}
+      delegate_to: "{{ groups['kube_control_plane'][0] }}"
+      register: uncordon_result
+      tags: uncordon
+
+    - name: Show uncordon result
+      debug:
+        var: uncordon_result.stdout_lines
+      tags: uncordon
+      when: uncordon_result.stdout_lines is defined

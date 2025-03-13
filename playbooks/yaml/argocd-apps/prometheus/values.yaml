@@ -8,14 +8,15 @@ prometheus:
   prometheusSpec:
     replicas: 1
     retention: 15d
+    walCompression: true
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: local-storage
+          storageClassName: longhorn
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
-              storage: 10Gi
+              storage: 50Gi
     additionalScrapeConfigs:
       - job_name: pihole-exporter
         static_configs:
