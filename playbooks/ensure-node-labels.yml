@@ -16,7 +16,7 @@
               node-role.kubernetes.io/control-plane: control-plane
       loop: "{{ groups['kube_control_plane'] }}"
 
-    - name: Label worker nodes
+    - name: Label all nodes as workers
       kubernetes.core.k8s:
         state: present
         definition:
@@ -26,4 +26,4 @@
             name: "{{ item }}"
             labels:
               node-role.kubernetes.io/worker: worker
-      loop: "{{ groups['kube_node'] | difference(groups['kube_control_plane']) }}"
+      loop: "{{ groups['kube_node'] }}"
