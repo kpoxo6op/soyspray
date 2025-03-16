@@ -10,26 +10,28 @@ defaultSettings:
   defaultDataLocality: "disabled"
   deletingConfirmationFlag: true
   orphanAutoDeletion: true
+  # Allow 30 minutes for volume operations to timeout (default: 90)
+  backupstorePollInterval: 300
 
 longhornUI:
   replicas: 1
   resources:
     limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
       cpu: 100m
       memory: 128Mi
-    requests:
-      cpu: 50m
-      memory: 64Mi
 
 longhornManager:
   priorityClass: longhorn-critical
   resources:
     limits:
+      cpu: 500m
+      memory: 500Mi
+    requests:
       cpu: 250m
       memory: 256Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
   livenessProbe:
     initialDelaySeconds: 60
     periodSeconds: 20
@@ -45,20 +47,29 @@ longhornDriver:
   priorityClass: longhorn-critical
   resources:
     limits:
-      cpu: 250m
-      memory: 256Mi
+      cpu: 300m
+      memory: 350Mi
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 150m
+      memory: 180Mi
+
+instanceManager:
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
 
 engineImage:
   resources:
     requests:
-      cpu: 50m
-      memory: 64Mi
-    limits:
       cpu: 100m
-      memory: 256Mi
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 512Mi
   livenessProbe:
     initialDelaySeconds: 45
     periodSeconds: 15
@@ -78,32 +89,32 @@ csi:
   attacher:
     resources:
       limits:
-        cpu: 200m
-        memory: 256Mi
+        cpu: 250m
+        memory: 320Mi
       requests:
         cpu: 100m
         memory: 128Mi
   provisioner:
     resources:
       limits:
-        cpu: 200m
-        memory: 256Mi
+        cpu: 250m
+        memory: 320Mi
       requests:
         cpu: 100m
         memory: 128Mi
   resizer:
     resources:
       limits:
-        cpu: 200m
-        memory: 256Mi
+        cpu: 250m
+        memory: 320Mi
       requests:
         cpu: 100m
         memory: 128Mi
   snapshotter:
     resources:
       limits:
-        cpu: 200m
-        memory: 256Mi
+        cpu: 250m
+        memory: 320Mi
       requests:
         cpu: 100m
         memory: 128Mi
@@ -132,5 +143,5 @@ metrics:
     enabled: true
     additionalLabels:
       release: prometheus
-    interval: 30s
-    scrapeTimeout: 10s
+    interval: 60s
+    scrapeTimeout: 30s
