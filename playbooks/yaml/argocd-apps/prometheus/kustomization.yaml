@@ -28,14 +28,15 @@ configMapGenerator:
       annotations:
         kustomize.toolkit.fluxcd.io/substitute: disabled
 
-  - name: grafana-dashboard-k8s-leospbru
-    files:
-      - dashboards/k8s-leospbru.json
-    options:
-      labels:
-        grafana_dashboard: "1"
-      annotations:
-        kustomize.toolkit.fluxcd.io/substitute: disabled
+  # Commented out large dashboard (202KB) that may cause "Too long" errors
+  # - name: grafana-dashboard-k8s-leospbru
+  #   files:
+  #     - dashboards/k8s-leospbru.json
+  #   options:
+  #     labels:
+  #       grafana_dashboard: "1"
+  #     annotations:
+  #       kustomize.toolkit.fluxcd.io/substitute: disabled
 
   - name: grafana-dashboard-longhorn-adegoodyer
     files:
