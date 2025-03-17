@@ -3,6 +3,7 @@ persistence:
   defaultClassReplicaCount: 1
   defaultDataLocality: best-effort
   migratable: true
+  metricsPort: 9500
 
 defaultSettings:
   defaultDataPath: "/storage"
@@ -137,11 +138,15 @@ service:
   manager:
     type: ClusterIP
     nodePort: ""
+    ports:
+      manager: 9500
+      metrics: 9500
 
 metrics:
   serviceMonitor:
     enabled: true
     additionalLabels:
-      release: prometheus
+      release: kube-prometheus-stack
+    port: manager
     interval: 60s
     scrapeTimeout: 30s
