@@ -5,6 +5,9 @@
 - [Overview](#configuring-domain-based-access-with-ingress)
 - [System Architecture](#system-architecture)
 - [Quick Start / TLDR](#quick-start--tldr)
+- [Certificate Strategy](#certificate-strategy)
+  - [Individual vs Wildcard](#individual-vs-wildcard)
+  - [Switching to Wildcard](#switching-to-wildcard)
 - [Prerequisites](#prerequisites)
 - [Implementation Steps](#implementation-steps)
   - [1. Verify Ingress Controller](#1-verify-ingress-controller-is-running)
@@ -36,6 +39,57 @@ Sequence of actions to implement domain-based access:
 4. **Verify DNS records** - Check external-dns logs to confirm records are created in Cloudflare
 5. **Verify certificate issuance** - Ensure TLS certificates are correctly issued
 6. **Test access** - Access services via domain names from both local network and WireGuard
+
+## Certificate Strategy
+
+### Individual vs Wildcard
+
+The guide currently uses individual certificates for each service (e.g., separate certs for pihole.soyspray.vip, grafana.soyspray.vip). While this provides better security isolation, for home labs a wildcard certificate (*.soyspray.vip) can be simpler to manage.
+
+Individual Certificates:
+
+- ✅ Better security isolation
+- ✅ Independent lifecycle
+- ❌ More Let's Encrypt API calls
+- ❌ More complex management
+
+Wildcard Certificate:
+
+- ✅ Single certificate for all services
+- ✅ New subdomains work automatically
+- ✅ Simpler management
+- ❌ All services affected if compromised
+
+### Switching to Wildcard
+
+To switch from individual to wildcard certificates:
+
+1. **Backup**:
+   - Export existing TLS secrets
+   - Note down all existing ingress configurations
+
+2. **Create Wildcard Certificate**:
+   - Create new ClusterIssuer for *.soyspray.vip
+   - Use DNS-01 challenge (required for wildcards)
+   - Store certificate in central namespace
+
+3. **Update Ingresses**:
+   - Remove cert-manager annotations
+   - Point to shared wildcard certificate
+   - Update one service at a time
+   - Verify each service remains accessible
+
+4. **Cleanup**:
+   - Remove old individual certificates
+   - Remove old certificate requests
+   - Update documentation
+
+5. **Verification**:
+   - Test all services
+   - Verify certificate renewal
+   - Check external-dns synchronization
+
+This migration can be done gradually, testing each service before moving to the next.
 
 ## System Architecture
 

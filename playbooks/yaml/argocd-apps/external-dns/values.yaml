@@ -21,5 +21,3 @@ sources:
 
 extraArgs:
   - --txt-prefix=external-dns-
-  - --ignore-ingress-tls-spec
-  - --ignore-ingress-rules-spec
