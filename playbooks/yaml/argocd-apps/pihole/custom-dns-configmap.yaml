@@ -1,4 +1,6 @@
 # File: playbooks/yaml/argocd-apps/pihole/configmaps/custom-dns-configmap.yaml
+# Internal services with .lan domains
+# Same services with .soyspray.vip domains
 
 apiVersion: v1
 kind: ConfigMap
@@ -7,11 +9,17 @@ metadata:
   namespace: pihole
 data:
   custom.list: |
-    192.168.1.120 podinfo.test.soyspray.vip
     192.168.1.127 longhorn.lan
     192.168.1.126 alertmanager.lan
     192.168.1.125 prometheus.lan
     192.168.1.123 grafana.lan
-    192.168.1.122 pihole.lan
+    192.168.1.124 pihole.lan
     192.168.1.121 argocd.lan
     192.168.1.100 flask.lan
+    192.168.1.127 longhorn.soyspray.vip
+    192.168.1.126 alertmanager.soyspray.vip
+    192.168.1.125 prometheus.soyspray.vip
+    192.168.1.123 grafana.soyspray.vip
+    192.168.1.124 pihole.soyspray.vip
+    192.168.1.121 argocd.soyspray.vip
+    192.168.1.100 flask.soyspray.vip
