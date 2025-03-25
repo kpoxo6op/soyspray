@@ -1,13 +1,15 @@
 ---
-description: important info how to make any changes
+description: 
 globs: 
+alwaysApply: true
 ---
 
 # Rules for making changes
 
+- start each message you output with random emoji
 - all cluster apps are defined in argoCD and applied to argoCD as @manage-argocd-apps.yml
-- all cluster addons are defined in [addons.yml](mdc:kubespray/inventory/soycluster/group_vars/k8s_cluster/addons.yml)
-- k8s cluster itsled id k8s absible project kubespray customised by my playbooks such as [main.py](mdc:kubespray/scripts/openstack-cleanup/main.py)
-- we always do GitOps. If any repeated manual step required we writa ansible book such as [prepare-longhorn-prereqs.yml](mdc:playbooks/prepare-longhorn-prereqs.yml)
+- all cluster addons are defined in [addons.yml](mdc:soyvps/soyvps/soyvps/soyvps/kubespray/inventory/soycluster/group_vars/k8s_cluster/addons.yml)
+- k8s cluster itsled id k8s absible project kubespray customised by my playbooks such as [main.py](mdc:soyvps/soyvps/soyvps/soyvps/kubespray/scripts/openstack-cleanup/main.py)
+- we always do GitOps. If any repeated manual step required we writa ansible book such as [prepare-longhorn-prereqs.yml](mdc:soyvps/soyvps/soyvps/soyvps/playbooks/prepare-longhorn-prereqs.yml)
 - One off actions or troubleshooting can be done as one of shell scripts or kubectl commands
-- run [upgrade-cluster.yml](mdc:kubespray/upgrade-cluster.yml) book as per [README.md](mdc:README.md)
+- run [upgrade-cluster.yml](mdc:soyvps/soyvps/soyvps/soyvps/kubespray/upgrade-cluster.yml) book as per [README.md](mdc:soyvps/soyvps/soyvps/soyvps/README.md)
