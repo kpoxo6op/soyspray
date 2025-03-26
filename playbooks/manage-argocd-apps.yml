@@ -140,6 +140,37 @@
             api-token: "{{ cloudflare_api_token | b64encode }}"
       tags: cert-manager
 
+    # Copy TLS certificate to ArgoCD namespace for ingress
+    - name: Extract TLS certificate data
+      shell: kubectl get secret prod-cert-tls -n cert-manager -o jsonpath='{.data.tls\.crt}'
+      register: tls_crt
+      tags: argocd-ingress
+
+    - name: Extract TLS key data
+      shell: kubectl get secret prod-cert-tls -n cert-manager -o jsonpath='{.data.tls\.key}'
+      register: tls_key
+      tags: argocd-ingress
+
+    - name: Copy TLS certificate to ArgoCD namespace
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: prod-cert-tls
+            namespace: argocd
+            annotations:
+              cert-manager.io/certificate-name: prod-cert
+              cert-manager.io/issuer-kind: ClusterIssuer
+              cert-manager.io/issuer-name: letsencrypt-prod
+          type: kubernetes.io/tls
+          data:
+            tls.crt: "{{ tls_crt.stdout }}"
+            tls.key: "{{ tls_key.stdout }}"
+      tags: argocd-ingress
+
     - name: Apply Cert Manager Configuration
       kubernetes.core.k8s:
         state: present

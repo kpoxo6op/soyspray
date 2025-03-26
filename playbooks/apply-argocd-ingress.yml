@@ -1,0 +1,48 @@
+# playbooks/apply-argocd-ingress.yml
+---
+- name: Apply ArgoCD Ingress for HTTPS Access
+  hosts: localhost
+  become: false
+  tasks:
+    - name: Copy the ArgoCD Ingress manifest to the Kubernetes master node
+      ansible.builtin.copy:
+        src: yaml/argocd-ingress.yaml
+        dest: /tmp/argocd-ingress.yaml
+
+    - name: Apply the ArgoCD Ingress manifest via kubectl
+      ansible.builtin.command:
+        cmd: kubectl apply -f /tmp/argocd-ingress.yaml
+      args:
+        chdir: /tmp
+      register: apply_ingress_result
+
+    - name: Output the result of kubectl apply for the ingress
+      debug:
+        var: apply_ingress_result.stdout
+
+    - name: Verify Pihole DNS Entry Exists for argocd.soyspray.vip
+      ansible.builtin.command:
+        cmd: kubectl exec -n pihole deploy/pihole -- grep "argocd.soyspray.vip" /etc/pihole/custom.list
+      ignore_errors: true
+      register: dns_check_result
+
+    - name: Add DNS Entry to Pihole if Missing
+      when: dns_check_result.rc != 0
+      block:
+        - name: Create temporary DNS entry file
+          ansible.builtin.copy:
+            content: "192.168.1.120 argocd.soyspray.vip"
+            dest: /tmp/argocd-dns-entry.txt
+
+        - name: Copy DNS entry to Pihole pod
+          ansible.builtin.command:
+            cmd: kubectl cp /tmp/argocd-dns-entry.txt pihole/$(kubectl get pods -n pihole -l app=pihole -o jsonpath='{.items[0].metadata.name}'):/tmp/argocd-dns-entry.txt -n pihole
+
+        - name: Add DNS entry to Pihole custom.list
+          ansible.builtin.command:
+            cmd: kubectl exec -n pihole deploy/pihole -- bash -c "cat /tmp/argocd-dns-entry.txt >> /etc/pihole/custom.list && pihole restartdns"
+          register: add_dns_result
+
+        - name: Output the result of DNS entry addition
+          debug:
+            var: add_dns_result.stdout

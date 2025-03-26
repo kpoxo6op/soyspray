@@ -1,190 +1,158 @@
-# Configuring Domain-Based Access with Ingress
-
-## Table of Contents
-
-- [Overview](#overview)
-- [System Architecture](#system-architecture)
-- [Quick Start](#quick-start)
-- [Prerequisites](#prerequisites)
-- [Implementation Steps](#implementation-steps)
-  - [1. Verify Components](#1-verify-components)
-  - [2. Configure TLS Certificates](#2-configure-tls-certificates)
-  - [3. Configure DNS Resolution](#3-configure-dns-resolution)
-  - [4. Create Ingress Resources](#4-create-ingress-resources)
-  - [5. Test Access](#5-test-access)
-- [Troubleshooting](#troubleshooting)
+# Ingress Configuration and TLS Certificate Management
 
 ## Overview
 
-This guide describes how to configure your cluster services to be accessible via domain names through WireGuard using valid TLS certificates. Services will be accessible through domains like:
+This document describes the configuration of Ingress resources in the cluster and how TLS certificates are managed across namespaces.
 
-- argocd.soyspray.vip
-- grafana.soyspray.vip
-- prometheus.soyspray.vip
-- pihole.soyspray.vip
+## Components Used
 
-The setup uses:
-- Local Pihole DNS resolution for `.soyspray.vip` domains
-- Valid TLS certificates for HTTPS access
-- WireGuard for secure remote access
-- No external DNS or port forwarding required
+- Nginx Ingress Controller (running on port 443)
+- cert-manager (for TLS certificate management)
+- Pihole DNS (192.168.1.122)
+- Let's Encrypt (wildcard certificate issuer)
 
-## System Architecture
+## Implementation Details
 
-```mermaid
-graph TD
-    subgraph "Remote Access"
-        Mobile["Mobile Device<br>DNS: 192.168.1.122"]
-        VPS["Azure VPS<br>WireGuard Hub"]
-    end
+### 1. DNS Configuration
 
-    subgraph "Home Cluster"
-        NodeA["Node A<br>192.168.1.x"]
-        Ingress["Nginx Ingress<br>192.168.1.120"]
-        CertMgr["cert-manager<br>*.soyspray.vip"]
-        Pihole["Pihole DNS<br>192.168.1.122"]
+- Pihole DNS server (192.168.1.122) handles local resolution for `.soyspray.vip` domains
+- DNS entries point to the Nginx Ingress Controller VIP (192.168.1.120)
+- Example DNS records:
 
-        subgraph "Applications"
-            ArgoCD["ArgoCD"]
-            Grafana["Grafana"]
-            Prometheus["Prometheus"]
-            PiholeUI["Pihole UI"]
-        end
-    end
+  ```
+  argocd.soyspray.vip    -> 192.168.1.120
+  grafana.soyspray.vip   -> 192.168.1.120
+  pihole.soyspray.vip    -> 192.168.1.120
+  ```
 
-    %% WireGuard connections
-    Mobile -- "WireGuard<br>10.8.0.2" --> VPS
-    VPS -- "WireGuard<br>10.8.0.1" --> NodeA
+### 2. TLS Certificate Management
 
-    %% DNS Resolution
-    Mobile -- "DNS Queries<br>*.soyspray.vip" --> Pihole
-    Pihole -- "Resolves to<br>Local IPs" --> Mobile
+#### Certificate Details
 
-    %% Internal routing
-    Ingress -- "Routes based on<br>hostname" --> ArgoCD
-    Ingress -- "Routes based on<br>hostname" --> Grafana
-    Ingress -- "Routes based on<br>hostname" --> Prometheus
-    Ingress -- "Routes based on<br>hostname" --> PiholeUI
+- Wildcard certificate: `*.soyspray.vip`
+- Issuer: Let's Encrypt
+- Storage: Kubernetes Secret `prod-cert-tls`
+- Primary namespace: `cert-manager`
 
-    %% Certificate management
-    CertMgr -- "Issues certificates" --> Ingress
-```
+#### Certificate Synchronization
 
-## Quick Start
+Due to Kubernetes namespace isolation, TLS certificates must be copied to each namespace where they are needed. This is handled through Ansible playbooks:
 
-1. Ensure prerequisites are met (WireGuard, Nginx Ingress, cert-manager, Pihole)
-2. Configure wildcard TLS certificate for `*.soyspray.vip`
-3. Configure Pihole DNS entries for `.soyspray.vip` domains
-4. Create ingress resources with TLS
-5. Configure WireGuard clients to use Pihole DNS (192.168.1.122)
+1. Source certificate is stored in `cert-manager` namespace
+2. Playbook copies the certificate to required namespaces (e.g., `argocd`)
+3. Annotations are preserved to maintain cert-manager context
 
-## Prerequisites
+### 3. Ingress Configuration
 
-- Working Kubernetes cluster with:
-  - Nginx Ingress Controller
-  - cert-manager
-  - Pihole
-  - WireGuard VPN hub (Azure VPS)
+Example ArgoCD ingress configuration:
 
-## Implementation Steps
-
-### 1. Verify Components
-
-Ensure all required components are running:
-```bash
-# Check Nginx Ingress
-kubectl get svc -n ingress-nginx
-
-# Check cert-manager
-kubectl get pods -n cert-manager
-
-# Check Pihole
-kubectl get svc -n pihole
-```
-
-### 2. Configure TLS Certificates
-
-Create ClusterIssuer and Certificate for wildcard domain:
-```yaml
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: soyspray-wildcard
-spec:
-  secretName: soyspray-tls
-  dnsNames:
-    - "*.soyspray.vip"
-  issuerRef:
-    name: letsencrypt-prod
-    kind: ClusterIssuer
-```
-
-### 3. Configure DNS Resolution
-
-Pihole DNS configuration for local resolution:
-```yaml
-custom.list: |
-  192.168.1.123 grafana.soyspray.vip
-  192.168.1.122 pihole.soyspray.vip
-  192.168.1.121 argocd.soyspray.vip
-  # ... other services
-```
-
-### 4. Create Ingress Resources
-
-Example ingress configuration:
 ```yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: pihole-web
+  name: argocd-ingress
+  namespace: argocd
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
+    kubernetes.io/ingress.class: nginx
 spec:
   tls:
     - hosts:
-        - pihole.soyspray.vip
-      secretName: pihole-tls
+        - argocd.soyspray.vip
+      secretName: prod-cert-tls
   rules:
-    - host: pihole.soyspray.vip
+    - host: argocd.soyspray.vip
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: pihole-web
+                name: argocd-server
                 port:
                   number: 80
 ```
 
-### 5. Test Access
-
-1. **Verify DNS Resolution**:
-   ```bash
-   # Should resolve to local IP
-   nslookup pihole.soyspray.vip 192.168.1.122
-   ```
-
-2. **Test HTTPS Access** (over WireGuard):
-   ```bash
-   # Should show valid HTTPS certificate
-   curl -v https://pihole.soyspray.vip
-   ```
-
 ## Troubleshooting
 
-### DNS Issues
-- Verify Pihole DNS entries are correct
-- Check WireGuard client DNS configuration
-- Ensure WireGuard routing includes 192.168.1.0/24
+### Common Issues
 
-### Certificate Issues
-- Check certificate status with `kubectl get certificates`
-- Verify ingress TLS configuration
-- Check cert-manager logs
+1. Certificate Not Found Error:
 
-### Access Issues
-- Verify WireGuard connection
-- Check ingress controller logs
-- Ensure service endpoints are correct
+```
+Error getting SSL certificate "argocd/prod-cert-tls": local SSL certificate argocd/prod-cert-tls was not found
+```
+
+Solution: Run certificate sync playbook to copy certificate to the required namespace
+
+### Diagnostic Commands
+
+1. Check Ingress Status:
+
+```bash
+kubectl get ingress -n argocd
+kubectl describe ingress argocd-ingress -n argocd
+```
+
+2. Verify Certificate Presence:
+
+```bash
+kubectl get secret prod-cert-tls -n argocd
+```
+
+3. Check Ingress Controller Logs:
+
+```bash
+kubectl logs -n ingress-nginx ingress-nginx-controller-xxxxx
+```
+
+4. Test DNS Resolution:
+
+```bash
+nslookup argocd.soyspray.vip 192.168.1.122
+```
+
+5. Verify HTTPS Access:
+
+```bash
+curl -vk https://192.168.1.120 -H 'Host: argocd.soyspray.vip'
+```
+
+6. Check TLS Certificate:
+
+```bash
+openssl s_client -connect 192.168.1.120:443 -servername argocd.soyspray.vip
+```
+
+## Certificate Sync Process
+
+The certificate synchronization is managed through Ansible playbooks:
+
+1. Extract certificate data:
+
+```yaml
+- name: Extract TLS certificate data
+  shell: kubectl get secret prod-cert-tls -n cert-manager -o jsonpath='{.data.tls\.crt}'
+  register: tls_crt
+```
+
+2. Copy to target namespace:
+
+```yaml
+- name: Copy TLS certificate
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: prod-cert-tls
+        namespace: argocd
+        annotations:
+          cert-manager.io/certificate-name: prod-cert
+          cert-manager.io/issuer-kind: ClusterIssuer
+          cert-manager.io/issuer-name: letsencrypt-prod
+      type: kubernetes.io/tls
+      data:
+        tls.crt: "{{ tls_crt.stdout }}"
+        tls.key: "{{ tls_key.stdout }}"
+```
