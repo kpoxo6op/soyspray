@@ -12,7 +12,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "expose-longhorn-pihole"
+    targetRevision: "v1.7.7"
     path: playbooks/yaml/argocd-apps/prometheus
     kustomize:
       helm:
