@@ -9,4 +9,6 @@ helmCharts:
     valuesFile: values.yaml
 
 resources:
+  - pihole-application.yaml
   - custom-dns-configmap.yaml
+  - ingress.yaml
