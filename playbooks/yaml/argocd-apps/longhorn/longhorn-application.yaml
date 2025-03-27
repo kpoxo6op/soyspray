@@ -20,8 +20,8 @@ spec:
     namespace: longhorn-system
   syncPolicy:
     # disable autsync while debugging
-    # automated:
-    #   prune: true
-    #   selfHeal: true
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
