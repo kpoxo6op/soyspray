@@ -112,16 +112,16 @@ grafana:
   ingress:
     enabled: true
     ingressClassName: nginx
+    annotations:
+      kubernetes.io/ingress.class: nginx
+    labels: {}
     hosts:
       - grafana.soyspray.vip
     path: /
-    pathType: Prefix
     tls:
       - secretName: prod-cert-tls
         hosts:
           - grafana.soyspray.vip
-    annotations:
-      kubernetes.io/ingress.class: nginx
 
 alertmanager:
   alertmanagerSpec:
