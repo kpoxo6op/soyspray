@@ -1,0 +1,17 @@
+# playbooks/yaml/argocd-apps/longhorn/patches/driver-resources.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: longhorn-driver-deployer
+spec:
+  template:
+    spec:
+      containers:
+        - name: longhorn-driver
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "180Mi"
+            limits:
+              cpu: "300m"
+              memory: "256Mi"

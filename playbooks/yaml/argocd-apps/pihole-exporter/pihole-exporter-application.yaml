@@ -8,7 +8,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: "v1.7.9"
+    targetRevision: "v1.7.10"
     path: playbooks/yaml/argocd-apps/pihole-exporter
     kustomize:
   destination:

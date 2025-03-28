@@ -1,3 +1,4 @@
+# playbooks/yaml/argocd-apps/longhorn/longhorn-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -5,23 +6,28 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  sources:
-    - repoURL: "https://charts.longhorn.io"
-      chart: longhorn
-      targetRevision: "1.8.0"
-      helm:
-        valueFiles:
-          - $values/playbooks/yaml/argocd-apps/longhorn/values.yaml
-    - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "v1.7.9"
-      ref: values
+  source:
+    repoURL: https://charts.longhorn.io
+    chart: longhorn
+    targetRevision: 1.8.0
+    helm:
+      releaseName: longhorn
+      valueFiles:
+        - $values/playbooks/yaml/argocd-apps/longhorn/values.yaml
+      postRenderer:
+        kustomize:
+          path: $values/playbooks/yaml/argocd-apps/longhorn
+  valuesRepo:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: "v1.7.10"
+    path: .
   destination:
     server: "https://kubernetes.default.svc"
     namespace: longhorn-system
   syncPolicy:
-    # disable autsync while debugging
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
