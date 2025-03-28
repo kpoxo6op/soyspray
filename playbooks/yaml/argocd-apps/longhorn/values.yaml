@@ -11,15 +11,20 @@ defaultSettings:
   defaultDataLocality: "disabled"
   deletingConfirmationFlag: true
   orphanAutoDeletion: true
-  # Allow 30 minutes for volume operations to timeout (default: 90)
   backupstorePollInterval: 300
+  concurrentReplicaRebuildPerNodeLimit: 1
+  snapshotMaxCount: 10
+  autoCleanupSystemGeneratedSnapshot: true
+  autoCleanupRecurringJobBackupSnapshot: true
+  fastReplicaRebuildEnabled: false
+  snapshotDataIntegrity: disabled
 
 longhornUI:
   replicas: 1
   resources:
     limits:
       cpu: 200m
-      memory: 256Mi
+      memory: 192Mi
     requests:
       cpu: 100m
       memory: 128Mi
@@ -29,19 +34,19 @@ longhornManager:
   resources:
     limits:
       cpu: 500m
-      memory: 500Mi
+      memory: 384Mi
     requests:
       cpu: 250m
       memory: 256Mi
   livenessProbe:
     initialDelaySeconds: 60
     periodSeconds: 20
-    timeoutSeconds: 5
+    timeoutSeconds: 10
     failureThreshold: 5
   readinessProbe:
     initialDelaySeconds: 60
     periodSeconds: 20
-    timeoutSeconds: 5
+    timeoutSeconds: 10
     failureThreshold: 5
 
 longhornDriver:
@@ -49,7 +54,7 @@ longhornDriver:
   resources:
     limits:
       cpu: 300m
-      memory: 350Mi
+      memory: 256Mi
     requests:
       cpu: 150m
       memory: 180Mi
@@ -58,7 +63,7 @@ instanceManager:
   resources:
     limits:
       cpu: 1000m
-      memory: 1Gi
+      memory: 768Mi
     requests:
       cpu: 250m
       memory: 512Mi
@@ -70,7 +75,7 @@ engineImage:
       memory: 128Mi
     limits:
       cpu: 250m
-      memory: 512Mi
+      memory: 384Mi
   livenessProbe:
     initialDelaySeconds: 45
     periodSeconds: 15
@@ -91,7 +96,7 @@ csi:
     resources:
       limits:
         cpu: 250m
-        memory: 320Mi
+        memory: 256Mi
       requests:
         cpu: 100m
         memory: 128Mi
@@ -99,7 +104,7 @@ csi:
     resources:
       limits:
         cpu: 250m
-        memory: 320Mi
+        memory: 256Mi
       requests:
         cpu: 100m
         memory: 128Mi
@@ -107,7 +112,7 @@ csi:
     resources:
       limits:
         cpu: 250m
-        memory: 320Mi
+        memory: 256Mi
       requests:
         cpu: 100m
         memory: 128Mi
@@ -115,7 +120,7 @@ csi:
     resources:
       limits:
         cpu: 250m
-        memory: 320Mi
+        memory: 256Mi
       requests:
         cpu: 100m
         memory: 128Mi
@@ -124,7 +129,6 @@ csi:
   resizerReplicaCount: 1
   snapshotterReplicaCount: 1
 
-# Sets priority above system-node-critical
 priorityClass:
   create: true
   name: longhorn-critical

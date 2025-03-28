@@ -20,7 +20,11 @@ Switches the DNS to a custom Pi-hole server (192.168.1.200) or back to the defau
 
 .EXAMPLE
 Switch-DNS -WhatIf
-Previews the DNS changes without applying them.
+Shows what changes would be made to DNS settings without applying them.
+Example output:
+Current DNS: 192.168.1.1 (Default Router)
+Target DNS:  192.168.1.122 (Pi-hole)
+Will change: All active network adapters
 
 .NOTES
 This script modifies the DNS configuration for the active network adapter and requires
@@ -42,15 +46,41 @@ function Switch-DNS {
     $InterfaceIndex = (Get-NetAdapter | Where-Object { $_.Status -eq "Up" }).InterfaceIndex
     $CurrentDns = (Get-DnsClientServerAddress -InterfaceIndex $InterfaceIndex -AddressFamily IPv4).ServerAddresses
 
+    # Prepare descriptive messages for WhatIf
+    $CurrentState = if ($CurrentDns -contains $PiHoleIP) {
+        "Current DNS: $PiHoleIP (Pi-hole)"
+    } elseif ($CurrentDns) {
+        "Current DNS: $($CurrentDns -join ', ') (Current Setting)"
+    } else {
+        "Current DNS: Automatic (DHCP)"
+    }
+
+    $TargetState = if ($CurrentDns -contains $PiHoleIP) {
+        "Target DNS:  Automatic (DHCP)"
+    } else {
+        "Target DNS:  $PiHoleIP (Pi-hole)"
+    }
+
+    $WhatIfMsg = @"
+$CurrentState
+$TargetState
+Affects:     All active network adapters
+"@
+
     if ($CurrentDns -contains $PiHoleIP) {
-        if ($PSCmdlet.ShouldProcess("DNS Settings", "Resetting DNS to default (automatic DNS)")) {
+        if ($PSCmdlet.ShouldProcess("DNS Settings", $WhatIfMsg)) {
             Set-DnsClientServerAddress -InterfaceIndex $InterfaceIndex -ResetServerAddresses
         }
     } else {
-        if ($PSCmdlet.ShouldProcess("DNS Settings", "Setting DNS to Pi-hole IP: $PiHoleIP")) {
+        if ($PSCmdlet.ShouldProcess("DNS Settings", $WhatIfMsg)) {
             Set-DnsClientServerAddress -InterfaceIndex $InterfaceIndex -ServerAddresses $PiHoleIP
         }
     }
 
-    Get-DnsClientServerAddress -InterfaceIndex $InterfaceIndex -AddressFamily IPv4
+    # Show current state after changes
+    $NewDns = Get-DnsClientServerAddress -InterfaceIndex $InterfaceIndex -AddressFamily IPv4
+    if (-not $WhatIfPreference) {
+        Write-Host "`nCurrent DNS Configuration:" -ForegroundColor Cyan
+        $NewDns | Format-Table InterfaceAlias, InterfaceIndex, AddressFamily, ServerAddresses
+    }
 }
