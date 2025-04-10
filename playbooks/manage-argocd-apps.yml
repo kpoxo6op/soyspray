@@ -80,7 +80,9 @@
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prometheus/prometheus-crds-application.yaml') }}"
-      tags: prometheus
+      tags:
+        - prometheus
+        - prometheus-crds
 
     - name: Apply Prometheus
       kubernetes.core.k8s:
@@ -203,7 +205,7 @@
             api-token: "{{ cloudflare_api_token | b64encode }}"
       tags: external-dns
 
-    - name: Apply External DNS Configuration
+    - name: Apply External DNS
       kubernetes.core.k8s:
         state: present
         kubeconfig: "{{ kubeconfig_path }}"

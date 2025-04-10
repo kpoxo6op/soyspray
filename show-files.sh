@@ -11,6 +11,8 @@ echo ""
 # Function to display file content, with special handling for JSON files
 display_file_content() {
     local file="$1"
+    local char_count
+    local line_count
 
     # Check if file is a binary or image file
     if file "$file" | grep -qE 'binary|executable|image data|shared object|compiled'; then
@@ -18,22 +20,34 @@ display_file_content() {
         echo "[Binary or image file - content skipped]"
     # Check if file is a JSON file (by extension)
     elif [[ "$file" == *.json ]]; then
-        # Get character count
-        local char_count=$(wc -c < "$file")
-
+        char_count=$(wc -c < "$file")
         echo "=== File: $file (JSON, $char_count characters) ==="
-
         if [ "$char_count" -gt 200 ]; then
-            # Truncate to first 200 characters and add indication
             head -c 200 "$file"
             echo "... [truncated, total $char_count characters]"
         else
-            # Display entire file if less than 200 characters
             cat "$file"
         fi
+    # Check if file is a Markdown file (by extension)
+    elif [[ "$file" == *.md ]]; then
+        char_count=$(wc -c < "$file")
+        echo "=== File: $file (Markdown, $char_count characters) ==="
+        if [ "$char_count" -gt 200 ]; then
+            head -c 200 "$file"
+            echo "... [truncated, total $char_count characters]"
+        else
+            cat "$file"
+        fi
+    # Check if file is a YAML file (by extension)
+    elif [[ "$file" == *.yaml || "$file" == *.yml ]]; then
+        line_count=$(wc -l < "$file")
+        echo "=== File: $file (YAML, $line_count lines, comments stripped) ==="
+        # Remove full-line comments and trailing comments
+        sed -e '/^[[:space:]]*#/d' -e 's/[[:space:]]*#.*$//' "$file"
     else
-        # For regular text files, display as normal
-        echo "=== File: $file ==="
+        # For other regular text files, display as normal
+        line_count=$(wc -l < "$file")
+        echo "=== File: $file (Text, $line_count lines) ==="
         cat "$file"
     fi
 

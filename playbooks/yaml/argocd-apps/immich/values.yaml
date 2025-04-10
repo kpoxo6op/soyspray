@@ -1,0 +1,52 @@
+# playbooks/yaml/argocd-apps/immich/values.yaml
+#
+# Helm values for the Immich application deployment.
+# - Uses the official Helm chart.
+# - Configured for Nginx Ingress Controller and Cert-Manager.
+# - Library persistence relies on an existing PVC named 'immich-library',
+#   which is defined in 'immich-library-pvc.yaml' and applied via Kustomize.
+# - Bundled PostgreSQL and Redis are disabled (assuming external instances).
+# - Resource limits and requests added for verification (requests lowered significantly for scheduling).
+
+image:
+  tag: v1.119.0
+
+server:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  ingress:
+    main:
+      enabled: true
+      ingressClassName: "nginx"
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-production
+        kubernetes.io/ingress.class: nginx
+        nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      hosts:
+        - host: immich.soyspray.vip
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - secretName: prod-cert-tls
+          hosts:
+            - immich.soyspray.vip
+
+machine-learning:
+  enabled: false
+
+immich:
+  metrics:
+    enabled: false
+  persistence:
+    library:
+      existingClaim: immich-library
+  configuration: {}
+

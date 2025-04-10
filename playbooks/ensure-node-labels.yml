@@ -1,5 +1,15 @@
 ---
-# Ensure proper node role labels for monitoring
+# This playbook ensures standard Kubernetes node role labels and a custom Longhorn label.
+# - Applies 'node-role.kubernetes.io/control-plane: ""' to control plane nodes.
+#   The empty string value signifies the presence of the label.
+# - Applies 'node-role.kubernetes.io/worker: ""' to all nodes (kube_node group).
+#   This ensures nodes available for workloads are correctly labeled.
+# - Applies 'longhorn: "true"' specifically to nodes node-0, node-1, and node-2.
+#   This designates them as suitable for running Longhorn storage components.
+# - Applies 'node.longhorn.io/create-default-disk: "true"' to the same nodes.
+#   This tells Longhorn to create default disks on these nodes at the defaultDataPath.
+# - Removes the 'longhorn' label (by setting it to null) from all other nodes.
+#   This prevents Longhorn components from being scheduled on nodes without dedicated storage.
 - name: Ensure node labels
   hosts: kube_control_plane[0]
   gather_facts: false
@@ -13,10 +23,12 @@
           metadata:
             name: "{{ item }}"
             labels:
-              node-role.kubernetes.io/control-plane: control-plane
+              node-role.kubernetes.io/control-plane: ""
       loop: "{{ groups['kube_control_plane'] }}"
+      loop_control:
+        label: "{{ item }}"
 
-    - name: Label all nodes as workers
+    - name: Label worker nodes
       kubernetes.core.k8s:
         state: present
         definition:
@@ -25,5 +37,40 @@
           metadata:
             name: "{{ item }}"
             labels:
-              node-role.kubernetes.io/worker: worker
+              node-role.kubernetes.io/worker: ""
       loop: "{{ groups['kube_node'] }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Label nodes designated for Longhorn
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Node
+          metadata:
+            name: "{{ item }}"
+            labels:
+              longhorn: "true"
+              node.longhorn.io/create-default-disk: "true"
+      loop:
+        - node-0
+        - node-1
+        - node-2
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Ensure Longhorn label is absent on other nodes
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Node
+          metadata:
+            name: "{{ item }}"
+            labels:
+              longhorn: null
+              node.longhorn.io/create-default-disk: null
+      loop: "{{ groups['kube_node'] | difference(['node-0', 'node-1', 'node-2']) }}"
+      loop_control:
+        label: "{{ item }}"

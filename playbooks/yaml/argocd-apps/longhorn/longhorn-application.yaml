@@ -7,27 +7,17 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://charts.longhorn.io
-    chart: longhorn
-    targetRevision: 1.8.0
-    helm:
-      releaseName: longhorn
-      valueFiles:
-        - $values/playbooks/yaml/argocd-apps/longhorn/values.yaml
-      postRenderer:
-        kustomize:
-          path: $values/playbooks/yaml/argocd-apps/longhorn
-  valuesRepo:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: "v1.7.10"
-    path: .
+    targetRevision: "v1.8.0"
+    path: playbooks/yaml/argocd-apps/longhorn
+    kustomize:
   destination:
     server: "https://kubernetes.default.svc"
     namespace: longhorn-system
   syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+    # automated: # Comment out this block to disable auto-sync
+    #   prune: true # Comment out
+    #   selfHeal: true # Comment out
     syncOptions:
       - CreateNamespace=true
       - RespectIgnoreDifferences=true

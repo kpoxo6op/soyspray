@@ -97,6 +97,44 @@ kubectl delete ns monitoring
 kubectl patch application prometheus -n argocd -p '{"metadata":{"finalizers":null}}' --type=merge
 ```
 
+### Scenario: Stuck Sync + Resources in 'default' Namespace (April 2025)
+
+If the `kube-prometheus-stack` application gets stuck syncing (often waiting for hooks like `kube-prometheus-stack-admission-create` or showing cluster-scoped resources as `Missing`), and you then observe namespaced resources like the operator deployment or statefulsets appearing in the `default` namespace after attempting fixes, follow these steps:
+
+1. **Verify Core Settings:** Ensure the following settings are correct:
+    - In `prometheus-application.yaml` (`spec.syncPolicy.syncOptions`):
+        - `CreateNamespace=true`
+        - `AllowClusterResourceInNamespacedApp=true` (Crucial for allowing cluster-scoped resources)
+    - In `values.yaml`:
+        - Top-level `namespaceOverride: monitoring` is **present**. (Ensures Helm *templates* resources into the correct namespace).
+        - Under `prometheusOperator.admissionWebhooks.patch`:
+            - `hookDeletePolicy: before-hook-creation,hook-succeeded` (Helps cleanup hook jobs).
+
+2. **Terminate Stuck Operation:** If a sync is still stuck from previous attempts:
+
+    ```sh
+    argocd app terminate-op kube-prometheus-stack
+    ```
+
+3. **Commit & Refresh/Sync:** Commit the verified settings to Git. Trigger a refresh and sync in Argo CD:
+
+    ```sh
+    # Optional: Force refresh
+    argocd app get kube-prometheus-stack --refresh
+    # Trigger sync
+    argocd app sync kube-prometheus-stack
+    ```
+
+4. **Monitor:** Wait for the sync to complete. Argo CD should create resources in `monitoring` and, if `prune=true`, remove the incorrect ones from `default`.
+
+    ```sh
+    argocd app wait kube-prometheus-stack --health
+    kubectl get all -n monitoring
+    kubectl get all -n default # Should only show 'service/kubernetes'
+    ```
+
+**Root Cause:** This situation typically arises if `namespaceOverride` is missing/incorrect in `values.yaml`, causing Helm to template resources into `default`, even if Argo CD's `destination.namespace` is `monitoring`. `AllowClusterResourceInNamespacedApp=true` only helps with *cluster-scoped* resources, not incorrectly namespaced ones.
+
 If namespace is stuck in "Terminating" state:
 
 ```sh
