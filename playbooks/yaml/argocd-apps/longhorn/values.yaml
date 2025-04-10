@@ -7,7 +7,7 @@ persistence:
 
 defaultSettings:
   defaultDataPath: "/storage"
-  createDefaultDiskLabeledNodes: false
+  createDefaultDiskLabeledNodes: true
   defaultDataLocality: "disabled"
   deletingConfirmationFlag: true
   orphanAutoDeletion: true
@@ -18,26 +18,15 @@ defaultSettings:
   autoCleanupRecurringJobBackupSnapshot: true
   fastReplicaRebuildEnabled: false
   snapshotDataIntegrity: disabled
+  systemManagedComponentsNodeSelector: "longhorn=true"
 
 longhornUI:
   replicas: 1
-  resources:
-    limits:
-      cpu: 200m
-      memory: 192Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
 
 longhornManager:
+  nodeSelector:
+    longhorn: "true"
   priorityClass: longhorn-critical
-  resources:
-    limits:
-      cpu: 500m
-      memory: 384Mi
-    requests:
-      cpu: 250m
-      memory: 256Mi
   livenessProbe:
     initialDelaySeconds: 60
     periodSeconds: 20
@@ -51,36 +40,11 @@ longhornManager:
 
 longhornDriver:
   priorityClass: longhorn-critical
-  resources:
-    limits:
-      cpu: 300m
-      memory: 256Mi
-    requests:
-      cpu: 150m
-      memory: 180Mi
-
-instanceManager:
-  resources:
-    limits:
-      cpu: 1000m
-      memory: 768Mi
-    requests:
-      cpu: 250m
-      memory: 512Mi
 
 engineImage:
-  resources:
-    requests:
-      cpu: 100m
-      memory: 128Mi
-    limits:
-      cpu: 250m
-      memory: 384Mi
   livenessProbe:
     initialDelaySeconds: 45
     periodSeconds: 15
-    timeoutSeconds: 5
-    failureThreshold: 5
   readinessProbe:
     initialDelaySeconds: 45
     periodSeconds: 15
@@ -92,38 +56,6 @@ preUpgradeChecker:
   upgradeVersionCheck: false
 
 csi:
-  attacher:
-    resources:
-      limits:
-        cpu: 250m
-        memory: 256Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
-  provisioner:
-    resources:
-      limits:
-        cpu: 250m
-        memory: 256Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
-  resizer:
-    resources:
-      limits:
-        cpu: 250m
-        memory: 256Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
-  snapshotter:
-    resources:
-      limits:
-        cpu: 250m
-        memory: 256Mi
-      requests:
-        cpu: 100m
-        memory: 128Mi
   attacherReplicaCount: 1
   provisionerReplicaCount: 1
   resizerReplicaCount: 1
