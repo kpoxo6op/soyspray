@@ -4,9 +4,10 @@
 K8S_USER = ubuntu
 
 # Node IP addresses
-MASTER_NODE = 192.168.1.100
-WORKER_NODE1 = 192.168.1.101
-WORKER_NODE2 = 192.168.1.102
+WORKER_NODE1 = 192.168.1.100
+WORKER_NODE2 = 192.168.1.101
+WORKER_NODE3 = 192.168.1.102
+MASTER_NODE = 192.168.1.103
 
 # SSH commands
 master:
@@ -17,6 +18,12 @@ worker1:
 
 worker2:
 	ssh $(K8S_USER)@$(WORKER_NODE2)
+
+worker3:
+	ssh $(K8S_USER)@$(WORKER_NODE3)
+
+argo:
+	argocd login argocd.soyspray.vip --username admin --password password
 
 # Python virtual environment
 VENV_NAME = soyspray-venv
@@ -39,8 +46,10 @@ help:
 	@echo "  make master    - SSH into master node ($(MASTER_NODE))"
 	@echo "  make worker1   - SSH into worker node 1 ($(WORKER_NODE1))"
 	@echo "  make worker2   - SSH into worker node 2 ($(WORKER_NODE2))"
+	@echo "  make worker3   - SSH into worker node 3 ($(WORKER_NODE3))"
+	@echo "  make argo      - Login to ArgoCD (argocd.soyspray.vip)"
 	@echo "  make act       - Show command to activate Python virtual environment"
 	@echo "  make ans       - Show Ansible command starter"
 	@echo "  make bal       - Show pod count distribution across nodes"
 
-.PHONY: master worker1 worker2 help venv act bal
+.PHONY: master worker1 worker2 worker3 help venv act bal argo
