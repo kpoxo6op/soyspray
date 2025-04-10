@@ -1,0 +1,4546 @@
+=== Directory Structure for: /home/boris/code/soyspray/playbooks/yaml/argocd-apps ===
+/home/boris/code/soyspray/playbooks/yaml/argocd-apps
+├── README.md
+├── cert-manager
+│   ├── README.md
+│   ├── cert-manager-application.yaml
+│   ├── kustomization.yaml
+│   ├── letsencrypt-issuers.yaml
+│   ├── prod-certificate.yaml
+│   └── test-certificate.yaml
+├── external-dns
+│   ├── README.md
+│   ├── external-dns-application.yaml
+│   └── values.yaml
+├── immich
+│   ├── README.md
+│   ├── default-values.yaml
+│   ├── immich-application.yaml
+│   ├── immich-library-pvc.yaml
+│   ├── kustomization.yaml
+│   └── values.yaml
+├── longhorn
+│   ├── README.md
+│   ├── defaults.yaml
+│   ├── docs
+│   │   └── README.md
+│   ├── kustomization.yaml
+│   ├── longhorn-application.yaml
+│   ├── setting-default-data-path.yaml
+│   └── values.yaml
+├── pihole
+│   ├── README.md
+│   ├── Switch-DNS.ps1
+│   ├── custom-dns-configmap.yaml
+│   ├── ingress.yaml
+│   ├── kustomization.yaml
+│   ├── pihole-application.yaml
+│   └── values.yaml
+├── pihole-exporter
+│   ├── README.md
+│   ├── deployment.yaml
+│   ├── kustomization.yaml
+│   ├── pihole-exporter-application.yaml
+│   ├── secret.yaml
+│   └── service.yaml
+└── prometheus
+    ├── README.md
+    ├── alerts
+    │   └── temperature-alerts.yaml
+    ├── dashboards
+    │   ├── argocd-Stian-Øvrevåge.json
+    │   ├── argocd-dashboard.json
+    │   ├── cert-manager-chrede88.json
+    │   ├── k8s-leospbru.json
+    │   ├── longhorn-dashboard-adegoodyer.json
+    │   ├── longhorn-onzack.json
+    │   ├── node-exporter-full-rfmoz.json
+    │   ├── pihole-dashboard.json
+    │   ├── standard-cluster-monitoring-onzack.json
+    │   ├── standard-namespace-monitoring-onzack.json
+    │   └── thermal-dashboard.json
+    ├── default-values.yaml
+    ├── docs
+    │   ├── README.md
+    │   ├── large-dash-plan.md
+    │   └── node-exporter-full-rfmoz.png
+    ├── kustomization.yaml
+    ├── onzack-cluster-monitoring-recording-rules.yaml
+    ├── onzack-namespace-monitoring-recording-rules.yaml
+    ├── prometheus-application.yaml
+    ├── prometheus-crds-application.yaml
+    └── values.yaml
+
+12 directories, 59 files
+
+=== File Contents ===
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/external-dns/values.yaml (YAML, 25 lines, comments stripped) ===
+provider:
+  name: cloudflare
+
+env:
+  - name: CF_API_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: cloudflare-api-token
+        key: api-token
+
+domainFilters:
+  - soyspray.vip
+
+policy: upsert-only
+registry: txt
+txtOwnerId: k8s
+
+sources:
+  - ingress
+
+extraArgs:
+  - --txt-prefix=external-dns-
+  - --ignore-ingress-tls-spec
+  - --ignore-ingress-rules-spec
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/external-dns/README.md (Markdown, 870 characters) ===
+# ExternalDNS
+
+ExternalDNS watches Kubernetes Ingress resources and automatically creates DNS records in Cloudflare.
+
+## How it Works
+
+```mermaid
+graph LR
+    A[Ingress<br/>grafana.soyspray.vip] -->|w... [truncated, total 870 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/external-dns/external-dns-application.yaml (YAML, 26 lines, comments stripped) ===
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://kubernetes-sigs.github.io/external-dns
+      chart: external-dns
+      targetRevision: 1.14.0
+      helm:
+        valueFiles:
+          - $values/playbooks/yaml/argocd-apps/external-dns/values.yaml
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: "v1.8.0"
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/immich/immich-application.yaml (YAML, 24 lines, comments stripped) ===
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: immich
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: immich
+  sources:
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: "v1.8.0"
+      path: playbooks/yaml/argocd-apps/immich
+      kustomize:
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/immich/values.yaml (YAML, 52 lines, comments stripped) ===
+
+image:
+  tag: v1.119.0
+
+server:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  ingress:
+    main:
+      enabled: true
+      ingressClassName: "nginx"
+      annotations:
+        cert-manager.io/cluster-issuer: letsencrypt-production
+        kubernetes.io/ingress.class: nginx
+        nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      hosts:
+        - host: immich.soyspray.vip
+          paths:
+            - path: /
+              pathType: Prefix
+      tls:
+        - secretName: prod-cert-tls
+          hosts:
+            - immich.soyspray.vip
+
+machine-learning:
+  enabled: false
+
+immich:
+  metrics:
+    enabled: false
+  persistence:
+    library:
+      existingClaim: immich-library
+  configuration: {}
+
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/immich/kustomization.yaml (YAML, 15 lines, comments stripped) ===
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+helmCharts:
+  - name: immich
+    version: 0.9.2
+    repo: https://immich-app.github.io/immich-charts
+    releaseName: immich
+    valuesFile: values.yaml
+
+resources:
+  - immich-library-pvc.yaml
+
+namespace: immich
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/immich/README.md (Markdown, 3466 characters) ===
+# Immich Application Configuration
+
+This document outlines the configuration and verification steps for the Immich application deployed via ArgoCD.
+
+## Overview
+
+- **Deployment:** Managed by ArgoCD ap... [truncated, total 3466 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/immich/default-values.yaml (YAML, 104 lines, comments stripped) ===
+
+
+env:
+  REDIS_HOSTNAME: '{{ printf "%s-redis-master" .Release.Name }}'
+  DB_HOSTNAME: "{{ .Release.Name }}-postgresql"
+  DB_USERNAME: "{{ .Values.postgresql.global.postgresql.auth.username }}"
+  DB_DATABASE_NAME: "{{ .Values.postgresql.global.postgresql.auth.database }}"
+  DB_PASSWORD: "{{ .Values.postgresql.global.postgresql.auth.password }}"
+  IMMICH_MACHINE_LEARNING_URL: '{{ printf "http://%s-machine-learning:3003" .Release.Name }}'
+
+image:
+  tag: v1.119.0
+
+immich:
+  metrics:
+    enabled: false
+  persistence:
+    library:
+      existingClaim:
+  configuration: {}
+
+
+postgresql:
+  enabled: false
+  image:
+    repository: tensorchord/pgvecto-rs
+    tag: pg14-v0.2.0@sha256:739cdd626151ff1f796dc95a6591b55a714f341c737e27f045019ceabf8e8c52
+  global:
+    postgresql:
+      auth:
+        username: immich
+        database: immich
+        password: immich
+  primary:
+    containerSecurityContext:
+      readOnlyRootFilesystem: false
+    initdb:
+      scripts:
+        create-extensions.sql: |
+          CREATE EXTENSION cube;
+          CREATE EXTENSION earthdistance;
+          CREATE EXTENSION vectors;
+
+redis:
+  enabled: false
+  architecture: standalone
+  auth:
+    enabled: false
+
+
+server:
+  enabled: true
+  image:
+    repository: ghcr.io/immich-app/immich-server
+    pullPolicy: IfNotPresent
+  ingress:
+    main:
+      enabled: false
+      annotations:
+        nginx.ingress.kubernetes.io/proxy-body-size: "0"
+      hosts:
+        - host: immich.local
+          paths:
+            - path: "/"
+      tls: []
+
+machine-learning:
+  enabled: true
+  image:
+    repository: ghcr.io/immich-app/immich-machine-learning
+    pullPolicy: IfNotPresent
+  env:
+    TRANSFORMERS_CACHE: /cache
+  persistence:
+    cache:
+      enabled: true
+      size: 10Gi
+      type: emptyDir
+      accessMode: ReadWriteMany
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/immich/immich-library-pvc.yaml (YAML, 19 lines, comments stripped) ===
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-library
+  namespace: immich
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Gi
+  storageClassName: longhorn
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/pihole-exporter/deployment.yaml (YAML, 47 lines, comments stripped) ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pihole-exporter
+  namespace: pihole
+  labels:
+    app: pihole-exporter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pihole-exporter
+  template:
+    metadata:
+      labels:
+        app: pihole-exporter
+    spec:
+      containers:
+        - name: pihole-exporter
+          image: ekofr/pihole-exporter:v0.4.0
+          ports:
+            - containerPort: 9617
+          env:
+            - name: PIHOLE_HOSTNAME
+              value: "pihole-web.pihole.svc.cluster.local"
+            - name: PIHOLE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: pihole-secret
+                  key: PIHOLE_PASSWORD
+            - name: PORT
+              value: "9617"
+            - name: INTERVAL
+              value: "10s"
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: 9617
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: 9617
+            initialDelaySeconds: 10
+            periodSeconds: 20
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/pihole-exporter/pihole-exporter-application.yaml (YAML, 22 lines, comments stripped) ===
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pihole-exporter
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: "v1.8.0"
+    path: playbooks/yaml/argocd-apps/pihole-exporter
+    kustomize:
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: pihole
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/pihole-exporter/kustomization.yaml (YAML, 7 lines, comments stripped) ===
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+  - secret.yaml
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/pihole-exporter/README.md (Markdown, 576 characters) ===
+# Pihole Exporter
+
+Prometheus exporter for Pihole
+
+<http://192.168.1.122/admin/settings.php?tab=api>
+
+`Raw API Token: 9xxxxxxxxxxxxxREDACTEDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxbb`
+
+Trying using cu... [truncated, total 576 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/pihole-exporter/secret.yaml (YAML, 9 lines, comments stripped) ===
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pihole-secret
+  namespace: pihole
+type: Opaque
+stringData:
+  PIHOLE_PASSWORD: admin
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/pihole-exporter/service.yaml (YAML, 16 lines, comments stripped) ===
+apiVersion: v1
+kind: Service
+metadata:
+  name: pihole-exporter
+  namespace: pihole
+  labels:
+    app: pihole-exporter
+spec:
+  ports:
+    - protocol: TCP
+      port: 9617
+      targetPort: 9617
+  selector:
+    app: pihole-exporter
+  type: ClusterIP
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/README.md (Markdown, 76 characters) ===
+# argocd-apps
+
+Argo CD apps
+
+helm charts customized with soyspray manifests
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/cert-manager/kustomization.yaml (YAML, 7 lines, comments stripped) ===
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - letsencrypt-issuers.yaml
+  - test-certificate.yaml
+  - prod-certificate.yaml
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/cert-manager/test-certificate.yaml (YAML, 15 lines, comments stripped) ===
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: test-cert
+  namespace: cert-manager
+spec:
+  duration: 2160h
+  renewBefore: 360h
+  secretName: test-cert-tls
+  issuerRef:
+    name: letsencrypt-staging
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.test.soyspray.vip"
+    - "test.soyspray.vip"
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/cert-manager/README.md (Markdown, 2305 characters) ===
+# Cert Manager Configuration
+
+This ArgoCD application configures Let's Encrypt issuer for cert-manager that
+was installed by Kubespray.
+
+Note: We are NOT using cert-manager Helm chart, as Kubespray ha... [truncated, total 2305 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/cert-manager/letsencrypt-issuers.yaml (YAML, 41 lines, comments stripped) ===
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    email: certs@soyspray.vip
+    privateKeySecretRef:
+      name: letsencrypt-staging
+    solvers:
+      - dns01:
+          cloudflare:
+            email: bouresk@outlook.com
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
+        selector:
+          dnsZones:
+            - "soyspray.vip"
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: certs@soyspray.vip
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    solvers:
+      - dns01:
+          cloudflare:
+            email: bouresk@outlook.com
+            apiTokenSecretRef:
+              name: cloudflare-api-token
+              key: api-token
+        selector:
+          dnsZones:
+            - "soyspray.vip"
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/cert-manager/cert-manager-application.yaml (YAML, 19 lines, comments stripped) ===
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-config
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: "https://github.com/kpoxo6op/soyspray.git"
+    targetRevision: "v1.8.0"
+    path: playbooks/yaml/argocd-apps/cert-manager
+    kustomize:
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/cert-manager/prod-certificate.yaml (YAML, 15 lines, comments stripped) ===
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: prod-cert
+  namespace: cert-manager
+spec:
+  duration: 2160h
+  renewBefore: 360h
+  secretName: prod-cert-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.soyspray.vip"
+    - "soyspray.vip"
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/pihole/ingress.yaml (YAML, 23 lines, comments stripped) ===
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pihole-ingress
+  namespace: pihole
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+spec:
+  tls:
+    - hosts:
+        - pihole.soyspray.vip
+      secretName: prod-cert-tls
+  rules:
+    - host: pihole.soyspray.vip
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pihole-web
+                port:
+                  number: 80
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/pihole/Switch-DNS.ps1 (Text, 86 lines) ===
+<#
+.SYNOPSIS
+Switches the DNS configuration between a Pi-hole DNS server and the default DNS.
+
+.DESCRIPTION
+The `Switch-DNS` function toggles the DNS server settings for the active network adapter.
+If the current DNS server is set to the Pi-hole IP, it resets to the default (automatic DNS).
+If not, it switches to the specified Pi-hole IP.
+
+.PARAMETER PiHoleIP
+The IP address of the Pi-hole DNS server. Defaults to "192.168.1.122".
+
+.EXAMPLE
+Switch-DNS
+Switches the DNS to the Pi-hole server (192.168.1.122) or back to the default.
+
+.EXAMPLE
+Switch-DNS -PiHoleIP "192.168.1.200"
+Switches the DNS to a custom Pi-hole server (192.168.1.200) or back to the default.
+
+.EXAMPLE
+Switch-DNS -WhatIf
+Shows what changes would be made to DNS settings without applying them.
+Example output:
+Current DNS: 192.168.1.1 (Default Router)
+Target DNS:  192.168.1.122 (Pi-hole)
+Will change: All active network adapters
+
+.NOTES
+This script modifies the DNS configuration for the active network adapter and requires
+elevated permissions to run.
+#>
+
+function Switch-DNS {
+    [CmdletBinding(SupportsShouldProcess)]
+    param (
+        [string]$PiHoleIP = "192.168.1.122"
+    )
+
+    # Check for admin privileges
+    if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+        Write-Error "This script requires administrative privileges. Please run PowerShell as Administrator."
+        return
+    }
+
+    $InterfaceIndex = (Get-NetAdapter | Where-Object { $_.Status -eq "Up" }).InterfaceIndex
+    $CurrentDns = (Get-DnsClientServerAddress -InterfaceIndex $InterfaceIndex -AddressFamily IPv4).ServerAddresses
+
+    # Prepare descriptive messages for WhatIf
+    $CurrentState = if ($CurrentDns -contains $PiHoleIP) {
+        "Current DNS: $PiHoleIP (Pi-hole)"
+    } elseif ($CurrentDns) {
+        "Current DNS: $($CurrentDns -join ', ') (Current Setting)"
+    } else {
+        "Current DNS: Automatic (DHCP)"
+    }
+
+    $TargetState = if ($CurrentDns -contains $PiHoleIP) {
+        "Target DNS:  Automatic (DHCP)"
+    } else {
+        "Target DNS:  $PiHoleIP (Pi-hole)"
+    }
+
+    $WhatIfMsg = @"
+$CurrentState
+$TargetState
+Affects:     All active network adapters
+"@
+
+    if ($CurrentDns -contains $PiHoleIP) {
+        if ($PSCmdlet.ShouldProcess("DNS Settings", $WhatIfMsg)) {
+            Set-DnsClientServerAddress -InterfaceIndex $InterfaceIndex -ResetServerAddresses
+        }
+    } else {
+        if ($PSCmdlet.ShouldProcess("DNS Settings", $WhatIfMsg)) {
+            Set-DnsClientServerAddress -InterfaceIndex $InterfaceIndex -ServerAddresses $PiHoleIP
+        }
+    }
+
+    # Show current state after changes
+    $NewDns = Get-DnsClientServerAddress -InterfaceIndex $InterfaceIndex -AddressFamily IPv4
+    if (-not $WhatIfPreference) {
+        Write-Host "`nCurrent DNS Configuration:" -ForegroundColor Cyan
+        $NewDns | Format-Table InterfaceAlias, InterfaceIndex, AddressFamily, ServerAddresses
+    }
+}
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/pihole/values.yaml (YAML, 169 lines, comments stripped) ===
+webHttp: "80"
+webHttps: "443"
+
+replicaCount: 1
+strategyType: RollingUpdate
+hostNetwork: false
+hostname: ""
+virtualHost: "pi.hole"
+privileged: false
+
+persistentVolumeClaim:
+  enabled: true
+  storageClass: local-storage
+  size: 500Mi
+  accessModes:
+    - ReadWriteOnce
+
+extraVolumes:
+  dnsmasq-conf:
+    configMap:
+      name: custom-dns-configmap
+
+extraVolumeMounts:
+  dnsmasq-conf:
+    mountPath: /etc/pihole/custom.list
+    subPath: custom.list
+
+extraEnvVars:
+  DNSMASQ_LISTENING: all
+
+serviceWeb:
+  externalTrafficPolicy: Cluster
+  loadBalancerIP: 192.168.1.124
+  type: LoadBalancer
+  http:
+    enabled: true
+    port: 80
+  https:
+    enabled: false
+    port: 443
+
+serviceDns:
+  externalTrafficPolicy: Cluster
+  mixedService: true
+  loadBalancerIP: 192.168.1.122
+  type: LoadBalancer
+  port: 53
+
+serviceDhcp:
+  enabled: false
+  type: ClusterIP
+  port: 67
+  externalTrafficPolicy: Cluster
+
+dualStack:
+  enabled: false
+
+doh:
+  enabled: false
+
+monitoring:
+  sidecar:
+    enabled: false
+    image:
+      repository: prom/prometheus
+      tag: latest
+      pullPolicy: IfNotPresent
+    port: 9100
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+  podMonitor:
+    enabled: false
+    namespace: ""
+    interval: 30s
+    bearerTokenFile: ""
+    bearerTokenSecret:
+      name: ""
+      key: ""
+
+ingress:
+  enabled: false
+  hosts: []
+  path: /
+  annotations: {}
+  tls: []
+  ingressClassName: ""
+
+podDisruptionBudget:
+  enabled: false
+
+antiaff:
+  enabled: false
+
+podDnsConfig:
+  enabled: false
+
+dnsmasq:
+  staticDhcpEntries: []
+  upstreamServers: []
+  customDnsEntries: []
+  customSettings:
+    - bind-interfaces
+    - listen-address=0.0.0.0
+  additionalHostsEntries: []
+  customCnameEntries: []
+
+admin:
+  enabled: true
+  existingSecret: ""
+  passwordKey: "password"
+  adminPassword: "adminpassword"
+
+dnsHostPort:
+  enabled: false
+  port: 53
+
+image:
+  repository: pihole/pihole
+  tag: 2024.07.0
+  pullPolicy: IfNotPresent
+
+probes:
+  liveness:
+    enabled: false
+  readiness:
+    enabled: false
+
+adlists:
+  - https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts
+  - https://raw.githubusercontent.com/PolishFiltersTeam/KADhosts/master/KADhosts.txt
+  - https://v.firebog.net/hosts/static/w3kbl.txt
+  - https://adaway.org/hosts.txt
+  - https://v.firebog.net/hosts/AdguardDNS.txt
+  - https://v.firebog.net/hosts/Admiral.txt
+  - https://raw.githubusercontent.com/anudeepND/blacklist/master/adservers.txt
+  - https://v.firebog.net/hosts/Easylist.txt
+  - https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext
+  - https://raw.githubusercontent.com/FadeMind/hosts.extras/master/UncheckyAds/hosts
+  - https://raw.githubusercontent.com/bigdargon/hostsVN/master/hosts
+  - https://v.firebog.net/hosts/Easyprivacy.txt
+  - https://v.firebog.net/hosts/Prigent-Ads.txt
+  - https://raw.githubusercontent.com/FadeMind/hosts.extras/master/add.2o7Net/hosts
+  - https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/spy.txt
+  - https://hostfiles.frogeye.fr/firstparty-trackers-hosts.txt
+  - https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20versions%20Anti-Malware%20List/AntiMalwareHosts.txt
+  - https://osint.digitalside.it/Threat-Intel/lists/latestdomains.txt
+  - https://v.firebog.net/hosts/Prigent-Crypto.txt
+  - https://raw.githubusercontent.com/FadeMind/hosts.extras/master/add.Risk/hosts
+  - https://bitbucket.org/ethanr/dns-blacklists/raw/8575c9f96e5b4a1308f2f12394abd86d0927a4a0/bad_lists/Mandiant_APT1_Report_Appendix_D.txt
+  - https://phishing.army/download/phishing_army_blocklist_extended.txt
+  - https://gitlab.com/quidsup/notrack-blocklists/raw/master/notrack-malware.txt
+  - https://v.firebog.net/hosts/RPiList-Malware.txt
+  - https://v.firebog.net/hosts/RPiList-Phishing.txt
+  - https://raw.githubusercontent.com/Spam404/lists/master/main-blacklist.txt
+  - https://raw.githubusercontent.com/AssoEchap/stalkerware-indicators/master/generated/hosts
+  - https://urlhaus.abuse.ch/downloads/hostfile/
+  - https://zerodot1.gitlab.io/CoinBlockerLists/hosts_browser
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/pihole/kustomization.yaml (YAML, 14 lines, comments stripped) ===
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+helmCharts:
+  - name: pihole
+    version: 2.27.0
+    repo: https://mojo2600.github.io/pihole-kubernetes
+    releaseName: pihole
+    valuesFile: values.yaml
+
+resources:
+  - pihole-application.yaml
+  - custom-dns-configmap.yaml
+  - ingress.yaml
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/pihole/pihole-application.yaml (YAML, 22 lines, comments stripped) ===
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pihole
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: pihole
+  sources:
+    - repoURL: "https://github.com/kpoxo6op/soyspray.git"
+      targetRevision: "v1.8.0"
+      path: playbooks/yaml/argocd-apps/pihole
+      kustomize:
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/pihole/README.md (Markdown, 2598 characters) ===
+# pihole
+
+Includes list of local DNS and ad filters source from configmaps
+
+## Helm Inflate
+
+Uses Helm inflate to apply configmap and values. Could not male  Kustomize
+post-renderer work, rolled back.... [truncated, total 2598 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/pihole/custom-dns-configmap.yaml (YAML, 25 lines, comments stripped) ===
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: custom-dns-configmap
+  namespace: pihole
+data:
+  custom.list: |
+    192.168.1.127 longhorn.lan
+    192.168.1.126 alertmanager.lan
+    192.168.1.125 prometheus.lan
+    192.168.1.123 grafana.lan
+    192.168.1.124 pihole.lan
+    192.168.1.121 argocd.lan
+    192.168.1.100 flask.lan
+    192.168.1.120 longhorn.soyspray.vip
+    192.168.1.120 alertmanager.soyspray.vip
+    192.168.1.120 prometheus.soyspray.vip
+    192.168.1.120 grafana.soyspray.vip
+    192.168.1.120 pihole.soyspray.vip
+    192.168.1.120 argocd.soyspray.vip
+    192.168.1.100 flask.soyspray.vip
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/longhorn/defaults.yaml (YAML, 538 lines, comments stripped) ===
+global:
+  tolerations: []
+  nodeSelector: {}
+  cattle:
+    systemDefaultRegistry: ""
+    windowsCluster:
+      enabled: false
+      tolerations:
+      - key: "cattle.io/os"
+        value: "linux"
+        effect: "NoSchedule"
+        operator: "Equal"
+      nodeSelector:
+        kubernetes.io/os: "linux"
+      defaultSetting:
+        taintToleration: cattle.io/os=linux:NoSchedule
+        systemManagedComponentsNodeSelector: kubernetes.io/os:linux
+
+networkPolicies:
+  enabled: false
+  type: "k3s"
+
+image:
+  longhorn:
+    engine:
+      repository: longhornio/longhorn-engine
+      tag: v1.8.0
+    manager:
+      repository: longhornio/longhorn-manager
+      tag: v1.8.0
+    ui:
+      repository: longhornio/longhorn-ui
+      tag: v1.8.0
+    instanceManager:
+      repository: longhornio/longhorn-instance-manager
+      tag: v1.8.0
+    shareManager:
+      repository: longhornio/longhorn-share-manager
+      tag: v1.8.0
+    backingImageManager:
+      repository: longhornio/backing-image-manager
+      tag: v1.8.0
+    supportBundleKit:
+      repository: longhornio/support-bundle-kit
+      tag: v0.0.49
+  csi:
+    attacher:
+      repository: longhornio/csi-attacher
+      tag: v4.8.0
+    provisioner:
+      repository: longhornio/csi-provisioner
+      tag: v5.1.0-20241220
+    nodeDriverRegistrar:
+      repository: longhornio/csi-node-driver-registrar
+      tag: v2.13.0
+    resizer:
+      repository: longhornio/csi-resizer
+      tag: v1.13.1
+    snapshotter:
+      repository: longhornio/csi-snapshotter
+      tag: v8.2.0
+    livenessProbe:
+      repository: longhornio/livenessprobe
+      tag: v2.15.0
+  openshift:
+    oauthProxy:
+      repository: ""
+      tag: ""
+  pullPolicy: IfNotPresent
+
+service:
+  ui:
+    type: ClusterIP
+    nodePort: null
+  manager:
+    type: ClusterIP
+    nodePort: ""
+
+persistence:
+  defaultClass: true
+  defaultFsType: ext4
+  defaultMkfsParams: ""
+  defaultClassReplicaCount: 3
+  defaultDataLocality: disabled
+  reclaimPolicy: Delete
+  migratable: false
+  disableRevisionCounter: "true"
+  nfsOptions: ""
+  recurringJobSelector:
+    enable: false
+    jobList: []
+  backingImage:
+    enable: false
+    name: ~
+    dataSourceType: ~
+    dataSourceParameters: ~
+    expectedChecksum: ~
+  defaultDiskSelector:
+    enable: false
+    selector: ""
+  defaultNodeSelector:
+    enable: false
+    selector: ""
+  removeSnapshotsDuringFilesystemTrim: ignored
+  dataEngine: v1
+  backupTargetName: default
+
+preUpgradeChecker:
+  jobEnabled: true
+  upgradeVersionCheck: true
+
+csi:
+  kubeletRootDir: ~
+  attacherReplicaCount: ~
+  provisionerReplicaCount: ~
+  resizerReplicaCount: ~
+  snapshotterReplicaCount: ~
+
+defaultSettings:
+  allowRecurringJobWhileVolumeDetached: ~
+  createDefaultDiskLabeledNodes: ~
+  defaultDataPath: ~
+  defaultDataLocality: ~
+  replicaSoftAntiAffinity: ~
+  replicaAutoBalance: ~
+  storageOverProvisioningPercentage: ~
+  storageMinimalAvailablePercentage: ~
+  storageReservedPercentageForDefaultDisk: ~
+  upgradeChecker: ~
+  defaultReplicaCount: ~
+  defaultLonghornStaticStorageClass: ~
+  failedBackupTTL: ~
+  backupExecutionTimeout: ~
+  restoreVolumeRecurringJobs: ~
+  recurringSuccessfulJobsHistoryLimit: ~
+  recurringFailedJobsHistoryLimit: ~
+  recurringJobMaxRetention: ~
+  supportBundleFailedHistoryLimit: ~
+  taintToleration: ~
+  systemManagedComponentsNodeSelector: ~
+  priorityClass: &defaultPriorityClassNameRef "longhorn-critical"
+  autoSalvage: ~
+  autoDeletePodWhenVolumeDetachedUnexpectedly: ~
+  disableSchedulingOnCordonedNode: ~
+  replicaZoneSoftAntiAffinity: ~
+  replicaDiskSoftAntiAffinity: ~
+  nodeDownPodDeletionPolicy: ~
+  nodeDrainPolicy: ~
+  detachManuallyAttachedVolumesWhenCordoned: ~
+  replicaReplenishmentWaitInterval: ~
+  concurrentReplicaRebuildPerNodeLimit: ~
+  concurrentVolumeBackupRestorePerNodeLimit: ~
+  disableRevisionCounter: "true"
+  systemManagedPodsImagePullPolicy: ~
+  allowVolumeCreationWithDegradedAvailability: ~
+  autoCleanupSystemGeneratedSnapshot: ~
+  autoCleanupRecurringJobBackupSnapshot: ~
+  concurrentAutomaticEngineUpgradePerNodeLimit: ~
+  backingImageCleanupWaitInterval: ~
+  backingImageRecoveryWaitInterval: ~
+  guaranteedInstanceManagerCPU: ~
+  kubernetesClusterAutoscalerEnabled: ~
+  orphanAutoDeletion: ~
+  storageNetwork: ~
+  deletingConfirmationFlag: ~
+  engineReplicaTimeout: ~
+  snapshotDataIntegrity: ~
+  snapshotDataIntegrityImmediateCheckAfterSnapshotCreation: ~
+  snapshotDataIntegrityCronjob: ~
+  removeSnapshotsDuringFilesystemTrim: ~
+  fastReplicaRebuildEnabled: ~
+  replicaFileSyncHttpClientTimeout: ~
+  longGRPCTimeOut: ~
+  logLevel: ~
+  backupCompressionMethod: ~
+  backupConcurrentLimit: ~
+  restoreConcurrentLimit: ~
+  v1DataEngine: ~
+  v2DataEngine: ~
+  v2DataEngineHugepageLimit: ~
+  v2DataEngineGuaranteedInstanceManagerCPU: ~
+  v2DataEngineCPUMask: ~
+  allowEmptyNodeSelectorVolume: ~
+  allowEmptyDiskSelectorVolume: ~
+  allowCollectingLonghornUsageMetrics: ~
+  disableSnapshotPurge: ~
+  snapshotMaxCount: ~
+  v2DataEngineLogLevel: ~
+  v2DataEngineLogFlags: ~
+  freezeFilesystemForSnapshot: ~
+  autoCleanupSnapshotWhenDeleteBackup: ~
+  rwxVolumeFastFailover: ~
+
+defaultBackupStore:
+  backupTarget: ~
+  backupTargetCredentialSecret: ~
+  pollInterval: ~
+
+privateRegistry:
+  createSecret: ~
+  registryUrl: ~
+  registryUser: ~
+  registryPasswd: ~
+  registrySecret: ~
+
+longhornManager:
+  log:
+    format: plain
+  priorityClass: *defaultPriorityClassNameRef
+  tolerations: []
+  nodeSelector: {}
+  serviceAnnotations: {}
+
+longhornDriver:
+  log:
+    format: plain
+  priorityClass: *defaultPriorityClassNameRef
+  tolerations: []
+  nodeSelector: {}
+
+longhornUI:
+  replicas: 2
+  priorityClass: *defaultPriorityClassNameRef
+  tolerations: []
+  nodeSelector: {}
+
+ingress:
+  enabled: false
+
+  ingressClassName: ~
+
+  host: sslip.io
+
+  tls: false
+
+  secureBackends: false
+
+  tlsSecret: longhorn.local-tls
+
+  path: /
+
+  pathType: ImplementationSpecific
+
+  annotations:
+
+  secrets:
+
+enablePSP: false
+
+namespaceOverride: ""
+
+annotations: {}
+
+serviceAccount:
+  annotations: {}
+
+metrics:
+  serviceMonitor:
+    enabled: false
+    additionalLabels: {}
+    annotations: {}
+    interval: ""
+    scrapeTimeout: ""
+    relabelings: []
+    metricRelabelings: []
+
+openshift:
+  enabled: false
+  ui:
+    route: "longhorn-ui"
+    port: 443
+    proxy: 8443
+
+enableGoCoverDir: false
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/longhorn/values.yaml (YAML, 97 lines, comments stripped) ===
+persistence:
+  defaultClass: true
+  defaultClassReplicaCount: 1
+  defaultDataLocality: best-effort
+  migratable: true
+  metricsPort: 9500
+
+defaultSettings:
+  defaultDataPath: "/storage"
+  createDefaultDiskLabeledNodes: true
+  defaultDataLocality: "disabled"
+  deletingConfirmationFlag: true
+  orphanAutoDeletion: true
+  backupstorePollInterval: 300
+  concurrentReplicaRebuildPerNodeLimit: 1
+  snapshotMaxCount: 10
+  autoCleanupSystemGeneratedSnapshot: true
+  autoCleanupRecurringJobBackupSnapshot: true
+  fastReplicaRebuildEnabled: false
+  snapshotDataIntegrity: disabled
+  systemManagedComponentsNodeSelector: "longhorn=true"
+
+longhornUI:
+  replicas: 1
+
+longhornManager:
+  nodeSelector:
+    longhorn: "true"
+  priorityClass: longhorn-critical
+  livenessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 20
+    timeoutSeconds: 10
+    failureThreshold: 5
+  readinessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 20
+    timeoutSeconds: 10
+    failureThreshold: 5
+
+longhornDriver:
+  priorityClass: longhorn-critical
+
+engineImage:
+  livenessProbe:
+    initialDelaySeconds: 45
+    periodSeconds: 15
+  readinessProbe:
+    initialDelaySeconds: 45
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 5
+
+preUpgradeChecker:
+  jobEnabled: false
+  upgradeVersionCheck: false
+
+csi:
+  attacherReplicaCount: 1
+  provisionerReplicaCount: 1
+  resizerReplicaCount: 1
+  snapshotterReplicaCount: 1
+
+priorityClass:
+  create: true
+  name: longhorn-critical
+  value: 2000001001
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  host: longhorn.soyspray.vip
+  tls: true
+  tlsSecret: prod-cert-tls
+  path: /
+  pathType: Prefix
+  annotations:
+    kubernetes.io/ingress.class: nginx
+
+service:
+  ui:
+    type: ClusterIP
+  manager:
+    type: ClusterIP
+    nodePort: ""
+    ports:
+      manager: 9500
+      metrics: 9500
+
+metrics:
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: kube-prometheus-stack
+    port: manager
+    interval: 60s
+    scrapeTimeout: 30s
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/longhorn/setting-default-data-path.yaml (YAML, 6 lines, comments stripped) ===
+apiVersion: longhorn.io/v1beta2
+kind: Setting
+metadata:
+  name: default-data-path
+  namespace: longhorn-system
+value: "/storage"
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/longhorn/kustomization.yaml (YAML, 79 lines, comments stripped) ===
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+helmCharts:
+  - name: longhorn
+    repo: https://charts.longhorn.io
+    version: 1.8.0
+    releaseName: longhorn
+    namespace: longhorn-system
+    valuesFile: values.yaml
+
+resources:
+  - setting-default-data-path.yaml
+
+patches:
+  - target:
+      kind: DaemonSet
+      name: longhorn-manager
+    patch: |-
+      apiVersion: apps/v1
+      kind: DaemonSet
+      metadata:
+        name: longhorn-manager
+      spec:
+        template:
+          spec:
+            containers:
+            - name: longhorn-manager
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 500Mi
+                requests:
+                  cpu: 100m
+                  memory: 100Mi
+
+  - target:
+      kind: Deployment
+      name: longhorn-driver-deployer
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: longhorn-driver-deployer
+      spec:
+        template:
+          spec:
+            containers:
+            - name: longhorn-driver-deployer
+              resources:
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+
+  - target:
+      kind: Deployment
+      name: longhorn-ui
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: longhorn-ui
+      spec:
+        template:
+          spec:
+            containers:
+            - name: longhorn-ui
+              resources:
+                limits:
+                  cpu: 200m
+                  memory: 256Mi
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/longhorn/docs/README.md (Markdown, 4187 characters) ===
+# Longhorn Maintenance Procedures
+
+This document contains maintenance procedures for Longhorn, particularly focused on cleanup and deletion when standard processes fail.
+
+## Uninstalling Longhorn
+
+Arg... [truncated, total 4187 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/longhorn/README.md (Markdown, 1716 characters) ===
+# Longhorn Storage
+
+Distributed block storage system for Kubernetes. This setup is optimized for a resource-constrained
+cluster, using minimal replicas and conservative resource limits.
+
+## Configurat... [truncated, total 1716 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/longhorn/longhorn-application.yaml (YAML, 23 lines, comments stripped) ===
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: "v1.8.0"
+    path: playbooks/yaml/argocd-apps/longhorn
+    kustomize:
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: longhorn-system
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/prometheus-crds-application.yaml (YAML, 26 lines, comments stripped) ===
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prometheus-crds
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: "https://github.com/prometheus-community/helm-charts.git"
+    path: charts/kube-prometheus-stack/charts/crds
+    targetRevision: kube-prometheus-stack-67.7.0
+    directory:
+      recurse: true
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - Replace=true
+      - CreateNamespace=true
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/values.yaml (YAML, 205 lines, comments stripped) ===
+
+namespaceOverride: monitoring
+
+prometheus:
+  service:
+    type: LoadBalancer
+    loadBalancerIP: 192.168.1.125
+  prometheusSpec:
+    nodeSelector:
+      longhorn: "true"
+    replicas: 1
+    retention: 15d
+    walCompression: true
+    scrapeInterval: 60s
+    scrapeTimeout: 30s
+    evaluationInterval: 60s
+    resources:
+      requests:
+        cpu: 150m
+        memory: 384Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: longhorn
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 50Gi
+    additionalScrapeConfigs:
+      - job_name: pihole-exporter
+        static_configs:
+          - targets: ["pihole-exporter.pihole.svc.cluster.local:9617"]
+        metrics_path: /metrics
+        scrape_interval: 60s
+        scrape_timeout: 30s
+    ruleSelector:
+      matchLabels:
+        release: prometheus
+
+  additionalServiceMonitors:
+    - name: cert-manager
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: cert-manager
+      namespaceSelector:
+        matchNames:
+          - cert-manager
+      endpoints:
+        - port: tcp-prometheus-servicemonitor
+          interval: 60s
+
+    - name: argocd
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: argocd-metrics
+      namespaceSelector:
+        matchNames:
+          - argocd
+      endpoints:
+        - port: metrics
+          interval: 60s
+
+grafana:
+  namespaceOverride: monitoring
+  resources:
+    requests:
+      cpu: 75m
+      memory: 96Mi
+    limits:
+      cpu: 150m
+      memory: 192Mi
+  grafana.ini:
+    auth.anonymous:
+      enabled: true
+      org_name: "Main Org."
+      org_role: "Viewer"
+    date_formats:
+      default_timezone: "Pacific/Auckland"
+  defaultDashboardsTimezone: "Pacific/Auckland"
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      provider:
+        name: 'default'
+        orgId: 1
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+      provider:
+        name: 'default'
+        orgId: 1
+
+  service:
+    type: ClusterIP
+  adminPassword: "admin"
+  image:
+    tag: 11.3.0
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      kubernetes.io/ingress.class: nginx
+    labels: {}
+    hosts:
+      - grafana.soyspray.vip
+    path: /
+    tls:
+      - secretName: prod-cert-tls
+        hosts:
+          - grafana.soyspray.vip
+
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    volumes:
+      - name: telegram-secret
+        secret:
+          secretName: alertmanager-telegram-secret
+    volumeMounts:
+      - name: telegram-secret
+        mountPath: /etc/alertmanager/telegram
+        readOnly: true
+  service:
+    type: LoadBalancer
+    loadBalancerIP: 192.168.1.126
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      group_by: ["alertname"]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: "telegram"
+      routes:
+        - matchers:
+            - severity=~"warning|critical"
+          receiver: "telegram"
+    receivers:
+      - name: "telegram"
+        telegram_configs:
+          - api_url: "https://api.telegram.org"
+            bot_token_file: /etc/alertmanager/telegram/TELEGRAM_BOT_TOKEN
+            chat_id: 336642153
+
+prometheus-node-exporter:
+  namespaceOverride: monitoring
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+kube-state-metrics:
+  namespaceOverride: monitoring
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+kubeEtcd:
+  enabled: false
+
+ruleSelectorNilUsesHelmValues: false
+
+prometheusOperator:
+  admissionWebhooks:
+    enabled: true
+    patch:
+      enabled: true
+      hookDeletePolicy: before-hook-creation,hook-succeeded
+  resources:
+    requests:
+      cpu: 75m
+      memory: 96Mi
+    limits:
+      cpu: 150m
+      memory: 192Mi
+  service:
+    port: 8443
+    targetPort: 8443
+  containerArgs:
+    - --web.listen-address=:8443
+    - --web.enable-tls=false
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/kustomization.yaml (YAML, 113 lines, comments stripped) ===
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+helmCharts:
+  - name: kube-prometheus-stack
+    version: 67.7.0
+    repo: https://prometheus-community.github.io/helm-charts
+    releaseName: kube-prometheus-stack
+    valuesFile: values.yaml
+
+configMapGenerator:
+  - name: grafana-dashboard-argocd
+    files:
+      - dashboards/argocd-dashboard.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  - name: grafana-dashboard-cert-manager
+    files:
+      - dashboards/cert-manager-chrede88.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+
+  - name: grafana-dashboard-longhorn-adegoodyer
+    files:
+      - dashboards/longhorn-dashboard-adegoodyer.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  - name: grafana-dashboard-longhorn-onzack
+    files:
+      - dashboards/longhorn-onzack.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+
+  - name: grafana-dashboard-pihole
+    files:
+      - dashboards/pihole-dashboard.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+
+
+  - name: grafana-dashboard-thermal
+    files:
+      - dashboards/thermal-dashboard.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+resources:
+  - alerts/temperature-alerts.yaml
+  - onzack-cluster-monitoring-recording-rules.yaml
+  - onzack-namespace-monitoring-recording-rules.yaml
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/docs/README.md (Markdown, 24 characters) ===
+# Docs about Prometheus
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/docs/large-dash-plan.md (Markdown, 5206 characters) ===
+# Full Step-by-Step Plan to Load Large Grafana Dashboards from Disk Instead of ConfigMaps
+
+> **Goal**: Avoid Kubernetes size limits by having Grafana load dashboards directly from `.json` files on dis... [truncated, total 5206 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/docs/node-exporter-full-rfmoz.png (BINARY/IMAGE - content not displayed) ===
+[Binary or image file - content skipped]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/prometheus-application.yaml (YAML, 35 lines, comments stripped) ===
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: "https://github.com/kpoxo6op/soyspray.git"
+    targetRevision: "v1.8.0"
+    path: playbooks/yaml/argocd-apps/prometheus
+    kustomize:
+      helm:
+        skipCrds: true
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: monitoring
+  syncPolicy:
+      automated:
+        prune: true
+        selfHeal: true
+        retry:
+          limit: 5
+          backoff:
+            duration: "10s"
+            factor: 2
+            maxDuration: "5m"
+      syncOptions:
+        - CreateNamespace=true
+        - AllowClusterResourceInNamespacedApp=true
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/README.md (Markdown, 10511 characters) ===
+# Prometheus, AlertManager, and Telegram Integration
+
+## Architecture
+
+```text
+                                                    ┌─────────────────┐
+           ... [truncated, total 10511 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/alerts/temperature-alerts.yaml (YAML, 29 lines, comments stripped) ===
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: temperature-alerts
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: temperature
+      rules:
+        - alert: HighTemperatureWarning
+          expr: node_thermal_zone_temp > 70
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High temperature on {{ $labels.instance }}"
+            description: "Temperature above 70°C on {{ $labels.instance }}"
+            value: "{{ $value }}°C"
+
+        - alert: HighTemperatureCritical
+          expr: node_thermal_zone_temp > 80
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Critical temperature on {{ $labels.instance }}"
+            description: "Temperature above 80°C on {{ $labels.instance }}"
+            value: "{{ $value }}°C"
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/default-values.yaml (YAML, 5307 lines, comments stripped) ===
+
+nameOverride: ""
+
+namespaceOverride: ""
+
+kubeTargetVersionOverride: ""
+
+kubeVersionOverride: ""
+
+fullnameOverride: ""
+
+commonLabels: {}
+
+crds:
+  enabled: true
+  upgradeJob:
+    enabled: false
+    forceConflicts: false
+    image:
+      busybox:
+        registry: docker.io
+        repository: busybox
+        tag: "latest"
+        sha: ""
+        pullPolicy: IfNotPresent
+      kubectl:
+        registry: registry.k8s.io
+        repository: kubectl
+        tag: ""
+        sha: ""
+        pullPolicy: IfNotPresent
+
+    env: {}
+    resources: {}
+
+    extraVolumes: []
+
+    extraVolumeMounts: []
+
+    nodeSelector: {}
+
+    affinity: {}
+
+    tolerations: []
+
+    topologySpreadConstraints: []
+
+    labels: {}
+
+    annotations: {}
+
+    podLabels: {}
+
+    podAnnotations: {}
+
+    serviceAccount:
+      create: true
+      name: ""
+      annotations: {}
+      labels: {}
+      automountServiceAccountToken: true
+
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+          - ALL
+
+    podSecurityContext:
+      fsGroup: 65534
+      runAsGroup: 65534
+      runAsNonRoot: true
+      runAsUser: 65534
+      seccompProfile:
+        type: RuntimeDefault
+
+customRules: {}
+
+defaultRules:
+  create: true
+  rules:
+    alertmanager: true
+    etcd: true
+    configReloaders: true
+    general: true
+    k8sContainerCpuUsageSecondsTotal: true
+    k8sContainerMemoryCache: true
+    k8sContainerMemoryRss: true
+    k8sContainerMemorySwap: true
+    k8sContainerResource: true
+    k8sContainerMemoryWorkingSetBytes: true
+    k8sPodOwner: true
+    kubeApiserverAvailability: true
+    kubeApiserverBurnrate: true
+    kubeApiserverHistogram: true
+    kubeApiserverSlos: true
+    kubeControllerManager: true
+    kubelet: true
+    kubeProxy: true
+    kubePrometheusGeneral: true
+    kubePrometheusNodeRecording: true
+    kubernetesApps: true
+    kubernetesResources: true
+    kubernetesStorage: true
+    kubernetesSystem: true
+    kubeSchedulerAlerting: true
+    kubeSchedulerRecording: true
+    kubeStateMetrics: true
+    network: true
+    node: true
+    nodeExporterAlerting: true
+    nodeExporterRecording: true
+    prometheus: true
+    prometheusOperator: true
+    windows: true
+
+  appNamespacesTarget: ".*"
+
+  keepFiringFor: ""
+
+  labels: {}
+  annotations: {}
+
+  additionalRuleLabels: {}
+
+  additionalRuleAnnotations: {}
+
+  additionalRuleGroupLabels:
+    alertmanager: {}
+    etcd: {}
+    configReloaders: {}
+    general: {}
+    k8sContainerCpuUsageSecondsTotal: {}
+    k8sContainerMemoryCache: {}
+    k8sContainerMemoryRss: {}
+    k8sContainerMemorySwap: {}
+    k8sContainerResource: {}
+    k8sPodOwner: {}
+    kubeApiserverAvailability: {}
+    kubeApiserverBurnrate: {}
+    kubeApiserverHistogram: {}
+    kubeApiserverSlos: {}
+    kubeControllerManager: {}
+    kubelet: {}
+    kubeProxy: {}
+    kubePrometheusGeneral: {}
+    kubePrometheusNodeRecording: {}
+    kubernetesApps: {}
+    kubernetesResources: {}
+    kubernetesStorage: {}
+    kubernetesSystem: {}
+    kubeSchedulerAlerting: {}
+    kubeSchedulerRecording: {}
+    kubeStateMetrics: {}
+    network: {}
+    node: {}
+    nodeExporterAlerting: {}
+    nodeExporterRecording: {}
+    prometheus: {}
+    prometheusOperator: {}
+
+  additionalRuleGroupAnnotations:
+    alertmanager: {}
+    etcd: {}
+    configReloaders: {}
+    general: {}
+    k8sContainerCpuUsageSecondsTotal: {}
+    k8sContainerMemoryCache: {}
+    k8sContainerMemoryRss: {}
+    k8sContainerMemorySwap: {}
+    k8sContainerResource: {}
+    k8sPodOwner: {}
+    kubeApiserverAvailability: {}
+    kubeApiserverBurnrate: {}
+    kubeApiserverHistogram: {}
+    kubeApiserverSlos: {}
+    kubeControllerManager: {}
+    kubelet: {}
+    kubeProxy: {}
+    kubePrometheusGeneral: {}
+    kubePrometheusNodeRecording: {}
+    kubernetesApps: {}
+    kubernetesResources: {}
+    kubernetesStorage: {}
+    kubernetesSystem: {}
+    kubeSchedulerAlerting: {}
+    kubeSchedulerRecording: {}
+    kubeStateMetrics: {}
+    network: {}
+    node: {}
+    nodeExporterAlerting: {}
+    nodeExporterRecording: {}
+    prometheus: {}
+    prometheusOperator: {}
+
+  additionalAggregationLabels: []
+
+  runbookUrl: "https://runbooks.prometheus-operator.dev/runbooks"
+
+  node:
+    fsSelector: 'fstype!=""'
+
+  disabled: {}
+
+
+additionalPrometheusRulesMap: {}
+
+global:
+  rbac:
+    create: true
+
+    createAggregateClusterRoles: false
+    pspEnabled: false
+    pspAnnotations: {}
+
+  imageRegistry: ""
+
+  imagePullSecrets: []
+
+windowsMonitoring:
+  enabled: false
+
+prometheus-windows-exporter:
+  prometheus:
+    monitor:
+      enabled: true
+      jobLabel: jobLabel
+
+  releaseLabel: true
+
+  podLabels:
+    jobLabel: windows-exporter
+
+  config: |-
+    collectors:
+      enabled: '[defaults],memory,container'
+
+alertmanager:
+
+  enabled: true
+
+  annotations: {}
+
+  apiVersion: v2
+
+  enableFeatures: []
+
+  forceDeployDashboards: false
+
+  networkPolicy:
+    enabled: false
+
+    policyTypes:
+      - Ingress
+
+    gateway:
+      namespace: ""
+      podLabels: {}
+
+    additionalIngress: []
+
+    egress:
+      enabled: false
+      rules: []
+
+    enableClusterRules: true
+
+    monitoringRules:
+      prometheus: true
+      configReloader: true
+
+  serviceAccount:
+    create: true
+    name: ""
+    annotations: {}
+    automountServiceAccountToken: true
+
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+    maxUnavailable: ""
+
+  config:
+    global:
+      resolve_timeout: 5m
+    inhibit_rules:
+      - source_matchers:
+          - 'severity = critical'
+        target_matchers:
+          - 'severity =~ warning|info'
+        equal:
+          - 'namespace'
+          - 'alertname'
+      - source_matchers:
+          - 'severity = warning'
+        target_matchers:
+          - 'severity = info'
+        equal:
+          - 'namespace'
+          - 'alertname'
+      - source_matchers:
+          - 'alertname = InfoInhibitor'
+        target_matchers:
+          - 'severity = info'
+        equal:
+          - 'namespace'
+      - target_matchers:
+          - 'alertname = InfoInhibitor'
+    route:
+      group_by: ['namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 12h
+      receiver: 'null'
+      routes:
+      - receiver: 'null'
+        matchers:
+          - alertname = "Watchdog"
+    receivers:
+    - name: 'null'
+    templates:
+    - '/etc/alertmanager/config/*.tmpl'
+
+  stringConfig: ""
+
+  tplConfig: false
+
+  templateFiles: {}
+
+  ingress:
+    enabled: false
+
+
+    annotations: {}
+
+    labels: {}
+
+
+    hosts: []
+
+    paths: []
+
+
+    tls: []
+
+  route:
+    main:
+      enabled: false
+
+      apiVersion: gateway.networking.k8s.io/v1
+      kind: HTTPRoute
+
+      annotations: {}
+      labels: {}
+
+      hostnames: []
+      parentRefs: []
+
+      httpsRedirect: false
+
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+
+      filters: []
+
+      additionalRules: []
+
+  secret:
+    annotations: {}
+
+  ingressPerReplica:
+    enabled: false
+
+
+    annotations: {}
+    labels: {}
+
+    hostPrefix: ""
+    hostDomain: ""
+
+    paths: []
+
+
+    tlsSecretName: ""
+
+    tlsSecretPerReplica:
+      enabled: false
+      prefix: "alertmanager"
+
+  service:
+    enabled: true
+    annotations: {}
+    labels: {}
+    clusterIP: ""
+    ipDualStack:
+      enabled: false
+      ipFamilies: ["IPv6", "IPv4"]
+      ipFamilyPolicy: "PreferDualStack"
+
+    port: 9093
+    targetPort: 9093
+    nodePort: 30903
+
+    additionalPorts: []
+
+    externalIPs: []
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+
+    externalTrafficPolicy: Cluster
+
+    sessionAffinity: None
+
+    sessionAffinityConfig:
+      clientIP:
+        timeoutSeconds: 10800
+
+    type: ClusterIP
+
+  servicePerReplica:
+    enabled: false
+    annotations: {}
+
+    port: 9093
+
+    targetPort: 9093
+
+    nodePort: 30904
+
+    loadBalancerSourceRanges: []
+
+    externalTrafficPolicy: Cluster
+
+    type: ClusterIP
+
+  serviceMonitor:
+    selfMonitor: true
+
+    interval: ""
+
+    additionalLabels: {}
+
+    sampleLimit: 0
+
+    targetLimit: 0
+
+    labelLimit: 0
+
+    labelNameLengthLimit: 0
+
+    labelValueLengthLimit: 0
+
+    proxyUrl: ""
+
+    scheme: ""
+
+    enableHttp2: true
+
+    tlsConfig: {}
+
+    bearerTokenFile:
+
+    metricRelabelings: []
+
+    relabelings: []
+
+    additionalEndpoints: []
+
+  alertmanagerSpec:
+    persistentVolumeClaimRetentionPolicy: {}
+
+    podMetadata: {}
+
+    serviceName:
+
+    image:
+      registry: quay.io
+      repository: prometheus/alertmanager
+      tag: v0.28.1
+      sha: ""
+
+    useExistingSecret: false
+
+    secrets: []
+
+    automountServiceAccountToken: true
+
+    configMaps: []
+
+
+    web: {}
+
+    alertmanagerConfigSelector: {}
+
+    alertmanagerConfigNamespaceSelector: {}
+
+
+    alertmanagerConfiguration: {}
+
+    alertmanagerConfigMatcherStrategy: {}
+
+    logFormat: logfmt
+
+    logLevel: info
+
+    replicas: 1
+
+    retention: 120h
+
+    storage: {}
+
+
+    externalUrl:
+
+    routePrefix: /
+
+    scheme: ""
+
+    tlsConfig: {}
+
+    paused: false
+
+    nodeSelector: {}
+
+    resources: {}
+
+    podAntiAffinity: "soft"
+
+    podAntiAffinityTopologyKey: kubernetes.io/hostname
+
+    affinity: {}
+
+    tolerations: []
+
+    topologySpreadConstraints: []
+
+    securityContext:
+      runAsGroup: 2000
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 2000
+      seccompProfile:
+        type: RuntimeDefault
+
+    listenLocal: false
+
+    containers: []
+
+    volumes: []
+
+    volumeMounts: []
+
+    initContainers: []
+
+    priorityClassName: ""
+
+    additionalPeers: []
+
+    portName: "http-web"
+
+    clusterAdvertiseAddress: false
+
+    clusterGossipInterval: ""
+
+    clusterPeerTimeout: ""
+
+    clusterPushpullInterval: ""
+
+    clusterLabel: ""
+
+    forceEnableClusterMode: false
+
+    minReadySeconds: 0
+
+    additionalConfig: {}
+
+    additionalConfigString: ""
+
+  extraSecret:
+    annotations: {}
+    data: {}
+
+grafana:
+  enabled: true
+  namespaceOverride: ""
+
+  forceDeployDatasources: false
+
+  forceDeployDashboards: false
+
+  defaultDashboardsEnabled: true
+
+  defaultDashboardsTimezone: utc
+
+  defaultDashboardsEditable: true
+
+  defaultDashboardsInterval: 1m
+
+  adminUser: admin
+  adminPassword: prom-operator
+
+  rbac:
+    pspEnabled: false
+
+  ingress:
+    enabled: false
+
+
+    annotations: {}
+
+    labels: {}
+
+    hosts: []
+
+    path: /
+
+    tls: []
+
+
+  serviceAccount:
+    create: true
+    autoMount: true
+
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+
+      enableNewTablePanelSyntax: false
+
+      annotations: {}
+      multicluster:
+        global:
+          enabled: false
+        etcd:
+          enabled: false
+      provider:
+        allowUiUpdates: false
+    datasources:
+      enabled: true
+      defaultDatasourceEnabled: true
+      isDefaultDatasource: true
+
+      name: Prometheus
+      uid: prometheus
+
+
+
+
+      annotations: {}
+
+      httpMethod: POST
+
+      createPrometheusReplicasDatasources: false
+      prometheusServiceName: prometheus-operated
+      label: grafana_datasource
+      labelValue: "1"
+
+      exemplarTraceIdDestinations: {}
+      alertmanager:
+        enabled: true
+        name: Alertmanager
+        uid: alertmanager
+        handleGrafanaManagedAlerts: false
+        implementation: prometheus
+
+  extraConfigmapMounts: []
+
+  deleteDatasources: []
+
+  additionalDataSources: []
+
+  prune: false
+
+  service:
+    portName: http-web
+    ipFamilies: []
+    ipFamilyPolicy: ""
+
+  serviceMonitor:
+    enabled: true
+
+    path: "/metrics"
+
+
+    labels: {}
+
+    interval: ""
+    scheme: http
+    tlsConfig: {}
+    scrapeTimeout: 30s
+
+    relabelings: []
+
+kubernetesServiceMonitors:
+  enabled: true
+
+kubeApiServer:
+  enabled: true
+  tlsConfig:
+    serverName: kubernetes
+    insecureSkipVerify: false
+  serviceMonitor:
+    enabled: true
+    interval: ""
+
+    sampleLimit: 0
+
+    targetLimit: 0
+
+    labelLimit: 0
+
+    labelNameLengthLimit: 0
+
+    labelValueLengthLimit: 0
+
+    proxyUrl: ""
+
+    jobLabel: component
+    selector:
+      matchLabels:
+        component: apiserver
+        provider: kubernetes
+
+    metricRelabelings:
+      - action: drop
+        regex: (etcd_request|apiserver_request_slo|apiserver_request_sli|apiserver_request)_duration_seconds_bucket;(0\.15|0\.2|0\.3|0\.35|0\.4|0\.45|0\.6|0\.7|0\.8|0\.9|1\.25|1\.5|1\.75|2|3|3\.5|4|4\.5|6|7|8|9|15|20|30|40|45|50)(\.0)?
+        sourceLabels:
+          - __name__
+          - le
+
+    relabelings: []
+
+    additionalLabels: {}
+
+    targetLabels: []
+
+kubelet:
+  enabled: true
+  namespace: kube-system
+
+  serviceMonitor:
+    enabled: true
+    kubelet: true
+
+    attachMetadata:
+      node: false
+
+    interval: ""
+
+    honorLabels: true
+
+    honorTimestamps: true
+
+    trackTimestampsStaleness: true
+
+    sampleLimit: 0
+
+    targetLimit: 0
+
+    labelLimit: 0
+
+    labelNameLengthLimit: 0
+
+    labelValueLengthLimit: 0
+
+    proxyUrl: ""
+
+    https: true
+
+    insecureSkipVerify: true
+
+    probes: true
+
+    resource: false
+    resourcePath: "/metrics/resource/v1alpha1"
+    resourceInterval: 10s
+
+    cAdvisor: true
+    cAdvisorInterval: 10s
+    cAdvisorMetricRelabelings:
+      - sourceLabels: [__name__]
+        action: drop
+        regex: 'container_cpu_(cfs_throttled_seconds_total|load_average_10s|system_seconds_total|user_seconds_total)'
+      - sourceLabels: [__name__]
+        action: drop
+        regex: 'container_fs_(io_current|io_time_seconds_total|io_time_weighted_seconds_total|reads_merged_total|sector_reads_total|sector_writes_total|writes_merged_total)'
+      - sourceLabels: [__name__]
+        action: drop
+        regex: 'container_memory_(mapped_file|swap)'
+      - sourceLabels: [__name__]
+        action: drop
+        regex: 'container_(file_descriptors|tasks_state|threads_max)'
+      - sourceLabels: [__name__, scope]
+        action: drop
+        regex: 'container_memory_failures_total;hierarchy'
+      - sourceLabels: [__name__, interface]
+        action: drop
+        regex: 'container_network_.*;(cali|cilium|cni|lxc|nodelocaldns|tunl).*'
+      - sourceLabels: [__name__]
+        action: drop
+        regex: 'container_spec.*'
+      - sourceLabels: [id, pod]
+        action: drop
+        regex: '.+;'
+
+    probesMetricRelabelings: []
+
+    cAdvisorRelabelings:
+      - action: replace
+        sourceLabels: [__metrics_path__]
+        targetLabel: metrics_path
+
+    probesRelabelings:
+      - action: replace
+        sourceLabels: [__metrics_path__]
+        targetLabel: metrics_path
+
+    resourceRelabelings:
+      - action: replace
+        sourceLabels: [__metrics_path__]
+        targetLabel: metrics_path
+
+    metricRelabelings:
+      - action: drop
+        sourceLabels: [__name__, le]
+        regex: (csi_operations|storage_operation_duration)_seconds_bucket;(0.25|2.5|15|25|120|600)(\.0)?
+
+    relabelings:
+      - action: replace
+        sourceLabels: [__metrics_path__]
+        targetLabel: metrics_path
+
+    additionalLabels: {}
+
+    targetLabels: []
+
+kubeControllerManager:
+  enabled: true
+
+  endpoints: []
+
+  service:
+    enabled: true
+    port: null
+    targetPort: null
+    ipDualStack:
+      enabled: false
+      ipFamilies: ["IPv6", "IPv4"]
+      ipFamilyPolicy: "PreferDualStack"
+
+  serviceMonitor:
+    enabled: true
+    interval: ""
+
+    sampleLimit: 0
+
+    targetLimit: 0
+
+    labelLimit: 0
+
+    labelNameLengthLimit: 0
+
+    labelValueLengthLimit: 0
+
+    proxyUrl: ""
+
+    port: http-metrics
+
+    jobLabel: jobLabel
+    selector: {}
+
+    https: null
+
+    insecureSkipVerify: null
+
+    serverName: null
+
+    metricRelabelings: []
+
+    relabelings: []
+
+    additionalLabels: {}
+
+    targetLabels: []
+
+coreDns:
+  enabled: true
+  service:
+    enabled: true
+    port: 9153
+    targetPort: 9153
+
+    ipDualStack:
+      enabled: false
+      ipFamilies: ["IPv6", "IPv4"]
+      ipFamilyPolicy: "PreferDualStack"
+  serviceMonitor:
+    enabled: true
+    interval: ""
+
+    sampleLimit: 0
+
+    targetLimit: 0
+
+    labelLimit: 0
+
+    labelNameLengthLimit: 0
+
+    labelValueLengthLimit: 0
+
+    proxyUrl: ""
+
+    port: http-metrics
+
+    jobLabel: jobLabel
+    selector: {}
+
+    metricRelabelings: []
+
+    relabelings: []
+
+    additionalLabels: {}
+
+    targetLabels: []
+
+kubeDns:
+  enabled: false
+  service:
+    dnsmasq:
+      port: 10054
+      targetPort: 10054
+    skydns:
+      port: 10055
+      targetPort: 10055
+    ipDualStack:
+      enabled: false
+      ipFamilies: ["IPv6", "IPv4"]
+      ipFamilyPolicy: "PreferDualStack"
+  serviceMonitor:
+    interval: ""
+
+    sampleLimit: 0
+
+    targetLimit: 0
+
+    labelLimit: 0
+
+    labelNameLengthLimit: 0
+
+    labelValueLengthLimit: 0
+
+    proxyUrl: ""
+
+    jobLabel: jobLabel
+    selector: {}
+
+    metricRelabelings: []
+
+    relabelings: []
+
+    dnsmasqMetricRelabelings: []
+
+    dnsmasqRelabelings: []
+
+    additionalLabels: {}
+
+    targetLabels: []
+
+kubeEtcd:
+  enabled: true
+
+  endpoints: []
+
+  service:
+    enabled: true
+    port: 2381
+    targetPort: 2381
+    ipDualStack:
+      enabled: false
+      ipFamilies: ["IPv6", "IPv4"]
+      ipFamilyPolicy: "PreferDualStack"
+
+  serviceMonitor:
+    enabled: true
+    interval: ""
+
+    sampleLimit: 0
+
+    targetLimit: 0
+
+    labelLimit: 0
+
+    labelNameLengthLimit: 0
+
+    labelValueLengthLimit: 0
+
+    proxyUrl: ""
+    scheme: http
+    insecureSkipVerify: false
+    serverName: ""
+    caFile: ""
+    certFile: ""
+    keyFile: ""
+
+    port: http-metrics
+
+    jobLabel: jobLabel
+    selector: {}
+
+    metricRelabelings: []
+
+    relabelings: []
+
+    additionalLabels: {}
+
+    targetLabels: []
+
+kubeScheduler:
+  enabled: true
+
+  endpoints: []
+
+  service:
+    enabled: true
+    port: null
+    targetPort: null
+    ipDualStack:
+      enabled: false
+      ipFamilies: ["IPv6", "IPv4"]
+      ipFamilyPolicy: "PreferDualStack"
+
+  serviceMonitor:
+    enabled: true
+    interval: ""
+
+    sampleLimit: 0
+
+    targetLimit: 0
+
+    labelLimit: 0
+
+    labelNameLengthLimit: 0
+
+    labelValueLengthLimit: 0
+
+    proxyUrl: ""
+    https: null
+
+    port: http-metrics
+
+    jobLabel: jobLabel
+    selector: {}
+
+    insecureSkipVerify: null
+
+    serverName: null
+
+    metricRelabelings: []
+
+    relabelings: []
+
+    additionalLabels: {}
+
+    targetLabels: []
+
+kubeProxy:
+  enabled: true
+
+  endpoints: []
+
+  service:
+    enabled: true
+    port: 10249
+    targetPort: 10249
+    ipDualStack:
+      enabled: false
+      ipFamilies: ["IPv6", "IPv4"]
+      ipFamilyPolicy: "PreferDualStack"
+
+  serviceMonitor:
+    enabled: true
+    interval: ""
+
+    sampleLimit: 0
+
+    targetLimit: 0
+
+    labelLimit: 0
+
+    labelNameLengthLimit: 0
+
+    labelValueLengthLimit: 0
+
+    proxyUrl: ""
+
+    port: http-metrics
+
+    jobLabel: jobLabel
+    selector: {}
+
+    https: false
+
+    metricRelabelings: []
+
+    relabelings: []
+
+    additionalLabels: {}
+
+    targetLabels: []
+
+kubeStateMetrics:
+  enabled: true
+
+kube-state-metrics:
+  namespaceOverride: ""
+  rbac:
+    create: true
+  releaseLabel: true
+
+  prometheusScrape: false
+
+  prometheus:
+    monitor:
+
+      enabled: true
+
+      interval: ""
+
+      sampleLimit: 0
+
+      targetLimit: 0
+
+      labelLimit: 0
+
+      labelNameLengthLimit: 0
+
+      labelValueLengthLimit: 0
+
+      scrapeTimeout: ""
+
+      proxyUrl: ""
+
+      honorLabels: true
+
+      metricRelabelings: []
+
+      relabelings: []
+
+  selfMonitor:
+    enabled: false
+
+nodeExporter:
+  enabled: true
+  operatingSystems:
+    linux:
+      enabled: true
+    aix:
+      enabled: true
+    darwin:
+      enabled: true
+
+  forceDeployDashboards: false
+
+prometheus-node-exporter:
+  namespaceOverride: ""
+  podLabels:
+    jobLabel: node-exporter
+  releaseLabel: true
+  extraArgs:
+    - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|var/lib/docker/.+|var/lib/kubelet/.+)($|/)
+    - --collector.filesystem.fs-types-exclude=^(autofs|binfmt_misc|bpf|cgroup2?|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|iso9660|mqueue|nsfs|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|selinuxfs|squashfs|sysfs|tracefs)$
+  service:
+    portName: http-metrics
+    ipDualStack:
+      enabled: false
+      ipFamilies: ["IPv6", "IPv4"]
+      ipFamilyPolicy: "PreferDualStack"
+    labels:
+      jobLabel: node-exporter
+
+  prometheus:
+    monitor:
+      enabled: true
+
+      jobLabel: jobLabel
+
+      interval: ""
+
+      sampleLimit: 0
+
+      targetLimit: 0
+
+      labelLimit: 0
+
+      labelNameLengthLimit: 0
+
+      labelValueLengthLimit: 0
+
+      scrapeTimeout: ""
+
+      proxyUrl: ""
+
+      metricRelabelings: []
+
+      relabelings: []
+
+
+  rbac:
+    pspEnabled: false
+
+prometheusOperator:
+  enabled: true
+
+  fullnameOverride: ""
+
+  revisionHistoryLimit: 10
+
+  strategy: {}
+
+  tls:
+    enabled: true
+    tlsMinVersion: VersionTLS13
+    internalPort: 10250
+
+  livenessProbe:
+    enabled: true
+    failureThreshold: 3
+    initialDelaySeconds: 0
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
+  readinessProbe:
+    enabled: true
+    failureThreshold: 3
+    initialDelaySeconds: 0
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
+
+  admissionWebhooks:
+    failurePolicy: ""
+    timeoutSeconds: 10
+    enabled: true
+    caBundle: ""
+    annotations: {}
+
+    namespaceSelector: {}
+    objectSelector: {}
+
+    mutatingWebhookConfiguration:
+      annotations: {}
+
+    validatingWebhookConfiguration:
+      annotations: {}
+
+    deployment:
+      enabled: false
+
+      replicas: 1
+
+      strategy: {}
+
+      podDisruptionBudget: {}
+
+      revisionHistoryLimit: 10
+
+      tls:
+        enabled: true
+        tlsMinVersion: VersionTLS13
+        internalPort: 10250
+
+      serviceAccount:
+        annotations: {}
+        automountServiceAccountToken: false
+        create: true
+        name: ""
+
+      service:
+        annotations: {}
+        labels: {}
+        clusterIP: ""
+        ipDualStack:
+          enabled: false
+          ipFamilies: ["IPv6", "IPv4"]
+          ipFamilyPolicy: "PreferDualStack"
+
+        nodePort: 31080
+
+        nodePortTls: 31443
+
+        additionalPorts: []
+
+        loadBalancerIP: ""
+        loadBalancerSourceRanges: []
+
+        externalTrafficPolicy: Cluster
+
+        type: ClusterIP
+
+        externalIPs: []
+
+      labels: {}
+
+      annotations: {}
+
+      podLabels: {}
+
+      podAnnotations: {}
+
+
+
+
+      image:
+        registry: quay.io
+        repository: prometheus-operator/admission-webhook
+        tag: ""
+        sha: ""
+        pullPolicy: IfNotPresent
+
+
+
+
+      livenessProbe:
+        enabled: true
+        failureThreshold: 3
+        initialDelaySeconds: 30
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+
+      readinessProbe:
+        enabled: true
+        failureThreshold: 3
+        initialDelaySeconds: 5
+        periodSeconds: 10
+        successThreshold: 1
+        timeoutSeconds: 1
+
+      resources: {}
+
+      hostNetwork: false
+
+      nodeSelector: {}
+
+      tolerations: []
+
+      affinity: {}
+      dnsConfig: {}
+      securityContext:
+        fsGroup: 65534
+        runAsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+            - ALL
+
+      automountServiceAccountToken: true
+
+    patch:
+      enabled: true
+      image:
+        registry: registry.k8s.io
+        repository: ingress-nginx/kube-webhook-certgen
+        tag: v1.5.1
+        sha: ""
+        pullPolicy: IfNotPresent
+      resources: {}
+      priorityClassName: ""
+      ttlSecondsAfterFinished: 60
+      annotations: {}
+      podAnnotations: {}
+      nodeSelector: {}
+      affinity: {}
+      tolerations: []
+
+      securityContext:
+        runAsGroup: 2000
+        runAsNonRoot: true
+        runAsUser: 2000
+        seccompProfile:
+          type: RuntimeDefault
+      serviceAccount:
+        create: true
+        annotations: {}
+        automountServiceAccountToken: true
+
+    createSecretJob:
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+          - ALL
+
+    patchWebhookJob:
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities:
+          drop:
+          - ALL
+
+    certManager:
+      enabled: false
+      rootCert:
+        duration: ""
+        revisionHistoryLimit:
+      admissionCert:
+        duration: ""
+        revisionHistoryLimit:
+
+  namespaces: {}
+
+  denyNamespaces: []
+
+  alertmanagerInstanceNamespaces: []
+  alertmanagerConfigNamespaces: []
+  prometheusInstanceNamespaces: []
+  thanosRulerInstanceNamespaces: []
+
+
+  networkPolicy:
+    enabled: false
+
+    flavor: kubernetes
+
+
+
+  serviceAccount:
+    create: true
+    name: ""
+    automountServiceAccountToken: true
+    annotations: {}
+
+  terminationGracePeriodSeconds: 30
+  lifecycle: {}
+  service:
+    annotations: {}
+    labels: {}
+    clusterIP: ""
+    ipDualStack:
+      enabled: false
+      ipFamilies: ["IPv6", "IPv4"]
+      ipFamilyPolicy: "PreferDualStack"
+
+    nodePort: 30080
+
+    nodePortTls: 30443
+
+    additionalPorts: []
+
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+
+    externalTrafficPolicy: Cluster
+
+    type: ClusterIP
+
+    externalIPs: []
+
+  labels: {}
+
+  annotations: {}
+
+  podLabels: {}
+
+  podAnnotations: {}
+
+
+
+
+  kubeletService:
+    enabled: true
+    namespace: kube-system
+    selector: ""
+    name: ""
+
+  kubeletEndpointsEnabled: true
+  kubeletEndpointSliceEnabled: false
+
+  extraArgs: []
+
+  serviceMonitor:
+    selfMonitor: true
+
+    additionalLabels: {}
+
+    interval: ""
+
+    sampleLimit: 0
+
+    targetLimit: 0
+
+    labelLimit: 0
+
+    labelNameLengthLimit: 0
+
+    labelValueLengthLimit: 0
+
+    scrapeTimeout: ""
+
+    metricRelabelings: []
+
+    relabelings: []
+
+  resources: {}
+
+  env:
+    GOGC: "30"
+
+  hostNetwork: false
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+  dnsConfig: {}
+  securityContext:
+    fsGroup: 65534
+    runAsGroup: 65534
+    runAsNonRoot: true
+    runAsUser: 65534
+    seccompProfile:
+      type: RuntimeDefault
+
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+      - ALL
+
+  verticalPodAutoscaler:
+    enabled: false
+
+
+    controlledResources: []
+
+    maxAllowed: {}
+    minAllowed: {}
+
+    updatePolicy:
+      updateMode: Auto
+
+  image:
+    registry: quay.io
+    repository: prometheus-operator/prometheus-operator
+    tag: ""
+    sha: ""
+    pullPolicy: IfNotPresent
+
+
+
+
+
+  prometheusConfigReloader:
+    image:
+      registry: quay.io
+      repository: prometheus-operator/prometheus-config-reloader
+      tag: ""
+      sha: ""
+
+    enableProbe: false
+
+    resources: {}
+
+  thanosImage:
+    registry: quay.io
+    repository: thanos/thanos
+    tag: v0.37.2
+    sha: ""
+
+  prometheusInstanceSelector: ""
+
+  alertmanagerInstanceSelector: ""
+
+  thanosRulerInstanceSelector: ""
+
+  secretFieldSelector: "type!=kubernetes.io/dockercfg,type!=kubernetes.io/service-account-token,type!=helm.sh/release.v1"
+
+  automountServiceAccountToken: true
+
+  extraVolumes: []
+
+  extraVolumeMounts: []
+
+prometheus:
+  enabled: true
+
+  agentMode: false
+
+  annotations: {}
+
+  networkPolicy:
+    enabled: false
+
+    flavor: kubernetes
+
+
+
+  serviceAccount:
+    create: true
+    name: ""
+    annotations: {}
+    automountServiceAccountToken: true
+
+  thanosService:
+    enabled: false
+    annotations: {}
+    labels: {}
+
+    externalTrafficPolicy: Cluster
+
+    type: ClusterIP
+
+    ipDualStack:
+      enabled: false
+      ipFamilies: ["IPv6", "IPv4"]
+      ipFamilyPolicy: "PreferDualStack"
+
+    portName: grpc
+    port: 10901
+    targetPort: "grpc"
+
+    httpPortName: http
+    httpPort: 10902
+    targetHttpPort: "http"
+
+    clusterIP: "None"
+
+    nodePort: 30901
+    httpNodePort: 30902
+
+  thanosServiceMonitor:
+    enabled: false
+    interval: ""
+
+    additionalLabels: {}
+
+    scheme: ""
+
+    tlsConfig: {}
+
+    bearerTokenFile:
+
+    metricRelabelings: []
+
+    relabelings: []
+
+  thanosServiceExternal:
+    enabled: false
+    annotations: {}
+    labels: {}
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+
+    portName: grpc
+    port: 10901
+    targetPort: "grpc"
+
+    httpPortName: http
+    httpPort: 10902
+    targetHttpPort: "http"
+
+    externalTrafficPolicy: Cluster
+
+    type: LoadBalancer
+
+    nodePort: 30901
+    httpNodePort: 30902
+
+  service:
+    enabled: true
+    annotations: {}
+    labels: {}
+    clusterIP: ""
+    ipDualStack:
+      enabled: false
+      ipFamilies: ["IPv6", "IPv4"]
+      ipFamilyPolicy: "PreferDualStack"
+
+    port: 9090
+
+    targetPort: 9090
+
+    reloaderWebPort: 8080
+
+    externalIPs: []
+
+    nodePort: 30090
+
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+
+    externalTrafficPolicy: Cluster
+
+    type: ClusterIP
+
+    additionalPorts: []
+
+    publishNotReadyAddresses: false
+
+    sessionAffinity: None
+
+    sessionAffinityConfig:
+      clientIP:
+        timeoutSeconds: 10800
+
+  servicePerReplica:
+    enabled: false
+    annotations: {}
+
+    port: 9090
+
+    targetPort: 9090
+
+    nodePort: 30091
+
+    loadBalancerSourceRanges: []
+
+    externalTrafficPolicy: Cluster
+
+    type: ClusterIP
+
+    ipDualStack:
+      enabled: false
+      ipFamilies: ["IPv6", "IPv4"]
+      ipFamilyPolicy: "PreferDualStack"
+
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+    maxUnavailable: ""
+
+  thanosIngress:
+    enabled: false
+
+
+    annotations: {}
+    labels: {}
+    servicePort: 10901
+
+    nodePort: 30901
+
+    hosts: []
+
+    paths: []
+
+
+    tls: []
+
+  extraSecret:
+    annotations: {}
+    data: {}
+
+  ingress:
+    enabled: false
+
+
+    annotations: {}
+    labels: {}
+
+
+    hosts: []
+
+    paths: []
+
+
+    tls: []
+
+  route:
+    main:
+      enabled: false
+
+      apiVersion: gateway.networking.k8s.io/v1
+      kind: HTTPRoute
+
+      annotations: {}
+      labels: {}
+
+      hostnames: []
+      parentRefs: []
+
+      httpsRedirect: false
+
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+
+      filters: []
+
+      additionalRules: []
+
+  ingressPerReplica:
+    enabled: false
+
+
+    annotations: {}
+    labels: {}
+
+    hostPrefix: ""
+    hostDomain: ""
+
+    paths: []
+
+
+    tlsSecretName: ""
+
+    tlsSecretPerReplica:
+      enabled: false
+      prefix: "prometheus"
+
+  podSecurityPolicy:
+    allowedCapabilities: []
+    allowedHostPaths: []
+    volumes: []
+
+  serviceMonitor:
+    selfMonitor: true
+
+    interval: ""
+
+    additionalLabels: {}
+
+    sampleLimit: 0
+
+    targetLimit: 0
+
+    labelLimit: 0
+
+    labelNameLengthLimit: 0
+
+    labelValueLengthLimit: 0
+
+    scheme: ""
+
+    tlsConfig: {}
+
+    bearerTokenFile:
+
+    metricRelabelings: []
+
+    relabelings: []
+
+    additionalEndpoints: []
+
+  prometheusSpec:
+    persistentVolumeClaimRetentionPolicy: {}
+
+    disableCompaction: false
+
+    automountServiceAccountToken: true
+
+    apiserverConfig: {}
+
+    additionalArgs: []
+
+    scrapeFailureLogFile: ""
+
+    scrapeInterval: ""
+
+    scrapeTimeout: ""
+
+    scrapeClasses: []
+
+    evaluationInterval: ""
+
+    listenLocal: false
+
+    enableAdminAPI: false
+
+    version: ""
+
+    web: {}
+
+    exemplars: {}
+
+    enableFeatures: []
+
+    serviceName:
+
+    image:
+      registry: quay.io
+      repository: prometheus/prometheus
+      tag: v3.2.1
+      sha: ""
+
+    tolerations: []
+
+    topologySpreadConstraints: []
+
+    alertingEndpoints: []
+
+    externalLabels: {}
+
+    enableRemoteWriteReceiver: false
+
+    replicaExternalLabelName: ""
+
+    replicaExternalLabelNameClear: false
+
+    prometheusExternalLabelName: ""
+
+    prometheusExternalLabelNameClear: false
+
+    externalUrl: ""
+
+    nodeSelector: {}
+
+    secrets: []
+
+    configMaps: []
+
+    query: {}
+
+    ruleNamespaceSelector: {}
+
+    ruleSelectorNilUsesHelmValues: true
+
+    ruleSelector: {}
+
+    serviceMonitorSelectorNilUsesHelmValues: true
+
+    serviceMonitorSelector: {}
+
+    serviceMonitorNamespaceSelector: {}
+
+    podMonitorSelectorNilUsesHelmValues: true
+
+    podMonitorSelector: {}
+
+    podMonitorNamespaceSelector: {}
+
+    probeSelectorNilUsesHelmValues: true
+
+    probeSelector: {}
+
+    probeNamespaceSelector: {}
+
+    scrapeConfigSelectorNilUsesHelmValues: true
+
+    scrapeConfigSelector: {}
+
+    scrapeConfigNamespaceSelector: {}
+
+    retention: 10d
+
+    retentionSize: ""
+
+    tsdb:
+      outOfOrderTimeWindow: 0s
+
+    walCompression: true
+
+    paused: false
+
+    replicas: 1
+
+    shards: 1
+
+    logLevel: info
+
+    logFormat: logfmt
+
+    routePrefix: /
+
+    podMetadata: {}
+
+    podAntiAffinity: "soft"
+
+    podAntiAffinityTopologyKey: kubernetes.io/hostname
+
+    affinity: {}
+
+    remoteRead: []
+    additionalRemoteRead: []
+
+    remoteWrite: []
+    additionalRemoteWrite: []
+
+    remoteWriteDashboards: false
+
+    resources: {}
+
+    storageSpec: {}
+
+
+    volumes: []
+
+    volumeMounts: []
+
+    additionalScrapeConfigs: []
+
+
+    additionalScrapeConfigsSecret: {}
+
+    additionalPrometheusSecretsAnnotations: {}
+
+    additionalAlertManagerConfigs: []
+
+    additionalAlertManagerConfigsSecret: {}
+
+    additionalAlertRelabelConfigs: []
+
+    additionalAlertRelabelConfigsSecret: {}
+
+    securityContext:
+      runAsGroup: 2000
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 2000
+      seccompProfile:
+        type: RuntimeDefault
+
+    priorityClassName: ""
+
+    thanos: {}
+
+    containers: []
+
+    initContainers: []
+
+    portName: "http-web"
+
+    arbitraryFSAccessThroughSMs: false
+
+    overrideHonorLabels: false
+
+    overrideHonorTimestamps: false
+
+    ignoreNamespaceSelectors: false
+
+    enforcedNamespaceLabel: ""
+
+    prometheusRulesExcludedFromEnforce: []
+
+    excludedFromEnforcement: []
+
+    queryLogFile: false
+
+    sampleLimit: false
+
+    enforcedKeepDroppedTargets: 0
+
+    enforcedSampleLimit: false
+
+    enforcedTargetLimit: false
+
+
+    enforcedLabelLimit: false
+
+    enforcedLabelNameLengthLimit: false
+
+    enforcedLabelValueLengthLimit: false
+
+    allowOverlappingBlocks: false
+
+    nameValidationScheme: ""
+
+    minReadySeconds: 0
+
+    hostNetwork: false
+
+    hostAliases: []
+
+    tracingConfig: {}
+
+    serviceDiscoveryRole: ""
+
+    additionalConfig: {}
+
+    additionalConfigString: ""
+
+    maximumStartupDurationSeconds: 0
+
+  additionalRulesForClusterRole: []
+
+  additionalServiceMonitors: []
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  additionalPodMonitors: []
+
+
+
+
+
+
+
+
+
+
+
+thanosRuler:
+
+  enabled: false
+
+  annotations: {}
+
+  serviceAccount:
+    create: true
+    name: ""
+    annotations: {}
+
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+    maxUnavailable: ""
+
+  ingress:
+    enabled: false
+
+
+    annotations: {}
+
+    labels: {}
+
+    hosts: []
+
+    paths: []
+
+
+    tls: []
+
+  route:
+    main:
+      enabled: false
+
+      apiVersion: gateway.networking.k8s.io/v1
+      kind: HTTPRoute
+
+      annotations: {}
+      labels: {}
+
+      hostnames: []
+      parentRefs: []
+
+      httpsRedirect: false
+
+      matches:
+        - path:
+            type: PathPrefix
+            value: /
+
+      filters: []
+
+      additionalRules: []
+
+  service:
+    enabled: true
+    annotations: {}
+    labels: {}
+    clusterIP: ""
+    ipDualStack:
+      enabled: false
+      ipFamilies: ["IPv6", "IPv4"]
+      ipFamilyPolicy: "PreferDualStack"
+
+    port: 10902
+    targetPort: 10902
+    nodePort: 30905
+
+    additionalPorts: []
+
+    externalIPs: []
+    loadBalancerIP: ""
+    loadBalancerSourceRanges: []
+
+    externalTrafficPolicy: Cluster
+
+    type: ClusterIP
+
+  serviceMonitor:
+    selfMonitor: true
+
+    interval: ""
+
+    additionalLabels: {}
+
+    sampleLimit: 0
+
+    targetLimit: 0
+
+    labelLimit: 0
+
+    labelNameLengthLimit: 0
+
+    labelValueLengthLimit: 0
+
+    proxyUrl: ""
+
+    scheme: ""
+
+    tlsConfig: {}
+
+    bearerTokenFile:
+
+    metricRelabelings: []
+
+    relabelings: []
+
+    additionalEndpoints: []
+
+  thanosRulerSpec:
+    podMetadata: {}
+
+    serviceName:
+
+    image:
+      registry: quay.io
+      repository: thanos/thanos
+      tag: v0.37.2
+      sha: ""
+
+    ruleNamespaceSelector: {}
+
+    ruleSelectorNilUsesHelmValues: true
+
+    ruleSelector: {}
+
+    logFormat: logfmt
+
+    logLevel: info
+
+    replicas: 1
+
+    retention: 24h
+
+    evaluationInterval: ""
+
+    storage: {}
+
+    alertmanagersConfig:
+      existingSecret: {}
+      secret: {}
+
+
+    externalPrefix:
+
+    externalPrefixNilUsesHelmValues: true
+
+    routePrefix: /
+
+    objectStorageConfig:
+      existingSecret: {}
+      secret: {}
+
+    alertDropLabels: []
+
+    queryEndpoints: []
+
+    queryConfig:
+      existingSecret: {}
+      secret: {}
+
+    labels: {}
+
+    paused: false
+
+    additionalArgs: []
+
+    nodeSelector: {}
+
+    resources: {}
+
+    podAntiAffinity: "soft"
+
+    podAntiAffinityTopologyKey: kubernetes.io/hostname
+
+    affinity: {}
+
+    tolerations: []
+
+    topologySpreadConstraints: []
+
+    securityContext:
+      runAsGroup: 2000
+      runAsNonRoot: true
+      runAsUser: 1000
+      fsGroup: 2000
+      seccompProfile:
+        type: RuntimeDefault
+
+    listenLocal: false
+
+    containers: []
+
+    volumes: []
+
+    volumeMounts: []
+
+    initContainers: []
+
+    priorityClassName: ""
+
+    portName: "web"
+
+    web: {}
+
+    additionalConfig: {}
+
+    additionalConfigString: ""
+
+  extraSecret:
+    annotations: {}
+    data: {}
+
+cleanPrometheusOperatorObjectNames: false
+
+extraManifests: []
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/onzack-cluster-monitoring-recording-rules.yaml (YAML, 68 lines, comments stripped) ===
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: standard-cluster-monitoring-recording-rules
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: common
+      rules:
+        - record: instance:kube_node_role
+          expr: topk by (node) (1,kube_node_role * on(node) group_left(instance) label_replace(node_uname_info, "node", "$1", "nodename", "(.*)"))
+    - name: cpu
+      rules:
+        - record: node_cpu_seconds_total:sum_rate5m
+          expr: sum by (cpu,instance,node,role) (rate(node_cpu_seconds_total{mode!="idle"}[5m]) * on(instance) group_left(node,role) instance:kube_node_role)
+        - record: kube_node_status_capacity:cpu:sum
+          expr: sum by (node,role) (kube_node_status_capacity{resource="cpu"} * on(node) group_left(role) instance:kube_node_role)
+        - record: role:kube_node_status_capacity:cpu:avg
+          expr: avg by (role) (kube_node_status_capacity{resource="cpu"} * on(node) group_left(role) instance:kube_node_role)
+        - record: kube_node_status_allocatable:cpu:sum
+          expr: sum by (node,role) (kube_node_status_allocatable{resource="cpu"}* on(node) group_left(role) instance:kube_node_role)
+        - record: role:kube_node_status_allocatable:cpu:avg
+          expr: avg by (role) (kube_node_status_allocatable{resource="cpu"} * on(node) group_left(role) instance:kube_node_role)
+    - name: memory
+      rules:
+        - record: node_memory_MemUsed_bytes:sum
+          expr: |-
+            sum by (instance,node,role) (
+              (node_memory_MemTotal_bytes{job="node-exporter"} - node_memory_MemAvailable_bytes{job="node-exporter"}) * on(instance) group_left(node,role) instance:kube_node_role
+            )
+        - record: kube_node_status_capacity:memory:sum
+          expr: sum by (node,role) (kube_node_status_capacity{resource="memory"} * on(node) group_left(role) instance:kube_node_role)
+        - record: role:kube_node_status_capacity:memory:avg
+          expr: avg by (role) (kube_node_status_capacity{resource="memory"} * on(node) group_left(role) instance:kube_node_role)
+        - record: kube_node_status_allocatable:memory:sum
+          expr: sum by (node,role) (kube_node_status_allocatable{resource="memory"} * on(node) group_left(role) instance:kube_node_role)
+        - record: role:kube_node_status_allocatable:memory:avg
+          expr: avg by (role) (kube_node_status_allocatable{resource="memory"} * on(node) group_left(role) instance:kube_node_role)
+    - name: storage
+      rules:
+        - record: node_disk_read_bytes_total:sum_rate5m
+          expr: sum by (instance,node,role) (rate(node_disk_read_bytes_total[5m]) * on(instance) group_left(node,role) instance:kube_node_role)
+        - record: node_disk_reads_completed_total:sum_rate5m
+          expr: sum by (instance,node,role) (rate(node_disk_reads_completed_total[5m]) * on(instance) group_left(node,role) instance:kube_node_role)
+        - record: node_disk_read_time_seconds_total:sum_rate5m
+          expr: sum by (instance,node,role) (rate(node_disk_read_time_seconds_total[5m]) * on(instance) group_left(node,role) instance:kube_node_role)
+        - record: node_disk_written_bytes_total:sum_rate5m
+          expr: sum by (instance,node,role) (rate(node_disk_written_bytes_total[5m]) * on(instance) group_left(node,role) instance:kube_node_role)
+        - record: node_disk_writes_completed_total:sum_rate5m
+          expr: sum by (instance,node,role) (rate(node_disk_writes_completed_total[5m]) * on(instance) group_left(node,role) instance:kube_node_role)
+        - record: node_disk_write_time_seconds_total:sum_rate5m
+          expr: sum by (instance,node,role)(rate(node_disk_write_time_seconds_total[5m]) * on(instance) group_left(node,role) instance:kube_node_role)
+    - name: network
+      rules:
+        - record: node_network_receive_bytes_total:sum_rate5m
+          expr: sum by (instance,node,role) (rate(node_network_receive_bytes_total[5m]) * on(instance) group_left(node,role) instance:kube_node_role)
+        - record: node_network_receive_packets_total:sum_rate5m
+          expr: sum by (instance,node,role) (rate(node_network_receive_packets_total[5m]) * on(instance) group_left(node,role) instance:kube_node_role)
+        - record: node_network_receive_drop_total:sum_rate5m
+          expr: sum by (instance,node,role) (rate(node_network_receive_drop_total[5m]) * on(instance) group_left(node,role) instance:kube_node_role)
+        - record: node_network_transmit_bytes_total:sum_rate5m
+          expr: sum by (instance,node,role) (rate(node_network_transmit_bytes_total[5m]) * on(instance) group_left(node,role) instance:kube_node_role)
+        - record: node_network_transmit_packets_total:sum_rate5m
+          expr: sum by (instance,node,role) (rate(node_network_transmit_packets_total[5m]) * on(instance) group_left(node,role) instance:kube_node_role)
+        - record: node_network_transmit_drop_total:sum_rate5m
+          expr: sum by (instance,node,role)(rate(node_network_transmit_drop_total[5m]) * on(instance) group_left(node,role) instance:kube_node_role)
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/dashboards/argocd-dashboard.json (JSON, 70701 characters) ===
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "enable": true,... [truncated, total 70701 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/dashboards/standard-cluster-monitoring-onzack.json (JSON, 370631 characters) ===
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "enable": true,... [truncated, total 370631 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/dashboards/k8s-leospbru.json (JSON, 206977 characters) ===
+{
+    "annotations": {
+      "list": [
+        {
+          "$$hashKey": "object:247",
+          "builtIn": 1,
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+ ... [truncated, total 206977 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/dashboards/thermal-dashboard.json (JSON, 4755 characters) ===
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "enable": true,... [truncated, total 4755 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/dashboards/standard-namespace-monitoring-onzack.json (JSON, 253072 characters) ===
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "enable": true,... [truncated, total 253072 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/dashboards/pihole-dashboard.json (JSON, 39653 characters) ===
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "enable": tr... [truncated, total 39653 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/dashboards/argocd-Stian-Øvrevåge.json (JSON, 70701 characters) ===
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "enable": true,... [truncated, total 70701 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/dashboards/longhorn-onzack.json (JSON, 76679 characters) ===
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "enable": true,... [truncated, total 76679 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/dashboards/node-exporter-full-rfmoz.json (JSON, 723105 characters) ===
+{
+    "annotations": {
+      "list": [
+        {
+          "$$hashKey": "object:1058",
+          "builtIn": 1,
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+... [truncated, total 723105 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/dashboards/longhorn-dashboard-adegoodyer.json (JSON, 63919 characters) ===
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "enable": true,... [truncated, total 63919 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/dashboards/cert-manager-chrede88.json (JSON, 22166 characters) ===
+{
+    "annotations": {
+      "list": [
+        {
+          "builtIn": 1,
+          "datasource": {
+            "type": "grafana",
+            "uid": "-- Grafana --"
+          },
+          "enable": tr... [truncated, total 22166 characters]
+====================
+
+=== File: /home/boris/code/soyspray/playbooks/yaml/argocd-apps/prometheus/onzack-namespace-monitoring-recording-rules.yaml (YAML, 124 lines, comments stripped) ===
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: standard-namespace-monitoring-recording-rules
+  labels:
+    release: prometheus
+spec:
+  groups:
+    - name: cpu
+      rules:
+        - record: container_cpu_usage_seconds_total:sum_rate5m
+          expr: |-
+            sum by (uid,container,pod,namespace,node) (
+              label_replace(
+                rate(container_cpu_usage_seconds_total{container!="", container!="POD"}[5m]) * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+              , "uid", "$1-$2-$3-$4-$5", "id", ".+pod([a-zA-Z0-9]{8})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{12}).+")
+            )
+        - record: kube_pod_container_resource_requests:cpu:running
+          expr: |-
+            sum by (uid,container,pod,namespace,node) (
+              kube_pod_container_resource_requests{resource="cpu"} * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+            )
+        - record: kube_pod_container_resource_limits:cpu:running
+          expr: |-
+            sum by (uid,container,pod,namespace,node) (
+              kube_pod_container_resource_limits{resource="cpu"} * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+            )
+        - record: container_cpu_cfs_throttling:percent
+          expr: |-
+            100
+            /
+            sum by (uid,container,pod,namespace,node) (
+              label_replace(
+                increase(container_cpu_cfs_periods_total{container!="", container!="POD"}[5m]) * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+              , "uid", "$1-$2-$3-$4-$5", "id", ".+pod([a-zA-Z0-9]{8})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{12}).+")
+            )
+            *
+            sum by (uid,container,pod,namespace,node) (
+              label_replace(
+                increase(container_cpu_cfs_throttled_periods_total{container!="", container!="POD"}[5m]) * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+              , "uid", "$1-$2-$3-$4-$5", "id", ".+pod([a-zA-Z0-9]{8})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{12}).+")
+            )
+    - name: memory
+      rules:
+        - record: container_memory_working_set_bytes:sum
+          expr: |-
+            sum by (uid,container,pod,namespace,node) (
+              label_replace(
+                container_memory_working_set_bytes{container!="", container!="POD"} * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+              , "uid", "$1-$2-$3-$4-$5", "id", ".+pod([a-zA-Z0-9]{8})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{12}).+")
+            )
+        - record: kube_pod_container_resource_requests:memory:running
+          expr: |-
+            sum by (uid,container,pod,namespace,node) (
+              kube_pod_container_resource_requests{resource="memory"} * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+            )
+        - record: kube_pod_container_resource_limits:memory:running
+          expr: |-
+            sum by (uid,container,pod,namespace,node) (
+              kube_pod_container_resource_limits{resource="memory"} * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+            )
+    - name: storage
+      rules:
+        - record: container_fs_reads_bytes_total:sum_rate5m
+          expr: |-
+            sum by (uid,container,pod,namespace,node) (
+              label_replace(
+                rate(container_fs_reads_bytes_total{container!="", container!="POD"}[5m]) * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+              , "uid", "$1-$2-$3-$4-$5", "id", ".+pod([a-zA-Z0-9]{8})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{12}).+")
+            )
+        - record: container_fs_reads_total:sum_rate5m
+          expr: |-
+            sum by (uid,container,pod,namespace,node) (
+              label_replace(
+                rate(container_fs_reads_total{container!="", container!="POD"}[5m]) * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+              , "uid", "$1-$2-$3-$4-$5", "id", ".+pod([a-zA-Z0-9]{8})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{12}).+")
+            )
+        - record: container_fs_writes_bytes_total:sum_rate5m
+          expr: |-
+            sum by (uid,container,pod,namespace,node) (
+              label_replace(
+                rate(container_fs_writes_bytes_total{container!="", container!="POD"}[5m]) * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+              , "uid", "$1-$2-$3-$4-$5", "id", ".+pod([a-zA-Z0-9]{8})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{12}).+")
+            )
+        - record: container_fs_writes_total:sum_rate5m
+          expr: |-
+            sum by (uid,container,pod,namespace,node) (
+              label_replace(
+                rate(container_fs_writes_total{container!="", container!="POD"}[5m]) * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+              , "uid", "$1-$2-$3-$4-$5", "id", ".+pod([a-zA-Z0-9]{8})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{4})(?:-|_)([a-zA-Z0-9]{12}).+")
+            )
+    - name: network
+      rules:
+        - record: container_network_receive_bytes_total:sum_rate5m
+          expr: |-
+            sum by (pod,namespace,node) (
+              rate(container_network_receive_bytes_total[5m]) * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+            )
+        - record: container_network_receive_packets_total:sum_rate5m
+          expr: |-
+            sum by (pod,namespace,node) (
+              rate(container_network_receive_packets_total[5m]) * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+            )
+        - record: container_network_receive_packets_dropped_total:sum_rate5m
+          expr: |-
+            sum by (pod,namespace,node) (
+              rate(container_network_receive_packets_dropped_total[5m]) * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+            )
+        - record: container_network_transmit_bytes_total:sum_rate5m
+          expr: |-
+            sum by (pod,namespace,node) (
+              rate(container_network_transmit_bytes_total[5m]) * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+            )
+        - record: container_network_transmit_packets_total:sum_rate5m
+          expr: |-
+            sum by (pod,namespace,node) (
+              rate(container_network_transmit_packets_total[5m]) * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+            )
+        - record: container_network_transmit_packets_dropped_total:sum_rate5m
+          expr: |-
+            sum by (pod,namespace,node) (
+              rate(container_network_transmit_packets_dropped_total[5m]) * on(pod, namespace) group_left() (kube_pod_status_phase{phase="Running"}==1)
+            )
+====================
+
