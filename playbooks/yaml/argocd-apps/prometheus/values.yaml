@@ -7,6 +7,8 @@ prometheus:
     type: LoadBalancer
     loadBalancerIP: 192.168.1.125
   prometheusSpec:
+    nodeSelector:
+      longhorn: "true"
     replicas: 1
     retention: 15d
     walCompression: true
@@ -93,15 +95,6 @@ grafana:
       provider:
         name: 'default'
         orgId: 1
-
-  # The additions below ensure that if the sidecar(s) mount volumes,
-  # they have valid names and matching volume definitions:
-  extraVolumes:
-    - name: dashboards-volume
-      emptyDir: {}
-  extraVolumeMounts:
-    - name: dashboards-volume
-      mountPath: /tmp/dashboards
 
   service:
     type: ClusterIP
@@ -194,6 +187,9 @@ ruleSelectorNilUsesHelmValues: false
 prometheusOperator:
   admissionWebhooks:
     enabled: true
+    patch:
+      enabled: true
+      hookDeletePolicy: before-hook-creation,hook-succeeded
   resources:
     requests:
       cpu: 75m
