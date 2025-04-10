@@ -37,3 +37,25 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-u
 
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/manage-argocd-apps.yml
 ```
+
+## ArgoCD CLI Management
+
+Use the `argocd` CLI for command-line management of the Longhorn application.
+
+### Login
+
+```bash
+argocd login argocd.soyspray.vip
+kubectl config set-context --current --namespace=argocd
+```
+
+### Common Commands
+
+```bash
+argocd app list
+argocd app get longhorn
+argocd app sync longhorn --dry-run
+argocd app sync longhorn
+argocd app manifests longhorn
+argocd app sync longhorn --preview-changes
+```
