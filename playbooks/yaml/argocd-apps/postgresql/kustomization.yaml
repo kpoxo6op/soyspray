@@ -7,7 +7,7 @@ kind: Kustomization
 
 helmCharts:
   - name: postgresql
-    repo: oci://registry-1.docker.io/bitnamicharts/postgresql
+    repo: https://charts.bitnami.com/bitnami
     version: 12.12.10
     releaseName: postgresql
     valuesFile: values.yaml
