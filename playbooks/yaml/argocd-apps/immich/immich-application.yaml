@@ -1,0 +1,24 @@
+# playbooks/yaml/argocd-apps/immich/immich-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: immich
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: immich
+  sources:
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: "init-immich"
+      path: playbooks/yaml/argocd-apps/immich
+      kustomize:
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
