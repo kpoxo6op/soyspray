@@ -13,7 +13,7 @@ spec:
     namespace: immich
   sources:
     - repoURL: https://github.com/kpoxo6op/soyspray.git
-      targetRevision: "init-immich"
+      targetRevision: "v1.8.0"
       path: playbooks/yaml/argocd-apps/immich
       kustomize:
   syncPolicy:
