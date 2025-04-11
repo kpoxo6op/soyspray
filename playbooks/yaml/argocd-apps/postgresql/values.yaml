@@ -1,6 +1,6 @@
-# playbooks/yaml/argocd-apps/postgresql/values.yaml
-# Chart values for a single-replica PostgreSQL with moderate resources,
-# a 20Gi volume on Longhorn, and basic user credentials.
+# /home/boris/code/soyspray/playbooks/yaml/argocd-apps/postgresql/values.yaml
+# This updated values file ensures PostgreSQL primary pods only run on
+# nodes labeled 'longhorn=true', thus avoiding node-3 which lacks storage.
 
 global:
   postgresql:
@@ -10,18 +10,19 @@ global:
       database: immich
 
 primary:
+  nodeSelector:
+    longhorn: "true"
   persistence:
     enabled: true
     storageClass: longhorn
     size: 20Gi
-
-resources:
-  requests:
-    memory: 256Mi
-    cpu: 50m
-  limits:
-    memory: 512Mi
-    cpu: 200m
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 50m
+    limits:
+      memory: 512Mi
+      cpu: 200m
 
 volumePermissions:
   enabled: true
