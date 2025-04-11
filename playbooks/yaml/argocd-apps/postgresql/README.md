@@ -16,8 +16,15 @@ is in 'postgresql-application.yaml', and 'kustomization.yaml' orchestrates the H
 
 ## Setup and Verification
 
-1. Commit these files to the specified Git branch.
-2. Let ArgoCD sync them automatically or trigger a manual sync.
-3. Once synced, verify the pod status in the 'postgresql' namespace.
-4. Confirm the “postgresql-postgresql” service is accessible from within the cluster.
-5. Ensure the credentials and connection details are correct for any client application (like Immich).
+To verify the setup:
+
+1. Check the pod and service status in the `postgresql` namespace:
+   ```bash
+   kubectl get pods -n postgresql
+   kubectl get svc -n postgresql
+   ```
+2. Test the connection to the database using the `immich` user from within the pod:
+   ```bash
+   kubectl exec -n postgresql postgresql-0 -- sh -c 'env PGPASSWORD=immich psql -U immich -d immich -h localhost -c "\\conninfo"'
+   ```
+   You should see a message confirming the connection.
