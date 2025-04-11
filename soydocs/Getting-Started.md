@@ -3,14 +3,18 @@
 Starting on new machine
 
 ```sh
-git submodule update --init --recursive
+git submodule update --init --recursiveddd
 ```
 
 Get the private key from Enpass
 
 ```sh
+mkdir -p ~/.ssh
+touch ~/.ssh/id_rsa
+# paste and check
+chmod 600 ~/.ssh/id_rsa
 ssh-keygen -lf ~/.ssh/id_rsa
-2048 SHA256:fOPZU/+rmjfNyUQeFyIv+rXr+IRRuSnu7gSkI++OlkM boris@borex-pc (RSA)
+2048 SHA256:fOPZU/+rmjfNyUQeFyIv+rXcdr+IRRuSnu7gSkI++OlkM boris@borex-pc (RSA)
 ```
 
 [SSH access](https://github.com/kubernetes-sigs/kubespray/blob/master/docs/getting_started/setting-up-your-first-cluster.md#access-the-kubernetes-cluster)
@@ -54,4 +58,6 @@ python3 -m venv soyspray-venv
 source soyspray-venv/bin/activate
 cd kubespray
 pip install -U -r requirements.txt
+cd ..
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/hello-soy.yml
 ```
