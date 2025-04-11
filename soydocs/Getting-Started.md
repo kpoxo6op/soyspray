@@ -32,15 +32,8 @@ chmod 600 ~/.kube/config
 Install tools
 
 ```sh
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-sudo git clone https://github.com/ahmetb/kubectx /opt/kubectx && sudo ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx && sudo ln -s /opt/kubectx/kubens /usr/local/bin/kubens
-
-ARGOCD_VERSION="v2.12.4"
-echo "Installing ArgoCD CLI version: $ARGOCD_VERSION"
-sudo curl -L -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/$ARGOCD_VERSION/argocd-linux-amd64
-sudo chmod +x /usr/local/bin/argocd
-argocd version --client
+sudo apt install make -y
+sudo make install
 ```
 
 Test
@@ -57,7 +50,6 @@ node-3   Ready    control-plane   7m4s    v1.31.4
 Venv
 
 ```sh
-sudo apt-get install python3-pip python3.12-venv -y
 python3 -m venv soyspray-venv
 source soyspray-venv/bin/activate
 cd kubespray
