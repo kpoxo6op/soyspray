@@ -5,7 +5,7 @@
 # and verifies connectivity through the Azure VPS intermediary
 
 # Array of nodes to check (all K8s nodes)
-NODES=("192.168.1.100" "192.168.1.101" "192.168.1.102")
+NODES=("192.168.1.100" "192.168.1.101" "192.168.1.102" "192.168.1.103")
 USER="ubuntu"
 
 # VPS and Wireguard details
