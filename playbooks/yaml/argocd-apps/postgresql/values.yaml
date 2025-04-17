@@ -1,0 +1,48 @@
+# /home/boris/code/soyspray/playbooks/yaml/argocd-apps/postgresql/values.yaml
+# This updated values file ensures PostgreSQL primary pods only run on
+# nodes labeled 'longhorn=true', thus avoiding node-3 which lacks storage.
+
+global:
+  postgresql:
+    auth:
+      username: immich
+      password: immich
+      database: immich
+
+image:
+  registry: docker.io
+  repository: tensorchord/pgvecto-rs
+  tag: pg14-v0.2.0
+
+primary:
+  persistence:
+    enabled: true
+    storageClass: longhorn
+    size: 20Gi
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 50m
+    limits:
+      memory: 512Mi
+      cpu: 200m
+
+  configuration: |
+    shared_preload_libraries = 'vectors.so'
+
+  initdb:
+    scripts:
+      01-create-extensions.sql: |
+        CREATE EXTENSION IF NOT EXISTS cube;
+        CREATE EXTENSION IF NOT EXISTS earthdistance;
+        CREATE EXTENSION IF NOT EXISTS vectors;
+      02-configure-search-path.sql: |
+        ALTER DATABASE immich SET search_path TO "$user", public, vectors;
+        ALTER SCHEMA vectors OWNER TO immich;
+        GRANT SELECT ON TABLE pg_vector_index_stat TO immich;
+
+volumePermissions:
+  enabled: true
+
+readReplicas:
+  replicaCount: 0

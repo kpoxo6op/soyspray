@@ -1,0 +1,15 @@
+# playbooks/yaml/argocd-apps/postgresql/kustomization.yaml
+# Kustomization uses the official Bitnami 'postgresql' chart.
+# We load values from 'values.yaml'. The release name is 'postgresql'.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+helmCharts:
+  - name: postgresql
+    repo: https://charts.bitnami.com/bitnami
+    version: 12.12.10
+    releaseName: postgresql
+    valuesFile: values.yaml
+
+namespace: postgresql

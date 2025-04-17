@@ -3,14 +3,18 @@
 Starting on new machine
 
 ```sh
-git submodule update --init --recursive
+git submodule update --init --recursiveddd
 ```
 
 Get the private key from Enpass
 
 ```sh
+mkdir -p ~/.ssh
+touch ~/.ssh/id_rsa
+# paste and check
+chmod 600 ~/.ssh/id_rsa
 ssh-keygen -lf ~/.ssh/id_rsa
-2048 SHA256:fOPZU/+rmjfNyUQeFyIv+rXr+IRRuSnu7gSkI++OlkM boris@borex-pc (RSA)
+2048 SHA256:fOPZU/+rmjfNyUQeFyIv+rXcdr+IRRuSnu7gSkI++OlkM boris@borex-pc (RSA)
 ```
 
 [SSH access](https://github.com/kubernetes-sigs/kubespray/blob/master/docs/getting_started/setting-up-your-first-cluster.md#access-the-kubernetes-cluster)
@@ -32,15 +36,8 @@ chmod 600 ~/.kube/config
 Install tools
 
 ```sh
-curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-sudo git clone https://github.com/ahmetb/kubectx /opt/kubectx && sudo ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx && sudo ln -s /opt/kubectx/kubens /usr/local/bin/kubens
-
-ARGOCD_VERSION="v2.12.4"
-echo "Installing ArgoCD CLI version: $ARGOCD_VERSION"
-sudo curl -L -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/download/$ARGOCD_VERSION/argocd-linux-amd64
-sudo chmod +x /usr/local/bin/argocd
-argocd version --client
+sudo apt install make -y
+sudo make install
 ```
 
 Test
@@ -57,9 +54,9 @@ node-3   Ready    control-plane   7m4s    v1.31.4
 Venv
 
 ```sh
-sudo apt-get install python3-pip python3.12-venv -y
 python3 -m venv soyspray-venv
 source soyspray-venv/bin/activate
-cd kubespray
-pip install -U -r requirements.txt
+pip install -U -r kubespray/requirements.txt
+# cycle through The authenticity of host '192.168.1.xxx' can't be established.
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/hello-soy.yml
 ```

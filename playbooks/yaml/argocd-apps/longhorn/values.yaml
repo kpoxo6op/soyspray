@@ -7,7 +7,6 @@ persistence:
 
 defaultSettings:
   defaultDataPath: "/storage"
-  createDefaultDiskLabeledNodes: true
   defaultDataLocality: "disabled"
   deletingConfirmationFlag: true
   orphanAutoDeletion: true
@@ -18,14 +17,11 @@ defaultSettings:
   autoCleanupRecurringJobBackupSnapshot: true
   fastReplicaRebuildEnabled: false
   snapshotDataIntegrity: disabled
-  systemManagedComponentsNodeSelector: "longhorn=true"
 
 longhornUI:
   replicas: 1
 
 longhornManager:
-  nodeSelector:
-    longhorn: "true"
   priorityClass: longhorn-critical
   livenessProbe:
     initialDelaySeconds: 60
