@@ -1,0 +1,21 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: redis
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: redis
+  source:
+    repoURL: "https://github.com/kpoxo6op/soyspray.git"
+    targetRevision: "v1.9.0"
+    path: playbooks/yaml/argocd-apps/redis
+    kustomize:
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
