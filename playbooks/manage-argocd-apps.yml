@@ -212,3 +212,27 @@
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/external-dns/external-dns-application.yaml') }}"
       tags: external-dns
+
+    - name: Apply PostgreSQL
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/postgresql/postgresql-application.yaml') }}"
+      tags: postgresql
+
+    - name: Apply Redis
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/redis/redis-application.yaml') }}"
+      tags: redis
+
+    - name: Apply Immich
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/immich/immich-application.yaml') }}"
+      tags: immich
