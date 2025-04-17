@@ -1,4 +1,6 @@
 # playbooks/yaml/argocd-apps/immich/kustomization.yaml
+                # Expose 2283 inside the pod
+                # Make Immich actually listen on 0.0.0.0:2283
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -13,3 +15,42 @@ resources:
   - immich-library-pvc.yaml
 
 namespace: immich
+
+patches:
+  - target:
+      kind: Deployment
+      name: immich-server
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: immich-server
+      spec:
+        template:
+          spec:
+            containers:
+              - name: immich-server
+                ports:
+                  - containerPort: 2283
+                    name: http
+                env:
+                  - name: IMMICH_HOST
+                    value: "0.0.0.0"
+                  - name: IMMICH_PORT
+                    value: "2283"
+                livenessProbe:
+                  httpGet:
+                    path: /api/server/ping
+                    port: http
+                readinessProbe:
+                  httpGet:
+                    path: /api/server/ping
+                    port: http
+                startupProbe:
+                  failureThreshold: 60
+                  initialDelaySeconds: 30
+                  periodSeconds: 10
+                  timeoutSeconds: 5
+                  httpGet:
+                    path: /api/server/ping
+                    port: http

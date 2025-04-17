@@ -1,107 +1,114 @@
 # Immich Application Configuration
 
-This document outlines the configuration and verification steps for the Immich application deployed via ArgoCD.
+This document outlines the configuration and key troubleshooting steps for the Immich application deployed in Kubernetes.
 
-## Overview
+## Troubleshooting
 
-- **Deployment:** Managed by ArgoCD application `immich`.
-- **Namespace:** `immich`
-- **Chart:** Official Immich Helm chart (`immich-app/immich`)
-- **Configuration:** Uses Helm with Kustomize post-rendering.
-- **Storage:** Requires a manually defined PersistentVolumeClaim (`immich-library`) using `longhorn` StorageClass. The PVC definition is included via Kustomize.
-- **Ingress:** Exposed via `nginx` Ingress Controller at `https://immich.soyspray.vip`.
-- **TLS:** Handled by `cert-manager` using `letsencrypt-production` ClusterIssuer and the `prod-cert-tls` secret (synced from `cert-manager` namespace).
-- **Dependencies:** Assumes external PostgreSQL and Redis (bundled ones disabled in `values.yaml`).
+### Port Configuration
 
-## Key Files
+**Critical Issue**: Immich server defaults to port 3001 but the Kubernetes service expects 2283
 
-- `immich-application.yaml`: ArgoCD Application manifest.
-- `values.yaml`: Helm chart values overrides (ingress, persistence claim reference, resource limits, etc.).
-- `kustomization.yaml`: Kustomize config to include the PVC and set the namespace.
-- `immich-library-pvc.yaml`: Manifest defining the required `immich-library` PersistentVolumeClaim.
+- **Problem**: The application starts on port 3001 by default, causing startup probe failures with the error:
 
-## Verification Checklist (After Deployment/Sync)
+  ```
+  Startup probe failed: Get "http://10.233.70.108:2283/api/server/ping": dial tcp 10.233.70.108:2283: connect: connection refused
+  ```
 
-1. **Check ArgoCD Status:**
+- **Solution**: Set the `IMMICH_PORT` environment variable in the deployment:
 
-    ```bash
-    argocd app get immich -n argocd
-    ```
+  ```yaml
+  env:
+  - name: IMMICH_PORT
+    value: "2283"
+  ```
 
-    *Look for `Synced` and `Healthy` status.*
+- **Verification**: Check inside the container where the default port is defined:
 
-2. **Check Namespace Resources:**
+  ```bash
+  # Check the current port setting in the application code
+  kubectl exec -it <pod-name> -n immich -- grep -n "3001" /usr/src/app/dist/workers/api.js
 
-    ```bash
-    kubectl get all -n immich
-    ```
+  # Output shows the issue:
+  # const port = Number(process.env.IMMICH_PORT) || 3001;
+  ```
 
-    *Verify Deployments, Services, Pods, Ingress, PVC are present.*
+### Environment Variable Debugging
 
-3. **Check Persistent Volume Claim (PVC):**
+- Check all environment variables in the container:
 
-    ```bash
-    kubectl get pvc -n immich immich-library
-    ```
+  ```bash
+  kubectl exec -it <pod-name> -n immich -- env | sort
+  ```
 
-    *Ensure `STATUS` is `Bound`.*
+- Check specific Immich-related variables:
 
-4. **Check Pod Status:**
+  ```bash
+  kubectl exec -it <pod-name> -n immich -- env | grep -i port
+  ```
 
-    ```bash
-    kubectl get pods -n immich
-    ```
+### Pod and Deployment Analysis
 
-    *Ensure `immich-server-...` pod (and `immich-machine-learning-...` if enabled) shows `Running` and `READY 1/1` (or similar).*
+- Check pod status and events:
 
-5. **Verify Applied Resource Limits (Example for server):**
+  ```bash
+  kubectl describe pod <pod-name> -n immich | grep -A20 Events
+  ```
 
-    ```bash
-    # Get the specific pod name first with 'kubectl get pods -n immich'
-    kubectl describe pod <immich-server-pod-name> -n immich
-    ```
+- View container logs:
 
-    *Look for the `Resources:` section under Containers to confirm applied limits/requests.*
+  ```bash
+  kubectl logs <pod-name> -n immich
+  ```
 
-6. **Check Server Logs:**
+- Check if the application is listening on the expected port:
 
-    ```bash
-    kubectl logs deploy/immich-server -n immich -f
-    ```
+  ```bash
+  kubectl exec -it <pod-name> -n immich -- netstat -tulpn | grep LISTEN
+  ```
 
-    *Look for successful startup messages, database connections, and absence of critical errors.*
+### Verifying Connectivity
 
-7. **Check Ingress Status:**
+- Check immich server inside the cluster:
 
-    ```bash
-    kubectl get ingress -n immich
-    ```
+  ```bash
+  kubectl -n immich run curltest --rm -it --image=curlimages/curl --restart=Never -- \
+    curl -v http://immich-server.immich.svc.cluster.local:2283/api/server/ping
+  ```
 
-    *Verify an ADDRESS is assigned (usually the Nginx controller's LoadBalancer IP).*
+  Expect `{"res":"pong"}` as the response.
 
-    ```bash
-    # Get the specific ingress name first with 'kubectl get ingress -n immich'
-    kubectl describe ingress <immich-ingress-name> -n immich
-    ```
+- Check external HTTP access (should redirect to HTTPS):
 
-    *Check rules route `immich.soyspray.vip` correctly and the `TLS` section references `prod-cert-tls`.*
+  ```bash
+  curl -v http://immich.soyspray.vip/api/server/ping
+  ```
 
-8. **Check TLS Secret:**
+  Expected response should include: `HTTP/1.1 308 Permanent Redirect` with `Location: https://immich.soyspray.vip/api/server/ping`
 
-    ```bash
-    kubectl get secret prod-cert-tls -n immich
-    ```
+- Check external HTTPS access:
 
-    *Confirm the secret exists in the `immich` namespace (synced by `sync-certificates.yml` playbook).*
+  ```bash
+  curl -vk https://immich.soyspray.vip/api/server/ping
+  ```
 
-9. **Check DNS Resolution:**
+  Expected response should include: `HTTP/2 200` with `{"res":"pong"}`
 
-    ```bash
-    nslookup immich.soyspray.vip
-    ```
+### Verifying TLS Certificate
 
-    *Verify it resolves to the correct LoadBalancer IP address of your Nginx Ingress.* (May require waiting for DNS propagation).
+- Check the TLS certificate details:
 
-10. **Access Web UI:**
-    - Open `https://immich.soyspray.vip` in your browser.
-    - *Expect a valid TLS certificate (no warnings) and the Immich login/setup page to load.*
+  ```bash
+  openssl s_client -connect immich.soyspray.vip:443 -servername immich.soyspray.vip </dev/null
+  ```
+
+  This should show details of the certificate chain, including issuer (Let's Encrypt), validity dates, and verification result.
+
+Check immich server inside the cluster
+
+```sh
+kubectl -n immich run curltest --rm -it --image=curlimages/curl --restart=Never -- \
+  curl -v http://immich-server.immich.svc.cluster.local:2283/api/server/ping
+```
+
+expect `"{"res":"pong"}"` answer
+
