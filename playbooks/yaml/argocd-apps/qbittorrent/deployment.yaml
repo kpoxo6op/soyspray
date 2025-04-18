@@ -1,11 +1,8 @@
 #playbooks/yaml/argocd-apps/qbittorrent/deployment.yaml
-<<COMMENT
-Adds:
-1) an init container that copies the pre‑baked config from the secret into the
-   /config PVC only if the file is missing;
-2) a volume mount for that secret.
-Everything else is unchanged (one replica, resource limits, ports, PVCs).
-COMMENT
+# <<COMMENT
+# Adds a secret‑backed init container that overwrites /config/qBittorrent/qBittorrent.conf
+# on every pod start, guaranteeing the Web‑UI credentials are always what the Secret says.
+# COMMENT
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -31,13 +28,9 @@ spec:
             - -c
             - |
               set -e
-              if [ ! -f /config/qBittorrent/qBittorrent.conf ]; then
-                mkdir -p /config/qBittorrent
-                cp /seed/qBittorrent.conf /config/qBittorrent/qBittorrent.conf
-                echo "🔑 qBittorrent.conf seeded."
-              else
-                echo "ℹ️  Config already exists, skipping."
-              fi
+              mkdir -p /config/qBittorrent
+              cp -f /seed/qBittorrent.conf /config/qBittorrent/qBittorrent.conf
+              echo "🔑 qBittorrent.conf (re)seeded."
           volumeMounts:
             - name: config
               mountPath: /config
