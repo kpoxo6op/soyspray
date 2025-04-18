@@ -1,0 +1,24 @@
+#playbooks/yaml/argocd-apps/jackett/jackett-application.yaml
+# Self‑contained Argo CD app: watches this folder in branch “torrent”.
+# Namespace “media” is created automatically.
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jackett
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: torrent
+    path: playbooks/yaml/argocd-apps/jackett
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: media
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

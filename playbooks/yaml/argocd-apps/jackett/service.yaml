@@ -1,0 +1,21 @@
+#playbooks/yaml/argocd-apps/jackett/service.yaml
+# LoadBalancer service matching your flat‑IP convention.
+# Add “jackett.lan” / “jackett.soyspray.vip” to your DNS list later.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jackett
+  namespace: media
+  labels:
+    app: jackett
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.1.129
+  ports:
+    - port: 9117
+      targetPort: 9117
+      protocol: TCP
+      name: http
+  selector:
+    app: jackett

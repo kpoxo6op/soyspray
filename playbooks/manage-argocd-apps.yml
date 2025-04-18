@@ -244,3 +244,11 @@
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/qbittorrent/qbittorrent-application.yaml') }}"
       tags: qbittorrent
+
+    - name: Apply Jackett
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/jackett/jackett-application.yaml') }}"
+      tags: jackett

@@ -1,0 +1,49 @@
+#playbooks/yaml/argocd-apps/jackett/deployment.yaml
+# Minimal container using linuxserver/jackett, same UID/GID/TZ pattern
+# as qBittorrent.  Persist /config via the PVC above.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jackett
+  namespace: media
+  labels:
+    app: jackett
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jackett
+  template:
+    metadata:
+      labels:
+        app: jackett
+    spec:
+      containers:
+        - name: jackett
+          image: linuxserver/jackett:v0.22.1791-ls2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9117
+              name: http
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Pacific/Auckland"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: jackett-config

@@ -1,0 +1,16 @@
+#playbooks/yaml/argocd-apps/jackett/pvc-config.yaml
+# Creates a 1 Gi Longhorn‑backed PVC to persist Jackett’s /config
+# across pod restarts and image upgrades.
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jackett-config
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi
