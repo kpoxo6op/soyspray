@@ -1,8 +1,7 @@
 #playbooks/yaml/argocd-apps/qbittorrent/deployment.yaml
-# <<COMMENT
-# Adds a secret‑backed init container that overwrites /config/qBittorrent/qBittorrent.conf
-# on every pod start, guaranteeing the Web‑UI credentials are always what the Secret says.
-# COMMENT
+# Adds an init container that overwrites the qBittorrent.conf in the
+# /config PVC on every start, ensuring credentials match the Secret.
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -28,8 +27,8 @@ spec:
             - -c
             - |
               set -e
-              mkdir -p /config/qBittorrent
               cp -f /seed/qBittorrent.conf /config/qBittorrent/qBittorrent.conf
+              chown 1000:1000 /config/qBittorrent/qBittorrent.conf
               echo "🔑 qBittorrent.conf (re)seeded."
           volumeMounts:
             - name: config
