@@ -14,3 +14,17 @@ including:
 2. Visit <http://192.168.1.127:8080> in the browser.
 3. Log into qBittorrent (default user/pass is usually admin/adminadmin or per image doc).
 4. Add a test torrent (e.g. a Linux ISO). Confirm it downloads.
+
+## Create a password hash
+
+```python
+python3 - "123" <<'PY'
+import hashlib, os, sys
+pwd  = sys.argv[1].encode()
+salt = os.urandom(8)
+dk   = hashlib.pbkdf2_hmac('sha256', pwd, salt, 5000, dklen=32)
+print(f"sha256:5000:{salt.hex()}:{dk.hex()}")
+PY
+
+sha256:5000:b9040da26fc5cfb8:32d63d47b37f03ac6d716bb3a2d932c6a5c43c8b69215444e0588928fae9eae7
+```

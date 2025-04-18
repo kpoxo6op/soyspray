@@ -1,15 +1,11 @@
-# playbooks/yaml/argocd-apps/qbittorrent/deployment.yaml
-#------------------------------------------------------------------------------
-# Minimal qBittorrent Deployment (raw Kubernetes)
-# * Pinned image: linuxserver/qbittorrent:libtorrentv1-release-5.0.5_v1.2.20-ls73
-#   - qBittorrent 5.0.5
-#   - libtorrent 1.2.20
-#   - linuxserver build ls73 (multi‑arch: amd64 & arm64)
-# * Volumes:
-#     • /config  -> pvc: qbittorrent-config (1 Gi, Longhorn)
-#     • /downloads -> pvc: qbittorrent-downloads (10 Gi, Longhorn)
-# * Resource requests/limits: 100 m CPU / 256 Mi mem  → 500 m / 512 Mi
-#------------------------------------------------------------------------------
+#playbooks/yaml/argocd-apps/qbittorrent/deployment.yaml
+<<COMMENT
+Adds:
+1) an init container that copies the pre‑baked config from the secret into the
+   /config PVC only if the file is missing;
+2) a volume mount for that secret.
+Everything else is unchanged (one replica, resource limits, ports, PVCs).
+COMMENT
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -27,6 +23,27 @@ spec:
       labels:
         app: qbittorrent
     spec:
+      initContainers:
+        - name: seed-config
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              if [ ! -f /config/qBittorrent/qBittorrent.conf ]; then
+                mkdir -p /config/qBittorrent
+                cp /seed/qBittorrent.conf /config/qBittorrent/qBittorrent.conf
+                echo "🔑 qBittorrent.conf seeded."
+              else
+                echo "ℹ️  Config already exists, skipping."
+              fi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: seed
+              mountPath: /seed
+              readOnly: true
       containers:
         - name: qbittorrent
           image: linuxserver/qbittorrent:libtorrentv1-release-5.0.5_v1.2.20-ls73
@@ -60,3 +77,9 @@ spec:
         - name: downloads
           persistentVolumeClaim:
             claimName: qbittorrent-downloads
+        - name: seed
+          secret:
+            secretName: qbittorrent-webui
+            items:
+              - key: qBittorrent.conf
+                path: qBittorrent.conf
