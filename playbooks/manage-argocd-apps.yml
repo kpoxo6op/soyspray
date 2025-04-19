@@ -260,3 +260,11 @@
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/radarr/radarr-application.yaml') }}"
       tags: radarr
+
+    - name: Apply Readarr
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/readarr/readarr-application.yaml') }}"
+      tags: readarr
