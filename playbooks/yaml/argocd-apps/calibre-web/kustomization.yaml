@@ -1,0 +1,14 @@
+# playbooks/yaml/argocd-apps/calibre-web/kustomization.yaml
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - pvc-config.yaml
+  - service.yaml
+  - deployment.yaml
+  - cron-sync-library.yaml
+
+patches:
+  - path: patch-library-env.yaml
+  - path: patch-guest-perms.yaml

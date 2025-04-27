@@ -1,28 +1,20 @@
 #!/usr/bin/env bash
+
+# This script performs SSH checks in parallel, gathers additional info about Longhorn CRDs
+# (volumes, replicas, engines), and includes a quick look at the default StorageClass.
+# Steps and logs remain concise while providing deeper insight into Longhorn status.
 #
-# longhorn-health-check.sh
+# Usage: ./longhorn-health-check-v2.sh
+#        ./longhorn-health-check-v2.sh --ssh-check
 #
-# Purpose:
-#   Quickly gather Longhorn-related statuses from the cluster and optionally
-#   SSH into each node to verify local disk config. Includes a brief summary
-#   for overall health.
-#
-# Usage:
-#   ./longhorn-health-check.sh
-#   ./longhorn-health-check.sh --ssh-check
-#
-# Requirements:
-#   - kubectl in PATH
-#   - (optional) SSH access to each node
-#
-# Environment variables:
-#   - K8S_USER (default: "ubuntu")
-#   - WORKER_NODE1, WORKER_NODE2, WORKER_NODE3, MASTER_NODE
-#     (If you want SSH checks, define these or set them inside the script.)
+# It will gather information about the Longhorn installation in the cluster, including:
+# - pods, deployments, CRDs
+# - Longhorn volumes, replicas, engines
+# - logs
+# - optionally SSH into each node in parallel to check local disk config (e.g., /storage mount)
 
 set -Eeuo pipefail
 
-# Customize these if needed
 LONGHORN_NAMESPACE="longhorn-system"
 K8S_USER="${K8S_USER:-ubuntu}"
 
@@ -37,7 +29,7 @@ if [[ "${1:-}" == "--ssh-check" ]]; then
 fi
 
 echo "====================================================="
-echo "Longhorn Health Check Script"
+echo "Longhorn Health Check Script v2"
 echo "Namespace: ${LONGHORN_NAMESPACE}"
 echo "====================================================="
 
@@ -55,7 +47,6 @@ kubectl get deploy -n "${LONGHORN_NAMESPACE}" || true
 
 echo
 echo "4) Node info..."
-# Removed label references (longhorn & node.longhorn.io/create-default-disk):
 kubectl get nodes -o wide || true
 
 echo
@@ -66,12 +57,26 @@ echo
 echo "6) Checking logs of longhorn-manager pods (last 50 lines each)..."
 kubectl logs -n "${LONGHORN_NAMESPACE}" -l app=longhorn-manager --tail=50 || true
 
+echo
+echo "7) Checking Longhorn volumes, replicas, and engines..."
+kubectl -n "${LONGHORN_NAMESPACE}" get volumes.longhorn.io,replicas.longhorn.io,engines.longhorn.io 2>/dev/null || true
+
+echo
+echo "8) Checking StorageClasses for Longhorn default (if any)..."
+kubectl get storageclasses | grep -i longhorn || echo "No Longhorn StorageClass found or no match."
+
 if [[ "${DO_SSH_CHECK}" == "true" ]]; then
   echo
   echo "====================================================="
-  echo "SSH checks for /storage or any needed Longhorn local config"
+  echo "SSH checks in parallel for /storage or any needed Longhorn local config"
   echo "====================================================="
-  for node_ip in "${WORKER_NODE1}" "${WORKER_NODE2}" "${WORKER_NODE3}" "${MASTER_NODE}"; do
+
+  # Define array of nodes
+  nodes=("${WORKER_NODE1}" "${WORKER_NODE2}" "${WORKER_NODE3}" "${MASTER_NODE}")
+
+  # Function for SSH checks
+  function ssh_check() {
+    local node_ip="$1"
     echo
     echo "--- SSH to ${node_ip} as ${K8S_USER} ---"
     ssh "${K8S_USER}@${node_ip}" <<NODECHECK || true
@@ -84,33 +89,34 @@ ls -ld /storage 2>/dev/null || echo "/storage dir not found."
 echo "[Node: ${node_ip}] Checking kernel modules config (if relevant):"
 ls /etc/modules-load.d/longhorn.conf 2>/dev/null || echo "No /etc/modules-load.d/longhorn.conf file."
 NODECHECK
+  }
+
+  # Run SSH checks in parallel
+  for node_ip in "${nodes[@]}"; do
+    ssh_check "${node_ip}" &
   done
+
+  # Wait for all background processes
+  wait
 fi
 
-###############################
-# Simple readiness check for pods
-###############################
 echo
 echo "====================================================="
 echo "Summary of Longhorn Pod Readiness"
 echo "====================================================="
 ALL_READY=true
 while read -r pod_line; do
-  # skip header line
   if [[ "$pod_line" == NAME* ]]; then
     continue
   fi
-  # extract columns
   POD_NAME=$(echo "$pod_line" | awk '{print $1}')
-  READY_STATUS=$(echo "$pod_line" | awk '{print $2}') # e.g. "1/1"
-  STATUS=$(echo "$pod_line" | awk '{print $3}')       # e.g. "Running"
+  READY_STATUS=$(echo "$pod_line" | awk '{print $2}')
+  STATUS=$(echo "$pod_line" | awk '{print $3}')
 
-  # quick check: if READY != "Running" or some sub-container not ready
-  if [[ "$STATUS" != "Running" ]] || [[ "$READY_STATUS" != */* ]]; then
+  if [[ "$STATUS" != "Running" ]]; then
     echo "Pod $POD_NAME is NOT fully ready (status=$STATUS, ready=$READY_STATUS)"
     ALL_READY=false
   else
-    # if 2/2 or 3/3, etc, parse to compare
     WANTED=$(echo "$READY_STATUS" | cut -d'/' -f2)
     ACTUAL=$(echo "$READY_STATUS" | cut -d'/' -f1)
     if [[ "$ACTUAL" -lt "$WANTED" ]]; then
@@ -129,5 +135,5 @@ fi
 echo
 echo "====================================================="
 echo "Done. Output above should help diagnose Longhorn issues."
-echo "Tip: ./longhorn-health-check.sh > lh-check.txt"
+echo "Tip: ./longhorn-health-check-v2.sh > lh-check.txt"
 echo "====================================================="

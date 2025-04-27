@@ -1,0 +1,10 @@
+# playbooks/yaml/argocd-apps/prowlarr/kustomization.yaml
+# Kustomization for Prowlarr
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - pvc-config.yaml
+  - service.yaml
+  - deployment.yaml
+  - initial-config-configmap.yaml

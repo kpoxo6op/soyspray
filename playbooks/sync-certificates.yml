@@ -5,13 +5,13 @@
   become: true
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
-    # List target namespaces here for easy management
     target_namespaces:
       - argocd
       - longhorn-system
       - pihole
       - monitoring
       - immich
+      - media
   tasks:
     - name: Extract TLS certificate data
       shell: kubectl get secret prod-cert-tls -n cert-manager -o jsonpath='{.data.tls\.crt}'

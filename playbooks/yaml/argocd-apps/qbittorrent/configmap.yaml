@@ -1,0 +1,45 @@
+# playbooks/yaml/argocd-apps/qbittorrent/configmap.yaml
+# Seeds qBittorrent WebUI credentials (admin / 123) via PBKDF2 hash.
+#------------------------------------------------------------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qbittorrent-conf
+  namespace: media
+data:
+  qBittorrent.conf: |-
+    [AutoRun]
+    enabled=false
+    program=
+
+    [BitTorrent]
+    Session\AddTorrentStopped=false
+    Session\DefaultSavePath=/downloads/
+    Session\Port=49160
+    Session\QueueingSystemEnabled=true
+    Session\SSL\Port=9007
+    Session\ShareLimitAction=Stop
+    Session\TempPath=/downloads/incomplete/
+
+    [LegalNotice]
+    Accepted=true
+
+    [Meta]
+    MigrationVersion=8
+
+    [Network]
+    PortForwardingEnabled=false
+    Proxy\HostnameLookupEnabled=false
+    Proxy\Profiles\BitTorrent=true
+    Proxy\Profiles\Misc=true
+    Proxy\Profiles\RSS=true
+
+    [Preferences]
+    Connection\PortRangeMin=49160
+    Connection\UPnP=false
+    Downloads\SavePath=/downloads/
+    Downloads\TempPath=/downloads/incomplete/
+    WebUI\Address=*
+    WebUI\ServerDomains=*
+    WebUI\Username=admin
+    WebUI\Password_PBKDF2="@ByteArray(6GuqwbIxFz5yNRLYBYPQIQ==:WyiZHyQ5Hgwnc71PuKmt1NKVAUD9tstuLBcJrP82SkQfalql8giGHqbOc7lly/xbqXEKuvcvrc3Dbg62PNPZBA==)"

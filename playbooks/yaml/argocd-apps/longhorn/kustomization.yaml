@@ -13,6 +13,7 @@ helmCharts:
 
 resources:
   - setting-default-data-path.yaml
+  - storageclass-rwx.yaml
 
 patches:
   - target:

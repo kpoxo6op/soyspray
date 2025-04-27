@@ -1,0 +1,34 @@
+# playbooks/yaml/argocd-apps/calibre-web/patch-guest-perms.yaml
+# wait until first boot creates the DB (max 30 s)
+# 1) turn on anonymous browsing
+# 2) ensure Guest exists and has DOWNLOAD+ANON+VIEWER (0x122 = 290)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calibre-web
+  namespace: media
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: enable-guest
+          image: alpine:3.20
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              DB=/config/app.db
+
+              for i in $(seq 1 30); do [ -f "$DB" ] && break; sleep 2; done
+              [ -f "$DB" ] || { echo "app.db missing, skipping"; exit 0; }
+
+              sqlite3 "$DB" "UPDATE config SET anonbrowse=1;"
+
+              sqlite3 "$DB" \
+                "INSERT OR IGNORE INTO user (name,password,role) VALUES ('Guest','',290);"
+              sqlite3 "$DB" \
+                "UPDATE user SET role=290 WHERE name='Guest';"
+          volumeMounts:
+            - name: config
+              mountPath: /config

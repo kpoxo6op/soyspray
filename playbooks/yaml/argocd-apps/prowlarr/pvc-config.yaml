@@ -1,0 +1,14 @@
+#playbooks/yaml/argocd-apps/prowlarr/pvc-config.yaml
+# A PersistentVolumeClaim for Prowlarr's config data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prowlarr-config
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi

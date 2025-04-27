@@ -1,0 +1,14 @@
+# A small 1Gi PersistentVolumeClaim for Calibre Web config data.
+# We store user settings and metadata here.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: calibre-web-config
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi
