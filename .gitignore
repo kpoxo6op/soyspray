@@ -1,2 +1,3 @@
 soyspray-venv
 .env
+*.txt
