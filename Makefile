@@ -36,14 +36,6 @@ act:
 ans:
 	@echo "\nansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/ --tags TAG\n"
 
-bal:
-	kubectl get pods -A \
-		-o custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.name,NODE:.spec.nodeName \
-	| grep -v "^NAMESPACE" \
-	| awk '{print $$3}' \
-	| sort \
-	| uniq -c
-
 install:
 	@if [ ! -w /usr/local/bin ]; then \
 		echo "Error: This target requires sudo privileges. Please run 'sudo make install'"; \
@@ -77,16 +69,22 @@ install:
 		sudo chmod +x /usr/local/bin/argocd; \
 	fi
 
+go: argo act ans
+
+alist:
+	@./scripts/argocd-list.sh "$(COLS)"
+
 help:
 	@echo "Available commands:"
-	@echo "  make master    - SSH into master node ($(MASTER_NODE))"
-	@echo "  make worker1   - SSH into worker node 1 ($(WORKER_NODE1))"
-	@echo "  make worker2   - SSH into worker node 2 ($(WORKER_NODE2))"
-	@echo "  make worker3   - SSH into worker node 3 ($(WORKER_NODE3))"
-	@echo "  make install   - Install tools (requires sudo: run 'sudo make install')"
-	@echo "  make argo      - Login to ArgoCD (argocd.soyspray.vip)"
-	@echo "  make act       - Show command to activate Python virtual environment"
-	@echo "  make ans       - Show Ansible command starter"
-	@echo "  make bal       - Show pod count distribution across nodes"
-
-.PHONY: master worker1 worker2 worker3 help venv act bal argo install
+	@echo "  make master      - SSH into master node ($(MASTER_NODE))"
+	@echo "  make worker1     - SSH into worker node 1 ($(WORKER_NODE1))"
+	@echo "  make worker2     - SSH into worker node 2 ($(WORKER_NODE2))"
+	@echo "  make worker3     - SSH into worker node 3 ($(WORKER_NODE3))"
+	@echo "  make install     - Install tools (requires sudo: run 'sudo make install')"
+	@echo "  make argo        - Login to ArgoCD (argocd.soyspray.vip)"
+	@echo "  make act         - Show command to activate Python virtual environment"
+	@echo "  make ans         - Show Ansible command starter"
+	@echo "  make bal         - Show pod count distribution across nodes"
+	@echo "  make go          - Run argo, act, and ans commands in sequence"
+	@echo "  make alist       - List ArgoCD apps with scripts/argocd-list.sh"
+.PHONY: master worker1 worker2 worker3 help venv act argo install go alist
