@@ -236,3 +236,43 @@
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/immich/immich-application.yaml') }}"
       tags: immich
+
+    - name: Apply qbittorrent
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/qbittorrent/qbittorrent-application.yaml') }}"
+      tags: qbittorrent
+
+    - name: Apply Radarr
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/radarr/radarr-application.yaml') }}"
+      tags: radarr
+
+    - name: Apply Readarr
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/readarr/readarr-application.yaml') }}"
+      tags: readarr
+
+    - name: Apply Calibre Web
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/calibre-web/calibre-web-application.yaml') }}"
+      tags: calibre-web
+
+    - name: Apply Prowlarr
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prowlarr/prowlarr-application.yaml') }}"
+      tags: prowlarr
