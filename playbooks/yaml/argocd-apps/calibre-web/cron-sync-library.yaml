@@ -1,0 +1,48 @@
+# playbooks/yaml/argocd-apps/calibre-web/cron-sync-library.yaml
+# Periodic CronJob that re-imports new books into Calibre Web
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: calibre-web-library-sync
+  namespace: media
+spec:
+  schedule: "*/15 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: sync-calibre-library
+              image: linuxserver/calibre:8.3.0
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/bash
+                - -euxo
+                - pipefail
+                - -c
+                - |
+                  LIB="/config/Calibre_Library"
+                  mkdir -p "${LIB}"
+                  if [[ ! -f "${LIB}/metadata.db" ]]; then
+                    echo "→ No valid library found – creating at ${LIB}"
+                    calibredb add -r /books --with-library "${LIB}" --recurse
+                  else
+                    echo "→ Found existing library – importing new books into ${LIB}"
+                    calibredb add -r /books --with-library "${LIB}" --recurse
+                  fi
+                  chown -R 911:911 "${LIB}"
+              volumeMounts:
+                - name: config
+                  mountPath: /config
+                - name: books
+                  mountPath: /books
+                  readOnly: true
+          volumes:
+            - name: config
+              persistentVolumeClaim:
+                claimName: calibre-web-config
+            - name: books
+              persistentVolumeClaim:
+                claimName: qbittorrent-downloads
