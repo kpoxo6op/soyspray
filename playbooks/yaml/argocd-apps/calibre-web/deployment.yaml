@@ -43,6 +43,8 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: books
+              mountPath: /books
       volumes:
         - name: config
           persistentVolumeClaim:

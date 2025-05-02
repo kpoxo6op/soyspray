@@ -7,8 +7,6 @@ resources:
   - pvc-config.yaml
   - service.yaml
   - deployment.yaml
-  - cron-sync-library.yaml
+  - job-calibre-web-poststart.yaml
 
-patches:
-  - path: patch-library-env.yaml
-  - path: patch-guest-perms.yaml
+# -patches:
