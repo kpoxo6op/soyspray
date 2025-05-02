@@ -1,6 +1,7 @@
 # File: playbooks/yaml/argocd-apps/pihole/configmaps/custom-dns-configmap.yaml
 # Internal services with .lan domains
 # Same services with .soyspray.vip domains
+# 192.168.1.122 Pi-Hole DNS!
 
 apiVersion: v1
 kind: ConfigMap
@@ -19,7 +20,6 @@ data:
     192.168.1.120 pihole.soyspray.vip
     192.168.1.120 prometheus.soyspray.vip
     192.168.1.121 argocd.lan
-   #192.168.1.122 Pi-Hole DNS!
     192.168.1.124 pihole.lan
     192.168.1.125 prometheus.lan
     192.168.1.126 alertmanager.lan
