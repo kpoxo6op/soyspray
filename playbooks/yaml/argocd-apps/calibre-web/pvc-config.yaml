@@ -1,3 +1,5 @@
+# playbooks/yaml/argocd-apps/calibre-web/pvc-config.yaml
+
 # A small 1Gi PersistentVolumeClaim for Calibre Web config data.
 # We store user settings and metadata here.
 apiVersion: v1
@@ -7,8 +9,8 @@ metadata:
   namespace: media
 spec:
   accessModes:
-    - ReadWriteOnce
-  storageClassName: longhorn
+    - ReadWriteMany
+  storageClassName: longhorn-rwx
   resources:
     requests:
       storage: 1Gi
