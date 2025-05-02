@@ -8,16 +8,16 @@ spec:
   project: default
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: "v1.10.0"
+    targetRevision: "v1.12.0"
     path: playbooks/yaml/argocd-apps/longhorn
     kustomize:
   destination:
     server: "https://kubernetes.default.svc"
     namespace: longhorn-system
   syncPolicy:
-    # automated: # Comment out this block to disable auto-sync
-    #   prune: true # Comment out
-    #   selfHeal: true # Comment out
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
       - RespectIgnoreDifferences=true

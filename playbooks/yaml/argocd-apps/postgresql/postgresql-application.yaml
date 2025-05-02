@@ -14,13 +14,12 @@ spec:
     namespace: postgresql
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "v1.10.0"
+    targetRevision: "v1.12.0"
     path: playbooks/yaml/argocd-apps/postgresql
     kustomize:
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
-    syncOptions:
     syncOptions:
       - CreateNamespace=true
