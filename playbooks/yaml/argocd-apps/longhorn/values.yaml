@@ -17,7 +17,6 @@ defaultSettings:
   autoCleanupRecurringJobBackupSnapshot: true
   fastReplicaRebuildEnabled: false
   snapshotDataIntegrity: disabled
-  createDefaultDiskLabeledNodes: false
 
 longhornUI:
   replicas: 1
