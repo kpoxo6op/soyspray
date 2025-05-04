@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: "v1.11.0"
+    targetRevision: "longhorn-disk-fix"
     path: playbooks/yaml/argocd-apps/readarr
   destination:
     server: https://kubernetes.default.svc
