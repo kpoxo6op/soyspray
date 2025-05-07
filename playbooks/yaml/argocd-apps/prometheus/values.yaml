@@ -180,7 +180,8 @@ kubeEtcd:
   enabled: false
 
 # https://github.com/onzack/grafana-dashboards/tree/main?tab=readme-ov-file#troubleshooting
-ruleSelectorNilUsesHelmValues: false
+# set back to default "true" to see if it fixes the watchdog
+# ruleSelectorNilUsesHelmValues: false
 
 prometheusOperator:
   admissionWebhooks:
