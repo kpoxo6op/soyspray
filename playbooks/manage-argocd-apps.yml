@@ -24,13 +24,16 @@
 
     - name: Verify and load Telegram token from .env
       block:
+
         - name: Load TELEGRAM_BOT_TOKEN from .env
           set_fact:
             telegram_bot_token: >-
               {{
                 lookup('file', playbook_dir + '/../.env')
-                | regex_findall('TELEGRAM_BOT_TOKEN=([^\n]+)') | first
-                | default([]) | first | default('') | trim
+                | regex_findall('TELEGRAM_BOT_TOKEN=([^\n]+)')
+                | first
+                | default('')
+                | trim
               }}
 
         - name: Debug token length
