@@ -36,9 +36,9 @@ prometheus:
         metrics_path: /metrics
         scrape_interval: 60s
         scrape_timeout: 30s
-    ruleSelector:
-      matchLabels:
-        release: prometheus
+    # ruleSelector:
+    #   matchLabels:
+    #     release: prometheus
 
   additionalServiceMonitors:
     - name: cert-manager
@@ -181,7 +181,7 @@ kubeEtcd:
 
 # https://github.com/onzack/grafana-dashboards/tree/main?tab=readme-ov-file#troubleshooting
 # set back to default "true" to see if it fixes the watchdog
-# ruleSelectorNilUsesHelmValues: false
+ruleSelectorNilUsesHelmValues: true
 
 prometheusOperator:
   admissionWebhooks:
