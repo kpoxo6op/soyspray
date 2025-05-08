@@ -11,53 +11,46 @@
   become_user: root
   serial: 1
   tasks:
-    - name: Ensure kubectl is installed
-      package:
-        name: kubectl
-        state: present
-      when: inventory_hostname == ansible_hostname
-      ignore_errors: true
-      tags:
-        - drain
-        - uncordon
 
-    - name: Drain the node before reboot
+    - name: Drain (respect Longhorn replicas)
       shell: >
         kubectl drain {{ inventory_hostname }}
         --ignore-daemonsets
         --delete-emptydir-data
-        --timeout={{ drain_timeout | default('2m') }}
+        --force
+        --grace-period=30
+        --disable-eviction=true
+        --timeout={{ drain_timeout | default('10m') }}
       delegate_to: "{{ groups['kube_control_plane'][0] }}"
       register: drain_result
-      ignore_errors: true
-      failed_when: false
+      retries: 3
+      delay: 10
+      until: drain_result.rc == 0
       tags: drain
 
-    - name: Show drain result
-      debug:
-        var: drain_result.stdout_lines
-      tags: drain
-      when: drain_result.stdout_lines is defined
-
-    - name: Reboot the node
+    - name: Reboot
       ansible.builtin.reboot:
         msg: "Reboot initiated by Ansible"
-        reboot_timeout: "{{ reboot_timeout | default(300) }}"
+        reboot_timeout: "{{ reboot_timeout | default(600) }}"
       tags: reboot
 
-    - name: Wait for node to be ready after reboot
-      pause:
-        seconds: 30
+    - name: Wait for SSH
+      wait_for_connection:
+        delay: 10
+        timeout: 300
       tags: uncordon
 
-    - name: Uncordon the node after reboot
+    - name: Wait for node to be Ready
+      shell: |
+        kubectl get node {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+      delegate_to: "{{ groups['kube_control_plane'][0] }}"
+      register: node_ready
+      retries: 30
+      delay: 10
+      until: node_ready.stdout == "True"
+      tags: uncordon
+
+    - name: Uncordon
       shell: kubectl uncordon {{ inventory_hostname }}
       delegate_to: "{{ groups['kube_control_plane'][0] }}"
-      register: uncordon_result
       tags: uncordon
-
-    - name: Show uncordon result
-      debug:
-        var: uncordon_result.stdout_lines
-      tags: uncordon
-      when: uncordon_result.stdout_lines is defined

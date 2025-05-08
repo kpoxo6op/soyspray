@@ -8,7 +8,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: "v1.11.0"
+    targetRevision: "v1.11.1"
     path: playbooks/yaml/argocd-apps/longhorn
     kustomize:
   destination:

@@ -32,4 +32,9 @@
 - import_playbook: playbooks/manage-argocd-apps.yml
   tags: longhorn
 
-# Switch-DNS on Window to start using PiHole
+# Switch-DNS to start using PiHole
+# playbooks/yaml/argocd-apps/pihole/switch-dns.sh
+# playbooks/yaml/argocd-apps/pihole/Switch-DNS.ps1
+
+# make go
+# make alist

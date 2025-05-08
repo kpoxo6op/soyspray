@@ -36,6 +36,7 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - >
+              mkdir -p /config/qBittorrent &&
               cp /configmap/qBittorrent.conf /config/qBittorrent/qBittorrent.conf &&
               chown 1000:1000 /config/qBittorrent/qBittorrent.conf;
           volumeMounts:
