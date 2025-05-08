@@ -179,10 +179,6 @@ kube-state-metrics:
 kubeEtcd:
   enabled: false
 
-# https://github.com/onzack/grafana-dashboards/tree/main?tab=readme-ov-file#troubleshooting
-# set back to default "true" to see if it fixes the watchdog
-ruleSelectorNilUsesHelmValues: true
-
 prometheusOperator:
   admissionWebhooks:
     enabled: true
