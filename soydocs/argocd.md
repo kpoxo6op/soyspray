@@ -28,7 +28,7 @@ This command configures ArgoCD with necessary settings:
 3. Without this setting, ServiceMonitors in applications like Prometheus may fail to find their targets
 4. The ArgoCD server deployment is restarted to apply the changes
 
-## How to Apply Argo CD Applicationsw
+## How to Apply Argo CD Applications
 
 ```sh
 cd soyspray

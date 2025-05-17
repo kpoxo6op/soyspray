@@ -3,7 +3,7 @@
 Starting on new machine
 
 ```sh
-git submodule update --init --recursiveddd
+git submodule update --init --recursive
 ```
 
 Get the private key from Enpass
