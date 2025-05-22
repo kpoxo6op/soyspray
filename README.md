@@ -52,3 +52,12 @@ source soyspray-venv/bin/activate
 cd kubespray
 pip install -U -r requirements.txt
 ```
+
+## Testing
+
+Install requirements and run the Flask tests with pytest:
+
+```sh
+pip install -r flask_test/requirements.txt pytest
+pytest flask_test/test_app.py
+```
