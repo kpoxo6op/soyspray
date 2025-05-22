@@ -76,7 +76,7 @@ After adding a new node, especially one with different hardware capabilities tha
 First, collect hardware details of all nodes to understand their capabilities:
 
 ```bash
-./hardware-info.sh > hw-before.txt
+./hw.sh > hw-before.txt
 ```
 
 In our case, this showed:
@@ -116,7 +116,7 @@ Key parameters:
 After running the playbook on each node, collect hardware information again to confirm the rebalancing:
 
 ```bash
-./hardware-info.sh > hw-after.txt
+./hw.sh > hw-after.txt
 ```
 
 ### 4. Results
