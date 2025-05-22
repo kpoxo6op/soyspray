@@ -59,10 +59,10 @@ kubectl get nodes
 
 ### 5. Ensure Node Labels
 
-Run the custom `ensure-node-labels.yml` playbook to apply the correct `worker` role label. This playbook runs from the control plane and updates all nodes, so no `--limit` is needed.
+Run the custom `set-node-labels.yml` playbook to apply the correct `worker` role label. This playbook runs from the control plane and updates all nodes, so no `--limit` is needed.
 
 ```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/ensure-node-labels.yml
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/set-node-labels.yml
 ```
 
 After running, `kubectl get nodes` confirmed `node-3` has the `worker` role.

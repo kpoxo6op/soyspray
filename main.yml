@@ -2,34 +2,34 @@
 ---
 - import_playbook: kubespray/cluster.yml
 
-- import_playbook: playbooks/apply-argocd-ingress.yml
+- import_playbook: playbooks/deploy-argocd-ingress.yml
   tags: argocd
 
-- import_playbook: playbooks/enable-kustomize-argocd.yml
+- import_playbook: playbooks/enable-argocd-kustomize.yml
   tags: argocd
 
-- import_playbook: playbooks/expose-argocd.yml
+- import_playbook: playbooks/publish-argocd-service.yml
   tags: argocd
 
-- import_playbook: playbooks/ensure-node-labels.yml
+- import_playbook: playbooks/set-node-labels.yml
   tags: monitoring,labels
 
-- import_playbook: playbooks/setup-local-volumes.yml
+- import_playbook: playbooks/initialize-local-volumes.yml
   vars:
     skip_confirmation: false
   tags: storage
 
-- import_playbook: playbooks/prepare-longhorn-prereqs.yml
+- import_playbook: playbooks/initialize-longhorn-storage.yml
   vars:
     skip_confirmation: false
   tags: storage
 
-- import_playbook: playbooks/manage-argocd-apps.yml
+- import_playbook: playbooks/deploy-argocd-apps.yml
   tags: cert-manager,external-dns,pihole
 
 - import_playbook: playbooks/sync-certificates.yml
 
-- import_playbook: playbooks/manage-argocd-apps.yml
+- import_playbook: playbooks/deploy-argocd-apps.yml
   tags: longhorn
 
 # Switch-DNS to start using PiHole

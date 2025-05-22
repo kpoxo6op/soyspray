@@ -35,7 +35,7 @@ Created from longhornctl output
 `longhornctl check preflight --kube-config ~/.kube/config`
 
 ```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/prepare-longhorn-prereqs.yml
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/initialize-longhorn-storage.yml
 ```
 
 ## Maintenance and Troubleshooting

@@ -10,7 +10,7 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-u
 
 ```sh
 cd soyspray
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/setup-local-volumes.yml --tags storage
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/initialize-local-volumes.yml --tags storage
 ```
 
 ## How to provision [addons](kubespray/inventory/soycluster/group_vars/k8s_cluster/addons.yml) only
@@ -36,6 +36,6 @@ Run Soyspray Runbook
 
 ```sh
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu main.yml --tags argocd,storage
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/hello-soy.yml
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/manage-argocd-apps.yml --tags pihole
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/show-hello.yml
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml --tags pihole
 ```
