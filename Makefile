@@ -74,6 +74,7 @@ go: argo act ans
 alist:
 	@./scripts/argocd-list.sh "$(COLS)"
 
+
 help:
 	@echo "Available commands:"
 	@echo "  make master      - SSH into master node ($(MASTER_NODE))"
@@ -84,7 +85,6 @@ help:
 	@echo "  make argo        - Login to ArgoCD (argocd.soyspray.vip)"
 	@echo "  make act         - Show command to activate Python virtual environment"
 	@echo "  make ans         - Show Ansible command starter"
-	@echo "  make bal         - Show pod count distribution across nodes"
 	@echo "  make go          - Run argo, act, and ans commands in sequence"
 	@echo "  make alist       - List ArgoCD apps with scripts/argocd-list.sh"
 .PHONY: master worker1 worker2 worker3 help venv act argo install go alist
