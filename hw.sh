@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-NODES=("192.168.1.100" "192.168.1.101" "192.168.1.102" "192.168.1.103")
+NODES=("192.168.1.103")
 USER="ubuntu"
 MAX_PARALLEL=${MAX_PARALLEL:-4}
 SKIP_HEAVY=${SKIP_HEAVY:-0}

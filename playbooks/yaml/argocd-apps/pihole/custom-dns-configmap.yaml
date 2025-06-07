@@ -10,8 +10,8 @@ metadata:
   namespace: pihole
 data:
   custom.list: |
-    192.168.1.100 flask.lan
-    192.168.1.100 flask.soyspray.vip
+    192.168.1.103 flask.lan
+    192.168.1.103 flask.soyspray.vip
     192.168.1.120 alertmanager.soyspray.vip
     192.168.1.120 argocd.soyspray.vip
     192.168.1.120 grafana.soyspray.vip
