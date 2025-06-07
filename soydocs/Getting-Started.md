@@ -45,10 +45,7 @@ Test
 ```sh
 kubectl get nodes
 NAME     STATUS   ROLES           AGE     VERSION
-node-0   Ready    <none>          6m11s   v1.31.4
-node-1   Ready    <none>          6m11s   v1.31.4
-node-2   Ready    <none>          6m11s   v1.31.4
-node-3   Ready    control-plane   7m4s    v1.31.4
+# nodes
 ```
 
 Venv
