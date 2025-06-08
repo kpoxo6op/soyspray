@@ -18,12 +18,14 @@
   tags: storage
 
 - import_playbook: playbooks/deploy-argocd-apps.yml
+  tags: storage
+
+- import_playbook: playbooks/deploy-argocd-apps.yml
   tags: cert-manager,external-dns,pihole
 
 - import_playbook: playbooks/sync-certificates.yml
 
-- import_playbook: playbooks/deploy-argocd-apps.yml
-  tags: longhorn
+
 
 # Switch-DNS to start using PiHole
 # playbooks/yaml/argocd-apps/pihole/switch-dns.sh

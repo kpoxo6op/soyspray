@@ -11,7 +11,7 @@ privileged: false
 
 persistentVolumeClaim:
   enabled: true
-  storageClass: local-storage
+  storageClass: longhorn
   size: 500Mi
   accessModes:
     - ReadWriteOnce
