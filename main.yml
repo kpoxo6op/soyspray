@@ -14,14 +14,7 @@
 - import_playbook: playbooks/set-node-labels.yml
   tags: monitoring,labels
 
-- import_playbook: playbooks/initialize-local-volumes.yml
-  vars:
-    skip_confirmation: false
-  tags: storage
-
 - import_playbook: playbooks/initialize-longhorn-storage.yml
-  vars:
-    skip_confirmation: false
   tags: storage
 
 - import_playbook: playbooks/deploy-argocd-apps.yml
