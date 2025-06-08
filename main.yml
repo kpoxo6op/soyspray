@@ -23,6 +23,7 @@
 - import_playbook: playbooks/deploy-argocd-apps.yml
   tags: cert-manager,external-dns,pihole
 
+# wait certs to be ready
 - import_playbook: playbooks/sync-certificates.yml
 
 
