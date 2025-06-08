@@ -2,7 +2,7 @@
   hosts: kube_control_plane[0]
   gather_facts: false
   tasks:
-    - name: Label control plane nodes
+    - name: Label control plane nodes with both control-plane and worker labels
       kubernetes.core.k8s:
         state: present
         definition:
@@ -12,20 +12,7 @@
             name: "{{ item }}"
             labels:
               node-role.kubernetes.io/control-plane: ""
-      loop: "{{ groups['kube_control_plane'] }}"
-      loop_control:
-        label: "{{ item }}"
-
-    - name: Label worker nodes
-      kubernetes.core.k8s:
-        state: present
-        definition:
-          apiVersion: v1
-          kind: Node
-          metadata:
-            name: "{{ item }}"
-            labels:
               node-role.kubernetes.io/worker: ""
-      loop: "{{ groups['kube_node'] }}"
+      loop: "{{ groups['kube_control_plane'] }}"
       loop_control:
         label: "{{ item }}"
