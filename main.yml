@@ -18,7 +18,7 @@
   tags: storage
 
 - import_playbook: playbooks/deploy-argocd-apps.yml
-  tags: storage
+  tags: longhorn
 
 - import_playbook: playbooks/deploy-argocd-apps.yml
   tags: cert-manager,external-dns,pihole
