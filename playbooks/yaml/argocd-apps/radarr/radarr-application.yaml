@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: "single-node"
+    targetRevision: "v1.12.0"
     path: playbooks/yaml/argocd-apps/radarr
   destination:
     server: https://kubernetes.default.svc
