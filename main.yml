@@ -14,23 +14,19 @@
 - import_playbook: playbooks/set-node-labels.yml
   tags: monitoring,labels
 
-- import_playbook: playbooks/initialize-local-volumes.yml
-  vars:
-    skip_confirmation: false
+- import_playbook: playbooks/initialize-longhorn-storage.yml
   tags: storage
 
-- import_playbook: playbooks/initialize-longhorn-storage.yml
-  vars:
-    skip_confirmation: false
-  tags: storage
+- import_playbook: playbooks/deploy-argocd-apps.yml
+  tags: longhorn
 
 - import_playbook: playbooks/deploy-argocd-apps.yml
   tags: cert-manager,external-dns,pihole
 
+# wait certs to be ready
 - import_playbook: playbooks/sync-certificates.yml
 
-- import_playbook: playbooks/deploy-argocd-apps.yml
-  tags: longhorn
+
 
 # Switch-DNS to start using PiHole
 # playbooks/yaml/argocd-apps/pihole/switch-dns.sh

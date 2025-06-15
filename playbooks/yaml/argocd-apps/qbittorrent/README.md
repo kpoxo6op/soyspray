@@ -1,5 +1,7 @@
 # qBittorrent (Raw K8s Manifests)
 
+admin / 123
+
 This folder contains a minimal raw Kubernetes definition of qBittorrent,
 including:
 
