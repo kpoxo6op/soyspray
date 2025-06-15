@@ -1,5 +1,12 @@
 # Media Diagram
 
+Deployment order:
+
+1. qBittorrent
+1. Prowlarr
+1. Readarr
+1. Calibre-Web
+
 ## User Flow (User-Centric View)
 
 ```sh
