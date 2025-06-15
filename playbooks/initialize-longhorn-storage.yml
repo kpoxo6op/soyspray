@@ -1,72 +1,19 @@
-# ansible/playbooks/prepare-longhorn-prereqs.yml
+# initialize-longhorn-storage.yml
 #
-# WHY USE A PARTITION?
-# 1) Tools like parted/fdisk/Longhorn disk monitor expect a real partition table.
-# 2) A single GPT partition is simplest: parted sees a normal layout, and
-#    you can later resize or repurpose more cleanly.
-# 3) Directly formatting /dev/sda as ext4 (no partition) can cause parted
-#    to see a "loop" device, and may confuse partition-aware utilities.
-
-# HOW TO CALL THIS PLAYBOOK:
-#   ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu \
-#     playbooks/prepare-longhorn-prereqs.yml -e "dry_run=true"
-#
-#   ansible-playbook \
-#     -i kubespray/inventory/soycluster/hosts.yml \
-#     --become --become-user=root --user ubuntu \
-#     --limit node-3 \
-#     playbooks/prepare-longhorn-prereqs.yml \
-#     -e "dry_run=true"
-#
-# To run without confirmation prompt (for automation):
-#   ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu \
-#     playbooks/prepare-longhorn-prereqs.yml -e "skip_confirmation=true"
-#
-# This code prepares Longhorn storage on each node, either "dry run" or real.
-# In real mode, it partitions the disk, creates an ext4 filesystem, and mounts /storage.
+# Ensures /storage is present, mounted, and ready for Longhorn on a single-node setup.
+# Non-destructive: does NOT partition, format, or mount any disks. Assumes /storage is already mounted.
+# Installs required packages and kernel modules for Longhorn.
+# Safe to run multiple times.
 
 - name: Common tasks for every playbook
   import_playbook: ../kubespray/playbooks/boilerplate.yml
 
-- name: Prepare storage for Longhorn
+- name: Prepare storage for Longhorn (single node, /storage only)
   hosts: all
-  serial: 1
-  any_errors_fatal: true
   become: true
   gather_facts: true
 
-  vars:
-    skip_confirm_var: "{{ skip_confirmation | default(false) | bool }}"
-    dry_run_var: "{{ dry_run | default(false) | bool }}"
-    device_map:
-      node-0: /dev/sda
-      node-1: /dev/sda
-      node-2: /dev/sda
-      node-3: /dev/sdb
-
   pre_tasks:
-    - name: Device Preparation Confirmation
-      pause:
-        prompt: >-
-          {% if dry_run_var %}
-          DRY RUN MODE: (No changes will be made.)
-          WARNING: This would erase all data on {{ device_map[inventory_hostname] }}.
-          Type 'yes' to continue.
-          {% else %}
-          WARNING: This will erase all data on {{ device_map[inventory_hostname] }}.
-          Type 'yes' to continue.
-          {% endif %}
-      register: confirmation_prompt
-      run_once: true
-      when: not skip_confirm_var
-
-    - name: Check confirmation
-      fail:
-        msg: "Storage preparation cancelled by user"
-      when:
-        - not skip_confirm_var
-        - confirmation_prompt.user_input | default("") != "yes"
-
     - name: Install required packages
       apt:
         name:
@@ -76,74 +23,6 @@
           - dmsetup
         state: present
         update_cache: yes
-      when: not dry_run_var
-
-    - name: Echo package install (dry-run)
-      debug:
-        msg: "DRY RUN: would install nfs-common, open-iscsi, cryptsetup, dmsetup"
-      when: dry_run_var
-
-    - name: Create multipath configuration
-      copy:
-        dest: /etc/multipath.conf
-        content: |
-          blacklist {
-              devnode "^sd[a-z0-9]+"
-          }
-        mode: "0644"
-      register: multipath_conf
-      when: not dry_run_var
-
-    - name: Restart multipathd if config changed
-      systemd:
-        name: multipathd
-        state: restarted
-        daemon_reload: yes
-      when:
-        - not dry_run_var
-        - multipath_conf.changed
-
-    - name: Echo multipath steps (dry-run)
-      debug:
-        msg: "DRY RUN: would copy /etc/multipath.conf and restart multipathd"
-      when: dry_run_var
-
-    - name: Enable iscsid
-      systemd:
-        name: iscsid
-        state: started
-        enabled: true
-      when: not dry_run_var
-
-    - name: Echo iscsid enabling (dry-run)
-      debug:
-        msg: "DRY RUN: would enable and start iscsid"
-      when: dry_run_var
-
-    - name: Load iscsi_tcp
-      modprobe:
-        name: iscsi_tcp
-        state: present
-      when: not dry_run_var
-
-    - name: Echo iscsi_tcp load (dry-run)
-      debug:
-        msg: "DRY RUN: would load iscsi_tcp module"
-      when: dry_run_var
-
-    - name: Load kernel modules
-      modprobe:
-        name: "{{ item }}"
-        state: present
-      loop:
-        - iscsi_tcp
-        - dm_crypt
-      when: not dry_run_var
-
-    - name: Echo kernel modules load (dry-run)
-      debug:
-        msg: "DRY RUN: would load modules: iscsi_tcp, dm_crypt"
-      when: dry_run_var
 
     - name: Ensure modules load on boot
       copy:
@@ -152,216 +31,42 @@
           iscsi_tcp
           dm_crypt
         mode: "0644"
-      when: not dry_run_var
 
-    - name: Echo modules load on boot (dry-run)
-      debug:
-        msg: "DRY RUN: would create /etc/modules-load.d/longhorn.conf with iscsi_tcp, dm_crypt"
-      when: dry_run_var
+    - name: Load kernel modules
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - iscsi_tcp
+        - dm_crypt
 
   tasks:
-    - name: Lazy-unmount /storage
-      command: umount -l /storage
-      register: umount_rc
-      failed_when: false
-      changed_when: umount_rc.rc == 0
-      when: not dry_run_var
-
-    - name: Ensure /storage is unmounted
-      mount:
-        path: /storage
-        state: unmounted
-      ignore_errors: true
-      when: not dry_run_var
-
-    - name: Clear loop mappings
-      command: losetup -D
-      when: not dry_run_var
-
-    - name: Remove /storage from fstab if exists
-      mount:
-        path: /storage
-        state: absent
-      ignore_errors: true
-      when: not dry_run_var
-
-    - name: Lazy-unmount any partition still mounted
-      shell: |
-        for p in {{ device_map[inventory_hostname] }}*; do
-          mountpoint=$(lsblk -no MOUNTPOINT "$p" 2>/dev/null)
-          [ -n "$mountpoint" ] && umount -lf "$p" || true
-        done
-      when: not dry_run_var
-
-    - name: Echo unmount + remove from fstab (dry-run)
-      debug:
-        msg: "DRY RUN: would unmount /storage, detach loop, and remove fstab entry"
-      when: dry_run_var
-
-    - name: Check if disk or its partitions are still in use
-      shell: |
-        lsof -n | grep -qE '^.* ({{ device_map[inventory_hostname] }}(|[0-9]+)) ' && echo busy || echo free
-      register: dev_state
-      changed_when: false
-      when: not dry_run_var
-
-    - name: Abort because the disk is still busy
-      fail:
-        msg: |
-          {{ device_map[inventory_hostname] }} (or one of its partitions) is still open.
-          Drain / detach the node from Longhorn, then rerun the playbook.
-      when:
-        - not dry_run_var
-        - dev_state.stdout == 'busy'
-
-    - name: Wipe existing filesystem signatures (force)
-      command: wipefs -f -a {{ device_map[inventory_hostname] }}
-      when: not dry_run_var
-
-    - name: Echo wipefs (dry-run)
-      debug:
-        msg: "DRY RUN: would run wipefs -f -a {{ device_map[inventory_hostname] }}"
-      when: dry_run_var
-
-    - name: Wait for device changes to settle (tolerate watch-limit error)
-      shell: udevadm settle --timeout=10
-      register: settle_rc
-      changed_when: false
-      failed_when: false
-      when: not dry_run_var
-
-    - name: Warn if udevadm settle failed
-      debug:
-        msg: >
-          udevadm settle reported an error (usually 'Too many open files').
-          Continuing anyway because this node's udev watch limit is exhausted.
-      when:
-        - not dry_run_var
-        - settle_rc.rc != 0
-
-    - name: Create GPT and single ext4 partition
-      parted:
-        device: "{{ device_map[inventory_hostname] }}"
-        label: gpt
-        number: 1
-        part_type: primary
-        fs_type: ext4
-        part_start: "0%"
-        part_end: "100%"
-        state: present
-      when: not dry_run_var
-
-    - name: Echo partition create (dry-run)
-      debug:
-        msg: "DRY RUN: would create GPT label and primary ext4 partition #1 on {{ device_map[inventory_hostname] }} covering 0-100%"
-      when: dry_run_var
-
-    - name: Set partition path fact
-      set_fact:
-        new_partition: "{{ device_map[inventory_hostname] }}1"
-
-    - name: Create ext4 filesystem on the new partition
-      filesystem:
-        dev: "{{ new_partition }}"
-        fstype: ext4
-        force: yes
-      when: not dry_run_var
-
-    - name: Echo mkfs (dry-run)
-      debug:
-        msg: "DRY RUN: would run mkfs.ext4 on {{ new_partition }}"
-      when: dry_run_var
-
-    - name: Ensure /storage directory
+    - name: Ensure /storage directory exists
       file:
         path: /storage
         state: directory
-        mode: "0755"
-
-    - name: Mount partition to /storage
-      mount:
-        path: /storage
-        src: "{{ new_partition }}"
-        fstype: ext4
-        state: mounted
-      when: not dry_run_var
-
-    - name: Echo mount (dry-run)
-      debug:
-        msg: "DRY RUN: would mount {{ new_partition }} to /storage"
-      when: dry_run_var
-
-    - name: Persist fstab
-      mount:
-        path: /storage
-        src: "{{ new_partition }}"
-        fstype: ext4
-        opts: defaults
-        dump: 0
-        passno: 0
-        state: present
-      when: not dry_run_var
-
-    - name: Echo fstab (dry-run)
-      debug:
-        msg: "DRY RUN: would add /storage entry in /etc/fstab for {{ new_partition }}"
-      when: dry_run_var
-
-    - name: Set ownership and permissions
-      file:
-        path: /storage
         owner: root
         group: root
         mode: "0755"
-        state: directory
-      when: not dry_run_var
 
-    - name: Echo perms (dry-run)
+    - name: Check if /storage is mounted
+      command: mountpoint /storage
+      register: storage_mounted
+      ignore_errors: true
+      changed_when: false
+
+    - name: Fail with friendly message if /storage is not mounted
+      fail:
+        msg: |
+          /storage is NOT mounted!
+          Please ensure /storage is mounted (e.g., via /etc/fstab) before running Longhorn.
+          Example fstab entry:
+            /dev/sdb1 /storage ext4 defaults 0 0
+      when: storage_mounted.rc != 0
+
+    - name: Display verification results
       debug:
-        msg: "DRY RUN: would set ownership and permissions on /storage"
-      when: dry_run_var
-
-    # Verification
-    - name: Verify storage setup
-      block:
-        - name: Get filesystem info
-          command: df -h /storage
-          register: df_output
-          changed_when: false
-
-        - name: Get mount info
-          shell: "mount | grep /storage"
-          register: mount_output
-          ignore_errors: true
-          changed_when: false
-
-        - name: Get fstab entry
-          shell: "grep /storage /etc/fstab"
-          register: fstab_output
-          ignore_errors: true
-          changed_when: false
-
-        - name: Get directory permissions
-          command: ls -ld /storage
-          register: ls_output
-          ignore_errors: true
-          changed_when: false
-
-        - name: Display verification results
-          debug:
-            msg: |
-              Storage Setup Verification:
-              ---------------------------
-              1. Filesystem Usage:
-              {{ df_output.stdout }}
-
-              2. Mount Information:
-              {{ mount_output.stdout | default('No mount info found') }}
-
-              3. Fstab Configuration:
-              {{ fstab_output.stdout | default('No fstab entry found') }}
-
-              4. Directory Permissions:
-              {{ ls_output.stdout | default('Directory permissions not available') }}
-
-              Storage is ready for Longhorn!
+        msg: |
+          /storage is present and mounted:
+          {{ storage_mounted.stdout }}
+      when: storage_mounted.rc == 0

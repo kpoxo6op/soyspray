@@ -87,6 +87,7 @@ service:
 
 metrics:
   serviceMonitor:
+  # manual flip required from false to true when prometheus is ready
     enabled: true
     additionalLabels:
       release: kube-prometheus-stack
