@@ -48,8 +48,6 @@ configMapGenerator:
       disableNameSuffixHash: true
 ```
 
-Remove the old hand‑written `tracker-payloads-cm.yaml`.
-
 **Verify (GitOps style)**
 
 ```bash
