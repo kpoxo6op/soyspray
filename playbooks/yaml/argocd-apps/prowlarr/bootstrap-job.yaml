@@ -34,13 +34,20 @@ spec:
         - -c
         - |
           set -euo pipefail
+          echo "🐍 Setting up Python environment..."
+          # Create home directory for pip user installs
+          mkdir -p /tmp/home/.local
+          export HOME=/tmp/home
+          export PATH="/tmp/home/.local/bin:$PATH"
           echo "🐍 Installing Python dependencies..."
-          pip install --no-cache-dir -r /scripts/requirements.txt
+          pip install --user --no-cache-dir -r /scripts/requirements.txt
           echo "🚀 Starting bootstrap script..."
           python3 /scripts/bootstrap.py
 
         # Environment variables from secrets
         env:
+        - name: HOME
+          value: "/tmp/home"
         - name: PROWLARR_API_KEY
           valueFrom:
             secretKeyRef:
