@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "v1.12.0"
+    targetRevision: "feature/prowlarr-indexers-automation"
     path: playbooks/yaml/argocd-apps/prowlarr
   destination:
     server: "https://kubernetes.default.svc"
