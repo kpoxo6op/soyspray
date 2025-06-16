@@ -1,0 +1,50 @@
+{
+  "name": "MyAnonamouse",
+  "implementation": "MyAnonamouse",
+  "implementationName": "MyAnonamouse",
+  "infoLink": "https://wiki.servarr.com/prowlarr/supported-indexers#myanonamouse",
+  "configContract": "MyAnonamouseSettings",
+  "enable": true,
+  "redirect": false,
+  "supportsRss": true,
+  "supportsSearch": true,
+  "protocol": "torrent",
+  "priority": 25,
+  "downloadClientId": 0,
+  "appProfileId": 1,
+  "tags": [],
+  "fields": [
+    {
+      "name": "baseUrl",
+      "value": "https://www.myanonamouse.net/"
+    },
+    {
+      "name": "mamId",
+      "value": "MYANONAMOUSE_SESSION_ID"
+    },
+    {
+      "name": "searchType",
+      "value": 0
+    },
+    {
+      "name": "searchInDescription",
+      "value": false
+    },
+    {
+      "name": "searchInSeries",
+      "value": false
+    },
+    {
+      "name": "searchInFilenames",
+      "value": false
+    },
+    {
+      "name": "searchLanguages",
+      "value": []
+    },
+    {
+      "name": "useFreeleechWedge",
+      "value": 0
+    }
+  ]
+}

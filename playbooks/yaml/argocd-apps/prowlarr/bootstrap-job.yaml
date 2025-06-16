@@ -1,0 +1,110 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: prowlarr-bootstrap
+  namespace: media
+  labels:
+    app: prowlarr
+    component: bootstrap
+  annotations:
+    # ArgoCD PostSync Hook - runs after main resources are synced
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  # Clean up completed jobs after 24 hours
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: prowlarr
+        component: bootstrap
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: bootstrap
+        # Use Python 3.11 slim image for efficiency
+        image: python:3.11-slim
+
+        # Set working directory
+        workingDir: /app
+
+        # Command to install dependencies and run bootstrap
+        command:
+        - /bin/bash
+        - -c
+        - |
+          set -euo pipefail
+          echo "🐍 Setting up Python environment..."
+          # Create home directory for pip user installs
+          mkdir -p /tmp/home/.local
+          export HOME=/tmp/home
+          export PATH="/tmp/home/.local/bin:$PATH"
+          echo "🐍 Installing Python dependencies..."
+          pip install --user --no-cache-dir -r /scripts/requirements.txt
+          echo "🚀 Starting bootstrap script..."
+          python3 /scripts/bootstrap.py
+
+        # Environment variables from secrets
+        env:
+        - name: HOME
+          value: "/tmp/home"
+        - name: PROWLARR_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: prowlarr-secrets
+              key: PROWLARR_API_KEY
+        - name: RUTRACKER_USER
+          valueFrom:
+            secretKeyRef:
+              name: prowlarr-secrets
+              key: RUTRACKER_USER
+        - name: RUTRACKER_PASS
+          valueFrom:
+            secretKeyRef:
+              name: prowlarr-secrets
+              key: RUTRACKER_PASS
+        - name: MYANONAMOUSE_SESSION_ID
+          valueFrom:
+            secretKeyRef:
+              name: prowlarr-secrets
+              key: MYANONAMOUSE_SESSION_ID
+
+        # Resource limits for the bootstrap job
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+
+        # Volume mounts
+        volumeMounts:
+        - name: payloads
+          mountPath: /payloads
+          readOnly: true
+        - name: scripts
+          mountPath: /scripts
+          readOnly: true
+
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+
+      # Volumes
+      volumes:
+      - name: payloads
+        configMap:
+          name: prowlarr-payloads
+          defaultMode: 0644
+      - name: scripts
+        configMap:
+          name: prowlarr-bootstrap-scripts
+          defaultMode: 0755  # Make scripts executable

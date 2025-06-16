@@ -272,6 +272,99 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/calibre-web/calibre-web-application.yaml') }}"
       tags: calibre-web
 
+    # Verify and load Prowlarr secrets from .env
+    - name: Verify and load Prowlarr secrets from .env
+      block:
+        - name: Load PROWLARR_API_KEY from .env
+          set_fact:
+            prowlarr_api_key: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('PROWLARR_API_KEY=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load RUTRACKER_USER from .env
+          set_fact:
+            rutracker_user: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('RUTRACKER_USER=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load RUTRACKER_PASS from .env
+          set_fact:
+            rutracker_pass: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('RUTRACKER_PASS=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load MYANONAMOUSE_SESSION_ID from .env
+          set_fact:
+            mam_session_id: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('MYANONAMOUSE_SESSION_ID=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Validate Prowlarr secrets
+          fail:
+            msg: "{{ item.name }} is empty/missing in .env file"
+          when: item.value | length == 0
+          loop:
+            - { name: "PROWLARR_API_KEY", value: "{{ prowlarr_api_key }}" }
+            - { name: "RUTRACKER_USER", value: "{{ rutracker_user }}" }
+            - { name: "RUTRACKER_PASS", value: "{{ rutracker_pass }}" }
+            - { name: "MYANONAMOUSE_SESSION_ID", value: "{{ mam_session_id }}" }
+      rescue:
+        - name: Fail with helpful message
+          fail:
+            msg: "Error: .env file not found or Prowlarr secrets invalid"
+      tags: prowlarr
+
+    # Create namespace for Prowlarr
+    - name: Create media namespace
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: media
+      tags: prowlarr
+
+    # Create Prowlarr secrets
+    - name: Create Prowlarr secrets
+      kubernetes.core.k8s:
+        state: present
+        namespace: media
+        kubeconfig: "{{ kubeconfig_path }}"
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: prowlarr-secrets
+            namespace: media
+          data:
+            PROWLARR_API_KEY: "{{ prowlarr_api_key | b64encode }}"
+            RUTRACKER_USER: "{{ rutracker_user | b64encode }}"
+            RUTRACKER_PASS: "{{ rutracker_pass | b64encode }}"
+            MYANONAMOUSE_SESSION_ID: "{{ mam_session_id | b64encode }}"
+      tags: prowlarr
+
     - name: Apply Prowlarr
       kubernetes.core.k8s:
         state: present
