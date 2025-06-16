@@ -89,14 +89,6 @@ git push && argocd app sync prowlarr
 kubectl -n media logs -f job/prowlarr-bootstrap   # until ✔︎ messages appear
 ```
 
-## Step 6 – Final Kustomize Inventory Check
-
-Run a full render to confirm all objects are tracked:
-
-```bash
-kubectl kustomize playbooks/yaml/argocd-apps/prowlarr | grep -E "kind:|name:"
-```
-
 ## Adding Another Tracker
 
 1. Export JSON from Prowlarr UI.
