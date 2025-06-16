@@ -308,6 +308,17 @@
                 | trim
               }}
 
+        - name: Load MYANONAMOUSE_SESSION_ID from .env
+          set_fact:
+            mam_session_id: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('MYANONAMOUSE_SESSION_ID=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
         - name: Validate Prowlarr secrets
           fail:
             msg: "{{ item.name }} is empty/missing in .env file"
@@ -316,6 +327,7 @@
             - { name: "PROWLARR_API_KEY", value: "{{ prowlarr_api_key }}" }
             - { name: "RUTRACKER_USER", value: "{{ rutracker_user }}" }
             - { name: "RUTRACKER_PASS", value: "{{ rutracker_pass }}" }
+            - { name: "MYANONAMOUSE_SESSION_ID", value: "{{ mam_session_id }}" }
       rescue:
         - name: Fail with helpful message
           fail:
@@ -350,6 +362,7 @@
             PROWLARR_API_KEY: "{{ prowlarr_api_key | b64encode }}"
             RUTRACKER_USER: "{{ rutracker_user | b64encode }}"
             RUTRACKER_PASS: "{{ rutracker_pass | b64encode }}"
+            MYANONAMOUSE_SESSION_ID: "{{ mam_session_id | b64encode }}"
       tags: prowlarr
 
     - name: Apply Prowlarr

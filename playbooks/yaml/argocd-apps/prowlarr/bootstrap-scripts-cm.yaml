@@ -329,6 +329,12 @@ data:
                     field["value"] = self.rutracker_user
                 elif field.get("name") == "password":
                     field["value"] = self.rutracker_pass
+                elif field.get("name") == "mamId":
+                    mam_session_id = os.getenv("MYANONAMOUSE_SESSION_ID")
+                    if mam_session_id:
+                        field["value"] = mam_session_id.strip()
+                    else:
+                        self.log_warning("MYANONAMOUSE_SESSION_ID not found in environment")
 
             return processed_data
 

@@ -63,6 +63,11 @@ spec:
             secretKeyRef:
               name: prowlarr-secrets
               key: RUTRACKER_PASS
+        - name: MYANONAMOUSE_SESSION_ID
+          valueFrom:
+            secretKeyRef:
+              name: prowlarr-secrets
+              key: MYANONAMOUSE_SESSION_ID
 
         # Resource limits for the bootstrap job
         resources:
