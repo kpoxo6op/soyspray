@@ -8,6 +8,7 @@ resources:
   - service.yaml
   - deployment.yaml
   - initial-config-configmap.yaml
+  - bootstrap-scripts-cm.yaml
 
 configMapGenerator:
   - name: prowlarr-payloads

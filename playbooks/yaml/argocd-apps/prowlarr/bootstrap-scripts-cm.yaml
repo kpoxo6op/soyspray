@@ -1,0 +1,475 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prowlarr-bootstrap-scripts
+  namespace: media
+  labels:
+    app: prowlarr
+data:
+  bootstrap.py: |
+    #!/usr/bin/env python3
+    """
+    =======================================================
+    Prowlarr Tracker Bootstrap Script (Python Edition)
+    =======================================================
+
+    This script imports tracker configurations into Prowlarr.
+    It reads JSON payloads and replaces placeholders with
+    actual credentials from Kubernetes secrets.
+
+    Python advantages used:
+    - Clean exception handling
+    - Rich JSON manipulation
+    - Type hints for clarity
+    - Structured logging
+    - Object-oriented design
+    - Better HTTP client (requests)
+    =======================================================
+    """
+
+    import json
+    import os
+    import sys
+    import time
+    from pathlib import Path
+    from typing import Dict, List, Optional, Tuple
+
+    import requests
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
+
+
+    class ProwlarrBootstrap:
+        """
+        Main class for bootstrapping Prowlarr tracker configurations.
+
+        This class handles the entire workflow:
+        1. Environment validation
+        2. Prowlarr health checks
+        3. Tracker existence checks
+        4. Credential substitution
+        5. Tracker import via API
+        """
+
+        def __init__(self):
+            # Configuration constants
+            self.PROWLARR_URL = "http://prowlarr.media.svc.cluster.local:9696"
+            self.PAYLOADS_DIR = Path("/payloads")
+            self.MAX_RETRIES = 30
+            self.RETRY_DELAY = 10
+            self.API_TIMEOUT = 30
+
+            # Initialize HTTP session with retry strategy
+            self.session = self._create_http_session()
+
+            # Environment variables (loaded during validation)
+            self.api_key: Optional[str] = None
+            self.rutracker_user: Optional[str] = None
+            self.rutracker_pass: Optional[str] = None
+
+        def _create_http_session(self) -> requests.Session:
+            """Create HTTP session with retry strategy and timeouts."""
+            session = requests.Session()
+
+            # Configure retry strategy
+            retry_strategy = Retry(
+                total=3,
+                backoff_factor=1,
+                status_forcelist=[429, 500, 502, 503, 504],
+            )
+
+            adapter = HTTPAdapter(max_retries=retry_strategy)
+            session.mount("http://", adapter)
+            session.mount("https://", adapter)
+
+            return session
+
+        # =======================================================
+        # Logging Methods (with emojis for visual clarity)
+        # =======================================================
+
+        @staticmethod
+        def log_info(message: str) -> None:
+            """Log informational message."""
+            print(f"ℹ️  {message}")
+
+        @staticmethod
+        def log_success(message: str) -> None:
+            """Log success message."""
+            print(f"✅ {message}")
+
+        @staticmethod
+        def log_error(message: str) -> None:
+            """Log error message to stderr."""
+            print(f"❌ {message}", file=sys.stderr)
+
+        @staticmethod
+        def log_warning(message: str) -> None:
+            """Log warning message."""
+            print(f"⚠️  {message}")
+
+        # =======================================================
+        # Environment & Validation Methods
+        # =======================================================
+
+        def validate_environment(self) -> bool:
+            """
+            Validate all required environment variables are present.
+
+            Returns:
+                bool: True if all required variables are set
+            """
+            self.log_info("Validating environment variables...")
+
+            required_vars = {
+                'PROWLARR_API_KEY': 'api_key',
+                'RUTRACKER_USER': 'rutracker_user',
+                'RUTRACKER_PASS': 'rutracker_pass'
+            }
+
+            missing_vars = []
+
+            for env_var, attr_name in required_vars.items():
+                value = os.getenv(env_var)
+                if not value:
+                    missing_vars.append(env_var)
+                else:
+                    setattr(self, attr_name, value.strip())
+
+            if missing_vars:
+                self.log_error(f"Missing required environment variables: {', '.join(missing_vars)}")
+                return False
+
+            self.log_success("All required environment variables are set")
+            return True
+
+        def validate_payloads_directory(self) -> bool:
+            """
+            Check if payloads directory exists and is accessible.
+
+            Returns:
+                bool: True if directory exists and is readable
+            """
+            if not self.PAYLOADS_DIR.exists():
+                self.log_error(f"Payloads directory not found: {self.PAYLOADS_DIR}")
+                return False
+
+            if not self.PAYLOADS_DIR.is_dir():
+                self.log_error(f"Payloads path is not a directory: {self.PAYLOADS_DIR}")
+                return False
+
+            self.log_success(f"Payloads directory verified: {self.PAYLOADS_DIR}")
+            return True
+
+        # =======================================================
+        # Prowlarr API Methods
+        # =======================================================
+
+        def wait_for_prowlarr_ready(self) -> bool:
+            """
+            Wait for Prowlarr to become ready and responsive.
+
+            Returns:
+                bool: True if Prowlarr becomes ready within retry limit
+            """
+            self.log_info("Waiting for Prowlarr to be ready...")
+
+            headers = {"X-Api-Key": self.api_key}
+
+            for attempt in range(1, self.MAX_RETRIES + 1):
+                try:
+                    response = self.session.get(
+                        f"{self.PROWLARR_URL}/api/v1/system/status",
+                        headers=headers,
+                        timeout=self.API_TIMEOUT
+                    )
+
+                    if response.status_code == 200:
+                        self.log_success("Prowlarr is ready!")
+                        return True
+
+                except requests.exceptions.RequestException as e:
+                    self.log_info(f"Attempt {attempt}/{self.MAX_RETRIES} - Connection failed: {e}")
+
+                if attempt < self.MAX_RETRIES:
+                    self.log_info(f"Waiting {self.RETRY_DELAY}s before next attempt...")
+                    time.sleep(self.RETRY_DELAY)
+
+            self.log_error(f"Prowlarr failed to become ready after {self.MAX_RETRIES} attempts")
+            return False
+
+        def get_existing_trackers(self) -> Optional[List[Dict]]:
+            """
+            Fetch list of existing trackers from Prowlarr.
+
+            Returns:
+                Optional[List[Dict]]: List of existing trackers, or None on error
+            """
+            try:
+                response = self.session.get(
+                    f"{self.PROWLARR_URL}/api/v1/indexer",
+                    headers={"X-Api-Key": self.api_key},
+                    timeout=self.API_TIMEOUT
+                )
+                response.raise_for_status()
+                return response.json()
+
+            except requests.exceptions.RequestException as e:
+                self.log_warning(f"Failed to fetch existing trackers: {e}")
+                return None
+
+        def tracker_exists(self, tracker_name: str) -> bool:
+            """
+            Check if a tracker with the given name already exists.
+
+            Args:
+                tracker_name: Name of the tracker to check
+
+            Returns:
+                bool: True if tracker exists, False otherwise
+            """
+            self.log_info(f"Checking if tracker '{tracker_name}' already exists...")
+
+            existing_trackers = self.get_existing_trackers()
+            if existing_trackers is None:
+                self.log_warning("Could not check existing trackers")
+                return False
+
+            for tracker in existing_trackers:
+                if tracker.get("name") == tracker_name:
+                    self.log_info(f"Tracker '{tracker_name}' already exists")
+                    return True
+
+            self.log_info(f"Tracker '{tracker_name}' does not exist")
+            return False
+
+        def import_tracker(self, payload_data: Dict) -> bool:
+            """
+            Import a tracker configuration via Prowlarr API.
+
+            Args:
+                payload_data: Processed tracker configuration dictionary
+
+            Returns:
+                bool: True if import successful, False otherwise
+            """
+            tracker_name = payload_data.get("name", "Unknown")
+            self.log_info(f"Importing tracker: {tracker_name}")
+
+            try:
+                response = self.session.post(
+                    f"{self.PROWLARR_URL}/api/v1/indexer",
+                    headers={
+                        "Content-Type": "application/json",
+                        "X-Api-Key": self.api_key
+                    },
+                    json=payload_data,
+                    timeout=self.API_TIMEOUT
+                )
+
+                if response.status_code in (200, 201):
+                    self.log_success(f"Successfully imported tracker: {tracker_name}")
+                    return True
+                else:
+                    self.log_error(f"Failed to import {tracker_name} (HTTP {response.status_code})")
+                    try:
+                        error_detail = response.json()
+                        self.log_error(f"Response: {json.dumps(error_detail, indent=2)}")
+                    except json.JSONDecodeError:
+                        self.log_error(f"Response text: {response.text}")
+                    return False
+
+            except requests.exceptions.RequestException as e:
+                self.log_error(f"Failed to send import request for {tracker_name}: {e}")
+                return False
+
+        # =======================================================
+        # Payload Processing Methods
+        # =======================================================
+
+        def load_payload_file(self, file_path: Path) -> Optional[Dict]:
+            """
+            Load and validate JSON payload from file.
+
+            Args:
+                file_path: Path to the JSON payload file
+
+            Returns:
+                Optional[Dict]: Parsed JSON data, or None on error
+            """
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                return data
+
+            except json.JSONDecodeError as e:
+                self.log_error(f"Invalid JSON in {file_path.name}: {e}")
+                return None
+            except IOError as e:
+                self.log_error(f"Could not read {file_path.name}: {e}")
+                return None
+
+        def substitute_credentials(self, payload_data: Dict) -> Dict:
+            """
+            Replace credential placeholders with actual values.
+
+            Args:
+                payload_data: Original payload data with placeholders
+
+            Returns:
+                Dict: Payload with credentials substituted
+            """
+            # Deep copy to avoid modifying original
+            processed_data = json.loads(json.dumps(payload_data))
+
+            # Find and replace credential fields
+            fields = processed_data.get("fields", [])
+            for field in fields:
+                if field.get("name") == "username":
+                    field["value"] = self.rutracker_user
+                elif field.get("name") == "password":
+                    field["value"] = self.rutracker_pass
+
+            return processed_data
+
+        def process_tracker_file(self, file_path: Path) -> bool:
+            """
+            Process a single tracker payload file.
+
+            Args:
+                file_path: Path to the tracker JSON file
+
+            Returns:
+                bool: True if processing successful, False otherwise
+            """
+            self.log_info(f"Processing payload file: {file_path.name}")
+
+            # Load and validate JSON
+            payload_data = self.load_payload_file(file_path)
+            if payload_data is None:
+                return False
+
+            # Extract tracker name
+            tracker_name = payload_data.get("name")
+            if not tracker_name:
+                self.log_error(f"Could not extract tracker name from {file_path.name}")
+                return False
+
+            self.log_info(f"Processing tracker: {tracker_name}")
+
+            # Check if tracker already exists
+            if self.tracker_exists(tracker_name):
+                self.log_warning(f"Skipping {tracker_name} - already configured")
+                return True  # Not an error, just skipped
+
+            # Substitute credentials
+            self.log_info(f"Substituting credentials for {tracker_name}...")
+            processed_payload = self.substitute_credentials(payload_data)
+
+            # Import the tracker
+            return self.import_tracker(processed_payload)
+
+        def find_payload_files(self) -> List[Path]:
+            """
+            Find all JSON payload files in the payloads directory.
+
+            Returns:
+                List[Path]: List of JSON file paths
+            """
+            json_files = list(self.PAYLOADS_DIR.glob("*.json"))
+
+            if not json_files:
+                self.log_warning("No JSON payload files found")
+                return []
+
+            self.log_info("Found JSON payload files:")
+            for file_path in json_files:
+                self.log_info(f"  - {file_path.name}")
+
+            return json_files
+
+        # =======================================================
+        # Main Execution Method
+        # =======================================================
+
+        def run(self) -> bool:
+            """
+            Main execution method that orchestrates the entire bootstrap process.
+
+            Returns:
+                bool: True if bootstrap completed successfully
+            """
+            self.log_success("🚀 Starting Prowlarr Tracker Bootstrap (Python Edition)")
+            self.log_info(f"📍 Prowlarr URL: {self.PROWLARR_URL}")
+            self.log_info(f"📂 Payloads directory: {self.PAYLOADS_DIR}")
+
+            # Step 1: Validate environment
+            if not self.validate_environment():
+                return False
+
+            # Step 2: Validate payloads directory
+            if not self.validate_payloads_directory():
+                return False
+
+            # Step 3: Wait for Prowlarr to be ready
+            if not self.wait_for_prowlarr_ready():
+                return False
+
+            # Step 4: Find payload files
+            payload_files = self.find_payload_files()
+            if not payload_files:
+                self.log_warning("No payload files to process")
+                return True  # Not an error
+
+            # Step 5: Process each payload file
+            success_count = 0
+            total_count = len(payload_files)
+
+            for i, file_path in enumerate(payload_files, 1):
+                self.log_info("─" * 50)
+                self.log_info(f"Processing file {i}/{total_count}: {file_path.name}")
+
+                if self.process_tracker_file(file_path):
+                    success_count += 1
+                else:
+                    self.log_warning(f"Failed to process {file_path.name}")
+
+            # Step 6: Report results
+            self.log_info("═" * 50)
+            self.log_success("Bootstrap completed!")
+            self.log_success(f"Successfully processed: {success_count}/{total_count} trackers")
+
+            if success_count == total_count:
+                self.log_success("All trackers processed successfully! 🎉")
+                return True
+            else:
+                self.log_warning("Some trackers failed to import")
+                return False
+
+
+    def main() -> int:
+        """
+        Main entry point for the script.
+
+        Returns:
+            int: Exit code (0 for success, 1 for failure)
+        """
+        try:
+            bootstrap = ProwlarrBootstrap()
+            success = bootstrap.run()
+            return 0 if success else 1
+
+        except KeyboardInterrupt:
+            ProwlarrBootstrap.log_warning("Bootstrap interrupted by user")
+            return 1
+        except Exception as e:
+            ProwlarrBootstrap.log_error(f"Unexpected error: {e}")
+            return 1
+
+
+    if __name__ == "__main__":
+        sys.exit(main())
+
+  requirements.txt: |
+    requests==2.31.0
+    urllib3==2.0.7
