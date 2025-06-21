@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "feature/readarr-prowlarr-integration"
+    targetRevision: "v1.15.0"
     path: playbooks/yaml/argocd-apps/prowlarr
   destination:
     server: "https://kubernetes.default.svc"
