@@ -1,0 +1,58 @@
+# playbooks/yaml/argocd-apps/readarr/bootstrap-scripts-cm.yaml
+# ConfigMap with a single, minimal shell bootstrap script that uses curl + jq
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: readarr-bootstrap-scripts
+  namespace: media
+  labels:
+    app: readarr
+data:
+  bootstrap.sh: |
+    #!/usr/bin/env sh
+    set -eu
+    API="http://readarr.media.svc.cluster.local:8787"
+    API_KEY="a85bb8f2ab19425f9c8c0bbc6f0aa29c"
+
+    echo "=== DEBUG: Readarr qBittorrent Bootstrap ==="
+    echo "API Endpoint: $API"
+    echo "API Key: $API_KEY"
+    echo "============================================="
+
+    echo "=== Processing qBittorrent Download Client ==="
+    echo "Checking if qBittorrent already exists..."
+
+    echo "Full curl command for checking existing clients:"
+    echo "curl -sS -H \"X-Api-Key: $API_KEY\" \"$API/api/v1/downloadclient\""
+    echo
+
+    EXISTING_CLIENTS=$(curl -sS -H "X-Api-Key: $API_KEY" "$API/api/v1/downloadclient")
+    echo "Existing download clients response:"
+    echo "$EXISTING_CLIENTS"
+    echo
+
+    if echo "$EXISTING_CLIENTS" | jq -e '.[] | select(.name == "qBittorrent")' > /dev/null 2>&1; then
+      echo "✓ qBittorrent already exists, skipping..."
+    else
+      echo "Adding qBittorrent download client..."
+      echo "Original payload:"
+      cat /payloads/qbittorrent.json
+      echo
+      echo "Full curl command for adding client:"
+      echo "curl -sS -H \"X-Api-Key: $API_KEY\" -H \"Content-Type: application/json\" -X POST \"$API/api/v1/downloadclient\" --data @/payloads/qbittorrent.json"
+      echo
+      echo "Making API call..."
+      RESPONSE=$(curl -sS -H "X-Api-Key: $API_KEY" -H "Content-Type: application/json" -X POST "$API/api/v1/downloadclient" --data @/payloads/qbittorrent.json)
+      echo "Response:"
+      echo "$RESPONSE"
+      echo
+    fi
+    echo "=============================================="
+
+    echo "=== Final verification ==="
+    echo "All download clients after bootstrap:"
+    curl -sS -H "X-Api-Key: $API_KEY" "$API/api/v1/downloadclient" | jq '.[] | {id: .id, name: .name, enable: .enable}'
+    echo
+
+    echo "=== Bootstrap completed ==="

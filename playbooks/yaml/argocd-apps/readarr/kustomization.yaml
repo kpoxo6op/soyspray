@@ -6,3 +6,13 @@ resources:
   - service.yaml
   - deployment.yaml
   - initial-config-configmap.yaml
+  - bootstrap-scripts-cm.yaml
+  - bootstrap-job.yaml
+
+configMapGenerator:
+  - name: readarr-payloads
+    namespace: media
+    files:
+      - qbittorrent.json=qbittorrent_payload.json
+    options:
+      disableNameSuffixHash: true

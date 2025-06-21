@@ -1,0 +1,61 @@
+{
+  "enable": true,
+  "priority": 1,
+  "removeCompletedDownloads": false,
+  "removeFailedDownloads": true,
+  "name": "qBittorrent",
+  "fields": [
+    {
+      "name": "host",
+      "value": "qbittorrent.media.svc.cluster.local"
+    },
+    {
+      "name": "port",
+      "value": 8080
+    },
+    {
+      "name": "useSsl",
+      "value": false
+    },
+    {
+      "name": "urlBase"
+    },
+    {
+      "name": "username",
+      "value": "admin"
+    },
+    {
+      "name": "password",
+      "value": "123"
+    },
+    {
+      "name": "category",
+      "value": "readarr"
+    },
+    {
+      "name": "recentTvPriority",
+      "value": 0
+    },
+    {
+      "name": "olderTvPriority",
+      "value": 0
+    },
+    {
+      "name": "initialState",
+      "value": 0
+    },
+    {
+      "name": "sequentialOrder",
+      "value": false
+    },
+    {
+      "name": "firstAndLast",
+      "value": false
+    }
+  ],
+  "implementationName": "qBittorrent",
+  "implementation": "QBittorrent",
+  "configContract": "QBittorrentSettings",
+  "infoLink": "https://wiki.servarr.com/readarr/supported#qbittorrent",
+  "tags": []
+}
