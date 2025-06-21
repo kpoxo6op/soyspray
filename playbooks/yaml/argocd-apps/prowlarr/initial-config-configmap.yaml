@@ -3,6 +3,10 @@ kind: ConfigMap
 metadata:
   name: prowlarr-initial-config
   namespace: media
+  labels:
+    app: prowlarr
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 data:
   config.xml: |-
     <Config>

@@ -18,6 +18,7 @@ spec:
     metadata:
       labels:
         app: prowlarr
+        component: main
     spec:
       initContainers:
         - name: seed-config
