@@ -17,6 +17,7 @@ spec:
     metadata:
       labels:
         app: readarr
+        component: main
     spec:
       initContainers:
         - name: seed-config
