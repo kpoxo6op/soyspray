@@ -20,11 +20,11 @@
     },
     {
       "name": "username",
-      "value": "ACTUAL_USER"
+      "value": "$RUTRACKER_USER"
     },
     {
       "name": "password",
-      "value": "ACTUAL_PASSWORD"
+      "value": "$RUTRACKER_PASS"
     },
     {
       "name": "russianLetters",

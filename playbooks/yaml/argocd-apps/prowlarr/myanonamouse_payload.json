@@ -20,7 +20,7 @@
     },
     {
       "name": "mamId",
-      "value": "MYANONAMOUSE_SESSION_ID"
+      "value": "$MYANONAMOUSE_SESSION_ID"
     },
     {
       "name": "searchType",
