@@ -2,28 +2,37 @@
 ---
 - import_playbook: kubespray/cluster.yml
 
+# do getting started so `kubectl get nodes` works
+
 - import_playbook: playbooks/deploy-argocd-ingress.yml
-  tags: argocd
+  tags: postinstall
 
 - import_playbook: playbooks/enable-argocd-kustomize.yml
-  tags: argocd
+  tags: postinstall
 
 - import_playbook: playbooks/publish-argocd-service.yml
-  tags: argocd
+  tags: postinstall
+
+- import_playbook: playbooks/install-node-tools.yml
+  tags: postinstall
 
 - import_playbook: playbooks/set-node-labels.yml
-  tags: monitoring,labels
+  tags: postinstall
 
 - import_playbook: playbooks/initialize-longhorn-storage.yml
-  tags: storage
+  tags: postinstall
 
+# manual step playbooks/yaml/argocd-apps/longhorn/values.yaml flip service monitor to false
 - import_playbook: playbooks/deploy-argocd-apps.yml
   tags: longhorn
+
+# ensure sync worked at http://192.168.1.121/applications/argocd/longhorn
 
 - import_playbook: playbooks/deploy-argocd-apps.yml
   tags: cert-manager,external-dns,pihole
 
-# wait certs to be ready
+# wait certs to be ready (around 3:30mins)
+# watch kubectl get cert -A
 - import_playbook: playbooks/sync-certificates.yml
 
 
@@ -32,5 +41,9 @@
 # playbooks/yaml/argocd-apps/pihole/switch-dns.sh
 # playbooks/yaml/argocd-apps/pihole/Switch-DNS.ps1
 
-# make go
+# check the local access via https://longhorn.soyspray.vip
+
+# make argo
 # make alist
+
+# continue with soydocs/media-diagram.md
