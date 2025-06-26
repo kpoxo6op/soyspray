@@ -1,0 +1,30 @@
+# playbooks/yaml/argocd-apps/readarr/ingress.yaml
+# Ingress for Readarr
+# Exposes Readarr UI at https://readarr.soyspray.vip
+# Uses the nginx ingress class and prod-cert-tls secret
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: readarr-ingress
+  namespace: media
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - readarr.soyspray.vip
+      secretName: prod-cert-tls
+  rules:
+    - host: readarr.soyspray.vip
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: readarr
+                port:
+                  number: 8787
+

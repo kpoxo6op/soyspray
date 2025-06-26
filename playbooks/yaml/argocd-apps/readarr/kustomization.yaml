@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - pvc-config.yaml
   - service.yaml
+  - ingress.yaml
   - deployment.yaml
   - initial-config-configmap.yaml
   - bootstrap-scripts-cm.yaml
