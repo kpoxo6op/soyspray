@@ -21,7 +21,7 @@ data:
     192.168.1.120 prometheus.soyspray.vip
     192.168.1.120 qbittorrent.soyspray.vip
     192.168.1.120 readarr.soyspray.vip
-    192.168.1.120 ptowlarr.soyspray.vip
+    192.168.1.120 prowlarr.soyspray.vip
     192.168.1.120 calibre-web.soyspray.vip
     192.168.1.121 argocd.lan
     192.168.1.124 pihole.lan
