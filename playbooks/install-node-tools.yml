@@ -44,3 +44,9 @@
         name: smartmontools
         state: present
         update_cache: true
+
+    - name: Ensure jq is installed via apt
+      ansible.builtin.apt:
+        name: jq
+        state: present
+        update_cache: true

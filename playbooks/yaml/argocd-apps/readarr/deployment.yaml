@@ -34,6 +34,21 @@ spec:
               mountPath: /config
             - name: config-template
               mountPath: /template
+        - name: setup-books-library
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "=== Setting up BooksLibrary folder ==="
+              mkdir -p /downloads/BooksLibrary
+              chown -R 1000:1000 /downloads/BooksLibrary
+              chmod -R u+rw /downloads/BooksLibrary
+              ls -la /downloads/
+              echo "=== BooksLibrary setup complete ==="
+          volumeMounts:
+            - name: downloads
+              mountPath: /downloads
       containers:
       - name: readarr
         image: linuxserver/readarr:0.4.14-develop

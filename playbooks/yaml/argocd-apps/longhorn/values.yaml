@@ -1,13 +1,13 @@
 persistence:
   defaultClass: true
-  defaultClassReplicaCount: 3
+  defaultClassReplicaCount: 1
   defaultDataLocality: best-effort
   migratable: true
   metricsPort: 9500
 
 defaultSettings:
   defaultDataLocality: best-effort
-  defaultReplicaCount: 3
+  defaultReplicaCount: 1
   defaultDataPath: "/storage"
   deletingConfirmationFlag: true
   orphanAutoDeletion: true
@@ -88,7 +88,7 @@ service:
 metrics:
   serviceMonitor:
   # manual flip required from false to true when prometheus is ready
-    enabled: true
+    enabled: false
     additionalLabels:
       release: kube-prometheus-stack
     port: manager

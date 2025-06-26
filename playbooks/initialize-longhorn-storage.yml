@@ -1,17 +1,43 @@
 # initialize-longhorn-storage.yml
-#
-# Ensures /storage is present, mounted, and ready for Longhorn on a single-node setup.
-# Non-destructive: does NOT partition, format, or mount any disks. Assumes /storage is already mounted.
-# Installs required packages and kernel modules for Longhorn.
-# Safe to run multiple times.
+# use Samsung SSD as storage for Longhorn
+
+# before
+# ❯ ssh ubuntu@192.168.1.103 "lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL,ROTA"
+# NAME                        SIZE TYPE MOUNTPOINT MODEL                ROTA
+# sda                       465.8G disk            Samsung SSD 870         0
+# ├─sda1                        1G part                                    0
+# ├─sda2                        2G part                                    0
+# └─sda3                    462.7G part                                    0
+#   └─ubuntu--vg-ubuntu--lv   100G lvm                                     0
+# nvme0n1                   238.5G disk            KXG5AZNV256G TOSHIBA    0
+# ├─nvme0n1p1                   1G part /boot/efi                          0
+# └─nvme0n1p2               237.4G part /                                  0
+
+
+# after
+
+# ssh ubuntu@192.168.1.103 "lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL,ROTA"
+# NAME          SIZE TYPE MOUNTPOINT MODEL                ROTA
+# sda         465.8G disk            Samsung SSD 870         0
+# └─sda1      465.8G part /storage                           0
+# nvme0n1     238.5G disk            KXG5AZNV256G TOSHIBA    0
+# ├─nvme0n1p1     1G part /boot/efi                          0
+# └─nvme0n1p2 237.4G part /                                  0
+
 
 - name: Common tasks for every playbook
   import_playbook: ../kubespray/playbooks/boilerplate.yml
 
-- name: Prepare storage for Longhorn (single node, /storage only)
+- name: Prepare Samsung SSD storage for Longhorn
   hosts: all
   become: true
   gather_facts: true
+
+  vars:
+    storage_device: /dev/sda
+    storage_partition: /dev/sda1
+    storage_mount: /storage
+    storage_fstype: ext4
 
   pre_tasks:
     - name: Install required packages
@@ -21,6 +47,8 @@
           - open-iscsi
           - cryptsetup
           - dmsetup
+          - parted
+          - e2fsprogs
         state: present
         update_cache: yes
 
@@ -41,32 +69,141 @@
         - dm_crypt
 
   tasks:
+    - name: Verify Samsung SSD is present
+      stat:
+        path: "{{ storage_device }}"
+      register: ssd_device
+      failed_when: not ssd_device.stat.exists
+
+    - name: Get device information
+      command: lsblk -no MODEL {{ storage_device }}
+      register: device_model
+      changed_when: false
+
+    - name: Verify this is Samsung SSD
+      fail:
+        msg: "Device {{ storage_device }} is not Samsung SSD (found: {{ device_model.stdout }})"
+      when: "'Samsung' not in device_model.stdout"
+
+    - name: Check for LVM volumes on device
+      shell: |
+        # Check if there are any LVM volumes using this device
+        pvs {{ storage_device }}* 2>/dev/null || true
+      register: lvm_check
+      ignore_errors: true
+
+    - name: Deactivate LVM volumes on Samsung SSD
+      shell: |
+        # Deactivate any LVM logical volumes on this device
+        for pv in $(pvs --noheadings -o pv_name {{ storage_device }}* 2>/dev/null | tr -d ' '); do
+          vg=$(pvs --noheadings -o vg_name "$pv" 2>/dev/null | tr -d ' ')
+          if [ -n "$vg" ]; then
+            echo "Deactivating VG: $vg"
+            vgchange -an "$vg" || true
+            vgremove -f "$vg" || true
+            pvremove -f "$pv" || true
+          fi
+        done
+      when: lvm_check.stdout != ""
+      ignore_errors: true
+
+    - name: Unmount any existing partitions
+      shell: |
+        for mount in $(mount | grep "{{ storage_device }}" | awk '{print $3}'); do
+          umount "$mount" || true
+        done
+      ignore_errors: true
+
+    - name: Force remove all partitions
+      shell: |
+        # Use sfdisk to wipe partition table completely
+        dd if=/dev/zero of={{ storage_device }} bs=1M count=100
+        partprobe {{ storage_device }}
+      ignore_errors: true
+
+    - name: Create new GPT partition table
+      parted:
+        device: "{{ storage_device }}"
+        label: gpt
+
+    - name: Create single partition using entire disk
+      parted:
+        device: "{{ storage_device }}"
+        number: 1
+        state: present
+        part_start: 0%
+        part_end: 100%
+        part_type: primary
+        fs_type: "{{ storage_fstype }}"
+
+    - name: Wait for partition to be available
+      wait_for:
+        path: "{{ storage_partition }}"
+        timeout: 30
+
+    - name: Force format entire partition with ext4
+      filesystem:
+        fstype: "{{ storage_fstype }}"
+        dev: "{{ storage_partition }}"
+        opts: -L longhorn-storage
+        force: true
+
     - name: Ensure /storage directory exists
       file:
-        path: /storage
+        path: "{{ storage_mount }}"
         state: directory
         owner: root
         group: root
         mode: "0755"
 
-    - name: Check if /storage is mounted
-      command: mountpoint /storage
+    - name: Check if /storage is already mounted
+      command: mountpoint {{ storage_mount }}
       register: storage_mounted
       ignore_errors: true
       changed_when: false
 
-    - name: Fail with friendly message if /storage is not mounted
-      fail:
-        msg: |
-          /storage is NOT mounted!
-          Please ensure /storage is mounted (e.g., via /etc/fstab) before running Longhorn.
-          Example fstab entry:
-            /dev/sdb1 /storage ext4 defaults 0 0
+    - name: Mount Samsung SSD to /storage
+      mount:
+        path: "{{ storage_mount }}"
+        src: "{{ storage_partition }}"
+        fstype: "{{ storage_fstype }}"
+        opts: defaults
+        state: mounted
       when: storage_mounted.rc != 0
 
-    - name: Display verification results
+    - name: Add to /etc/fstab for persistence
+      mount:
+        path: "{{ storage_mount }}"
+        src: "{{ storage_partition }}"
+        fstype: "{{ storage_fstype }}"
+        opts: defaults
+        dump: 0
+        passno: 2
+        state: present
+
+    - name: Set proper permissions on /storage
+      file:
+        path: "{{ storage_mount }}"
+        owner: root
+        group: root
+        mode: "0755"
+        state: directory
+
+    - name: Get storage information
+      command: df -h {{ storage_mount }}
+      register: storage_info
+      changed_when: false
+
+    - name: Display storage configuration results
       debug:
         msg: |
-          /storage is present and mounted:
-          {{ storage_mounted.stdout }}
-      when: storage_mounted.rc == 0
+          ✅ Samsung SSD Longhorn storage configured successfully:
+          Device: {{ storage_device }} ({{ device_model.stdout }})
+          Partition: {{ storage_partition }}
+          Mount: {{ storage_mount }}
+          Filesystem: {{ storage_fstype }}
+
+          Storage Details:
+          {{ storage_info.stdout }}
+
+          Ready for Longhorn deployment! 🚀

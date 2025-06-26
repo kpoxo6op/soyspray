@@ -13,7 +13,7 @@ spec:
     namespace: immich
   sources:
     - repoURL: https://github.com/kpoxo6op/soyspray.git
-      targetRevision: "v1.15.0"
+      targetRevision: "v1.15.1"readarr-calibre-integration"
       path: playbooks/yaml/argocd-apps/immich
       kustomize:
   syncPolicy:
