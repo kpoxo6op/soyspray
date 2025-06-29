@@ -1,13 +1,16 @@
+# playbooks/yaml/argocd-apps/readarr/readarr-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: readarr
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: "v1.15.2"
+    targetRevision: "issue-39-readarr-calibre-integration"
     path: playbooks/yaml/argocd-apps/readarr
   destination:
     server: https://kubernetes.default.svc
