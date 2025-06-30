@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "v1.15.2"
+    targetRevision: "v1.15.3"
     path: playbooks/yaml/argocd-apps/calibre-web
   destination:
     server: "https://kubernetes.default.svc"
