@@ -1,0 +1,47 @@
+# One‑pod Deployment that mounts the script, pip‑installs dependencies, then runs the Dingu bot
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dingu-bot
+  namespace: media
+  labels:
+    app: dingu-bot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dingu-bot
+  template:
+    metadata:
+      labels:
+        app: dingu-bot
+    spec:
+      containers:
+        - name: bot
+          image: python:3.11-slim
+          command: ["/bin/sh", "-c"]
+          args:
+            - pip install --no-cache-dir python-telegram-bot==20.8 requests && python /app/bot.py
+          env:
+            - name: DINGU_TELEGRAM_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: dingu-bot-secrets
+                  key: DINGU_TELEGRAM_BOT_TOKEN
+          volumeMounts:
+            - name: script
+              mountPath: /app
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+      volumes:
+        - name: script
+          configMap:
+            name: dingu-bot-script
+            defaultMode: 0775
+      restartPolicy: Always

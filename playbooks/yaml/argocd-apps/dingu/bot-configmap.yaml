@@ -1,0 +1,68 @@
+# Holds the entire bot source code in a single ConfigMap key (`bot.py`)
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dingu-bot-script
+  namespace: media
+data:
+  bot.py: |
+    import os
+    import logging
+    from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters
+
+    # Enable logging
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        level=logging.INFO
+    )
+    logger = logging.getLogger(__name__)
+
+    async def start(update, context):
+        """Send a message when the command /start is issued."""
+        welcome_msg = (
+            "🐕 Hello! I'm Dingu, your book search bot!\n\n"
+            "Send me a book title and I'll help you find and download it.\n"
+            "Use /help for more information."
+        )
+        await update.message.reply_text(welcome_msg)
+
+    async def help_command(update, context):
+        """Send a message when the command /help is issued."""
+        help_msg = (
+            "🐕 Dingu Bot Commands:\n\n"
+            "/start - Start the bot\n"
+            "/help - Show this help message\n\n"
+            "Just send me a book title to search for it!"
+        )
+        await update.message.reply_text(help_msg)
+
+    async def search_book(update, context):
+        """Handle book search requests."""
+        if update.message and update.message.text:
+            book_title = update.message.text.strip()
+            logger.info(f"User {update.effective_user.id} searched for: {book_title}")
+
+            # For now, just acknowledge the search
+            response = f"🔍 Searching for '{book_title}'...\n\n📚 Book search functionality coming soon!"
+            await update.message.reply_text(response)
+
+    def main():
+        """Start the bot."""
+        token = os.environ.get("DINGU_TELEGRAM_BOT_TOKEN")
+        if not token:
+            logger.error("DINGU_TELEGRAM_BOT_TOKEN environment variable not set")
+            return
+
+        app = ApplicationBuilder().token(token).build()
+
+        # Add handlers
+        app.add_handler(CommandHandler("start", start))
+        app.add_handler(CommandHandler("help", help_command))
+        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_book))
+
+        logger.info("Starting Dingu bot...")
+        app.run_polling()
+
+    if __name__ == "__main__":
+        main()

@@ -1,0 +1,8 @@
+# Minimal Kustomize overlay that ships the ConfigMap and Deployment for Dingu bot
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - bot-configmap.yaml
+  - deployment.yaml
+namespace: media
