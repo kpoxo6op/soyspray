@@ -32,10 +32,15 @@ data:
         help_msg = (
             "🐕 Dingu Bot Commands:\n\n"
             "/start - Start the bot\n"
-            "/help - Show this help message\n\n"
+            "/help - Show this help message\n"
+            "/ping - Test bot responsiveness\n\n"
             "Just send me a book title to search for it!"
         )
         await update.message.reply_text(help_msg)
+
+    async def ping(update, context):
+        """Respond to ping with pong."""
+        await update.message.reply_text("pong")
 
     async def search_book(update, context):
         """Handle book search requests."""
@@ -59,6 +64,7 @@ data:
         # Add handlers
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("help", help_command))
+        app.add_handler(CommandHandler("ping", ping))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_book))
 
         logger.info("Starting Dingu bot...")
