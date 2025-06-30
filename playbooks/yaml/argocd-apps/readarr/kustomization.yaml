@@ -15,5 +15,6 @@ configMapGenerator:
     namespace: media
     files:
       - qbittorrent.json=qbittorrent_payload.json
+      - rootfolder.json=rootfolder_payload.json
     options:
       disableNameSuffixHash: true

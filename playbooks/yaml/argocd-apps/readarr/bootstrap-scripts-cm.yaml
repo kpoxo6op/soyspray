@@ -55,4 +55,48 @@ data:
     curl -sS -H "X-Api-Key: $API_KEY" "$API/api/v1/downloadclient" | jq '.[] | {id: .id, name: .name, enable: .enable}'
     echo
 
+    echo "=== Processing BooksLibrary Root Folder ==="
+    echo "Checking if BooksLibrary root folder already exists..."
+
+    EXISTING_FOLDERS=$(curl -sS -H "X-Api-Key: $API_KEY" "$API/api/v1/rootfolder")
+    echo "Existing root folders response:"
+    echo "$EXISTING_FOLDERS"
+    echo
+
+    if echo "$EXISTING_FOLDERS" | jq -e '.[] | select(.path == "/downloads/BooksLibrary")' > /dev/null 2>&1; then
+      echo "✓ BooksLibrary root folder already exists, skipping..."
+      echo "Existing folder details:"
+      echo "$EXISTING_FOLDERS" | jq '.[] | select(.path == "/downloads/BooksLibrary")'
+    else
+      echo "Adding BooksLibrary root folder..."
+
+            echo "Getting quality and metadata profile IDs..."
+      QUALITY_PROFILES=$(curl -sS -H "X-Api-Key: $API_KEY" "$API/api/v1/qualityprofile")
+      METADATA_PROFILES=$(curl -sS -H "X-Api-Key: $API_KEY" "$API/api/v1/metadataprofile")
+
+      QUALITY_ID=$(echo "$QUALITY_PROFILES" | jq -r '.[0].id')
+      METADATA_ID=$(echo "$METADATA_PROFILES" | jq -r '.[0].id')
+
+      echo "Using Quality Profile ID: $QUALITY_ID"
+      echo "Using Metadata Profile ID: $METADATA_ID"
+
+      echo "Loading root folder payload template..."
+      ROOTFOLDER_PAYLOAD=$(sed -e "s/QUALITY_PROFILE_ID_PLACEHOLDER/$QUALITY_ID/g" -e "s/METADATA_PROFILE_ID_PLACEHOLDER/$METADATA_ID/g" /payloads/rootfolder.json)
+
+      echo "Root folder payload:"
+      echo "$ROOTFOLDER_PAYLOAD"
+      echo
+
+      echo "Making API call to add root folder..."
+      RESPONSE=$(curl -sS -H "X-Api-Key: $API_KEY" -H "Content-Type: application/json" -X POST "$API/api/v1/rootfolder" -d "$ROOTFOLDER_PAYLOAD")
+      echo "Root folder creation response:"
+      echo "$RESPONSE"
+      echo
+    fi
+
+    echo "=== Final root folder verification ==="
+    echo "All root folders after bootstrap:"
+    curl -sS -H "X-Api-Key: $API_KEY" "$API/api/v1/rootfolder" | jq '.[] | {id: .id, name: .name, path: .path, accessible: .accessible}'
+    echo
+
     echo "=== Bootstrap completed ==="
