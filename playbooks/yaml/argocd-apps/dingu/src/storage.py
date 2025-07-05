@@ -44,15 +44,15 @@ def scan_download_dir(title: str) -> List[Path]:
                 found_files.append(file_path)
                 continue
 
-            # Check if multiple words from title match (flexible matching)
+            # FIXED: Much stricter word matching - require ALL significant words to match
+            # This prevents matching random books that share common words
             matches = sum(1 for word in title_words if word in file_name_lower)
             match_ratio = matches / len(title_words) if title_words else 0
 
-            # Require better matching: at least 50% of words OR first word matches
-            first_word_matches = title_words and title_words[0] in file_name_lower
-
-            if (match_ratio >= 0.5 or first_word_matches) and matches >= 1:
-                log.info("Found word match (%d/%d words, %.1f%% match): %s", matches, len(title_words), match_ratio*100, file_path)
+            # Require ALL words to match (100% match ratio) for partial matches
+            # This prevents "Tom Sawyer" from matching "Harry Potter" books with "Tom Riddle"
+            if match_ratio >= 1.0:  # Changed from 0.5 to 1.0 - require ALL words
+                log.info("Found strict word match (%d/%d words, %.1f%% match): %s", matches, len(title_words), match_ratio*100, file_path)
                 found_files.append(file_path)
 
         # Search for directories with title in name and scan them
