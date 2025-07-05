@@ -19,5 +19,6 @@ configMapGenerator:
       - rutracker.json=rutracker_payload.json
       - myanonamouse.json=myanonamouse_payload.json
       - readarr.json=readarr_app_payload.json
+      - thepiratebay.json=thepiratebay_payload.json
     options:
       disableNameSuffixHash: true

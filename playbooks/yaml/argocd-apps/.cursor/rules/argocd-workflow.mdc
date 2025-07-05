@@ -1,0 +1,64 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# ArgoCD GitOps Workflow
+
+## Core Principles
+- **GitOps First**: All cluster apps are defined in ArgoCD and applied via @deploy-argocd-apps.yml
+- **No Manual Steps**: If any repeated manual step is required, write an ansible playbook
+- **Kustomize Structure**: Use kustomization.yaml for ConfigMap generation and resource management
+
+## Application Structure
+- Each app lives in `playbooks/yaml/argocd-apps/[app-name]/`
+- Contains: `kustomization.yaml`, `deployment.yaml`, `service.yaml`, `*-application.yaml`
+- ConfigMaps generated via `configMapGenerator` in kustomization.yaml
+- Bootstrap jobs use PostSync hooks for initial configuration
+
+## Deployment Pattern
+```yaml
+# [app-name]-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: [app-name]
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: "v1.16.0"
+    path: playbooks/yaml/argocd-apps/[app-name]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: [target-namespace]
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+```
+
+## ConfigMap Patterns
+- Use `configMapGenerator` in kustomization.yaml
+- Source code files: `file=src/filename.py`
+- JSON payloads: `file=payload.json`
+- Bootstrap scripts: separate ConfigMap with `defaultMode: 0755`
+
+## When to Use ArgoCD
+- **Application deployment**: Create full ArgoCD app structure
+- **Configuration changes**: Update ConfigMaps via kustomization
+- **Multi-step setup**: Use PostSync jobs for bootstrap logic
+- **GitOps compliance**: Never `kubectl apply` directly, always through git
+
+## GitOps Workflow
+- **Make changes**: Edit code/configs in git
+- **Commit & push**: ArgoCD automatically detects git changes
+- **ArgoCD syncs**: Cluster state updates automatically (automated sync policy)
+- **Check status**: `kubectl get applications -n argocd`
+- **Manual sync**: Only if needed via ArgoCD UI or `argocd app sync [app-name]`
+
+## Integration Examples
+- **Readarr**: Media app with qBittorrent integration via PostSync bootstrap
+- **Dingu**: Telegram bot with source code in ConfigMaps
+- **Storage**: Longhorn PVCs with initialization playbooks

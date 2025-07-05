@@ -15,10 +15,32 @@ data:
     API="http://readarr.media.svc.cluster.local:8787"
     API_KEY="a85bb8f2ab19425f9c8c0bbc6f0aa29c"
 
-    echo "=== DEBUG: Readarr qBittorrent Bootstrap ==="
+    echo "=== DEBUG: Readarr Bootstrap ==="
     echo "API Endpoint: $API"
     echo "API Key: $API_KEY"
     echo "============================================="
+
+        echo "=== Configuring Metadata Provider ==="
+    echo "Setting metadata source to api.bookinfo.pro (fixes retired api.bookinfo.club)..."
+
+    # Get current config and set metadata source
+    CURRENT_CONFIG=$(curl -sS -H "X-Api-Key: $API_KEY" "$API/api/v1/config/development" || echo '{}')
+    UPDATED_CONFIG=$(echo "$CURRENT_CONFIG" | jq '.metadataSource = "https://api.bookinfo.pro"')
+
+    curl -sS -X PUT \
+      -H "X-Api-Key: $API_KEY" \
+      -H "Content-Type: application/json" \
+      -d "$UPDATED_CONFIG" \
+      "$API/api/v1/config/development" > /dev/null
+
+    # Test if it works
+    echo "Testing metadata service..."
+    if curl -sS -H "X-Api-Key: $API_KEY" "$API/api/v1/search?term=George%20Orwell" | jq -e '.[0].author.authorName' > /dev/null 2>&1; then
+      echo "✓ Metadata service is working - can search for authors"
+    else
+      echo "⚠ Metadata service test failed - searches may not work"
+    fi
+    echo "=============================================="
 
     echo "=== Processing qBittorrent Download Client ==="
     echo "Checking if qBittorrent already exists..."
@@ -70,7 +92,7 @@ data:
     else
       echo "Adding BooksLibrary root folder..."
 
-            echo "Getting quality and metadata profile IDs..."
+      echo "Getting quality and metadata profile IDs..."
       QUALITY_PROFILES=$(curl -sS -H "X-Api-Key: $API_KEY" "$API/api/v1/qualityprofile")
       METADATA_PROFILES=$(curl -sS -H "X-Api-Key: $API_KEY" "$API/api/v1/metadataprofile")
 

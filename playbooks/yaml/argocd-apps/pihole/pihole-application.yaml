@@ -4,6 +4,8 @@ kind: Application
 metadata:
   name: pihole
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   destination:
@@ -11,7 +13,7 @@ spec:
     namespace: pihole
   sources:
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "v1.15.3"
+      targetRevision: "v1.16.0"
       path: playbooks/yaml/argocd-apps/pihole
       kustomize:
   syncPolicy:

@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: external-dns
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   sources:
@@ -13,7 +15,7 @@ spec:
         valueFiles:
           - $values/playbooks/yaml/argocd-apps/external-dns/values.yaml
     - repoURL: https://github.com/kpoxo6op/soyspray.git
-      targetRevision: "v1.15.3"
+      targetRevision: "v1.16.0"
       ref: values
   destination:
     server: https://kubernetes.default.svc

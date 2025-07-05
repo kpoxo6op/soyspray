@@ -1,0 +1,77 @@
+# One‑pod Deployment that mounts the script, pip‑installs dependencies, then runs the Dingu bot
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dingu-bot
+  namespace: media
+  labels:
+    app: dingu-bot
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dingu-bot
+  template:
+    metadata:
+      labels:
+        app: dingu-bot
+    spec:
+      containers:
+        - name: bot
+          image: python:3.11-slim
+          command: ["/bin/sh", "-c"]
+          args:
+            - pip install --no-cache-dir -r /app/requirements.txt && mkdir -p /tmp/dingu && cp /app/*.py /tmp/dingu/ && cd /tmp && python -m dingu
+          env:
+            - name: DINGU_TELEGRAM_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: dingu-bot-secrets
+                  key: DINGU_TELEGRAM_BOT_TOKEN
+            - name: READARR_KEY
+            # unhardcode later
+              value: "a85bb8f2ab19425f9c8c0bbc6f0aa29c"
+          volumeMounts:
+            - name: script
+              mountPath: /app
+            - name: books-library
+              mountPath: /downloads
+          readinessProbe:
+            exec:
+              command:
+                - test
+                - -f
+                - /tmp/dingu-started.txt
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          livenessProbe:
+            exec:
+              command:
+                - test
+                - -f
+                - /tmp/dingu-started.txt
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+      volumes:
+        - name: script
+          configMap:
+            name: dingu-bot-script
+            defaultMode: 0775
+        - name: books-library
+          persistentVolumeClaim:
+            claimName: qbittorrent-downloads
+      restartPolicy: Always
