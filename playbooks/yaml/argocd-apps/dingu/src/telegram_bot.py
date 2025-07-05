@@ -214,7 +214,10 @@ class Handlers:
     async def _wait_and_deliver(self, chat_id: int, book_id: int, title: str, ctx: ContextTypes.DEFAULT_TYPE, command_id: Optional[int]) -> None:
         """Wait for download completion and deliver files"""
         log.info("Starting download wait for book ID %s in chat %s", book_id, chat_id)
-        await ctx.bot.send_message(chat_id, "⏳ Waiting for download…")
+
+        # Smart status checking - don't blindly say "waiting"
+        download_started = False
+        last_status_message = ""
 
         try:
             for attempt in range(30):  # Wait up to 5 minutes
@@ -233,6 +236,18 @@ class Handlers:
                         "This happens with older, rare, or very new books.")
                     return
 
+                # Check actual download status BEFORE checking files
+                started, status_msg = await self.readarr.check_download_started(book_id)
+
+                # Only send status updates when status changes
+                if status_msg != last_status_message:
+                    await ctx.bot.send_message(chat_id, status_msg)
+                    last_status_message = status_msg
+
+                if started and not download_started:
+                    download_started = True
+                    log.info("Download confirmed started for book ID %s", book_id)
+
                 # Check for completed files
                 file_paths = await self.readarr.get_book_files(book_id)
                 if file_paths:
@@ -245,7 +260,10 @@ class Handlers:
 
             # Timeout reached
             log.error("Download wait timed out for book ID %s after 30 attempts", book_id)
-            await ctx.bot.send_message(chat_id, "⏰ Download timed out")
+            timeout_msg = "⏰ Download timed out"
+            if not download_started:
+                timeout_msg += " - no sources found for this book"
+            await ctx.bot.send_message(chat_id, timeout_msg)
 
         except asyncio.CancelledError:
             log.info("Waiting task cancelled for book ID %s in chat %s", book_id, chat_id)

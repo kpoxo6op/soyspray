@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from pathlib import Path
 import aiohttp
 
@@ -105,8 +105,8 @@ class Readarr:
             "qualityProfileId": settings.quality_profile_id,
             "metadataProfileId": settings.metadata_profile_id,
             "monitored": True,
-            "searchForMissingBooks": True,
-            "monitorNewItems": "all",
+            "searchForMissingBooks": False,
+            "monitorNewItems": "none",
         }
 
         result = await self.post("/api/v1/author", payload)
@@ -139,7 +139,8 @@ class Readarr:
                 score = len(common_words) / len(title_words.union(book_words))
                 log.debug("Book '%s' score: %.2f (common: %s)", book["title"], score, common_words)
 
-                if score > best_score and score > 0.3:  # Minimum 30% match
+                # FIXED: Require stricter matching (70% instead of 30%) to prevent random matches
+                if score > best_score and score > 0.7:  # Minimum 70% match
                     best_score = score
                     best_match = book
 
@@ -181,7 +182,8 @@ class Readarr:
                 if common_words:
                     score = len(common_words) / len(title_words.union(book_words))
 
-                    if score > best_score and score > 0.3:
+                    # FIXED: Require stricter matching (70% instead of 30%) to prevent random matches
+                    if score > best_score and score > 0.7:
                         best_score = score
                         best_match = book
 
@@ -238,12 +240,44 @@ class Readarr:
             log.error("Error checking search status for command %s: %s", command_id, e)
         return False
 
+    async def check_download_started(self, book_id: int) -> Tuple[bool, str]:
+        """Check if download actually started for a book
+
+        Returns:
+            tuple: (download_started, status_message)
+        """
+        try:
+            # Check if book is in download queue
+            queue = await self.get_queue()
+            for item in queue.get("records", []):
+                if item.get("bookId") == book_id:
+                    status = item.get("status", "unknown")
+                    title = item.get("title", "Unknown")
+
+                    if status in ["downloading", "queued"]:
+                        log.info("Download started for book ID %s: %s (%s)", book_id, title, status)
+                        return True, f"📥 Download {status}: {title}"
+                    elif status == "completed":
+                        log.info("Download already completed for book ID %s: %s", book_id, title)
+                        return True, f"✅ Download completed: {title}"
+                    else:
+                        log.info("Download status for book ID %s: %s (%s)", book_id, title, status)
+                        return True, f"📊 Download {status}: {title}"
+
+            log.info("Book ID %s not found in download queue yet", book_id)
+            return False, "🔍 Searching for sources..."
+
+        except Exception as e:
+            log.error("Error checking download status for book ID %s: %s", book_id, e)
+            return False, f"❓ Status check failed: {e}"
+
     async def get_book_files(self, book_id: int) -> List[Path]:
         """Get file paths for a book from Readarr"""
         file_paths = []
 
         try:
             book_details = await self.get_book_details(book_id)
+            book_title = book_details.get("title", "Unknown")
 
             # Check if book has imported files
             if book_details.get("hasFile") and book_details.get("bookFiles"):
@@ -273,6 +307,17 @@ class Readarr:
                             elif output_path.is_file():
                                 log.info("Found direct download file: %s", output_path)
                                 file_paths.append(output_path)
+
+            # FIXED: Check filesystem for downloaded but not-yet-imported files
+            # This handles the "limbo" state where files exist but hasFile=false
+            if not file_paths:
+                log.info("No imported files found for '%s', checking filesystem directly", book_title)
+                from .storage import scan_download_dir
+                filesystem_files = scan_download_dir(book_title)
+                if filesystem_files:
+                    log.info("Found %d files via filesystem search for '%s': %s",
+                            len(filesystem_files), book_title, filesystem_files)
+                    file_paths.extend(filesystem_files)
 
         except Exception as e:
             log.error("Error getting book files for ID %s: %s", book_id, e)

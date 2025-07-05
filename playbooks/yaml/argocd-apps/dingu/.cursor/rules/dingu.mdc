@@ -1,0 +1,13 @@
+---
+description:
+globs: *.yaml,*.py
+alwaysApply: false
+---
+# Dingu Telegram
+
+## Deployment
+The bot runs as a Kubernetes deployment managed by ArgoCD. Changes to search logic require:
+1. Code changes and testing
+2. Git commit and push
+3. ArgoCD sync or automatic deployment
+4. Kubernetes pod restart to pick up changes
