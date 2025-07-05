@@ -65,6 +65,23 @@ data:
     fi
     echo "==============================="
 
+    echo "=== Processing The Pirate Bay ==="
+    if curl -s -H "X-Api-Key: $PROWLARR_API_KEY" "$API/api/v1/indexer" | jq -e '.[] | select(.name == "The Pirate Bay")' > /dev/null 2>&1; then
+      echo "✓ The Pirate Bay already exists, skipping..."
+    else
+      echo "Adding The Pirate Bay..."
+      echo "Payload:"
+      cat /payloads/thepiratebay.json
+      echo
+      echo "Full curl command:"
+      echo "curl -sS -H \"X-Api-Key: $PROWLARR_API_KEY\" -H \"Content-Type: application/json\" -X POST \"$API/api/v1/indexer\" --data @/payloads/thepiratebay.json"
+      echo
+      echo "Making API call..."
+      curl -sS -H "X-Api-Key: $PROWLARR_API_KEY" -H "Content-Type: application/json" -X POST "$API/api/v1/indexer" --data @/payloads/thepiratebay.json
+      echo
+    fi
+    echo "============================"
+
     echo "=== Processing Readarr ==="
     if curl -s -H "X-Api-Key: $PROWLARR_API_KEY" "$API/api/v1/applications" | jq -e '.[] | select(.name == "Readarr")' > /dev/null 2>&1; then
       echo "✓ Readarr already exists, skipping..."

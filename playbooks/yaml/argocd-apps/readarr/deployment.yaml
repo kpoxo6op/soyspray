@@ -40,18 +40,21 @@ spec:
             - /bin/sh
             - -c
             - |
-              echo "=== Setting up BooksLibrary folder ==="
+              echo "=== Setting up BooksLibrary and incoming folders ==="
               mkdir -p /downloads/BooksLibrary
+              mkdir -p /downloads/incoming/books /downloads/incoming/incomplete
               chown -R 1000:1000 /downloads/BooksLibrary
+              chown -R 1000:1000 /downloads/incoming
               chmod -R u+rw /downloads/BooksLibrary
+              chmod -R u+rw /downloads/incoming
               ls -la /downloads/
-              echo "=== BooksLibrary setup complete ==="
+              echo "=== Directory setup complete ==="
           volumeMounts:
             - name: downloads
               mountPath: /downloads
       containers:
       - name: readarr
-        image: linuxserver/readarr:0.4.14-develop
+        image: linuxserver/readarr:0.4.18-develop
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8787

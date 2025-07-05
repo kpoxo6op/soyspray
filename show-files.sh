@@ -14,27 +14,24 @@ display_file_content() {
     local char_count
     local line_count
 
-    # Check if file is a binary or image file
-    if file "$file" | grep -qE 'binary|executable|image data|shared object|compiled'; then
-        echo "=== File: $file (BINARY/IMAGE - content not displayed) ==="
-        echo "[Binary or image file - content skipped]"
+    # Check file extension first (more reliable than file command)
     # Check if file is a JSON file (by extension)
-    elif [[ "$file" == *.json ]]; then
-        char_count=$(wc -c < "$file")
-        echo "=== File: $file (JSON, $char_count characters) ==="
-        if [ "$char_count" -gt 200 ]; then
-            head -c 200 "$file"
-            echo "... [truncated, total $char_count characters]"
+    if [[ "$file" == *.json ]]; then
+        line_count=$(wc -l < "$file")
+        echo "=== File: $file (JSON, $line_count lines) ==="
+        if [ "$line_count" -gt 1000 ]; then
+            head -n 1000 "$file"
+            echo "... [truncated, total $line_count lines]"
         else
             cat "$file"
         fi
     # Check if file is a Markdown file (by extension)
     elif [[ "$file" == *.md ]]; then
-        char_count=$(wc -c < "$file")
-        echo "=== File: $file (Markdown, $char_count characters) ==="
-        if [ "$char_count" -gt 200 ]; then
-            head -c 200 "$file"
-            echo "... [truncated, total $char_count characters]"
+        line_count=$(wc -l < "$file")
+        echo "=== File: $file (Markdown, $line_count lines) ==="
+        if [ "$line_count" -gt 1000 ]; then
+            head -n 1000 "$file"
+            echo "... [truncated, total $line_count lines]"
         else
             cat "$file"
         fi
@@ -44,6 +41,10 @@ display_file_content() {
         echo "=== File: $file (YAML, $line_count lines, comments stripped) ==="
         # Remove full-line comments and trailing comments
         sed -e '/^[[:space:]]*#/d' -e 's/[[:space:]]*#.*$//' "$file"
+    # Check if file is a binary or image file (after extension checks)
+    elif file "$file" | grep -qE 'binary|executable|image data|shared object|compiled'; then
+        echo "=== File: $file (BINARY/IMAGE - content not displayed) ==="
+        echo "[Binary or image file - content skipped]"
     else
         # For other regular text files, display as normal
         line_count=$(wc -l < "$file")

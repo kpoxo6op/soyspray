@@ -1,0 +1,20 @@
+# Kustomize overlay that generates ConfigMap from dingu Python package and ships the Deployment
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: media
+
+resources:
+  - deployment.yaml
+
+configMapGenerator:
+  - name: dingu-bot-script
+    files:
+      - __init__.py=src/__init__.py
+      - __main__.py=src/__main__.py
+      - main.py=src/main.py
+      - config.py=src/config.py
+      - readarr.py=src/readarr.py
+      - storage.py=src/storage.py
+      - telegram_bot.py=src/telegram_bot.py
+      - requirements.txt=src/requirements.txt

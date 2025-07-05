@@ -1,84 +1,134 @@
-## API Integration Commands - Issue #39
+# Readarr Book Request Workflow
 
-**Check existing root folders**
+**Note:** Metadata service is automatically configured to `api.bookinfo.pro` in bootstrap job (fixes retired `api.bookinfo.club`).
 
-```bash
-curl -s -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" http://192.168.1.131:8787/api/v1/rootfolder | jq '.'
-```
+## How Dingu Bot Should Add Books
 
-**Get quality profiles**
+When a user requests a book like "1984", the bot workflow is:
 
-```bash
-curl -s -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" http://192.168.1.131:8787/api/v1/qualityprofile | jq '.[] | {id: .id, name: .name}'
-```
+1. **Search for the book** - this returns the author
+2. **Add the author first** (required before adding books)
+3. **Find and monitor the specific book**
 
-**Get metadata profiles**
+## Successful Author Add API Call
 
 ```bash
-curl -s -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" http://192.168.1.131:8787/api/v1/metadataprofile | jq '.[] | {id: .id, name: .name}'
+curl -s -X POST -H "Content-Type: application/json" -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" \
+  -d '{
+    "foreignAuthorId": "3706",
+    "authorName": "George Orwell",
+    "authorNameLastFirst": "Orwell, George",
+    "rootFolderId": 1,
+    "rootFolderPath": "/downloads/BooksLibrary",
+    "qualityProfileId": 1,
+    "metadataProfileId": 1,
+    "monitored": false,
+    "searchForMissingBooks": false,
+    "monitorNewItems": "none"
+  }' \
+  "http://192.168.1.131:8787/api/v1/author"
 ```
 
-**Add BooksLibrary root folder**
-
-```bash
-curl -s -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" -H "Content-Type: application/json" -X POST http://192.168.1.131:8787/api/v1/rootfolder -d '{"name": "BooksLibrary", "path": "/downloads/BooksLibrary/", "defaultQualityProfileId": 1, "defaultMetadataProfileId": 1, "accessible": true, "freeSpace": 0, "unmappedFolders": []}'
-```
-
-**Verify root folder added**
-
-```bash
-curl -s -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" http://192.168.1.131:8787/api/v1/rootfolder | jq '.[] | {id: .id, name: .name, path: .path, accessible: .accessible}'
-```
-
-**Test Calibre-Web OPDS feed**
-
-```bash
-curl -s http://192.168.1.132:8083/opds | head -10
-```
-
-**Check import list schemas**
-
-```bash
-curl -s -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" http://192.168.1.131:8787/api/v1/importlist/schema | jq '.[] | {name: .name, implementation: .implementation}'
-```
-
-**Result**: Integration complete via file sharing - Readarr downloads to `/downloads/BooksLibrary/`, Calibre-Web import job processes automatically.
-
----
-
-## K8s Integration Points
-
-### 1. Enhanced Bootstrap Script
-**File**: `bootstrap-scripts-cm.yaml`
-```bash
-# TODO: Add root folder API integration to existing qBittorrent bootstrap
-# - Check if BooksLibrary root folder exists
-# - Add root folder if missing (idempotent)
-# - Verify root folder accessibility
-# - Log all operations for debugging
-```
-
-### 2. Root Folder Payload
-**File**: `rootfolder_payload.json` (new)
+**Response:**
 ```json
-# TODO: Create JSON payload for root folder creation
-# - Use dynamic profile IDs from API discovery
-# - Include all required fields from manual testing
-# - Make configurable via environment variables
+{
+  "authorName": "George Orwell",
+  "id": 1
+}
 ```
 
-### 3. Kustomization Update
-**File**: `kustomization.yaml`
-```yaml
-# TODO: Add new configMap generator for rootfolder payload
-# - Include rootfolder_payload.json in configMapGenerator
-# - Mount in bootstrap job alongside qbittorrent payload
+## Key Points
+
+- `monitored: false` - Don't download all author's books automatically
+- `monitorNewItems: "none"` - Don't monitor new releases
+- `searchForMissingBooks: false` - Don't immediately search for books
+- Must include both `rootFolderId` and `rootFolderPath`
+- Need to trigger `RefreshAuthor` command after adding to load book metadata
+
+## Complete Dingu Bot Workflow (TESTED)
+
+After adding author successfully:
+
+1. **Trigger metadata refresh:**
+```bash
+curl -s -X POST -H "Content-Type: application/json" -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" \
+  -d '{"name": "RefreshAuthor", "authorId": 1}' \
+  "http://192.168.1.131:8787/api/v1/command"
 ```
 
-### 4. Bootstrap Job Enhancement
-**File**: `bootstrap-job.yaml`
-```yaml
-# TODO: Mount rootfolder payload in bootstrap container
-# - Add rootfolder-payloads volume mount
-# - Ensure proper ordering after qBittorrent integration
+2. **Find the specific book:**
+```bash
+curl -s -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" \
+  "http://192.168.1.131:8787/api/v1/book" | \
+  jq 'map(select(.title | contains("1984"))) | .[0] | {title: .title, id: .id, monitored: .monitored}'
 ```
+**Result:** Found "1984" with ID 3
+
+3. **Trigger search for specific book:**
+```bash
+curl -s -X POST -H "Content-Type: application/json" -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" \
+  -d '{"name": "BookSearch", "bookIds": [3]}' \
+  "http://192.168.1.131:8787/api/v1/command"
+```
+**Response:** `{"status": "queued", "name": "BookSearch"}`
+
+## Summary for Dingu Bot
+
+When user requests "Download 1984":
+1. Search API finds George Orwell (author)
+2. Add George Orwell as unmonitored author
+3. Refresh author metadata to load his books
+4. Find "1984" book ID
+5. Trigger search for that specific book ID
+6. Readarr will download it via qBittorrent when found
+
+## Verification & Monitoring Commands
+
+**Check command status:**
+```bash
+curl -s -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" \
+  "http://192.168.1.131:8787/api/v1/command" | \
+  jq 'map(select(.name == "BookSearch")) | .[0] | {status: .status, started: .started, ended: .ended}'
+```
+
+**Check download queue:**
+```bash
+curl -s -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" \
+  "http://192.168.1.131:8787/api/v1/queue" | \
+  jq '.records[] | {title: .title, status: .status, timeLeft: .timeleft}'
+```
+
+**Check download history:**
+```bash
+curl -s -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" \
+  "http://192.168.1.131:8787/api/v1/history" | \
+  jq '.records[0] | {eventType: .eventType, sourceTitle: .sourceTitle, date: .date}'
+```
+
+**Verify book has file:**
+```bash
+curl -s -H "X-Api-Key: a85bb8f2ab19425f9c8c0bbc6f0aa29c" \
+  "http://192.168.1.131:8787/api/v1/book/3" | \
+  jq '{title: .title, hasFile: .hasFile, monitored: .monitored}'
+```
+
+**Check actual files in library:**
+```bash
+kubectl exec -n media deployment/readarr -- ls -la "/downloads/BooksLibrary/George Orwell/"
+```
+
+## Successful Test Results ✅
+
+**Download completed:** `2025-07-02T00:29:35Z`
+**History event:** `bookFileImported` - "Nineteen Eighty-Four - George Orwell"
+**File location:** `/downloads/BooksLibrary/George Orwell/Nineteen Eighty-Four - George Orwell.epub`
+**File size:** `1.9MB`
+**qBittorrent folder:** `George Orwell - Ninteteen Eighty-Four/`
+
+## Bot Implementation Notes
+
+- **Error handling**: Check command status before proceeding to next step
+- **Timing**: RefreshAuthor takes ~5-10 seconds, BookSearch takes ~15-20 seconds
+- **File verification**: Use history API to confirm successful import
+- **User feedback**: Can provide download progress via queue API
+- **Cleanup**: Consider adding author removal if download fails

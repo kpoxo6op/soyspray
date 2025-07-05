@@ -14,12 +14,12 @@ data:
 
     [BitTorrent]
     Session\AddTorrentStopped=false
-    Session\DefaultSavePath=/downloads/
+    Session\DefaultSavePath=/downloads/incoming/books
     Session\Port=49160
     Session\QueueingSystemEnabled=true
     Session\SSL\Port=9007
     Session\ShareLimitAction=Stop
-    Session\TempPath=/downloads/incomplete/
+    Session\TempPath=/downloads/incoming/incomplete
 
     [LegalNotice]
     Accepted=true
@@ -37,8 +37,8 @@ data:
     [Preferences]
     Connection\PortRangeMin=49160
     Connection\UPnP=false
-    Downloads\SavePath=/downloads/
-    Downloads\TempPath=/downloads/incomplete/
+    Downloads\SavePath=/downloads/incoming/books
+    Downloads\TempPath=/downloads/incoming/incomplete
     WebUI\Address=*
     WebUI\ServerDomains=*
     WebUI\Username=admin
