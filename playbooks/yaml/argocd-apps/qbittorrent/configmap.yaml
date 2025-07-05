@@ -13,6 +13,9 @@ data:
     program=
 
     [BitTorrent]
+    Session\AnnounceIP=210.54.32.219
+    Session\AnnounceToAllTrackers=true
+    Session\ReannounceWhenAddressChanged=true
     Session\AddTorrentStopped=false
     Session\DefaultSavePath=/downloads/incoming/books
     Session\Port=49160

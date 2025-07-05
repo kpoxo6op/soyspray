@@ -1,5 +1,7 @@
 # qBittorrent (Raw K8s Manifests)
 
+Port forwarding was added in the router to the new qBittorrent port.
+
 admin / 123
 
 This folder contains a minimal raw Kubernetes definition of qBittorrent,
