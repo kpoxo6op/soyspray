@@ -1,0 +1,115 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Soyspray Project Structure
+
+## Overview
+This is a home Kubernetes cluster project that integrates Kubespray with custom ArgoCD applications. The project follows GitOps principles and uses Ansible for cluster management.
+
+## Project Structure
+```
+soyspray/
+├── kubespray/                    # Kubespray submodule for K8s cluster
+├── playbooks/                    # Custom Ansible playbooks
+│   ├── deploy-argocd-apps.yml    # Main ArgoCD deployment playbook
+│   └── yaml/argocd-apps/         # ArgoCD application definitions
+├── scripts/                      # Utility scripts
+├── soydocs/                      # Project documentation
+└── main.yml                      # Main Ansible playbook
+```
+
+## Kubespray Integration
+The project uses Kubespray as a Git submodule ([.gitmodules](mdc:.gitmodules)) to manage the underlying Kubernetes cluster:
+
+- **Kubespray**: Provides the core K8s cluster deployment
+- **Custom Playbooks**: Extend Kubespray with additional functionality
+- **Integration**: Follows [kubespray/docs/operations/integration.md](mdc:kubespray/docs/operations/integration.md)
+
+## Key Components
+
+### Cluster Management
+- **Main Playbook**: [main.yml](mdc:main.yml) - Primary cluster orchestration
+- **Kubespray Config**: [kubespray/inventory/soycluster/](mdc:kubespray/inventory/soycluster) - Cluster configuration
+- **Addons**: [kubespray/inventory/soycluster/group_vars/k8s_cluster/addons.yml](mdc:kubespray/inventory/soycluster/group_vars/k8s_cluster/addons.yml)
+
+### Application Management
+- **ArgoCD Apps**: [playbooks/deploy-argocd-apps.yml](mdc:playbooks/deploy-argocd-apps.yml) - Deploys all applications
+- **App Definitions**: [playbooks/yaml/argocd-apps/](mdc:playbooks/yaml/argocd-apps) - Individual application configs
+- **GitOps**: All applications managed through ArgoCD
+
+### Documentation
+- **Project Docs**: [soydocs/](mdc:soydocs) - Project-specific documentation
+- **ArgoCD Guide**: [soydocs/argocd.md](mdc:soydocs/argocd.md) - ArgoCD setup and usage
+- **README**: [README.md](mdc:README.md) - Main project documentation
+
+## Deployment Workflow
+
+### Initial Cluster Setup
+1. **Kubespray**: Deploy base Kubernetes cluster
+2. **ArgoCD**: Install ArgoCD as cluster addon
+3. **Applications**: Deploy applications via ArgoCD
+
+### Application Updates
+1. **Code Changes**: Modify application configurations
+2. **Git Commit**: Version control all changes
+3. **ArgoCD Sync**: Automatic deployment to cluster
+4. **Verification**: Monitor application health
+
+### Cluster Upgrades
+- Use [kubespray/upgrade-cluster.yml](mdc:kubespray/upgrade-cluster.yml) as per [README.md](mdc:README.md)
+- Follow GitOps principles for all changes
+- Custom playbooks handle additional configuration
+
+## Key Principles
+
+### GitOps Approach
+- All cluster state defined in Git
+- No manual cluster modifications
+- Automated deployment through ArgoCD
+- Version-controlled infrastructure
+
+### Ansible Automation
+- Repeatable deployments via playbooks
+- Custom runbooks for common tasks
+- Integration with Kubespray workflows
+- Example: [playbooks/initialize-longhorn-storage.yml](mdc:playbooks/initialize-longhorn-storage.yml)
+
+### One-off Operations
+- Shell scripts for troubleshooting
+- kubectl commands for debugging
+- Temporary operations outside GitOps
+
+## Common Operations
+
+### Cluster Management
+```bash
+# Deploy cluster
+ansible-playbook main.yml
+
+# Upgrade cluster
+ansible-playbook kubespray/upgrade-cluster.yml
+
+# Deploy all applications
+ansible-playbook playbooks/deploy-argocd-apps.yml
+```
+
+### Application Management
+```bash
+# Check ArgoCD applications
+kubectl get applications -n argocd
+
+# Sync specific application
+argocd app sync <app-name>
+
+# Check application status
+argocd app get <app-name>
+```
+
+## Best Practices
+- **Always use GitOps**: Avoid manual cluster changes
+- **Test Changes**: Validate in development before production
+- **Document Everything**: Keep documentation updated
+- **Monitor Health**: Watch application and cluster status
+- **Backup Regularly**: Ensure cluster state is recoverable

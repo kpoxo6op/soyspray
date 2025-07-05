@@ -1,64 +1,85 @@
 ---
-description:
+description: GitOps workflow documentation for ArgoCD applications and deployment processes
 globs:
-alwaysApply: true
+alwaysApply: false
 ---
+
 # ArgoCD GitOps Workflow
 
-## Core Principles
-- **GitOps First**: All cluster apps are defined in ArgoCD and applied via @deploy-argocd-apps.yml
-- **No Manual Steps**: If any repeated manual step is required, write an ansible playbook
-- **Kustomize Structure**: Use kustomization.yaml for ConfigMap generation and resource management
+## Overview
+This project follows GitOps principles with ArgoCD managing all cluster applications. All changes are version-controlled and automatically deployed to the Kubernetes cluster.
 
-## Application Structure
-- Each app lives in `playbooks/yaml/argocd-apps/[app-name]/`
-- Contains: `kustomization.yaml`, `deployment.yaml`, `service.yaml`, `*-application.yaml`
-- ConfigMaps generated via `configMapGenerator` in kustomization.yaml
-- Bootstrap jobs use PostSync hooks for initial configuration
+## GitOps Principles
+- **Declarative Configuration**: All cluster state defined in Git
+- **Version Control**: Every change is tracked and reversible
+- **Automated Deployment**: ArgoCD syncs Git changes to cluster
+- **No Manual Changes**: All modifications go through Git workflow
 
-## Deployment Pattern
-```yaml
-# [app-name]-application.yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: [app-name]
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: "v1.16.0"
-    path: playbooks/yaml/argocd-apps/[app-name]
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: [target-namespace]
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
+## ArgoCD Applications
+All cluster apps are defined in ArgoCD and applied via [deploy-argocd-apps.yml](mdc:playbooks/deploy-argocd-apps.yml):
+
+### Media Stack Applications
+- **dingu** - Telegram bot for book downloads ([dingu-application.yaml](mdc:playbooks/yaml/argocd-apps/dingu/dingu-application.yaml))
+- **readarr** - Book management ([readarr-application.yaml](mdc:playbooks/yaml/argocd-apps/readarr/readarr-application.yaml))
+- **prowlarr** - Indexer management ([prowlarr-application.yaml](mdc:playbooks/yaml/argocd-apps/prowlarr/prowlarr-application.yaml))
+- **qbittorrent** - Torrent client ([qbittorrent-application.yaml](mdc:playbooks/yaml/argocd-apps/qbittorrent/qbittorrent-application.yaml))
+- **immich** - Photo management ([immich-application.yaml](mdc:playbooks/yaml/argocd-apps/immich/immich-application.yaml))
+
+### Infrastructure Applications
+- **cert-manager** - SSL certificate management ([cert-manager-application.yaml](mdc:playbooks/yaml/argocd-apps/cert-manager/cert-manager-application.yaml))
+- **external-dns** - DNS management ([external-dns-application.yaml](mdc:playbooks/yaml/argocd-apps/external-dns/external-dns-application.yaml))
+- **longhorn** - Persistent storage ([longhorn-application.yaml](mdc:playbooks/yaml/argocd-apps/longhorn/longhorn-application.yaml))
+- **prometheus** - Monitoring ([prometheus-application.yaml](mdc:playbooks/yaml/argocd-apps/prometheus/prometheus-application.yaml))
+- **pihole** - DNS filtering ([pihole-application.yaml](mdc:playbooks/yaml/argocd-apps/pihole/pihole-application.yaml))
+
+## Deployment Workflow
+1. **Code Changes**: Make changes to application configurations
+2. **Git Commit**: Commit changes with descriptive messages
+3. **ArgoCD Sync**: ArgoCD automatically detects and applies changes
+4. **Verification**: Check application status in ArgoCD UI
+
+## Common Commands
+```bash
+# Deploy all ArgoCD applications
+ansible-playbook playbooks/deploy-argocd-apps.yml
+
+# Manual ArgoCD sync (if needed)
+argocd app sync <application-name>
+
+# Check application status
+argocd app get <application-name>
+
+# Restart deployment (for code changes)
+kubectl rollout restart deployment/<deployment-name> -n <namespace>
 ```
 
-## ConfigMap Patterns
-- Use `configMapGenerator` in kustomization.yaml
-- Source code files: `file=src/filename.py`
-- JSON payloads: `file=payload.json`
-- Bootstrap scripts: separate ConfigMap with `defaultMode: 0755`
+## Application Structure
+Each ArgoCD application follows this pattern:
+```
+app-name/
+├── app-name-application.yaml    # ArgoCD Application definition
+├── deployment.yaml              # Kubernetes deployment
+├── service.yaml                 # Kubernetes service (if needed)
+├── ingress.yaml                 # Ingress configuration (if needed)
+├── kustomization.yaml           # Kustomize configuration
+└── configmap.yaml               # Configuration (if needed)
+```
 
-## When to Use ArgoCD
-- **Application deployment**: Create full ArgoCD app structure
-- **Configuration changes**: Update ConfigMaps via kustomization
-- **Multi-step setup**: Use PostSync jobs for bootstrap logic
-- **GitOps compliance**: Never `kubectl apply` directly, always through git
+## Best Practices
+- **Atomic Changes**: Each commit should represent a complete, working change
+- **Descriptive Messages**: Use clear commit messages explaining what changed
+- **Test Before Merge**: Validate changes in development environment
+- **Monitor Deployments**: Watch ArgoCD for successful sync and application health
+- **Rollback Ready**: Keep previous versions available for quick rollback
 
-## GitOps Workflow
-- **Make changes**: Edit code/configs in git
-- **Commit & push**: ArgoCD automatically detects git changes
-- **ArgoCD syncs**: Cluster state updates automatically (automated sync policy)
-- **Check status**: `kubectl get applications -n argocd`
-- **Manual sync**: Only if needed via ArgoCD UI or `argocd app sync [app-name]`
+## Troubleshooting
+- **Sync Issues**: Check ArgoCD logs and application events
+- **Application Health**: Verify pod status and resource availability
+- **Configuration Errors**: Validate YAML syntax and Kubernetes resources
+- **Network Issues**: Check ingress, services, and DNS resolution
 
-## Integration Examples
-- **Readarr**: Media app with qBittorrent integration via PostSync bootstrap
-- **Dingu**: Telegram bot with source code in ConfigMaps
-- **Storage**: Longhorn PVCs with initialization playbooks
+## Integration with Kubespray
+- Kubespray manages the underlying Kubernetes cluster
+- ArgoCD is deployed as part of the cluster addons
+- Custom playbooks in [playbooks/](mdc:playbooks/) extend Kubespray functionality
+- Cluster upgrades use [kubespray/upgrade-cluster.yml](mdc:kubespray/upgrade-cluster.yml)
