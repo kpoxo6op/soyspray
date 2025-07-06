@@ -1,0 +1,21 @@
+# Dedicated LoadBalancer Service for BitTorrent peer traffic
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-peers
+  namespace: media
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.1.240
+  externalTrafficPolicy: Local
+  ports:
+    - name: peers-tcp
+      port: 49160
+      protocol: TCP
+      targetPort: 49160
+    - name: peers-udp
+      port: 49160
+      protocol: UDP
+      targetPort: 49160
+  selector:
+    app: qbittorrent
