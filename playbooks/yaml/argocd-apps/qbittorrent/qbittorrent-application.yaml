@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: "qbittorrent-peer-connectivity"
+    targetRevision: "v1.16.1"
     path: playbooks/yaml/argocd-apps/qbittorrent
   destination:
     server: https://kubernetes.default.svc
