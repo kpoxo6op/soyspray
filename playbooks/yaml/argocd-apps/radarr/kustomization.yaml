@@ -1,0 +1,17 @@
+# playbooks/yaml/argocd-apps/radarr/kustomization.yaml
+# Kustomize configuration for Radarr
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - radarr-application.yaml
+  - deployment.yaml
+  - service.yaml
+  - pvc-config.yaml
+  - ingress.yaml
+
+namespace: media
+
+commonLabels:
+  app: radarr
+  managed-by: argocd
