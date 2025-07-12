@@ -121,6 +121,38 @@ argocd app get <application-name>
 argocd app list
 ```
 
+### 🚨 CRITICAL: ArgoCD targetRevision Management
+**ALWAYS CHECK AND UPDATE targetRevision WHEN WORKING ON BRANCHES**
+
+When working on a feature branch (like `cinema`), you **MUST** update the ArgoCD application's `targetRevision` field:
+
+```yaml
+# In *-application.yaml files
+spec:
+  source:
+    repoURL: "https://github.com/kpoxo6op/soyspray.git"
+    targetRevision: "cinema"  # NOT v1.17.0 when working on cinema branch!
+    path: playbooks/yaml/argocd-apps/app-name
+```
+
+**Current Branch Mapping:**
+- **Media Stack Apps** (Radarr, Sonarr, Prowlarr, Pi-hole): Use `"cinema"` branch
+- **Infrastructure Apps** (cert-manager, longhorn, etc.): Use `"v1.17.0"` tag
+- **LazyLibrarian**: Uses `"lazylibrarian"` branch
+
+**Why This Matters:**
+- If targetRevision points to wrong branch/tag, your changes won't deploy
+- ArgoCD will sync old version without your modifications
+- Leads to confusing debugging sessions when features don't work
+- Bootstrap jobs may not include new payload files or configurations
+
+**Checklist Before Any ArgoCD Application Changes:**
+1. ✅ Check current git branch: `git branch --show-current`
+2. ✅ Verify targetRevision matches your working branch
+3. ✅ Update targetRevision if needed
+4. ✅ Commit application.yaml changes first
+5. ✅ Then sync the application: `argocd app sync <app-name>`
+
 ### Application Management
 ```bash
 # Check ArgoCD applications
@@ -134,6 +166,7 @@ kubectl logs -f deployment/<app-name> -n <namespace>
 ```
 
 ## Best Practices
+- **🚨 CRITICAL**: Always verify ArgoCD targetRevision matches your git branch before making changes
 - **Always use GitOps**: Avoid manual cluster changes
 - **Test Changes**: Validate in development before production
 - **Document Everything**: Keep documentation updated
