@@ -71,6 +71,10 @@ The project uses Kubespray as a Git submodule ([.gitmodules](mdc:.gitmodules)) t
 - Custom runbooks for common tasks
 - Integration with Kubespray workflows
 - Example: [playbooks/initialize-longhorn-storage.yml](mdc:playbooks/initialize-longhorn-storage.yml)
+- **IMPORTANT**: Always activate the Python virtual environment before running Ansible commands:
+  ```bash
+  source soyspray-venv/bin/activate
+  ```
 
 ### One-off Operations
 - Shell scripts for troubleshooting
@@ -81,14 +85,20 @@ The project uses Kubespray as a Git submodule ([.gitmodules](mdc:.gitmodules)) t
 
 ### Cluster Management
 ```bash
+# IMPORTANT: Activate virtual environment first for all Ansible commands
+source soyspray-venv/bin/activate
+
 # Deploy cluster
-ansible-playbook main.yml
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu main.yml
 
 # Upgrade cluster
-ansible-playbook kubespray/upgrade-cluster.yml
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu kubespray/upgrade-cluster.yml
 
 # Deploy all applications
-ansible-playbook playbooks/deploy-argocd-apps.yml
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml
+
+# Deploy specific application (use --tags)
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml --tags radarr
 ```
 
 ### ArgoCD Management
