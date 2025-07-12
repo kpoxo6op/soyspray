@@ -25,6 +25,7 @@ data:
     192.168.1.120 calibre-web.soyspray.vip
     192.168.1.120 lazylibrarian.soyspray.vip
     192.168.1.120 radarr.soyspray.vip
+    192.168.1.120 sonarr.soyspray.vip
     192.168.1.121 argocd.lan
     192.168.1.124 pihole.lan
     192.168.1.125 prometheus.lan

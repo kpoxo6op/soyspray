@@ -1,0 +1,17 @@
+# playbooks/yaml/argocd-apps/sonarr/kustomization.yaml
+# Kustomize configuration for Sonarr
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - sonarr-application.yaml
+  - deployment.yaml
+  - service.yaml
+  - pvc-config.yaml
+  - ingress.yaml
+
+namespace: media
+
+commonLabels:
+  app: sonarr
+  managed-by: argocd

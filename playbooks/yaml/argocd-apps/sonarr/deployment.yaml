@@ -1,0 +1,62 @@
+# playbooks/yaml/argocd-apps/sonarr/deployment.yaml
+# Deployment for Sonarr using linuxserver/sonarr:4.0.15
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sonarr
+  namespace: media
+  labels:
+    app: sonarr
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: sonarr
+  template:
+    metadata:
+      labels:
+        app: sonarr
+        component: main
+    spec:
+      containers:
+        - name: sonarr
+          image: linuxserver/sonarr:4.0.15
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8989
+              name: http
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Pacific/Auckland"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: tv
+              mountPath: /tv
+            - name: downloads
+              mountPath: /downloads
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: sonarr-config
+        - name: tv
+          hostPath:
+            path: /media/tv
+            type: DirectoryOrCreate
+        - name: downloads
+          hostPath:
+            path: /media/downloads
+            type: DirectoryOrCreate
