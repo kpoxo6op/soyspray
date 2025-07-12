@@ -20,6 +20,25 @@ spec:
         app: sonarr
         component: main
     spec:
+      initContainers:
+        - name: init-config
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - |
+              if [ ! -f /config/config.xml ]; then
+                echo "Seeding initial Sonarr configuration..."
+                cp /initial-config/config.xml /config/config.xml
+                chown 1000:1000 /config/config.xml
+              else
+                echo "Sonarr configuration already exists, skipping seed."
+              fi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: initial-config
+              mountPath: /initial-config
       containers:
         - name: sonarr
           image: linuxserver/sonarr:4.0.15
@@ -60,3 +79,6 @@ spec:
           hostPath:
             path: /media/downloads
             type: DirectoryOrCreate
+        - name: initial-config
+          configMap:
+            name: sonarr-initial-config
