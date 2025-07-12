@@ -325,14 +325,6 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prowlarr/prowlarr-application.yaml') }}"
       tags: prowlarr
 
-    - name: Apply Readarr
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/readarr/readarr-application.yaml') }}"
-      tags: readarr
-
     - name: Apply Dingu Bot
       kubernetes.core.k8s:
         state: present
@@ -386,3 +378,10 @@
           data:
             DINGU_TELEGRAM_BOT_TOKEN: "{{ dingu_telegram_bot_token | b64encode }}"
       tags: dingu
+    - name: Apply lazylibrarian Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/lazylibrarian/lazylibrarian-application.yaml') }}"
+      tags: lazylibrarian

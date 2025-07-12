@@ -2,5 +2,5 @@
 
 # Home Cluster (Node-A)
 [Peer]
-PublicKey = 74GY6VIu9equc/J3aHaqSJIKnL5usz2C2+on0K3Tkyo=
+PublicKey = 6YcuaOr24TDkb7zLS/SclSwtKf/ZOm8WAyoYB2yjzk4=
 AllowedIPs = 10.8.0.3/32, 192.168.1.0/24

@@ -1,7 +1,10 @@
+# playbooks/yaml/argocd-apps/lazylibrarian/pvc-config.yaml
+# 100 MiB Longhorn-backed PVC for /config
+
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: readarr-config
+  name: lazylibrarian-config
   namespace: media
 spec:
   accessModes:
@@ -9,4 +12,4 @@ spec:
   storageClassName: longhorn
   resources:
     requests:
-      storage: 1Gi
+      storage: 100Mi

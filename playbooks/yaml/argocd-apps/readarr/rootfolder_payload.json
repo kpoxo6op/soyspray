@@ -1,9 +1,0 @@
-{
-  "name": "BooksLibrary",
-  "path": "/downloads/BooksLibrary/",
-  "defaultQualityProfileId": "QUALITY_PROFILE_ID_PLACEHOLDER",
-  "defaultMetadataProfileId": "METADATA_PROFILE_ID_PLACEHOLDER",
-  "accessible": true,
-  "freeSpace": 0,
-  "unmappedFolders": []
-}
