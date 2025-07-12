@@ -99,6 +99,20 @@ data:
     fi
     echo "========================"
 
+    echo "=== Processing LazyLibrarian ==="
+    if curl -s -H "X-Api-Key: $PROWLARR_API_KEY" "$API/api/v1/applications" \
+         | jq -e '.[] | select(.name == "LazyLibrarian")' > /dev/null 2>&1; then
+      echo "✓ LazyLibrarian already exists, skipping..."
+    else
+      echo "Adding LazyLibrarian..."
+      envsubst < /payloads/lazylibrarian.json > /tmp/processed/lazylibrarian.json
+      curl -sS -H "X-Api-Key: $PROWLARR_API_KEY" \
+           -H "Content-Type: application/json" \
+           -X POST "$API/api/v1/applications" \
+           --data @/tmp/processed/lazylibrarian.json
+    fi
+    echo "========================"
+
     echo "=== Bootstrap completed ==="
     # echo "sleep infinity to recheck the calls"
     # sleep infinity

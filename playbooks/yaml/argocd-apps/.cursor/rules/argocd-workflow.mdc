@@ -20,7 +20,6 @@ All cluster apps are defined in ArgoCD and applied via [deploy-argocd-apps.yml](
 
 ### Media Stack Applications
 - **dingu** - Telegram bot for book downloads ([dingu-application.yaml](mdc:playbooks/yaml/argocd-apps/dingu/dingu-application.yaml))
-- **readarr** - Book management ([readarr-application.yaml](mdc:playbooks/yaml/argocd-apps/readarr/readarr-application.yaml))
 - **prowlarr** - Indexer management ([prowlarr-application.yaml](mdc:playbooks/yaml/argocd-apps/prowlarr/prowlarr-application.yaml))
 - **qbittorrent** - Torrent client ([qbittorrent-application.yaml](mdc:playbooks/yaml/argocd-apps/qbittorrent/qbittorrent-application.yaml))
 - **immich** - Photo management ([immich-application.yaml](mdc:playbooks/yaml/argocd-apps/immich/immich-application.yaml))

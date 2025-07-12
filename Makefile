@@ -35,6 +35,8 @@ act:
 
 ans:
 	@echo "\nansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/ --tags TAG\n"
+	@echo "ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml\n"
+
 
 install:
 	@if [ ! -w /usr/local/bin ]; then \

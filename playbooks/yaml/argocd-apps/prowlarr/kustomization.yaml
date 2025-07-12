@@ -20,5 +20,6 @@ configMapGenerator:
       - myanonamouse.json=myanonamouse_payload.json
       - readarr.json=readarr_app_payload.json
       - thepiratebay.json=thepiratebay_payload.json
+      - lazylibrarian.json=lazylibrarian_app_payload.json
     options:
       disableNameSuffixHash: true
