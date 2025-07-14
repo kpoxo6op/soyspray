@@ -4,7 +4,7 @@ kind: Kustomization
 namespace: media
 
 resources:
-  - pvc-media-rwx.yaml
+  - pvc-downloads.yaml
   - deployment.yaml
   - service.yaml
   - service-peers.yaml
