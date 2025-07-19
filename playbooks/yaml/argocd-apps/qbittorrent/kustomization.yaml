@@ -15,4 +15,3 @@ resources:
 
 commonLabels:
   app: qbittorrent
-  component: main
