@@ -1,5 +1,6 @@
 # playbooks/yaml/argocd-apps/qbittorrent/configmap.yaml
 # Seeds qBittorrent WebUI credentials (admin / 123) via PBKDF2 hash.
+# Defines generic categories with automatic torrent management.
 #------------------------------------------------------------------------------
 apiVersion: v1
 kind: ConfigMap
@@ -17,12 +18,12 @@ data:
     Session\AnnounceToAllTrackers=true
     Session\ReannounceWhenAddressChanged=true
     Session\AddTorrentStopped=false
-    Session\DefaultSavePath=/downloads/incoming/books
+    Session\DefaultSavePath=/downloads
     Session\Port=49160
     Session\QueueingSystemEnabled=true
     Session\SSL\Port=9007
     Session\ShareLimitAction=Stop
-    Session\TempPath=/downloads/incoming/incomplete
+    Session\TempPath=/downloads/incomplete
 
     [LegalNotice]
     Accepted=true
@@ -40,9 +41,17 @@ data:
     [Preferences]
     Connection\PortRangeMin=49160
     Connection\UPnP=false
-    Downloads\SavePath=/downloads/incoming/books
-    Downloads\TempPath=/downloads/incoming/incomplete
+    Downloads\SavePath=/downloads
+    Downloads\TempPath=/downloads/incomplete
+    Downloads\TorrentManagementMode=2
     WebUI\Address=*
     WebUI\ServerDomains=*
     WebUI\Username=admin
     WebUI\Password_PBKDF2="@ByteArray(6GuqwbIxFz5yNRLYBYPQIQ==:WyiZHyQ5Hgwnc71PuKmt1NKVAUD9tstuLBcJrP82SkQfalql8giGHqbOc7lly/xbqXEKuvcvrc3Dbg62PNPZBA==)"
+
+    [Categories]
+    tv\SavePath=/downloads/tv
+    movies\SavePath=/downloads/movies
+    books\SavePath=/downloads/books
+    audiobooks\SavePath=/downloads/audiobooks
+    scenes\SavePath=/downloads/scenes

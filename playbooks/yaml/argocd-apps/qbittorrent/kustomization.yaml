@@ -11,6 +11,7 @@ resources:
   - ingress.yaml
   - pvc-config.yaml
   - configmap.yaml
+  - bootstrap-job.yaml
 
 commonLabels:
   app: qbittorrent
