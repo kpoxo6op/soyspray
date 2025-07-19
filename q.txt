@@ -1,0 +1,405 @@
+=== Directory Structure for: playbooks/yaml/argocd-apps/qbittorrent ===
+playbooks/yaml/argocd-apps/qbittorrent
+├── bootstrap-job.yaml
+├── configmap.yaml
+├── deployment.yaml
+├── ingress.yaml
+├── kustomization.yaml
+├── pvc-config.yaml
+├── pvc-downloads.yaml
+├── qbittorrent-application.yaml
+├── README.md
+├── service-peers.yaml
+└── service.yaml
+
+1 directory, 11 files
+
+=== File Contents ===
+=== File: playbooks/yaml/argocd-apps/qbittorrent/bootstrap-job.yaml (YAML, 75 lines, comments stripped) ===
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: qbittorrent-bootstrap
+  namespace: media
+  labels:
+    app: qbittorrent
+    component: bootstrap
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: qbittorrent
+        component: bootstrap
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: bootstrap
+        image: curlimages/curl:8.8.0
+        env:
+        - name: BASE_URL
+          value: http://qbittorrent.media.svc.cluster.local:8080
+        - name: QB_LOGIN
+          value: admin:123
+        command:
+        - sh
+        - -ce
+        - |
+          echo "Waiting for qBittorrent to be ready..."
+          until curl -f "$BASE_URL/api/v2/app/version" > /dev/null 2>&1; do
+            sleep 5
+          done
+
+          login() {
+            echo "Logging in to qBittorrent..."
+            curl -fsSL \
+              -c /tmp/cookie \
+              -d "username=${QB_LOGIN%%:*}&password=${QB_LOGIN
+              "$BASE_URL/api/v2/auth/login"
+          }
+
+          create_category() {
+            echo "Creating category: $1"
+            curl -fsSL \
+              -b /tmp/cookie \
+              -d "category=$1" \
+              "$BASE_URL/api/v2/torrents/createCategory" || true
+          }
+
+          login
+          for cat in tv movies books audiobooks scenes; do
+            create_category "$cat"
+          done
+
+          echo "qBittorrent categories configured successfully"
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+            - ALL
+====================
+
+=== File: playbooks/yaml/argocd-apps/qbittorrent/service-peers.yaml (YAML, 21 lines, comments stripped) ===
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-peers
+  namespace: media
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.1.240
+  externalTrafficPolicy: Local
+  ports:
+    - name: peers-tcp
+      port: 49160
+      protocol: TCP
+      targetPort: 49160
+    - name: peers-udp
+      port: 49160
+      protocol: UDP
+      targetPort: 49160
+  selector:
+    app: qbittorrent
+====================
+
+=== File: playbooks/yaml/argocd-apps/qbittorrent/pvc-downloads.yaml (YAML, 12 lines, comments stripped) ===
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qbittorrent-downloads
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: longhorn-rwx
+  resources:
+    requests:
+      storage: 20Gi====================
+
+=== File: playbooks/yaml/argocd-apps/qbittorrent/configmap.yaml (YAML, 57 lines, comments stripped) ===
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qbittorrent-conf
+  namespace: media
+data:
+  qBittorrent.conf: |-
+    [AutoRun]
+    enabled=false
+    program=
+
+    [BitTorrent]
+    Session\AnnounceIP=210.54.32.219
+    Session\AnnounceToAllTrackers=true
+    Session\ReannounceWhenAddressChanged=true
+    Session\AddTorrentStopped=false
+    Session\DefaultSavePath=/downloads
+    Session\Port=49160
+    Session\QueueingSystemEnabled=true
+    Session\SSL\Port=9007
+    Session\ShareLimitAction=Stop
+    Session\TempPath=/downloads/incomplete
+
+    [LegalNotice]
+    Accepted=true
+
+    [Meta]
+    MigrationVersion=8
+
+    [Network]
+    PortForwardingEnabled=false
+    Proxy\HostnameLookupEnabled=false
+    Proxy\Profiles\BitTorrent=true
+    Proxy\Profiles\Misc=true
+    Proxy\Profiles\RSS=true
+
+    [Preferences]
+    Connection\PortRangeMin=49160
+    Connection\UPnP=false
+    Downloads\SavePath=/downloads
+    Downloads\TempPath=/downloads/incomplete
+    Downloads\TorrentManagementMode=2
+    WebUI\Address=*
+    WebUI\ServerDomains=*
+    WebUI\Username=admin
+    WebUI\Password_PBKDF2="@ByteArray(6GuqwbIxFz5yNRLYBYPQIQ==:WyiZHyQ5Hgwnc71PuKmt1NKVAUD9tstuLBcJrP82SkQfalql8giGHqbOc7lly/xbqXEKuvcvrc3Dbg62PNPZBA==)"
+
+    [Categories]
+    tv\SavePath=/downloads/tv
+    movies\SavePath=/downloads/movies
+    books\SavePath=/downloads/books
+    audiobooks\SavePath=/downloads/audiobooks
+    scenes\SavePath=/downloads/scenes
+====================
+
+=== File: playbooks/yaml/argocd-apps/qbittorrent/pvc-config.yaml (YAML, 12 lines, comments stripped) ===
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: qbittorrent-config
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi
+====================
+
+=== File: playbooks/yaml/argocd-apps/qbittorrent/service.yaml (YAML, 17 lines, comments stripped) ===
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent
+  namespace: media
+  labels:
+    app: qbittorrent
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.1.127
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: qbittorrent
+====================
+
+=== File: playbooks/yaml/argocd-apps/qbittorrent/ingress.yaml (YAML, 30 lines, comments stripped) ===
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: qbittorrent-ingress
+  namespace: media
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - qbittorrent.soyspray.vip
+      secretName: prod-cert-tls
+  rules:
+    - host: qbittorrent.soyspray.vip
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: qbittorrent
+                port:
+                  number: 8080
+====================
+
+=== File: playbooks/yaml/argocd-apps/qbittorrent/qbittorrent-application.yaml (YAML, 22 lines, comments stripped) ===
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: qbittorrent
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: "cinema"
+    path: playbooks/yaml/argocd-apps/qbittorrent
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: media
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+====================
+
+=== File: playbooks/yaml/argocd-apps/qbittorrent/kustomization.yaml (YAML, 18 lines, comments stripped) ===
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: media
+
+resources:
+  - pvc-downloads.yaml
+  - deployment.yaml
+  - service.yaml
+  - service-peers.yaml
+  - ingress.yaml
+  - pvc-config.yaml
+  - configmap.yaml
+  - bootstrap-job.yaml
+
+commonLabels:
+  app: qbittorrent
+  component: main
+====================
+
+=== File: playbooks/yaml/argocd-apps/qbittorrent/deployment.yaml (YAML, 89 lines, comments stripped) ===
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent
+  namespace: media
+  labels:
+    app: qbittorrent
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: qbittorrent
+  template:
+    metadata:
+      labels:
+        app: qbittorrent
+    spec:
+      initContainers:
+        - name: copy-qbt-config
+          image: busybox:stable
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              mkdir -p /config/qBittorrent &&
+              cp /configmap/qBittorrent.conf /config/qBittorrent/qBittorrent.conf &&
+              chown 1000:1000 /config/qBittorrent/qBittorrent.conf;
+          volumeMounts:
+            - name: qbittorrent-conf
+              mountPath: /configmap
+              readOnly: true
+            - name: config
+              mountPath: /config
+      containers:
+        - name: qbittorrent
+          image: linuxserver/qbittorrent:libtorrentv1-release-5.0.5_v1.2.20-ls73
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Pacific/Auckland"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: downloads
+              mountPath: /downloads
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: qbittorrent-config
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: qbittorrent-downloads
+        - name: qbittorrent-conf
+          configMap:
+            name: qbittorrent-conf
+====================
+
+=== File: playbooks/yaml/argocd-apps/qbittorrent/README.md (Markdown, 34 lines) ===
+# qBittorrent (Raw K8s Manifests)
+
+Port forwarding was added in the router to the new qBittorrent port.
+
+admin / 123
+
+This folder contains a minimal raw Kubernetes definition of qBittorrent,
+including:
+
+1. Namespace `media`
+2. PVCs for config and downloads
+3. A Deployment with environment variables and resource limits
+4. A Service of type LoadBalancer with IP 192.168.1.127
+
+## Validation Steps
+
+1. Wait for the Service to assign the LoadBalancer IP **192.168.1.127**.
+2. Visit <http://192.168.1.127:8080> in the browser.
+3. Log into qBittorrent (default user/pass is usually admin/adminadmin or per image doc).
+4. Add a test torrent (e.g. a Linux ISO). Confirm it downloads.
+
+## Create a password hash
+
+```python
+python - "MySuperSecret1!" <<'PY'
+import os, sys, base64, hashlib
+pwd = sys.argv[1].encode()
+salt = os.urandom(16)
+dk   = hashlib.pbkdf2_hmac('sha512', pwd, salt, 100000)
+print(f'@ByteArray({base64.b64encode(salt).decode()}:{base64.b64encode(dk).decode()})')
+PY
+
+sha256:5000:b9040da26fc5cfb8:32d63d47b37f03ac6d716bb3a2d932c6a5c43c8b69215444e0588928fae9eae7
+```
+====================
+

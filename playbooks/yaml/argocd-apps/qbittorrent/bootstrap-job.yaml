@@ -1,5 +1,6 @@
 # playbooks/yaml/argocd-apps/qbittorrent/bootstrap-job.yaml
-# Post-sync hook that waits for qBittorrent readiness, logs in with proper cookie handling, and creates media categories
+# Post-sync hook that waits for qBittorrent readiness, logs in with correct cookie handling, and creates media categories
+
 apiVersion: batch/v1
 kind: Job
 metadata:
