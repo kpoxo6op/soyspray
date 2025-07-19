@@ -1,6 +1,5 @@
 # playbooks/yaml/argocd-apps/qbittorrent/bootstrap-job.yaml
-# Bootstrap job to register qBittorrent categories via API
-#------------------------------------------------------------------------------
+# Post-sync hook that waits for qBittorrent readiness, logs in with proper cookie handling, and creates media categories
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -22,54 +21,55 @@ spec:
     spec:
       restartPolicy: OnFailure
       containers:
-        - name: bootstrap
-          image: curlimages/curl:8.8.0
-          env:
-            - name: BASE_URL
-              value: http://qbittorrent.media.svc.cluster.local:8080
-            - name: QB_LOGIN
-              value: admin:123
-          command:
-            - sh
-            - -ce
-            - |
-              echo "Waiting for qBittorrent to be ready..."
-              until curl -f "$BASE_URL/api/v2/app/version" > /dev/null 2>&1; do
-                echo "Waiting for qBittorrent API..."
-                sleep 5
-              done
+      - name: bootstrap
+        image: curlimages/curl:8.8.0
+        env:
+        - name: BASE_URL
+          value: http://qbittorrent.media.svc.cluster.local:8080
+        - name: QB_LOGIN
+          value: admin:123
+        command:
+        - sh
+        - -ce
+        - |
+          echo "Waiting for qBittorrent to be ready..."
+          until curl -f "$BASE_URL/api/v2/app/version" > /dev/null 2>&1; do
+            sleep 5
+          done
 
-              login() {
-                echo "Logging in to qBittorrent..."
-                curl -fsSL -d "username=${QB_LOGIN%%:*}&password=${QB_LOGIN##*:}" \
-                     -c /tmp/cookie "${BASE_URL}/api/v2/auth/login"
-              }
+          login() {
+            echo "Logging in to qBittorrent..."
+            curl -fsSL \
+              -c /tmp/cookie \
+              -d "username=${QB_LOGIN%%:*}&password=${QB_LOGIN#*:}" \
+              "$BASE_URL/api/v2/auth/login"
+          }
 
-              create_category() {
-                echo "Creating category: $1"
-                curl -fsSL -b /tmp/cookie -d "category=$1" \
-                     "${BASE_URL}/api/v2/torrents/createCategory" || {
-                  echo "Category $1 might already exist (HTTP 409 expected)"
-                }
-              }
+          create_category() {
+            echo "Creating category: $1"
+            curl -fsSL \
+              -b /tmp/cookie \
+              -d "category=$1" \
+              "$BASE_URL/api/v2/torrents/createCategory" || true
+          }
 
-              login
-              for cat in tv movies books audiobooks scenes; do
-                create_category "$cat"
-              done
+          login
+          for cat in tv movies books audiobooks scenes; do
+            create_category "$cat"
+          done
 
-              echo "qBittorrent categories configured successfully"
-          resources:
-            requests:
-              memory: "32Mi"
-              cpu: "50m"
-            limits:
-              memory: "64Mi"
-              cpu: "100m"
-          securityContext:
-            allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsUser: 65534
-            capabilities:
-              drop:
-                - ALL
+          echo "qBittorrent categories configured successfully"
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+            - ALL
