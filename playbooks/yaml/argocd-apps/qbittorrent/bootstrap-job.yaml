@@ -11,7 +11,7 @@ metadata:
     component: bootstrap
   annotations:
     argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+    # argocd.argoproj.io/hook-delete-policy: HookSucceeded  # Commented out to check logs
 spec:
   ttlSecondsAfterFinished: 3600
   template:
