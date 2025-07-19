@@ -34,7 +34,7 @@ spec:
         - -ce
         - |
           echo "Waiting for qBittorrent to be ready..."
-          until curl -f "$BASE_URL/api/v2/app/version" > /dev/null 2>&1; do
+          until curl -f "$BASE_URL/" > /dev/null 2>&1; do
             sleep 5
           done
 
