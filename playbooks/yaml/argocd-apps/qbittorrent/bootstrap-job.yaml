@@ -48,13 +48,37 @@ spec:
 
           create_category() {
             echo "Creating category: $1"
-            curl -fsSL \
-              -b /tmp/cookie \
-              -d "category=$1" \
-              "$BASE_URL/api/v2/torrents/createCategory" || true
+            local retries=3
+            local delay=5
+
+            for i in $(seq 1 $retries); do
+              echo "Attempt $i for category $1..."
+              if curl -fsSL \
+                -b /tmp/cookie \
+                -d "category=$1" \
+                "$BASE_URL/api/v2/torrents/createCategory"; then
+                echo "Category $1 created successfully"
+                return 0
+              else
+                echo "Failed to create category $1, attempt $i/$retries"
+                if [ $i -lt $retries ]; then
+                  echo "Retrying in ${delay}s..."
+                  sleep $delay
+                  # Re-login in case session expired
+                  login
+                fi
+              fi
+            done
+            echo "Failed to create category $1 after $retries attempts"
           }
 
+          # Initial login
           login
+
+          # Wait a bit for service to stabilize
+          echo "Waiting for service to stabilize..."
+          sleep 10
+
           for cat in tv movies books audiobooks scenes; do
             create_category "$cat"
           done
