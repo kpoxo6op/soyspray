@@ -33,8 +33,8 @@ spec:
         - sh
         - -ce
         - |
-          echo "Waiting for qBittorrent to be ready..."
-          until curl -f "$BASE_URL/" > /dev/null 2>&1; do
+          echo "Waiting for qBittorrent Web API to be ready..."
+          until curl -f "$BASE_URL/api/v2/app/webapiVersion" > /dev/null 2>&1; do
             sleep 5
           done
 
@@ -75,9 +75,9 @@ spec:
           # Initial login
           login
 
-          # Wait a bit for service to stabilize
-          echo "Waiting for service to stabilize..."
-          sleep 10
+          # Wait for API to settle
+          echo "Waiting for API to settle..."
+          sleep 30
 
           for cat in tv movies books audiobooks scenes; do
             create_category "$cat"
