@@ -25,7 +25,7 @@ spec:
         image: curlimages/curl:8.8.0
         env:
         - name: BASE_URL
-          value: "https://qbittorrent.soyspray.vip"
+          value: "http://qbittorrent.media.svc.cluster.local:8080"
         - name: QB_LOGIN
           value: "admin:123"
         command:
