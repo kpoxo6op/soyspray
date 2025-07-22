@@ -33,18 +33,16 @@ PY
 sha256:5000:b9040da26fc5cfb8:32d63d47b37f03ac6d716bb3a2d932c6a5c43c8b69215444e0588928fae9eae7
 ```
 
-## Delete the app
+## Delete the app manually
 
 Delete from argocd
 
 ```sh
-kubectl patch application qbittorrent \
-  -n argocd \
-  -p '{"metadata":{"finalizers":[]}}' \
-  --type=merge
-
-kubectl patch pvc qbittorrent-downloads \
-  -n media \
-  -p '{"metadata":{"finalizers":[]}}' \
-  --type=merge
+kubectl patch application qbittorrent -n argocd -p '{"metadata":{"finalizers":[]}}' --type=merge
+kubectl delete deployment qbittorrent -n media
+kubectl delete job qbittorrent-bootstrap -n media
+kubectl delete service qbittorrent qbittorrent-peers -n media
+kubectl delete configmap qbittorrent-conf -n media
+kubectl delete ingress qbittorrent-ingress -n media
+kubectl delete pvc qbittorrent-config qbittorrent-downloads -n media
 ```
