@@ -30,7 +30,7 @@ spec:
           value: "admin:123"
         command:
         - sh
-        - -ce
+        - -c
         - |
           login() {
             echo "Logging in to qBittorrent..."
@@ -53,12 +53,32 @@ spec:
           echo "API ready"
 
           echo "Creating categories..."
-          for cat in tv movies books audiobooks scenes; do
-            echo "Creating category: $cat"
-            curl -fsSL -b /tmp/cookie \
-              -d "category=$cat" \
-              "${BASE_URL}/api/v2/torrents/createCategory"
-          done
+
+          echo "Creating category: tv"
+          curl -sSL -b /tmp/cookie \
+            -d "category=tv" \
+            "${BASE_URL}/api/v2/torrents/createCategory" || echo "Failed to create tv category"
+
+          echo "Creating category: movies"
+          curl -sSL -b /tmp/cookie \
+            -d "category=movies" \
+            "${BASE_URL}/api/v2/torrents/createCategory" || echo "Failed to create movies category"
+
+          echo "Creating category: books"
+          curl -sSL -b /tmp/cookie \
+            -d "category=books" \
+            "${BASE_URL}/api/v2/torrents/createCategory" || echo "Failed to create books category"
+
+          echo "Creating category: audiobooks"
+          curl -sSL -b /tmp/cookie \
+            -d "category=audiobooks" \
+            "${BASE_URL}/api/v2/torrents/createCategory" || echo "Failed to create audiobooks category"
+
+          echo "Creating category: scenes"
+          curl -sSL -b /tmp/cookie \
+            -d "category=scenes" \
+            "${BASE_URL}/api/v2/torrents/createCategory" || echo "Failed to create scenes category"
+
           echo "qBittorrent categories configured successfully"
         resources:
           requests:
