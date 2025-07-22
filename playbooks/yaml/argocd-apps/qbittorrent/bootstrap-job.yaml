@@ -1,6 +1,6 @@
 # playbooks/yaml/argocd-apps/qbittorrent/bootstrap-job.yaml
-# Post-sync hook that waits for qBittorrent readiness, logs in with correct cookie handling, and creates media categories
-
+# Fix login parameter expansion and ensure authentication before readiness checks
+# Wait for login to succeed, then poll version endpoint using session cookie
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -11,7 +11,6 @@ metadata:
     component: bootstrap
   annotations:
     argocd.argoproj.io/hook: PostSync
-    # argocd.argoproj.io/hook-delete-policy: HookSucceeded  # Commented out to check logs
 spec:
   ttlSecondsAfterFinished: 3600
   template:
@@ -26,63 +25,40 @@ spec:
         image: curlimages/curl:8.8.0
         env:
         - name: BASE_URL
-          value: http://qbittorrent.media.svc.cluster.local:8080
+          value: "https://qbittorrent.soyspray.vip"
         - name: QB_LOGIN
-          value: admin:123
+          value: "admin:123"
         command:
         - sh
         - -ce
         - |
-          echo "Waiting for qBittorrent Web API to be ready..."
-          until curl -f "$BASE_URL/api/v2/app/webapiVersion" > /dev/null 2>&1; do
-            sleep 5
-          done
-
           login() {
             echo "Logging in to qBittorrent..."
-            curl -fsSL \
-              -c /tmp/cookie \
+            curl -fsSL -c /tmp/cookie \
               -d "username=${QB_LOGIN%%:*}&password=${QB_LOGIN#*:}" \
-              "$BASE_URL/api/v2/auth/login"
+              "${BASE_URL}/api/v2/auth/login"
           }
-
-          create_category() {
-            echo "Creating category: $1"
-            local retries=3
-            local delay=5
-
-            for i in $(seq 1 $retries); do
-              echo "Attempt $i for category $1..."
-              if curl -fsSL \
-                -b /tmp/cookie \
-                -d "category=$1" \
-                "$BASE_URL/api/v2/torrents/createCategory"; then
-                echo "Category $1 created successfully"
-                return 0
-              else
-                echo "Failed to create category $1, attempt $i/$retries"
-                if [ $i -lt $retries ]; then
-                  echo "Retrying in ${delay}s..."
-                  sleep $delay
-                  # Re-login in case session expired
-                  login
-                fi
-              fi
-            done
-            echo "Failed to create category $1 after $retries attempts"
-          }
-
-          # Initial login
-          login
-
-          # Wait for API to settle
-          echo "Waiting for API to settle..."
-          sleep 30
-
-          for cat in tv movies books audiobooks scenes; do
-            create_category "$cat"
+          echo "Waiting for login to succeed..."
+          until login; do
+            echo "Login failed, retrying in 5s..."
+            sleep 5
           done
+          echo "Login successful"
 
+          echo "Waiting for API to be ready..."
+          until curl -fsSL -b /tmp/cookie -f "${BASE_URL}/api/v2/app/webapiVersion" > /dev/null 2>&1; do
+            echo "API not ready, retrying in 5s..."
+            sleep 5
+          done
+          echo "API ready"
+
+          echo "Creating categories..."
+          for cat in tv movies books audiobooks scenes; do
+            echo "Creating category: $cat"
+            curl -fsSL -b /tmp/cookie \
+              -d "category=$cat" \
+              "${BASE_URL}/api/v2/torrents/createCategory"
+          done
           echo "qBittorrent categories configured successfully"
         resources:
           requests:
