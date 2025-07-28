@@ -1,6 +1,6 @@
 # playbooks/yaml/argocd-apps/qbittorrent/bootstrap-job.yaml
-# Fix login parameter expansion and ensure authentication before readiness checks
-# Wait for login to succeed, then poll version endpoint using session cookie
+# Enhanced bootstrap with retry logic and verification
+# Wait for login to succeed, then create categories with resilient error handling
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -38,6 +38,46 @@ spec:
               -d "username=${QB_LOGIN%%:*}&password=${QB_LOGIN#*:}" \
               "${BASE_URL}/api/v2/auth/login"
           }
+
+          create_category() {
+            local category="$1"
+            local max_attempts=3
+            local attempt=1
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "Creating category: $category (attempt $attempt/$max_attempts)"
+
+              if curl -sSL -b /tmp/cookie \
+                -d "category=$category" \
+                "${BASE_URL}/api/v2/torrents/createCategory" 2>/dev/null; then
+                echo "Category $category: Success"
+                return 0
+              else
+                echo "Category $category: Failed on attempt $attempt"
+                if [ $attempt -lt $max_attempts ]; then
+                  echo "Retrying in 2 seconds..."
+                  sleep 2
+                fi
+              fi
+              attempt=$((attempt + 1))
+            done
+
+            echo "Category $category: All attempts failed"
+            return 1
+          }
+
+          verify_categories() {
+            echo "Verifying categories were created..."
+            if curl -sSL -b /tmp/cookie "${BASE_URL}/api/v2/torrents/categories" > /tmp/categories.json 2>/dev/null; then
+              echo "Current categories:"
+              cat /tmp/categories.json | tr ',' '\n' | grep -oE '"[^"]+":' | tr -d '":' | sort
+              return 0
+            else
+              echo "Failed to retrieve categories for verification"
+              return 1
+            fi
+          }
+
           echo "Waiting for login to succeed..."
           until login; do
             echo "Login failed, retrying in 5s..."
@@ -52,32 +92,16 @@ spec:
           done
           echo "API ready"
 
-          echo "Creating categories..."
+          echo "Creating categories with retry logic..."
 
-          echo "Creating category: tv"
-          curl -sSL -b /tmp/cookie \
-            -d "category=tv" \
-            "${BASE_URL}/api/v2/torrents/createCategory" || echo "Failed to create tv category"
+          # Create each category with retry logic and delay between attempts
+          for category in tv movies books audiobooks scenes; do
+            create_category "$category"
+            sleep 1  # Small delay between category creations
+          done
 
-          echo "Creating category: movies"
-          curl -sSL -b /tmp/cookie \
-            -d "category=movies" \
-            "${BASE_URL}/api/v2/torrents/createCategory" || echo "Failed to create movies category"
-
-          echo "Creating category: books"
-          curl -sSL -b /tmp/cookie \
-            -d "category=books" \
-            "${BASE_URL}/api/v2/torrents/createCategory" || echo "Failed to create books category"
-
-          echo "Creating category: audiobooks"
-          curl -sSL -b /tmp/cookie \
-            -d "category=audiobooks" \
-            "${BASE_URL}/api/v2/torrents/createCategory" || echo "Failed to create audiobooks category"
-
-          echo "Creating category: scenes"
-          curl -sSL -b /tmp/cookie \
-            -d "category=scenes" \
-            "${BASE_URL}/api/v2/torrents/createCategory" || echo "Failed to create scenes category"
+          # Verify all categories were created
+          verify_categories
 
           echo "qBittorrent categories configured successfully"
         resources:
