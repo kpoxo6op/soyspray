@@ -61,7 +61,7 @@ curl -s "https://lazylibrarian.soyspray.vip/opds"
 
 ## File Processing Pipeline
 
-1. **qBittorrent**: Downloads to `/downloads` (shared Longhorn RWX volume)
-2. **LazyLibrarian**: Processes from `/incoming` (same PVC)
-3. **Library**: Moves processed files to `/library` (separate PVC)
-4. **OPDS**: Serves files via `/opds` endpoint for direct book downloads
+1. **qBittorrent**: Downloads completed torrents to `/downloads/books` (shared RWX PVC)
+2. **LazyLibrarian**: Monitors `/downloads/books` for completed downloads (same PVC)
+3. **Library**: Processes and moves files to `/books/Author/Title.epub` (dedicated books PVC)
+4. **OPDS**: Serves organized library via `/opds` endpoint for direct book downloads
