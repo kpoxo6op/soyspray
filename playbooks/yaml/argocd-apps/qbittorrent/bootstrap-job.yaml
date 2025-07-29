@@ -41,6 +41,7 @@ spec:
 
           create_category() {
             local category="$1"
+            local save_path="$2"
             local max_attempts=3
             local attempt=1
 
@@ -50,7 +51,19 @@ spec:
               if curl -sSL -b /tmp/cookie \
                 -d "category=$category" \
                 "${BASE_URL}/api/v2/torrents/createCategory" 2>/dev/null; then
-                echo "Category $category: Success"
+                echo "Category $category: Created successfully"
+
+                # Set the save path for the category
+                if [ -n "$save_path" ]; then
+                  echo "Setting save path for $category: $save_path"
+                  if curl -sSL -b /tmp/cookie \
+                    -d "category=$category&savePath=$save_path" \
+                    "${BASE_URL}/api/v2/torrents/editCategory" 2>/dev/null; then
+                    echo "Category $category: Save path set successfully"
+                  else
+                    echo "Category $category: Failed to set save path (but category exists)"
+                  fi
+                fi
                 return 0
               else
                 echo "Category $category: Failed on attempt $attempt"
@@ -66,19 +79,7 @@ spec:
             return 1
           }
 
-          verify_categories() {
-            echo "Verifying categories were created..."
-            if curl -sSL -b /tmp/cookie "${BASE_URL}/api/v2/torrents/categories" > /tmp/categories.json 2>/dev/null; then
-              echo "Current categories:"
-              cat /tmp/categories.json | tr ',' '\n' | grep -oE '"[^"]+":' | tr -d '":' | sort
-              return 0
-            else
-              echo "Failed to retrieve categories for verification"
-              return 1
-            fi
-          }
-
-          echo "Waiting for login to succeed..."
+           echo "Waiting for login to succeed..."
           until login; do
             echo "Login failed, retrying in 5s..."
             sleep 5
@@ -95,15 +96,17 @@ spec:
           echo "Creating categories with retry logic..."
 
           # Create each category with retry logic and delay between attempts
-          for category in tv movies books audiobooks scenes; do
-            create_category "$category"
-            sleep 1  # Small delay between category creations
-          done
+          create_category "tv" "/downloads/tv"
+          sleep 1
+          create_category "movies" "/downloads/movies"
+          sleep 1
+          create_category "books" "/downloads/books"
+          sleep 1
+          create_category "audiobooks" "/downloads/audiobooks"
+          sleep 1
+          create_category "scenes" "/downloads/scenes"
 
-          # Verify all categories were created
-          verify_categories
-
-          echo "qBittorrent categories configured successfully"
+          echo "qBittorrent categories configured"
         resources:
           requests:
             memory: "32Mi"
