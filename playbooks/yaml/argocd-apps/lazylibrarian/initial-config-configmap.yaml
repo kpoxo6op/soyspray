@@ -49,7 +49,6 @@ data:
     audiobook_dest_folder = $Author/$Title
     move_files = False
     rename_files = True
-    delete_original = False
 
     [PROWL]
     prowl_priority = -2
