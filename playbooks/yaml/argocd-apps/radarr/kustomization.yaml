@@ -8,6 +8,7 @@ resources:
   - deployment.yaml
   - service.yaml
   - pvc-config.yaml
+  - movies-pvc.yaml
   - ingress.yaml
 
 namespace: media

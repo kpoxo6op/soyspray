@@ -53,10 +53,8 @@ spec:
           persistentVolumeClaim:
             claimName: radarr-config
         - name: movies
-          hostPath:
-            path: /media/movies
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: radarr-movies
         - name: downloads
-          hostPath:
-            path: /media/downloads
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: qbittorrent-downloads

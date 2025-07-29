@@ -72,13 +72,11 @@ spec:
           persistentVolumeClaim:
             claimName: sonarr-config
         - name: tv
-          hostPath:
-            path: /media/tv
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: sonarr-tv
         - name: downloads
-          hostPath:
-            path: /media/downloads
-            type: DirectoryOrCreate
+          persistentVolumeClaim:
+            claimName: qbittorrent-downloads
         - name: initial-config
           configMap:
             name: sonarr-initial-config
