@@ -46,24 +46,12 @@ spec:
             local attempt=1
 
             while [ $attempt -le $max_attempts ]; do
-              echo "Creating category: $category (attempt $attempt/$max_attempts)"
+              echo "Creating category: $category with path $save_path (attempt $attempt/$max_attempts)"
 
               if curl -sSL -b /tmp/cookie \
-                -d "category=$category" \
+                -d "category=$category&savePath=$save_path" \
                 "${BASE_URL}/api/v2/torrents/createCategory" 2>/dev/null; then
-                echo "Category $category: Created successfully"
-
-                # Set the save path for the category
-                if [ -n "$save_path" ]; then
-                  echo "Setting save path for $category: $save_path"
-                  if curl -sSL -b /tmp/cookie \
-                    -d "category=$category&savePath=$save_path" \
-                    "${BASE_URL}/api/v2/torrents/editCategory" 2>/dev/null; then
-                    echo "Category $category: Save path set successfully"
-                  else
-                    echo "Category $category: Failed to set save path (but category exists)"
-                  fi
-                fi
+                echo "Category $category: Created successfully with path $save_path"
                 return 0
               else
                 echo "Category $category: Failed on attempt $attempt"
