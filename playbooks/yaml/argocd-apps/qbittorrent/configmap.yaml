@@ -56,6 +56,7 @@ data:
     Connection\UPnP=false
     Downloads\SavePath=/downloads
     Downloads\TempPath=/downloads/incomplete
+    Downloads\TempPathEnabled=true
     Downloads\TorrentManagementMode=2
     WebUI\Address=*
     WebUI\ServerDomains=*
