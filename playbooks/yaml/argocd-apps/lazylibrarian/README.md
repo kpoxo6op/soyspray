@@ -2,66 +2,67 @@
 
 ## Core Workflow Commands
 
-### Queue a Book (Change Status from Skipped to Wanted)
+### Find and Add Book
 
 ```bash
+# Find book (returns JSON with bookid)
+curl -s "https://lazylibrarian.soyspray.vip/api?cmd=findBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&name=Terry+Pratchett+Color+Magic"
+
+# Add to database
+curl -s "https://lazylibrarian.soyspray.vip/api?cmd=addBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&id=BOOK_ID"
+```
+
+### Queue and Download Book
+
+```bash
+# Queue for download (Skipped → Wanted)
 curl -s "https://lazylibrarian.soyspray.vip/api?cmd=queueBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&id=BOOK_ID&type=eBook"
-```
 
-### Search for a Book (Trigger Download Search)
-
-
-```bash
+# Trigger download search
 curl -s "https://lazylibrarian.soyspray.vip/api?cmd=searchBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&id=BOOK_ID&wait=true"
-```
 
-### Get Downloaded Books with URLs
-
-```bash
+# Check downloads
 curl -s "https://lazylibrarian.soyspray.vip/api?cmd=getSnatched&apikey=3723d36aa1e9e9955e3bf8982e94ee3c"
 ```
 
-## GUI Workflow (Browser)
+## Complete Workflow Example
 
-1. **Search & Add**: Use "Search" button → find book → add to database
-2. **Queue**: Book defaults to "Skipped" → change to "Wanted"
-3. **Download**: Click green "Search" button → status changes to "Snatched"
-4. **Wait**: qBittorrent downloads file, LazyLibrarian processes
-5. **Access**: Navigate to **eBooks → Downloads** → download book file
+```bash
+# 1. Find and add book
+BOOK_ID="34497"  # Extract from findBook response
+curl -s "https://lazylibrarian.soyspray.vip/api?cmd=addBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&id=$BOOK_ID"
 
-## LazyLibrarian → Prowlarr → qBittorrent Flow
+# 2. Queue and search
+curl -s "https://lazylibrarian.soyspray.vip/api?cmd=queueBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&id=$BOOK_ID&type=eBook"
+curl -s "https://lazylibrarian.soyspray.vip/api?cmd=searchBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&id=$BOOK_ID&wait=true"
+```
 
-1. **LazyLibrarian**: Manages book metadata and queues
-2. **Prowlarr**: Provides torrent/download sources (RuTracker, TPB, etc.)
-3. **qBittorrent**: Downloads the actual files
+## Flow: LazyLibrarian → Prowlarr → qBittorrent
 
-**Workflow**:
+1. **LazyLibrarian**: Find/queue books, manage metadata
+2. **Prowlarr**: Provide torrent sources (RuTracker, TPB, etc.)
+3. **qBittorrent**: Download files with category "books"
 
-1. Find/add book: `findBook` → `addBook`
-2. Queue book: `queueBook` (changes status from "Skipped" to "Wanted")
-3. Search downloads: `searchBook` (triggers Prowlarr search)
-4. Get download URLs: `getSnatched` (returns `NZBurl` field with downloadable URLs)
+## File Processing Pipeline
+
+1. **qBittorrent**: Downloads to `/downloads/books` (shared RWX PVC)
+2. **LazyLibrarian**: Monitors `/downloads/books`, copies to `/books/Author/Title.epub` (dedicated PVC)
+3. **OPDS**: Serves organized library at `/opds` endpoint
 
 ## OPDS Configuration
 
-OPDS (Open Publication Distribution System) enables direct book file downloads from the LazyLibrarian library.
-
-### Validate OPDS Configuration
-
 **Check OPDS Status:**
+
 ```bash
 curl -s "https://lazylibrarian.soyspray.vip/api?cmd=getConfig&apikey=3723d36aa1e9e9955e3bf8982e94ee3c" | jq '.data.opds_enable'
 ```
 
 **Test OPDS Endpoint:**
+
 ```bash
-# Should return OPDS XML feed (not "OPDS not enabled" error)
 curl -s "https://lazylibrarian.soyspray.vip/opds"
 ```
 
-## File Processing Pipeline
+## Integration Status
 
-1. **qBittorrent**: Downloads completed torrents to `/downloads/books` (shared RWX PVC)
-2. **LazyLibrarian**: Monitors `/downloads/books` for completed downloads (same PVC)
-3. **Library**: Processes and moves files to `/books/Author/Title.epub` (dedicated books PVC)
-4. **OPDS**: Serves organized library via `/opds` endpoint for direct book downloads
+✅ **Tested and Working** - Complete API flow functional: findBook → addBook → queueBook → searchBook → qBittorrent download with "books" category → copy-only processing to organized library
