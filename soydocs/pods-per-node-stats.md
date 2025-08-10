@@ -9,9 +9,9 @@
 
 | Node    | Roles                  | Status | IP            | OS                | Kernel            | Container Runtime |
 |---------|------------------------|--------|---------------|-------------------|-------------------|------------------|
-| node-0  | control-plane,worker   | Ready  | 192.168.1.100 | Ubuntu 24.04.1 LTS | 6.8.0-41-generic | containerd://1.7.24 |
-| node-1  | control-plane,worker   | Ready  | 192.168.1.101 | Ubuntu 24.04.1 LTS | 6.8.0-41-generic | containerd://1.7.24 |
-| node-2  | worker                 | Ready  | 192.168.1.102 | Ubuntu 24.04.1 LTS | 6.8.0-41-generic | containerd://1.7.24 |
+| node-0  | control-plane,worker   | Ready  | 192.168.50.100 | Ubuntu 24.04.1 LTS | 6.8.0-41-generic | containerd://1.7.24 |
+| node-1  | control-plane,worker   | Ready  | 192.168.50.101 | Ubuntu 24.04.1 LTS | 6.8.0-41-generic | containerd://1.7.24 |
+| node-2  | worker                 | Ready  | 192.168.50.102 | Ubuntu 24.04.1 LTS | 6.8.0-41-generic | containerd://1.7.24 |
 
 ## Pod Distribution
 

@@ -55,7 +55,7 @@ Required:
 - `READARR_KEY` - Readarr API key
 
 Optional:
-- `READARR_URL` - Readarr base URL (default: http://192.168.1.131:8787)
+- `READARR_URL` - Readarr base URL (default: http://192.168.50.212:8787)
 
 ### Kubernetes Deployment
 

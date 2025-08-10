@@ -5,7 +5,7 @@ This document describes the process of adding a new worker node (node-3) to the 
 ## Prerequisites
 
 - New mini PC with Ubuntu Server 24.04 installed
-- Static IP configured: 192.168.1.103
+- Static IP configured: 192.168.50.103
 - SSH access from management machine verified
 - SSH keys properly configured
 
@@ -18,9 +18,9 @@ Added the new node to the Kubespray inventory file:
 ```yaml
 # Added to kubespray/inventory/soycluster/hosts.yml
     node-3:
-      ansible_host: 192.168.1.103
-      ip: 192.168.1.103
-      access_ip: 192.168.1.103
+      ansible_host: 192.168.50.103
+      ip: 192.168.50.103
+      access_ip: 192.168.50.103
 
 # Added to kube_node group
     kube_node:

@@ -26,7 +26,7 @@
 - import_playbook: playbooks/deploy-argocd-apps.yml
   tags: longhorn
 
-# ensure sync worked at http://192.168.1.121/applications/argocd/longhorn
+# ensure sync worked at http://192.168.50.201/applications/argocd/longhorn
 
 - import_playbook: playbooks/deploy-argocd-apps.yml
   tags: cert-manager,external-dns,pihole
