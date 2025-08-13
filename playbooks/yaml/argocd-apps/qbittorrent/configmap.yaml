@@ -1,6 +1,8 @@
 # playbooks/yaml/argocd-apps/qbittorrent/configmap.yaml
 # Seeds qBittorrent WebUI credentials (admin / 123) via PBKDF2 hash.
 # Optimized for media stack integrations with Sonarr/LazyLibrarian.
+# 210.54.32.219 is the old home IP
+# 116.251.193.233 is our new home IP
 #------------------------------------------------------------------------------
 apiVersion: v1
 kind: ConfigMap
@@ -15,7 +17,7 @@ data:
 
     [BitTorrent]
     Session\AddTorrentStopped=true
-    Session\AnnounceIP=210.54.32.219
+    Session\AnnounceIP=116.251.193.233
     Session\AnnounceToAllTrackers=true
     Session\ReannounceWhenAddressChanged=true
     Session\AddTorrentStopped=false
