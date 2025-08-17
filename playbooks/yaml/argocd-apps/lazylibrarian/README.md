@@ -33,42 +33,68 @@ curl -s "https://lazylibrarian.soyspray.vip/api?cmd=searchBook&apikey=3723d36aa1
 curl -s "https://lazylibrarian.soyspray.vip/api?cmd=getSnatched&apikey=3723d36aa1e9e9955e3bf8982e94ee3c" | jq
 ```
 
+## Post-Processing (Snatched → Open Button)
+
+After a book shows as "Snatched", it needs to be processed to show the "Open" button.
+
+### Automatic Post-Processing
+**Enable in LazyLibrarian Settings → Processing:**
+- **Post-Processing Interval**: `10` minutes
+- **Move Files**: `False` (keeps qBittorrent files for seeding)
+
+### Manual Post-Processing Options
+
+**Option 1: Force Post-Processing (for folder downloads like 1984)**
+```bash
+curl -s "https://lazylibrarian.soyspray.vip/api?cmd=forceProcess&apikey=3723d36aa1e9e9955e3bf8982e94ee3c"
+```
+
+**Option 2: Import Alternative (for single file downloads like Harry Potter)**
+```bash
+curl -s "https://lazylibrarian.soyspray.vip/api?cmd=importAlternate&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&dir=/downloads/books"
+```
+
+**GUI Alternative:**
+1. Go to **LazyLibrarian → Manage → Import Books**
+2. Set import directory: `/downloads/books`
+3. Run import scan
+
+### Download Types
+- **Folder downloads** (like 1984): Use `forceProcess`
+- **Single file downloads** (like Harry Potter): Use `importAlternate`
+- **Both types**: Automatic processing works with 10-minute intervals
+
 ## Integration Status
 
-✅ **Tested and Working** - Complete API flow: findBook → addBook → queueBook → searchBook → download → "Open" button available
+✅ **Tested and Working** - Complete API flow: findBook → addBook → queueBook → searchBook → download → post-processing → "Open" button available
 
 ## Homework - Public Domain Books to Try
 
-### Classic Literature (All Public Domain)
+### Popular Books (More Likely to Have Downloads)
 
-**Pride and Prejudice by Jane Austen**
+**The Hobbit by J.R.R. Tolkien**
 ```bash
-curl -s "https://lazylibrarian.soyspray.vip/api?cmd=findBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&name=Pride+and+Prejudice+Jane+Austen" | jq '.[0:3]'
+curl -s "https://lazylibrarian.soyspray.vip/api?cmd=findBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&name=The+Hobbit+J+R+R+Tolkien" | jq '.[0:3]'
 ```
 
-**The Adventures of Sherlock Holmes by Arthur Conan Doyle**
+**1984 by George Orwell**
 ```bash
-curl -s "https://lazylibrarian.soyspray.vip/api?cmd=findBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&name=Adventures+of+Sherlock+Holmes+Arthur+Conan+Doyle" | jq '.[0:3]'
+curl -s "https://lazylibrarian.soyspray.vip/api?cmd=findBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&name=1984+George+Orwell" | jq '.[0:3]'
 ```
 
-**Frankenstein by Mary Shelley**
+**Animal Farm by George Orwell**
 ```bash
-curl -s "https://lazylibrarian.soyspray.vip/api?cmd=findBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&name=Frankenstein+Mary+Shelley" | jq '.[0:3]'
+curl -s "https://lazylibrarian.soyspray.vip/api?cmd=findBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&name=Animal+Farm+George+Orwell" | jq '.[0:3]'
 ```
 
-**The Great Gatsby by F. Scott Fitzgerald**
+**Brave New World by Aldous Huxley**
 ```bash
-curl -s "https://lazylibrarian.soyspray.vip/api?cmd=findBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&name=Great+Gatsby+F+Scott+Fitzgerald" | jq '.[0:3]'
+curl -s "https://lazylibrarian.soyspray.vip/api?cmd=findBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&name=Brave+New+World+Aldous+Huxley" | jq '.[0:3]'
 ```
 
-**Dracula by Bram Stoker**
+**To Kill a Mockingbird by Harper Lee**
 ```bash
-curl -s "https://lazylibrarian.soyspray.vip/api?cmd=findBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&name=Dracula+Bram+Stoker" | jq '.[0:3]'
-```
-
-**The Time Machine by H.G. Wells**
-```bash
-curl -s "https://lazylibrarian.soyspray.vip/api?cmd=findBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&name=Time+Machine+H+G+Wells" | jq '.[0:3]'
+curl -s "https://lazylibrarian.soyspray.vip/api?cmd=findBook&apikey=3723d36aa1e9e9955e3bf8982e94ee3c&name=To+Kill+a+Mockingbird+Harper+Lee" | jq '.[0:3]'
 ```
 
 ### Instructions
