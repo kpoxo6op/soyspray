@@ -34,11 +34,19 @@ spec:
               else
                 echo "Sonarr configuration already exists, skipping seed."
               fi
+
+              echo "Fixing permissions for /tv directory..."
+              mkdir -p /tv
+              chown -R 1000:1000 /tv
+              chmod -R 755 /tv
+              echo "Permissions fixed: $(ls -la /tv)"
           volumeMounts:
             - name: config
               mountPath: /config
             - name: initial-config
               mountPath: /initial-config
+            - name: tv
+              mountPath: /tv
       containers:
         - name: sonarr
           image: linuxserver/sonarr:4.0.15
