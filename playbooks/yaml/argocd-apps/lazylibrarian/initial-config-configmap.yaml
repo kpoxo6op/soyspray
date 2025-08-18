@@ -13,9 +13,8 @@ data:
     config_tab_num = 10
     imp_preflang = eng, en, English, en-GB, en-US
     date_lang = en_GB.UTF-8
-    destination_copy = True
     ebook_dir = /books
-    download_dir = /downloads/books
+    download_dir = /downloads/incoming/books
 
     [API]
     api_enabled = True
@@ -44,11 +43,9 @@ data:
     qbittorrent_port = 8080
     qbittorrent_user = admin
     qbittorrent_pass = 123
-    qbittorrent_label = books
 
     [POSTPROCESS]
     audiobook_dest_folder = $Author/$Title
-    rename_files = True
 
     [PROWL]
     prowl_priority = -2
