@@ -99,6 +99,23 @@ data:
     fi
     echo "========================"
 
+    echo "=== Processing Sonarr ==="
+    if curl -s -H "X-Api-Key: $PROWLARR_API_KEY" "$API/api/v1/applications" | jq -e '.[] | select(.name == "Sonarr")' > /dev/null 2>&1; then
+      echo "✓ Sonarr already exists, skipping..."
+    else
+      echo "Adding Sonarr..."
+      echo "Payload:"
+      cat /payloads/sonarr.json
+      echo
+      echo "Full curl command:"
+      echo "curl -sS -H \"X-Api-Key: $PROWLARR_API_KEY\" -H \"Content-Type: application/json\" -X POST \"$API/api/v1/applications\" --data @/payloads/sonarr.json"
+      echo
+      echo "Making API call..."
+      curl -sS -H "X-Api-Key: $PROWLARR_API_KEY" -H "Content-Type: application/json" -X POST "$API/api/v1/applications" --data @/payloads/sonarr.json
+      echo
+    fi
+    echo "======================="
+
     echo "=== Processing LazyLibrarian ==="
     if curl -s -H "X-Api-Key: $PROWLARR_API_KEY" "$API/api/v1/applications" \
          | jq -e '.[] | select(.name == "LazyLibrarian")' > /dev/null 2>&1; then

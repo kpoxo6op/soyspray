@@ -8,21 +8,21 @@ This document describes the configuration of Ingress resources in the cluster an
 
 - Nginx Ingress Controller (running on port 443)
 - cert-manager (for TLS certificate management)
-- Pihole DNS (192.168.1.122)
+- Pihole DNS (192.168.50.202)
 - Let's Encrypt (wildcard certificate issuer)
 
 ## Implementation Details
 
 ### 1. DNS Configuration
 
-- Pihole DNS server (192.168.1.122) handles local resolution for `.soyspray.vip` domains
-- DNS entries point to the Nginx Ingress Controller VIP (192.168.1.120)
+- Pihole DNS server (192.168.50.202) handles local resolution for `.soyspray.vip` domains
+- DNS entries point to the Nginx Ingress Controller VIP (192.168.50.200)
 - Example DNS records:
 
   ```
-  argocd.soyspray.vip    -> 192.168.1.120
-  grafana.soyspray.vip   -> 192.168.1.120
-  pihole.soyspray.vip    -> 192.168.1.120
+  argocd.soyspray.vip    -> 192.168.50.200
+  grafana.soyspray.vip   -> 192.168.50.200
+  pihole.soyspray.vip    -> 192.168.50.200
   ```
 
 ### 2. TLS Certificate Management
@@ -108,19 +108,19 @@ kubectl logs -n ingress-nginx ingress-nginx-controller-xxxxx
 4. Test DNS Resolution:
 
 ```bash
-nslookup argocd.soyspray.vip 192.168.1.122
+nslookup argocd.soyspray.vip 192.168.50.202
 ```
 
 5. Verify HTTPS Access:
 
 ```bash
-curl -vk https://192.168.1.120 -H 'Host: argocd.soyspray.vip'
+curl -vk https://192.168.50.200 -H 'Host: argocd.soyspray.vip'
 ```
 
 6. Check TLS Certificate:
 
 ```bash
-openssl s_client -connect 192.168.1.120:443 -servername argocd.soyspray.vip
+openssl s_client -connect 192.168.50.200:443 -servername argocd.soyspray.vip
 ```
 
 ## Certificate Sync Process

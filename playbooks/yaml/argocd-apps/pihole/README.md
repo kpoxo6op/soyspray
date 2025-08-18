@@ -71,14 +71,14 @@ Update Router DNS settings via mobile app
 
 | Type      | IP               | Note          |
 | --------- | ---------------- | ------------- |
-| Primary   | 192.168.1.122    |  Pi Hole      |
+| Primary   | 192.168.50.202   |  Pi Hole      |
 | Secondary | 8.8.8.8          |  Google       |
 
 Set Up Pi-hole to Handle Local DNS Entries
 
 | Domain                                         | IP               | Note          |
 | ---------------------------------------------- | ---------------- | ------------- |
-| [argocd.lan](http://argocd.lan/applications)   | 192.168.1.121    |               |
-| [pihole.lan](http://pihole.lan/admin/login.php)| 192.168.1.122    |               |
+| [argocd.lan](http://argocd.lan/applications)   | 192.168.50.201   |               |
+| [pihole.lan](http://pihole.lan/admin/login.php)| 192.168.50.202   |               |
 
 Looks like adding filters and not using secondary DNS helps.

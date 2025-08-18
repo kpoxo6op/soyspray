@@ -325,13 +325,13 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prowlarr/prowlarr-application.yaml') }}"
       tags: prowlarr
 
-    - name: Apply Dingu Bot
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/dingu/dingu-application.yaml') }}"
-      tags: dingu
+    # - name: Apply Dingu Bot
+    #   kubernetes.core.k8s:
+    #     state: present
+    #     kubeconfig: "{{ kubeconfig_path }}"
+    #     namespace: argocd
+    #     definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/dingu/dingu-application.yaml') }}"
+    #   tags: dingu
 
     # Verify and load Dingu Telegram bot token from .env
     - name: Verify and load Dingu Telegram bot token from .env
@@ -385,3 +385,19 @@
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/lazylibrarian/lazylibrarian-application.yaml') }}"
       tags: lazylibrarian
+
+    # - name: Apply Radarr Configuration
+    #   kubernetes.core.k8s:
+    #     state: present
+    #     kubeconfig: "{{ kubeconfig_path }}"
+    #     namespace: argocd
+    #     definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/radarr/radarr-application.yaml') }}"
+    #   tags: radarr
+
+    - name: Apply Sonarr Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/sonarr/sonarr-application.yaml') }}"
+      tags: sonarr

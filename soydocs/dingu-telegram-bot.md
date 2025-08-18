@@ -44,7 +44,7 @@ Based on soyspray repo analysis:
 
 **Prowlarr** (Indexer Aggregator)
 
-- Service: `prowlarr.media.svc.cluster.local:9696` or `192.168.1.133:9696`
+- Service: `prowlarr.media.svc.cluster.local:9696` or `192.168.50.213:9696`
 - API: `/api/v1/search?query=<title>&type=search&apikey=<key>`
 - Purpose: Search across configured book indexers
 
@@ -56,7 +56,7 @@ Based on soyspray repo analysis:
 
 **Readarr** (Optional - Library Management)
 
-- Service: `readarr.media.svc.cluster.local:8787` or `192.168.1.131:8787`
+- Service: `readarr.media.svc.cluster.local:8787` or `192.168.50.212:8787`
 - API: Add books and trigger searches for proper library integration
 - Purpose: Post-processing and library organization
 
@@ -166,7 +166,7 @@ Bot Pod → api.telegram.org (polling/responses)
 ### Service Discovery
 
 - Use K8s DNS: `prowlarr.media.svc.cluster.local`
-- Or MetalLB IPs: `192.168.1.133` (Prowlarr), `192.168.1.131` (Readarr)
+- Or MetalLB IPs: `192.168.50.213` (Prowlarr), `192.168.50.212` (Readarr)
 
 ## Configuration
 

@@ -152,8 +152,8 @@
         },
         {
           "current": {
-            "text": "192.168.1.100:9100",
-            "value": "192.168.1.100:9100"
+            "text": "192.168.50.100:9100",
+            "value": "192.168.50.100:9100"
           },
           "datasource": "prometheus",
           "definition": "label_values(node_hwmon_temp_celsius{job=\"node-exporter\"}, instance)",
