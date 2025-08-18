@@ -1,0 +1,71 @@
+# playbooks/yaml/argocd-apps/sonarr/bootstrap-job.yaml
+# Simple bootstrap job to ensure qBittorrent download client and root folder exist
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sonarr-bootstrap
+  namespace: media
+  labels:
+    app: sonarr
+    component: bootstrap
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: sonarr
+        component: bootstrap
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: bootstrap
+        image: curlimages/curl:8.8.0
+        command:
+        - sh
+        - -c
+        - |
+          set -euo pipefail
+
+          API="http://sonarr.media.svc.cluster.local:8989"
+          API_KEY="a85bb8f2ab19425f9c8c0bbc6f0aa29c"
+          echo "Waiting for Sonarr..."
+          until curl -f -s "$API/api/v3/system/status?apikey=$API_KEY" > /dev/null; do
+            sleep 5
+          done
+          echo "✓ Sonarr is ready"
+          echo "Ensuring qBittorrent download client..."
+          curl -sS -X POST "$API/api/v3/downloadclient?apikey=$API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "enable": true,
+              "protocol": "torrent",
+              "priority": 1,
+              "name": "qBittorrent",
+              "fields": [
+                {"name": "host", "value": "qbittorrent.media.svc.cluster.local"},
+                {"name": "port", "value": 8080},
+                {"name": "username", "value": "admin"},
+                {"name": "password", "value": "123"},
+                {"name": "tvCategory", "value": "tv"}
+              ],
+              "implementationName": "qBittorrent",
+              "implementation": "QBittorrent",
+              "configContract": "QBittorrentSettings"
+            }' > /dev/null 2>&1 || echo "qBittorrent download client already exists"
+          echo "=== Bootstrap completed ==="
+        resources:
+          requests:
+            memory: "32Mi"
+            cpu: "50m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+            - ALL
