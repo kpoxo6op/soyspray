@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "v1.18.0"
+    targetRevision: "codex/integrate-plex-with-sonarr-and-radarr"
     path: playbooks/yaml/argocd-apps/plex
   destination:
     server: "https://kubernetes.default.svc"
