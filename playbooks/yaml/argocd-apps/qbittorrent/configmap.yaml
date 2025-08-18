@@ -61,6 +61,9 @@ data:
     Downloads\TempPath=/downloads/incomplete
     Downloads\TempPathEnabled=true
     Downloads\TorrentManagementMode=2
+    Queueing\MaxActiveDownloads=3
+    Queueing\MaxActiveUploads=20
+    Queueing\MaxActiveTorrents=30
     WebUI\Address=*
     WebUI\ServerDomains=*
     WebUI\Username=admin
