@@ -1,8 +1,5 @@
 # playbooks/yaml/argocd-apps/qbittorrent/configmap.yaml
 # Seeds qBittorrent WebUI credentials (admin / 123) via PBKDF2 hash.
-# Optimized for media stack integrations with Sonarr/LazyLibrarian.
-# 210.54.32.219 is the old home IP
-# 116.251.193.233 is our new home IP
 #------------------------------------------------------------------------------
 apiVersion: v1
 kind: ConfigMap
@@ -16,30 +13,16 @@ data:
     program=
 
     [BitTorrent]
-    Session\AddTorrentStopped=true
-    Session\AnnounceIP=116.251.193.233
+    Session\AnnounceIP=210.54.32.219
     Session\AnnounceToAllTrackers=true
     Session\ReannounceWhenAddressChanged=true
     Session\AddTorrentStopped=false
-    Session\DefaultSavePath=/downloads
+    Session\DefaultSavePath=/downloads/incoming/books
     Session\Port=49160
     Session\QueueingSystemEnabled=true
     Session\SSL\Port=9007
     Session\ShareLimitAction=Stop
-    Session\SubcategoriesEnabled=true
-    Session\TempPath=/downloads/incomplete
-    Session\TempPathEnabled=true
-    Session\UseCategoryPathsInManualMode=true
-
-    [Categories]
-    audiobooks\SavePath=/downloads/audiobooks
-    books\SavePath=/downloads/books
-    movies\SavePath=/downloads/movies
-    scenes\SavePath=/downloads/scenes
-    tv\SavePath=/downloads/tv
-
-    [Core]
-    AutoDeleteAddedTorrentFile=Never
+    Session\TempPath=/downloads/incoming/incomplete
 
     [LegalNotice]
     Accepted=true
@@ -57,15 +40,9 @@ data:
     [Preferences]
     Connection\PortRangeMin=49160
     Connection\UPnP=false
-    Downloads\SavePath=/downloads
-    Downloads\TempPath=/downloads/incomplete
-    Downloads\TempPathEnabled=true
-    Downloads\TorrentManagementMode=2
-    Queueing\MaxActiveDownloads=3
-    Queueing\MaxActiveUploads=20
-    Queueing\MaxActiveTorrents=30
+    Downloads\SavePath=/downloads/incoming/books
+    Downloads\TempPath=/downloads/incoming/incomplete
     WebUI\Address=*
     WebUI\ServerDomains=*
     WebUI\Username=admin
     WebUI\Password_PBKDF2="@ByteArray(6GuqwbIxFz5yNRLYBYPQIQ==:WyiZHyQ5Hgwnc71PuKmt1NKVAUD9tstuLBcJrP82SkQfalql8giGHqbOc7lly/xbqXEKuvcvrc3Dbg62PNPZBA==)"
-
