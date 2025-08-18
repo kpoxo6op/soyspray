@@ -4,10 +4,10 @@ Home Cluster created with Kubespray on Soyo miniPCs.
 
 ## Network Configuration
 
-The router DHCP range was updated to 192.168.50.50-192.168.50.199.
+The router DHCP range was updated to 192.168.1.50-192.168.1.99.
 
-Static IPs were assigned to the miniPCs by MAC address: 192.168.50.100,
-192.168.50.101, and 192.168.50.102.
+Static IPs were assigned to the miniPCs by MAC address: 192.168.1.100,
+192.168.1.101, and 192.168.1.102.
 
 Static IP assignment only worked using the Asus router mobile app. The web GUI
 produced an "invalid MAC" error.
@@ -34,7 +34,7 @@ To generate the `hosts.yaml` file, the following steps were used:
 # Generate the hosts.yaml file
 # View the generated hosts.yaml
 cp -rfp inventory/sample inventory/soycluster
-declare -a IPS=(node-0,192.168.50.100 node-1,192.168.50.101 node-2,192.168.50.102)
+declare -a IPS=(node-0,192.168.1.100 node-1,192.168.1.101 node-2,192.168.1.102)
 CONFIG_FILE=inventory/soycluster/hosts.yml python3 contrib/inventory_builder/inventory.py ${IPS[@]}
 cat inventory/soycluster/hosts.yml
 ```

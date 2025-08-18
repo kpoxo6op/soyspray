@@ -3,7 +3,7 @@
 ## Expose ArgoCD
 
 To expose ArgoCD, the service was configured as a LoadBalancer in Kubernetes and
-assigned the IP 192.168.50.201 using MetalLB.
+assigned the IP 192.168.1.121 using MetalLB.
 
 The `argocd-cmd-params-cm` config map was updated to ensure that ArgoCD would
 operate in insecure mode by keeping the `server.insecure` key set to "true". This
@@ -13,7 +13,7 @@ After updating the configuration, the argocd-server deployment was restarted to
 apply the changes. The new pod was successfully started, exposing ArgoCD via
 HTTP.
 
-ArgoCD was then available at `http://192.168.50.201`.
+ArgoCD was then available at `http://192.168.1.121`.
 
 ## Configure ArgoCD
 
