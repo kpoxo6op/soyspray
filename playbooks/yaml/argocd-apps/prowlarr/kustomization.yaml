@@ -21,6 +21,5 @@ configMapGenerator:
       - readarr.json=readarr_app_payload.json
       - thepiratebay.json=thepiratebay_payload.json
       - lazylibrarian.json=lazylibrarian_app_payload.json
-      - sonarr.json=sonarr_app_payload.json
     options:
       disableNameSuffixHash: true
