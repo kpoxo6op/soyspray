@@ -1,0 +1,71 @@
+# playbooks/yaml/argocd-apps/plex/deployment.yaml
+# Deployment for Plex using linuxserver/plex:1.40.2
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plex
+  namespace: media
+  labels:
+    app: plex
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: plex
+  template:
+    metadata:
+      labels:
+        app: plex
+        component: main
+    spec:
+      containers:
+        - name: plex
+          image: linuxserver/plex:1.40.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 32400
+              name: http
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Pacific/Auckland"
+            - name: PLEX_CLAIM
+              valueFrom:
+                secretKeyRef:
+                  name: plex-secrets
+                  key: PLEX_CLAIM
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: tv
+              mountPath: /tv
+              readOnly: true
+            - name: movies
+              mountPath: /movies
+              readOnly: true
+            - name: transcode
+              mountPath: /transcode
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: plex-config
+        - name: tv
+          persistentVolumeClaim:
+            claimName: sonarr-tv
+        - name: movies
+          persistentVolumeClaim:
+            claimName: radarr-movies
+        - name: transcode
+          emptyDir: {}

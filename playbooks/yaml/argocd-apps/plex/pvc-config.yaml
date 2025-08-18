@@ -1,0 +1,15 @@
+# playbooks/yaml/argocd-apps/plex/pvc-config.yaml
+# PVC for Plex configuration
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: plex-config
+  namespace: media
+  labels:
+    app: plex
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
