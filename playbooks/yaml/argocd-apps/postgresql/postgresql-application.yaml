@@ -16,7 +16,7 @@ spec:
     namespace: postgresql
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "v1.17.0"
+    targetRevision: "v1.18.0"
     path: playbooks/yaml/argocd-apps/postgresql
     kustomize:
   syncPolicy:
