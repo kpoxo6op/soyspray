@@ -31,7 +31,7 @@ extraEnvVars:
 
 serviceWeb:
   externalTrafficPolicy: Cluster
-  loadBalancerIP: 192.168.50.204
+  loadBalancerIP: 192.168.1.124
   type: LoadBalancer
   http:
     enabled: true
@@ -43,7 +43,7 @@ serviceWeb:
 serviceDns:
   externalTrafficPolicy: Cluster
   mixedService: true
-  loadBalancerIP: 192.168.50.202
+  loadBalancerIP: 192.168.1.122
   type: LoadBalancer
   port: 53
 

@@ -8,22 +8,22 @@ If the current DNS server is set to the Pi-hole IP, it resets to the default (au
 If not, it switches to the specified Pi-hole IP.
 
 .PARAMETER PiHoleIP
-The IP address of the Pi-hole DNS server. Defaults to "192.168.50.202".
+The IP address of the Pi-hole DNS server. Defaults to "192.168.1.122".
 
 .EXAMPLE
 Switch-DNS
-Switches the DNS to the Pi-hole server (192.168.50.202) or back to the default.
+Switches the DNS to the Pi-hole server (192.168.1.122) or back to the default.
 
 .EXAMPLE
-Switch-DNS -PiHoleIP "192.168.50.200"
-Switches the DNS to a custom Pi-hole server (192.168.50.200) or back to the default.
+Switch-DNS -PiHoleIP "192.168.1.200"
+Switches the DNS to a custom Pi-hole server (192.168.1.200) or back to the default.
 
 .EXAMPLE
 Switch-DNS -WhatIf
 Shows what changes would be made to DNS settings without applying them.
 Example output:
-Current DNS: 192.168.50.1 (Default Router)
-Target DNS:  192.168.50.202 (Pi-hole)
+Current DNS: 192.168.1.1 (Default Router)
+Target DNS:  192.168.1.122 (Pi-hole)
 Will change: All active network adapters
 
 .NOTES
@@ -34,7 +34,7 @@ elevated permissions to run.
 function Switch-DNS {
     [CmdletBinding(SupportsShouldProcess)]
     param (
-        [string]$PiHoleIP = "192.168.50.202"
+        [string]$PiHoleIP = "192.168.1.122"
     )
 
     # Check for admin privileges

@@ -1,7 +1,7 @@
 # File: playbooks/yaml/argocd-apps/pihole/configmaps/custom-dns-configmap.yaml
 # Internal services with .lan domains
 # Same services with .soyspray.vip domains
-# 192.168.50.202 Pi-Hole DNS!
+# 192.168.1.122 Pi-Hole DNS!
 
 apiVersion: v1
 kind: ConfigMap
@@ -10,27 +10,25 @@ metadata:
   namespace: pihole
 data:
   custom.list: |
-    192.168.50.103 flask.lan
-    192.168.50.103 flask.soyspray.vip
-    192.168.50.200 alertmanager.soyspray.vip
-    192.168.50.200 argocd.soyspray.vip
-    192.168.50.200 grafana.soyspray.vip
-    192.168.50.200 immich.soyspray.vip
-    192.168.50.200 longhorn.soyspray.vip
-    192.168.50.200 pihole.soyspray.vip
-    192.168.50.200 prometheus.soyspray.vip
-    192.168.50.200 qbittorrent.soyspray.vip
-    192.168.50.200 readarr.soyspray.vip
-    192.168.50.200 prowlarr.soyspray.vip
-    192.168.50.200 calibre-web.soyspray.vip
-    192.168.50.200 lazylibrarian.soyspray.vip
-    192.168.50.200 radarr.soyspray.vip
-    192.168.50.200 sonarr.soyspray.vip
-    192.168.50.201 argocd.lan
-    192.168.50.204 pihole.lan
-    192.168.50.205 prometheus.lan
-    192.168.50.206 alertmanager.lan
-    192.168.50.207 qbittorrent.lan
-    192.168.50.208 immich.lan
-    192.168.50.210 radarr.lan
-    192.168.50.212 readarr.lan
+    192.168.1.103 flask.lan
+    192.168.1.103 flask.soyspray.vip
+    192.168.1.120 alertmanager.soyspray.vip
+    192.168.1.120 argocd.soyspray.vip
+    192.168.1.120 grafana.soyspray.vip
+    192.168.1.120 immich.soyspray.vip
+    192.168.1.120 longhorn.soyspray.vip
+    192.168.1.120 pihole.soyspray.vip
+    192.168.1.120 prometheus.soyspray.vip
+    192.168.1.120 qbittorrent.soyspray.vip
+    192.168.1.120 readarr.soyspray.vip
+    192.168.1.120 prowlarr.soyspray.vip
+    192.168.1.120 calibre-web.soyspray.vip
+    192.168.1.120 lazylibrarian.soyspray.vip
+    192.168.1.121 argocd.lan
+    192.168.1.124 pihole.lan
+    192.168.1.125 prometheus.lan
+    192.168.1.126 alertmanager.lan
+    192.168.1.127 qbittorrent.lan
+    192.168.1.128 immich.lan
+    192.168.1.130 radarr.lan
+    192.168.1.131 readarr.lan

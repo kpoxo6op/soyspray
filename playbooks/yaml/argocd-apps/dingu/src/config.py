@@ -7,7 +7,7 @@ import os
 @dataclass(frozen=True)
 class Settings:
     """Immutable configuration settings from environment variables"""
-    readarr_url: str = os.getenv("READARR_URL", "http://192.168.50.212:8787")
+    readarr_url: str = os.getenv("READARR_URL", "http://192.168.1.131:8787")
     readarr_key: str = os.getenv("READARR_KEY", "a85bb8f2ab19425f9c8c0bbc6f0aa29c")
     root_id: int = 1
     root_path: Path = Path("/downloads/BooksLibrary")

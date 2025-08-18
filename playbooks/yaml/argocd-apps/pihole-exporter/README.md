@@ -2,7 +2,7 @@
 
 Prometheus exporter for Pihole
 
-`http://192.168.50.202/admin/settings.php?tab=api`
+<http://192.168.1.122/admin/settings.php?tab=api>
 
 `Raw API Token: 9xxxxxxxxxxxxxREDACTEDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxbb`
 
