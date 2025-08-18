@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "cinema"
+    targetRevision: "v1.18.0"
     path: playbooks/yaml/argocd-apps/prowlarr
   destination:
     server: "https://kubernetes.default.svc"
