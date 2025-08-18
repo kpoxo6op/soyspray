@@ -5,7 +5,7 @@
 # and verifies connectivity through the Azure VPS intermediary
 
 # Array of nodes to check (all K8s nodes)
-NODES=("192.168.50.103")
+NODES=("192.168.1.103")
 USER="ubuntu"
 
 # VPS and Wireguard details
@@ -14,7 +14,7 @@ WIREGUARD_VPS_IP="10.8.0.1"
 WIREGUARD_HOME_IP="10.8.0.3"
 WIREGUARD_INTERFACE="wg0-home"
 WIREGUARD_VPS_PORT="51820"
-CLUSTER_NETWORK="192.168.50.0/24"
+CLUSTER_NETWORK="192.168.1.0/24"
 
 # Basic networking commands for all nodes
 BASIC_COMMANDS=(
@@ -24,7 +24,7 @@ BASIC_COMMANDS=(
     "ip route"                                       # Routing table
     "ip rule"                                        # Routing policy
     "cat /proc/sys/net/ipv4/ip_forward"             # IP forwarding status
-    "ping -c 3 192.168.50.1 || echo 'Ping failed'"   # Default gateway ping
+    "ping -c 3 192.168.1.1 || echo 'Ping failed'"   # Default gateway ping
     "netstat -tuln | grep -E '(51820|6443)'"        # Check for Wireguard and K8s API ports
 )
 

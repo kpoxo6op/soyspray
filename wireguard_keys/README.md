@@ -16,7 +16,7 @@ graph LR
 
     subgraph Home[Home Network]
         H[WireGuard 10.8.0.3]
-        N[192.168.50.0/24]
+        N[192.168.1.0/24]
         H --> N
     end
 
@@ -89,7 +89,7 @@ After configuration changes:
 2. Test connectivity to home resources:
 
    ```bash
-   ping 192.168.50.202
+   ping 192.168.1.122
    ```
 
 3. Verify WireGuard status on VPS:

@@ -1,7 +1,7 @@
 ---
 # This playbook implements the hub-and-spoke Wireguard model with Azure VPS as intermediary:
 # 1. Azure VPS acts as a WireGuard "hub" with public IP
-# 2. Home Cluster Node-A establishes outbound tunnel to VPS and routes for 192.168.50.0/24
+# 2. Home Cluster Node-A establishes outbound tunnel to VPS and routes for 192.168.1.0/24
 # 3. This allows remote access to K8s cluster without opening ports on home router
 # 4. Connections follow: Mobile → VPS → Home Node → K8s Services
 
@@ -18,7 +18,7 @@
     wireguard_vps_port: 51820
     wireguard_conf_dir: /etc/wireguard
     wireguard_interface: wg0-home
-    wireguard_network_cidr: 192.168.50.0/24
+    wireguard_network_cidr: 192.168.1.0/24
     wireguard_allowed_ips: "10.8.0.0/24"
     wireguard_keepalive_seconds: 25
     local_keys_dir: "{{ playbook_dir }}/../wireguard_keys"
@@ -413,7 +413,7 @@
 
     - name: Display verification step 3
       ansible.builtin.debug:
-        msg: "3. On Mobile (with WireGuard connected): ping 192.168.50.x (any cluster IP)"
+        msg: "3. On Mobile (with WireGuard connected): ping 192.168.1.x (any cluster IP)"
       when: wireguard_vps_public_key != "VPS_PUBLIC_KEY_HERE"
 
     - name: Display troubleshooting header
