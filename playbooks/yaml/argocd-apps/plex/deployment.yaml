@@ -52,9 +52,9 @@ spec:
             - name: tv
               mountPath: /tv
               readOnly: true
-            - name: movies
-              mountPath: /movies
-              readOnly: true
+            # - name: movies
+            #   mountPath: /movies
+            #   readOnly: true
             - name: transcode
               mountPath: /transcode
       volumes:
@@ -64,8 +64,8 @@ spec:
         - name: tv
           persistentVolumeClaim:
             claimName: sonarr-tv
-        - name: movies
-          persistentVolumeClaim:
-            claimName: radarr-movies
+        # - name: movies
+        #   persistentVolumeClaim:
+        #     claimName: radarr-movies
         - name: transcode
           emptyDir: {}
