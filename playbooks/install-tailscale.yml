@@ -12,10 +12,16 @@
     tailscale_extra_args: "--advertise-routes=192.168.50.0/24"  # Advertise internal route
     tailscale_version: "1.66.3"
   pre_tasks:
-    - name: Ensure TS_AUTH_KEY is provided
+    - name: Check existing Tailscale state
+      ansible.builtin.command: tailscale status
+      register: tailscale_status
+      changed_when: false
+      failed_when: false
+
+    - name: Ensure TS_AUTH_KEY is provided for first login
       ansible.builtin.fail:
-        msg: "TS_AUTH_KEY environment variable required. Set in .env file."
-      when: tailscale_auth_key | length == 0
+        msg: "TS_AUTH_KEY environment variable required for initial authentication. Set in .env file."
+      when: tailscale_status.rc != 0 and (tailscale_auth_key | length == 0)
   tasks:
     - name: Ensure prerequisite packages are installed
       ansible.builtin.apt:
@@ -54,12 +60,6 @@
     - name: Check Tailscale CLI version
       ansible.builtin.command: tailscale version
       register: tailscale_cli
-      changed_when: false
-      failed_when: false
-
-    - name: Check Tailscale status
-      ansible.builtin.command: tailscale status
-      register: tailscale_status
       changed_when: false
       failed_when: false
 
