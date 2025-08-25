@@ -47,7 +47,6 @@
       ansible.builtin.apt:
         name:
           - "tailscale={{ tailscale_version }}"
-          - "tailscale-cli={{ tailscale_version }}"
         state: present
         update_cache: true
 

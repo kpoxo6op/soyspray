@@ -21,7 +21,6 @@
       ansible.builtin.apt:
         name:
           - tailscale
-          - tailscale-cli
         state: absent
         purge: true
         update_cache: true
