@@ -40,6 +40,12 @@ kubectl patch pvc pihole -n pihole -p '{"metadata":{"finalizers":null}}'
 kubectl delete po pihole-9f9f9d8f7-8p48t -n pihole
 ```
 
+## Remove Password
+
+```bash
+kubectl exec -n pihole $(kubectl get pods -n pihole -l app=pihole -o jsonpath='{.items[0].metadata.name}') -- pihole -a -p
+```
+
 ## `Switch-DNS`
 
 Toggle DNS between Pi-hole and default on Windows.
