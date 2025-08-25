@@ -1,0 +1,45 @@
+---
+# Playbook to remove Tailscale and clean up configuration from the home Kubernetes node
+
+- name: Common tasks for every playbook
+  import_playbook: ../kubespray/playbooks/boilerplate.yml
+
+- name: Remove Tailscale from Home Node-A
+  hosts: kube_control_plane[0]
+  become: true
+  tasks:
+    - name: Collect service facts
+      ansible.builtin.service_facts:
+
+    - name: Stop tailscaled service if running
+      ansible.builtin.service:
+        name: tailscaled
+        state: stopped
+      when: '"tailscaled" in ansible_facts.services'
+
+    - name: Remove Tailscale packages
+      ansible.builtin.apt:
+        name:
+          - tailscale
+          - tailscale-cli
+        state: absent
+        purge: true
+        update_cache: true
+
+    - name: Remove Tailscale apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu jammy main"
+        filename: tailscale
+        state: absent
+
+    - name: Remove Tailscale GPG key
+      ansible.builtin.file:
+        path: /usr/share/keyrings/tailscale-archive-keyring.gpg
+        state: absent
+
+    - name: Remove Tailscale state directory
+      ansible.builtin.file:
+        path: /var/lib/tailscale
+        state: absent
+        recurse: true
+      ignore_errors: true

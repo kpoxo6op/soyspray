@@ -1,0 +1,68 @@
+---
+# Playbook to install and configure Tailscale on the home Kubernetes node
+
+- name: Common tasks for every playbook
+  import_playbook: ../kubespray/playbooks/boilerplate.yml
+
+- name: Install and configure Tailscale on Home Node-A
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    tailscale_auth_key: "{{ lookup('env', 'TS_AUTH_KEY') }}"
+    tailscale_extra_args: "--advertise-routes=192.168.50.0/24"  # Advertise internal route
+    tailscale_version: "1.66.3"
+  pre_tasks:
+    - name: Ensure TS_AUTH_KEY is provided
+      ansible.builtin.fail:
+        msg: "TS_AUTH_KEY environment variable required. Set in .env file."
+      when: tailscale_auth_key | length == 0
+  tasks:
+    - name: Ensure prerequisite packages are installed
+      ansible.builtin.apt:
+        name:
+          - curl
+          - gnupg
+        state: present
+        update_cache: true
+
+    - name: Add Tailscale GPG key
+      ansible.builtin.shell: |
+        curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/jammy.gpg \
+          | gpg --dearmor -o /usr/share/keyrings/tailscale-archive-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/tailscale-archive-keyring.gpg
+
+    - name: Add Tailscale apt repository
+      ansible.builtin.apt_repository:
+        repo: "deb [signed-by=/usr/share/keyrings/tailscale-archive-keyring.gpg] https://pkgs.tailscale.com/stable/ubuntu jammy main"
+        filename: tailscale
+
+    - name: Install Tailscale client and CLI
+      ansible.builtin.apt:
+        name:
+          - "tailscale={{ tailscale_version }}"
+          - "tailscale-cli={{ tailscale_version }}"
+        state: present
+        update_cache: true
+
+    - name: Enable and start tailscaled service
+      ansible.builtin.service:
+        name: tailscaled
+        state: started
+        enabled: true
+
+    - name: Check Tailscale CLI version
+      ansible.builtin.command: tailscale version
+      register: tailscale_cli
+      changed_when: false
+      failed_when: false
+
+    - name: Check Tailscale status
+      ansible.builtin.command: tailscale status
+      register: tailscale_status
+      changed_when: false
+      failed_when: false
+
+    - name: Bring up Tailscale with auth key
+      ansible.builtin.command: "tailscale up --authkey={{ tailscale_auth_key }} {{ tailscale_extra_args }}"
+      when: tailscale_status.rc != 0
