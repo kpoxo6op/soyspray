@@ -4,9 +4,9 @@ These playbooks install or remove the Tailscale client on the Kubernetes home no
 
 ## Get an auth key
 1. Sign in to the [Tailscale admin console](https://login.tailscale.com/admin/settings/keys).
-2. Generate a reusable auth key and set **Expiry** to **Never**.
+2. Generate a reusable auth key. Set the expiry to the maximum allowed (90 days).
 3. Add the key to `.env` as `TS_AUTH_KEY` for the first run.
-4. After the node joins the tailnet, remove `TS_AUTH_KEY` from `.env`.
+4. After the node joins the tailnet, disable key expiry for the node in the Machines page and remove `TS_AUTH_KEY` from `.env`.
 
 ```bash
 TS_AUTH_KEY=tskey-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
