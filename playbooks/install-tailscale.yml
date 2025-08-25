@@ -10,7 +10,7 @@
   vars:
     tailscale_auth_key: "{{ lookup('env', 'TS_AUTH_KEY') }}"
     tailscale_extra_args: "--advertise-routes=192.168.50.0/24"  # Advertise internal route
-    tailscale_version: "1.66.3"
+    tailscale_version: "1.86.2"
   pre_tasks:
     - name: Check existing Tailscale state
       ansible.builtin.command: tailscale status
