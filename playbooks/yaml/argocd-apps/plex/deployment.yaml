@@ -1,0 +1,85 @@
+# playbooks/yaml/argocd-apps/plex/deployment.yaml
+# Minimal Plex deployment using linuxserver/plex:1.41.3
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plex
+  namespace: media
+  labels:
+    app: plex
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: plex
+  template:
+    metadata:
+      labels:
+        app: plex
+        component: main
+    spec:
+      initContainers:
+        - name: init-config
+          image: busybox:1.35
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              CONFIG_DIR="/config/Library/Application Support/Plex Media Server"
+              PREF_FILE="$CONFIG_DIR/Preferences.xml"
+              if [ ! -f "$PREF_FILE" ]; then
+                echo "Seeding initial Plex preferences..."
+                mkdir -p "$CONFIG_DIR"
+                cp /initial-config/Preferences.xml "$PREF_FILE"
+                chown -R 1000:1000 "$CONFIG_DIR"
+              else
+                echo "Plex preferences already exist, skipping seed."
+              fi
+              mkdir -p /data
+              chown -R 1000:1000 /data
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: initial-config
+              mountPath: /initial-config
+            - name: media
+              mountPath: /data
+      containers:
+        - name: plex
+          image: linuxserver/plex:1.41.3
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 32400
+              name: http
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Pacific/Auckland"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: media
+              mountPath: /data
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: plex-config
+        - name: media
+          persistentVolumeClaim:
+            claimName: plex-media
+        - name: initial-config
+          configMap:
+            name: plex-initial-config

@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: plex-initial-config
+  namespace: media
+  labels:
+    app: plex
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  Preferences.xml: |-
+    <?xml version="1.0" encoding="UTF-8"?>
+    <Preferences
+      AcceptedEULA="1"
+      FirstRun="0"
+      FriendlyName="Plex"
+      ManualPortMappingMode="1"
+      ManualPortMappingPort="32400"
+      PublishServerOnPlexOnlineKey="0"
+      GdmEnabled="0"
+      RelayEnabled="0"
+      SendCrashReports="0"
+    />
