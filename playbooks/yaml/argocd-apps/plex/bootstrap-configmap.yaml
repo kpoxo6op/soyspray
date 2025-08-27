@@ -25,20 +25,19 @@ data:
     mkdir -p "${PMS_DIR}/Crash Reports"
     mkdir -p "${PMS_DIR}/Logs"
 
+    # Set proper ownership and permissions FIRST, before creating files
+    chown -R abc:abc "${SUPPORT_DIR}"
+    chmod -R 755 "${PMS_DIR}"
+
     NAMESPACE="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
     SEED="plex.${NAMESPACE}.svc"
     MACHINE_ID="$(printf '%s' "${SEED}" | sha1sum | awk '{print $1}')"
     PROCESSED_ID="$(printf '%s' "${MACHINE_ID}" | sha1sum | awk '{print $1}')"
     ANON_ID="$(cat /proc/sys/kernel/random/uuid)"
 
-    tmp="$(mktemp)"
-    sed "s#<Preferences#<Preferences MachineIdentifier=\"${MACHINE_ID}\" ProcessedMachineIdentifier=\"${PROCESSED_ID}\" AnonymousMachineIdentifier=\"${ANON_ID}\"#" \
-      "${TEMPLATE_FILE}" > "${tmp}"
-    mv -f "${tmp}" "${PREF_FILE}"
-
-    # Set proper ownership and permissions for entire PMS directory and subdirectories
-    chown -R abc:abc "${PMS_DIR}"
-    chmod -R 755 "${PMS_DIR}"
+    # Create Preferences.xml with machine identifiers
+    sed "s/<Preferences/<Preferences MachineIdentifier=\"${MACHINE_ID}\" ProcessedMachineIdentifier=\"${PROCESSED_ID}\" AnonymousMachineIdentifier=\"${ANON_ID}\"/" "${TEMPLATE_FILE}" > "${PREF_FILE}"
+    chown abc:abc "${PREF_FILE}"
     chmod 600 "${PREF_FILE}"
 
     export LD_LIBRARY_PATH=/usr/lib/plexmediaserver
