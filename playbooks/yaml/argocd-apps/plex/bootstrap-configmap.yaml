@@ -21,6 +21,9 @@ data:
 
     echo "[custom-init] Setting up offline Plex configuration..."
     mkdir -p "${PMS_DIR}"
+    mkdir -p "${PMS_DIR}/Cache"
+    mkdir -p "${PMS_DIR}/Crash Reports"
+    mkdir -p "${PMS_DIR}/Logs"
 
     NAMESPACE="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
     SEED="plex.${NAMESPACE}.svc"
@@ -33,7 +36,9 @@ data:
       "${TEMPLATE_FILE}" > "${tmp}"
     mv -f "${tmp}" "${PREF_FILE}"
 
+    # Set proper ownership and permissions for entire PMS directory and subdirectories
     chown -R abc:abc "${PMS_DIR}"
+    chmod -R 755 "${PMS_DIR}"
     chmod 600 "${PREF_FILE}"
 
     export LD_LIBRARY_PATH=/usr/lib/plexmediaserver
