@@ -1,5 +1,5 @@
-# playbooks/yaml/argocd-apps/plex/deployment.yaml
-# Minimal Plex deployment using linuxserver/plex:1.41.3
+# Stateless Plex: /config is emptyDir; media is read-only; initContainer runs bootstrap script
+# to preseed Preferences and libraries. Service exposes TCP 32400.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,6 +7,8 @@ metadata:
   namespace: media
   labels:
     app: plex
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   replicas: 1
   strategy:
@@ -18,49 +20,35 @@ spec:
     metadata:
       labels:
         app: plex
-        component: main
     spec:
+      securityContext:
+        fsGroup: 1000
       initContainers:
-        - name: init-config
-          image: busybox:1.35
-          command:
-            - sh
-            - -c
-            - |
-              set -e
-              CONFIG_DIR="/config/Library/Application Support/Plex Media Server"
-              PREF_FILE="$CONFIG_DIR/Preferences.xml"
-              if [ ! -f "$PREF_FILE" ]; then
-                echo "Seeding initial Plex preferences..."
-                mkdir -p "$CONFIG_DIR"
-                cp /initial-config/Preferences.xml "$PREF_FILE"
-                chown -R 1000:1000 "$CONFIG_DIR"
-              else
-                echo "Plex preferences already exist, skipping seed."
-              fi
-              mkdir -p /data
-              chown -R 1000:1000 /data
+        - name: bootstrap
+          image: linuxserver/plex:1.41.3
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/bash", "/bootstrap/bootstrap.sh"]
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: bootstrap
+              mountPath: /bootstrap
             - name: initial-config
-              mountPath: /initial-config
+              mountPath: /initial
             - name: media
               mountPath: /data
+              readOnly: true
       containers:
         - name: plex
           image: linuxserver/plex:1.41.3
           imagePullPolicy: IfNotPresent
-          ports:
-            - containerPort: 32400
-              name: http
           env:
-            - name: PUID
-              value: "1000"
-            - name: PGID
-              value: "1000"
-            - name: TZ
-              value: "Pacific/Auckland"
+            - name: PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR
+              value: "/config/Library/Application Support"
+          ports:
+            - name: http
+              containerPort: 32400
+              protocol: TCP
           resources:
             requests:
               cpu: 100m
@@ -71,15 +59,30 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: transcode
+              mountPath: /transcode
             - name: media
               mountPath: /data
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /identity
+              port: 32400
+            initialDelaySeconds: 30
+            periodSeconds: 10
       volumes:
         - name: config
-          persistentVolumeClaim:
-            claimName: plex-config
+          emptyDir: {}
+        - name: transcode
+          emptyDir: {}
         - name: media
           persistentVolumeClaim:
-            claimName: plex-media
+            claimName: sonarr-tv
+        - name: bootstrap
+          configMap:
+            name: plex-bootstrap
+            defaultMode: 0755
         - name: initial-config
           configMap:
             name: plex-initial-config
+      restartPolicy: Always

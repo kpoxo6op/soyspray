@@ -1,0 +1,38 @@
+# Bootstrap script: copies Preferences.xml into the writable /config and pre-creates offline libraries
+# with the "Personal" agent (com.plexapp.agents.none) via Plex Media Scanner CLI.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: plex-bootstrap
+  namespace: media
+  labels:
+    app: plex
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+      bootstrap.sh: |-
+    #!/usr/bin/env bash
+    set -euo pipefail
+    export LD_LIBRARY_PATH=/usr/lib/plexmediaserver
+    export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR="/config/Library/Application Support"
+
+    echo "Setting up Plex configuration directory..."
+    mkdir -p "/config/Library/Application Support/Plex Media Server"
+    cp -f /initial/Preferences.xml "/config/Library/Application Support/Plex Media Server/Preferences.xml"
+
+    # Set proper ownership for linuxserver image (PUID/PGID = 1000)
+    chown -R 1000:1000 "/config/Library/Application Support/Plex Media Server"
+
+    echo "Creating TV Shows library with Personal Media Shows agent..."
+    # Use documented CLI to create library with Personal/None agent (no internet metadata)
+    "/usr/lib/plexmediaserver/Plex Media Scanner" --add-section "TV Shows" --type 2 --agent com.plexapp.agents.none --location "/data" --lang en
+
+    # Perform initial scan of the library
+    echo "Scanning TV Shows library..."
+    "/usr/lib/plexmediaserver/Plex Media Scanner" --scan
+
+    # List created sections to confirm
+    echo "Created library sections:"
+    "/usr/lib/plexmediaserver/Plex Media Scanner" --list
+
+    echo "Bootstrap complete - Plex ready for offline operation with TV library"

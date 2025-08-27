@@ -9,9 +9,8 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
-  - pvc-config.yaml
-  - pvc-media.yaml
   - initial-config-configmap.yaml
+  - bootstrap-configmap.yaml
 
 commonLabels:
   app: plex
