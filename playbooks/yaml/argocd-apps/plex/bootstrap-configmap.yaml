@@ -1,38 +1,50 @@
-# Bootstrap script: copies Preferences.xml into the writable /config and pre-creates offline libraries
-# with the "Personal" agent (com.plexapp.agents.none) via Plex Media Scanner CLI.
+# playbooks/yaml/argocd-apps/plex/bootstrap-configmap.yaml
+# Custom-init runs before Plex starts, writes Preferences.xml with stable IDs and offline prefs, creates the “TV Shows” library with Personal/None agent, and scans /data.
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: plex-bootstrap
+  name: plex-custom-init
   namespace: media
   labels:
     app: plex
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 data:
-      bootstrap.sh: |-
-    #!/usr/bin/env bash
-    set -euo pipefail
+  99-plex-offline-setup.sh: |-
+    #!/usr/bin/with-contenv bash
+    set -Eeuo pipefail
+
+    SUPPORT_DIR="/config/Library Application Support"
+    PMS_DIR="${SUPPORT_DIR}/Plex Media Server"
+    PREF_FILE="${PMS_DIR}/Preferences.xml"
+    TEMPLATE_FILE="/tmp/plex-config/Preferences.xml"
+
+    echo "[custom-init] Setting up offline Plex configuration..."
+    mkdir -p "${PMS_DIR}"
+
+    NAMESPACE="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
+    SEED="plex.${NAMESPACE}.svc"
+    MACHINE_ID="$(printf '%s' "${SEED}" | sha1sum | awk '{print $1}')"
+    PROCESSED_ID="$(printf '%s' "${MACHINE_ID}" | sha1sum | awk '{print $1}')"
+    ANON_ID="$(cat /proc/sys/kernel/random/uuid)"
+
+    tmp="$(mktemp)"
+    sed "s#<Preferences#<Preferences MachineIdentifier=\"${MACHINE_ID}\" ProcessedMachineIdentifier=\"${PROCESSED_ID}\" AnonymousMachineIdentifier=\"${ANON_ID}\"#" \
+      "${TEMPLATE_FILE}" > "${tmp}"
+    mv -f "${tmp}" "${PREF_FILE}"
+
+    chown -R abc:abc "${PMS_DIR}"
+    chmod 600 "${PREF_FILE}"
+
     export LD_LIBRARY_PATH=/usr/lib/plexmediaserver
-    export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR="/config/Library/Application Support"
+    export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR="${SUPPORT_DIR}"
 
-    echo "Setting up Plex configuration directory..."
-    mkdir -p "/config/Library/Application Support/Plex Media Server"
-    cp -f /initial/Preferences.xml "/config/Library/Application Support/Plex Media Server/Preferences.xml"
+    echo "[custom-init] Ensuring TV Shows library exists (Personal agent)..."
+    if ! "/usr/lib/plexmediaserver/Plex Media Scanner" --list | grep -Fq "TV Shows"; then
+      "/usr/lib/plexmediaserver/Plex Media Scanner" --add-section "TV Shows" --type 2 --agent com.plexapp.agents.none --location "/data" --lang en
+    fi
 
-    # Set proper ownership for linuxserver image (PUID/PGID = 1000)
-    chown -R 1000:1000 "/config/Library/Application Support/Plex Media Server"
+    echo "[custom-init] Scanning /data..."
+    "/usr/lib/plexmediaserver/Plex Media Scanner" --scan --directory "/data" || true
 
-    echo "Creating TV Shows library with Personal Media Shows agent..."
-    # Use documented CLI to create library with Personal/None agent (no internet metadata)
-    "/usr/lib/plexmediaserver/Plex Media Scanner" --add-section "TV Shows" --type 2 --agent com.plexapp.agents.none --location "/data" --lang en
-
-    # Perform initial scan of the library
-    echo "Scanning TV Shows library..."
-    "/usr/lib/plexmediaserver/Plex Media Scanner" --scan
-
-    # List created sections to confirm
-    echo "Created library sections:"
-    "/usr/lib/plexmediaserver/Plex Media Scanner" --list
-
-    echo "Bootstrap complete - Plex ready for offline operation with TV library"
+    echo "[custom-init] Offline Plex setup complete - TV library ready"
