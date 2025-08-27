@@ -31,30 +31,27 @@ plex-7c8b9d4f6d-xyz12   1/1     Running   0          2m
 kubectl get pvc -n media sonarr-tv
 ```
 
-**If CrashLoopBackOff:** Check init container logs:
+**If CrashLoopBackOff:** Check main container logs for custom-init errors:
 ```bash
-kubectl logs -n media deployment/plex -c bootstrap
+kubectl logs -n media deployment/plex
 ```
 
-## 2) Verify bootstrap script execution
+## 2) Verify custom-init script execution
 
-Check the init container completed successfully:
+Check the main container logs for custom-init execution:
 
 ```bash
-kubectl logs -n media deployment/plex -c bootstrap
+kubectl logs -n media deployment/plex | grep custom-init
 ```
 
 **Expected output:**
 ```
-Setting up Plex configuration directory...
-Creating TV Shows library with Personal Media Shows agent...
-Scanning TV Shows library...
-Created library sections:
-1: TV Shows
-Bootstrap complete - Plex ready for offline operation with TV library
+[custom-init] Setting up offline Plex configuration...
+[custom-init] Creating TV Shows library with Personal Media Shows agent...
+[custom-init] Offline Plex setup complete - TV library created and scanned
 ```
 
-**If missing "TV Shows" library:** The Plex Media Scanner may not be available in the linuxserver image. Check main container logs for startup errors.
+**If missing custom-init logs:** The script may not be executable or mounted correctly. Check deployment volume mounts.
 
 ## 3) Verify offline preferences are loaded
 
@@ -66,13 +63,16 @@ kubectl exec -n media deployment/plex -- cat "/config/Library/Application Suppor
 ```xml
 <Preferences
   enableLocalSecurity="0"
-  allowedNetworks="192.168.0.0/255.255.0.0,10.0.0.0/255.0.0.0,172.16.0.0/255.240.0.0,fd00::/8"
+  allowedNetworks="192.168.1.0/255.255.255.0"
   PublishServerOnPlexOnlineKey="0"
+  MachineIdentifier="..."
+  ProcessedMachineIdentifier="..."
+  AnonymousMachineIdentifier="..."
   ...
 />
 ```
 
-**If file missing:** Check that init container mounted volumes correctly and bootstrap script ran.
+**If file missing:** Check that custom-init script ran successfully and volume mounts are correct.
 
 ## 4) Check Sonarr TV content is accessible
 
@@ -123,11 +123,11 @@ Wait for new pod to be `Running`, then repeat steps 2-5. Everything should rebui
 
 ## Common issues & fixes
 
-### Init container fails with "Plex Media Scanner not found"
+### Custom-init script fails with "Plex Media Scanner not found"
 
 The linuxserver image may not include the CLI scanner in the expected location.
 
-**Fix:** Update bootstrap script to skip library creation and create manually via web UI:
+**Fix:** Update custom-init script to skip library creation and create manually via web UI:
 
 ```bash
 # Remove/comment out the scanner commands in bootstrap-configmap.yaml:
@@ -177,8 +177,8 @@ Ensure the PVC is `Bound` and the underlying storage is healthy.
 ## Quick validation checklist
 
 - [ ] Pod is `Running` (not `CrashLoopBackOff` or `Pending`)
-- [ ] Bootstrap logs show "Bootstrap complete"
-- [ ] Preferences.xml exists with offline settings
+- [ ] Custom-init logs show "Offline Plex setup complete"
+- [ ] Preferences.xml exists with offline settings and machine identifiers
 - [ ] `/data` contains TV shows from Sonarr
 - [ ] Web UI accessible without sign-in
 - [ ] TV Shows library exists with Personal Media Shows agent

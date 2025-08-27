@@ -17,7 +17,7 @@ data:
       FirstRun="0"
       FriendlyName="Plex"
       enableLocalSecurity="0"
-      allowedNetworks="192.168.0.0/255.255.0.0,10.0.0.0/255.0.0.0,172.16.0.0/255.240.0.0,fd00::/8"
+      allowedNetworks="192.168.1.0/255.255.255.0"
       DlnaEnabled="0"
       GdmEnabled="0"
       FSEventLibraryUpdatesEnabled="1"
