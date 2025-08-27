@@ -49,6 +49,12 @@ spec:
             limits:
               cpu: 1000m
               memory: 2Gi
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - "/bin/bash"
+                  - "/tmp/poststart/poststart.sh"
           volumeMounts:
             - name: config
               mountPath: /config
@@ -62,6 +68,9 @@ spec:
               readOnly: true
             - name: initial-config
               mountPath: /tmp/plex-config
+              readOnly: true
+            - name: poststart
+              mountPath: /tmp/poststart
               readOnly: true
           readinessProbe:
             httpGet:
@@ -84,4 +93,8 @@ spec:
         - name: initial-config
           configMap:
             name: plex-initial-config
+        - name: poststart
+          configMap:
+            name: plex-poststart
+            defaultMode: 0755
       restartPolicy: Always

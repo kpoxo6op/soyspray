@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: plex-poststart
+  namespace: media
+  labels:
+    app: plex
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  poststart.sh: |-
+    #!/bin/bash
+    set -Eeuo pipefail
+
+    echo "[postStart] Waiting for Plex to initialize..."
+
+    # Wait for Plex identity endpoint to be available
+    timeout=300
+    counter=0
+    while [ $counter -lt $timeout ]; do
+        if curl -s http://127.0.0.1:32400/identity >/dev/null 2>&1; then
+            echo "[postStart] Plex identity endpoint is available"
+            break
+        fi
+        echo "[postStart] Waiting for Plex... ($counter/$timeout)"
+        sleep 5
+        counter=$((counter + 5))
+    done
+
+    if [ $counter -ge $timeout ]; then
+        echo "[postStart] Timeout waiting for Plex to start"
+        exit 1
+    fi
+
+    # Wait for database file to be created
+    DB_FILE="/config/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
+    counter=0
+    while [ $counter -lt 60 ]; do
+        if [ -f "$DB_FILE" ]; then
+            echo "[postStart] Database file exists: $DB_FILE"
+            break
+        fi
+        echo "[postStart] Waiting for database creation... ($counter/60)"
+        sleep 2
+        counter=$((counter + 2))
+    done
+
+    if [ ! -f "$DB_FILE" ]; then
+        echo "[postStart] Warning: Database file not found, proceeding anyway"
+    fi
+
+    export LD_LIBRARY_PATH=/usr/lib/plexmediaserver
+    export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR="/config/Library/Application Support"
+
+    echo "[postStart] Creating TV Shows library if it doesn't exist..."
+    if ! "/usr/lib/plexmediaserver/Plex Media Scanner" --list | grep -Fq "TV Shows"; then
+        echo "[postStart] Creating new TV Shows library with Personal Media agent..."
+        "/usr/lib/plexmediaserver/Plex Media Scanner" --add-section "TV Shows" --type 2 --agent com.plexapp.agents.none --location "/data" --lang en
+    else
+        echo "[postStart] TV Shows library already exists"
+    fi
+
+    echo "[postStart] Performing initial scan of /data..."
+    "/usr/lib/plexmediaserver/Plex Media Scanner" --scan --directory "/data" || true
+
+    echo "[postStart] Library setup complete"

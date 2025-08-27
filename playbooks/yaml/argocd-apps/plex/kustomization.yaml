@@ -11,6 +11,7 @@ resources:
   - ingress.yaml
   - initial-config-configmap.yaml
   - bootstrap-configmap.yaml
+  - poststart-configmap.yaml
 
 commonLabels:
   app: plex

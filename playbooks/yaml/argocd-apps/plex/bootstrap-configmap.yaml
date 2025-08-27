@@ -19,11 +19,15 @@ data:
     PREF_FILE="${PMS_DIR}/Preferences.xml"
     TEMPLATE_FILE="/tmp/plex-config/Preferences.xml"
 
-    echo "[custom-init] Setting up offline Plex configuration..."
+        echo "[custom-init] Setting up offline Plex filesystem and configuration..."
+
+    # Create all required PMS directories including database parent paths
     mkdir -p "${PMS_DIR}"
     mkdir -p "${PMS_DIR}/Cache"
     mkdir -p "${PMS_DIR}/Crash Reports"
     mkdir -p "${PMS_DIR}/Logs"
+    mkdir -p "${PMS_DIR}/Codecs"
+    mkdir -p "${PMS_DIR}/Plug-in Support/Databases"
 
     # Set proper ownership and permissions FIRST, before creating files
     chown -R abc:abc "${SUPPORT_DIR}"
@@ -35,20 +39,10 @@ data:
     PROCESSED_ID="$(printf '%s' "${MACHINE_ID}" | sha1sum | awk '{print $1}')"
     ANON_ID="$(cat /proc/sys/kernel/random/uuid)"
 
-    # Create Preferences.xml with machine identifiers
+    # Create Preferences.xml with machine identifiers and offline settings
     sed "s/<Preferences/<Preferences MachineIdentifier=\"${MACHINE_ID}\" ProcessedMachineIdentifier=\"${PROCESSED_ID}\" AnonymousMachineIdentifier=\"${ANON_ID}\"/" "${TEMPLATE_FILE}" > "${PREF_FILE}"
     chown abc:abc "${PREF_FILE}"
     chmod 600 "${PREF_FILE}"
 
-    export LD_LIBRARY_PATH=/usr/lib/plexmediaserver
-    export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR="${SUPPORT_DIR}"
-
-    echo "[custom-init] Ensuring TV Shows library exists (Personal agent)..."
-    if ! "/usr/lib/plexmediaserver/Plex Media Scanner" --list | grep -Fq "TV Shows"; then
-      "/usr/lib/plexmediaserver/Plex Media Scanner" --add-section "TV Shows" --type 2 --agent com.plexapp.agents.none --location "/data" --lang en
-    fi
-
-    echo "[custom-init] Scanning /data..."
-    "/usr/lib/plexmediaserver/Plex Media Scanner" --scan --directory "/data" || true
-
-    echo "[custom-init] Offline Plex setup complete - TV library ready"
+    echo "[custom-init] Filesystem preparation complete - directories created, Preferences.xml written"
+    echo "[custom-init] Library creation will be handled by postStart hook after Plex initializes"
