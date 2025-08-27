@@ -14,7 +14,7 @@ data:
     #!/usr/bin/with-contenv bash
     set -Eeuo pipefail
 
-    SUPPORT_DIR="/config/Library Application Support"
+    SUPPORT_DIR="/config/Library/Application Support"
     PMS_DIR="${SUPPORT_DIR}/Plex Media Server"
     PREF_FILE="${PMS_DIR}/Preferences.xml"
     TEMPLATE_FILE="/tmp/plex-config/Preferences.xml"
