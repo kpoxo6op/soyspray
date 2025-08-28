@@ -9,10 +9,9 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
-  # Commented out all custom configurations for manual setup
-  # - initial-config-configmap.yaml
-  # - bootstrap-configmap.yaml
-  # - poststart-configmap.yaml
+  - initial-config-configmap.yaml
+  - bootstrap-configmap.yaml
+  - poststart-configmap.yaml
 
 commonLabels:
   app: plex

@@ -49,7 +49,12 @@ spec:
             limits:
               cpu: 1000m
               memory: 2Gi
-          # Removed all custom lifecycle hooks and config mounts for manual setup
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - "/bin/bash"
+                  - "/tmp/poststart/poststart.sh"
           volumeMounts:
             - name: config
               mountPath: /config
@@ -57,6 +62,15 @@ spec:
               mountPath: /transcode
             - name: media
               mountPath: /data
+              readOnly: true
+            - name: custom-init
+              mountPath: /custom-cont-init.d
+              readOnly: true
+            - name: initial-config
+              mountPath: /tmp/plex-config
+              readOnly: true
+            - name: poststart
+              mountPath: /tmp/poststart
               readOnly: true
           readinessProbe:
             httpGet:
@@ -72,5 +86,15 @@ spec:
         - name: media
           persistentVolumeClaim:
             claimName: sonarr-tv
-        # Removed all custom ConfigMap volumes for manual setup
+        - name: custom-init
+          configMap:
+            name: plex-custom-init
+            defaultMode: 0755
+        - name: initial-config
+          configMap:
+            name: plex-initial-config
+        - name: poststart
+          configMap:
+            name: plex-poststart
+            defaultMode: 0755
       restartPolicy: Always
