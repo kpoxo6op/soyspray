@@ -107,14 +107,14 @@ data:
     export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR="/config/Library/Application Support"
 
     echo "[postStart] Creating TV Shows library if it doesn't exist..."
-    if ! "/usr/lib/plexmediaserver/Plex Media Scanner" --list | grep -Fq "TV Shows"; then
+    if ! "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --list | grep -Fq "TV Shows"; then
         echo "[postStart] Creating new TV Shows library with Personal Media agent..."
-        "/usr/lib/plexmediaserver/Plex Media Scanner" --add-section "TV Shows" --type 2 --agent com.plexapp.agents.none --location "/data" --lang en
+        "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --add-section "TV Shows" --type 2 --agent com.plexapp.agents.none --location "/data" --lang en
     else
         echo "[postStart] TV Shows library already exists"
     fi
 
     echo "[postStart] Performing initial scan of /data..."
-    "/usr/lib/plexmediaserver/Plex Media Scanner" --scan --directory "/data" || true
+    "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --scan --directory "/data" || true
 
     echo "[postStart] Library setup complete"
