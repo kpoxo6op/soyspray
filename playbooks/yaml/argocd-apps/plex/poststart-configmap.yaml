@@ -36,38 +36,46 @@ data:
     if [ -n "${PLEX_ACCOUNT_TOKEN}" ]; then
         echo "[postStart] Claiming Plex server..."
 
-        # Request a fresh claim token using the account token
-        CLAIM_RESPONSE=$(curl -s -H "X-Plex-Token: ${PLEX_ACCOUNT_TOKEN}" \
-            "https://plex.tv/api/claim/token")
+        # Try claiming up to 3 times
+        for attempt in {1..3}; do
+            echo "[postStart] Claim attempt $attempt/3"
 
-        # Extract the claim token from the JSON response
-        CLAIM_TOKEN=$(echo "$CLAIM_RESPONSE" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+            # Request a fresh claim token using the account token (query param)
+            CLAIM_RESPONSE=$(curl -s "https://plex.tv/api/claim/token?X-Plex-Token=${PLEX_ACCOUNT_TOKEN}")
 
-        if [ -n "$CLAIM_TOKEN" ]; then
-            echo "[postStart] Obtained fresh claim token: ${CLAIM_TOKEN:0:10}..."
+            # Extract the claim token from XML attribute
+            CLAIM_TOKEN=$(echo "$CLAIM_RESPONSE" | grep -o 'token="[^"]*"' | cut -d'"' -f2)
 
-            # Claim the server with the fresh token
-            CLAIM_RESULT=$(curl -s -X POST "http://127.0.0.1:32400/myplex/claim?token=${CLAIM_TOKEN}")
+            if [ -n "$CLAIM_TOKEN" ]; then
+                echo "[postStart] Obtained fresh claim token: ${CLAIM_TOKEN:0:10}..."
 
-            if echo "$CLAIM_RESULT" | grep -q "authToken"; then
-                echo "[postStart] Server claimed successfully!"
+                # Claim the server with the fresh token
+                CLAIM_RESULT=$(curl -s -X POST "http://127.0.0.1:32400/myplex/claim?token=${CLAIM_TOKEN}")
 
-                # Verify claimed status by polling /identity
+                # Verify claimed status by polling /identity for claimed="1"
                 echo "[postStart] Verifying claim status..."
-                for i in {1..10}; do
+                for i in {1..5}; do
                     IDENTITY_RESPONSE=$(curl -s "http://127.0.0.1:32400/identity")
                     if echo "$IDENTITY_RESPONSE" | grep -q 'claimed="1"'; then
-                        echo "[postStart] Claim verified - proceeding with library setup"
-                        break
+                        echo "[postStart] Server claimed successfully on attempt $attempt!"
+                        break 2  # Break out of both loops
                     fi
-                    sleep 2
+                    sleep 1
                 done
+
+                echo "[postStart] Claim verification failed on attempt $attempt"
             else
-                echo "[postStart] Warning: Claim may have failed - $CLAIM_RESULT"
+                echo "[postStart] Could not obtain claim token on attempt $attempt: $CLAIM_RESPONSE"
             fi
-        else
-            echo "[postStart] Warning: Could not obtain claim token from Plex - $CLAIM_RESPONSE"
-        fi
+
+            # Wait before retrying
+            if [ $attempt -lt 3 ]; then
+                echo "[postStart] Waiting before retry..."
+                sleep 3
+            fi
+        done
+
+        echo "[postStart] Claim process completed"
     else
         echo "[postStart] No PLEX_ACCOUNT_TOKEN provided, skipping server claiming"
     fi
