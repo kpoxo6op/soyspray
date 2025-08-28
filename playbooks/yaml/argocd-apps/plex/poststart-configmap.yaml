@@ -114,12 +114,22 @@ data:
         echo "$response" | grep -o '<Directory[^>]*title="TV Shows"[^>]*key="[^"]*"' | sed 's/.*key="\([^"]*\)".*/\1/' | head -1
     }
 
-    # Function to get current library locations
+    # Function to get current library locations with HTTP status check
     get_library_locations() {
         local section_id="$1"
         local token="$2"
-        local response=$(curl -s "http://127.0.0.1:32400/library/sections/${section_id}?X-Plex-Token=${token}" 2>/dev/null || echo "")
-        echo "$response" | grep -o '<Location[^>]*path="[^"]*"' | sed 's/.*path="\([^"]*\)".*/\1/'
+        local response
+        local http_code
+        response=$(curl -s -w "%{http_code}" "http://127.0.0.1:32400/library/sections/${section_id}?X-Plex-Token=${token}" 2>/dev/null || echo "")
+        http_code=$(echo "$response" | tail -c 3)
+        response=$(echo "$response" | head -n -1)
+
+        if [ "$http_code" = "200" ]; then
+            echo "$response" | grep -o '<Location[^>]*path="[^"]*"' | sed 's/.*path="\([^"]*\)".*/\1/'
+        else
+            echo "[postStart] Failed to get library locations (HTTP $http_code)" >&2
+            return 1
+        fi
     }
 
     echo "[postStart] Checking for existing TV Shows library..."
