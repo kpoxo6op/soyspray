@@ -107,6 +107,10 @@ data:
         echo "[postStart] WARNING: No authentication token available"
     fi
 
+    # Set up header-based authentication
+    CID="plex-bootstrap-$(date +%s)"
+    H=(-H "X-Plex-Token: $PLEX_TOKEN" -H "X-Plex-Product: PlexBootstrap" -H "X-Plex-Client-Identifier: $CID" -H "X-Plex-Version: 1.0")
+
     # Function to robustly extract TV section ID from sections response
     extract_tv_section_id() {
         local response="$1"
@@ -117,10 +121,9 @@ data:
     # Function to get current library locations with HTTP status check
     get_library_locations() {
         local section_id="$1"
-        local token="$2"
         local response
         local http_code
-        response=$(curl -s -w "%{http_code}" "http://127.0.0.1:32400/library/sections/${section_id}?X-Plex-Token=${token}" 2>/dev/null || echo "")
+        response=$(curl -s -w "%{http_code}" "${H[@]}" "http://127.0.0.1:32400/library/sections/${section_id}" 2>/dev/null || echo "")
         http_code=$(echo "$response" | tail -c 3)
         response=$(echo "$response" | head -n -1)
 
@@ -137,7 +140,7 @@ data:
     # Check if TV Shows library already exists via HTTP API
     TV_SECTION_ID=""
     if [ -n "$PLEX_TOKEN" ]; then
-        SECTIONS_RESPONSE=$(curl -s "http://127.0.0.1:32400/library/sections?X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+        SECTIONS_RESPONSE=$(curl -fsS "${H[@]}" "http://127.0.0.1:32400/library/sections" 2>/dev/null || echo "")
         if echo "$SECTIONS_RESPONSE" | grep -q 'title="TV Shows"'; then
             TV_SECTION_ID=$(extract_tv_section_id "$SECTIONS_RESPONSE")
             if [ -n "$TV_SECTION_ID" ]; then
@@ -150,20 +153,20 @@ data:
 
     if [ -z "$TV_SECTION_ID" ]; then
         echo "[postStart] Creating TV Shows library..."
-        # Create TV Shows library with online Plex TV Series agent (without location parameter)
-        CREATE_RESPONSE=$(curl -s -X POST "http://127.0.0.1:32400/library/sections?name=TV%20Shows&type=show&agent=tv.plex.agents.series&scanner=Plex%20TV%20Series&language=en&location=/data&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+        # Create TV Shows library with online Plex TV Series agent
+        CREATE_RESPONSE=$(curl -fsS -X POST "${H[@]}" "http://127.0.0.1:32400/library/sections?name=TV%20Shows&type=show&agent=tv.plex.agents.series&scanner=Plex%20TV%20Series&language=en&location=/data" 2>/dev/null || echo "")
 
         if echo "$CREATE_RESPONSE" | grep -q 'key=".*"'; then
             # Re-query sections to get the newly created library ID
             sleep 2
-            SECTIONS_RESPONSE=$(curl -s "http://127.0.0.1:32400/library/sections?X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+            SECTIONS_RESPONSE=$(curl -fsS "${H[@]}" "http://127.0.0.1:32400/library/sections" 2>/dev/null || echo "")
             TV_SECTION_ID=$(extract_tv_section_id "$SECTIONS_RESPONSE")
             if [ -n "$TV_SECTION_ID" ]; then
                 echo "[postStart] TV Shows library created successfully (ID: $TV_SECTION_ID)"
 
                 # Now explicitly add the /data folder location using PUT request
                 echo "[postStart] Adding /data folder location to TV Shows library..."
-                LOCATION_UPDATE_RESPONSE=$(curl -s -X PUT "http://127.0.0.1:32400/library/sections/${TV_SECTION_ID}?agent=tv.plex.agents.series&location=/data&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+                LOCATION_UPDATE_RESPONSE=$(curl -fsS -X PUT "${H[@]}" "http://127.0.0.1:32400/library/sections/${TV_SECTION_ID}?agent=tv.plex.agents.series&location=/data" 2>/dev/null || echo "")
 
                 if [ $? -eq 0 ] && echo "$LOCATION_UPDATE_RESPONSE" | grep -q "Directory"; then
                     echo "[postStart] /data folder location added successfully to TV Shows library"
@@ -183,7 +186,7 @@ data:
         echo "[postStart] Ensuring /data location is added to existing TV Shows library..."
 
         # Get current locations to preserve them
-        CURRENT_LOCATIONS=$(get_library_locations "$TV_SECTION_ID" "$PLEX_TOKEN")
+        CURRENT_LOCATIONS=$(get_library_locations "$TV_SECTION_ID")
         DATA_ALREADY_EXISTS=false
 
         # Check if /data is already in the locations
@@ -204,7 +207,7 @@ data:
             LOCATION_PARAMS="${LOCATION_PARAMS}&location=/data"
 
             # Update library with preserved existing locations + /data
-            UPDATE_RESPONSE=$(curl -s -X PUT "http://127.0.0.1:32400/library/sections/${TV_SECTION_ID}?agent=tv.plex.agents.series${LOCATION_PARAMS}&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+            UPDATE_RESPONSE=$(curl -fsS -X PUT "${H[@]}" "http://127.0.0.1:32400/library/sections/${TV_SECTION_ID}?agent=tv.plex.agents.series${LOCATION_PARAMS}" 2>/dev/null || echo "")
 
             if [ $? -eq 0 ] && echo "$UPDATE_RESPONSE" | grep -q "Directory"; then
                 echo "[postStart] /data location added to TV Shows library (preserved existing locations)"
@@ -218,7 +221,7 @@ data:
     # Trigger targeted scan of /data directory
     if [ -n "$TV_SECTION_ID" ] && [ -n "$PLEX_TOKEN" ]; then
         echo "[postStart] Triggering targeted scan of /data directory..."
-        SCAN_RESPONSE=$(curl -s "http://127.0.0.1:32400/library/sections/${TV_SECTION_ID}/refresh?path=/data&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+        SCAN_RESPONSE=$(curl -fsS "${H[@]}" "http://127.0.0.1:32400/library/sections/${TV_SECTION_ID}/refresh?path=/data" 2>/dev/null || echo "")
 
         if [ $? -eq 0 ]; then
             echo "[postStart] Scan of /data directory initiated successfully"
