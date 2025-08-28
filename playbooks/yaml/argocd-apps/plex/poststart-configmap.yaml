@@ -7,7 +7,7 @@
 # - Fallback to PLEX_ACCOUNT_TOKEN when PlexOnlineToken absent
 # - Re-queries sections after creation for reliable ID extraction
 # - Fully idempotent and restart-safe operations
-# - Modern Plex TV Series agent (tv.plex.agents.series)
+# - Online Plex TV Series agent (tv.plex.agents.series) for metadata
 
 apiVersion: v1
 kind: ConfigMap
@@ -150,8 +150,8 @@ data:
 
     if [ -z "$TV_SECTION_ID" ]; then
         echo "[postStart] Creating TV Shows library..."
-        # Create TV Shows library with offline Personal Media Shows agent (without location parameter)
-        CREATE_RESPONSE=$(curl -s -X POST "http://127.0.0.1:32400/library/sections?name=TV%20Shows&type=show&agent=com.plexapp.agents.none&scanner=Plex%20Series%20Scanner&language=en-US&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+        # Create TV Shows library with online Plex TV Series agent (without location parameter)
+        CREATE_RESPONSE=$(curl -s -X POST "http://127.0.0.1:32400/library/sections?name=TV%20Shows&type=show&agent=tv.plex.agents.series&scanner=Plex%20TV%20Series&language=en&location=/data&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
 
         if echo "$CREATE_RESPONSE" | grep -q 'key=".*"'; then
             # Re-query sections to get the newly created library ID
@@ -163,7 +163,7 @@ data:
 
                 # Now explicitly add the /data folder location using PUT request
                 echo "[postStart] Adding /data folder location to TV Shows library..."
-                LOCATION_UPDATE_RESPONSE=$(curl -s -X PUT "http://127.0.0.1:32400/library/sections/${TV_SECTION_ID}?agent=com.plexapp.agents.none&location=/data&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+                LOCATION_UPDATE_RESPONSE=$(curl -s -X PUT "http://127.0.0.1:32400/library/sections/${TV_SECTION_ID}?agent=tv.plex.agents.series&location=/data&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
 
                 if [ $? -eq 0 ] && echo "$LOCATION_UPDATE_RESPONSE" | grep -q "Directory"; then
                     echo "[postStart] /data folder location added successfully to TV Shows library"
@@ -204,7 +204,7 @@ data:
             LOCATION_PARAMS="${LOCATION_PARAMS}&location=/data"
 
             # Update library with preserved existing locations + /data
-            UPDATE_RESPONSE=$(curl -s -X PUT "http://127.0.0.1:32400/library/sections/${TV_SECTION_ID}?agent=com.plexapp.agents.none${LOCATION_PARAMS}&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+            UPDATE_RESPONSE=$(curl -s -X PUT "http://127.0.0.1:32400/library/sections/${TV_SECTION_ID}?agent=tv.plex.agents.series${LOCATION_PARAMS}&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
 
             if [ $? -eq 0 ] && echo "$UPDATE_RESPONSE" | grep -q "Directory"; then
                 echo "[postStart] /data location added to TV Shows library (preserved existing locations)"
