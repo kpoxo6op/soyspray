@@ -15,9 +15,9 @@ metadata:
     argocd.argoproj.io/sync-wave: "0"
 data:
   poststart.sh: |-
-    set -Eeuo pipefail
+    #!/bin/bash
 
-    echo "[postStart] Waiting for Plex to initialize..."
+    echo "[postStart] Starting Plex library setup..."
 
     timeout=300
     counter=0
@@ -36,52 +36,34 @@ data:
         exit 1
     fi
 
-    if [ -n "${PLEX_ACCOUNT_TOKEN}" ]; then
-        IDENTITY_RESPONSE=$(curl -fsS "http://127.0.0.1:32400/identity" 2>/dev/null || true)
-        if echo "$IDENTITY_RESPONSE" | grep -q 'claimed="1"'; then
-            echo "[postStart] Server already claimed - skipping claim process"
-        else
-            echo "[postStart] Server not claimed - starting claim process..."
-            for attempt in 1 2 3; do
-                echo "[postStart] Claim attempt $attempt/3"
-                CLAIM_RESPONSE=$(curl -fsS "https://plex.tv/api/claim/token?X-Plex-Token=${PLEX_ACCOUNT_TOKEN}" 2>/dev/null || true)
-                CLAIM_TOKEN=$(echo "$CLAIM_RESPONSE" | grep -o 'token="[^"]*"' | cut -d'"' -f2)
-                if [ -n "$CLAIM_TOKEN" ]; then
-                    echo "[postStart] Claim token acquired"
-                    curl -fsS -X POST "http://127.0.0.1:32400/myplex/claim?token=${CLAIM_TOKEN}" >/dev/null 2>&1 || true
-                    verify_counter=0
-                    while [ $verify_counter -lt 30 ]; do
-                        if curl -fsS "http://127.0.0.1:32400/identity" 2>/dev/null | grep -Fq 'claimed="1"'; then
-                            echo "[postStart] Claim successful"
-                            break 2
-                        fi
-                        sleep 2
-                        verify_counter=$((verify_counter + 2))
-                    done
-                    echo "[postStart] Claim not reflected yet; retrying"
-                else
-                    echo "[postStart] Failed to parse claim token response"
-                fi
-                sleep 5
-            done
-            if ! curl -fsS "http://127.0.0.1:32400/identity" 2>/dev/null | grep -Fq 'claimed="1"'; then
-                echo "[postStart] Warning: Auto-claim failed; continuing bootstrap"
+    # Check if server is already claimed
+    echo "[postStart] Checking server claim status..."
+    IDENTITY_RESPONSE=$(curl -s "http://127.0.0.1:32400/identity" 2>/dev/null || echo "")
+    if echo "$IDENTITY_RESPONSE" | grep -q 'claimed="1"'; then
+        echo "[postStart] Server already claimed"
+    else
+        echo "[postStart] Server not claimed"
+        if [ -n "${PLEX_ACCOUNT_TOKEN}" ]; then
+            echo "[postStart] Attempting auto-claim..."
+            # Get claim token
+            CLAIM_RESPONSE=$(curl -s "https://plex.tv/api/claim/token?X-Plex-Token=${PLEX_ACCOUNT_TOKEN}" 2>/dev/null || echo "")
+            CLAIM_TOKEN=$(echo "$CLAIM_RESPONSE" | grep -o 'token="[^"]*"' | cut -d'"' -f2 2>/dev/null || echo "")
+
+            if [ -n "$CLAIM_TOKEN" ]; then
+                echo "[postStart] Claiming server..."
+                curl -s -X POST "http://127.0.0.1:32400/myplex/claim?token=${CLAIM_TOKEN}" >/dev/null 2>&1 || true
+
+                # Wait for claim to complete
+                for i in {1..15}; do
+                    sleep 2
+                    IDENTITY_RESPONSE=$(curl -s "http://127.0.0.1:32400/identity" 2>/dev/null || echo "")
+                    if echo "$IDENTITY_RESPONSE" | grep -q 'claimed="1"'; then
+                        echo "[postStart] Server claimed successfully"
+                        break
+                    fi
+                done
             fi
         fi
-
-        PREF_FILE="/config/Library/Application Support/Plex Media Server/Preferences.xml"
-        echo "[postStart] Waiting for PlexOnlineToken to be persisted..."
-        tok_wait=0
-        while [ $tok_wait -lt 60 ]; do
-            if grep -q 'PlexOnlineToken="' "$PREF_FILE" 2>/dev/null; then
-                echo "[postStart] PlexOnlineToken detected"
-                break
-            fi
-            sleep 2
-            tok_wait=$((tok_wait + 2))
-        done
-    else
-        echo "[postStart] No PLEX_ACCOUNT_TOKEN provided, skipping server claiming"
     fi
 
     DB_FILE="/config/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
@@ -126,3 +108,4 @@ data:
     "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --scan --directory "/data" 2>/dev/null || echo "[postStart] Scan completed (some files may have been processed)"
 
     echo "[postStart] Library setup complete"
+
