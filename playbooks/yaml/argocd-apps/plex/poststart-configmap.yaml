@@ -1,3 +1,9 @@
+# playbooks/yaml/argocd-apps/plex/poststart-configmap.yaml
+# Replaces Personal Media agent with default Plex TV Series agent by omitting --agent
+# Waits for PlexOnlineToken after claim to avoid race
+# Forces metadata refresh for the TV library before scanning
+# Uses --server-token for all scanner actions; keeps /data PVC flow intact
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -9,12 +15,10 @@ metadata:
     argocd.argoproj.io/sync-wave: "0"
 data:
   poststart.sh: |-
-    #!/bin/bash
     set -Eeuo pipefail
 
     echo "[postStart] Waiting for Plex to initialize..."
 
-    # Wait for Plex identity endpoint to be available
     timeout=300
     counter=0
     while [ $counter -lt $timeout ]; do
@@ -32,61 +36,54 @@ data:
         exit 1
     fi
 
-    # Claim the server if we have an account token
     if [ -n "${PLEX_ACCOUNT_TOKEN}" ]; then
-        # Check if already claimed first
         IDENTITY_RESPONSE=$(curl -fsS "http://127.0.0.1:32400/identity" 2>/dev/null || true)
         if echo "$IDENTITY_RESPONSE" | grep -q 'claimed="1"'; then
             echo "[postStart] Server already claimed - skipping claim process"
         else
             echo "[postStart] Server not claimed - starting claim process..."
-
-            # Try claiming up to 3 times
-            for attempt in {1..3}; do
+            for attempt in 1 2 3; do
                 echo "[postStart] Claim attempt $attempt/3"
-
-                # Request a fresh claim token using the account token (query param)
                 CLAIM_RESPONSE=$(curl -fsS "https://plex.tv/api/claim/token?X-Plex-Token=${PLEX_ACCOUNT_TOKEN}" 2>/dev/null || true)
-
-                # Extract the claim token from XML attribute
                 CLAIM_TOKEN=$(echo "$CLAIM_RESPONSE" | grep -o 'token="[^"]*"' | cut -d'"' -f2)
-
                 if [ -n "$CLAIM_TOKEN" ]; then
-                    echo "[postStart] Obtained fresh claim token: ${CLAIM_TOKEN:0:10}..."
-
-                    # Claim the server with the fresh token
-                    CLAIM_RESULT=$(curl -fsS -X POST "http://127.0.0.1:32400/myplex/claim?token=${CLAIM_TOKEN}" 2>/dev/null || true)
-
-                    # Verify claimed status by polling /identity for claimed="1" (30s total)
-                    echo "[postStart] Verifying claim status..."
-                    for i in {1..30}; do
-                        IDENTITY_RESPONSE=$(curl -fsS "http://127.0.0.1:32400/identity" 2>/dev/null || true)
-                        if echo "$IDENTITY_RESPONSE" | grep -q 'claimed="1"'; then
-                            echo "[postStart] Server claimed successfully on attempt $attempt!"
-                            break 2  # Break out of both loops
+                    echo "[postStart] Claim token acquired"
+                    curl -fsS -X POST "http://127.0.0.1:32400/myplex/claim?token=${CLAIM_TOKEN}" >/dev/null 2>&1 || true
+                    verify_counter=0
+                    while [ $verify_counter -lt 30 ]; do
+                        if curl -fsS "http://127.0.0.1:32400/identity" 2>/dev/null | grep -Fq 'claimed="1"'; then
+                            echo "[postStart] Claim successful"
+                            break 2
                         fi
-                        sleep 1
+                        sleep 2
+                        verify_counter=$((verify_counter + 2))
                     done
-
-                    echo "[postStart] Claim verification failed on attempt $attempt"
+                    echo "[postStart] Claim not reflected yet; retrying"
                 else
-                    echo "[postStart] Could not obtain claim token on attempt $attempt: $CLAIM_RESPONSE"
+                    echo "[postStart] Failed to parse claim token response"
                 fi
-
-                # Wait before retrying
-                if [ $attempt -lt 3 ]; then
-                    echo "[postStart] Waiting before retry..."
-                    sleep 3
-                fi
+                sleep 5
             done
-
-            echo "[postStart] Claim process completed"
+            if ! curl -fsS "http://127.0.0.1:32400/identity" 2>/dev/null | grep -Fq 'claimed="1"'; then
+                echo "[postStart] Warning: Auto-claim failed; continuing bootstrap"
+            fi
         fi
+
+        PREF_FILE="/config/Library/Application Support/Plex Media Server/Preferences.xml"
+        echo "[postStart] Waiting for PlexOnlineToken to be persisted..."
+        tok_wait=0
+        while [ $tok_wait -lt 60 ]; do
+            if grep -q 'PlexOnlineToken="' "$PREF_FILE" 2>/dev/null; then
+                echo "[postStart] PlexOnlineToken detected"
+                break
+            fi
+            sleep 2
+            tok_wait=$((tok_wait + 2))
+        done
     else
         echo "[postStart] No PLEX_ACCOUNT_TOKEN provided, skipping server claiming"
     fi
 
-    # Wait for database file to be created
     DB_FILE="/config/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
     counter=0
     while [ $counter -lt 60 ]; do
@@ -106,47 +103,23 @@ data:
     export LD_LIBRARY_PATH=/usr/lib/plexmediaserver
     export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR="/config/Library/Application Support"
 
-    echo "[postStart] Waiting for Plex Online Token before library operations..."
-
-    # Wait for PlexOnlineToken to be available (indicates server is fully online)
-    PLEX_ONLINE_TOKEN=""
-    counter=0
-    timeout=120
-    while [ $counter -lt $timeout ]; do
-        # Get the PlexOnlineToken from preferences
-        PREFS_RESPONSE=$(curl -fsS "http://127.0.0.1:32400/:/prefs" 2>/dev/null || true)
-        PLEX_ONLINE_TOKEN=$(echo "$PREFS_RESPONSE" | grep -o 'PlexOnlineToken="[^"]*"' | cut -d'"' -f2)
-
-        if [ -n "$PLEX_ONLINE_TOKEN" ]; then
-            echo "[postStart] PlexOnlineToken available: ${PLEX_ONLINE_TOKEN:0:10}..."
-            break
-        fi
-
-        echo "[postStart] Waiting for PlexOnlineToken... ($counter/$timeout)"
-        sleep 5
-        counter=$((counter + 5))
-    done
-
-    if [ -z "$PLEX_ONLINE_TOKEN" ]; then
-        echo "[postStart] Warning: PlexOnlineToken not available, proceeding anyway"
-    fi
-
-    echo "[postStart] Creating TV Shows library if it doesn't exist..."
+    echo "[postStart] Ensuring TV Shows library exists with Plex TV Series agent..."
     if ! "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --list | grep -Fq "TV Shows"; then
-        echo "[postStart] Creating new TV Shows library with TheTVDB agent for metadata downloads..."
-        "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --add-section "TV Shows" --type 2 --agent com.plexapp.agents.thetvdb --location "/data" --lang en
+        "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --add-section "TV Shows" --type 2 --location "/data" --lang en
+        echo "[postStart] TV Shows library created"
     else
         echo "[postStart] TV Shows library already exists"
     fi
 
-    echo "[postStart] Waiting before triggering metadata refresh..."
-    sleep 10
-
-    echo "[postStart] Triggering full metadata refresh for existing content..."
-    # Force refresh all metadata for the TV Shows section
-    "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --refresh --force --section 1 || true
+    echo "[postStart] Forcing metadata refresh on TV Shows..."
+    SECTIONS_XML="$(curl -fsS "http://127.0.0.1:32400/library/sections?X-Plex-Token=${PLEX_ACCOUNT_TOKEN}")"
+    TV_LINE="$(printf '%s' "$SECTIONS_XML" | tr '\n' ' ' | sed -n 's/.*<Directory[^>]*title="TV Shows"[^>]*>.*/\0/p')"
+    TV_KEY="$(printf '%s' "$TV_LINE" | grep -o 'key="[^"]*"' | cut -d'"' -f2)"
+    if [ -n "$TV_KEY" ]; then
+        curl -fsS "http://127.0.0.1:32400/library/sections/${TV_KEY}/refresh?force=1&X-Plex-Token=${PLEX_ACCOUNT_TOKEN}" >/dev/null 2>&1 || true
+    fi
 
     echo "[postStart] Performing initial scan of /data..."
     "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --scan --directory "/data" || true
 
-    echo "[postStart] Library setup complete with metadata agent enabled"
+    echo "[postStart] Library setup complete"
