@@ -1,8 +1,8 @@
 # playbooks/yaml/argocd-apps/plex/poststart-configmap.yaml
-# Replaces Personal Media agent with default Plex TV Series agent by omitting --agent
-# Waits for PlexOnlineToken after claim to avoid race
-# Forces metadata refresh for the TV library before scanning
-# Uses --server-token for all scanner actions; keeps /data PVC flow intact
+# Uses official Plex HTTP API for library management instead of deprecated CLI scanner
+# Creates TV Shows library with modern Plex TV Series agent
+# Handles /data folder bootstrap via HTTP API calls
+# Uses PlexOnlineToken from Preferences.xml for authentication
 
 apiVersion: v1
 kind: ConfigMap
@@ -82,30 +82,72 @@ data:
         echo "[postStart] Warning: Database file not found, proceeding anyway"
     fi
 
-    export LD_LIBRARY_PATH=/usr/lib/plexmediaserver
-    export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR="/config/Library/Application Support"
-
-    echo "[postStart] Checking Plex Media Scanner availability..."
-    if [ ! -x "/usr/lib/plexmediaserver/Plex Media Scanner" ]; then
-        echo "[postStart] WARNING: Plex Media Scanner not found - library setup will be skipped"
-        echo "[postStart] You may need to create the TV library manually via Plex Web UI"
-        exit 0
+    # Extract PlexOnlineToken from Preferences.xml for HTTP API calls
+    PREFS_FILE="/config/Library/Application Support/Plex Media Server/Preferences.xml"
+    PLEX_TOKEN=""
+    if [ -f "$PREFS_FILE" ]; then
+        PLEX_TOKEN=$(grep -o 'PlexOnlineToken="[^"]*"' "$PREFS_FILE" | cut -d'"' -f2)
+        if [ -n "$PLEX_TOKEN" ]; then
+            echo "[postStart] Found PlexOnlineToken for API calls"
+        else
+            echo "[postStart] WARNING: No PlexOnlineToken found in Preferences.xml"
+        fi
+    else
+        echo "[postStart] WARNING: Preferences.xml not found"
     fi
 
-    echo "[postStart] Ensuring TV Shows library exists..."
-    if "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --list 2>/dev/null | grep -Fq "TV Shows"; then
-        echo "[postStart] TV Shows library already exists"
-    else
-        echo "[postStart] Creating TV Shows library..."
-        if "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --add-section "TV Shows" --type 2 --location "/data" --lang en 2>/dev/null; then
-            echo "[postStart] TV Shows library created successfully"
-        else
-            echo "[postStart] WARNING: Failed to create TV Shows library"
+    echo "[postStart] Checking for existing TV Shows library..."
+
+    # Check if TV Shows library already exists via HTTP API
+    TV_SECTION_ID=""
+    if [ -n "$PLEX_TOKEN" ]; then
+        SECTIONS_RESPONSE=$(curl -s "http://127.0.0.1:32400/library/sections?X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+        if echo "$SECTIONS_RESPONSE" | grep -q "TV Shows"; then
+            # Extract section ID from response
+            TV_SECTION_ID=$(echo "$SECTIONS_RESPONSE" | grep -o 'key="[^"]*"' | head -1 | cut -d'"' -f2)
+            echo "[postStart] Found existing TV Shows library (ID: $TV_SECTION_ID)"
         fi
     fi
 
-    echo "[postStart] Performing initial scan of /data..."
-    "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --scan --directory "/data" 2>/dev/null || echo "[postStart] Scan completed (some files may have been processed)"
+    if [ -z "$TV_SECTION_ID" ]; then
+        echo "[postStart] Creating TV Shows library with /data location..."
+        # Create TV Shows library with modern Plex TV Series agent
+        CREATE_RESPONSE=$(curl -s -X POST "http://127.0.0.1:32400/library/sections?name=TV%20Shows&type=show&agent=tv.plex.agents.series&scanner=Plex%20TV%20Series&language=en-US&location=/data&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+
+        if echo "$CREATE_RESPONSE" | grep -q "key="; then
+            TV_SECTION_ID=$(echo "$CREATE_RESPONSE" | grep -o 'key="[^"]*"' | cut -d'"' -f2)
+            echo "[postStart] TV Shows library created successfully (ID: $TV_SECTION_ID)"
+        else
+            echo "[postStart] WARNING: Failed to create TV Shows library"
+            echo "[postStart] Response: $CREATE_RESPONSE"
+        fi
+    else
+        echo "[postStart] Ensuring /data location is added to existing TV Shows library..."
+        # Add /data to existing TV library by updating locations
+        UPDATE_RESPONSE=$(curl -s -X PUT "http://127.0.0.1:32400/library/sections/${TV_SECTION_ID}?agent=tv.plex.agents.series&location=/data&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+
+        if [ $? -eq 0 ]; then
+            echo "[postStart] /data location added to TV Shows library"
+        else
+            echo "[postStart] WARNING: Failed to add /data location to existing library"
+            echo "[postStart] Response: $UPDATE_RESPONSE"
+        fi
+    fi
+
+    # Trigger targeted scan of /data directory
+    if [ -n "$TV_SECTION_ID" ] && [ -n "$PLEX_TOKEN" ]; then
+        echo "[postStart] Triggering targeted scan of /data directory..."
+        SCAN_RESPONSE=$(curl -s "http://127.0.0.1:32400/library/sections/${TV_SECTION_ID}/refresh?path=/data&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+
+        if [ $? -eq 0 ]; then
+            echo "[postStart] Scan of /data directory initiated successfully"
+        else
+            echo "[postStart] WARNING: Failed to initiate scan of /data"
+            echo "[postStart] Response: $SCAN_RESPONSE"
+        fi
+    else
+        echo "[postStart] Skipping scan - missing section ID or token"
+    fi
 
     echo "[postStart] Library setup complete"
 
