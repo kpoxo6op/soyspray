@@ -106,15 +106,47 @@ data:
     export LD_LIBRARY_PATH=/usr/lib/plexmediaserver
     export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR="/config/Library/Application Support"
 
+    echo "[postStart] Waiting for Plex Online Token before library operations..."
+
+    # Wait for PlexOnlineToken to be available (indicates server is fully online)
+    PLEX_ONLINE_TOKEN=""
+    counter=0
+    timeout=120
+    while [ $counter -lt $timeout ]; do
+        # Get the PlexOnlineToken from preferences
+        PREFS_RESPONSE=$(curl -fsS "http://127.0.0.1:32400/:/prefs" 2>/dev/null || true)
+        PLEX_ONLINE_TOKEN=$(echo "$PREFS_RESPONSE" | grep -o 'PlexOnlineToken="[^"]*"' | cut -d'"' -f2)
+
+        if [ -n "$PLEX_ONLINE_TOKEN" ]; then
+            echo "[postStart] PlexOnlineToken available: ${PLEX_ONLINE_TOKEN:0:10}..."
+            break
+        fi
+
+        echo "[postStart] Waiting for PlexOnlineToken... ($counter/$timeout)"
+        sleep 5
+        counter=$((counter + 5))
+    done
+
+    if [ -z "$PLEX_ONLINE_TOKEN" ]; then
+        echo "[postStart] Warning: PlexOnlineToken not available, proceeding anyway"
+    fi
+
     echo "[postStart] Creating TV Shows library if it doesn't exist..."
     if ! "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --list | grep -Fq "TV Shows"; then
-        echo "[postStart] Creating new TV Shows library with Personal Media agent..."
-        "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --add-section "TV Shows" --type 2 --agent com.plexapp.agents.none --location "/data" --lang en
+        echo "[postStart] Creating new TV Shows library with TheTVDB agent for metadata downloads..."
+        "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --add-section "TV Shows" --type 2 --agent com.plexapp.agents.thetvdb --location "/data" --lang en
     else
         echo "[postStart] TV Shows library already exists"
     fi
 
+    echo "[postStart] Waiting before triggering metadata refresh..."
+    sleep 10
+
+    echo "[postStart] Triggering full metadata refresh for existing content..."
+    # Force refresh all metadata for the TV Shows section
+    "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --refresh --force --section 1 || true
+
     echo "[postStart] Performing initial scan of /data..."
     "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --scan --directory "/data" || true
 
-    echo "[postStart] Library setup complete"
+    echo "[postStart] Library setup complete with metadata agent enabled"
