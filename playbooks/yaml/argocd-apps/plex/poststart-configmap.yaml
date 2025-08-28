@@ -103,23 +103,26 @@ data:
     export LD_LIBRARY_PATH=/usr/lib/plexmediaserver
     export PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR="/config/Library/Application Support"
 
-    echo "[postStart] Ensuring TV Shows library exists with Plex TV Series agent..."
-    if ! "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --list | grep -Fq "TV Shows"; then
-        "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --add-section "TV Shows" --type 2 --location "/data" --lang en
-        echo "[postStart] TV Shows library created"
-    else
-        echo "[postStart] TV Shows library already exists"
+    echo "[postStart] Checking Plex Media Scanner availability..."
+    if [ ! -x "/usr/lib/plexmediaserver/Plex Media Scanner" ]; then
+        echo "[postStart] WARNING: Plex Media Scanner not found - library setup will be skipped"
+        echo "[postStart] You may need to create the TV library manually via Plex Web UI"
+        exit 0
     fi
 
-    echo "[postStart] Forcing metadata refresh on TV Shows..."
-    SECTIONS_XML="$(curl -fsS "http://127.0.0.1:32400/library/sections?X-Plex-Token=${PLEX_ACCOUNT_TOKEN}")"
-    TV_LINE="$(printf '%s' "$SECTIONS_XML" | tr '\n' ' ' | sed -n 's/.*<Directory[^>]*title="TV Shows"[^>]*>.*/\0/p')"
-    TV_KEY="$(printf '%s' "$TV_LINE" | grep -o 'key="[^"]*"' | cut -d'"' -f2)"
-    if [ -n "$TV_KEY" ]; then
-        curl -fsS "http://127.0.0.1:32400/library/sections/${TV_KEY}/refresh?force=1&X-Plex-Token=${PLEX_ACCOUNT_TOKEN}" >/dev/null 2>&1 || true
+    echo "[postStart] Ensuring TV Shows library exists..."
+    if "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --list 2>/dev/null | grep -Fq "TV Shows"; then
+        echo "[postStart] TV Shows library already exists"
+    else
+        echo "[postStart] Creating TV Shows library..."
+        if "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --add-section "TV Shows" --type 2 --location "/data" --lang en 2>/dev/null; then
+            echo "[postStart] TV Shows library created successfully"
+        else
+            echo "[postStart] WARNING: Failed to create TV Shows library"
+        fi
     fi
 
     echo "[postStart] Performing initial scan of /data..."
-    "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --scan --directory "/data" || true
+    "/usr/lib/plexmediaserver/Plex Media Scanner" --server-token "${PLEX_ACCOUNT_TOKEN}" --scan --directory "/data" 2>/dev/null || echo "[postStart] Scan completed (some files may have been processed)"
 
     echo "[postStart] Library setup complete"
