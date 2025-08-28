@@ -149,9 +149,9 @@ data:
     fi
 
     if [ -z "$TV_SECTION_ID" ]; then
-        echo "[postStart] Creating TV Shows library with /data location..."
-        # Create TV Shows library with modern Plex TV Series agent
-        CREATE_RESPONSE=$(curl -s -X POST "http://127.0.0.1:32400/library/sections?name=TV%20Shows&type=show&agent=tv.plex.agents.series&scanner=Plex%20TV%20Series&language=en-US&location=/data&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+        echo "[postStart] Creating TV Shows library..."
+        # Create TV Shows library with modern Plex TV Series agent (without location parameter)
+        CREATE_RESPONSE=$(curl -s -X POST "http://127.0.0.1:32400/library/sections?name=TV%20Shows&type=show&agent=tv.plex.agents.series&scanner=Plex%20TV%20Series&language=en-US&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
 
         if echo "$CREATE_RESPONSE" | grep -q 'key=".*"'; then
             # Re-query sections to get the newly created library ID
@@ -160,6 +160,17 @@ data:
             TV_SECTION_ID=$(extract_tv_section_id "$SECTIONS_RESPONSE")
             if [ -n "$TV_SECTION_ID" ]; then
                 echo "[postStart] TV Shows library created successfully (ID: $TV_SECTION_ID)"
+
+                # Now explicitly add the /data folder location using PUT request
+                echo "[postStart] Adding /data folder location to TV Shows library..."
+                LOCATION_UPDATE_RESPONSE=$(curl -s -X PUT "http://127.0.0.1:32400/library/sections/${TV_SECTION_ID}?agent=tv.plex.agents.series&location=/data&X-Plex-Token=${PLEX_TOKEN}" 2>/dev/null || echo "")
+
+                if [ $? -eq 0 ] && echo "$LOCATION_UPDATE_RESPONSE" | grep -q "Directory"; then
+                    echo "[postStart] /data folder location added successfully to TV Shows library"
+                else
+                    echo "[postStart] WARNING: Failed to add /data folder location to TV Shows library"
+                    echo "[postStart] Response: $LOCATION_UPDATE_RESPONSE"
+                fi
             else
                 echo "[postStart] WARNING: TV Shows library creation may have succeeded but ID extraction failed"
                 echo "[postStart] Response: $CREATE_RESPONSE"
