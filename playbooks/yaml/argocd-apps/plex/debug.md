@@ -31,27 +31,30 @@ plex-7c8b9d4f6d-xyz12   1/1     Running   0          2m
 kubectl get pvc -n media sonarr-tv
 ```
 
-**If CrashLoopBackOff:** Check main container logs for custom-init errors:
+**If CrashLoopBackOff:** Check main container logs for postStart errors:
 ```bash
 kubectl logs -n media deployment/plex
 ```
 
-## 2) Verify custom-init script execution
+## 2) Verify postStart library bootstrap
 
-Check the main container logs for custom-init execution:
+Check the main container logs for postStart execution:
 
 ```bash
-kubectl logs -n media deployment/plex | grep custom-init
+kubectl logs -n media deployment/plex | grep postStart
 ```
 
 **Expected output:**
 ```
-[custom-init] Setting up offline Plex configuration...
-[custom-init] Creating TV Shows library with Personal Media Shows agent...
-[custom-init] Offline Plex setup complete - TV library created and scanned
+[postStart] Starting Plex library setup...
+[postStart] Creating TV Shows library...
+[postStart] TV Shows library created successfully (ID: X)
+[postStart] /data folder location added successfully to TV Shows library
+[postStart] Scan of /data directory initiated successfully
+[postStart] Library setup complete
 ```
 
-**If missing custom-init logs:** The script may not be executable or mounted correctly. Check deployment volume mounts.
+**If missing postStart logs:** The postStart hook may have failed. Check deployment lifecycle configuration and postStart script execution.
 
 ## 3) Verify offline preferences are loaded
 
@@ -177,7 +180,7 @@ Ensure the PVC is `Bound` and the underlying storage is healthy.
 ## Quick validation checklist
 
 - [ ] Pod is `Running` (not `CrashLoopBackOff` or `Pending`)
-- [ ] Custom-init logs show "Offline Plex setup complete"
+- [ ] PostStart logs show "Library setup complete"
 - [ ] Preferences.xml exists with offline settings and machine identifiers
 - [ ] `/data` contains TV shows from Sonarr
 - [ ] Web UI accessible without sign-in
