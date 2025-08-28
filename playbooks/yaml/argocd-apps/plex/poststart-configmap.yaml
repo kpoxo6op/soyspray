@@ -32,6 +32,39 @@ data:
         exit 1
     fi
 
+    # Claim the server if we have an account token
+    if [ -n "${PLEX_ACCOUNT_TOKEN}" ]; then
+        echo "[postStart] Claiming Plex server..."
+
+        # Request a fresh claim token using the account token
+        CLAIM_RESPONSE=$(curl -s -H "X-Plex-Token: ${PLEX_ACCOUNT_TOKEN}" \
+            -H "X-Plex-Client-Identifier: plex-k8s-$(hostname)" \
+            -H "X-Plex-Product: Plex Media Server" \
+            -H "X-Plex-Version: 1.41.3" \
+            -H "X-Plex-Platform: Linux" \
+            "https://plex.tv/api/v2/pins?strong=true")
+
+        # Extract the claim token from the response
+        CLAIM_TOKEN=$(echo "$CLAIM_RESPONSE" | grep -o '<code>[^<]*</code>' | sed 's/<code>//;s/<\/code>//')
+
+        if [ -n "$CLAIM_TOKEN" ]; then
+            echo "[postStart] Obtained fresh claim token: ${CLAIM_TOKEN:0:10}..."
+
+            # Claim the server with the fresh token
+            CLAIM_RESULT=$(curl -s -X POST "http://127.0.0.1:32400/myplex/claim?token=${CLAIM_TOKEN}")
+
+            if echo "$CLAIM_RESULT" | grep -q "authToken"; then
+                echo "[postStart] Server claimed successfully!"
+            else
+                echo "[postStart] Warning: Claim may have failed - $CLAIM_RESULT"
+            fi
+        else
+            echo "[postStart] Warning: Could not obtain claim token from Plex"
+        fi
+    else
+        echo "[postStart] No PLEX_ACCOUNT_TOKEN provided, skipping server claiming"
+    fi
+
     # Wait for database file to be created
     DB_FILE="/config/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
     counter=0

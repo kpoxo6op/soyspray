@@ -38,6 +38,11 @@ spec:
               value: "Pacific/Auckland"
             - name: UMASK
               value: "002"
+            - name: PLEX_ACCOUNT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: plex-account-token
+                  key: token
           ports:
             - name: http
               containerPort: 32400
