@@ -100,8 +100,11 @@ curl -fsS "${H[@]}" \
 When API calls fail, use the Plex Media Scanner CLI:
 
 ```bash
-# Create library
-/usr/lib/plexmediaserver/Plex Media Scanner --add-section "TV Shows" --type 2 --agent com.plexapp.agents.none --location "/data" --lang en
+# Create library (example: TV Shows)
+/usr/lib/plexmediaserver/Plex Media Scanner --add-section "TV Shows" --type 2 --agent tv.plex.agents.series --location "/data" --lang en
+
+# Create library (example: Movies)
+/usr/lib/plexmediaserver/Plex Media Scanner --add-section "Movies" --type 1 --agent com.plexapp.agents.movie --location "/movies" --lang en
 
 # List libraries
 /usr/lib/plexmediaserver/Plex Media Scanner --list

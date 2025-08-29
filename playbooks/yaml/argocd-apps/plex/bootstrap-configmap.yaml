@@ -1,5 +1,5 @@
 # playbooks/yaml/argocd-apps/plex/bootstrap-configmap.yaml
-# Custom-init runs before Plex starts, writes Preferences.xml with stable IDs and offline prefs, creates the “TV Shows” library with Personal/None agent, and scans /data.
+# Custom-init runs before Plex starts, writes Preferences.xml with stable IDs and offline prefs for manual library configuration.
 apiVersion: v1
 kind: ConfigMap
 metadata:

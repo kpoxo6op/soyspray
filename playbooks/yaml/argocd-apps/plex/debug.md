@@ -1,12 +1,12 @@
 # Plex: Deployment Debug & Validation Guide
 
-End-to-end validation guide for stateless, offline Plex with auto-bootstrapped TV library (Personal/None agent). Includes exact commands, expected outputs, and quick fixes. Designed for ArgoCD-driven deploys with linuxserver/plex:1.41.3 and Sonarr's organized PVC mounted read-only.
+End-to-end validation guide for stateless Plex server setup with manual library configuration. Includes exact commands, expected outputs, and quick fixes. Designed for ArgoCD-driven deploys with linuxserver/plex:1.41.3 and manual library management.
 
 ## What the deployment does
 
 1. **Seeds offline Preferences.xml** into `/config/Library/Application Support/Plex Media Server/`.
-2. **Creates a TV Shows library** using the Personal Media Shows agent (`com.plexapp.agents.none`) that performs no online metadata lookups.
-3. **Scans `/data`** (the read‑only mount of the `sonarr-tv` PVC) so Twin Peaks appears immediately.
+2. **Prepares server** for manual library configuration (no automatic library creation).
+3. **Mounts `/data`** (read‑only mount of media storage) ready for library setup.
 4. **Runs stateless** with `emptyDir` at `/config`, re-seeding on every Pod start.
 
 ## One‑time prerequisites
@@ -47,11 +47,7 @@ kubectl logs -n media deployment/plex | grep postStart
 **Expected output:**
 ```
 [postStart] Starting Plex library setup...
-[postStart] Creating TV Shows library...
-[postStart] TV Shows library created successfully (ID: X)
-[postStart] /data folder location added successfully to TV Shows library
-[postStart] Scan of /data directory initiated successfully
-[postStart] Library setup complete
+[postStart] Basic Plex server setup complete - ready for manual library creation
 ```
 
 **If missing postStart logs:** The postStart hook may have failed. Check deployment lifecycle configuration and postStart script execution.
@@ -77,9 +73,9 @@ kubectl exec -n media deployment/plex -- cat "/config/Library/Application Suppor
 
 **If file missing:** Check that custom-init script ran successfully and volume mounts are correct.
 
-## 4) Check Sonarr TV content is accessible
+## 4) Check media content is accessible
 
-Verify Plex can see the Sonarr-organized TV shows:
+Verify Plex can see the mounted media storage:
 
 ```bash
 kubectl exec -n media deployment/plex -- ls -la /data/
@@ -93,7 +89,7 @@ drwxr-xr-x    4 1000     1000          4096 Dec 15 10:30 Twin Peaks (1990)
 drwxr-xr-x    3 1000     1000          4096 Dec 15 10:29 Other TV Show
 ```
 
-**If empty:** Check that `sonarr-tv` PVC is properly mounted and contains organized content from Sonarr.
+**If empty:** Check that the media PVC is properly mounted and contains content.
 
 ## 5) Access Plex web interface
 
@@ -110,8 +106,8 @@ kubectl get svc -n media plex
 Navigate to the Plex URL and verify:
 
 - **No sign-in required** (due to `enableLocalSecurity="0"`)
-- **TV Shows library exists** and shows "Personal Media Shows" as agent
-- **Twin Peaks appears** in the library without metadata (title only)
+- **Server is ready** for manual library configuration
+- **Media storage is accessible** at `/data` for library creation
 
 ## 6) Verify stateless operation
 
@@ -138,20 +134,17 @@ The linuxserver image may not include the CLI scanner in the expected location.
 # "/usr/lib/plexmediaserver/Plex Media Scanner" --scan
 ```
 
-Then create the TV library manually pointing to `/data` with "Personal Media Shows" agent.
+Then create libraries manually pointing to the appropriate media directories.
 
-### TV Shows library created but Twin Peaks not detected
+### Media content not accessible
 
-Check Sonarr's naming convention matches Plex expectations:
+Check that media files are properly organized:
 
 ```bash
-kubectl exec -n media deployment/plex -- find /data -name "*Twin*" -type f
+kubectl exec -n media deployment/plex -- find /data -type f | head -10
 ```
 
-**Expected structure:**
-```
-/data/Twin Peaks (1990)/Season 01/Twin Peaks - S01E01 - Episode Name.mkv
-```
+**Expected:** Files should be visible in the mounted media directory.
 
 ### Preferences not applied (Plex asks for sign-in)
 
@@ -180,12 +173,12 @@ Ensure the PVC is `Bound` and the underlying storage is healthy.
 ## Quick validation checklist
 
 - [ ] Pod is `Running` (not `CrashLoopBackOff` or `Pending`)
-- [ ] PostStart logs show "Library setup complete"
+- [ ] PostStart logs show "Basic Plex server setup complete"
 - [ ] Preferences.xml exists with offline settings and machine identifiers
-- [ ] `/data` contains TV shows from Sonarr
+- [ ] `/data` contains media content
 - [ ] Web UI accessible without sign-in
-- [ ] TV Shows library exists with Personal Media Shows agent
-- [ ] Twin Peaks visible in library
+- [ ] Server ready for manual library configuration
+- [ ] Media storage accessible for library creation
 - [ ] Restart rebuilds everything correctly (stateless)
 
 ## ArgoCD sync commands
