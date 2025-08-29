@@ -1,0 +1,48 @@
+# playbooks/yaml/argocd-apps/plex/bootstrap-configmap.yaml
+# Custom-init runs before Plex starts, writes Preferences.xml with stable IDs and offline prefs for manual library configuration.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: plex-custom-init
+  namespace: media
+  labels:
+    app: plex
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  99-plex-offline-setup.sh: |-
+    #!/usr/bin/with-contenv bash
+    set -Eeuo pipefail
+
+    SUPPORT_DIR="/config/Library/Application Support"
+    PMS_DIR="${SUPPORT_DIR}/Plex Media Server"
+    PREF_FILE="${PMS_DIR}/Preferences.xml"
+    TEMPLATE_FILE="/tmp/plex-config/Preferences.xml"
+
+        echo "[custom-init] Setting up offline Plex filesystem and configuration..."
+
+    # Create all required PMS directories including database parent paths
+    mkdir -p "${PMS_DIR}"
+    mkdir -p "${PMS_DIR}/Cache"
+    mkdir -p "${PMS_DIR}/Crash Reports"
+    mkdir -p "${PMS_DIR}/Logs"
+    mkdir -p "${PMS_DIR}/Codecs"
+    mkdir -p "${PMS_DIR}/Plug-in Support/Databases"
+
+    # Set proper ownership and permissions FIRST, before creating files
+    chown -R abc:abc "${SUPPORT_DIR}"
+    chmod -R 755 "${PMS_DIR}"
+
+    NAMESPACE="$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)"
+    SEED="plex.${NAMESPACE}.svc"
+    MACHINE_ID="$(printf '%s' "${SEED}" | sha1sum | awk '{print $1}')"
+    PROCESSED_ID="$(printf '%s' "${MACHINE_ID}" | sha1sum | awk '{print $1}')"
+    ANON_ID="$(cat /proc/sys/kernel/random/uuid)"
+
+    # Create Preferences.xml with machine identifiers and offline settings
+    sed "s/<Preferences/<Preferences MachineIdentifier=\"${MACHINE_ID}\" ProcessedMachineIdentifier=\"${PROCESSED_ID}\" AnonymousMachineIdentifier=\"${ANON_ID}\"/" "${TEMPLATE_FILE}" > "${PREF_FILE}"
+    chown abc:abc "${PREF_FILE}"
+    chmod 600 "${PREF_FILE}"
+
+    echo "[custom-init] Filesystem preparation complete - directories created, Preferences.xml written"
+    echo "[custom-init] Library creation will be handled by postStart hook after Plex initializes"

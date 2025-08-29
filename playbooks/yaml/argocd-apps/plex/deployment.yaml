@@ -1,0 +1,105 @@
+# Stateless Plex: /config is emptyDir; media is read-only; initContainer runs bootstrap script
+# to preseed Preferences and libraries. Service exposes TCP 32400.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: plex
+  namespace: media
+  labels:
+    app: plex
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: plex
+  template:
+    metadata:
+      labels:
+        app: plex
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: plex
+          image: linuxserver/plex:1.41.3
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: PLEX_MEDIA_SERVER_APPLICATION_SUPPORT_DIR
+              value: "/config/Library/Application Support"
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Pacific/Auckland"
+            - name: UMASK
+              value: "002"
+            - name: PLEX_ACCOUNT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: plex-account-token
+                  key: token
+          ports:
+            - name: http
+              containerPort: 32400
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - "/bin/bash"
+                  - "/tmp/poststart/poststart.sh"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: transcode
+              mountPath: /transcode
+            - name: media
+              mountPath: /data
+              readOnly: true
+            - name: custom-init
+              mountPath: /custom-cont-init.d
+              readOnly: true
+            - name: initial-config
+              mountPath: /tmp/plex-config
+              readOnly: true
+            - name: poststart
+              mountPath: /tmp/poststart
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /identity
+              port: 32400
+            initialDelaySeconds: 30
+            periodSeconds: 10
+      volumes:
+        - name: config
+          emptyDir: {}
+        - name: transcode
+          emptyDir: {}
+        - name: media
+          persistentVolumeClaim:
+            claimName: sonarr-tv
+        - name: custom-init
+          configMap:
+            name: plex-custom-init
+            defaultMode: 0755
+        - name: initial-config
+          configMap:
+            name: plex-initial-config
+        - name: poststart
+          configMap:
+            name: plex-poststart
+            defaultMode: 0755
+      restartPolicy: Always

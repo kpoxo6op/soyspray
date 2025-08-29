@@ -1,0 +1,107 @@
+# playbooks/yaml/argocd-apps/plex/poststart-configmap.yaml
+# Basic Plex server setup - library creation will be done manually
+# Features:
+# - Token extraction and basic server validation
+# - Ready for manual library configuration
+# - Fallback to PLEX_ACCOUNT_TOKEN when PlexOnlineToken absent
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: plex-poststart
+  namespace: media
+  labels:
+    app: plex
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+data:
+  poststart.sh: |-
+    #!/bin/bash
+
+    echo "[postStart] Starting Plex library setup..."
+
+    timeout=300
+    counter=0
+    while [ $counter -lt $timeout ]; do
+        if curl -s http://127.0.0.1:32400/identity >/dev/null 2>&1; then
+            echo "[postStart] Plex identity endpoint is available"
+            break
+        fi
+        echo "[postStart] Waiting for Plex... ($counter/$timeout)"
+        sleep 5
+        counter=$((counter + 5))
+    done
+
+    if [ $counter -ge $timeout ]; then
+        echo "[postStart] Timeout waiting for Plex to start"
+        exit 1
+    fi
+
+    # Check if server is already claimed
+    echo "[postStart] Checking server claim status..."
+    IDENTITY_RESPONSE=$(curl -s "http://127.0.0.1:32400/identity" 2>/dev/null || echo "")
+    if echo "$IDENTITY_RESPONSE" | grep -q 'claimed="1"'; then
+        echo "[postStart] Server already claimed"
+    else
+        echo "[postStart] Server not claimed"
+        if [ -n "${PLEX_ACCOUNT_TOKEN}" ]; then
+            echo "[postStart] Attempting auto-claim..."
+            # Get claim token
+            CLAIM_RESPONSE=$(curl -s "https://plex.tv/api/claim/token?X-Plex-Token=${PLEX_ACCOUNT_TOKEN}" 2>/dev/null || echo "")
+            CLAIM_TOKEN=$(echo "$CLAIM_RESPONSE" | grep -o 'token="[^"]*"' | cut -d'"' -f2 2>/dev/null || echo "")
+
+            if [ -n "$CLAIM_TOKEN" ]; then
+                echo "[postStart] Claiming server..."
+                curl -s -X POST "http://127.0.0.1:32400/myplex/claim?token=${CLAIM_TOKEN}" >/dev/null 2>&1 || true
+
+                # Wait for claim to complete
+                for i in {1..15}; do
+                    sleep 2
+                    IDENTITY_RESPONSE=$(curl -s "http://127.0.0.1:32400/identity" 2>/dev/null || echo "")
+                    if echo "$IDENTITY_RESPONSE" | grep -q 'claimed="1"'; then
+                        echo "[postStart] Server claimed successfully"
+                        break
+                    fi
+                done
+            fi
+        fi
+    fi
+
+    DB_FILE="/config/Library/Application Support/Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
+    counter=0
+    while [ $counter -lt 60 ]; do
+        if [ -f "$DB_FILE" ]; then
+            echo "[postStart] Database file exists: $DB_FILE"
+            break
+        fi
+        echo "[postStart] Waiting for database creation... ($counter/60)"
+        sleep 2
+        counter=$((counter + 2))
+    done
+
+    if [ ! -f "$DB_FILE" ]; then
+        echo "[postStart] Warning: Database file not found, proceeding anyway"
+    fi
+
+    # Extract PlexOnlineToken from Preferences.xml, fallback to PLEX_ACCOUNT_TOKEN
+    PREFS_FILE="/config/Library/Application Support/Plex Media Server/Preferences.xml"
+    PLEX_TOKEN=""
+    if [ -f "$PREFS_FILE" ]; then
+        PLEX_TOKEN=$(grep -o 'PlexOnlineToken="[^"]*"' "$PREFS_FILE" | cut -d'"' -f2)
+        if [ -n "$PLEX_TOKEN" ]; then
+            echo "[postStart] Found PlexOnlineToken for API calls"
+        elif [ -n "${PLEX_ACCOUNT_TOKEN}" ]; then
+            echo "[postStart] Using PLEX_ACCOUNT_TOKEN as fallback"
+            PLEX_TOKEN="${PLEX_ACCOUNT_TOKEN}"
+        else
+            echo "[postStart] WARNING: No PlexOnlineToken found in Preferences.xml and no PLEX_ACCOUNT_TOKEN"
+        fi
+    elif [ -n "${PLEX_ACCOUNT_TOKEN}" ]; then
+        echo "[postStart] Using PLEX_ACCOUNT_TOKEN (Preferences.xml not found)"
+        PLEX_TOKEN="${PLEX_ACCOUNT_TOKEN}"
+    else
+        echo "[postStart] WARNING: No authentication token available"
+    fi
+
+    echo "[postStart] Basic Plex server setup complete - ready for manual library creation"
+
