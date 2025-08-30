@@ -1,5 +1,5 @@
 # playbooks/yaml/argocd-apps/plex/service.yaml
-# Service for Plex
+# Switch Service to NodePort on 32400 so the eero forward lands on the node and kube-proxy delivers traffic to the Pod.
 apiVersion: v1
 kind: Service
 metadata:
@@ -15,4 +15,5 @@ spec:
       port: 32400
       targetPort: 32400
       protocol: TCP
-  type: ClusterIP
+      nodePort: 32400
+  type: NodePort

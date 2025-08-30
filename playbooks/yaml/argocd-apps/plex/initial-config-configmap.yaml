@@ -26,6 +26,6 @@ data:
       ManualPortMappingPort="32400"
       secureConnections="1"
       sendCrashReports="0"
-      PublishServerOnPlexOnlineKey="0"
+      PublishServerOnPlexOnlineKey="1"
       RelayEnabled="0"
     />
