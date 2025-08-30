@@ -1,5 +1,5 @@
-# Drop-in ConfigMap that seeds a strict offline Preferences.xml. It allows only RFC1918/ULA LANs,
-# disables sign-in requirement, disables DLNA & GDM, disables scheduled scans, and prevents crash reports.
+# playbooks/yaml/argocd-apps/plex/initial-config-configmap.yaml
+# Switch ManualPortMappingPort from 32400 to 443 so plex.tv advertises the HTTPS-friendly port.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -23,7 +23,7 @@ data:
       FSEventLibraryUpdatesEnabled="1"
       ScheduledLibraryUpdatesEnabled="0"
       ManualPortMappingMode="1"
-      ManualPortMappingPort="32400"
+      ManualPortMappingPort="443"
       secureConnections="1"
       sendCrashReports="0"
       PublishServerOnPlexOnlineKey="1"
