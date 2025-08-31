@@ -224,6 +224,60 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/qbittorrent/qbittorrent-application.yaml') }}"
       tags: qbittorrent
 
+    # Verify and load Plex account token from .env for automatic server claiming
+    - name: Verify and load Plex account token from .env
+      block:
+        - name: Load MY_PLEX_ACCESS_TOKEN from .env
+          set_fact:
+            plex_account_token: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('MY_PLEX_ACCESS_TOKEN=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Debug Plex account token length
+          debug:
+            msg: >-
+              Plex account token length: {{ plex_account_token | length }}
+              First chars: {{ plex_account_token | truncate(5, True, '') }}
+
+        - name: Validate MY_PLEX_ACCESS_TOKEN
+          fail:
+            msg: "MY_PLEX_ACCESS_TOKEN is empty/missing in .env file"
+          when: plex_account_token | length == 0
+      rescue:
+        - name: Fail with helpful message for Plex
+          fail:
+            msg: "Error: .env file not found or MY_PLEX_ACCESS_TOKEN invalid"
+      tags: plex
+
+    # Create Kubernetes Secret for Plex account token
+    - name: Create Plex account token Secret
+      kubernetes.core.k8s:
+        state: present
+        namespace: media
+        kubeconfig: "{{ kubeconfig_path }}"
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: plex-account-token
+            namespace: media
+          data:
+            token: "{{ plex_account_token | b64encode }}"
+      tags: plex
+
+    - name: Apply Plex
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/plex/plex-application.yaml') }}"
+      tags: plex
+
     # Verify and load Prowlarr secrets from .env
     - name: Verify and load Prowlarr secrets from .env
       block:
