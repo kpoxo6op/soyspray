@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "codex/add-plex-argocd-app-and-pvc"
+    targetRevision: "main"
     path: playbooks/yaml/argocd-apps/plex
   destination:
     server: "https://kubernetes.default.svc"
