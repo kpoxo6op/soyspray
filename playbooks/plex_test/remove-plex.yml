@@ -1,0 +1,204 @@
+# playbooks/plex_test/remove-plex.yml
+# Completely remove Plex Media Server (idempotent)
+---
+- name: Common tasks for every playbook
+  import_playbook: ../../kubespray/playbooks/boilerplate.yml
+
+- name: Remove Plex Media Server
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    plex_user: plex
+    plex_group: plex
+    plex_service: plexmediaserver
+    plex_port: 32400
+    plex_config_dir: /var/lib/plexmediaserver/Library/Application Support/Plex Media Server
+    plex_data_dir: /var/lib/plexmediaserver
+    plex_apt_repo_file: /etc/apt/sources.list.d/plexmediaserver.list
+    plex_keyring_file: /etc/apt/keyrings/plex.gpg
+
+  pre_tasks:
+    - name: Verify OS compatibility
+      ansible.builtin.fail:
+        msg: "This playbook requires Ubuntu/Debian-based systems only"
+      when: ansible_distribution not in ['Ubuntu', 'Debian']
+
+    - name: Check for Plex service status
+      ansible.builtin.command: systemctl is-active {{ plex_service }}
+      register: service_check
+      changed_when: false
+      failed_when: false
+      ignore_errors: true
+
+    - name: Check for Plex package installation
+      ansible.builtin.command: dpkg -l | grep -i plex
+      register: package_check
+      changed_when: false
+      failed_when: false
+      ignore_errors: true
+
+    - name: Ensure service_check variable exists
+      set_fact:
+        service_check: "{{ service_check | default({'rc': 1, 'stdout': ''}) }}"
+
+    - name: Ensure package_check variable exists
+      set_fact:
+        package_check: "{{ package_check | default({'stdout': ''}) }}"
+
+    - name: Display current Plex installation status
+      ansible.builtin.debug:
+        msg: |
+          📊 Current Plex Installation Status:
+          Service Active: {{ 'Yes' if service_check.rc == 0 else 'No' }}
+          Package Installed: {{ 'Yes' if package_check.stdout != '' else 'No' }}
+          Config Directory Exists: {{ 'Yes' if (plex_config_dir, plex_data_dir) | map('exists') | select | list | length > 0 else 'No' }}
+
+  tasks:
+    - name: Check if Plex service is running
+      ansible.builtin.command: systemctl is-active {{ plex_service }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+      ignore_errors: true
+      tags: plex
+
+    - name: Check if Plex package is installed
+      ansible.builtin.command: dpkg -l | grep -i plex
+      register: package_status
+      changed_when: false
+      failed_when: false
+      ignore_errors: true
+      tags: plex
+
+    - name: Stop Plex service if running
+      ansible.builtin.systemd:
+        name: "{{ plex_service }}"
+        state: stopped
+        enabled: false
+      when: service_status.rc == 0
+      ignore_errors: true
+      tags: plex
+
+    - name: Wait for Plex port to be fully released
+      ansible.builtin.wait_for:
+        port: "{{ plex_port }}"
+        state: absent
+        timeout: 30
+      when: service_status.rc == 0
+      ignore_errors: true
+      tags: plex
+
+    - name: Remove Plex Media Server package
+      ansible.builtin.apt:
+        name: plexmediaserver
+        state: absent
+        purge: true
+      when: package_status.stdout != ""
+      register: package_removal
+      tags: plex
+
+    - name: Update package cache after removal
+      ansible.builtin.apt:
+        update_cache: true
+      when: package_removal.changed
+      tags: plex
+
+    - name: Remove Plex APT repository file
+      ansible.builtin.file:
+        path: "{{ plex_apt_repo_file }}"
+        state: absent
+      register: repo_removal
+      tags: plex
+
+    - name: Remove Plex GPG keyring file
+      ansible.builtin.file:
+        path: "{{ plex_keyring_file }}"
+        state: absent
+      register: keyring_removal
+      tags: plex
+
+    - name: Clean up Plex configuration directory
+      ansible.builtin.file:
+        path: "{{ plex_data_dir }}"
+        state: absent
+      register: config_cleanup
+      tags: plex
+
+    - name: Remove Plex user from additional groups
+      ansible.builtin.user:
+        name: "{{ plex_user }}"
+        groups: video,audio
+        append: false
+      when: package_status.stdout != ""
+      ignore_errors: true
+      tags: plex
+
+    - name: Check for any remaining Plex-related files
+      ansible.builtin.command: find /var/lib /etc -name "*plex*" -type f 2>/dev/null || true
+      register: remaining_files
+      changed_when: false
+      failed_when: false
+      tags: plex
+
+    - name: Check for any remaining Plex processes
+      ansible.builtin.command: pgrep -f plex || true
+      register: remaining_processes
+      changed_when: false
+      failed_when: false
+      tags: plex
+
+    - name: Verify complete removal
+      ansible.builtin.command: systemctl is-active {{ plex_service }}
+      register: final_service_check
+      changed_when: false
+      failed_when: false
+      ignore_errors: true
+      tags: plex
+
+    - name: Verify package is completely removed
+      ansible.builtin.command: dpkg -l | grep -i plex
+      register: final_package_check
+      changed_when: false
+      failed_when: false
+      ignore_errors: true
+      tags: plex
+
+    - name: Display removal results
+      ansible.builtin.debug:
+        msg: |
+          🧹 Plex Media Server Removal Completed
+
+          📋 Removal Summary:
+          Service Stopped/Disabled: {{ '✅' if service_status.rc == 0 else '➖ (not running)' }}
+          Package Removed: {{ '✅' if package_status.stdout != '' else '➖ (not installed)' }}
+          APT Repository Removed: {{ '✅' if repo_removal.changed else '➖ (not present)' }}
+          GPG Keyring Removed: {{ '✅' if keyring_removal.changed else '➖ (not present)' }}
+          Configuration Cleaned: {{ '✅' if config_cleanup.changed else '➖ (not present)' }}
+
+          🔍 Final Verification:
+          Service Status: {{ '❌ Still active' if final_service_check.rc == 0 else '✅ Stopped/inactive' }}
+          Package Status: {{ '❌ Still installed' if final_package_check.stdout != '' else '✅ Completely removed' }}
+
+          {% if remaining_files.stdout != '' -%}
+          📁 Remaining Files (may require manual cleanup):
+          {{ remaining_files.stdout }}
+          {% endif -%}
+
+          {% if remaining_processes.stdout != '' -%}
+          ⚙️  Remaining Processes (may require manual termination):
+          {{ remaining_processes.stdout }}
+          {% endif -%}
+
+          ✅ Removal completed successfully! Plex Media Server has been fully removed from this system.
+
+  post_tasks:
+    - name: Display next steps
+      ansible.builtin.debug:
+        msg: |
+          🚀 Next Steps:
+          - Package cache has been updated
+          - System is ready for re-installation if needed
+          - Consider running: apt autoremove && apt autoclean
+          - Reboot may be recommended if you plan to reinstall immediately

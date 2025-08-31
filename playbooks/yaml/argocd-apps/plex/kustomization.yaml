@@ -1,0 +1,13 @@
+# playbooks/yaml/argocd-apps/plex/kustomization.yaml
+# Minimal Kustomize that deploys only the Deployment and the postStart auto-claim script.
+# Service, Ingress, and any custom Preferences are intentionally removed.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: media
+resources:
+  - deployment.yaml
+  - poststart-configmap.yaml
+commonLabels:
+  app: plex
+  component: main
