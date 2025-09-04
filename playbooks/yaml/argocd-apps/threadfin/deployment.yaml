@@ -1,0 +1,61 @@
+# playbooks/yaml/argocd-apps/threadfin/deployment.yaml
+# Deployment for Threadfin using lscr.io/linuxserver/threadfin:1.0.0
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: threadfin
+  namespace: media
+  labels:
+    app: threadfin
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: threadfin
+  template:
+    metadata:
+      labels:
+        app: threadfin
+        component: main
+    spec:
+      initContainers:
+        - name: seed-config
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              if [ ! -f /config/config.yml ]; then
+                cp /template/config.yml /config/config.yml
+              fi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: config-template
+              mountPath: /template
+      containers:
+        - name: threadfin
+          image: lscr.io/linuxserver/threadfin:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 34400
+              name: http
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Pacific/Auckland"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: threadfin-config
+        - name: config-template
+          configMap:
+            name: threadfin-initial-config
