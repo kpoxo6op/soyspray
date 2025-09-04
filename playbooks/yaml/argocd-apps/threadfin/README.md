@@ -11,9 +11,8 @@ Threadfin provides an IPTV proxy for Plex Live TV. This app deploys Threadfin pr
 
 ## Features
 
-- Preloaded admin credentials (`admin` / `123`)
-- Example channel lineup served over M3U for quick Plex TV integration
 - Configuration persisted on a Longhorn-backed PVC
+- Clean installation ready for custom setup
 
 ## Deployment
 
@@ -25,4 +24,4 @@ argocd app sync threadfin
 
 ## Plex Integration
 
-Add the M3U URL `http://threadfin.media.svc.cluster.local:34400/m3u` as a tuner inside Plex Live TV & DVR setup.
+After configuring Threadfin with your IPTV sources, add the M3U URL `http://threadfin.media.svc.cluster.local:34400/m3u` as a tuner inside Plex Live TV & DVR setup.

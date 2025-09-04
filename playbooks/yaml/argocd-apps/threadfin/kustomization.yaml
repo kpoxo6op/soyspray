@@ -7,7 +7,6 @@ resources:
   - service.yaml
   - ingress.yaml
   - deployment.yaml
-  - initial-config-configmap.yaml
 commonLabels:
   app: threadfin
   component: main
