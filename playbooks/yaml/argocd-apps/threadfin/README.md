@@ -1,10 +1,10 @@
 # Threadfin
 
-Threadfin provides an IPTV proxy for Plex Live TV. This app deploys Threadfin preconfigured with sample channels and default credentials so it can be added to Plex without manual setup.
+Threadfin provides an IPTV proxy for Plex Live TV. This app deploys Threadfin with a clean configuration ready for custom IPTV setup and Plex integration.
 
 ## Application Details
 
-- **Image**: `lscr.io/linuxserver/threadfin:1.0.0`
+- **Image**: `fyb3roptik/threadfin:1.2.37`
 - **Namespace**: `media`
 - **Port**: `34400`
 - **URL**: `https://threadfin.soyspray.vip`
