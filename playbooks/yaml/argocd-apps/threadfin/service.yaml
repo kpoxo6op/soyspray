@@ -1,0 +1,16 @@
+# playbooks/yaml/argocd-apps/threadfin/service.yaml
+# Service for Threadfin
+apiVersion: v1
+kind: Service
+metadata:
+  name: threadfin
+  namespace: media
+spec:
+  selector:
+    app: threadfin
+  ports:
+    - name: http
+      port: 34400
+      targetPort: 34400
+      protocol: TCP
+  type: ClusterIP

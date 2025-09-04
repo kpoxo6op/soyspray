@@ -24,6 +24,8 @@ data:
     192.168.50.200 lazylibrarian.soyspray.vip
     192.168.50.200 radarr.soyspray.vip
     192.168.50.200 sonarr.soyspray.vip
+    192.168.50.200 threadfin.soyspray.vip
+    192.168.50.200 plex.soyspray.vip
     192.168.50.201 argocd.lan
     192.168.50.204 pihole.lan
     192.168.50.205 prometheus.lan
@@ -32,3 +34,5 @@ data:
     192.168.50.208 immich.lan
     192.168.50.210 radarr.lan
     192.168.50.212 readarr.lan
+    192.168.50.200 plex.lan
+    192.168.50.200 threadfin.lan
