@@ -7,6 +7,8 @@ kind: Kustomization
 namespace: media
 resources:
   - deployment.yaml
+  - service.yaml
+  - ingress.yaml
   - poststart-configmap.yaml
 commonLabels:
   app: plex

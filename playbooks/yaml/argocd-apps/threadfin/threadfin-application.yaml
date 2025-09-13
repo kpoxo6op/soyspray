@@ -1,21 +1,21 @@
-# playbooks/yaml/argocd-apps/pihole/pihole-application.yaml
+# playbooks/yaml/argocd-apps/threadfin/threadfin-application.yaml
+# ArgoCD Application for Threadfin
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: pihole
+  name: threadfin
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
+  source:
+    repoURL: "https://github.com/kpoxo6op/soyspray.git"
+    targetRevision: "codex/create-threadfin-argocd-app-with-channels"
+    path: playbooks/yaml/argocd-apps/threadfin
   destination:
     server: "https://kubernetes.default.svc"
-    namespace: pihole
-  sources:
-    - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "codex/create-threadfin-argocd-app-with-channels"
-      path: playbooks/yaml/argocd-apps/pihole
-      kustomize:
+    namespace: media
   syncPolicy:
     automated:
       prune: true
