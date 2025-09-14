@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "codex/create-threadfin-argocd-app-with-channels"
+    targetRevision: "main"
     path: playbooks/yaml/argocd-apps/plex
   destination:
     server: "https://kubernetes.default.svc"

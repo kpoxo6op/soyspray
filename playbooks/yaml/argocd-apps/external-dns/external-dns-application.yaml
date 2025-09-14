@@ -15,7 +15,7 @@ spec:
         valueFiles:
           - $values/playbooks/yaml/argocd-apps/external-dns/values.yaml
     - repoURL: https://github.com/kpoxo6op/soyspray.git
-      targetRevision: "v1.19.0"
+      targetRevision: "main"
       ref: values
   destination:
     server: https://kubernetes.default.svc
