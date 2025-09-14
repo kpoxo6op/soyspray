@@ -1,0 +1,22 @@
+{
+  "74b94d3516e730c778e57c359c6f7658": {
+    "channelNumber": "1100",
+    "name": "Звезда Плюс",
+    "playlistID": "MM8F57PQ247Y4E0A4EL2",
+    "url": "http://tvzvezda.bonus-tv.ru/cdn/zvezdaplus/playlist.m3u8",
+    "backup_channel_1": null,
+    "backup_channel_2": null,
+    "backup_channel_3": null,
+    "urlID": "74b94d3516e730c778e57c359c6f7658"
+  },
+  "cf2d32b151d3fe5e530bfbb2f32ed42f": {
+    "channelNumber": "1163",
+    "name": "НТВ",
+    "playlistID": "MM8F57PQ247Y4E0A4EL2",
+    "url": "https://streaming.televizor-24-tochka.ru/live/7.m3u8",
+    "backup_channel_1": null,
+    "backup_channel_2": null,
+    "backup_channel_3": null,
+    "urlID": "cf2d32b151d3fe5e530bfbb2f32ed42f"
+  }
+}

@@ -1,18 +1,20 @@
+# playbooks/yaml/argocd-apps/threadfin/threadfin-application.yaml
+# ArgoCD Application for Threadfin
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: qbittorrent
+  name: threadfin
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: https://github.com/kpoxo6op/soyspray.git
+    repoURL: "https://github.com/kpoxo6op/soyspray.git"
     targetRevision: "main"
-    path: playbooks/yaml/argocd-apps/qbittorrent
+    path: playbooks/yaml/argocd-apps/threadfin
   destination:
-    server: https://kubernetes.default.svc
+    server: "https://kubernetes.default.svc"
     namespace: media
   syncPolicy:
     automated:
@@ -20,3 +22,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true

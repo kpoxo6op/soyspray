@@ -1,10 +1,10 @@
 # Plex (bare‑metal–like, Direct remote)
 
-This app deploys Plex as a single Deployment on the node network. It keeps only:
+This app deploys Plex as a single Deployment on the node network. It includes:
 - Auto‑claim using `PLEX_ACCOUNT_TOKEN`
 - Library mount at `/data` (PVC `sonarr-tv`)
-
-No Service, no Ingress, no custom Preferences.
+- Service and Ingress for easier web access
+- SSL certificate via cert-manager
 
 ## Prerequisites
 
@@ -31,8 +31,14 @@ argocd app sync plex
 
    Expected: `claimed="1"`.
 
-2. From the LAN, open:
+2. Access Plex via:
 
+   **HTTPS (Recommended):**
+   ```
+   https://plex.soyspray.vip/web
+   ```
+
+   **Direct LAN access:**
    ```
    http://<NODE-IP>:32400/web
    ```
@@ -44,4 +50,5 @@ argocd app sync plex
 ## Notes
 
 * The pod uses `hostNetwork: true` so Plex binds to the node's port **32400**. The router opens the port automatically via UPnP for Direct remote access.
+* Service and Ingress provide convenient HTTPS access while maintaining direct LAN connectivity.
 * The configuration is ephemeral. Re‑claiming runs on every start. Libraries are defined in Plex UI; media files are mounted read‑only from PVC `sonarr-tv` at `/data`.
