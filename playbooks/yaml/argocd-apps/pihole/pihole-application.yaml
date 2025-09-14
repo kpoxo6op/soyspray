@@ -13,7 +13,7 @@ spec:
     namespace: pihole
   sources:
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "v1.19.0"
+      targetRevision: "codex/create-threadfin-argocd-app-with-channels"
       path: playbooks/yaml/argocd-apps/pihole
       kustomize:
   syncPolicy:
