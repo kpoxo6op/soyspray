@@ -1,24 +1,26 @@
-# /home/boris/code/soyspray/playbooks/yaml/argocd-apps/postgresql/values.yaml
-# This updated values file ensures PostgreSQL primary pods only run on
-# nodes labeled 'longhorn=true', thus avoiding node-3 which lacks storage.
-
+# playbooks/yaml/argocd-apps/postgresql/values.yaml
+# Hardened compatibility profile for Bitnami PostgreSQL chart + tensorchord/pgvecto-rs
+# - Keeps Bitnami's read-only root filesystem default
+# - Mounts an emptyDir at /var/run/postgresql for the official Postgres socket/lock dir
+# - Runs as postgres UID/GID 999; uses a tiny root initContainer to set 1777 on the socket dir
+# - Reuses the existing Bitnami PVC layout by setting PGDATA=/bitnami/postgresql/data
+# - Sets shared_preload_libraries for pgvecto.rs via container args
+# - Leaves initdb scripts intact under /docker-entrypoint-initdb.d
 global:
   postgresql:
     auth:
       username: immich
       password: immich
       database: immich
+  security:
+    allowInsecureImages: true
 
 image:
   registry: docker.io
   repository: tensorchord/pgvecto-rs
-  tag: pg14-v0.2.0
+  tag: pg16-v0.3.0
 
 primary:
-  persistence:
-    enabled: true
-    storageClass: longhorn
-    size: 20Gi
   resources:
     requests:
       memory: 256Mi
@@ -27,8 +29,18 @@ primary:
       memory: 512Mi
       cpu: 200m
 
-  configuration: |
-    shared_preload_libraries = 'vectors.so'
+  persistence:
+    enabled: true
+    storageClass: longhorn
+    size: 20Gi
+
+  extraEnvVars:
+    - name: PGDATA
+      value: /bitnami/postgresql/data
+
+  args:
+    - "-c"
+    - "shared_preload_libraries=vectors"
 
   initdb:
     scripts:
@@ -40,6 +52,42 @@ primary:
         ALTER DATABASE immich SET search_path TO "$user", public, vectors;
         ALTER SCHEMA vectors OWNER TO immich;
         GRANT SELECT ON TABLE pg_vector_index_stat TO immich;
+
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 999
+    runAsGroup: 999
+    runAsNonRoot: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: ["ALL"]
+
+  extraVolumes:
+    - name: varrun-postgresql
+      emptyDir: {}
+
+  extraVolumeMounts:
+    - name: varrun-postgresql
+      mountPath: /var/run/postgresql
+
+  extraInitContainers:
+    - name: fix-varrun-perms
+      image: docker.io/library/busybox:1.36
+      imagePullPolicy: IfNotPresent
+      command:
+        - sh
+        - -ec
+        - |
+          mkdir -p /var/run/postgresql
+          chmod 1777 /var/run/postgresql
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        allowPrivilegeEscalation: false
+      volumeMounts:
+        - name: varrun-postgresql
+          mountPath: /var/run/postgresql
 
 volumePermissions:
   enabled: true
