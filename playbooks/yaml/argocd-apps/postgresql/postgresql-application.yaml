@@ -22,7 +22,7 @@ spec:
         valueFiles:
           - $values/playbooks/yaml/argocd-apps/postgresql/values.yaml
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "update-postgress"
+      targetRevision: "main"
       path: .
       ref: values
   syncPolicy:
