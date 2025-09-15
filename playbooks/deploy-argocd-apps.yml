@@ -145,6 +145,16 @@
             api-token: "{{ cloudflare_api_token | b64encode }}"
       tags: cert-manager
 
+    - name: Apply Bitnami OCI Helm Repository Secret
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/bitnami-oci-helm-repo.yaml') }}"
+      tags:
+        - bitnami-oci
+        - postgresql
+
     - name: Apply Cert Manager Configuration
       kubernetes.core.k8s:
         state: present
@@ -471,3 +481,11 @@
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/headlamp/headlamp-application.yaml') }}"
       tags: headlamp
+
+    - name: Apply PostgreSQL Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/postgresql/postgresql-application.yaml') }}"
+      tags: postgresql
