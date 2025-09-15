@@ -11,10 +11,15 @@ post-renderer work, rolled back.
 
 Pihole pod restart required to apply custom.list
 
-location inside the pod
+4. **Hard sync with restart**:
+```bash
+argocd app sync pihole && kubectl rollout restart deployment/pihole -n pihole
+```
 
+### Verify configuration:
 ```sh
-cat /etc/pihole/custom.list
+POD=$(kubectl get pods -n pihole -l app=pihole -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n pihole $POD -- cat /etc/pihole/custom.list
 ```
 
 ## Adlists
