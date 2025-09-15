@@ -1,6 +1,6 @@
 # playbooks/yaml/argocd-apps/postgresql/postgresql-application.yaml
-# Defines the ArgoCD Application for PostgreSQL using the Bitnami chart.
-# The Helm chart is driven by the 'values.yaml' and 'kustomization.yaml' in this folder.
+# Defines the ArgoCD Application for PostgreSQL using Bitnami OCI Helm chart.
+# Uses multi-source configuration: OCI chart + Git values to resolve Bitnami OCI migration issues.
 
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -14,11 +14,17 @@ spec:
   destination:
     server: "https://kubernetes.default.svc"
     namespace: postgresql
-  source:
-    repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "main"
-    path: playbooks/yaml/argocd-apps/postgresql
-    kustomize:
+  sources:
+    - repoURL: registry-1.docker.io/bitnamicharts
+      chart: postgresql
+      targetRevision: "16.7.27"
+      helm:
+        valueFiles:
+          - $values/playbooks/yaml/argocd-apps/postgresql/values.yaml
+    - repoURL: "https://github.com/kpoxo6op/soyspray.git"
+      targetRevision: "update-postgress"
+      path: .
+      ref: values
   syncPolicy:
     automated:
       prune: true
