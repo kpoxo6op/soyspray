@@ -21,6 +21,30 @@
   "files": {
     "hdhr": {},
     "m3u": {
+      "ML7QLH2Y8IE31FFQ7H41": {
+        "buffer": "-",
+        "compatibility": {
+          "group.title": 100,
+          "stream.id": 100,
+          "streams": 3,
+          "tvg.id": 100
+        },
+        "counter.download": 0,
+        "counter.error": 0,
+        "description": "streamlink",
+        "file.source": "http://streamlink-playlist.media.svc.cluster.local/streamlink.m3u",
+        "file.threadfin": "ML7QLH2Y8IE31FFQ7H41.m3u",
+        "http_headers.origin": "",
+        "http_headers.referer": "",
+        "http_proxy.ip": "",
+        "http_proxy.port": "",
+        "id.provider": "ML7QLH2Y8IE31FFQ7H41",
+        "last.update": "2025-09-19 00:00:00",
+        "name": "streamlink.m3u",
+        "provider.availability": 100,
+        "tuner": 100,
+        "type": "m3u"
+      },
       "MM8F57PQ247Y4E0A4EL2": {
         "buffer": "-",
         "compatibility": {
@@ -116,7 +140,7 @@
   "forceHttps": false,
   "httpsPort": 443,
   "bindIpAddress": "",
-  "httpsThreadfinDomain": "",
+  "httpsThreadfinDomain": "threadfin.soyspray.vip",
   "httpThreadfinDomain": "",
   "enableNonAscii": true,
   "epgCategories": "Kids:kids|News:news|Movie:movie|Series:series|Sports:sports",
