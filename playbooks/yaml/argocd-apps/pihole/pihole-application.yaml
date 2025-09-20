@@ -13,7 +13,7 @@ spec:
     namespace: pihole
   sources:
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "main"
+      targetRevision: "streamlink"
       path: playbooks/yaml/argocd-apps/pihole
       kustomize:
   syncPolicy:
