@@ -13,6 +13,7 @@ Threadfin provides an IPTV proxy for Plex Live TV. This app deploys Threadfin wi
 
 - Configuration persisted on a Longhorn-backed PVC
 - Clean installation ready for custom setup
+- **Note**: Channel mappings require manual configuration via the web UI after deployment
 
 ## Deployment
 

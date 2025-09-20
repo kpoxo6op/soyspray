@@ -1,4 +1,34 @@
 {
+  "578c75ca510d3ed67e00f9ae799089f5": {
+    "channelNumber": "1010",
+    "name": "ОТВ Приморья",
+    "playlistID": "ML7QLH2Y8IE31FFQ7H41",
+    "url": "https://streamlink-otb-primorie.media.svc.cluster.local/",
+    "backup_channel_1": null,
+    "backup_channel_2": null,
+    "backup_channel_3": null,
+    "urlID": "578c75ca510d3ed67e00f9ae799089f5"
+  },
+  "7f71fb151d169aa3e457a5a60717b84f": {
+    "channelNumber": "1021",
+    "name": "25 Region",
+    "playlistID": "ML7QLH2Y8IE31FFQ7H41",
+    "url": "https://streamlink-25-region.media.svc.cluster.local/",
+    "backup_channel_1": null,
+    "backup_channel_2": null,
+    "backup_channel_3": null,
+    "urlID": "7f71fb151d169aa3e457a5a60717b84f"
+  },
+  "dbba658adac93fec48d2f2bad3fd65ca": {
+    "channelNumber": "1023",
+    "name": "Пятница HD",
+    "playlistID": "ML7QLH2Y8IE31FFQ7H41",
+    "url": "https://streamlink-friday-ru.media.svc.cluster.local/",
+    "backup_channel_1": null,
+    "backup_channel_2": null,
+    "backup_channel_3": null,
+    "urlID": "dbba658adac93fec48d2f2bad3fd65ca"
+  },
   "74b94d3516e730c778e57c359c6f7658": {
     "channelNumber": "1100",
     "name": "Звезда Плюс",

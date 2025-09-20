@@ -27,6 +27,7 @@ data:
     192.168.50.200 threadfin.soyspray.vip
     192.168.50.200 plex.soyspray.vip
     192.168.50.200 headlamp.soyspray.vip
+    192.168.50.200 streamlink.soyspray.vip
     192.168.50.201 argocd.lan
     192.168.50.204 pihole.lan
     192.168.50.205 prometheus.lan
@@ -38,3 +39,4 @@ data:
     192.168.50.212 readarr.lan
     192.168.50.200 plex.lan
     192.168.50.200 threadfin.lan
+    192.168.50.200 streamlink.lan

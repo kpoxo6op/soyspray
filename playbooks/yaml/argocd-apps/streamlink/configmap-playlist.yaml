@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: streamlink-playlist
+  labels:
+    app.kubernetes.io/name: streamlink
+    app.kubernetes.io/component: playlist
+data:
+  streamlink.m3u: |
+    #EXTM3U
+    #EXTINF:0 tvg-id="OTVPrim.ru" tvg-logo="https://i.imgur.com/2zd8trG.png" group-title="Russia", ОТВ Приморья
+    https://streamlink.soyspray.vip/otb-primorie
+    #EXTINF:0 tvg-id="25region" tvg-logo="http://25region.online/local/templates/25region/i/logo.png" group-title="Russia", 25 Region
+    https://streamlink.soyspray.vip/25-region
+    #EXTINF:0 tvg-id="FridayHD.ru" tvg-logo="https://i.imgur.com/UfmlXxe.png" group-title="Russia", Пятница HD
+    https://streamlink.soyspray.vip/friday-ru
