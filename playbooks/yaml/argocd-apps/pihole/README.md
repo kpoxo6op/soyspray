@@ -1,25 +1,35 @@
 # pihole
 
-Includes list of local DNS and ad filters source from configmaps
+DNS filtering with wildcard resolution for *.soyspray.vip domains and ad filtering.
 
 ## Helm Inflate
 
-Uses Helm inflate to apply configmap and values. Could not male  Kustomize
+Uses Helm inflate to apply values and dnsmasq configuration. Could not make Kustomize
 post-renderer work, rolled back.
 
-## Custom DNS list
+## DNS Configuration
 
-Pihole pod restart required to apply custom.list
+Pi-hole uses dnsmasq wildcard rule for all *.soyspray.vip domains:
+- `address=/soyspray.vip/192.168.50.200` - Resolves all subdomains to NGINX Ingress VIP
+- No per-host DNS entries needed - managed automatically via Kubernetes Ingress
 
-4. **Hard sync with restart**:
+### Apply changes:
 ```bash
 argocd app sync pihole && kubectl rollout restart deployment/pihole -n pihole
 ```
 
-### Verify configuration:
+### Verify dnsmasq configuration:
 ```sh
 POD=$(kubectl get pods -n pihole -l app=pihole -o jsonpath='{.items[0].metadata.name}')
-kubectl exec -n pihole $POD -- cat /etc/pihole/custom.list
+kubectl exec -n pihole $POD -- cat /etc/dnsmasq.d/02-custom.conf
+```
+
+### Test DNS resolution:
+```sh
+# Test wildcard resolution from Pi-hole
+dig +short grafana.soyspray.vip @192.168.50.202
+dig +short argocd.soyspray.vip @192.168.50.202
+# Should return 192.168.50.200 (Ingress VIP)
 ```
 
 ## Adlists
@@ -85,11 +95,11 @@ Update Router DNS settings via mobile app
 | Primary   | 192.168.50.202   |  Pi Hole      |
 | Secondary | 8.8.8.8          |  Google       |
 
-Set Up Pi-hole to Handle Local DNS Entries
+Pi-hole DNS Configuration
 
 | Domain                                         | IP               | Note          |
 | ---------------------------------------------- | ---------------- | ------------- |
-| [argocd.lan](http://argocd.lan/applications)   | 192.168.50.201   |               |
-| [pihole.lan](http://pihole.lan/admin/login.php)| 192.168.50.202   |               |
+| *.soyspray.vip                                 | 192.168.50.200   | Wildcard via dnsmasq |
+| [pihole.soyspray.vip](http://pihole.soyspray.vip/admin/login.php) | 192.168.50.200 | Via wildcard |
 
 Looks like adding filters and not using secondary DNS helps.
