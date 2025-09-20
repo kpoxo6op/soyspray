@@ -16,15 +16,7 @@ persistentVolumeClaim:
   accessModes:
     - ReadWriteOnce
 
-extraVolumes:
-  dnsmasq-conf:
-    configMap:
-      name: custom-dns-configmap
-
-extraVolumeMounts:
-  dnsmasq-conf:
-    mountPath: /etc/pihole/custom.list
-    subPath: custom.list
+# extraVolumes and extraVolumeMounts removed - using dnsmasq wildcard instead
 
 extraEnvVars:
   DNSMASQ_LISTENING: all
@@ -103,7 +95,8 @@ podDnsConfig:
 dnsmasq:
   staticDhcpEntries: []
   upstreamServers: []
-  customDnsEntries: []
+  customDnsEntries:
+    - address=/soyspray.vip/192.168.50.200
   customSettings:
     - bind-interfaces
     - listen-address=0.0.0.0
