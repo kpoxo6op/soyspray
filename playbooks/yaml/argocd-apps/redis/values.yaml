@@ -5,6 +5,11 @@ auth:
   enabled: false
   sentinel: false
 
+image:
+  registry: docker.io
+  repository: bitnamilegacy/redis
+  tag: 8.2.1-debian-12-r0
+
 primary:
   persistence:
     enabled: true

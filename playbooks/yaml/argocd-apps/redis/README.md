@@ -4,30 +4,19 @@ Redis is deployed as a dependency for Immich and other applications in the clust
 
 ## Configuration
 
-Redis is configured with:
+- **Architecture:** Standalone
+- **Authentication:** Disabled (uses `ALLOW_EMPTY_PASSWORD=yes`)
+- **Storage:** Longhorn persistent volume (5Gi)
+- **Registry:** `bitnamilegacy/redis` (Bitnami Legacy due to 2024/2025 catalog changes)
 
-- Standalone architecture
-- Authentication disabled
-- Persistent storage using Longhorn
+## Quick Validation
 
-## Connection Testing
-
-To test connectivity to Redis, run:
+Check deployment health:
 
 ```bash
-kubectl run redis-test --rm -it --restart=Never --image=redis:alpine -- sh -c "redis-cli -h redis-master.redis.svc.cluster.local ping"
+kubectl -n redis exec redis-master-0 -- redis-cli PING
 ```
 
-Expected output:
+## Services
 
-```sh
-PONG
-pod "redis-test" deleted
-```
-
-## Related Services
-
-The following Redis services are available:
-
-- `redis-headless.redis.svc.cluster.local` - Headless service
-- `redis-master.redis.svc.cluster.local` - Master service (used by applications)
+- `redis-master.redis.svc.cluster.local` - Primary Redis service (port 6379)

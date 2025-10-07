@@ -10,11 +10,17 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: redis
-  source:
-    repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "main"
-    path: playbooks/yaml/argocd-apps/redis
-    kustomize:
+  sources:
+    - repoURL: registry-1.docker.io/bitnamicharts
+      chart: redis
+      targetRevision: "22.0.7"
+      helm:
+        valueFiles:
+          - $values/playbooks/yaml/argocd-apps/redis/values.yaml
+    - repoURL: "https://github.com/kpoxo6op/soyspray.git"
+      targetRevision: "main"
+      path: .
+      ref: values
   syncPolicy:
     automated:
       prune: true
