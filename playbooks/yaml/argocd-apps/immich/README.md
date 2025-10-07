@@ -1,114 +1,74 @@
-# Immich Application Configuration
+# Immich v2.0.1 - Photo Management
 
-This document outlines the configuration and key troubleshooting steps for the Immich application deployed in Kubernetes.
+## Quick Health Check
+
+```bash
+# Check pod status
+kubectl get pods -n immich
+
+# API health check
+curl -k https://immich.soyspray.vip/api/server/ping
+# Expected: {"res":"pong"}
+
+# Version check
+curl -k https://immich.soyspray.vip/api/server/version
+# Expected: {"major":2,"minor":0,"patch":1}
+```
+
+## Access
+
+- **Web UI**: <https://immich.soyspray.vip>
+- **LoadBalancer IP**: 192.168.50.208:2283
+- **Internal Service**: immich-server.immich.svc.cluster.local:2283
+
+## Configuration
+
+### Database
+
+- **Type**: CNPG PostgreSQL 16
+- **Service**: immich-db-rw.postgresql.svc.cluster.local:5432
+- **Vector Extension**: pgvecto.rs v0.3.0
+- **Database**: immich
+
+### Redis
+
+- **Service**: redis-master.redis.svc.cluster.local:6379
+- **Type**: Bitnami Redis (standalone, no auth)
+
+### Storage
+
+- **PVC**: immich-library (Longhorn, 100Gi)
+- **StorageClass**: longhorn
+
+### Features
+
+- ✅ Smart Search
+- ✅ Facial Recognition
+- ✅ Duplicate Detection
+- ✅ Map functionality
+- ✅ Reverse Geocoding
+- ❌ Machine Learning (disabled)
 
 ## Troubleshooting
 
-### Port Configuration
+### Check Logs
 
-**Critical Issue**: Immich server defaults to port 3001 but the Kubernetes service expects 2283
+```bash
+kubectl logs -f deployment/immich-server -n immich
+```
 
-- **Problem**: The application starts on port 3001 by default, causing startup probe failures with the error:
+### Database Connection
 
-  ```
-  Startup probe failed: Get "http://10.233.70.108:2283/api/server/ping": dial tcp 10.233.70.108:2283: connect: connection refused
-  ```
+```bash
+POD=$(kubectl -n postgresql get pod -l cnpg.io/cluster=immich-db -o name | head -n1 | sed 's#pod/##')
+kubectl -n postgresql exec "$POD" -- psql -h localhost -U immich -d immich -c "SELECT version();"
+```
 
-- **Solution**: Set the `IMMICH_PORT` environment variable in the deployment:
+### Internal Connectivity Test
 
-  ```yaml
-  env:
-  - name: IMMICH_PORT
-    value: "2283"
-  ```
-
-- **Verification**: Check inside the container where the default port is defined:
-
-  ```bash
-  # Check the current port setting in the application code
-  kubectl exec -it <pod-name> -n immich -- grep -n "3001" /usr/src/app/dist/workers/api.js
-
-  # Output shows the issue:
-  # const port = Number(process.env.IMMICH_PORT) || 3001;
-  ```
-
-### Environment Variable Debugging
-
-- Check all environment variables in the container:
-
-  ```bash
-  kubectl exec -it <pod-name> -n immich -- env | sort
-  ```
-
-- Check specific Immich-related variables:
-
-  ```bash
-  kubectl exec -it <pod-name> -n immich -- env | grep -i port
-  ```
-
-### Pod and Deployment Analysis
-
-- Check pod status and events:
-
-  ```bash
-  kubectl describe pod <pod-name> -n immich | grep -A20 Events
-  ```
-
-- View container logs:
-
-  ```bash
-  kubectl logs <pod-name> -n immich
-  ```
-
-- Check if the application is listening on the expected port:
-
-  ```bash
-  kubectl exec -it <pod-name> -n immich -- netstat -tulpn | grep LISTEN
-  ```
-
-### Verifying Connectivity
-
-- Check immich server inside the cluster:
-
-  ```bash
-  kubectl -n immich run curltest --rm -it --image=curlimages/curl --restart=Never -- \
-    curl -v http://immich-server.immich.svc.cluster.local:2283/api/server/ping
-  ```
-
-  Expect `{"res":"pong"}` as the response.
-
-- Check external HTTP access (should redirect to HTTPS):
-
-  ```bash
-  curl -v http://immich.soyspray.vip/api/server/ping
-  ```
-
-  Expected response should include: `HTTP/1.1 308 Permanent Redirect` with `Location: https://immich.soyspray.vip/api/server/ping`
-
-- Check external HTTPS access:
-
-  ```bash
-  curl -vk https://immich.soyspray.vip/api/server/ping
-  ```
-
-  Expected response should include: `HTTP/2 200` with `{"res":"pong"}`
-
-### Verifying TLS Certificate
-
-- Check the TLS certificate details:
-
-  ```bash
-  openssl s_client -connect immich.soyspray.vip:443 -servername immich.soyspray.vip </dev/null
-  ```
-
-  This should show details of the certificate chain, including issuer (Let's Encrypt), validity dates, and verification result.
-
-Check immich server inside the cluster
-
-```sh
+```bash
 kubectl -n immich run curltest --rm -it --image=curlimages/curl --restart=Never -- \
   curl -v http://immich-server.immich.svc.cluster.local:2283/api/server/ping
 ```
 
-expect `"{"res":"pong"}"` answer
-
+Expected: `{"res":"pong"}`
