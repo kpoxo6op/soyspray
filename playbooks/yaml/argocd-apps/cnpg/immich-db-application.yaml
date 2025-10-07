@@ -1,26 +1,19 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: redis
+  name: immich-db
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   destination:
-    server: https://kubernetes.default.svc
-    namespace: redis
+    server: "https://kubernetes.default.svc"
+    namespace: postgresql
   sources:
-    - repoURL: registry-1.docker.io/bitnamicharts
-      chart: redis
-      targetRevision: "22.0.7"
-      helm:
-        valueFiles:
-          - $values/playbooks/yaml/argocd-apps/redis/values.yaml
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
       targetRevision: "main"
-      path: .
-      ref: values
+      path: playbooks/yaml/argocd-apps/cnpg/immich-db
   syncPolicy:
     automated:
       prune: true
