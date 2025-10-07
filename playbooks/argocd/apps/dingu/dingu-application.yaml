@@ -1,0 +1,24 @@
+# Argo CD Application object that deploys the Dingu bot from this folder
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dingu
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: "main"
+    path: playbooks/argocd/apps/dingu
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: media
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

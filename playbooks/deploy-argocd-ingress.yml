@@ -6,7 +6,7 @@
   tasks:
     - name: Copy the ArgoCD Ingress manifest to the Kubernetes master node
       ansible.builtin.copy:
-        src: yaml/argocd-ingress.yaml
+        src: "{{ playbook_dir }}/argocd/config/argocd-ingress.yaml"
         dest: /tmp/argocd-ingress.yaml
 
     - name: Apply the ArgoCD Ingress manifest via kubectl

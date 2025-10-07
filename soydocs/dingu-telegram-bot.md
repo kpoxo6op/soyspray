@@ -211,7 +211,7 @@ AUTHORIZED_USERS: "user1,user2"  # Optional restriction
 
 ## References
 
-- Existing arr stack configuration in `playbooks/yaml/argocd-apps/`
+- Existing arr stack configuration in `playbooks/argocd/apps/`
 - Media volume setup in deployment manifests
 - API documentation for Prowlarr, qBittorrent, Readarr
 - Telegram Bot API documentation

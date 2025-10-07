@@ -1,0 +1,25 @@
+# playbooks/argocd/apps/lazylibrarian/lazylibrarian-application.yaml
+# Argo CD Application manifest for LazyLibrarian
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: lazylibrarian
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: "main"
+    path: playbooks/argocd/apps/lazylibrarian
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: media
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

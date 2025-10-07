@@ -1,0 +1,136 @@
+# playbooks/argocd/apps/prowlarr/bootstrap-scripts-cm.yaml
+# ConfigMap with a single, minimal shell bootstrap script that uses curl + jq
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prowlarr-bootstrap-scripts
+  namespace: media
+  labels:
+    app: prowlarr
+data:
+  bootstrap.sh: |
+    #!/usr/bin/env sh
+    set -eu
+    API="http://prowlarr.media.svc.cluster.local:9696"
+    mkdir -p /tmp/processed
+
+    echo "=== DEBUG: Environment Variables ==="
+    echo "PROWLARR_API_KEY: ${PROWLARR_API_KEY:+[SET]} ${PROWLARR_API_KEY:-[NOT SET]}"
+    echo "RUTRACKER_USER: ${RUTRACKER_USER:+[SET]} ${RUTRACKER_USER:-[NOT SET]}"
+    echo "RUTRACKER_PASS: ${RUTRACKER_PASS:+[SET - $(echo "$RUTRACKER_PASS" | sed 's/./*/g')]} ${RUTRACKER_PASS:-[NOT SET]}"
+    echo "MYANONAMOUSE_SESSION_ID: ${MYANONAMOUSE_SESSION_ID:+[SET - $(echo "$MYANONAMOUSE_SESSION_ID" | sed 's/./*/g')]} ${MYANONAMOUSE_SESSION_ID:-[NOT SET]}"
+    echo "API Endpoint: $API"
+    echo "====================================="
+
+    echo "=== Processing Rutracker ==="
+    if curl -s -H "X-Api-Key: $PROWLARR_API_KEY" "$API/api/v1/indexer" | jq -e '.[] | select(.name == "RuTracker.org")' > /dev/null 2>&1; then
+      echo "✓ RuTracker already exists, skipping..."
+    else
+      echo "Adding RuTracker..."
+      echo "Original payload:"
+      cat /payloads/rutracker.json
+      echo
+      echo "After envsubst:"
+      envsubst < /payloads/rutracker.json > /tmp/processed/rutracker.json
+      cat /tmp/processed/rutracker.json
+      echo
+      echo "Full curl command:"
+      echo "curl -sS -H \"X-Api-Key: $PROWLARR_API_KEY\" -H \"Content-Type: application/json\" -X POST \"$API/api/v1/indexer\" --data @/tmp/processed/rutracker.json"
+      echo
+      echo "Making API call..."
+      curl -sS -H "X-Api-Key: $PROWLARR_API_KEY" -H "Content-Type: application/json" -X POST "$API/api/v1/indexer" --data @/tmp/processed/rutracker.json
+      echo
+    fi
+    echo "=========================="
+
+    echo "=== Processing MyAnonaMouse ==="
+    if curl -s -H "X-Api-Key: $PROWLARR_API_KEY" "$API/api/v1/indexer" | jq -e '.[] | select(.name == "MyAnonamouse")' > /dev/null 2>&1; then
+      echo "✓ MyAnonaMouse already exists, skipping..."
+    else
+      echo "Adding MyAnonaMouse..."
+      echo "Original payload:"
+      cat /payloads/myanonamouse.json
+      echo
+      echo "After envsubst:"
+      envsubst < /payloads/myanonamouse.json > /tmp/processed/myanonamouse.json
+      cat /tmp/processed/myanonamouse.json
+      echo
+      echo "Full curl command:"
+      echo "curl -sS -H \"X-Api-Key: $PROWLARR_API_KEY\" -H \"Content-Type: application/json\" -X POST \"$API/api/v1/indexer\" --data @/tmp/processed/myanonamouse.json"
+      echo
+      echo "Making API call..."
+      curl -sS -H "X-Api-Key: $PROWLARR_API_KEY" -H "Content-Type: application/json" -X POST "$API/api/v1/indexer" --data @/tmp/processed/myanonamouse.json
+      echo
+    fi
+    echo "==============================="
+
+    echo "=== Processing The Pirate Bay ==="
+    if curl -s -H "X-Api-Key: $PROWLARR_API_KEY" "$API/api/v1/indexer" | jq -e '.[] | select(.name == "The Pirate Bay")' > /dev/null 2>&1; then
+      echo "✓ The Pirate Bay already exists, skipping..."
+    else
+      echo "Adding The Pirate Bay..."
+      echo "Payload:"
+      cat /payloads/thepiratebay.json
+      echo
+      echo "Full curl command:"
+      echo "curl -sS -H \"X-Api-Key: $PROWLARR_API_KEY\" -H \"Content-Type: application/json\" -X POST \"$API/api/v1/indexer\" --data @/payloads/thepiratebay.json"
+      echo
+      echo "Making API call..."
+      curl -sS -H "X-Api-Key: $PROWLARR_API_KEY" -H "Content-Type: application/json" -X POST "$API/api/v1/indexer" --data @/payloads/thepiratebay.json
+      echo
+    fi
+    echo "============================"
+
+    echo "=== Processing Readarr ==="
+    if curl -s -H "X-Api-Key: $PROWLARR_API_KEY" "$API/api/v1/applications" | jq -e '.[] | select(.name == "Readarr")' > /dev/null 2>&1; then
+      echo "✓ Readarr already exists, skipping..."
+    else
+      echo "Adding Readarr..."
+      echo "Payload:"
+      cat /payloads/readarr.json
+      echo
+      echo "Full curl command:"
+      echo "curl -sS -H \"X-Api-Key: $PROWLARR_API_KEY\" -H \"Content-Type: application/json\" -X POST \"$API/api/v1/applications\" --data @/payloads/readarr.json"
+      echo
+      echo "Making API call..."
+      curl -sS -H "X-Api-Key: $PROWLARR_API_KEY" -H "Content-Type: application/json" -X POST "$API/api/v1/applications" --data @/payloads/readarr.json
+      echo
+    fi
+    echo "========================"
+
+    echo "=== Processing Sonarr ==="
+    if curl -s -H "X-Api-Key: $PROWLARR_API_KEY" "$API/api/v1/applications" | jq -e '.[] | select(.name == "Sonarr")' > /dev/null 2>&1; then
+      echo "✓ Sonarr already exists, skipping..."
+    else
+      echo "Adding Sonarr..."
+      echo "Payload:"
+      cat /payloads/sonarr.json
+      echo
+      echo "Full curl command:"
+      echo "curl -sS -H \"X-Api-Key: $PROWLARR_API_KEY\" -H \"Content-Type: application/json\" -X POST \"$API/api/v1/applications\" --data @/payloads/sonarr.json"
+      echo
+      echo "Making API call..."
+      curl -sS -H "X-Api-Key: $PROWLARR_API_KEY" -H "Content-Type: application/json" -X POST "$API/api/v1/applications" --data @/payloads/sonarr.json
+      echo
+    fi
+    echo "======================="
+
+    echo "=== Processing LazyLibrarian ==="
+    if curl -s -H "X-Api-Key: $PROWLARR_API_KEY" "$API/api/v1/applications" \
+         | jq -e '.[] | select(.name == "LazyLibrarian")' > /dev/null 2>&1; then
+      echo "✓ LazyLibrarian already exists, skipping..."
+    else
+      echo "Adding LazyLibrarian..."
+      envsubst < /payloads/lazylibrarian.json > /tmp/processed/lazylibrarian.json
+      curl -sS -H "X-Api-Key: $PROWLARR_API_KEY" \
+           -H "Content-Type: application/json" \
+           -X POST "$API/api/v1/applications" \
+           --data @/tmp/processed/lazylibrarian.json
+    fi
+    echo "========================"
+
+    echo "=== Bootstrap completed ==="
+    # echo "sleep infinity to recheck the calls"
+    # sleep infinity
+    # kubectl exec -it -n media $(kubectl get pods -n media -l app=prowlarr,component=bootstrap -o jsonpath='{.items[0].metadata.name}') -- sh

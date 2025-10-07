@@ -31,7 +31,7 @@ OOMKills or instability under node pressure.
     *Example (`patches/csi-plugin-resources.yaml`):*
 
     ```yaml
-    # playbooks/yaml/argocd-apps/longhorn/patches/csi-plugin-resources.yaml
+    # playbooks/argocd/apps/longhorn/patches/csi-plugin-resources.yaml
     apiVersion: apps/v1
     kind: DaemonSet
     metadata:
@@ -108,7 +108,7 @@ OOMKills or instability under node pressure.
       source:
         repoURL: <your-git-repo-url>
         targetRevision: <your-branch-or-tag> # e.g., main, limits
-        path: playbooks/yaml/argocd-apps/longhorn # Path to kustomization.yaml dir
+        path: playbooks/argocd/apps/longhorn # Path to kustomization.yaml dir
         kustomize: {} # Enable Kustomize
       destination:
         server: "https://kubernetes.default.svc"

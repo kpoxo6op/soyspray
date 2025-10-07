@@ -5,13 +5,16 @@
   become: true
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
+    argocd_dir: "{{ playbook_dir + '/argocd' }}"
+    argocd_apps_dir: "{{ argocd_dir + '/apps' }}"
+    helm_repo_manifest: "{{ playbook_dir + '/helm/bitnami-oci-helm-repo.yaml' }}"
   tasks:
     - name: Apply Pihole
       kubernetes.core.k8s:
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/pihole/pihole-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/pihole/pihole-application.yaml') }}"
       tags: pihole
 
     - name: Apply Pihole Exporter
@@ -19,7 +22,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/pihole-exporter/pihole-exporter-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/pihole-exporter/pihole-exporter-application.yaml') }}"
       tags: pihole
 
     - name: Verify and load Telegram token from .env
@@ -82,7 +85,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prometheus/prometheus-crds-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/prometheus/prometheus-crds-application.yaml') }}"
       tags:
         - prometheus
         - prometheus-crds
@@ -92,7 +95,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prometheus/prometheus-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/prometheus/prometheus-application.yaml') }}"
       tags: prometheus
 
     - name: Apply Longhorn
@@ -100,7 +103,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/longhorn/longhorn-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/longhorn/longhorn-application.yaml') }}"
       tags: longhorn
 
     # Verify and load Cloudflare token for cert-manager
@@ -150,7 +153,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/bitnami-oci-helm-repo.yaml') }}"
+        definition: "{{ lookup('file', helm_repo_manifest) }}"
       tags:
         - bitnami-oci
 
@@ -159,7 +162,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cert-manager/cert-manager-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/cert-manager/cert-manager-application.yaml') }}"
       tags: cert-manager
 
     - name: Apply CNPG Operator Configuration
@@ -167,7 +170,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/cnpg-operator-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/cnpg/cnpg-operator-application.yaml') }}"
       tags: cnpg-operator
 
     - name: Apply CNPG Immich Database Configuration
@@ -175,7 +178,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/cnpg/immich-db-application.yaml') }}"
       tags: immich-db
 
     # Create namespace for external-dns
@@ -238,7 +241,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/external-dns/external-dns-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/external-dns/external-dns-application.yaml') }}"
       tags: external-dns
 
     - name: Apply qbittorrent
@@ -246,7 +249,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/qbittorrent/qbittorrent-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/qbittorrent/qbittorrent-application.yaml') }}"
       tags: qbittorrent
 
     # Verify and load Plex account token from .env for automatic server claiming
@@ -300,7 +303,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/plex/plex-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/plex/plex-application.yaml') }}"
       tags: plex
 
     # Verify and load Prowlarr secrets from .env
@@ -401,7 +404,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prowlarr/prowlarr-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/prowlarr/prowlarr-application.yaml') }}"
       tags: prowlarr
 
     # - name: Apply Dingu Bot
@@ -409,7 +412,7 @@
     #     state: present
     #     kubeconfig: "{{ kubeconfig_path }}"
     #     namespace: argocd
-    #     definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/dingu/dingu-application.yaml') }}"
+    #     definition: "{{ lookup('file', argocd_apps_dir + '/dingu/dingu-application.yaml') }}"
     #   tags: dingu
 
     # Verify and load Dingu Telegram bot token from .env
@@ -462,7 +465,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/lazylibrarian/lazylibrarian-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/lazylibrarian/lazylibrarian-application.yaml') }}"
       tags: lazylibrarian
 
     # - name: Apply Radarr Configuration
@@ -470,7 +473,7 @@
     #     state: present
     #     kubeconfig: "{{ kubeconfig_path }}"
     #     namespace: argocd
-    #     definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/radarr/radarr-application.yaml') }}"
+    #     definition: "{{ lookup('file', argocd_apps_dir + '/radarr/radarr-application.yaml') }}"
     #   tags: radarr
 
     - name: Apply Sonarr Configuration
@@ -478,7 +481,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/sonarr/sonarr-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/sonarr/sonarr-application.yaml') }}"
       tags: sonarr
 
     - name: Apply Threadfin Configuration
@@ -486,7 +489,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/threadfin/threadfin-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/threadfin/threadfin-application.yaml') }}"
       tags: threadfin
 
     - name: Apply Streamlink Configuration
@@ -494,7 +497,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/streamlink/streamlink-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/streamlink/streamlink-application.yaml') }}"
       tags: streamlink
 
     - name: Apply Headlamp Configuration
@@ -502,7 +505,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/headlamp/headlamp-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/headlamp/headlamp-application.yaml') }}"
       tags: headlamp
 
     - name: Apply Redis Configuration
@@ -510,7 +513,7 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/redis/redis-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/redis/redis-application.yaml') }}"
       tags: redis
 
     - name: Apply Immich Configuration
@@ -518,5 +521,5 @@
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/immich/immich-application.yaml') }}"
+        definition: "{{ lookup('file', argocd_apps_dir + '/immich/immich-application.yaml') }}"
       tags: immich

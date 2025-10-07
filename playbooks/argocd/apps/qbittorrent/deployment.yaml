@@ -1,0 +1,89 @@
+# playbooks/argocd/apps/qbittorrent/deployment.yaml
+#------------------------------------------------------------------------------
+# Minimal qBittorrent Deployment (raw Kubernetes)
+# * Pinned image: linuxserver/qbittorrent:libtorrentv1-release-5.0.5_v1.2.20-ls73
+#   - qBittorrent 5.0.5
+#   - libtorrent 1.2.20
+#   - linuxserver build ls73 (multi‑arch: amd64 & arm64)
+# * Volumes:
+#     • /config  -> pvc: qbittorrent-config (1 Gi, Longhorn)
+#     • /downloads -> pvc: qbittorrent-downloads (10 Gi, Longhorn)
+# * Resource requests/limits: 100 m CPU / 256 Mi mem  → 500 m / 512 Mi
+#------------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent
+  namespace: media
+  labels:
+    app: qbittorrent
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: qbittorrent
+  template:
+    metadata:
+      labels:
+        app: qbittorrent
+    spec:
+      # --- 1) Add an initContainer to copy from the configMap into the PVC ---
+      initContainers:
+        - name: copy-qbt-config
+          image: busybox:stable
+          command: ["/bin/sh", "-c"]
+          args:
+            - >
+              mkdir -p /config/qBittorrent &&
+              cp /configmap/qBittorrent.conf /config/qBittorrent/qBittorrent.conf &&
+              chown 1000:1000 /config/qBittorrent/qBittorrent.conf;
+          volumeMounts:
+            - name: qbittorrent-conf
+              mountPath: /configmap
+              readOnly: true
+            - name: config
+              mountPath: /config
+      #
+      # --- 2) Main container remains largely the same, but remove the direct configMap mount
+      #
+      containers:
+        - name: qbittorrent
+          image: linuxserver/qbittorrent:libtorrentv1-release-5.0.5_v1.2.20-ls73
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Pacific/Auckland"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: downloads
+              mountPath: /downloads
+      volumes:
+        # PVC for /config
+        - name: config
+          persistentVolumeClaim:
+            claimName: qbittorrent-config
+        # PVC for /downloads
+        - name: downloads
+          persistentVolumeClaim:
+            claimName: qbittorrent-downloads
+        # ConfigMap volume for reading qBittorrent.conf
+        - name: qbittorrent-conf
+          configMap:
+            name: qbittorrent-conf

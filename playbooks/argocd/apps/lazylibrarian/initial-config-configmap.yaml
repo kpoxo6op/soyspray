@@ -1,0 +1,58 @@
+# playbooks/argocd/apps/lazylibrarian/initial-config-configmap.yaml
+# Full lazylibrarian config.ini pre-seeded for first boot
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lazylibrarian-initial-config
+  namespace: media
+data:
+  config.ini: |-
+    [GENERAL]
+    homepage = Authors
+    config_tab_num = 10
+    imp_preflang = eng, en, English, en-GB, en-US
+    date_lang = en_GB.UTF-8
+    destination_copy = True
+    ebook_dir = /books
+    download_dir = /downloads/books
+
+    [API]
+    api_enabled = True
+    api_key = 3723d36aa1e9e9955e3bf8982e94ee3c
+    book_api = GoodReads
+
+    [LOGGING]
+    logdir = /config/log
+
+    [TELEMETRY]
+    server_id = f28fb3db072c45d1bd0e73d6f50e9a35
+    telemetry_server = https://lazylibrarian.telem.ch
+    telemetry_enable = True
+
+    [GIT]
+    install_type = source DOCKER
+    current_version = 2a1de5d7
+    latest_version = UNKNOWN INSTALL
+    commits_behind = -1
+
+    [TORRENT]
+    tor_downloader_qbittorrent = True
+
+    [QBITTORRENT]
+    qbittorrent_host = qbittorrent.media.svc.cluster.local
+    qbittorrent_port = 8080
+    qbittorrent_user = admin
+    qbittorrent_pass = 123
+    qbittorrent_label = books
+
+    [POSTPROCESS]
+    audiobook_dest_folder = $Author/$Title
+    rename_files = True
+
+    [PROWL]
+    prowl_priority = -2
+
+    [OPDS]
+    opds_enabled = True
+    opds_metainfo = True

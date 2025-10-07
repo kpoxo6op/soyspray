@@ -10,7 +10,7 @@
 
     - name: Copy the ArgoCD ConfigMap manifest to the Kubernetes master node
       ansible.builtin.copy:
-        src: yaml/argocd-cm.yaml
+        src: "{{ playbook_dir }}/argocd/config/argocd-cm.yaml"
         dest: /tmp/argocd-cm.yaml
 
     - name: Apply the ArgoCD ConfigMap via kubectl

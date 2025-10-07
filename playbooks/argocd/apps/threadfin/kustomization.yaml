@@ -1,0 +1,22 @@
+# playbooks/argocd/apps/threadfin/kustomization.yaml
+# Kustomization for Threadfin
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - pvc-config.yaml
+  - service.yaml
+  - ingress.yaml
+  - deployment.yaml
+
+configMapGenerator:
+  - name: threadfin-bootstrap-config
+    namespace: media
+    files:
+      - settings.json=config/settings.json
+      - urls.json=config/urls.json
+    options:
+      disableNameSuffixHash: true
+
+commonLabels:
+  app: threadfin
+  component: main

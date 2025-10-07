@@ -1,0 +1,25 @@
+# playbooks/argocd/apps/longhorn/longhorn-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: "main"
+    path: playbooks/argocd/apps/longhorn
+    kustomize:
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: longhorn-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

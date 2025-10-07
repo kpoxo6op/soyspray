@@ -22,7 +22,7 @@
 - import_playbook: playbooks/initialize-longhorn-storage.yml
   tags: postinstall
 
-# manual step playbooks/yaml/argocd-apps/longhorn/values.yaml flip service monitor to false
+# manual step playbooks/argocd/apps/longhorn/values.yaml flip service monitor to false
 - import_playbook: playbooks/deploy-argocd-apps.yml
   tags: longhorn
 
@@ -40,8 +40,8 @@
 
 
 # Switch-DNS to start using PiHole
-# playbooks/yaml/argocd-apps/pihole/switch-dns.sh
-# playbooks/yaml/argocd-apps/pihole/Switch-DNS.ps1
+# playbooks/argocd/apps/pihole/switch-dns.sh
+# playbooks/argocd/apps/pihole/Switch-DNS.ps1
 
 # check the local access via https://longhorn.soyspray.vip
 

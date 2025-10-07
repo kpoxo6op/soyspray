@@ -1,0 +1,69 @@
+# playbooks/argocd/apps/lazylibrarian/deployment.yaml
+# Adds seed-config init container, mounts /config PVC and /template ConfigMap
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lazylibrarian
+  namespace: media
+  labels:
+    app: lazylibrarian
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: lazylibrarian
+  template:
+    metadata:
+      labels:
+        app: lazylibrarian
+    spec:
+      initContainers:
+        - name: seed-config
+          image: busybox:1.36
+          command:
+            - /bin/sh
+            - -c
+            - |
+              [ -f /config/config.ini ] || cp /template/config.ini /config/config.ini
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: config-template
+              mountPath: /template
+      containers:
+        - name: lazylibrarian
+          image: linuxserver/lazylibrarian:2a1de5d7-ls170
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5299
+              name: http
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Pacific/Auckland"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: downloads-shared
+              mountPath: /downloads
+            - name: books-library
+              mountPath: /books
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: lazylibrarian-config
+        - name: config-template
+          configMap:
+            name: lazylibrarian-initial-config
+        - name: downloads-shared
+          persistentVolumeClaim:
+            claimName: qbittorrent-downloads
+        - name: books-library
+          persistentVolumeClaim:
+            claimName: lazylibrarian-books

@@ -9,7 +9,8 @@ soyspray/
 ├── kubespray/                    # Kubespray submodule for K8s cluster
 ├── playbooks/                    # Custom Ansible playbooks
 │   ├── deploy-argocd-apps.yml    # Main ArgoCD deployment playbook
-│   └── yaml/argocd-apps/         # ArgoCD application definitions
+│   ├── argocd/                   # ArgoCD manifests (config + apps)
+│   └── helm/                     # Helm bootstrap manifests
 ├── scripts/                      # Utility scripts
 ├── soydocs/                      # Project documentation
 └── main.yml                      # Main Ansible playbook
@@ -31,7 +32,7 @@ The project uses Kubespray as a Git submodule ([.gitmodules](mdc:.gitmodules)) t
 
 ### Application Management
 - **ArgoCD Apps**: [playbooks/deploy-argocd-apps.yml](mdc:playbooks/deploy-argocd-apps.yml) - Deploys all applications
-- **App Definitions**: [playbooks/yaml/argocd-apps/](mdc:playbooks/yaml/argocd-apps) - Individual application configs
+- **App Definitions**: [playbooks/argocd/apps/](mdc:playbooks/argocd/apps) - Individual application configs
 - **GitOps**: All applications managed through ArgoCD
 
 ### Documentation
@@ -132,7 +133,7 @@ spec:
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
     targetRevision: "cinema"  # NOT v1.17.0 when working on cinema branch!
-    path: playbooks/yaml/argocd-apps/app-name
+    path: playbooks/argocd/apps/app-name
 ```
 
 **Current Branch Mapping:**

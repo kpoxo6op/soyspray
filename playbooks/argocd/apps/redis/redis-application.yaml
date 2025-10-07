@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: redis
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: redis
+  sources:
+    - repoURL: registry-1.docker.io/bitnamicharts
+      chart: redis
+      targetRevision: "22.0.7"
+      helm:
+        valueFiles:
+          - $values/playbooks/argocd/apps/redis/values.yaml
+    - repoURL: "https://github.com/kpoxo6op/soyspray.git"
+      targetRevision: "main"
+      path: .
+      ref: values
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

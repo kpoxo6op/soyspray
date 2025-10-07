@@ -7,7 +7,7 @@ Create a well-structured pull request with proper description
 ## Steps
 
 1. **Tidy up**
-    - Update all `*-application.yaml` files in `playbooks/yaml/argocd-apps/`
+    - Update all `*-application.yaml` files in `playbooks/argocd/apps/`
     - Find: `targetRevision: "current-branch-name"` (note - this is example only, not actual branch name)
     - Replace with: `targetRevision: "main"`
     - Only modify where `repoURL` is `https://github.com/kpoxo6op/soyspray.git`
