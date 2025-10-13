@@ -1,0 +1,10 @@
+# Kustomizes the off-site backup app; manages media backup resources in immich namespace
+# Note: Database ScheduledBackup is managed separately in the immich-db app (postgresql namespace)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: immich
+resources:
+  - sa.yaml
+  - configmap-scripts.yaml
+  - cronjob-media-sync.yaml
+

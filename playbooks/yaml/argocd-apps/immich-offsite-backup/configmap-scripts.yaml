@@ -1,0 +1,38 @@
+# Script used by the media backup CronJob; reads env from Secret and syncs PVC -> S3
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: immich-offsite-backup-scripts
+  namespace: immich
+data:
+  backup-media.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    export AWS_EC2_METADATA_DISABLED=true
+
+    : "${AWS_ACCESS_KEY_ID:?Missing}"
+    : "${AWS_SECRET_ACCESS_KEY:?Missing}"
+    : "${AWS_REGION:?Missing}"
+    : "${BUCKET_NAME:?Missing}"
+    : "${MEDIA_PREFIX:?Missing}"
+
+    SRC="/library"
+    DST="s3://${BUCKET_NAME}/${MEDIA_PREFIX%/}"
+
+    export AWS_MAX_ATTEMPTS=10
+    aws --version
+
+    aws configure set default.s3.max_concurrent_requests 20
+    aws configure set default.s3.multipart_threshold 64MB
+    aws configure set default.s3.multipart_chunksize 64MB
+
+    # Back up only original content: upload/, library/, profile/
+    # Skip generated content: thumbs/, encoded-video/, backups/
+    for d in upload library profile; do
+      if [ -d "${SRC}/${d}" ]; then
+        echo "Backing up ${d}/"
+        aws s3 sync "${SRC}/${d}" "${DST}/${d}/" --no-progress --only-show-errors
+      fi
+    done
+
