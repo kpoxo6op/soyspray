@@ -11,11 +11,9 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: "https://github.com/prometheus-community/helm-charts.git"
-    path: charts/kube-prometheus-stack/charts/crds
-    targetRevision: kube-prometheus-stack-67.7.0
-    directory:
-      recurse: true
+    repoURL: "https://prometheus-community.github.io/helm-charts"
+    chart: prometheus-operator-crds
+    targetRevision: 16.0.1
   destination:
     server: "https://kubernetes.default.svc"
     namespace: monitoring
