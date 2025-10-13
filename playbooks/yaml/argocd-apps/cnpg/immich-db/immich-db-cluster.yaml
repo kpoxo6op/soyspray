@@ -1,3 +1,4 @@
+# playbooks/yaml/argocd-apps/cnpg/immich-db/immich-db-cluster.yaml
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -25,3 +26,17 @@ spec:
   postgresql:
     shared_preload_libraries:
     - vectors
+  backup:
+    retentionPolicy: "60d"
+    barmanObjectStore:
+      destinationPath: s3://immich-offsite-archive-au2/immich/db/
+      s3Credentials:
+        accessKeyId:
+          name: immich-offsite-writer
+          key: AWS_ACCESS_KEY_ID
+        secretAccessKey:
+          name: immich-offsite-writer
+          key: AWS_SECRET_ACCESS_KEY
+        region:
+          name: immich-offsite-writer
+          key: AWS_REGION

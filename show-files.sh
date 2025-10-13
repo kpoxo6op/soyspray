@@ -3,6 +3,17 @@
 # Use provided path or current directory if none provided
 TARGET_PATH="${1:-.}"
 
+# Extract basename from path and generate timestamp
+BASENAME=$(basename "$TARGET_PATH")
+TIMESTAMP=$(date +%Y-%m-%d-%H-%M-%S)
+OUTPUT_FILE="${BASENAME}-${TIMESTAMP}.txt"
+
+# Print message to stderr before redirecting stdout
+echo "Saving output to: $OUTPUT_FILE" >&2
+
+# Redirect all output to the file
+exec > "$OUTPUT_FILE"
+
 # Print current directory tree
 echo "=== Directory Structure for: $TARGET_PATH ==="
 tree "$TARGET_PATH"
