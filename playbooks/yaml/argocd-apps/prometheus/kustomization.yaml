@@ -78,3 +78,4 @@ configMapGenerator:
 
 resources:
   - alerts/temperature-alerts.yaml
+  - alerts/backups-essential.yaml
