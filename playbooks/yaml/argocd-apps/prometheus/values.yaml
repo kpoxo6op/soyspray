@@ -26,6 +26,8 @@ prometheus:
     replicas: 1
     retention: 15d
     walCompression: true
+    # Allow discovery of PodMonitors without release label (e.g., CNPG-managed)
+    podMonitorSelectorNilUsesHelmValues: false
     # Global scrape configurations
     scrapeInterval: 60s
     scrapeTimeout: 30s
