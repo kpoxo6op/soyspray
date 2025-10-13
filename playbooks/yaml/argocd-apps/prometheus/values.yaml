@@ -37,6 +37,13 @@ grafana:
     date_formats:
       default_timezone: "Pacific/Auckland"
   defaultDashboardsTimezone: "Pacific/Auckland"
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki.logging.svc.cluster.local:3100
+      jsonData:
+        maxLines: 2000
   sidecar:
     dashboards:
       enabled: true

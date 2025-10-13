@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: loki
+  namespace: logging
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: soyspray-observability
+spec:
+  serviceName: loki
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: loki
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: loki
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/part-of: soyspray-observability
+    spec:
+      serviceAccountName: loki
+      securityContext:
+        fsGroup: 10001
+      containers:
+        - name: loki
+          image: grafana/loki:3.0.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-config.file=/etc/loki/config/loki.yaml"
+            - "-target=all"
+          ports:
+            - name: http
+              containerPort: 3100
+            - name: grpc
+              containerPort: 9095
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+          volumeMounts:
+            - name: loki-config
+              mountPath: /etc/loki/config
+            - name: loki-rules
+              mountPath: /etc/loki/rules
+            - name: data
+              mountPath: /var/loki
+      volumes:
+        - name: loki-config
+          configMap:
+            name: loki-config
+            items:
+              - key: loki.yaml
+                path: loki.yaml
+        - name: loki-rules
+          configMap:
+            name: loki-alert-rules
+            items:
+              - key: alerts.yaml
+                path: alerts.yaml
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+        labels:
+          app.kubernetes.io/name: loki
+          app.kubernetes.io/component: backend
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 50Gi

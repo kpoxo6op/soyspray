@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: loki-alert-rules
+  namespace: logging
+  labels:
+    app.kubernetes.io/name: loki
+    app.kubernetes.io/component: ruler
+    app.kubernetes.io/part-of: soyspray-observability
+data:
+  alerts.yaml: |
+    groups:
+      - name: loki-log-slo
+        rules:
+          - alert: LokiHighErrorRate
+            expr: |
+              sum by (namespace, app, job) (
+                rate({log_type="application"} |= "(?i)error" [5m])
+              ) > 0.5
+            for: 10m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High log error rate for {{ $labels.app | default $labels.job }} in {{ $labels.namespace }}"
+              description: |
+                Error log throughput has remained above 0.5 lines/sec for 10 minutes.
+                Inspect offending workload in namespace {{ $labels.namespace }}.
+          - alert: LokiExcessiveLogVolume
+            expr: |
+              sum by (namespace) (
+                rate({log_type="application"}[1m])
+              ) > 400
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High log volume in namespace {{ $labels.namespace }}"
+              description: |
+                Namespace {{ $labels.namespace }} has sustained more than 400 log lines per second.
+                Check for noisy workloads to avoid saturating Loki.
+          - alert: KubernetesEventStorm
+            expr: |
+              sum by (namespace) (
+                rate({log_type="event"}[1m])
+              ) > 15
+            for: 3m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Kubernetes event storm in namespace {{ $labels.namespace }}"
+              description: |
+                Kubernetes events for namespace {{ $labels.namespace }} exceeded 15 per second.
+                Investigate failing controllers or crash loops.

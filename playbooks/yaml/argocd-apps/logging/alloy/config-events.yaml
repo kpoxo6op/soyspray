@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-alloy-events
+  namespace: logging
+  labels:
+    app.kubernetes.io/name: grafana-alloy
+    app.kubernetes.io/component: events
+    app.kubernetes.io/part-of: soyspray-observability
+data:
+  config.alloy: |
+    logging {
+      level  = "info"
+      format = "logfmt"
+    }
+
+    kubernetes.events "cluster" {
+      namespaces = []
+    }
+
+    loki.write "cluster" {
+      endpoint {
+        url = "http://loki.logging.svc.cluster.local:3100/loki/api/v1/push"
+      }
+    }
+
+    loki.source.kubernetes_events "events" {
+      events     = kubernetes.events.cluster.receiver
+      job        = "kubernetes-events"
+      forward_to = [loki.process.events.receiver]
+    }
+
+    loki.process "events" {
+      forward_to = [loki.write.cluster.receiver]
+
+      stage.labels {
+        values = {
+          cluster  = "soycluster"
+          log_type = "event"
+        }
+      }
+
+      stage.labelmap {
+        source_labels = ["namespace"]
+        target_label  = "namespace"
+      }
+    }

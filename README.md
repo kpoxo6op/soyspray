@@ -75,7 +75,17 @@ Run Soyspray Runbook
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu main.yml --tags argocd,storage
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/hello-soy.yml
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/manage-argocd-apps.yml --tags pihole
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/manage-argocd-apps.yml --tags logging
 ```
+
+## Logging and Alerting
+
+The `logging` tag on `manage-argocd-apps.yml` provisions Grafana Loki backed by
+Longhorn and Grafana Alloy agents. The stack collects pod logs and Kubernetes
+events from every namespace, exposes them in Grafana Explore via an auto-created
+Loki datasource, enforces time-based retention (30 days by default), and ships
+LogQL alert rules to Alertmanager for spikes in error rate, total volume, and
+event storms.
 
 ## Bookmarks
 
