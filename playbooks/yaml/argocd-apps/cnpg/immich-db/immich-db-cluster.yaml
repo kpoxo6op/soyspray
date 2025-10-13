@@ -26,6 +26,8 @@ spec:
   postgresql:
     shared_preload_libraries:
     - vectors
+  monitoring:
+    enablePodMonitor: true
   backup:
     retentionPolicy: "60d"
     barmanObjectStore:
