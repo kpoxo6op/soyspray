@@ -520,3 +520,125 @@
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/immich/immich-application.yaml') }}"
       tags: immich
+
+    # Verify and load Immich offsite backup credentials from .env
+    - name: Verify and load Immich offsite backup credentials from .env
+      block:
+        - name: Load OFFSITE_BACKUP_AWS_ACCESS_KEY_ID from .env
+          set_fact:
+            offsite_backup_aws_access_key_id: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_AWS_ACCESS_KEY_ID=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OFFSITE_BACKUP_AWS_SECRET_ACCESS_KEY from .env
+          set_fact:
+            offsite_backup_aws_secret_access_key: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_AWS_SECRET_ACCESS_KEY=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OFFSITE_BACKUP_AWS_REGION from .env
+          set_fact:
+            offsite_backup_aws_region: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_AWS_REGION=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OFFSITE_BACKUP_BUCKET_NAME from .env
+          set_fact:
+            offsite_backup_bucket_name: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_BUCKET_NAME=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OFFSITE_BACKUP_MEDIA_PREFIX from .env
+          set_fact:
+            offsite_backup_media_prefix: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_MEDIA_PREFIX=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Validate offsite backup credentials
+          fail:
+            msg: "{{ item.name }} is empty/missing in .env file"
+          when: item.value | length == 0
+          loop:
+            - { name: "OFFSITE_BACKUP_AWS_ACCESS_KEY_ID", value: "{{ offsite_backup_aws_access_key_id }}" }
+            - { name: "OFFSITE_BACKUP_AWS_SECRET_ACCESS_KEY", value: "{{ offsite_backup_aws_secret_access_key }}" }
+            - { name: "OFFSITE_BACKUP_AWS_REGION", value: "{{ offsite_backup_aws_region }}" }
+            - { name: "OFFSITE_BACKUP_BUCKET_NAME", value: "{{ offsite_backup_bucket_name }}" }
+            - { name: "OFFSITE_BACKUP_MEDIA_PREFIX", value: "{{ offsite_backup_media_prefix }}" }
+      rescue:
+        - name: Fail with helpful message
+          fail:
+            msg: "Error: .env file not found or offsite backup credentials invalid"
+      tags: immich-offsite-backup
+
+    # Create Immich offsite backup writer secret in immich namespace (for media CronJob)
+    - name: Create Immich offsite backup writer secret (immich namespace)
+      kubernetes.core.k8s:
+        state: present
+        namespace: immich
+        kubeconfig: "{{ kubeconfig_path }}"
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: immich-offsite-writer
+            namespace: immich
+          stringData:
+            AWS_ACCESS_KEY_ID: "{{ offsite_backup_aws_access_key_id }}"
+            AWS_SECRET_ACCESS_KEY: "{{ offsite_backup_aws_secret_access_key }}"
+            AWS_REGION: "{{ offsite_backup_aws_region }}"
+            BUCKET_NAME: "{{ offsite_backup_bucket_name }}"
+            MEDIA_PREFIX: "{{ offsite_backup_media_prefix }}"
+      tags: immich-offsite-backup
+
+    # Create same secret in postgresql namespace (for CNPG ScheduledBackup)
+    - name: Create Immich offsite backup writer secret (postgresql namespace)
+      kubernetes.core.k8s:
+        state: present
+        namespace: postgresql
+        kubeconfig: "{{ kubeconfig_path }}"
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: immich-offsite-writer
+            namespace: postgresql
+          stringData:
+            AWS_ACCESS_KEY_ID: "{{ offsite_backup_aws_access_key_id }}"
+            AWS_SECRET_ACCESS_KEY: "{{ offsite_backup_aws_secret_access_key }}"
+            AWS_REGION: "{{ offsite_backup_aws_region }}"
+            BUCKET_NAME: "{{ offsite_backup_bucket_name }}"
+            MEDIA_PREFIX: "{{ offsite_backup_media_prefix }}"
+      tags: immich-offsite-backup
+
+    - name: Apply Immich Offsite Backup Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/immich-offsite-backup/immich-offsite-backup-application.yaml') }}"
+      tags: immich-offsite-backup
