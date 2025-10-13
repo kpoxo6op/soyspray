@@ -173,7 +173,7 @@ Bot Pod → api.telegram.org (polling/responses)
 ### Environment Variables
 
 ```yaml
-TELEGRAM_BOT_TOKEN: <from-secret>
+DINGU_TELEGRAM_BOT_TOKEN: <from-secret>
 PROWLARR_API_KEY: <from-secret>
 PROWLARR_URL: "http://prowlarr.media.svc.cluster.local:9696"
 QBITTORRENT_URL: "http://qbittorrent.media.svc:8080"

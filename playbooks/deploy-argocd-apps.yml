@@ -25,12 +25,12 @@
     - name: Verify and load Telegram token from .env
       block:
 
-        - name: Load TELEGRAM_BOT_TOKEN from .env
+        - name: Load PROMETHEUS_TELEGRAM_BOT_TOKEN from .env
           set_fact:
-            telegram_bot_token: >-
+            prometheus_telegram_bot_token: >-
               {{
                 lookup('file', playbook_dir + '/../.env')
-                | regex_findall('TELEGRAM_BOT_TOKEN=([^\n]+)')
+                | regex_findall('PROMETHEUS_TELEGRAM_BOT_TOKEN=([^\n]+)')
                 | first
                 | default('')
                 | trim
@@ -39,17 +39,17 @@
         - name: Debug token length
           debug:
             msg: >-
-              Token length: {{ telegram_bot_token | length }}
-              First chars: {{ telegram_bot_token | truncate(5, True, '') }}
+              Token length: {{ prometheus_telegram_bot_token | length }}
+              First chars: {{ prometheus_telegram_bot_token | truncate(5, True, '') }}
 
-        - name: Validate TELEGRAM_BOT_TOKEN
+        - name: Validate PROMETHEUS_TELEGRAM_BOT_TOKEN
           fail:
-            msg: "TELEGRAM_BOT_TOKEN is empty/missing in .env file"
-          when: telegram_bot_token | length == 0
+            msg: "PROMETHEUS_TELEGRAM_BOT_TOKEN is empty/missing in .env file"
+          when: prometheus_telegram_bot_token | length == 0
       rescue:
         - name: Fail with helpful message
           fail:
-            msg: "Error: .env file not found or TELEGRAM_BOT_TOKEN invalid"
+            msg: "Error: .env file not found or PROMETHEUS_TELEGRAM_BOT_TOKEN invalid"
       tags: prometheus
 
     - name: Create monitoring namespace
@@ -74,7 +74,7 @@
             name: alertmanager-telegram-secret
             namespace: monitoring
           data:
-            TELEGRAM_BOT_TOKEN: "{{ telegram_bot_token | b64encode }}"
+            PROMETHEUS_TELEGRAM_BOT_TOKEN: "{{ prometheus_telegram_bot_token | b64encode }}"
       tags: prometheus
 
     - name: Apply Prometheus CRDs
