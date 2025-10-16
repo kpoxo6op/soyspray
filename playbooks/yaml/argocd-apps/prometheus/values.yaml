@@ -111,6 +111,16 @@ grafana:
       provider:
         name: 'default'
         orgId: 1
+      additionalDataSources:
+        - name: Loki
+          type: loki
+          access: proxy
+          url: http://loki.monitoring.svc.cluster.local:3100
+          isDefault: false
+          editable: true
+          jsonData:
+            httpMethod: GET
+            timeout: 60
 
   service:
     type: ClusterIP

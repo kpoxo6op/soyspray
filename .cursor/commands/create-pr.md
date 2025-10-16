@@ -28,4 +28,5 @@ Create a well-structured pull request with proper description
     - Verify branch is up to date with main
 4. **Set up PR**
     - Summarize changes clearly
-    - Create PR with descriptive title and description.  Never use emojis.
+    - Check if the branch already has a PR open, if so, update the PR instead of creating a new one.
+    - Create PR with descriptive title and description. Use gh CLI as priority. Never use emojis, deter from using bulletpoints, use coherent sentences, keep the line lengh under 80 chars. Use bulletpoints as the last resort.

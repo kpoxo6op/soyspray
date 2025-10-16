@@ -1,7 +1,36 @@
 #!/bin/bash
 
-# Use provided path or current directory if none provided
-TARGET_PATH="${1:-.}"
+# Initialize variables
+TARGET_PATH="."
+EXCLUDE_PATTERNS=()
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -e|--exclude)
+            EXCLUDE_PATTERNS+=("$2")
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: $0 [TARGET_PATH] [-e|--exclude PATTERN]..."
+            echo ""
+            echo "Options:"
+            echo "  TARGET_PATH              Directory to scan (default: current directory)"
+            echo "  -e, --exclude PATTERN    Exclude files/folders matching PATTERN (can be used multiple times)"
+            echo "  -h, --help               Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0 /path/to/dir"
+            echo "  $0 /path/to/dir -e node_modules -e '*.log'"
+            echo "  $0 . -e soyspray-venv -e kubespray"
+            exit 0
+            ;;
+        *)
+            TARGET_PATH="$1"
+            shift
+            ;;
+    esac
+done
 
 # Extract basename from path and generate timestamp
 BASENAME=$(basename "$TARGET_PATH")
@@ -10,13 +39,26 @@ OUTPUT_FILE="${BASENAME}-${TIMESTAMP}.txt"
 
 # Print message to stderr before redirecting stdout
 echo "Saving output to: $OUTPUT_FILE" >&2
+if [ ${#EXCLUDE_PATTERNS[@]} -gt 0 ]; then
+    echo "Excluding patterns: ${EXCLUDE_PATTERNS[*]}" >&2
+fi
 
 # Redirect all output to the file
 exec > "$OUTPUT_FILE"
 
+# Build tree exclude options
+TREE_EXCLUDE=""
+for pattern in "${EXCLUDE_PATTERNS[@]}"; do
+    TREE_EXCLUDE="$TREE_EXCLUDE -I '$pattern'"
+done
+
 # Print current directory tree
 echo "=== Directory Structure for: $TARGET_PATH ==="
-tree "$TARGET_PATH"
+if [ -n "$TREE_EXCLUDE" ]; then
+    eval "tree $TREE_EXCLUDE '$TARGET_PATH'"
+else
+    tree "$TARGET_PATH"
+fi
 echo ""
 
 # Function to display file content, with special handling for JSON files
@@ -67,8 +109,15 @@ display_file_content() {
     echo ""
 }
 
+# Build find exclude options
+FIND_EXCLUDE_ARGS=()
+for pattern in "${EXCLUDE_PATTERNS[@]}"; do
+    # Handle both directory names and file patterns
+    FIND_EXCLUDE_ARGS+=(-not -path "*/$pattern/*" -not -path "*/$pattern" -not -name "$pattern")
+done
+
 # Find and display all regular files
 echo "=== File Contents ==="
-find "$TARGET_PATH" -type f ! -path "*/\.*" -print0 | while IFS= read -r -d '' file; do
+find "$TARGET_PATH" -type f ! -path "*/\.*" "${FIND_EXCLUDE_ARGS[@]}" -print0 | while IFS= read -r -d '' file; do
     display_file_content "$file"
 done
