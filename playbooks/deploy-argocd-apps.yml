@@ -412,59 +412,6 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prowlarr/prowlarr-application.yaml') }}"
       tags: prowlarr
 
-    # - name: Apply Dingu Bot
-    #   kubernetes.core.k8s:
-    #     state: present
-    #     kubeconfig: "{{ kubeconfig_path }}"
-    #     namespace: argocd
-    #     definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/dingu/dingu-application.yaml') }}"
-    #   tags: dingu
-
-    # Verify and load Dingu Telegram bot token from .env
-    - name: Verify and load Dingu Telegram bot token from .env
-      block:
-        - name: Load DINGU_TELEGRAM_BOT_TOKEN from .env
-          set_fact:
-            dingu_telegram_bot_token: >-
-              {{
-                lookup('file', playbook_dir + '/../.env')
-                | regex_findall('DINGU_TELEGRAM_BOT_TOKEN=([^\n]+)')
-                | first
-                | default('')
-                | trim
-              }}
-
-        - name: Debug Dingu token length
-          debug:
-            msg: >-
-              Dingu token length: {{ dingu_telegram_bot_token | length }}
-              First chars: {{ dingu_telegram_bot_token | truncate(5, True, '') }}
-
-        - name: Validate DINGU_TELEGRAM_BOT_TOKEN
-          fail:
-            msg: "DINGU_TELEGRAM_BOT_TOKEN is empty/missing in .env file"
-          when: dingu_telegram_bot_token | length == 0
-      rescue:
-        - name: Fail with helpful message for Dingu
-          fail:
-            msg: "Error: .env file not found or DINGU_TELEGRAM_BOT_TOKEN invalid"
-      tags: dingu
-
-    # Create Kubernetes Secret for Dingu bot
-    - name: Create Kubernetes Secret for Dingu bot
-      kubernetes.core.k8s:
-        state: present
-        namespace: media
-        kubeconfig: "{{ kubeconfig_path }}"
-        resource_definition:
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: dingu-bot-secrets
-            namespace: media
-          data:
-            DINGU_TELEGRAM_BOT_TOKEN: "{{ dingu_telegram_bot_token | b64encode }}"
-      tags: dingu
     - name: Apply lazylibrarian Configuration
       kubernetes.core.k8s:
         state: present
