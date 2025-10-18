@@ -48,3 +48,5 @@ Expected: Non-zero count
 ## Verify Alert
 
 Wait 2 minutes for alert to fire, then check Telegram for ImmichMediaBackupFailureImmediate notification.
+
+![Telegram notification example](img/Test-ImmichMediaBackupFailureImmediate.png)
