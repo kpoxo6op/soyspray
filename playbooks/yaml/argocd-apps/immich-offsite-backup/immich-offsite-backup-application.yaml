@@ -8,7 +8,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: main
+    targetRevision: issue-86-test-immich-backup-alerts
     path: playbooks/yaml/argocd-apps/immich-offsite-backup
   destination:
     server: https://kubernetes.default.svc
