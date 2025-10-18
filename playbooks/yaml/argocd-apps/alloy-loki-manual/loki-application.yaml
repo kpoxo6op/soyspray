@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "main"
+    targetRevision: "issue-86-test-immich-backup-alerts"
     path: playbooks/yaml/argocd-apps/alloy-loki-manual
   destination:
     server: "https://kubernetes.default.svc"
