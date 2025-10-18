@@ -20,7 +20,7 @@ spec:
       template:
         spec:
           serviceAccountName: immich-offsite-backup
-          restartPolicy: OnFailure
+          restartPolicy: Never
           terminationGracePeriodSeconds: 30
           containers:
             - name: aws-sync
