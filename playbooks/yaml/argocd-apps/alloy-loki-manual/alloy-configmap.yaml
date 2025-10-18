@@ -15,17 +15,34 @@ data:
       level = "info"
     }
 
-    discovery.kubernetes "pods" {
-      role = "pod"
+    local.file_match "pod_logs" {
+      path_targets = [
+        { __path__ = "/var/log/pods/*/*/*.log" },
+      ]
     }
 
-    loki.source.kubernetes "pods" {
-      targets    = discovery.kubernetes.pods.targets
-      forward_to = [loki.process.pod_logs.receiver]
+    loki.source.file "pod_logs" {
+      targets       = local.file_match.pod_logs.targets
+      tail_from_end = false
+      forward_to    = [loki.process.pod_logs.receiver]
     }
 
     loki.process "pod_logs" {
       forward_to = [loki.write.default.receiver]
+
+      // Derive k8s labels from the log file path:
+      // /var/log/pods/<ns>_<pod>_<uid>/<container>/<n>.log
+      stage.regex {
+        expression = "/var/log/pods/(?P<namespace>[^_]+)_(?P<pod>[^_]+)_[^/]+/(?P<container>[^/]+)/.*"
+      }
+
+      stage.labels {
+        values = {
+          namespace = "namespace",
+          pod       = "pod",
+          container = "container",
+        }
+      }
 
       stage.cri {}
 
