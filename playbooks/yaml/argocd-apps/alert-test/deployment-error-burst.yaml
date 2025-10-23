@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: error-burst
+  labels:
+    app: error-burst
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: error-burst
+  template:
+    metadata:
+      labels:
+        app: error-burst
+    spec:
+      containers:
+        - name: burster
+          image: alpine:latest
+          command: ["sh","-c","for i in $(seq 1 2000); do echo \"level=error msg=demo-burst $i\"; done; sleep 300"]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 20m
+              memory: 32Mi
+

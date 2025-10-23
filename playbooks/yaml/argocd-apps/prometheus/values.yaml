@@ -1,5 +1,5 @@
 # playbooks/yaml/argocd-apps/prometheus/values.yaml
-
+# kubectl exec -n monitoring alertmanager-kube-prometheus-stack-alertmanager-0 -c alertmanager -- cat /etc/alertmanager/config/soy-telegram.tmpl
 namespaceOverride: monitoring
 
 prometheus:
@@ -26,12 +26,12 @@ prometheus:
     replicas: 1
     retention: 15d
     walCompression: true
-    # Allow discovery of PodMonitors without release label (e.g., CNPG-managed)
     podMonitorSelectorNilUsesHelmValues: false
-    # Global scrape configurations
     scrapeInterval: 60s
     scrapeTimeout: 30s
     evaluationInterval: 60s
+    externalLabels:
+      cluster: soyspray
     resources:
       requests:
         cpu: 150m
@@ -54,9 +54,6 @@ prometheus:
         metrics_path: /metrics
         scrape_interval: 60s
         scrape_timeout: 30s
-    # ruleSelector:
-    #   matchLabels:
-    #     release: prometheus
 
   additionalServiceMonitors:
     - name: cert-manager
@@ -166,7 +163,7 @@ alertmanager:
     global:
       resolve_timeout: 5m
     route:
-      group_by: ["alertname"]
+      group_by: ["alertname","namespace","severity"]
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 4h
@@ -181,6 +178,30 @@ alertmanager:
           - api_url: "https://api.telegram.org"
             bot_token_file: /etc/alertmanager/telegram/PROMETHEUS_TELEGRAM_BOT_TOKEN
             chat_id: 336642153
+            parse_mode: HTML
+            message: '{{ template "soy.telegram" . }}'
+    templates:
+      - '/etc/alertmanager/config/*.tmpl'
+  templateFiles:
+    soy-telegram.tmpl: |
+      {{- define "soy.telegram" -}}
+      {{- if eq .Status "firing" -}}🔥 FIRING{{- else -}}✅ RESOLVED{{- end }} [{{ .CommonLabels.severity }}] {{ .CommonLabels.alertname }} ({{ len .Alerts }})
+
+      {{- range .Alerts }}
+      - Alert
+        ns={{ .Labels.namespace }}{{ if .Labels.deployment }} deploy={{ .Labels.deployment }}{{ end }}{{ if .Labels.pod }} pod={{ .Labels.pod }}{{ end }}{{ if .Labels.container }} container={{ .Labels.container }}{{ end }}{{ if .Labels.node }} node={{ .Labels.node }}{{ end }}{{ if .Labels.reason }} reason={{ .Labels.reason }}{{ end }}
+        {{- $text := .Annotations.summary -}}
+        {{- if eq $text "" -}}{{- $text = .Annotations.description -}}{{- end -}}
+        {{ $text }}
+        {{- if .GeneratorURL }}
+        Source: <a href="{{ .GeneratorURL }}">open</a>
+        {{- end }}
+
+      {{- end }}
+      {{- if .CommonAnnotations.runbook_url }}
+      Runbook: <a href="{{ .CommonAnnotations.runbook_url }}">open</a>
+      {{- end }}
+      {{- end }}
 
 prometheus-node-exporter:
   namespaceOverride: monitoring
@@ -202,8 +223,6 @@ kube-state-metrics:
       cpu: 100m
       memory: 128Mi
 
-# Disabled until proper etcd certificates are configured for Prometheus to
-# access etcd metrics
 kubeEtcd:
   enabled: false
 

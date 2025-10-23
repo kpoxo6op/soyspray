@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: always-fail
+  labels:
+    app: always-fail
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: always-fail
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: fail
+          image: alpine:latest
+          command: ["sh","-c","echo 'job failing'; exit 1"]
+
