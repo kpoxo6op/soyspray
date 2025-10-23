@@ -38,6 +38,13 @@ Install tools
 ```sh
 sudo apt install make -y
 sudo make install
+
+# Install k9s
+curl -sS https://webi.sh/k9s | sh
+source ~/.config/envman/PATH.env
+
+# Install argonaut
+curl -sSL https://raw.githubusercontent.com/darksworm/argonaut/main/install.sh | sudo sh
 ```
 
 Test
@@ -46,6 +53,19 @@ Test
 kubectl get nodes
 NAME     STATUS   ROLES           AGE     VERSION
 # nodes
+```
+
+ArgoCD setup
+
+```sh
+# Set config directory to avoid legacy path issues
+export ARGOCD_CONFIG_DIR="$HOME/.config/argocd"
+
+# Login to ArgoCD
+argocd login argocd.soyspray.vip --grpc-web --username admin --password password
+
+# Test argonaut (requires TTY)
+argonaut
 ```
 
 Venv
