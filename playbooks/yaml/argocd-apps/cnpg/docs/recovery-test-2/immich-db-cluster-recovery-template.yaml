@@ -1,4 +1,5 @@
 # playbooks/yaml/argocd-apps/cnpg/immich-db/immich-db-cluster.yaml
+# Recovery configuration template for CNPG PITR from S3
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
@@ -14,8 +15,8 @@ spec:
     recovery:
       source: immich-db-backup
       recoveryTarget:
-        targetTime: "2025-10-24 08:35:00+00:00"
-    # initdb:
+        targetTime: "2025-10-24 20:53:45+00:00"  # Recovery drill target: Latest WAL 00000001000000000000000E
+    # initdb:  # DISABLED during recovery - re-enable after successful restore
     #   database: immich
     #   owner: immich
     #   secret:
@@ -31,10 +32,10 @@ spec:
     - name: immich-db-backup
       barmanObjectStore:
         destinationPath: s3://immich-offsite-archive-au2/immich/db/
-        serverName: immich-db
+        serverName: immich-db  # CRITICAL: Must match backup directory name in S3
         s3Credentials:
           accessKeyId:
-            name: immich-offsite-restorer
+            name: immich-offsite-restorer  # Use read-only restorer credentials
             key: AWS_ACCESS_KEY_ID
           secretAccessKey:
             name: immich-offsite-restorer
@@ -47,17 +48,18 @@ spec:
     - vectors
   monitoring:
     enablePodMonitor: true
-  backup:
-    retentionPolicy: "60d"
-    barmanObjectStore:
-      destinationPath: s3://immich-offsite-archive-au2/immich/db/
-      s3Credentials:
-        accessKeyId:
-          name: immich-offsite-writer
-          key: AWS_ACCESS_KEY_ID
-        secretAccessKey:
-          name: immich-offsite-writer
-          key: AWS_SECRET_ACCESS_KEY
-        region:
-          name: immich-offsite-writer
-          key: AWS_REGION
+  # backup:  # DISABLED during recovery to avoid WAL archive conflicts
+  #   retentionPolicy: "60d"
+  #   barmanObjectStore:
+  #     destinationPath: s3://immich-offsite-archive-au2/immich/db/
+  #     s3Credentials:
+  #       accessKeyId:
+  #         name: immich-offsite-writer
+  #         key: AWS_ACCESS_KEY_ID
+  #       secretAccessKey:
+  #         name: immich-offsite-writer
+  #         key: AWS_SECRET_ACCESS_KEY
+  #       region:
+  #         name: immich-offsite-writer
+  #         key: AWS_REGION
+

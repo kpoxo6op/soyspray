@@ -32,7 +32,7 @@ data:
     for d in upload library profile; do
       if [ -d "${SRC}/${d}" ]; then
         echo "Backing up ${d}/"
-        aws s3 sync "${SRC}/${d}" "${DST}/${d}/" --no-progress --only-show-errors
+        aws s3 sync "${SRC}/${d}" "${DST}/${d}/" --no-progress --only-show-errors --no-follow-symlinks
       fi
     done
 
