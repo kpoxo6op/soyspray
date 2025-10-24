@@ -487,23 +487,45 @@
     # Verify and load Immich offsite backup credentials from .env
     - name: Verify and load Immich offsite backup credentials from .env
       block:
-        - name: Load OFFSITE_BACKUP_AWS_ACCESS_KEY_ID from .env
+        - name: Load OFFSITE_BACKUP_WRITER_AWS_ACCESS_KEY_ID from .env
           set_fact:
             offsite_backup_aws_access_key_id: >-
               {{
                 lookup('file', playbook_dir + '/../.env')
-                | regex_findall('OFFSITE_BACKUP_AWS_ACCESS_KEY_ID=([^\n]+)')
+                | regex_findall('OFFSITE_BACKUP_WRITER_AWS_ACCESS_KEY_ID=([^\n]+)')
                 | first
                 | default('')
                 | trim
               }}
 
-        - name: Load OFFSITE_BACKUP_AWS_SECRET_ACCESS_KEY from .env
+        - name: Load OFFSITE_BACKUP_WRITER_AWS_SECRET_ACCESS_KEY from .env
           set_fact:
             offsite_backup_aws_secret_access_key: >-
               {{
                 lookup('file', playbook_dir + '/../.env')
-                | regex_findall('OFFSITE_BACKUP_AWS_SECRET_ACCESS_KEY=([^\n]+)')
+                | regex_findall('OFFSITE_BACKUP_WRITER_AWS_SECRET_ACCESS_KEY=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OFFSITE_BACKUP_RESTORER_AWS_ACCESS_KEY_ID from .env
+          set_fact:
+            offsite_backup_restorer_aws_access_key_id: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_RESTORER_AWS_ACCESS_KEY_ID=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OFFSITE_BACKUP_RESTORER_AWS_SECRET_ACCESS_KEY from .env
+          set_fact:
+            offsite_backup_restorer_aws_secret_access_key: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_RESTORER_AWS_SECRET_ACCESS_KEY=([^\n]+)')
                 | first
                 | default('')
                 | trim
@@ -547,8 +569,10 @@
             msg: "{{ item.name }} is empty/missing in .env file"
           when: item.value | length == 0
           loop:
-            - { name: "OFFSITE_BACKUP_AWS_ACCESS_KEY_ID", value: "{{ offsite_backup_aws_access_key_id }}" }
-            - { name: "OFFSITE_BACKUP_AWS_SECRET_ACCESS_KEY", value: "{{ offsite_backup_aws_secret_access_key }}" }
+            - { name: "OFFSITE_BACKUP_WRITER_AWS_ACCESS_KEY_ID", value: "{{ offsite_backup_aws_access_key_id }}" }
+            - { name: "OFFSITE_BACKUP_WRITER_AWS_SECRET_ACCESS_KEY", value: "{{ offsite_backup_aws_secret_access_key }}" }
+            - { name: "OFFSITE_BACKUP_RESTORER_AWS_ACCESS_KEY_ID", value: "{{ offsite_backup_restorer_aws_access_key_id }}" }
+            - { name: "OFFSITE_BACKUP_RESTORER_AWS_SECRET_ACCESS_KEY", value: "{{ offsite_backup_restorer_aws_secret_access_key }}" }
             - { name: "OFFSITE_BACKUP_AWS_REGION", value: "{{ offsite_backup_aws_region }}" }
             - { name: "OFFSITE_BACKUP_BUCKET_NAME", value: "{{ offsite_backup_bucket_name }}" }
             - { name: "OFFSITE_BACKUP_MEDIA_PREFIX", value: "{{ offsite_backup_media_prefix }}" }
@@ -593,6 +617,26 @@
           stringData:
             AWS_ACCESS_KEY_ID: "{{ offsite_backup_aws_access_key_id }}"
             AWS_SECRET_ACCESS_KEY: "{{ offsite_backup_aws_secret_access_key }}"
+            AWS_REGION: "{{ offsite_backup_aws_region }}"
+            BUCKET_NAME: "{{ offsite_backup_bucket_name }}"
+            MEDIA_PREFIX: "{{ offsite_backup_media_prefix }}"
+      tags: immich-offsite-backup
+
+    # Create Immich offsite backup restorer secret in postgresql namespace (for CNPG restore)
+    - name: Create Immich offsite backup restorer secret (postgresql namespace)
+      kubernetes.core.k8s:
+        state: present
+        namespace: postgresql
+        kubeconfig: "{{ kubeconfig_path }}"
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: immich-offsite-restorer
+            namespace: postgresql
+          stringData:
+            AWS_ACCESS_KEY_ID: "{{ offsite_backup_restorer_aws_access_key_id }}"
+            AWS_SECRET_ACCESS_KEY: "{{ offsite_backup_restorer_aws_secret_access_key }}"
             AWS_REGION: "{{ offsite_backup_aws_region }}"
             BUCKET_NAME: "{{ offsite_backup_bucket_name }}"
             MEDIA_PREFIX: "{{ offsite_backup_media_prefix }}"
