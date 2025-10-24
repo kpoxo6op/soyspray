@@ -1,8 +1,6 @@
-# playbooks/yaml/argocd-apps/cnpg/docs/recovery-test-3/README.md
-
-# Disaster‑grade, blue/green PITR for Immich with a stable DB alias. No deletes, same manifests for drills and real events. Includes one‑time setup, drill runbook, disaster runbook, cutover/rollback, validation, and troubleshooting. References your current ArgoCD/CNPG/Immich layout.
-
 # Recovery Drill 3 — Blue/Green PITR with Stable DB Alias
+
+Blue/green PITR for Immich with DNS alias. No deletes, same manifests for drills and real events.
 
 ## Previous Drill Summary
 
@@ -16,7 +14,7 @@ Encountered timezone conversion error (NZDT vs UTC). Successfully recovered 99 a
 * **Recover as new**: Create a fresh CNPG cluster `immich-db-restore` with `bootstrap.recovery` from S3 + WAL to a UTC `targetTime`.
 * **Switch traffic by alias**: Immich always talks to `immich-db-active.postgresql.svc.cluster.local:5432`. Cutover = flip the alias to point at the restored cluster.
 * **Backups**: Keep backups **disabled** on `immich-db-restore` during drills. **Enable** them immediately after cutover in a real event.
-  This aligns with your repo's ArgoCD app layout under `playbooks/yaml/argocd-apps/` and the existing CNPG/Immich structure.
+  This aligns with the ArgoCD app layout under `playbooks/yaml/argocd-apps/` and the existing CNPG/Immich structure.
 
 ```
 Immich App  ─────────────▶  immich-db-active  ──►  immich-db-rw (normal)
@@ -49,7 +47,7 @@ spec:
   externalName: immich-db-rw.postgresql.svc.cluster.local
 ```
 
-Commit it under `playbooks/yaml/argocd-apps/cnpg/` so ArgoCD owns it. 
+Commit it under `playbooks/yaml/argocd-apps/cnpg/` so ArgoCD owns it.
 
 ### 2) Point **Immich** at the alias (once)
 
@@ -60,11 +58,11 @@ env:
   DB_URL: postgresql://immich:immich@immich-db-active.postgresql.svc.cluster.local:5432/immich
 ```
 
-Leave the rest of the chart as is. This replaces the direct `immich-db-rw…` host with the alias and removes future app edits during drills/cutovers. 
+Leave the rest of the chart as is. This replaces the direct `immich-db-rw…` host with the alias and removes future app edits during drills/cutovers.
 
 ### 3) Add the **restore cluster** app: `immich-db-restore`
 
-Create a new path (mirrors your existing CNPG app layout):
+Create a new path (mirrors the existing CNPG app layout):
 `playbooks/yaml/argocd-apps/cnpg/immich-db-restore/`
 
 **Base cluster** (`cluster.yaml`):
@@ -118,7 +116,7 @@ resources:
   - cluster.yaml
 ```
 
-This matches your current CNPG settings (PG16 + pgvecto.rs `vectors`, Longhorn, S3 restorer creds). 
+This matches current CNPG settings (PG16 + pgvecto.rs `vectors`, Longhorn, S3 restorer creds).
 
 ### 4) Add a **timestamp overlay** (the only per‑drill change)
 
@@ -178,7 +176,7 @@ spec:
       - CreateNamespace=true
 ```
 
-Commit and push. Your Ansible playbook `playbooks/deploy-argocd-apps.yml` already drives ArgoCD apps by tag, so keep using it. 
+Commit and push. The Ansible playbook `playbooks/deploy-argocd-apps.yml` already drives ArgoCD apps by tag.
 
 ---
 
@@ -186,7 +184,7 @@ Commit and push. Your Ansible playbook `playbooks/deploy-argocd-apps.yml` alread
 
 ### 0) Preconditions
 
-* `cnpg-operator` is synced (chart app already present). 
+* `cnpg-operator` is synced (chart app already present).
 * Secrets `immich-offsite-restorer` and `immich-offsite-writer` exist in `postgresql`:
 
 ```bash
@@ -229,7 +227,7 @@ kubectl -n postgresql exec "$POD" -- psql -h localhost -U immich -d immich -c "S
 kubectl -n postgresql exec "$POD" -- psql -h localhost -U immich -d immich -c "SELECT COUNT(*) AS assets FROM assets;"
 ```
 
-These checks mirror your CNPG/Immich validation commands. 
+These checks mirror the CNPG/Immich validation commands.
 
 ### 5) Blue/Green **cutover** by flipping the alias
 
@@ -241,7 +239,7 @@ spec:
   externalName: immich-db-restore-rw.postgresql.svc.cluster.local
 ```
 
-Commit, push, and sync the alias Service via ArgoCD. The Immich app already uses the alias in its `DB_URL`, so no app change is required. 
+Commit, push, and sync the alias Service via ArgoCD. The Immich app already uses the alias in its `DB_URL`, so no app change is required.
 
 ### 6) Post‑cutover actions
 
@@ -271,11 +269,11 @@ spec:
           key: AWS_REGION
 ```
 
-Commit this patch in the same restore path to keep GitOps control. Your existing primary cluster uses the same backup shape. 
+Commit this patch in the same restore path to keep GitOps control. The existing primary cluster uses the same backup shape.
 
 ### 7) Media rehydration (if testing a real snapshot)
 
-Use your `immich-offsite-backup` job/cron to sync media back to the `immich-library` PVC, then confirm Immich web UI. The job manifests live under `playbooks/yaml/argocd-apps/immich-offsite-backup/`. 
+Use the `immich-offsite-backup` job/cron to sync media back to the `immich-library` PVC, then confirm Immich web UI. The job manifests live under `playbooks/yaml/argocd-apps/immich-offsite-backup/`.
 
 ### 8) Rollback / Cleanup
 
@@ -286,13 +284,13 @@ Use your `immich-offsite-backup` job/cron to sync media back to the `immich-libr
 
 ## Disaster Runbook (hardware gone, new node)
 
-1. Rebuild Kubernetes with Kubespray using your existing inventory.
-2. Deploy ArgoCD base and your apps with `playbooks/deploy-argocd-apps.yml`. 
+1. Rebuild Kubernetes with Kubespray using the existing inventory.
+2. Deploy ArgoCD base and apps with `playbooks/deploy-argocd-apps.yml`.
 3. Sync `cnpg-operator`.
 4. Sync `immich-db-restore` with the desired UTC `targetTime` overlay and wait for PITR completion.
 5. Flip alias `immich-db-active` to `immich-db-restore-rw`.
 6. Enable backups on `immich-db-restore`.
-7. Sync Immich (already configured to use the alias in `values.yaml`) and rehydrate media from offsite backup if required. 
+7. Sync Immich (already configured to use the alias in `values.yaml`) and rehydrate media from offsite backup if required.
 
 Result: Identical steps to the drill, no destructive deletes, immediate cutover, full GitOps.
 
@@ -301,8 +299,8 @@ Result: Identical steps to the drill, no destructive deletes, immediate cutover,
 ## Troubleshooting
 
 * **Recovery ended before target reached**: `targetTime` exceeded last WAL. Pick a timestamp ≤ the "last completed transaction" reported in the recovery logs, and keep it in `+00:00` UTC format.
-* **Immich cannot connect**: verify the alias `immich-db-active` points to the intended RW Service and that `values.yaml` uses the alias host. 
-* **Extensions/search_path differ**: re‑run the validation queries above. Your CNPG specs already preload `vectors` and set the same runtime. 
+* **Immich cannot connect**: verify the alias `immich-db-active` points to the intended RW Service and that `values.yaml` uses the alias host.
+* **Extensions/search_path differ**: re‑run the validation queries above. The CNPG specs already preload `vectors` and set the same runtime.
 
 ---
 
@@ -310,7 +308,7 @@ Result: Identical steps to the drill, no destructive deletes, immediate cutover,
 
 * Restore pod shows "redo done" and the final "last completed transaction" log line.
 * Validation queries return PG16 with `vectors`, `cube`, `earthdistance` installed; `search_path` is correct; expected row counts are present.
-* Immich responds at `/api/server/ping` after alias cutover. 
+* Immich responds at `/api/server/ping` after alias cutover.
 
 ---
 
@@ -319,5 +317,5 @@ Result: Identical steps to the drill, no destructive deletes, immediate cutover,
 1. Add `Service/immich-db-active` (ExternalName → `immich-db-rw…`).
 2. Update Immich `values.yaml` `DB_URL` to the alias.
 3. Create `immich-db-restore` base + overlay with `targetTime`.
-4. Add `immich-db-restore-application.yaml` targeting your branch.
-5. Run the Drill Runbook above end‑to‑end. 
+4. Add `immich-db-restore-application.yaml` targeting the branch.
+5. Run the Drill Runbook above end‑to‑end.
