@@ -29,4 +29,4 @@ Pushed corrected time, deleted cluster, recreated with ansible playbook.
 
 Recovery successful! Cluster healthy, both databases restored: `immich` (owner: immich) and `app` (owner: app).
 
-Dropped legacy `app` database with `DROP DATABASE app;`. Drill complete.
+Dropped legacy `app` database with `DROP DATABASE app;`. Reverted cluster to normal initdb bootstrap with backups enabled. Drill complete.
