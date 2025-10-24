@@ -13,7 +13,7 @@ spec:
     namespace: immich
   sources:
     - repoURL: https://github.com/kpoxo6op/soyspray.git
-      targetRevision: "main"
+      targetRevision: "recovery-test-3-prep"
       path: playbooks/yaml/argocd-apps/immich
       kustomize:
   syncPolicy:

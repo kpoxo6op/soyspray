@@ -6,7 +6,7 @@ image:
   tag: v2.0.1
 
 env:
-  DB_URL: postgresql://immich:immich@immich-db-rw.postgresql.svc.cluster.local:5432/immich
+  DB_URL: postgresql://immich:immich@immich-db-active.postgresql.svc.cluster.local:5432/immich
   DB_VECTOR_EXTENSION: "pgvecto.rs"
   REDIS_HOSTNAME: redis-master.redis.svc.cluster.local
   REDIS_PORT: "6379"
