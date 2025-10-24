@@ -15,7 +15,7 @@ spec:
       source: immich-db-backup
       recoveryTarget:
         targetTime: "2025-10-24 08:35:00+00:00"
-    # initdb:  # Use this for fresh cluster creation
+    # initdb:
     #   database: immich
     #   owner: immich
     #   secret:
