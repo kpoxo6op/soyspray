@@ -31,14 +31,14 @@
 | Application | Status | Endpoint | Method |
 |-------------|--------|----------|--------|
 | **Infrastructure** |
-| Kubernetes API Server | ✅ Up | `192.168.50.103:6443` | ServiceMonitor |
+| Kubernetes API Server | ✅ Up | `192.168.1.10:6443` | ServiceMonitor |
 | CoreDNS | ✅ Up | Internal | ServiceMonitor |
-| Kubelet (3 endpoints) | ✅ Up | `192.168.50.103:10250` | ServiceMonitor |
-| Kube Proxy | ✅ Up | `192.168.50.103:10249` | ServiceMonitor |
-| Kube Controller Manager | ✅ Up | `192.168.50.103:10257` | ServiceMonitor |
-| Kube Scheduler | ✅ Up | `192.168.50.103:10259` | ServiceMonitor |
+| Kubelet (3 endpoints) | ✅ Up | `192.168.1.10:10250` | ServiceMonitor |
+| Kube Proxy | ✅ Up | `192.168.1.10:10249` | ServiceMonitor |
+| Kube Controller Manager | ✅ Up | `192.168.1.10:10257` | ServiceMonitor |
+| Kube Scheduler | ✅ Up | `192.168.1.10:10259` | ServiceMonitor |
 | Kube State Metrics | ✅ Up | Internal | ServiceMonitor |
-| Node Exporter | ✅ Up | `192.168.50.103:9100` | ServiceMonitor |
+| Node Exporter | ✅ Up | `192.168.1.10:9100` | ServiceMonitor |
 | **Applications** |
 | ArgoCD | ✅ Up | Internal | ServiceMonitor (custom) |
 | cert-manager | ✅ Up | Internal | ServiceMonitor (custom) |

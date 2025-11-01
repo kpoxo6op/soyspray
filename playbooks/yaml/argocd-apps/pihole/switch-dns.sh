@@ -2,7 +2,7 @@
 
 # Usage: sudo ./switch-dns.sh [PIHOLE_IP]
 # Default Pi-hole IP
-PIHOLE_IP="${1:-192.168.50.202}"
+PIHOLE_IP="${1:-192.168.1.33}"
 
 # Get all active interfaces managed by NetworkManager
 ACTIVE_IFACES=$(nmcli -t -f DEVICE,STATE d | awk -F: '$2=="connected"{print $1}')
