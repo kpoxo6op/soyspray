@@ -18,7 +18,7 @@ curl -k https://immich.soyspray.vip/api/server/version
 ## Access
 
 - **Web UI**: <https://immich.soyspray.vip>
-- **LoadBalancer IP**: 192.168.50.208:2283
+- **LoadBalancer IP**: 192.168.1.36:2283
 - **Internal Service**: immich-server.immich.svc.cluster.local:2283
 
 ## Configuration

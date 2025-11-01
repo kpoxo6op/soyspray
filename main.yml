@@ -26,26 +26,15 @@
 - import_playbook: playbooks/deploy-argocd-apps.yml
   tags: longhorn
 
-# ensure sync worked at http://192.168.50.201/applications/argocd/longhorn
+# ensure sync worked at http://192.168.1.21/applications/argocd/longhorn
 # it may take around 10mins to sync
 # argocd creds are admin/password
 
 - import_playbook: playbooks/deploy-argocd-apps.yml
-  tags: cert-manager,external-dns,pihole
+  tags: cert-manager,external-dns
 
 # wait certs to be ready (around 3:30mins)
 # watch kubectl get cert -A
 - import_playbook: playbooks/sync-certificates.yml
 
-
-
-# Switch-DNS to start using PiHole
-# playbooks/yaml/argocd-apps/pihole/switch-dns.sh
-# playbooks/yaml/argocd-apps/pihole/Switch-DNS.ps1
-
-# check the local access via https://longhorn.soyspray.vip
-
-# make argo
-# make alist
-
-# continue with soydocs/media-diagram.md
+# check access to https://longhorn.soyspray.vip

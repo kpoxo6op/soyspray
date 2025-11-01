@@ -10,7 +10,7 @@ post-renderer work, rolled back.
 ## DNS Configuration
 
 Pi-hole uses dnsmasq wildcard rule for all *.soyspray.vip domains:
-- `address=/soyspray.vip/192.168.50.200` - Resolves all subdomains to NGINX Ingress VIP
+- `address=/soyspray.vip/192.168.1.20` - Resolves all subdomains to NGINX Ingress VIP
 - No per-host DNS entries needed - managed automatically via Kubernetes Ingress
 
 ### Apply changes:
@@ -27,9 +27,9 @@ kubectl exec -n pihole $POD -- cat /etc/dnsmasq.d/02-custom.conf
 ### Test DNS resolution:
 ```sh
 # Test wildcard resolution from Pi-hole
-dig +short grafana.soyspray.vip @192.168.50.202
-dig +short argocd.soyspray.vip @192.168.50.202
-# Should return 192.168.50.200 (Ingress VIP)
+dig +short grafana.soyspray.vip @192.168.1.33
+dig +short argocd.soyspray.vip @192.168.1.33
+# Should return 192.168.1.20 (Ingress VIP)
 ```
 
 ## Adlists
@@ -92,14 +92,14 @@ Update Router DNS settings via mobile app
 
 | Type      | IP               | Note          |
 | --------- | ---------------- | ------------- |
-| Primary   | 192.168.50.202   |  Pi Hole      |
+| Primary   | 192.168.1.33     |  Pi Hole      |
 | Secondary | 8.8.8.8          |  Google       |
 
 Pi-hole DNS Configuration
 
 | Domain                                         | IP               | Note          |
 | ---------------------------------------------- | ---------------- | ------------- |
-| *.soyspray.vip                                 | 192.168.50.200   | Wildcard via dnsmasq |
-| [pihole.soyspray.vip](http://pihole.soyspray.vip/admin/login.php) | 192.168.50.200 | Via wildcard |
+| *.soyspray.vip                                 | 192.168.1.20     | Wildcard via dnsmasq |
+| [pihole.soyspray.vip](http://pihole.soyspray.vip/admin/login.php) | 192.168.1.20 | Via wildcard |
 
 Looks like adding filters and not using secondary DNS helps.

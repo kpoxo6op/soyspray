@@ -20,7 +20,7 @@ ssh-keygen -lf ~/.ssh/id_rsa
 [SSH access](https://github.com/kubernetes-sigs/kubespray/blob/master/docs/getting_started/setting-up-your-first-cluster.md#access-the-kubernetes-cluster)
 
 ```sh
-IP_CONTROLLER_0=192.168.50.103
+IP_CONTROLLER_0=192.168.1.10
 mkdir -p ~/.kube
 ssh ubuntu@$IP_CONTROLLER_0
 
@@ -74,6 +74,6 @@ Venv
 python3 -m venv soyspray-venv
 source soyspray-venv/bin/activate
 pip install -U -r kubespray/requirements.txt
-# cycle through The authenticity of host '192.168.50.xxx' can't be established.
+# cycle through The authenticity of host '192.168.1.xxx' can't be established.
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/show-hello.yml
 ```

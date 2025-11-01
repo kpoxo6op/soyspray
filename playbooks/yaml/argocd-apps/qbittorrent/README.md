@@ -10,12 +10,12 @@ including:
 1. Namespace `media`
 2. PVCs for config and downloads
 3. A Deployment with environment variables and resource limits
-4. A Service of type LoadBalancer with IP 192.168.50.207
+4. A Service of type LoadBalancer with IP 192.168.1.30
 
 ## Validation Steps
 
-1. Wait for the Service to assign the LoadBalancer IP **192.168.50.207**.
-2. Visit <http://192.168.50.207:8080> in the browser.
+1. Wait for the Service to assign the LoadBalancer IP **192.168.1.30**.
+2. Visit <http://192.168.1.30:8080> in the browser.
 3. Log into qBittorrent (default user/pass is usually admin/adminadmin or per image doc).
 4. Add a test torrent (e.g. a Linux ISO). Confirm it downloads.
 

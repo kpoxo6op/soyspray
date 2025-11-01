@@ -1,19 +1,19 @@
 persistence:
   defaultClass: true
-  defaultClassReplicaCount: 1
+  defaultClassReplicaCount: "1"
   defaultDataLocality: best-effort
   migratable: true
   metricsPort: 9500
 
 defaultSettings:
   defaultDataLocality: best-effort
-  defaultReplicaCount: 1
+  defaultReplicaCount: "1"
   defaultDataPath: "/storage"
   deletingConfirmationFlag: true
   orphanAutoDeletion: true
-  backupstorePollInterval: 300
-  concurrentReplicaRebuildPerNodeLimit: 1
-  snapshotMaxCount: 10
+  backupstorePollInterval: "300"
+  concurrentReplicaRebuildPerNodeLimit: "1"
+  snapshotMaxCount: "10"
   autoCleanupSystemGeneratedSnapshot: true
   autoCleanupRecurringJobBackupSnapshot: true
   replicaAutoBalance: "disabled"
