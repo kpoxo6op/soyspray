@@ -18,7 +18,7 @@ spec:
         valueFiles:
           - $values/playbooks/yaml/argocd-apps/redis/values.yaml
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "immich-db-recovery-4"
+      targetRevision: "HEAD"
       path: .
       ref: values
   syncPolicy:

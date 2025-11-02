@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "immich-db-recovery-4"
+    targetRevision: "HEAD"
     path: playbooks/yaml/argocd-apps/cert-manager
     kustomize:
   destination:

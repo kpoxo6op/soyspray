@@ -10,7 +10,7 @@ spec:
     namespace: postgresql
   sources:
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "immich-db-recovery-4"
+      targetRevision: "HEAD"
       path: playbooks/yaml/argocd-apps/cnpg/immich-db-a-restore/overlays/target-time
   syncPolicy:
     automated:
