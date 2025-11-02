@@ -5,4 +5,4 @@ metadata:
   namespace: postgresql
 spec:
   type: ExternalName
-  externalName: immich-db-rw.postgresql.svc.cluster.local
+  externalName: immich-db-a-rw.postgresql.svc.cluster.local

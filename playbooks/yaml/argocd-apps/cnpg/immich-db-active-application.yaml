@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: immich-db
+  name: immich-db-active
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -12,8 +12,8 @@ spec:
     namespace: postgresql
   sources:
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "main"
-      path: playbooks/yaml/argocd-apps/cnpg/immich-db
+      targetRevision: "recovery-test-3-prep"
+      path: playbooks/yaml/argocd-apps/cnpg/immich-db-active
   syncPolicy:
     automated:
       prune: true

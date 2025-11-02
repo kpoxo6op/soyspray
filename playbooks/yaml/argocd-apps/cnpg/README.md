@@ -1,16 +1,24 @@
-# CNPG operator + Immich DB cluster (PostgreSQL 16 + pgvecto.rs v0.3.0)
+# CNPG operator + Immich DB A/B clusters (PostgreSQL 16 + pgvecto.rs v0.3.0)
 
-This app installs the CloudNativePG operator and provisions a single‑instance **PostgreSQL 16** cluster with **pgvecto.rs `vectors` v0.3.0**. It creates the `immich` database and role, installs `cube`, `earthdistance`, and `vectors`, sets `search_path`, and assigns schema/grants to match the current setup.
+This app installs the CloudNativePG operator and provisions **A/B PostgreSQL 16 clusters** with **pgvecto.rs `vectors` v0.3.0** for disaster recovery. Each cluster creates the `immich` database and role, installs `cube`, `earthdistance`, and `vectors`, sets `search_path`, and assigns schema/grants. An alias service (`immich-db-active`) provides stable connectivity while enabling A↔B switchover testing.
 
 ## Deploy order
 
 1. Sync `cnpg-operator` (namespace `cnpg-system`).
-2. Sync `immich-db` (namespace `postgresql`).
+2. Sync `immich-db-active` (namespace `postgresql`).
+
+### For Production Use
+3. Sync `immich-db-a` (namespace `postgresql`) - starts with cluster A as active.
+
+### For Disaster Recovery Testing
+Use the procedures in `docs/recovery-exercise-1/README.md` which create clusters via restore from S3 backup, not the prod apps directly.
 
 ## Connection for Immich
 
-Service DNS (read/write): `immich-db-rw.postgresql.svc.cluster.local:5432`
-Database URL: `postgresql://immich:immich@immich-db-rw.postgresql.svc.cluster.local/immich`
+**Stable alias service** (read/write): `immich-db-active.postgresql.svc.cluster.local:5432`
+Database URL: `postgresql://immich:immich@immich-db-active.postgresql.svc.cluster.local/immich`
+
+The alias points to either `immich-db-a-rw` or `immich-db-b-rw` depending on which cluster is active during A↔B switchover testing.
 
 ## What's included
 
@@ -29,7 +37,8 @@ After deployment, verify the database configuration using these commands:
 
 ### 1. Check PostgreSQL Version
 ```bash
-POD=$(kubectl -n postgresql get pod -l cnpg.io/cluster=immich-db -o name | head -n1 | sed 's#pod/##')
+# Find the active cluster pod (either immich-db-a or immich-db-b)
+POD=$(kubectl -n postgresql get pod -l cnpg.io/cluster -o name | grep -E "(immich-db-a|immich-db-b)" | head -n1 | sed 's#pod/##')
 kubectl -n postgresql exec "$POD" -- psql -h localhost -U immich -d immich -c "SELECT version();"
 ```
 
@@ -84,23 +93,44 @@ kubectl -n postgresql exec "$POD" -- bash -c "export PGPASSWORD=immich && psql -
 +---------------------+            +-------------------------------+
 |  ArgoCD (argocd)    |            |  CloudNativePG Operator       |
 |  - cnpg-operator    |----------->|  (Deployment in cnpg-system)  |
-|  - immich-db        |      CRDs  +-------------------------------+
+|  - immich-db-active |      CRDs  +-------------------------------+
+|  - immich-db-a      |
+|  - immich-db-b      |
 +----------+----------+
            |
-           | Cluster (CR)
+           | Clusters (CRs)
            v
-+-------------------------------+       Kubernetes Services
-|  CNPG Cluster: immich-db      |       ----------------------------
-|  instances: 1 (PG16)          |   -->  immich-db-rw (RW endpoint)
-|  image: CNPG + pgvecto.rs     |   -->  immich-db-ro (RO endpoint)
-|  storage: Longhorn 20Gi       |
-|  bootstrap: initdb + SQL      |
-+-------------------------------+
++-------------------------------+       +-------------------------------+
+|  CNPG Cluster: immich-db-a    |       |  CNPG Cluster: immich-db-b    |
+|  instances: 1 (PG16)          |       |  instances: 1 (PG16)          |
+|  image: CNPG + pgvecto.rs     |       |  image: CNPG + pgvecto.rs     |
+|  storage: Longhorn 20Gi       |       |  storage: Longhorn 20Gi       |
+|  backups: S3 (serverName:     |       |  backups: S3 (serverName:     |
+|    immich-db)                 |       |    immich-db)                 |
++-------------------------------+       +-------------------------------+
+           |                                       |
+           v                                       v
+    immich-db-a-rw (RW endpoint)         immich-db-b-rw (RW endpoint)
+           |                                       |
+           +---------------------------------------+
+                           |
+                           v
+                +-------------------------------+
+                |  ExternalName Service        |
+                |  immich-db-active            |
+                |  -> immich-db-a-rw OR        |
+                |     immich-db-b-rw           |
+                +-------------------------------+
 ```
+
+## Disaster Recovery Features
+
+* **A/B Switchover**: Two identical clusters with stable alias service for testing recovery procedures
+* **Backups + PITR**: S3-compatible object storage with WAL archiving (serverName: immich-db)
+* **Restore Testing**: Dedicated restore apps for each cluster to test S3-to-cluster recovery
 
 ## Later add
 
 * **High availability**: `instances: 3` for HA with automated failover.
-* **Backups + PITR**: object storage (S3‑compatible) with WAL archiving.
 * **Pooler**: connection pooling for Immich.
 * **Replica cluster**: read‑only replica or staging.

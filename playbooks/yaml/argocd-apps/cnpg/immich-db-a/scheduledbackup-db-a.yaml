@@ -1,0 +1,11 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: immich-db-a-daily
+  namespace: postgresql
+spec:
+  schedule: "0 47 4 * * *"
+  backupOwnerReference: self
+  method: barmanObjectStore
+  cluster:
+    name: immich-db-a

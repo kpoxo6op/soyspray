@@ -1,7 +1,7 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: immich-db-restore
+  name: immich-db-b
   namespace: postgresql
 spec:
   bootstrap:

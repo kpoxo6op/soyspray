@@ -3,6 +3,4 @@ kind: Kustomization
 namespace: postgresql
 resources:
   - immich-app-secret.yaml
-  - immich-db-cluster.yaml
-  - scheduledbackup-db.yaml
   - immich-db-active-service.yaml
