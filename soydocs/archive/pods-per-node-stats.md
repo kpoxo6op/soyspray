@@ -126,7 +126,5 @@ Pods have been redistributed more evenly across all nodes after applying worker 
 - metallb-system-speaker-pgfgp
 - nginx-proxy-node-2
 - nodelocaldns-8xwfp
-- pihole-54ff5f845b-gsmqs
-- pihole-exporter-544f564969-x2gmm
 - podinfo-58b7666549-xgsnw
 - prometheus-kube-prometheus-stack-prometheus-0

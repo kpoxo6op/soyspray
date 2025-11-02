@@ -42,7 +42,6 @@
 | **Applications** |
 | ArgoCD | ✅ Up | Internal | ServiceMonitor (custom) |
 | cert-manager | ✅ Up | Internal | ServiceMonitor (custom) |
-| Pi-hole Exporter | ✅ Up | `pihole-exporter.pihole:9617` | additionalScrapeConfigs |
 | **Prometheus Stack** |
 | Prometheus | ✅ Up | Internal | ServiceMonitor |
 | AlertManager | ✅ Up | Internal | ServiceMonitor |

@@ -1,6 +1,6 @@
 ---
 # This playbook applies resource requests and limits to specific core components
-# (MetalLB Speaker, Ingress Nginx Controller, Pi-hole Exporter).
+# (MetalLB Speaker, Ingress Nginx Controller).
 # On resource-constrained nodes (like the Celeron nodes in this cluster),
 # pods without explicit requests/limits are often the first candidates for
 # termination (e.g., OOM kills) or CPU throttling when the node is under pressure.
@@ -58,23 +58,3 @@
                         cpu: 500m
                         memory: 512Mi
 
-    - name: Apply resource limits to pihole-exporter (Deployment)
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        kind: Deployment
-        namespace: pihole
-        name: pihole-exporter
-        definition:
-          spec:
-            template:
-              spec:
-                containers:
-                  - name: pihole-exporter
-                    resources:
-                      requests:
-                        cpu: 25m
-                        memory: 32Mi
-                      limits:
-                        cpu: 50m
-                        memory: 64Mi

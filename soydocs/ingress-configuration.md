@@ -8,21 +8,18 @@ This document describes the configuration of Ingress resources in the cluster an
 
 - Nginx Ingress Controller (running on port 443)
 - cert-manager (for TLS certificate management)
-- Pihole DNS (192.168.1.33)
 - Let's Encrypt (wildcard certificate issuer)
 
 ## Implementation Details
 
 ### 1. DNS Configuration
 
-- Pihole DNS server (192.168.1.33) handles local resolution for `.soyspray.vip` domains
 - DNS entries point to the Nginx Ingress Controller VIP (192.168.1.20)
 - Example DNS records:
 
   ```
   argocd.soyspray.vip    -> 192.168.1.20
   grafana.soyspray.vip   -> 192.168.1.20
-  pihole.soyspray.vip    -> 192.168.1.20
   ```
 
 ### 2. TLS Certificate Management
@@ -108,7 +105,7 @@ kubectl logs -n ingress-nginx ingress-nginx-controller-xxxxx
 4. Test DNS Resolution:
 
 ```bash
-nslookup argocd.soyspray.vip 192.168.1.33
+nslookup argocd.soyspray.vip
 ```
 
 5. Verify HTTPS Access:
