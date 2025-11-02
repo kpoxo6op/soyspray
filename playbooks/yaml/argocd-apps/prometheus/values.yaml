@@ -32,6 +32,7 @@ prometheus:
     evaluationInterval: 60s
     externalLabels:
       cluster: soyspray
+    enableOTLPReceiver: false
     resources:
       requests:
         cpu: 150m
