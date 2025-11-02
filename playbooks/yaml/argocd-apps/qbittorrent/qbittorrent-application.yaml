@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: "main"
+    targetRevision: "HEAD"
     path: playbooks/yaml/argocd-apps/qbittorrent
   destination:
     server: https://kubernetes.default.svc

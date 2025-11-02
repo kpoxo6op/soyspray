@@ -10,7 +10,7 @@ spec:
     namespace: media
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "main"
+    targetRevision: "HEAD"
     path: playbooks/yaml/argocd-apps/streamlink
   syncPolicy:
     automated:
