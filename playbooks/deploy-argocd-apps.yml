@@ -170,22 +170,6 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/cnpg-operator-application.yaml') }}"
       tags: cnpg-operator
 
-    - name: Apply CNPG Immich Database Configuration
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-application.yaml') }}"
-      tags: immich-db
-
-    - name: Apply CNPG Immich Database Restore Configuration
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-restore-application.yaml') }}"
-      tags: immich-db-restore
-
     - name: Apply CNPG Immich Database Active Configuration
       kubernetes.core.k8s:
         state: present
@@ -209,14 +193,6 @@
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-b-application.yaml') }}"
       tags: immich-db-b
-
-    - name: Apply CNPG Immich Database A Restore Configuration
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-a-restore-application.yaml') }}"
-      tags: immich-db-a-restore
 
     - name: Apply CNPG Immich Database B Restore Configuration
       kubernetes.core.k8s:
