@@ -12,7 +12,7 @@ spec:
     namespace: postgresql
   sources:
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "HEAD"
+      targetRevision: "immich-db-recovery-4"
       path: playbooks/yaml/argocd-apps/cnpg/immich-db-b
   syncPolicy:
     automated:

@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "HEAD"
+    targetRevision: "immich-db-recovery-4"
     path: playbooks/yaml/argocd-apps/threadfin
   destination:
     server: "https://kubernetes.default.svc"
