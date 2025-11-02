@@ -3969,7 +3969,7 @@ prometheus:
     listenLocal: false
 
     ## enableOTLPReceiver enables the OTLP receiver for Prometheus.
-    # enableOTLPReceiver: false  # Commented out - not supported by current Prometheus operator
+    enableOTLPReceiver: false
 
     ## EnableAdminAPI enables Prometheus the administrative HTTP API which includes functionality such as deleting time series.
     ## This is disabled by default.
