@@ -18,7 +18,7 @@ spec:
         valueFiles:
           - $values/playbooks/yaml/argocd-apps/redis/values.yaml
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-      targetRevision: "main"
+      targetRevision: "HEAD"
       path: .
       ref: values
   syncPolicy:

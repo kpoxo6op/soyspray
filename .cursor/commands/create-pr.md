@@ -9,7 +9,7 @@ Create a well-structured pull request with proper description
 1. **Tidy up**
     - Update all `*-application.yaml` files in `playbooks/yaml/argocd-apps/`
     - Find: `targetRevision: "current-branch-name"` (note - this is example only, not actual branch name)
-    - Replace with: `targetRevision: "main"`
+    - Replace with: `targetRevision: "HEAD"`
     - Only modify where `repoURL` is `https://github.com/kpoxo6op/soyspray.git`
 2. **Clean up commits**
     - Run: `git diff origin/main..HEAD` to see all changes
@@ -29,4 +29,4 @@ Create a well-structured pull request with proper description
 4. **Set up PR**
     - Summarize changes clearly
     - Check if the branch already has a PR open, if so, update the PR instead of creating a new one.
-    - Create PR with descriptive title and description. Use gh CLI as priority. Never use emojis, deter from using bulletpoints, use coherent sentences, keep the line lengh under 80 chars. Use bulletpoints as the last resort.
+    - Create PR with descriptive title and description. Use gh CLI as priority. Never use emojis, use bulletpoints only when necessary, use coherent sentences, keep the line lengh under 80 chars.

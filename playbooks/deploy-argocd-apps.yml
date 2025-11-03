@@ -6,22 +6,6 @@
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
   tasks:
-    - name: Apply Pihole
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/pihole/pihole-application.yaml') }}"
-      tags: pihole
-
-    - name: Apply Pihole Exporter
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/pihole-exporter/pihole-exporter-application.yaml') }}"
-      tags: pihole
-
     - name: Verify and load Telegram token from .env
       block:
 
@@ -186,21 +170,37 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/cnpg-operator-application.yaml') }}"
       tags: cnpg-operator
 
-    - name: Apply CNPG Immich Database Configuration
+    - name: Apply CNPG Immich Database Active Configuration
       kubernetes.core.k8s:
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-application.yaml') }}"
-      tags: immich-db
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-active-application.yaml') }}"
+      tags: immich-db-active
 
-    - name: Apply CNPG Immich Database Restore Configuration
+    - name: Apply CNPG Immich Database A Configuration
       kubernetes.core.k8s:
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-restore-application.yaml') }}"
-      tags: immich-db-restore
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-a-application.yaml') }}"
+      tags: immich-db-a
+
+    - name: Apply CNPG Immich Database B Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-b-application.yaml') }}"
+      tags: immich-db-b
+
+    - name: Apply CNPG Immich Database B Restore Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-b-restore-application.yaml') }}"
+      tags: immich-db-b-restore
 
     # Create namespace for external-dns
     - name: Create external-dns namespace

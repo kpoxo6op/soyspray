@@ -30,10 +30,8 @@ To access services like `https://qbittorrent.soyspray.vip/` from other devices i
 1. **Go to [Tailscale Admin Console](https://login.tailscale.com/admin/dns)**
 2. **In Nameservers section:**
    - Keep existing Cloudflare DNS (`1.1.1.1`) for general internet
-   - Verify Pi-hole DNS (`192.168.50.202`) is added for local resolution
 3. **In Search Domains section:**
    - Add: `soyspray.vip`
-   - This ensures `*.soyspray.vip` domains resolve through Pi-hole
 4. **Enable MagicDNS** (if not already enabled)
 
 ## Test connectivity

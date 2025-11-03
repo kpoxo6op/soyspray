@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
 K8S_USER        := ubuntu
@@ -27,11 +28,11 @@ argo:
 VENV_NAME       := soyspray-venv
 
 venv:
-	python3 -m venv $(VENV_NAME)
-	@echo "Virtual environment created. To activate, run: source $(VENV_NAME)/bin/activate"
+	@test -d $(VENV_NAME) || python3 -m venv $(VENV_NAME)
+	@$(VENV_NAME)/bin/python -m pip install --upgrade pip wheel
 
 act:
-	@echo "source $(VENV_NAME)/bin/activate"
+	@bash -lc 'source $(VENV_NAME)/bin/activate && exec bash -i'
 
 ans:
 	@echo "ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml --tags TAG\n"
@@ -82,9 +83,10 @@ help:
 	@echo "  make worker1     - SSH into worker node 1 ($(WORKER_NODE1))"
 	@echo "  make worker2     - SSH into worker node 2 ($(WORKER_NODE2))"
 	@echo "  make worker3     - SSH into worker node 3 ($(WORKER_NODE3))"
+	@echo "  make venv        - Create Python virtual environment"
 	@echo "  make install     - Install tools (requires sudo: run 'sudo make install')"
 	@echo "  make argo        - Login to ArgoCD (argocd.soyspray.vip)"
-	@echo "  make act         - Show command to activate Python virtual environment"
+	@echo "  make act         - Start interactive shell with venv activated"
 	@echo "  make ans         - Show Ansible command starter"
 	@echo "  make go          - Run argo, act, and ans commands in sequence"
 	@echo "  make alist       - List ArgoCD apps with scripts/argocd-list.sh"

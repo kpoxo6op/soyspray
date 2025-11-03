@@ -1,0 +1,10 @@
+# Restore overlay: bootstrap from S3 to a UTC target; backups disabled during recovery.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: postgresql
+resources:
+  - ../../base
+patchesStrategicMerge:
+  - bootstrap-recovery-patch.yaml
+  - target-time.yaml
+

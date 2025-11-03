@@ -19,7 +19,6 @@ graph LR
 
 - Public access through Azure VPS with Wireguard tunnel
 - Local ingress (192.168.50.200) accessible only through VPN
-- PiHole DNS (192.168.50.202) handles local name resolution
 
 ## Debug Commands
 

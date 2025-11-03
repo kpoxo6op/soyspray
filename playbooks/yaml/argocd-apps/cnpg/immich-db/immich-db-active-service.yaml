@@ -1,8 +1,0 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: immich-db-active
-  namespace: postgresql
-spec:
-  type: ExternalName
-  externalName: immich-db-rw.postgresql.svc.cluster.local

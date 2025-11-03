@@ -8,7 +8,6 @@
     target_namespaces:
       - argocd
       - longhorn-system
-      - pihole
       - monitoring
       - immich
       - media

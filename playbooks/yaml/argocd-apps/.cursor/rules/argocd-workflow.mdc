@@ -29,7 +29,6 @@ All cluster apps are defined in ArgoCD and applied via [deploy-argocd-apps.yml](
 - **external-dns** - DNS management ([external-dns-application.yaml](mdc:playbooks/yaml/argocd-apps/external-dns/external-dns-application.yaml))
 - **longhorn** - Persistent storage ([longhorn-application.yaml](mdc:playbooks/yaml/argocd-apps/longhorn/longhorn-application.yaml))
 - **prometheus** - Monitoring ([prometheus-application.yaml](mdc:playbooks/yaml/argocd-apps/prometheus/prometheus-application.yaml))
-- **pihole** - DNS filtering ([pihole-application.yaml](mdc:playbooks/yaml/argocd-apps/pihole/pihole-application.yaml))
 
 ## Deployment Workflow
 1. **Code Changes**: Make changes to application configurations

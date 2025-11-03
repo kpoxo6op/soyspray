@@ -58,24 +58,5 @@ configMapGenerator:
   #       kustomize.toolkit.fluxcd.io/substitute: disabled
   #     disableNameSuffixHash: true
 
-  - name: grafana-dashboard-pihole
-    files:
-      - dashboards/pihole-dashboard.json
-    options:
-      labels:
-        grafana_dashboard: "1"
-      annotations:
-        kustomize.toolkit.fluxcd.io/substitute: disabled
-
-  - name: grafana-dashboard-thermal
-    files:
-      - dashboards/thermal-dashboard.json
-    options:
-      labels:
-        grafana_dashboard: "1"
-      annotations:
-        kustomize.toolkit.fluxcd.io/substitute: disabled
-
 resources:
-  - alerts/temperature-alerts.yaml
   - alerts/backups-essential.yaml

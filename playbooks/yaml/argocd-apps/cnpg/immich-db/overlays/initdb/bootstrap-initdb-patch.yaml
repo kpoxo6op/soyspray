@@ -1,0 +1,21 @@
+# Bootstrap via initdb and install extensions, search_path, ownership, grants.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: immich-db
+spec:
+  bootstrap:
+    initdb:
+      database: immich
+      owner: immich
+      secret:
+        name: immich-app-secret
+        key: password
+      postInitSQL:
+        - CREATE EXTENSION cube;
+        - CREATE EXTENSION earthdistance;
+        - CREATE EXTENSION "vectors";
+        - ALTER DATABASE immich SET search_path TO "$user", public, vectors;
+        - ALTER SCHEMA vectors OWNER TO immich;
+        - GRANT SELECT ON pg_vector_index_stat TO immich;
+
