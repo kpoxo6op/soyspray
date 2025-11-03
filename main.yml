@@ -37,4 +37,7 @@
 # watch kubectl get cert -A
 - import_playbook: playbooks/sync-certificates.yml
 
+- import_playbook: playbooks/deploy-bitnami-oci-helm-repo.yml
+  tags: bitnami-oci
+
 # check access to https://longhorn.soyspray.vip
