@@ -32,6 +32,7 @@ prometheus:
     evaluationInterval: 60s
     externalLabels:
       cluster: soyspray
+    enableOTLPReceiver: false
     resources:
       requests:
         cpu: 150m
@@ -47,13 +48,7 @@ prometheus:
           resources:
             requests:
               storage: 10Gi
-    additionalScrapeConfigs:
-      - job_name: pihole-exporter
-        static_configs:
-          - targets: ["pihole-exporter.pihole.svc.cluster.local:9617"]
-        metrics_path: /metrics
-        scrape_interval: 60s
-        scrape_timeout: 30s
+    additionalScrapeConfigs: []
 
   additionalServiceMonitors:
     - name: cert-manager
