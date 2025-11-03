@@ -1,11 +1,8 @@
-# CloudNativePG ScheduledBackup for immich-db
-# Daily backup to S3 using the Cluster's barmanObjectStore configuration
-# Schedule: 04:47 UTC (17:47 NZDT) - TEST
+# Daily ScheduledBackup wired to the generated cluster name via nameRef.
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:
   name: immich-db-daily
-  namespace: postgresql
 spec:
   schedule: "0 47 4 * * *"
   backupOwnerReference: self

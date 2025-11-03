@@ -1,0 +1,22 @@
+# Enable backups (writer credentials) for production use.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: immich-db
+spec:
+  backup:
+    retentionPolicy: "60d"
+    barmanObjectStore:
+      destinationPath: s3://immich-offsite-archive-au2/immich/db/
+      serverName: immich-db
+      s3Credentials:
+        accessKeyId:
+          name: immich-offsite-writer
+          key: AWS_ACCESS_KEY_ID
+        secretAccessKey:
+          name: immich-offsite-writer
+          key: AWS_SECRET_ACCESS_KEY
+        region:
+          name: immich-offsite-writer
+          key: AWS_REGION
+

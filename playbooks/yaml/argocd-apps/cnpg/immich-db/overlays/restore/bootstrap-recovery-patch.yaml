@@ -1,0 +1,10 @@
+# Bootstrap from S3 external cluster with PITR target (targetTime set in target-time.yaml).
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: immich-db
+spec:
+  bootstrap:
+    recovery:
+      source: immich-db-backup
+
