@@ -10,11 +10,10 @@ spec:
       owner: immich
       secret:
         name: immich-app-secret
-        key: password
       postInitSQL:
         - CREATE EXTENSION cube;
         - CREATE EXTENSION earthdistance;
-        - CREATE EXTENSION "vectors";
+        - CREATE EXTENSION IF NOT EXISTS vectors;
         - ALTER DATABASE immich SET search_path TO "$user", public, vectors;
         - ALTER SCHEMA vectors OWNER TO immich;
         - GRANT SELECT ON pg_vector_index_stat TO immich;

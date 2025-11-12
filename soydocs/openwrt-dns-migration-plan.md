@@ -9,9 +9,9 @@ hostnames on LAN and remotely.
 
 ## Pre‑Migration State
 
-* Router: **OpenWrt 24.10.0** at **192.168.1.1**
+* Router: **OpenWrt 24.10.0** at **192.168.1.1** with DHCP scope **192.168.1.100–192.168.1.249** (`start=100`, `limit=150`)
 * K8s Node: **node-0** at **192.168.1.10**
-* MetalLB Primary Pool: **192.168.1.20–192.168.1.38**
+* MetalLB Primary Pool: **192.168.1.20–192.168.1.38** (outside router DHCP range)
 * MetalLB Torrent Pool: **192.168.1.39**
 * Current DNS: **Pi‑hole in k8s**
 * Target Domain: **soyspray.vip**
@@ -31,13 +31,11 @@ and avoid interface pinning.
 
 ## Step 1 — Make OpenWrt authoritative for `soyspray.vip`
 
-**Design:** Wildcard A for `*.soyspray.vip → 192.168.1.20` with one override for
-`torrent.soyspray.vip → 192.168.1.39`.
+Wildcard A for `*.soyspray.vip → 192.168.1.20`
 
 ```bash
 ssh root@192.168.1.1 '
 uci add_list dhcp.@dnsmasq[0].address="/soyspray.vip/192.168.1.20"
-uci add_list dhcp.@dnsmasq[0].address="/torrent.soyspray.vip/192.168.1.39"
 uci add_list dhcp.@dnsmasq[0].rebind_domain="soyspray.vip"
 uci set dhcp.@dnsmasq[0].local_ttl="30"
 
