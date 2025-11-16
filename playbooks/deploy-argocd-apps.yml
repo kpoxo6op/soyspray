@@ -96,7 +96,8 @@
       tags: loki-operator
 
     - name: Remove Helm fields from Loki Operator application
-      shell: kubectl patch application loki-operator -n argocd --type json -p '[{"op": "remove", "path": "/spec/source/chart"}, {"op": "remove", "path": "/spec/source/helm"}]'
+      shell: |
+        kubectl patch application loki-operator -n argocd --type json -p '[{"op": "remove", "path": "/spec/source/chart"}, {"op": "remove", "path": "/spec/source/helm"}]'
       args:
         creates: /tmp/loki-operator-patched
       ignore_errors: true
