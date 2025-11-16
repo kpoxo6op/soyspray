@@ -87,6 +87,12 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/object-storage/object-storage-application.yaml') }}"
       tags: object-storage
 
+    - name: Add GitHub repository to ArgoCD for loki-operator
+      shell: |
+        argocd repo add https://github.com/grafana/loki-operator --grpc-web || true
+      ignore_errors: true
+      tags: loki-operator
+
     - name: Apply Loki Operator
       kubernetes.core.k8s:
         state: present
