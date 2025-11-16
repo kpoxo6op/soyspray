@@ -1,0 +1,23 @@
+apiVersion: loki.grafana.com/v1beta1
+kind: LokiStack
+metadata:
+  name: loki
+  namespace: monitoring
+spec:
+  size: 1x.small
+  storage:
+    schemas:
+      - version: v12
+        effectiveDate: "2023-10-15"
+  template:
+    queryFrontend:
+      replicas: 1
+    ingester:
+      replicas: 1
+    distributor:
+      replicas: 1
+    compactor:
+      replicas: 1
+    gateway:
+      replicas: 1
+
