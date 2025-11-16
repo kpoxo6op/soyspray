@@ -4,5 +4,6 @@ kind: Kustomization
 namespace: monitoring
 
 resources:
+  - loki-storage-secret.yaml
   - lokistack.yaml
 

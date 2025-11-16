@@ -1,26 +1,28 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: loki-operator
+  name: loki-operator-install
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-wave: "1"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
-    repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "object-storage"
-    path: playbooks/yaml/argocd-apps/loki-operator
-    kustomize:
+    repoURL: "https://grafana.github.io/helm-charts"
+    chart: loki-operator
+    targetRevision: "2.12.0"
+    helm:
+      releaseName: loki-operator
   destination:
     server: "https://kubernetes.default.svc"
-    namespace: monitoring
+    namespace: loki-operator-system
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - AllowClusterResourceInNamespacedApp=true
 
