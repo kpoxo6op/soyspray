@@ -87,10 +87,19 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/object-storage/object-storage-application.yaml') }}"
       tags: object-storage
 
+    - name: Delete Loki Operator application if exists (to force replace)
+      kubernetes.core.k8s:
+        state: absent
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        kind: Application
+        name: loki-operator
+      ignore_errors: true
+      tags: loki-operator
+
     - name: Apply Loki Operator
       kubernetes.core.k8s:
         state: present
-        force: true
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/loki/loki-operator-application.yaml') }}"
