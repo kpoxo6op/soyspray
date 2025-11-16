@@ -79,14 +79,6 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prometheus/prometheus-application.yaml') }}"
       tags: prometheus
 
-    - name: Apply Manual Alloy Loki stack
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        namespace: argocd
-        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/alloy-loki-manual/loki-application.yaml') }}"
-      tags: alloy-loki-manual
-
     - name: Apply Object Storage
       kubernetes.core.k8s:
         state: present
@@ -94,6 +86,38 @@
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/object-storage/object-storage-application.yaml') }}"
       tags: object-storage
+
+    - name: Apply Loki Operator
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/loki/loki-operator-application.yaml') }}"
+      tags: loki-operator
+
+    - name: Apply Alloy Operator
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/alloy/alloy-operator-application.yaml') }}"
+      tags: alloy-operator
+
+    - name: Apply Loki
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/loki/loki-application.yaml') }}"
+      tags: loki
+
+    - name: Apply Alloy
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/alloy/alloy-application.yaml') }}"
+      tags: alloy
 
     - name: Apply Alert Test
       kubernetes.core.k8s:

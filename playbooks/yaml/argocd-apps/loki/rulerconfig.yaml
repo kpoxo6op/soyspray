@@ -1,0 +1,14 @@
+apiVersion: loki.grafana.com/v1
+kind: RulerConfig
+metadata:
+  name: loki
+  namespace: monitoring
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  alertmanager:
+    enableV2: true
+    endpoints:
+      - url: http://alertmanager-operated.monitoring.svc:9093
+  evaluationInterval: 1m
+

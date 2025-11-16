@@ -1,0 +1,88 @@
+apiVersion: collectors.grafana.com/v1alpha1
+kind: Alloy
+metadata:
+  name: alloy-events
+  namespace: monitoring
+spec:
+  alloy:
+    image:
+      repository: grafana/alloy
+      tag: v1.11.2
+    args:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+    configMap:
+      content: |
+        logging {
+          level = "info"
+        }
+
+        loki.source.kubernetes_events "events" {
+          job_name   = "kubernetes-events"
+          forward_to = [loki.process.events.receiver]
+        }
+
+        loki.process "events" {
+          stage.logfmt {
+            mapping = {
+              reason               = "reason",
+              involved_object_kind = "involved_object_kind",
+              involved_object_name = "involved_object_name",
+              reporting_controller = "reporting_controller",
+              type                 = "type",
+            }
+          }
+
+          stage.labels {
+            values = {
+              kubernetes_event_reason               = "reason",
+              kubernetes_event_involved_object_kind = "involved_object_kind",
+              kubernetes_event_involved_object_name = "involved_object_name",
+              kubernetes_event_reporting_controller = "reporting_controller",
+              type                                  = "type",
+            }
+          }
+
+          stage.static_labels {
+            values = { cluster = "soyspray" }
+          }
+
+          forward_to = [loki.write.default.receiver]
+        }
+
+        loki.write "default" {
+          endpoint {
+            tenant_id = "fake"
+            url       = "http://loki.monitoring.svc.cluster.local:80/loki/api/v1/push"
+          }
+        }
+
+  controller:
+    type: deployment
+    replicas: 1
+    podLabels:
+      app.kubernetes.io/name: grafana-alloy
+      app.kubernetes.io/component: events
+      app.kubernetes.io/part-of: observability
+    tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule
+    ports:
+      - name: http-metrics
+        containerPort: 12345
+        protocol: TCP
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+  rbac:
+    create: true
+
