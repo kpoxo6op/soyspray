@@ -10,16 +10,12 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://grafana.github.io/helm-charts
-    chart: loki-operator
-    targetRevision: 0.10.0
-    helm:
-      releaseName: loki-operator
-      values: |
-        fullnameOverride: loki-operator
+    repoURL: https://github.com/grafana/loki-operator
+    targetRevision: v0.2.0
+    path: config/manifests
   destination:
     server: https://kubernetes.default.svc
-    namespace: monitoring
+    namespace: loki-operator-system
   syncPolicy:
     automated:
       prune: true
