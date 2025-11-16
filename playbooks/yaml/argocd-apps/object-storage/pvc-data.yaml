@@ -1,0 +1,17 @@
+# playbooks/yaml/argocd-apps/object-storage/pvc-data.yaml
+# PersistentVolumeClaim for MinIO data storage
+# Minimal size for testing - 5Gi
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: object-storage-data
+  namespace: monitoring
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi
+

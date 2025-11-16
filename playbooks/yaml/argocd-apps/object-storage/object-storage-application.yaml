@@ -1,0 +1,24 @@
+# playbooks/yaml/argocd-apps/object-storage/object-storage-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: object-storage
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  sources:
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: "object-storage"
+      path: playbooks/yaml/argocd-apps/object-storage
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
