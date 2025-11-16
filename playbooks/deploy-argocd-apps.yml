@@ -87,26 +87,12 @@
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/object-storage/object-storage-application.yaml') }}"
       tags: object-storage
 
-    - name: Add GitHub repository to ArgoCD for loki-operator
-      shell: |
-        argocd repo add https://github.com/grafana/loki-operator --grpc-web || true
-      ignore_errors: true
-      tags: loki-operator
-
     - name: Apply Loki Operator
       kubernetes.core.k8s:
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         namespace: argocd
         definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/loki/loki-operator-application.yaml') }}"
-      tags: loki-operator
-
-    - name: Remove Helm fields from Loki Operator application
-      shell: |
-        kubectl patch application loki-operator -n argocd --type json -p '[{"op": "remove", "path": "/spec/source/chart"}, {"op": "remove", "path": "/spec/source/helm"}]'
-      args:
-        creates: /tmp/loki-operator-patched
-      ignore_errors: true
       tags: loki-operator
 
     - name: Apply Alloy Operator
