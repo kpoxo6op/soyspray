@@ -6,7 +6,8 @@ namespace: monitoring
 resources:
   - loki-serviceaccount.yaml
   - loki-configmap.yaml
-  - loki-rules-configmap.yaml
+  - loki-rules-kubernetes.yaml
+  - loki-rules-backup.yaml
   - loki-service.yaml
   - loki-statefulset.yaml
   - loki-servicemonitor.yaml
