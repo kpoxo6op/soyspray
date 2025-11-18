@@ -51,7 +51,9 @@
                     │
                     │ Mounts ConfigMaps:
                     │ - /etc/loki/config.yaml (loki-config)
-                    │ - /etc/loki/rules/*.yaml (loki-rules) ◄── YOUR RULES HERE!
+                    │ - /etc/loki/rules/*.yaml (projected volume) ◄── YOUR RULES HERE!
+                    │   ├── loki-rules-kubernetes
+                    │   └── loki-rules-backup
                     │
                     ▼
 
@@ -60,24 +62,31 @@
 └─────────────────────────────────────────────────────────────────────────────┘
 
           ┌─────────────────────────────────────┐
-          │ loki-rules ConfigMap                │
+          │ Projected Volume: Rules ConfigMaps   │
           │ (/etc/loki/rules/)                  │
           │                                     │
           │ ┌─────────────────────────────────┐ │
-          │ │ kubernetes-critical.yaml        │ │
-          │ │ - KubernetesPodCrashLoopingLogs │ │
+          │ │ loki-rules-kubernetes ConfigMap│ │
+          │ │                                 │ │
+          │ │ • kubernetes-critical.yaml     │ │
+          │ │   - KubernetesPodCrashLoopingLogs│ │
+          │ │                                 │ │
+          │ │ • application-errors.yaml      │ │
+          │ │   - ApplicationErrorBurst       │ │
+          │ │     count_over_time(...|~ "error")│ │
+          │ │                                 │ │
+          │ │ • storage-mount-failures.yaml  │ │
+          │ │   - VolumeMountAttachFailures   │ │
+          │ │     |~ "FailedMount|Failed..." │ │
           │ └─────────────────────────────────┘ │
           │                                     │
           │ ┌─────────────────────────────────┐ │
-          │ │ application-errors.yaml         │ │
-          │ │ - ApplicationErrorBurst         │ │
-          │ │   count_over_time(...|~ "error") │ │
-          │ └─────────────────────────────────┘ │
-          │                                     │
-          │ ┌─────────────────────────────────┐ │
-          │ │ storage-mount-failures.yaml     │ │
-          │ │ - VolumeMountAttachFailures     │ │
-          │ │   |~ "FailedMount|Failed..."    │ │
+          │ │ loki-rules-backup ConfigMap    │ │
+          │ │                                 │ │
+          │ │ • immich-backup.yaml           │ │
+          │ │ • immich-backup-events.yaml    │ │
+          │ │ • cnpg-backup.yaml             │ │
+          │ │ • backup-error-burst.yaml       │ │
           │ └─────────────────────────────────┘ │
           └─────────────────────────────────────┘
                            │
@@ -196,21 +205,26 @@
 ## Configuration File Locations
 
 ### 1. Log Collection Configuration
-**Location**: `playbooks/yaml/argocd-apps/loki/`
+**Location**: `playbooks/yaml/argocd-apps/alloy-loki-manual/`
 - `alloy-configmap.yaml` - Pod logs collection
 - `alloy-events-configmap.yaml` - Kubernetes events collection
 - `alloy-daemonset.yaml` - DaemonSet running on every node
 - `alloy-events-deployment.yaml` - Events collector deployment
 
 ### 2. Loki Storage & Rules
-**Location**: `playbooks/yaml/argocd-apps/loki/`
+**Location**: `playbooks/yaml/argocd-apps/alloy-loki-manual/`
 - `loki-configmap.yaml` - Loki server configuration
   - Line 64-73: Ruler configuration pointing to Alertmanager
-- `loki-rules-configmap.yaml` - **YOUR ALERT RULES** ⚡
-  - ApplicationErrorBurst
-  - VolumeMountAttachFailures
-  - KubernetesPodCrashLoopingLogs
-- `loki-statefulset.yaml` - Mounts both ConfigMaps
+- `loki-rules-kubernetes.yaml` - **Platform & Kubernetes Rules** ⚡
+  - `kubernetes-critical.yaml` - KubernetesPodCrashLoopingLogs
+  - `application-errors.yaml` - ApplicationErrorBurst
+  - `storage-mount-failures.yaml` - VolumeMountAttachFailures
+- `loki-rules-backup.yaml` - **Backup & Database Rules** ⚡
+  - `immich-backup.yaml` - ImmichMediaBackupFailureImmediate
+  - `immich-backup-events.yaml` - ImmichMediaBackupBackoffLimitExceeded
+  - `cnpg-backup.yaml` - CNPGBackupBarmanError, CNPGWalArchiveFailure
+  - `backup-error-burst.yaml` - BackupErrorBurst
+- `loki-statefulset.yaml` - Uses projected volume to mount both rule ConfigMaps
 
 ### 3. Alertmanager Configuration
 **Location**: `playbooks/yaml/argocd-apps/prometheus/`
