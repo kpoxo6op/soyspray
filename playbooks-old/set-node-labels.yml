@@ -1,0 +1,18 @@
+- name: Ensure node labels
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  tasks:
+    - name: Label control plane nodes with both control-plane and worker labels
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Node
+          metadata:
+            name: "{{ item }}"
+            labels:
+              node-role.kubernetes.io/control-plane: ""
+              node-role.kubernetes.io/worker: ""
+      loop: "{{ groups['kube_control_plane'] }}"
+      loop_control:
+        label: "{{ item }}"

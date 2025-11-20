@@ -1,0 +1,96 @@
+persistence:
+  defaultClass: true
+  defaultClassReplicaCount: "1"
+  defaultDataLocality: best-effort
+  migratable: true
+  metricsPort: 9500
+
+defaultSettings:
+  defaultDataLocality: best-effort
+  defaultReplicaCount: "1"
+  defaultDataPath: "/storage"
+  deletingConfirmationFlag: true
+  orphanAutoDeletion: true
+  backupstorePollInterval: "300"
+  concurrentReplicaRebuildPerNodeLimit: "1"
+  snapshotMaxCount: "10"
+  autoCleanupSystemGeneratedSnapshot: true
+  autoCleanupRecurringJobBackupSnapshot: true
+  replicaAutoBalance: "disabled"
+  fastReplicaRebuildEnabled: "true"
+  snapshotDataIntegrity: disabled
+
+longhornUI:
+  replicas: 1
+
+longhornManager:
+  priorityClass: longhorn-critical
+  livenessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 20
+    timeoutSeconds: 10
+    failureThreshold: 5
+  readinessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 20
+    timeoutSeconds: 10
+    failureThreshold: 5
+
+longhornDriver:
+  priorityClass: longhorn-critical
+
+engineImage:
+  livenessProbe:
+    initialDelaySeconds: 45
+    periodSeconds: 15
+  readinessProbe:
+    initialDelaySeconds: 45
+    periodSeconds: 15
+    timeoutSeconds: 5
+    failureThreshold: 5
+
+preUpgradeChecker:
+  jobEnabled: false
+  upgradeVersionCheck: false
+
+csi:
+  attacherReplicaCount: 1
+  provisionerReplicaCount: 1
+  resizerReplicaCount: 1
+  snapshotterReplicaCount: 1
+
+priorityClass:
+  create: true
+  name: longhorn-critical
+  value: 2000001001
+
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  host: longhorn.soyspray.vip
+  tls: true
+  tlsSecret: prod-cert-tls
+  path: /
+  pathType: Prefix
+  annotations:
+    kubernetes.io/ingress.class: nginx
+
+service:
+  ui:
+    type: ClusterIP
+  manager:
+    type: ClusterIP
+    nodePort: ""
+    ports:
+      manager: 9500
+      metrics: 9500
+
+metrics:
+  serviceMonitor:
+  # manual flip required from false to true when prometheus is ready
+    enabled: false
+    additionalLabels:
+      release: kube-prometheus-stack
+    port: manager
+    interval: 60s
+    scrapeTimeout: 30s

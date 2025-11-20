@@ -1,0 +1,675 @@
+# playbooks/manage-argocd-apps.yml
+---
+- name: Apply Argo CD Applications - Deploy Application Manifests
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Verify and load Telegram token from .env
+      block:
+
+        - name: Load PROMETHEUS_TELEGRAM_BOT_TOKEN from .env
+          set_fact:
+            prometheus_telegram_bot_token: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('PROMETHEUS_TELEGRAM_BOT_TOKEN=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Debug token length
+          debug:
+            msg: >-
+              Token length: {{ prometheus_telegram_bot_token | length }}
+              First chars: {{ prometheus_telegram_bot_token | truncate(5, True, '') }}
+
+        - name: Validate PROMETHEUS_TELEGRAM_BOT_TOKEN
+          fail:
+            msg: "PROMETHEUS_TELEGRAM_BOT_TOKEN is empty/missing in .env file"
+          when: prometheus_telegram_bot_token | length == 0
+      rescue:
+        - name: Fail with helpful message
+          fail:
+            msg: "Error: .env file not found or PROMETHEUS_TELEGRAM_BOT_TOKEN invalid"
+      tags: prometheus
+
+    - name: Create monitoring namespace
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: monitoring
+      tags: prometheus
+
+    - name: Create Kubernetes Secret for Alertmanager Telegram Integration
+      kubernetes.core.k8s:
+        state: present
+        namespace: monitoring
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: alertmanager-telegram-secret
+            namespace: monitoring
+          data:
+            PROMETHEUS_TELEGRAM_BOT_TOKEN: "{{ prometheus_telegram_bot_token | b64encode }}"
+      tags: prometheus
+
+    - name: Apply Prometheus CRDs
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prometheus/prometheus-crds-application.yaml') }}"
+      tags:
+        - prometheus
+        - prometheus-crds
+
+    - name: Apply Prometheus
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prometheus/prometheus-application.yaml') }}"
+      tags: prometheus
+
+    - name: Apply Manual Alloy Loki stack
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/alloy-loki-manual/loki-application.yaml') }}"
+      tags: alloy-loki-manual
+
+    - name: Apply Alert Test
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/alert-test/alert-test-application.yaml') }}"
+      tags: alert-test
+
+    - name: Apply Longhorn
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/longhorn/longhorn-application.yaml') }}"
+      tags: longhorn
+
+    # Verify and load Cloudflare token for cert-manager
+    - name: Verify and load Cloudflare token from .env for cert-manager
+      block:
+        - name: Load CLOUDFLARE_API_TOKEN from .env
+          set_fact:
+            cloudflare_api_token: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('CLOUDFLARE_API_TOKEN=([^\n]+)') | first
+                | default('') | trim
+              }}
+
+        - name: Debug token length
+          debug:
+            msg: >-
+              Token length: {{ cloudflare_api_token | length }}
+              First chars: {{ cloudflare_api_token | truncate(5, True, '') }}
+
+        - name: Validate CLOUDFLARE_API_TOKEN
+          fail:
+            msg: "CLOUDFLARE_API_TOKEN is empty/missing in .env file"
+          when: cloudflare_api_token | length == 0
+      rescue:
+        - name: Fail with helpful message
+          fail:
+            msg: "Error: .env file not found or CLOUDFLARE_API_TOKEN invalid"
+      tags: cert-manager
+
+    - name: Create Cloudflare API Token Secret
+      kubernetes.core.k8s:
+        state: present
+        namespace: cert-manager
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: cloudflare-api-token
+            namespace: cert-manager
+          data:
+            api-token: "{{ cloudflare_api_token | b64encode }}"
+      tags: cert-manager
+
+    - name: Apply Bitnami OCI Helm Repository Secret
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/bitnami-oci-helm-repo.yaml') }}"
+      tags:
+        - bitnami-oci
+
+    - name: Apply Cert Manager Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cert-manager/cert-manager-application.yaml') }}"
+      tags: cert-manager
+
+    - name: Apply CNPG Operator Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/cnpg-operator-application.yaml') }}"
+      tags: cnpg-operator
+
+    - name: Apply CNPG Immich Alias ApplicationSet
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/apps/applicationset-immich-alias.yaml') }}"
+      tags: cnpg-immich-alias
+
+    - name: Apply CNPG Immich Database ApplicationSet
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/apps/applicationset-immich-db.yaml') }}"
+      tags: cnpg-immich-db
+
+    - name: Apply CNPG Immich Database Active Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-active-application.yaml') }}"
+      tags: immich-db-active
+
+    - name: Apply CNPG Immich Database A Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-a-application.yaml') }}"
+      tags: immich-db-a
+
+    - name: Apply CNPG Immich Database B Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-b-application.yaml') }}"
+      tags: immich-db-b
+
+    - name: Apply CNPG Immich Database B Restore Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/cnpg/immich-db-b-restore-application.yaml') }}"
+      tags: immich-db-b-restore
+
+    # Create namespace for external-dns
+    - name: Create external-dns namespace
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: external-dns
+      tags: external-dns
+
+    # Verify and load Cloudflare token for external-dns
+    - name: Verify and load Cloudflare token from .env for external-dns
+      block:
+        - name: Load CLOUDFLARE_API_TOKEN from .env
+          set_fact:
+            cloudflare_api_token: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('CLOUDFLARE_API_TOKEN=([^\n]+)') | first
+                | default('') | trim
+              }}
+
+        - name: Debug token length
+          debug:
+            msg: >-
+              Token length: {{ cloudflare_api_token | length }}
+              First chars: {{ cloudflare_api_token | truncate(5, True, '') }}
+
+        - name: Validate CLOUDFLARE_API_TOKEN
+          fail:
+            msg: "CLOUDFLARE_API_TOKEN is empty/missing in .env file"
+          when: cloudflare_api_token | length == 0
+      rescue:
+        - name: Fail with helpful message
+          fail:
+            msg: "Error: .env file not found or CLOUDFLARE_API_TOKEN invalid"
+      tags: external-dns
+
+    # Create secret for external-dns using the same Cloudflare token
+    - name: Create External DNS Cloudflare API Token Secret
+      kubernetes.core.k8s:
+        state: present
+        namespace: external-dns
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: cloudflare-api-token
+            namespace: external-dns
+          data:
+            api-token: "{{ cloudflare_api_token | b64encode }}"
+      tags: external-dns
+
+    - name: Apply External DNS
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/external-dns/external-dns-application.yaml') }}"
+      tags: external-dns
+
+    - name: Apply qbittorrent
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/qbittorrent/qbittorrent-application.yaml') }}"
+      tags: qbittorrent
+
+    # Verify and load Plex account token from .env for automatic server claiming
+    - name: Verify and load Plex account token from .env
+      block:
+        - name: Load MY_PLEX_ACCESS_TOKEN from .env
+          set_fact:
+            plex_account_token: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('MY_PLEX_ACCESS_TOKEN=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Debug Plex account token length
+          debug:
+            msg: >-
+              Plex account token length: {{ plex_account_token | length }}
+              First chars: {{ plex_account_token | truncate(5, True, '') }}
+
+        - name: Validate MY_PLEX_ACCESS_TOKEN
+          fail:
+            msg: "MY_PLEX_ACCESS_TOKEN is empty/missing in .env file"
+          when: plex_account_token | length == 0
+      rescue:
+        - name: Fail with helpful message for Plex
+          fail:
+            msg: "Error: .env file not found or MY_PLEX_ACCESS_TOKEN invalid"
+      tags: plex
+
+    # Create Kubernetes Secret for Plex account token
+    - name: Create Plex account token Secret
+      kubernetes.core.k8s:
+        state: present
+        namespace: media
+        kubeconfig: "{{ kubeconfig_path }}"
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: plex-account-token
+            namespace: media
+          data:
+            token: "{{ plex_account_token | b64encode }}"
+      tags: plex
+
+    - name: Apply Plex
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/plex/plex-application.yaml') }}"
+      tags: plex
+
+    # Verify and load Prowlarr secrets from .env
+    - name: Verify and load Prowlarr secrets from .env
+      block:
+        - name: Load PROWLARR_API_KEY from .env
+          set_fact:
+            prowlarr_api_key: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('PROWLARR_API_KEY=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load RUTRACKER_USER from .env
+          set_fact:
+            rutracker_user: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('RUTRACKER_USER=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load RUTRACKER_PASS from .env
+          set_fact:
+            rutracker_pass: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('RUTRACKER_PASS=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load MYANONAMOUSE_SESSION_ID from .env
+          set_fact:
+            mam_session_id: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('MYANONAMOUSE_SESSION_ID=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Validate Prowlarr secrets
+          fail:
+            msg: "{{ item.name }} is empty/missing in .env file"
+          when: item.value | length == 0
+          loop:
+            - { name: "PROWLARR_API_KEY", value: "{{ prowlarr_api_key }}" }
+            - { name: "RUTRACKER_USER", value: "{{ rutracker_user }}" }
+            - { name: "RUTRACKER_PASS", value: "{{ rutracker_pass }}" }
+            - { name: "MYANONAMOUSE_SESSION_ID", value: "{{ mam_session_id }}" }
+      rescue:
+        - name: Fail with helpful message
+          fail:
+            msg: "Error: .env file not found or Prowlarr secrets invalid"
+      tags: prowlarr
+
+    # Create namespace for Prowlarr
+    - name: Create media namespace
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: media
+      tags: prowlarr
+
+    # Create Prowlarr secrets
+    - name: Create Prowlarr secrets
+      kubernetes.core.k8s:
+        state: present
+        namespace: media
+        kubeconfig: "{{ kubeconfig_path }}"
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: prowlarr-secrets
+            namespace: media
+          data:
+            PROWLARR_API_KEY: "{{ prowlarr_api_key | b64encode }}"
+            RUTRACKER_USER: "{{ rutracker_user | b64encode }}"
+            RUTRACKER_PASS: "{{ rutracker_pass | b64encode }}"
+            MYANONAMOUSE_SESSION_ID: "{{ mam_session_id | b64encode }}"
+      tags: prowlarr
+
+    - name: Apply Prowlarr
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/prowlarr/prowlarr-application.yaml') }}"
+      tags: prowlarr
+
+    - name: Apply lazylibrarian Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/lazylibrarian/lazylibrarian-application.yaml') }}"
+      tags: lazylibrarian
+
+    # - name: Apply Radarr Configuration
+    #   kubernetes.core.k8s:
+    #     state: present
+    #     kubeconfig: "{{ kubeconfig_path }}"
+    #     namespace: argocd
+    #     definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/radarr/radarr-application.yaml') }}"
+    #   tags: radarr
+
+    - name: Apply Sonarr Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/sonarr/sonarr-application.yaml') }}"
+      tags: sonarr
+
+    - name: Apply Threadfin Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/threadfin/threadfin-application.yaml') }}"
+      tags: threadfin
+
+    - name: Apply Streamlink Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/streamlink/streamlink-application.yaml') }}"
+      tags: streamlink
+
+    - name: Apply Headlamp Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/headlamp/headlamp-application.yaml') }}"
+      tags: headlamp
+
+    - name: Apply Redis Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/redis/redis-application.yaml') }}"
+      tags: redis
+
+    - name: Apply Immich Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/immich/immich-application.yaml') }}"
+      tags: immich
+
+    # Verify and load Immich offsite backup credentials from .env
+    - name: Verify and load Immich offsite backup credentials from .env
+      block:
+        - name: Load OFFSITE_BACKUP_WRITER_AWS_ACCESS_KEY_ID from .env
+          set_fact:
+            offsite_backup_aws_access_key_id: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_WRITER_AWS_ACCESS_KEY_ID=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OFFSITE_BACKUP_WRITER_AWS_SECRET_ACCESS_KEY from .env
+          set_fact:
+            offsite_backup_aws_secret_access_key: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_WRITER_AWS_SECRET_ACCESS_KEY=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OFFSITE_BACKUP_RESTORER_AWS_ACCESS_KEY_ID from .env
+          set_fact:
+            offsite_backup_restorer_aws_access_key_id: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_RESTORER_AWS_ACCESS_KEY_ID=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OFFSITE_BACKUP_RESTORER_AWS_SECRET_ACCESS_KEY from .env
+          set_fact:
+            offsite_backup_restorer_aws_secret_access_key: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_RESTORER_AWS_SECRET_ACCESS_KEY=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OFFSITE_BACKUP_AWS_REGION from .env
+          set_fact:
+            offsite_backup_aws_region: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_AWS_REGION=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OFFSITE_BACKUP_BUCKET_NAME from .env
+          set_fact:
+            offsite_backup_bucket_name: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_BUCKET_NAME=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OFFSITE_BACKUP_MEDIA_PREFIX from .env
+          set_fact:
+            offsite_backup_media_prefix: >-
+              {{
+                lookup('file', playbook_dir + '/../.env')
+                | regex_findall('OFFSITE_BACKUP_MEDIA_PREFIX=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Validate offsite backup credentials
+          fail:
+            msg: "{{ item.name }} is empty/missing in .env file"
+          when: item.value | length == 0
+          loop:
+            - { name: "OFFSITE_BACKUP_WRITER_AWS_ACCESS_KEY_ID", value: "{{ offsite_backup_aws_access_key_id }}" }
+            - { name: "OFFSITE_BACKUP_WRITER_AWS_SECRET_ACCESS_KEY", value: "{{ offsite_backup_aws_secret_access_key }}" }
+            - { name: "OFFSITE_BACKUP_RESTORER_AWS_ACCESS_KEY_ID", value: "{{ offsite_backup_restorer_aws_access_key_id }}" }
+            - { name: "OFFSITE_BACKUP_RESTORER_AWS_SECRET_ACCESS_KEY", value: "{{ offsite_backup_restorer_aws_secret_access_key }}" }
+            - { name: "OFFSITE_BACKUP_AWS_REGION", value: "{{ offsite_backup_aws_region }}" }
+            - { name: "OFFSITE_BACKUP_BUCKET_NAME", value: "{{ offsite_backup_bucket_name }}" }
+            - { name: "OFFSITE_BACKUP_MEDIA_PREFIX", value: "{{ offsite_backup_media_prefix }}" }
+      rescue:
+        - name: Fail with helpful message
+          fail:
+            msg: "Error: .env file not found or offsite backup credentials invalid"
+      tags: immich-offsite-backup
+
+    # Create Immich offsite backup writer secret in immich namespace (for media CronJob)
+    - name: Create Immich offsite backup writer secret (immich namespace)
+      kubernetes.core.k8s:
+        state: present
+        namespace: immich
+        kubeconfig: "{{ kubeconfig_path }}"
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: immich-offsite-writer
+            namespace: immich
+          stringData:
+            AWS_ACCESS_KEY_ID: "{{ offsite_backup_aws_access_key_id }}"
+            AWS_SECRET_ACCESS_KEY: "{{ offsite_backup_aws_secret_access_key }}"
+            AWS_REGION: "{{ offsite_backup_aws_region }}"
+            BUCKET_NAME: "{{ offsite_backup_bucket_name }}"
+            MEDIA_PREFIX: "{{ offsite_backup_media_prefix }}"
+      tags: immich-offsite-backup
+
+    # Create same secret in postgresql namespace (for CNPG ScheduledBackup)
+    - name: Create Immich offsite backup writer secret (postgresql namespace)
+      kubernetes.core.k8s:
+        state: present
+        namespace: postgresql
+        kubeconfig: "{{ kubeconfig_path }}"
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: immich-offsite-writer
+            namespace: postgresql
+          stringData:
+            AWS_ACCESS_KEY_ID: "{{ offsite_backup_aws_access_key_id }}"
+            AWS_SECRET_ACCESS_KEY: "{{ offsite_backup_aws_secret_access_key }}"
+            AWS_REGION: "{{ offsite_backup_aws_region }}"
+            BUCKET_NAME: "{{ offsite_backup_bucket_name }}"
+            MEDIA_PREFIX: "{{ offsite_backup_media_prefix }}"
+      tags: immich-offsite-backup
+
+    # Create Immich offsite backup restorer secret in postgresql namespace (for CNPG restore)
+    - name: Create Immich offsite backup restorer secret (postgresql namespace)
+      kubernetes.core.k8s:
+        state: present
+        namespace: postgresql
+        kubeconfig: "{{ kubeconfig_path }}"
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: immich-offsite-restorer
+            namespace: postgresql
+          stringData:
+            AWS_ACCESS_KEY_ID: "{{ offsite_backup_restorer_aws_access_key_id }}"
+            AWS_SECRET_ACCESS_KEY: "{{ offsite_backup_restorer_aws_secret_access_key }}"
+            AWS_REGION: "{{ offsite_backup_aws_region }}"
+            BUCKET_NAME: "{{ offsite_backup_bucket_name }}"
+            MEDIA_PREFIX: "{{ offsite_backup_media_prefix }}"
+      tags: immich-offsite-backup
+
+    - name: Apply Immich Offsite Backup Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/yaml/argocd-apps/immich-offsite-backup/immich-offsite-backup-application.yaml') }}"
+      tags: immich-offsite-backup

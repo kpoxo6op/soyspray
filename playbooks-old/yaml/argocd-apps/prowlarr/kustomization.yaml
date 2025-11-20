@@ -1,0 +1,26 @@
+# playbooks/yaml/argocd-apps/prowlarr/kustomization.yaml
+# Kustomization for Prowlarr
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - pvc-config.yaml
+  - service.yaml
+  - ingress.yaml
+  - deployment.yaml
+  - initial-config-configmap.yaml
+  - bootstrap-scripts-cm.yaml
+  - bootstrap-job.yaml
+
+configMapGenerator:
+  - name: prowlarr-payloads
+    namespace: media
+    files:
+      - rutracker.json=rutracker_payload.json
+      - myanonamouse.json=myanonamouse_payload.json
+      - readarr.json=readarr_app_payload.json
+      - thepiratebay.json=thepiratebay_payload.json
+      - lazylibrarian.json=lazylibrarian_app_payload.json
+      - sonarr.json=sonarr_app_payload.json
+    options:
+      disableNameSuffixHash: true

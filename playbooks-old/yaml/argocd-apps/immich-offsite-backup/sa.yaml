@@ -1,0 +1,7 @@
+# Isolated ServiceAccount for backup workloads
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: immich-offsite-backup
+  namespace: immich
+

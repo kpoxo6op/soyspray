@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlink-playlist
+  labels:
+    app.kubernetes.io/name: streamlink
+    app.kubernetes.io/component: playlist
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: streamlink
+      app.kubernetes.io/component: playlist
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: streamlink
+        app.kubernetes.io/component: playlist
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: playlist-volume
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "50m"
+              memory: "64Mi"
+      volumes:
+        - name: playlist-volume
+          configMap:
+            name: streamlink-playlist

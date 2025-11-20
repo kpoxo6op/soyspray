@@ -1,0 +1,26 @@
+# playbooks/yaml/argocd-apps/qbittorrent/service-peers.yaml
+# Dedicated LoadBalancer Service for BitTorrent peer traffic
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-peers
+  namespace: media
+  annotations:
+    metallb.universe.tf/address-pool: torrent
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.1.39
+  externalTrafficPolicy: Cluster
+  ports:
+    - name: peers-tcp
+      port: 49160
+      protocol: TCP
+      targetPort: 49160
+      nodePort: 32416
+    - name: peers-udp
+      port: 49160
+      protocol: UDP
+      targetPort: 49160
+      nodePort: 32416
+  selector:
+    app: qbittorrent

@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:0 tvg-id="OTVPrim.ru" tvg-logo="https://i.imgur.com/2zd8trG.png" group-title="Russia", ОТВ Приморья
+http://streamlink-otb-primorie.media.svc.cluster.local/
+#EXTINF:0 tvg-id="25region" tvg-logo="http://25region.online/local/templates/25region/i/logo.png" group-title="Russia", 25 Region
+http://streamlink-25-region.media.svc.cluster.local/
+#EXTINF:0 tvg-id="FridayHD.ru" tvg-logo="https://i.imgur.com/UfmlXxe.png" group-title="Russia", Пятница HD
+http://streamlink-friday-ru.media.svc.cluster.local/

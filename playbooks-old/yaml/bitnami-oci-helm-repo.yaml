@@ -1,0 +1,17 @@
+# playbooks/yaml/bitnami-oci-helm-repo.yaml
+# ArgoCD repository Secret for Bitnami OCI Helm charts
+# This enables ArgoCD to pull charts from registry-1.docker.io/bitnamicharts
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: bitnami-oci-helm
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  name: bitnami-oci
+  url: registry-1.docker.io
+  type: helm
+  enableOCI: "true"

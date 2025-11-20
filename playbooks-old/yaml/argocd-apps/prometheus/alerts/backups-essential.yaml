@@ -1,0 +1,39 @@
+# playbooks/yaml/argocd-apps/prometheus/alerts/backups-essential.yaml
+# Minimal backup alerts: 1) Media CronJob stale; 2) CNPG last available backup stale
+# No S3 requests; relies on kube-state-metrics and CNPG exporter; 36h thresholds
+# Assumes Prometheus Operator CRDs and monitoring namespace 'monitoring'
+# Requires CNPG PodMonitor enabled for immich-db (see notes)
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: backups-essential
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: backups-essential
+      rules:
+        - alert: ImmichMediaBackupStale
+          expr: |
+            time() - max by (namespace, cronjob) (
+              kube_cronjob_status_last_successful_time{namespace="immich", cronjob="immich-media-offsite-sync"}
+            ) > 36 * 60 * 60
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Media backup stale (immich-media-offsite-sync)"
+            description: "Last successful CronJob run is older than 36h in namespace=immich."
+        - alert: CNPGBackupStale
+          expr: |
+            time() - max by (cluster) (
+              cnpg_collector_last_available_backup_timestamp{cluster="immich-db"}
+            ) > 36 * 60 * 60
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "CNPG backup stale (cluster=immich-db)"
+            description: "CNPG reports last available backup older than 36h."
+
