@@ -1,7 +1,0 @@
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
-namespace: redis
-
-# Note: helmCharts section removed - chart is now pulled via ArgoCD OCI source
-# to resolve Bitnami OCI migration compatibility issues
