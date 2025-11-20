@@ -20,5 +20,5 @@ kubeconform -h
 ```
 
 ```sh
-kubeconform -summary -schema-location default -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/refs/heads/main/argoproj.io/application_v1alpha1.json' playbooks/yaml/argocd-apps/prometheus/prometheus-application.yaml
+kubeconform -summary -schema-location default -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/refs/heads/main/argoproj.io/application_v1alpha1.json' playbooks/argocd/applications/observability/prometheus/prometheus-application.yaml
 ```
