@@ -1,0 +1,19 @@
+# playbooks/yaml/argocd-apps/immich/immich-library-pvc.yaml
+#
+# Defines the PersistentVolumeClaim for the Immich library storage.
+# - Name must match 'existingClaim' in values.yaml.
+# - Namespace must match the Immich application destination namespace.
+# - Uses the 'longhorn' StorageClass.
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-library
+  namespace: immich
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Gi
+  storageClassName: longhorn

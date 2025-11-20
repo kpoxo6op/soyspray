@@ -1,0 +1,49 @@
+# playbooks/expose-argocd.yml
+---
+- name: Common tasks for every playbook
+  import_playbook: ../kubespray/playbooks/boilerplate.yml
+
+- name: Expose ArgoCD server via MetalLB
+  hosts: localhost
+  become: false
+  tasks:
+    - name: Copy the ArgoCD Service manifest to the Kubernetes master node
+      ansible.builtin.copy:
+        src: argocd-server-service.yaml
+        dest: /tmp/argocd-server-service.yaml
+
+    - name: Apply the ArgoCD Service manifest via kubectl
+      ansible.builtin.command:
+        cmd: kubectl apply -f /tmp/argocd-server-service.yaml
+      args:
+        chdir: /tmp
+      register: apply_service_result
+
+    - name: Output the result of kubectl apply for the service
+      debug:
+        var: apply_service_result.stdout
+
+    - name: Copy the ArgoCD ConfigMap manifest to the Kubernetes master node
+      ansible.builtin.copy:
+        src: argocd-cmd-params-cm.yaml
+        dest: /tmp/argocd-cmd-params-cm.yaml
+
+    - name: Apply the ArgoCD ConfigMap via kubectl
+      ansible.builtin.command:
+        cmd: kubectl apply -f /tmp/argocd-cmd-params-cm.yaml
+      args:
+        chdir: /tmp
+      register: apply_configmap_result
+
+    - name: Output the result of kubectl apply for the config map
+      debug:
+        var: apply_configmap_result.stdout
+
+    - name: Restart the ArgoCD server deployment
+      ansible.builtin.command:
+        cmd: kubectl rollout restart deployment argocd-server -n argocd
+      register: restart_deployment_result
+
+    - name: Output the result of ArgoCD server deployment restart
+      debug:
+        var: restart_deployment_result.stdout

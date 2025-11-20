@@ -1,0 +1,83 @@
+# playbooks/yaml/argocd-apps/prowlarr/bootstrap-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: prowlarr-bootstrap
+  namespace: media
+  labels:
+    app: prowlarr
+    component: bootstrap
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: HookSucceeded
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: prowlarr
+        component: bootstrap
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: bootstrap
+        image: alpine/curl:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -euo pipefail
+          apk add --no-cache gettext jq
+          /scripts/bootstrap.sh
+        env:
+        - name: PROWLARR_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: prowlarr-secrets
+              key: PROWLARR_API_KEY
+        - name: RUTRACKER_USER
+          valueFrom:
+            secretKeyRef:
+              name: prowlarr-secrets
+              key: RUTRACKER_USER
+        - name: RUTRACKER_PASS
+          valueFrom:
+            secretKeyRef:
+              name: prowlarr-secrets
+              key: RUTRACKER_PASS
+        - name: MYANONAMOUSE_SESSION_ID
+          valueFrom:
+            secretKeyRef:
+              name: prowlarr-secrets
+              key: MYANONAMOUSE_SESSION_ID
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+        volumeMounts:
+        - name: payloads
+          mountPath: /payloads
+          readOnly: true
+        - name: scripts
+          mountPath: /scripts
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: false
+          runAsUser: 0
+          runAsGroup: 0
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: payloads
+        configMap:
+          name: prowlarr-payloads
+          defaultMode: 0644
+      - name: scripts
+        configMap:
+          name: prowlarr-bootstrap-scripts
+          defaultMode: 0755

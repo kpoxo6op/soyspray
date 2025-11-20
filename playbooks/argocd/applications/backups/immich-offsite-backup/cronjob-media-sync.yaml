@@ -1,0 +1,56 @@
+# Nightly media off-site sync from the Immich library PVC to S3 using AWS CLI v2
+# Schedule: 04:45 UTC (17:45 NZDT) - TEST
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: immich-media-offsite-sync
+  namespace: immich
+spec:
+  schedule: "45 4 * * *"
+  timeZone: "UTC"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 3600
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      activeDeadlineSeconds: 7200
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          serviceAccountName: immich-offsite-backup
+          restartPolicy: Never
+          terminationGracePeriodSeconds: 30
+          containers:
+            - name: aws-sync
+              image: public.ecr.aws/aws-cli/aws-cli:latest
+              imagePullPolicy: IfNotPresent
+              command: ["/scripts/backup-media.sh"]
+              envFrom:
+                - secretRef:
+                    name: immich-offsite-writer
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: library
+                  mountPath: /library
+              resources:
+                requests:
+                  cpu: "100m"
+                  memory: "256Mi"
+                limits:
+                  memory: "1Gi"
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+          volumes:
+            - name: scripts
+              configMap:
+                name: immich-offsite-backup-scripts
+                defaultMode: 0555
+            - name: library
+              persistentVolumeClaim:
+                claimName: immich-library
+

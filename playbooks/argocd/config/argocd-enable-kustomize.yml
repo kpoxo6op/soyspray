@@ -1,0 +1,34 @@
+# playbooks/enable-kustomize-argocd.yml
+---
+- name: Common tasks for every playbook
+  import_playbook: ../kubespray/playbooks/boilerplate.yml
+
+- name: Enable Helm Support in Kustomize Argo CD
+  hosts: localhost
+  become: false
+  tasks:
+
+    - name: Copy the ArgoCD ConfigMap manifest to the Kubernetes master node
+      ansible.builtin.copy:
+        src: argocd-cm.yaml
+        dest: /tmp/argocd-cm.yaml
+
+    - name: Apply the ArgoCD ConfigMap via kubectl
+      ansible.builtin.command:
+        cmd: kubectl apply -f /tmp/argocd-cm.yaml
+      args:
+        chdir: /tmp
+      register: apply_configmap_result
+
+    - name: Output the result of kubectl apply for the config map
+      debug:
+        var: apply_configmap_result.stdout
+
+    - name: Restart the ArgoCD server deployment
+      ansible.builtin.command:
+        cmd: kubectl rollout restart deployment argocd-server -n argocd
+      register: restart_deployment_result
+
+    - name: Output the result of ArgoCD server deployment restart
+      debug:
+        var: restart_deployment_result.stdout

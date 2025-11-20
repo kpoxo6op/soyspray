@@ -1,0 +1,164 @@
+# playbooks/plex_test/install-plex.yml
+# Install Plex Media Server for bare-metal testing
+---
+- name: Common tasks for every playbook
+  import_playbook: ../../kubespray/playbooks/boilerplate.yml
+
+- name: Install Plex Media Server
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    plex_user: plex
+    plex_group: plex
+    plex_service: plexmediaserver
+    plex_port: 32400
+    plex_config_dir: /var/lib/plexmediaserver/Library/Application Support/Plex Media Server
+
+  pre_tasks:
+    - name: Verify OS compatibility
+      ansible.builtin.fail:
+        msg: "This playbook requires Ubuntu/Debian-based systems only"
+      when: ansible_distribution not in ['Ubuntu', 'Debian']
+
+    - name: Check for existing Plex installation
+      ansible.builtin.command: dpkg -l | grep -i plex
+      register: plex_check
+      changed_when: false
+      failed_when: false
+
+    - name: Warn about existing Plex installation
+      ansible.builtin.debug:
+        msg: "⚠️  WARNING: Plex appears to already be installed. This may cause conflicts."
+      when: plex_check.stdout != ""
+
+  tasks:
+    - name: Install prerequisite packages
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - curl
+          - gpg
+          - lsb-release
+        state: present
+        update_cache: true
+      tags: plex
+
+    - name: Setup Plex APT repository
+      block:
+        - name: Ensure /etc/apt/keyrings directory exists
+          ansible.builtin.file:
+            path: /etc/apt/keyrings
+            state: directory
+            mode: "0755"
+
+        - name: Download Plex APT public key
+          ansible.builtin.get_url:
+            url: https://downloads.plex.tv/plex-keys/PlexSign.key
+            dest: /etc/apt/keyrings/plex.asc
+            mode: "0644"
+
+        - name: Convert Plex key to GPG keyring format
+          ansible.builtin.command:
+            cmd: gpg --dearmor -o /etc/apt/keyrings/plex.gpg /etc/apt/keyrings/plex.asc
+            creates: /etc/apt/keyrings/plex.gpg
+
+        - name: Clean up ASCII key file
+          ansible.builtin.file:
+            path: /etc/apt/keyrings/plex.asc
+            state: absent
+
+        - name: Add Plex APT repository
+          ansible.builtin.apt_repository:
+            repo: "deb [signed-by=/etc/apt/keyrings/plex.gpg] https://downloads.plex.tv/repo/deb public main"
+            filename: plexmediaserver
+            state: present
+
+        - name: Update package cache for Plex repository
+          ansible.builtin.apt:
+            update_cache: true
+      tags: plex
+
+    - name: Install plexmediaserver package
+      ansible.builtin.apt:
+        name: plexmediaserver
+        state: present
+      tags: plex
+
+    - name: Configure Plex user and directories
+      block:
+        - name: Ensure Plex user has access to necessary directories
+          ansible.builtin.user:
+            name: "{{ plex_user }}"
+            groups: video,audio
+            append: true
+
+        - name: Create Plex configuration directory
+          ansible.builtin.file:
+            path: "{{ plex_config_dir }}"
+            state: directory
+            owner: "{{ plex_user }}"
+            group: "{{ plex_group }}"
+            mode: "0755"
+      tags: plex
+
+    - name: Enable and start plexmediaserver service
+      ansible.builtin.systemd:
+        name: "{{ plex_service }}"
+        enabled: true
+        state: started
+      tags: plex
+
+    - name: Wait for Plex service to be fully started
+      ansible.builtin.wait_for:
+        port: "{{ plex_port }}"
+        timeout: 60
+        state: started
+      tags: plex
+
+    - name: Verify Plex service status
+      ansible.builtin.command: systemctl status {{ plex_service }}
+      register: service_status
+      changed_when: false
+      failed_when: false
+      tags: plex
+
+    - name: Check Plex Media Server version
+      ansible.builtin.command: dpkg -l plexmediaserver
+      register: plex_version
+      changed_when: false
+      tags: plex
+
+    - name: Display installation results
+      ansible.builtin.debug:
+        msg: |
+          ✅ Plex Media Server installation completed successfully!
+
+          📋 Installation Summary:
+          Service: {{ plex_service }}
+          Port: {{ plex_port }}
+          Config Directory: {{ plex_config_dir }}
+          User: {{ plex_user }}
+          Group: {{ plex_group }}
+
+          📦 Package Version:
+          {{ plex_version.stdout }}
+
+          🔧 Service Status:
+          {{ service_status.stdout }}
+
+          🌐 Next Steps:
+          1. Open http://{{ ansible_default_ipv4.address }}:{{ plex_port }}/web in your browser
+          2. Sign in to Plex and claim the server
+          3. Enable Remote Access in Settings
+          4. Add a media library
+          5. Test remote playback from app.plex.tv
+
+          ⚠️  Remote Playback Requirements:
+          - Plex Pass on server owner account, OR
+          - Plex Pass on viewer account, OR
+          - Remote Watch Pass
+          (As of April 29, 2025 - free local playback only without these)
+
+          🚀 Ready for remote testing!

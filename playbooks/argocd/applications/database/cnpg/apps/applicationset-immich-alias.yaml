@@ -1,0 +1,32 @@
+# Generates two alias apps (A and B) without automation so you flip explicitly:
+#   argocd app delete immich-db-active-a && argocd app sync immich-db-active-b
+# Keeps zero-edit DR flips and avoids Argo ownership collisions on the Service.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: immich-db-alias
+  namespace: argocd
+spec:
+  generators:
+    - list:
+        elements:
+          - active: a
+          - active: b
+  template:
+    metadata:
+      name: immich-db-active-{{active}}
+      finalizers:
+        - resources-finalizer.argocd.argoproj.io
+    spec:
+      project: default
+      destination:
+        server: "https://kubernetes.default.svc"
+        namespace: postgresql
+      sources:
+        - repoURL: "https://github.com/kpoxo6op/soyspray.git"
+          targetRevision: "HEAD"
+          path: playbooks/argocd/applications/database/cnpg/immich-db-active/overlays/active-{{active}}
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true
+          - ServerSideApply=true

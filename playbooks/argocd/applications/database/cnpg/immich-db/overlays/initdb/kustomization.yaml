@@ -1,0 +1,11 @@
+# Init from scratch with extensions; enable backups; run one-time full Backup as PostSync hook.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: postgresql
+resources:
+  - ../../base
+  - scheduledbackup.yaml
+  - backup-initial.yaml
+patchesStrategicMerge:
+  - bootstrap-initdb-patch.yaml
+  - backup-config-patch.yaml

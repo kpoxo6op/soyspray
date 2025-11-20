@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: streamlink-playlist
+  labels:
+    app.kubernetes.io/name: streamlink
+    app.kubernetes.io/component: playlist
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    external-dns.alpha.kubernetes.io/hostname: "streamlink.soyspray.vip"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - streamlink.soyspray.vip
+      secretName: streamlink-tls
+  rules:
+    - host: streamlink.soyspray.vip
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: streamlink-playlist
+                port:
+                  number: 80
