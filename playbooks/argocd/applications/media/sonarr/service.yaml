@@ -1,0 +1,18 @@
+# playbooks/yaml/argocd-apps/sonarr/service.yaml
+# Service for Sonarr
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr
+  namespace: media
+  labels:
+    app: sonarr
+spec:
+  selector:
+    app: sonarr
+  ports:
+    - name: http
+      port: 8989
+      targetPort: 8989
+      protocol: TCP
+  type: ClusterIP

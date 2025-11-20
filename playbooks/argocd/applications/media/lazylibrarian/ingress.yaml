@@ -1,0 +1,27 @@
+# playbooks/yaml/argocd-apps/lazylibrarian/ingress.yaml
+# Nginx Ingress routing lazylibrarian.soyspray.vip ➜ Service port 5299
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: lazylibrarian-ingress
+  namespace: media
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - lazylibrarian.soyspray.vip
+      secretName: prod-cert-tls
+  rules:
+    - host: lazylibrarian.soyspray.vip
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: lazylibrarian
+                port:
+                  number: 5299

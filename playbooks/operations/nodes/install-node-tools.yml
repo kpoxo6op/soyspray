@@ -1,0 +1,52 @@
+# playbooks/install-node-tools.yml This playbook installs various tools on Kubernetes
+# nodes, including the Kubernetes Python library and collectl performance monitoring tool
+# using the apt package manager, adhering to the system's managed environment policies.
+
+---
+- name: Common tasks for every playbook
+  import_playbook: ../kubespray/playbooks/boilerplate.yml
+
+- name: Install Kubernetes Python dependencies and monitoring tools via apt
+  hosts: kube_control_plane,kube_node
+  become: true
+  tasks:
+    - name: Ensure python3-kubernetes is installed via apt
+      ansible.builtin.apt:
+        name: python3-kubernetes
+        state: present
+        update_cache: true
+
+    - name: Ensure collectl is installed via apt
+      ansible.builtin.apt:
+        name: collectl
+        state: present
+
+    - name: Ensure lshw is installed via apt
+      ansible.builtin.apt:
+        name: lshw
+        state: present
+        update_cache: true
+
+    - name: Ensure parted is installed via apt
+      ansible.builtin.apt:
+        name: parted
+        state: present
+        update_cache: true
+
+    - name: Ensure sysstat is installed via apt
+      ansible.builtin.apt:
+        name: sysstat
+        state: present
+        update_cache: true
+
+    - name: Ensure smartmontools is installed via apt
+      ansible.builtin.apt:
+        name: smartmontools
+        state: present
+        update_cache: true
+
+    - name: Ensure jq is installed via apt
+      ansible.builtin.apt:
+        name: jq
+        state: present
+        update_cache: true

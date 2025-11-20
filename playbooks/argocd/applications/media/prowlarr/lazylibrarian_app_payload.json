@@ -1,0 +1,15 @@
+{
+  "syncLevel": "fullSync",
+  "enable": true,
+  "name": "LazyLibrarian",
+  "implementationName": "LazyLibrarian",
+  "implementation": "LazyLibrarian",
+  "configContract": "LazyLibrarianSettings",
+  "fields": [
+    { "name": "prowlarrUrl",  "value": "http://prowlarr.media.svc.cluster.local:9696" },
+    { "name": "baseUrl",      "value": "http://lazylibrarian.media.svc.cluster.local:5299" },
+    { "name": "apiKey",       "value": "3723d36aa1e9e9955e3bf8982e94ee3c" },
+    { "name": "syncCategories", "value": [3030,7000,7010,7020,7030,7040,7050,7060] }
+  ],
+  "tags": []
+}

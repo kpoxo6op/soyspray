@@ -79,7 +79,7 @@ spec:
 Error getting SSL certificate "argocd/prod-cert-tls": local SSL certificate argocd/prod-cert-tls was not found
 ```
 
-Solution: Run certificate sync playbook to copy certificate to the required namespace
+Solution: Run certificate sync playbook (`playbooks/operations/security/sync-certificates.yml`) to copy certificate to the required namespace
 
 ### Diagnostic Commands
 

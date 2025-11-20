@@ -4,40 +4,38 @@
 
 # do getting started so `kubectl get nodes` works
 
-- import_playbook: playbooks/deploy-argocd-ingress.yml
+- import_playbook: playbooks/argocd/config/argocd-configure-ingress.yml
   tags: postinstall
 
-- import_playbook: playbooks/enable-argocd-kustomize.yml
+- import_playbook: playbooks/argocd/config/argocd-enable-kustomize.yml
   tags: postinstall
 
-- import_playbook: playbooks/publish-argocd-service.yml
+- import_playbook: playbooks/argocd/config/argocd-publish-service.yml
   tags: postinstall
 
-- import_playbook: playbooks/install-node-tools.yml
+- import_playbook: playbooks/operations/nodes/install-node-tools.yml
   tags: postinstall
 
-- import_playbook: playbooks/set-node-labels.yml
+- import_playbook: playbooks/operations/nodes/set-node-labels.yml
   tags: postinstall
 
-- import_playbook: playbooks/initialize-longhorn-storage.yml
+- import_playbook: playbooks/operations/storage/initialize-longhorn-storage.yml
   tags: postinstall
 
-# manual step playbooks/yaml/argocd-apps/longhorn/values.yaml flip service monitor to false
-- import_playbook: playbooks/deploy-argocd-apps.yml
+# manual step playbooks/argocd/applications/infrastructure/longhorn/values.yaml flip service monitor to false
+- import_playbook: playbooks/argocd/playbooks/deploy-apps.yml
   tags: longhorn
 
 # ensure sync worked at http://192.168.1.21/applications/argocd/longhorn
 # it may take around 10mins to sync
 # argocd creds are admin/password
 
-- import_playbook: playbooks/deploy-argocd-apps.yml
+- import_playbook: playbooks/argocd/playbooks/deploy-apps.yml
   tags: cert-manager,external-dns
 
 # wait certs to be ready (around 3:30mins)
 # watch kubectl get cert -A
-- import_playbook: playbooks/sync-certificates.yml
-
-- import_playbook: playbooks/deploy-bitnami-oci-helm-repo.yml
-  tags: bitnami-oci
+- import_playbook: playbooks/operations/security/sync-certificates.yml
 
 # check access to https://longhorn.soyspray.vip
+

@@ -44,6 +44,6 @@ Use a verb-noun format for playbook filenames. Choose a verb from the tables bel
 | Sync | assure resources are in the same state |
 
 ### Example Format
-`deploy-argocd-apps.yml`
+`deploy-apps.yml`
 
 Pick the verb that best describes the action and combine it with a short noun for clarity.

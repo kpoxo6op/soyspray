@@ -1,0 +1,12 @@
+# Daily ScheduledBackup wired to the generated cluster name via nameRef.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: immich-db-daily
+spec:
+  schedule: "0 47 4 * * *"
+  backupOwnerReference: self
+  method: barmanObjectStore
+  cluster:
+    name: immich-db
+

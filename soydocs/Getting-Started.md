@@ -75,5 +75,5 @@ python3 -m venv soyspray-venv
 source soyspray-venv/bin/activate
 pip install -U -r kubespray/requirements.txt
 # cycle through The authenticity of host '192.168.1.xxx' can't be established.
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/show-hello.yml
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/operations/examples/show-hello.yml
 ```

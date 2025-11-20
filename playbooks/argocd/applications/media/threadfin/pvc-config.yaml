@@ -1,0 +1,14 @@
+# playbooks/yaml/argocd-apps/threadfin/pvc-config.yaml
+# PersistentVolumeClaim for Threadfin configuration
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: threadfin-config
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+  storageClassName: longhorn

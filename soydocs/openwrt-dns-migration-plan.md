@@ -16,7 +16,7 @@ hostnames on LAN and remotely.
 * Current DNS: **Pi‑hole in k8s**
 * Target Domain: **soyspray.vip**
 * Repo context for services/apps: ArgoCD apps live under
-  `playbooks/yaml/argocd-apps/`.
+  `playbooks/argocd/applications/`.
 * Root repo layout reference lives alongside playbooks and Kubespray.
 
 ---
