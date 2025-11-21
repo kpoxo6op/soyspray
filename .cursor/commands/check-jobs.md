@@ -2,152 +2,61 @@
 
 ## Overview
 
-Check status of all automated backup jobs, cron schedules, and their execution logs without creating manual jobs or redeploying anything.
+Check last execution time and status of backup jobs, and verify recent S3 backup files with storage classes.
 
-## Database Backup System (CNPG)
+## Database Backup Job Status
 
-### 1. Check Scheduled Backup Configuration
+### Check Last Execution Time and Status
 ```bash
-kubectl get scheduledbackup -n postgresql
+kubectl get scheduledbackup -n postgresql -o custom-columns=NAME:.metadata.name,LAST_BACKUP:.status.lastBackup,CLUSTER:.spec.cluster.name
 ```
 
-### 2. Check Cluster Backup Status
+## Media Backup Job Status
+
+### Check Last Execution Time and Status
 ```bash
-kubectl describe cluster -n postgresql immich-db | grep -A 3 -B 1 "ContinuousArchiving\|Backup\|backup"
+kubectl get cronjob -n immich immich-media-offsite-sync -o jsonpath='{range .status}{.lastScheduleTime}{"\n"}{.lastSuccessfulTime}{"\n"}{end}' && echo ""
+kubectl get jobs -n immich -l app=immich-offsite-backup --sort-by=.metadata.creationTimestamp -o custom-columns=NAME:.metadata.name,STATUS:.status.conditions[-1].type,COMPLETION_TIME:.status.completionTime | tail -3
 ```
 
-### 3. Check Backup Secrets
+## AWS S3 Backup Files
+
+### Check Last Database Backup Files and Storage Class
 ```bash
-kubectl get secrets -n postgresql | grep immich-offsite
+BUCKET="${BUCKET_NAME:-immich-offsite-archive-au2}"
+echo "=== Last 5 Database Backup Files ==="
+aws s3api list-objects-v2 --bucket "$BUCKET" --prefix "immich/db/" --query 'sort_by(Contents, &LastModified)[-5:].[Key,StorageClass,LastModified,Size]' --output table
 ```
 
-### 4. Check Backup Objects and History
+### Check Last Media Backup Files and Storage Class
 ```bash
-kubectl get backup.postgresql.cnpg.io -n postgresql
+BUCKET="${BUCKET_NAME:-immich-offsite-archive-au2}"
+echo "=== Last 5 Media Backup Files ==="
+aws s3api list-objects-v2 --bucket "$BUCKET" --prefix "immich/media/" --query 'sort_by(Contents, &LastModified)[-5:].[Key,StorageClass,LastModified,Size]' --output table
 ```
 
-### 5. Check CNPG Operator Status
+### Check Storage Class Distribution
 ```bash
-kubectl get pods -n cnpg-system
-```
-
-## Media Backup System
-
-### 1. Check CronJob Status
-```bash
-kubectl get cronjobs -n immich
-```
-
-### 2. Check CronJob Details
-```bash
-kubectl get cronjob -n immich immich-media-offsite-sync -o yaml | grep -A 3 -B 3 "schedule\|suspend\|lastScheduleTime\|lastSuccessfulTime"
-```
-
-### 3. Check Job History
-```bash
-kubectl get jobs -n immich
-```
-
-### 4. Check Backup Secrets
-```bash
-kubectl get secrets -n immich | grep immich-offsite
-```
-
-### 5. Check ServiceAccount and ConfigMap
-```bash
-kubectl get serviceaccount,configmap -n immich | grep immich-offsite
-```
-
-## Alias Service Status
-
-### 1. Check Database Alias Service
-```bash
-kubectl get svc -n postgresql immich-db-active
-```
-
-### 2. Verify Immich Connection
-```bash
-kubectl exec -n immich deployment/immich-server -- env | grep DB_URL
-```
-
-## ArgoCD Application Status
-
-### 1. Check Database Application
-```bash
-argocd app get immich-db | grep -E "(Sync Status|Health Status|targetRevision)"
-```
-
-### 2. Check Media Backup Application
-```bash
-argocd app get immich-offsite-backup | grep -E "(Sync Status|Health Status|targetRevision)"
-```
-
-### 3. Check Application Resources
-```bash
-argocd app get immich-db -o yaml | grep -A 5 "GROUP\|KIND\|NAME\|STATUS\|HEALTH"
-argocd app get immich-offsite-backup -o yaml | grep -A 5 "GROUP\|KIND\|NAME\|STATUS\|HEALTH"
-```
-
-## Logs and Recent Activity
-
-### 1. Check Recent Events
-```bash
-kubectl get events -n postgresql --sort-by='.lastTimestamp' | tail -10
-kubectl get events -n immich --sort-by='.lastTimestamp' | tail -10
-```
-
-### 2. Check CronJob Logs (if jobs exist)
-```bash
-# Get recent job names
-JOBS=$(kubectl get jobs -n immich -o jsonpath='{.items[*].metadata.name}' | tr ' ' '\n' | tail -3)
-
-for job in $JOBS; do
-  echo "=== Logs for job: $job ==="
-  kubectl logs -n immich job/$job 2>/dev/null || echo "No logs available for $job"
-done
-```
-
-### 3. Check CNPG Operator Logs (if issues detected)
-```bash
-kubectl logs -n cnpg-system deployment/cnpg-operator-cloudnative-pg --tail=20
-```
-
-## Validation Checks
-
-### 1. Verify Backup Schedules Are Active
-```bash
-# Database backup should show LAST BACKUP timestamp
-kubectl get scheduledbackup -n postgresql immich-db-daily
-
-# Media backup should show recent lastScheduleTime and lastSuccessfulTime
-kubectl get cronjob -n immich immich-media-offsite-sync -o yaml | grep -E "lastScheduleTime|lastSuccessfulTime"
-```
-
-### 2. Verify No Manual/Test Jobs Exist
-```bash
-# Should return no results or only automated jobs
-kubectl get jobs -n postgresql
-kubectl get jobs -n immich | grep -v "Complete.*immich-media-offsite-sync"
-```
-
-### 3. Verify Continuous Archiving
-```bash
-kubectl describe cluster -n postgresql immich-db | grep -A 2 "ContinuousArchiving"
+BUCKET="${BUCKET_NAME:-immich-offsite-archive-au2}"
+echo "=== Database Backup Storage Classes ==="
+aws s3api list-objects-v2 --bucket "$BUCKET" --prefix "immich/db/" --query 'Contents[].StorageClass' --output text 2>/dev/null | tr '\t' '\n' | sort | uniq -c
+echo -e "\n=== Media Backup Storage Classes ==="
+aws s3api list-objects-v2 --bucket "$BUCKET" --prefix "immich/media/" --query 'Contents[].StorageClass' --output text 2>/dev/null | tr '\t' '\n' | sort | uniq -c
 ```
 
 ## Quick Status Summary
 ```bash
-echo "=== BACKUP SYSTEMS STATUS ==="
-echo "Database Scheduled Backup:"
-kubectl get scheduledbackup -n postgresql
-echo -e "\nMedia CronJob:"
-kubectl get cronjobs -n immich
-echo -e "\nDatabase Alias:"
-kubectl get svc -n postgresql immich-db-active
-echo -e "\nArgoCD Applications:"
-argocd app get immich-db | grep -E "(Sync Status|Health Status)"
-argocd app get immich-offsite-backup | grep -E "(Sync Status|Health Status)"
-echo -e "\nRecent Backup Activity:"
-kubectl get backup.postgresql.cnpg.io -n postgresql 2>/dev/null || echo "No backup objects found"
-kubectl get jobs -n immich | grep -E "(Complete|Running)" || echo "No media jobs found"
+echo "=== BACKUP JOBS STATUS ==="
+echo "Database Backup:"
+kubectl get scheduledbackup -n postgresql -o custom-columns=NAME:.metadata.name,LAST_BACKUP:.status.lastBackup
+echo -e "\nMedia Backup:"
+kubectl get cronjob -n immich immich-media-offsite-sync -o jsonpath='Last Schedule: {.status.lastScheduleTime}{"\n"}Last Success: {.status.lastSuccessfulTime}{"\n"}'
+echo -e "\nRecent Media Jobs:"
+kubectl get jobs -n immich -l app=immich-offsite-backup --sort-by=.metadata.creationTimestamp -o custom-columns=NAME:.metadata.name,STATUS:.status.conditions[-1].type,COMPLETION:.status.completionTime | tail -3
+echo -e "\n=== S3 LAST FILES ==="
+BUCKET="${BUCKET_NAME:-immich-offsite-archive-au2}"
+echo "Database (last 3):"
+aws s3api list-objects-v2 --bucket "$BUCKET" --prefix "immich/db/" --query 'sort_by(Contents, &LastModified)[-3:].[Key,StorageClass,LastModified]' --output table 2>/dev/null || echo "Unable to check"
+echo -e "\nMedia (last 3):"
+aws s3api list-objects-v2 --bucket "$BUCKET" --prefix "immich/media/" --query 'sort_by(Contents, &LastModified)[-3:].[Key,StorageClass,LastModified]' --output table 2>/dev/null || echo "Unable to check"
 ```
