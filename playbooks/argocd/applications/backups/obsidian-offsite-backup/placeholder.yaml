@@ -1,0 +1,10 @@
+# Placeholder for Backup Resources
+# TODO: Implement CronJob and ConfigMap as per PLAN.md
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: obsidian-backup-placeholder
+  namespace: obsidian
+data:
+  readme: "See PLAN.md for implementation details"
+

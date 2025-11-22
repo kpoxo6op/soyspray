@@ -1,0 +1,22 @@
+clusterSize: 1
+
+createAdminSecret: false
+
+image:
+  tag: 3.4.2
+
+persistentVolume:
+  enabled: true
+  size: 10Gi
+  storageClass: longhorn
+
+couchdbConfig:
+  couchdb:
+    uuid: "9e4bc1b8e83f4e0ebfb66ce6bcd3399d"
+  httpd:
+    enable_cors: true
+  cors:
+    credentials: true
+    headers: "accept, authorization, content-type, origin, referer"
+    methods: "GET, PUT, POST, HEAD, DELETE"
+    origins: "app://obsidian.md, capacitor://localhost, http://localhost"
