@@ -1,0 +1,118 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: obsidian-offsite-backup-scripts
+  namespace: obsidian
+data:
+  backup-couchdb.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    export AWS_EC2_METADATA_DISABLED=true
+
+    : "${AWS_ACCESS_KEY_ID:?Missing}"
+    : "${AWS_SECRET_ACCESS_KEY:?Missing}"
+    : "${AWS_REGION:?Missing}"
+    : "${BUCKET_NAME:?Missing}"
+    : "${BACKUP_PREFIX:?Missing}"
+    : "${COUCHDB_URL:?Missing}"
+    : "${COUCHDB_USER:?Missing}"
+    : "${COUCHDB_PASS:?Missing}"
+
+    export AWS_MAX_ATTEMPTS=10
+    aws --version
+
+    aws configure set default.s3.max_concurrent_requests 20
+    aws configure set default.s3.multipart_threshold 64MB
+    aws configure set default.s3.multipart_chunksize 64MB
+
+    DATE=$(date +%Y%m%d-%H%M%S)
+    DST="s3://${BUCKET_NAME}/${BACKUP_PREFIX%/}/${DATE}/"
+
+    echo "Starting CouchDB backup at $(date)"
+
+    DATABASES=$(python3 << 'PYTHON_EOF'
+import os
+import urllib.request
+import base64
+import json
+import sys
+
+couchdb_url = os.environ['COUCHDB_URL']
+couchdb_user = os.environ['COUCHDB_USER']
+couchdb_pass = os.environ['COUCHDB_PASS']
+
+url = f'{couchdb_url}/_all_dbs'
+req = urllib.request.Request(url)
+credentials = base64.b64encode(f'{couchdb_user}:{couchdb_pass}'.encode()).decode()
+req.add_header('Authorization', f'Basic {credentials}')
+
+try:
+    with urllib.request.urlopen(req) as response:
+        dbs = json.loads(response.read())
+        for db in dbs:
+            if not db.startswith('_'):
+                print(db)
+except urllib.error.HTTPError as e:
+    print(f'Error fetching databases: {e}', file=sys.stderr)
+    sys.exit(1)
+PYTHON_EOF
+    )
+
+    if [ -z "$DATABASES" ]; then
+      echo "No user databases found to backup"
+      exit 0
+    fi
+
+    for DB in $DATABASES; do
+      echo "Backing up database: ${DB}"
+      
+      BACKUP_FILE="/tmp/${DB}-${DATE}.json"
+      
+      DB_NAME="${DB}" BACKUP_FILE="${BACKUP_FILE}" python3 << 'PYTHON_EOF'
+import os
+import urllib.request
+import base64
+import json
+import gzip
+import sys
+
+couchdb_url = os.environ['COUCHDB_URL']
+couchdb_user = os.environ['COUCHDB_USER']
+couchdb_pass = os.environ['COUCHDB_PASS']
+db_name = os.environ['DB_NAME']
+backup_file = os.environ['BACKUP_FILE']
+
+url = f'{couchdb_url}/{db_name}/_all_docs?include_docs=true'
+req = urllib.request.Request(url)
+credentials = base64.b64encode(f'{couchdb_user}:{couchdb_pass}'.encode()).decode()
+req.add_header('Authorization', f'Basic {credentials}')
+
+try:
+    with urllib.request.urlopen(req) as response:
+        data = json.loads(response.read())
+        with gzip.open(f'{backup_file}.gz', 'wb') as f:
+            f.write(json.dumps(data, indent=2).encode())
+except urllib.error.HTTPError as e:
+    print(f'Error backing up {db_name}: {e}', file=sys.stderr)
+    sys.exit(1)
+PYTHON_EOF
+      
+      if [ $? -eq 0 ]; then
+        aws s3 cp "${BACKUP_FILE}.gz" "${DST}${DB}-${DATE}.json.gz" \
+          --no-progress --only-show-errors
+        
+        if [ $? -eq 0 ]; then
+          rm -f "${BACKUP_FILE}.gz"
+          echo "Completed backup for ${DB}"
+        else
+          echo "Failed to upload ${DB} to S3"
+          exit 1
+        fi
+      else
+        echo "Failed to backup ${DB}"
+        exit 1
+      fi
+    done
+
+    echo "Backup completed at $(date)"
