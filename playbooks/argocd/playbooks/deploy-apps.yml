@@ -13,7 +13,7 @@
           set_fact:
             prometheus_telegram_bot_token: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('PROMETHEUS_TELEGRAM_BOT_TOKEN=([^\n]+)')
                 | first
                 | default('')
@@ -110,7 +110,7 @@
           set_fact:
             cloudflare_api_token: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('CLOUDFLARE_API_TOKEN=([^\n]+)') | first
                 | default('') | trim
               }}
@@ -237,7 +237,7 @@
           set_fact:
             cloudflare_api_token: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('CLOUDFLARE_API_TOKEN=([^\n]+)') | first
                 | default('') | trim
               }}
@@ -296,7 +296,7 @@
           set_fact:
             plex_account_token: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('MY_PLEX_ACCESS_TOKEN=([^\n]+)')
                 | first
                 | default('')
@@ -350,7 +350,7 @@
           set_fact:
             prowlarr_api_key: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('PROWLARR_API_KEY=([^\n]+)')
                 | first
                 | default('')
@@ -361,7 +361,7 @@
           set_fact:
             rutracker_user: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('RUTRACKER_USER=([^\n]+)')
                 | first
                 | default('')
@@ -372,7 +372,7 @@
           set_fact:
             rutracker_pass: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('RUTRACKER_PASS=([^\n]+)')
                 | first
                 | default('')
@@ -383,7 +383,7 @@
           set_fact:
             mam_session_id: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('MYANONAMOUSE_SESSION_ID=([^\n]+)')
                 | first
                 | default('')
@@ -500,6 +500,111 @@
         definition: "{{ lookup('file', playbook_dir + '/../applications/database/redis/redis-application.yaml') }}"
       tags: redis
 
+    # Verify and load Obsidian LiveSync credentials from .env
+    - name: Verify and load Obsidian LiveSync credentials from .env
+      block:
+        - name: Load OBSIDIAN_ADMIN_USER from .env
+          set_fact:
+            obsidian_admin_user: >-
+              {{
+                lookup('file', playbook_dir + '/../../../.env')
+                | regex_findall('OBSIDIAN_ADMIN_USER=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OBSIDIAN_ADMIN_PASSWORD from .env
+          set_fact:
+            obsidian_admin_password: >-
+              {{
+                lookup('file', playbook_dir + '/../../../.env')
+                | regex_findall('OBSIDIAN_ADMIN_PASSWORD=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OBSIDIAN_COOKIE_AUTH_SECRET from .env
+          set_fact:
+            obsidian_cookie_auth_secret: >-
+              {{
+                lookup('file', playbook_dir + '/../../../.env')
+                | regex_findall('OBSIDIAN_COOKIE_AUTH_SECRET=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Load OBSIDIAN_ERLANG_COOKIE from .env
+          set_fact:
+            obsidian_erlang_cookie: >-
+              {{
+                lookup('file', playbook_dir + '/../../../.env')
+                | regex_findall('OBSIDIAN_ERLANG_COOKIE=([^\n]+)')
+                | first
+                | default('')
+                | trim
+              }}
+
+        - name: Generate OBSIDIAN_ERLANG_COOKIE if not set
+          set_fact:
+            obsidian_erlang_cookie: "{{ obsidian_erlang_cookie | default('RCt4ENYL4wiu7787wfAtsQ') }}"
+          when: obsidian_erlang_cookie | length == 0
+
+        - name: Validate Obsidian LiveSync credentials
+          fail:
+            msg: "{{ item.name }} is empty/missing in .env file"
+          when: item.value | length == 0
+          loop:
+            - { name: "OBSIDIAN_ADMIN_USER", value: "{{ obsidian_admin_user }}" }
+            - { name: "OBSIDIAN_ADMIN_PASSWORD", value: "{{ obsidian_admin_password }}" }
+            - { name: "OBSIDIAN_COOKIE_AUTH_SECRET", value: "{{ obsidian_cookie_auth_secret }}" }
+      rescue:
+        - name: Fail with helpful message
+          fail:
+            msg: "Error: .env file not found or Obsidian LiveSync credentials invalid"
+      tags: obsidian
+
+    # Create obsidian namespace
+    - name: Create obsidian namespace
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: obsidian
+      tags: obsidian
+
+    # Create Kubernetes Secret for Obsidian LiveSync CouchDB
+    - name: Create Obsidian LiveSync CouchDB Secret
+      kubernetes.core.k8s:
+        state: present
+        namespace: obsidian
+        kubeconfig: "{{ kubeconfig_path }}"
+        resource_definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: obsidian-livesync-couchdb
+            namespace: obsidian
+          data:
+            adminUsername: "{{ obsidian_admin_user | b64encode }}"
+            adminPassword: "{{ obsidian_admin_password | b64encode }}"
+            cookieAuthSecret: "{{ obsidian_cookie_auth_secret | b64encode }}"
+            erlangCookie: "{{ obsidian_erlang_cookie | b64encode }}"
+      tags: obsidian
+
+    - name: Apply Obsidian LiveSync Configuration
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        namespace: argocd
+        definition: "{{ lookup('file', playbook_dir + '/../applications/database/obsidian-livesync/obsidian-livesync-application.yaml') }}"
+      tags: obsidian
+
     - name: Apply Immich Configuration
       kubernetes.core.k8s:
         state: present
@@ -515,7 +620,7 @@
           set_fact:
             offsite_backup_aws_access_key_id: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('OFFSITE_BACKUP_WRITER_AWS_ACCESS_KEY_ID=([^\n]+)')
                 | first
                 | default('')
@@ -526,7 +631,7 @@
           set_fact:
             offsite_backup_aws_secret_access_key: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('OFFSITE_BACKUP_WRITER_AWS_SECRET_ACCESS_KEY=([^\n]+)')
                 | first
                 | default('')
@@ -537,7 +642,7 @@
           set_fact:
             offsite_backup_restorer_aws_access_key_id: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('OFFSITE_BACKUP_RESTORER_AWS_ACCESS_KEY_ID=([^\n]+)')
                 | first
                 | default('')
@@ -548,7 +653,7 @@
           set_fact:
             offsite_backup_restorer_aws_secret_access_key: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('OFFSITE_BACKUP_RESTORER_AWS_SECRET_ACCESS_KEY=([^\n]+)')
                 | first
                 | default('')
@@ -559,7 +664,7 @@
           set_fact:
             offsite_backup_aws_region: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('OFFSITE_BACKUP_AWS_REGION=([^\n]+)')
                 | first
                 | default('')
@@ -570,7 +675,7 @@
           set_fact:
             offsite_backup_bucket_name: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('OFFSITE_BACKUP_BUCKET_NAME=([^\n]+)')
                 | first
                 | default('')
@@ -581,7 +686,7 @@
           set_fact:
             offsite_backup_media_prefix: >-
               {{
-                lookup('file', playbook_dir + '/../.env')
+                lookup('file', playbook_dir + '/../../../.env')
                 | regex_findall('OFFSITE_BACKUP_MEDIA_PREFIX=([^\n]+)')
                 | first
                 | default('')
