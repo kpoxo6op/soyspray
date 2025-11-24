@@ -184,7 +184,8 @@ alertmanager:
 
       {{- range .Alerts }}
       - Alert
-        ns={{ .Labels.namespace }}{{ if .Labels.deployment }} deploy={{ .Labels.deployment }}{{ end }}{{ if .Labels.pod }} pod={{ .Labels.pod }}{{ end }}{{ if .Labels.container }} container={{ .Labels.container }}{{ end }}{{ if .Labels.node }} node={{ .Labels.node }}{{ end }}{{ if .Labels.reason }} reason={{ .Labels.reason }}{{ end }}
+        ns={{ .Labels.namespace }}{{ if .Labels.job_name }} job={{ .Labels.job_name }}{{ end }}{{ if .Labels.deployment }} deploy={{ .Labels.deployment }}{{ end }}{{ if .Labels.statefulset }} sts={{ .Labels.statefulset }}{{ end }}{{ if .Labels.daemonset }} ds={{ .Labels.daemonset }}{{ end }}{{ if and .Labels.pod (not .Labels.job_name) }} pod={{ .Labels.pod }}{{ end }}{{ if .Labels.container }} container={{ .Labels.container }}{{ end }}{{ if .Labels.node }} node={{ .Labels.node }}{{ end }}{{ if .Labels.reason }} reason={{ .Labels.reason }}{{ end }}
+        
         {{- $text := .Annotations.summary -}}
         {{- if eq $text "" -}}{{- $text = .Annotations.description -}}{{- end -}}
         {{ $text }}

@@ -70,6 +70,37 @@ data:
               summary: "PostgreSQL WAL archiving failing (archive_command)"
               description: "postgres reports archive_command failure in the last 5m."
 
+  obsidian-backup.yaml: |
+    groups:
+      - name: obsidian-backup
+        rules:
+          - alert: ObsidianBackupFailureImmediate
+            expr: |
+              sum by (namespace) (
+                count_over_time({namespace="obsidian", container="backup"}
+                  |~ "(?i)(error|failed|fatal|command not found|Missing|Failed to)" [5m])
+              ) > 0
+            for: 2m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Obsidian CouchDB backup failed"
+              description: "Obsidian backup job in obsidian namespace is emitting errors in the last 5m."
+
+  obsidian-backup-events.yaml: |
+    groups:
+      - name: obsidian-backup-events
+        rules:
+          - alert: ObsidianBackupBackoffLimitExceeded
+            expr: |
+              count_over_time({cluster="soyspray", job="kubernetes-events"} |= "BackoffLimitExceeded" |= "obsidian-couchdb-offsite-backup" [5m]) > 0
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "obsidian-couchdb-offsite-backup backoff limit exceeded"
+              description: "Kubernetes reports BackoffLimitExceeded for obsidian-couchdb-offsite-backup."
+
   backup-error-burst.yaml: |
     groups:
       - name: backup-error-burst
@@ -77,7 +108,7 @@ data:
           - alert: BackupErrorBurst
             expr: |
               sum by (namespace) (
-                rate(({namespace=~"immich|postgresql"} |~ "(?i)(error|failed|fatal)")[5m])
+                rate(({namespace=~"immich|postgresql|obsidian"} |~ "(?i)(error|failed|fatal)")[5m])
               ) > 0.5
             for: 5m
             labels:

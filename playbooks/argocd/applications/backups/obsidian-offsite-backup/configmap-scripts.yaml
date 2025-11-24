@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: obsidian-offsite-backup-scripts
+  namespace: obsidian
+data:
+  backup-couchdb.sh: |
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    log() {
+      echo "$(date +'%Y-%m-%d %H:%M:%S') $@"
+    }
+
+    export AWS_EC2_METADATA_DISABLED=true
+
+    : "${AWS_ACCESS_KEY_ID:?Missing}"
+    : "${AWS_SECRET_ACCESS_KEY:?Missing}"
+    : "${AWS_REGION:?Missing}"
+    : "${BUCKET_NAME:?Missing}"
+    : "${BACKUP_PREFIX:?Missing}"
+    : "${COUCHDB_URL:?Missing}"
+    : "${COUCHDB_USER:?Missing}"
+    : "${COUCHDB_PASS:?Missing}"
+
+    export AWS_MAX_ATTEMPTS=10
+    log "AWS Version: $(aws --version 2>&1)"
+
+    aws configure set default.s3.max_concurrent_requests 20
+    aws configure set default.s3.multipart_threshold 64MB
+    aws configure set default.s3.multipart_chunksize 64MB
+
+    DATE=$(date +%Y%m%d-%H%M%S)
+    DST="s3://${BUCKET_NAME}/${BACKUP_PREFIX%/}/${DATE}/"
+
+    log "Starting CouchDB backup"
+
+    # Get list of databases, filtering out system databases (starting with _)
+    # Parse JSON array without jq: extract quoted strings, filter out those starting with _
+    ALL_DBS=$(curl -s -u "${COUCHDB_USER}:${COUCHDB_PASS}" "${COUCHDB_URL}/_all_dbs")
+    DATABASES=$(echo "$ALL_DBS" | grep -o '"[^"]*"' | tr -d '"' | grep -v '^_')
+
+    if [ -z "$DATABASES" ]; then
+      log "No user databases found to backup"
+      exit 0
+    fi
+
+    for DB in $DATABASES; do
+      log "Backing up database: ${DB}"
+      
+      BACKUP_FILE="/tmp/${DB}-${DATE}.json"
+      
+      # Fetch all documents (no compression - AWS CLI will handle it or we upload uncompressed)
+      if curl -s -u "${COUCHDB_USER}:${COUCHDB_PASS}" "${COUCHDB_URL}/${DB}/_all_docs?include_docs=true" > "${BACKUP_FILE}"; then
+        aws s3 cp "${BACKUP_FILE}" "${DST}${DB}-${DATE}.json" \
+          --no-progress --only-show-errors
+        
+        if [ $? -eq 0 ]; then
+          rm -f "${BACKUP_FILE}"
+          log "Completed backup for ${DB}"
+        else
+          log "Failed to upload ${DB} to S3"
+          exit 1
+        fi
+      else
+        log "Failed to backup ${DB}"
+        exit 1
+      fi
+    done
+
+    log "Backup completed"
