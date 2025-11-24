@@ -15,16 +15,18 @@ data:
         rules:
           - alert: ImmichMediaBackupFailureImmediate
             expr: |
-              sum by (namespace) (
+              sum by (namespace, message) (
                 count_over_time({namespace="immich", container="aws-sync"}
-                  |~ "(?i)(an error occurred \\(|error|accessdenied|expiredtoken|slowdown|requesttimetoo skewed|read-only file system|connection reset)" [5m])
+                  |~ "(?i)(an error occurred \\(|error|accessdenied|expiredtoken|slowdown|requesttimetoo skewed|read-only file system|connection reset)"
+                  | regexp "(?P<message>.*)"
+                  [5m])
               ) > 0
-            for: 2m
+            for: 1m
             labels:
               severity: warning
             annotations:
-              summary: "Immich media offsite sync failed (aws-cli errors)"
-              description: "aws-cli in immich-media-offsite-sync is emitting errors in the last 5m."
+              summary: "Immich media offsite sync failed"
+              description: "Log error: {{ $labels.message }}"
 
   immich-backup-events.yaml: |
     groups:
