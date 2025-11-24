@@ -32,8 +32,10 @@ data:
 
       // Derive k8s labels from the log file path:
       // /var/log/pods/<ns>_<pod>_<uid>/<container>/<n>.log
+      // Extract from the filename label that loki.source.file automatically adds
       stage.regex {
-        expression = "/var/log/pods/(?P<namespace>[^_]+)_(?P<pod>[^_]+)_[^/]+/(?P<container>[^/]+)/.*"
+        source     = "filename"
+        expression = "/var/log/pods/(?P<namespace>[^_]+)_(?P<pod>.+?)_[a-f0-9-]+/(?P<container>[^/]+)/.*"
       }
 
       stage.labels {
