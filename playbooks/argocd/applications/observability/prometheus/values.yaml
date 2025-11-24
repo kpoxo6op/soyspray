@@ -183,12 +183,26 @@ alertmanager:
       {{- if eq .Status "firing" -}}🔥 FIRING{{- else -}}✅ RESOLVED{{- end }} [{{ .CommonLabels.severity }}] {{ .CommonLabels.alertname }} ({{ len .Alerts }})
 
       {{- range .Alerts }}
-      - Alert
-        ns={{ .Labels.namespace }}{{ if .Labels.job_name }} job={{ .Labels.job_name }}{{ end }}{{ if .Labels.deployment }} deploy={{ .Labels.deployment }}{{ end }}{{ if .Labels.statefulset }} sts={{ .Labels.statefulset }}{{ end }}{{ if .Labels.daemonset }} ds={{ .Labels.daemonset }}{{ end }}{{ if and .Labels.pod (not .Labels.job_name) }} pod={{ .Labels.pod }}{{ end }}{{ if .Labels.container }} container={{ .Labels.container }}{{ end }}{{ if .Labels.node }} node={{ .Labels.node }}{{ end }}{{ if .Labels.reason }} reason={{ .Labels.reason }}{{ end }}
-        
+      - <b>Alert</b>
+        {{- if .Labels.namespace }}
+        ns={{ .Labels.namespace }}{{ end }}{{ if .Labels.job_name }}
+        job={{ .Labels.job_name }}{{ end }}{{ if .Labels.deployment }}
+        deploy={{ .Labels.deployment }}{{ end }}{{ if .Labels.statefulset }}
+        sts={{ .Labels.statefulset }}{{ end }}{{ if .Labels.daemonset }}
+        ds={{ .Labels.daemonset }}{{ end }}{{ if and .Labels.pod (not .Labels.job_name) }}
+        pod={{ .Labels.pod }}{{ end }}{{ if .Labels.container }}
+        container={{ .Labels.container }}{{ end }}{{ if .Labels.node }}
+        node={{ .Labels.node }}{{ end }}{{ if .Labels.reason }}
+        reason={{ .Labels.reason }}{{ end }}
+
         {{- $text := .Annotations.summary -}}
         {{- if eq $text "" -}}{{- $text = .Annotations.description -}}{{- end -}}
         {{ $text }}
+        {{- if and .Annotations.description (ne .Annotations.description $text) }}
+
+        {{ .Annotations.description }}
+        {{- end }}
+
         {{- if .GeneratorURL }}
         Source: <a href="{{ .GeneratorURL }}">open</a>
         {{- end }}
