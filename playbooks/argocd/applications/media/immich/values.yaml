@@ -3,7 +3,7 @@
 # Point Immich at the external Bitnami Redis service (standalone, no auth)
 # Keep ML disabled, preserve your 2283 service/ingress, and disable the chart's internal Valkey
 image:
-  tag: v2.2.1
+  tag: v2.3.1
 
 env:
   DB_URL: postgresql://immich:immich@immich-db-active.postgresql.svc.cluster.local:5432/immich
