@@ -50,6 +50,7 @@ data:
             expr: |
               sum by (namespace) (
                 count_over_time({namespace="postgresql"} |= "barman"
+                  !~ "(?i)\"error_severity\":\"(LOG|INFO)\""
                   |~ "(?i)(error|failed|fatal)" [5m])
               ) > 0
             for: 2m
