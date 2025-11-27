@@ -1,0 +1,56 @@
+# playbooks/operations/nodes/configure-openwrt-syslog.yml
+# This playbook configures rsyslog on Kubernetes nodes to receive syslog
+# messages from OpenWrt router via UDP port 514
+
+---
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Configure rsyslog to receive OpenWrt logs
+  hosts: kube_control_plane,kube_node
+  become: true
+  vars:
+    openwrt_ip: "192.168.1.1"
+    syslog_port: "514"
+  tasks:
+    - name: Ensure rsyslog is installed
+      ansible.builtin.apt:
+        name: rsyslog
+        state: present
+        update_cache: true
+
+    - name: Create rsyslog configuration for OpenWrt UDP input
+      ansible.builtin.copy:
+        dest: /etc/rsyslog.d/10-udp-openwrt.conf
+        content: |
+          module(load="imudp")
+          input(type="imudp" port="{{ syslog_port }}")
+
+          if $fromhost-ip == "{{ openwrt_ip }}" then /var/log/openwrt.log
+          & stop
+        mode: "0644"
+        owner: root
+        group: root
+      notify: restart rsyslog
+
+    - name: Ensure rsyslog service is enabled and started
+      ansible.builtin.systemd:
+        name: rsyslog
+        enabled: true
+        state: started
+
+    - name: Verify UDP port is listening
+      ansible.builtin.command: ss -lunp | grep ":{{ syslog_port }} "
+      register: port_check
+      changed_when: false
+      failed_when: false
+
+    - name: Display port status
+      ansible.builtin.debug:
+        msg: "UDP port {{ syslog_port }} is {{ 'listening' if port_check.rc == 0 else 'not listening' }}"
+
+  handlers:
+    - name: restart rsyslog
+      ansible.builtin.systemd:
+        name: rsyslog
+        state: restarted

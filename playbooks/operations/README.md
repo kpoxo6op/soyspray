@@ -11,6 +11,7 @@ Node management and configuration playbooks.
 - restart-node.yml - Restart cluster nodes
 - set-node-labels.yml - Set node labels
 - set-resource-limits.yml - Configure resource limits
+- configure-openwrt-syslog.yml - Configure rsyslog to receive logs from OpenWrt router
 
 ### networking/
 Network setup and tooling playbooks.
