@@ -51,7 +51,9 @@ data:
               sum by (namespace) (
                 count_over_time({namespace="postgresql"} |= "barman"
                   !~ "(?i)\"error_severity\":\"(LOG|INFO)\""
-                  |~ "(?i)(error|failed|fatal)" [5m])
+                  !~ "(?i)(restore point.*created|completed.*backup|successfully)"
+                  |~ "(?i)\\b(error|failed|fatal)\\b"
+                  [5m])
               ) > 0
             for: 2m
             labels:
