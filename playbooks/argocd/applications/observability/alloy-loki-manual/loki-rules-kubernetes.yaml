@@ -36,7 +36,14 @@ data:
           - alert: ApplicationErrorBurst
             expr: |
               sum by (namespace, pod) (
-                count_over_time({cluster="soyspray", job="kubernetes-pods", pod!~"loki.*"} |~ "(?i)\\b(error|fatal)\\b" [5m])
+                count_over_time(
+                  {cluster="soyspray", job="kubernetes-pods", pod!~"loki.*"}
+                  !~ "(?i)tiers.crd.projectcalico.org is forbidden"
+                  !~ "(?i)example-benign-error"
+                  !~ "(?i)another-example-error"
+                  |~ "(?i)\\b(error|fatal)\\b"
+                  [5m]
+                )
               ) > 50
             for: 5m
             labels:
