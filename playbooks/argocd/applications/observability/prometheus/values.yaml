@@ -165,6 +165,10 @@ alertmanager:
       receiver: "telegram"
       routes:
         - matchers:
+            - alertname = "Watchdog"
+          receiver: "watchdog-healthchecks"
+          repeat_interval: 1m
+        - matchers:
             - severity=~"warning|critical"
           receiver: "telegram"
     receivers:
@@ -175,6 +179,10 @@ alertmanager:
             chat_id: 336642153
             parse_mode: HTML
             message: '{{ template "soy.telegram" . }}'
+      - name: "watchdog-healthchecks"
+        webhook_configs:
+          - url: "https://hc-ping.com/ee92de78-bf59-4cb8-a41a-01382feb9a65"
+            send_resolved: false
     templates:
       - '/etc/alertmanager/config/*.tmpl'
   templateFiles:
