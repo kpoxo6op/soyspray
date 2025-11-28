@@ -1,106 +1,71 @@
-# Prometheus, AlertManager, and Telegram Integration
+# Prometheus, AlertManager, and Healthchecks.io Integration
+
+This directory contains the GitOps configuration for the Prometheus observability stack.
+
+## Architecture Overview
+
+The monitoring pipeline is designed to be robust and self-monitoring ("Watchdog" pattern).
 
 ```text
                                                   ┌─────────────────┐
                                                   │                 │
-                                                  │  Telegram Bot   │
-                                                  │                 │
-                                                  └────────▲────────┘
-                                                           │
-                                                           │
-┌──────────────┐         ┌──────────────┐         ┌─────────┴───────┐
-│              │         │              │         │                 │
-│  Prometheus  ├────────►│ AlertManager ├────────►│ Secret:         │
-│              │  Alert  │              │   Uses  │ bot_token       │
-└──────┬───────┘         └──────────────┘         │                 │
-       │                                          └─────────────────┘
-       │
-       │ Evaluates
-       ▼
-┌──────────────┐
-│ PrometheusRules:
-│ - temperature│
-│ - other      │
-└──────────────┘
+                                          ┌──────►│  Telegram Bot   │
+                                          │       │                 │
+                                          │       └─────────────────┘
+                                          │
+┌──────────────┐         ┌──────────────┐ │       ┌─────────────────┐
+│              │         │              │ │       │                 │
+│  Prometheus  ├────────►│ AlertManager ├─┼──────►│ Healthchecks.io │
+│              │  Alert  │              │         │                 │
+└──────┬───────┘         └──────┬───────┘         └─────────────────┘
+       │                        │
+       │ Scrapes                │ Reads
+       ▼                        ▼
+┌──────────────┐         ┌──────────────┐
+│ ServiceMonitors        │ Secret:      │
+│ PodMonitors            │ bot_token    │
+└──────────────┘         └──────────────┘
+
 ```
 
-## Monitoring Status
+## Watchdog & Healthchecks.io Integration
 
-### Currently Monitored Applications
+We use a "Dead Man's Switch" pattern to monitor the monitoring system itself. This ensures you get notified even if the entire cluster goes offline or cannot send alerts.
 
-| Application | Status | Endpoint | Method |
-|-------------|--------|----------|--------|
-| **Infrastructure** |
-| Kubernetes API Server | ✅ Up | `192.168.1.10:6443` | ServiceMonitor |
-| CoreDNS | ✅ Up | Internal | ServiceMonitor |
-| Kubelet (3 endpoints) | ✅ Up | `192.168.1.10:10250` | ServiceMonitor |
-| Kube Proxy | ✅ Up | `192.168.1.10:10249` | ServiceMonitor |
-| Kube Controller Manager | ✅ Up | `192.168.1.10:10257` | ServiceMonitor |
-| Kube Scheduler | ✅ Up | `192.168.1.10:10259` | ServiceMonitor |
-| Kube State Metrics | ✅ Up | Internal | ServiceMonitor |
-| Node Exporter | ✅ Up | `192.168.1.10:9100` | ServiceMonitor |
-| **Applications** |
-| ArgoCD | ✅ Up | Internal | ServiceMonitor (custom) |
-| cert-manager | ✅ Up | Internal | ServiceMonitor (custom) |
-| **Prometheus Stack** |
-| Prometheus | ✅ Up | Internal | ServiceMonitor |
-| AlertManager | ✅ Up | Internal | ServiceMonitor |
-| Prometheus Operator | ✅ Up | Internal | ServiceMonitor |
-| Grafana | ✅ Monitored | Internal | ServiceMonitor |
+1.  **Prometheus** fires a `Watchdog` alert continuously (always firing).
+2.  **AlertManager** receives this alert and routes it to a special receiver `watchdog-healthchecks`.
+3.  **AlertManager** sends a webhook "ping" every 1 minute to **Healthchecks.io**.
+4.  **Healthchecks.io** expects this ping. If it stops arriving (because Prometheus is down, AlertManager is broken, or the cluster lost internet), Healthchecks.io notifies you via email/Telegram.
 
-### Applications with Metrics Available (Not Yet Monitored)
+### Configuration
 
-| Application | Namespace | Metrics Port | Notes |
-|-------------|-----------|--------------|-------|
-| **ingress-nginx** | ingress-nginx | `:10254` | Request rates, latencies, status codes |
-| **PostgreSQL (CNPG)** | postgresql | `:9187` | DB performance, connections, queries |
-| **Longhorn** | longhorn-system | Built-in | Storage metrics (volume health, IOPS, capacity) |
-| **Redis** | redis | N/A | No built-in exporter, needs redis-exporter sidecar |
+In `values.yaml`, the webhook URL connects to our specific check:
 
-### How to Discover Metrics
-
-**List all ServiceMonitors:**
-```bash
-kubectl get servicemonitor -A
+```yaml
+url: "https://hc-ping.com/ee92de78-bf59-4cb8-a41a-01382feb9a65"
 ```
 
-**List all PodMonitors:**
-```bash
-kubectl get podmonitor -A
-```
+This UUID corresponds to the check configured in the Healthchecks.io dashboard:
 
-**Query Prometheus for active targets:**
-```bash
-kubectl exec -n monitoring prometheus-kube-prometheus-stack-prometheus-0 -c prometheus -- \
-  wget -qO- http://localhost:9090/api/v1/targets 2>/dev/null | \
-  jq -r '.data.activeTargets[] | "\(.labels.job) - \(.health) - \(.scrapeUrl)"' | \
-  sort | uniq
-```
+![Healthchecks.io Dashboard Config](https://healthchecks.io/checks/ee92de78-bf59-4cb8-a41a-01382feb9a65/details)
 
-**Find services with metrics ports:**
-```bash
-kubectl get svc -A -o json | \
-  jq -r '.items[] | select(.spec.ports[]? | select(.name | test("metric|prom|monitor"; "i"))) |
-  "\(.metadata.namespace)/\(.metadata.name) - Port: \(.spec.ports[] |
-  select(.name | test("metric|prom|monitor"; "i")) | "\(.name):\(.port)")"' | sort
-```
+*Note: The Healthchecks.io check is configured with a Period of ~2 minutes and a Grace Time of ~1 minute to match the AlertManager `repeat_interval`.*
 
-**Check specific pod ports:**
-```bash
-# Example for ingress-nginx
-kubectl get pods -n ingress-nginx -o json | \
-  jq -r '.items[0].spec.containers[0].ports[] | "\(.name): \(.containerPort)"'
+## Monitored Components
 
-# Example for PostgreSQL CNPG
-kubectl get pods -n postgresql -o json | \
-  jq -r '.items[0].spec.containers[] | "\(.name): \(.ports[]? | "\(.name):\(.containerPort)")"'
-```
+| Component | Method | Notes |
+|-----------|--------|-------|
+| **Kubernetes Core** | ServiceMonitor | API Server, Kubelet, Controller Manager, Scheduler, CoreDNS |
+| **Node Metrics** | Node Exporter | CPU, Memory, Disk, Network for all nodes |
+| **Cluster State** | Kube State Metrics | Deployment status, Pod phases, etc. |
+| **ArgoCD** | ServiceMonitor | Application sync status and health |
+| **Cert-Manager** | ServiceMonitor | Certificate expiration and renewal status |
+| **Prometheus Stack** | ServiceMonitor | Self-monitoring of Prometheus, AlertManager, Grafana |
 
-**List all running application pods:**
-```bash
-kubectl get pods -A --field-selector=status.phase=Running -o json | \
-  jq -r '.items[] | select(.metadata.namespace != "kube-system" and
-  .metadata.namespace != "monitoring" and .metadata.namespace != "longhorn-system") |
-  "\(.metadata.namespace)/\(.metadata.name)"' | sort
-```
+## Alerting
 
+Alerts are routed based on severity:
+
+*   **Critical/Warning**: Sent to Telegram via a custom template.
+*   **Watchdog**: Sent to Healthchecks.io (Dead Man's Switch).
+*   **Info/Other**: Suppressed or logged.
