@@ -39,7 +39,7 @@ kubectl -n postgresql delete pvc -l cnpg.io/cluster=immich-db-b
 3. Set **UTC** target:
 
 ```bash
-$EDITOR playbooks/yaml/argocd-apps/cnpg/immich-db/overlays/restore/target-time.yaml
+$EDITOR playbooks/argocd/applications/database/cnpg/immich-db/overlays/restore/target-time.yaml
 ```
 
 4. Recreate **B from S3**:
