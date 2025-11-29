@@ -1,0 +1,8 @@
+---
+- name: Apply CNPG Immich Database ApplicationSet
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    definition: "{{ lookup('file', playbook_dir + '/argocd/applications/database/cnpg/apps/applicationset-immich-db.yaml') }}"
+

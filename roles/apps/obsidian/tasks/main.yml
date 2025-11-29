@@ -1,0 +1,38 @@
+---
+- name: Obsidian LiveSync Secrets
+  include_role:
+    name: app-secret
+  vars:
+    secret_name: obsidian-livesync-couchdb
+    secret_namespace: obsidian
+    create_namespace: true
+    secret_data:
+      - { env_var: 'OBSIDIAN_ADMIN_USER', key: 'adminUsername' }
+      - { env_var: 'OBSIDIAN_ADMIN_PASSWORD', key: 'adminPassword' }
+      - { env_var: 'OBSIDIAN_COOKIE_AUTH_SECRET', key: 'cookieAuthSecret' }
+      - { env_var: 'OBSIDIAN_ERLANG_COOKIE', key: 'erlangCookie', default: 'RCt4ENYL4wiu7787wfAtsQ' }
+  tags: obsidian
+
+- name: Apply Obsidian LiveSync Configuration
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    definition: "{{ lookup('file', playbook_dir + '/argocd/applications/database/obsidian-livesync/obsidian-livesync-application.yaml') }}"
+  tags: obsidian
+
+- name: Obsidian Offsite Backup Secrets
+  include_role:
+    name: app-secret
+  vars:
+    secret_name: obsidian-offsite-writer
+    secret_namespace: obsidian
+    create_namespace: true
+    secret_data:
+      - { env_var: 'OFFSITE_BACKUP_WRITER_AWS_ACCESS_KEY_ID', key: 'AWS_ACCESS_KEY_ID' }
+      - { env_var: 'OFFSITE_BACKUP_WRITER_AWS_SECRET_ACCESS_KEY', key: 'AWS_SECRET_ACCESS_KEY' }
+      - { env_var: 'OFFSITE_BACKUP_AWS_REGION', key: 'AWS_REGION' }
+      - { env_var: 'OFFSITE_BACKUP_OBSIDIAN_BUCKET_NAME', key: 'BUCKET_NAME' }
+      - { env_var: 'OFFSITE_BACKUP_OBSIDIAN_PREFIX', key: 'BACKUP_PREFIX' }
+  tags: obsidian-offsite-backup
+

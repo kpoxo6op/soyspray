@@ -1,0 +1,50 @@
+---
+- name: "Initialize loaded secrets"
+  set_fact:
+    _loaded_secrets: {}
+
+- name: "Load secrets from .env for {{ secret_name }}"
+  set_fact:
+    _loaded_secrets: "{{ _loaded_secrets | combine({ item.key: value }) }}"
+  vars:
+    file_val: >-
+      {{
+        lookup('file', env_file_path | default(playbook_dir + '/../.env'))
+        | regex_findall(item.env_var + '=([^\n]+)')
+        | first
+        | default('')
+        | trim
+      }}
+    value: "{{ file_val if (file_val | length > 0) else item.default | default('') }}"
+  loop: "{{ secret_data }}"
+  no_log: true
+
+- name: "Validate secrets for {{ secret_name }}"
+  fail:
+    msg: "{{ item.env_var }} is empty/missing in .env file"
+  when: _loaded_secrets[item.key] | length == 0
+  loop: "{{ secret_data }}"
+
+- name: "Ensure namespace {{ secret_namespace }} exists"
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ secret_namespace }}"
+  when: create_namespace | default(false)
+
+- name: "Create secret {{ secret_name }}"
+  kubernetes.core.k8s:
+    state: present
+    namespace: "{{ secret_namespace }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+    resource_definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "{{ secret_name }}"
+        namespace: "{{ secret_namespace }}"
+      stringData: "{{ _loaded_secrets }}"

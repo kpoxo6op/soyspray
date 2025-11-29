@@ -1,0 +1,131 @@
+# playbooks/manage-argocd-apps.yml
+---
+- name: Apply Argo CD Applications - Deploy Application Manifests
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    # Observability
+    - name: Deploy Prometheus
+      include_role:
+        name: apps/prometheus
+      tags: [prometheus, prometheus-crds]
+
+    - name: Deploy Alloy Loki Manual
+      include_role:
+        name: apps/alloy-loki-manual
+      tags: [alloy-loki-manual]
+
+    - name: Deploy Alert Test
+      include_role:
+        name: apps/alert-test
+      tags: [alert-test]
+
+    # Infrastructure
+    - name: Deploy Longhorn
+      include_role:
+        name: apps/longhorn
+      tags: [longhorn]
+
+    - name: Deploy Cert Manager
+      include_role:
+        name: apps/cert-manager
+      tags: [cert-manager, bitnami-oci]
+
+    - name: Deploy External DNS
+      include_role:
+        name: apps/external-dns
+      tags: external-dns
+
+    - name: Deploy Headlamp
+      include_role:
+        name: apps/headlamp
+      tags: [headlamp]
+
+    # Database
+    - name: Deploy CNPG Operator
+      include_role:
+        name: apps/cnpg-operator
+      tags: [cnpg-operator]
+
+    - name: Deploy CNPG Immich Alias ApplicationSet
+      include_role:
+        name: apps/cnpg-immich-alias
+      tags: [cnpg-immich-alias]
+
+    - name: Deploy CNPG Immich Database ApplicationSet
+      include_role:
+        name: apps/cnpg-immich-db
+      tags: [cnpg-immich-db]
+
+    - name: Deploy Immich Database Active
+      include_role:
+        name: apps/immich-db-active
+      tags: [immich-db-active]
+
+    - name: Deploy Immich Database A
+      include_role:
+        name: apps/immich-db-a
+      tags: [immich-db-a]
+
+    - name: Deploy Immich Database B
+      include_role:
+        name: apps/immich-db-b
+      tags: [immich-db-b]
+
+    - name: Deploy Immich Database B Restore
+      include_role:
+        name: apps/immich-db-b-restore
+      tags: [immich-db-b-restore]
+
+    - name: Deploy Redis
+      include_role:
+        name: apps/redis
+      tags: [redis]
+
+    - name: Deploy Obsidian
+      include_role:
+        name: apps/obsidian
+      tags: [obsidian, obsidian-offsite-backup]
+
+    # Media
+    - name: Deploy Plex
+      include_role:
+        name: apps/plex
+      tags: plex
+
+    - name: Deploy Prowlarr
+      include_role:
+        name: apps/prowlarr
+      tags: prowlarr
+
+    - name: Deploy qBittorrent
+      include_role:
+        name: apps/qbittorrent
+      tags: [qbittorrent]
+
+    - name: Deploy LazyLibrarian
+      include_role:
+        name: apps/lazylibrarian
+      tags: [lazylibrarian]
+
+    - name: Deploy Sonarr
+      include_role:
+        name: apps/sonarr
+      tags: [sonarr]
+
+    - name: Deploy Threadfin
+      include_role:
+        name: apps/threadfin
+      tags: [threadfin]
+
+    - name: Deploy Streamlink
+      include_role:
+        name: apps/streamlink
+      tags: [streamlink]
+
+    - name: Deploy Immich
+      include_role:
+        name: apps/immich
+      tags: [immich, immich-offsite-backup]
