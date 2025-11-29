@@ -1,5 +1,6 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
+MAKEFLAGS += --no-print-directory
 
 K8S_USER        := ubuntu
 WORKER_NODE1    := 192.168.1.10
@@ -35,7 +36,7 @@ act:
 	@bash -lc 'source $(VENV_NAME)/bin/activate && exec bash -i'
 
 ans:
-	@echo "ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/argocd/playbooks/deploy-apps.yml --tags TAG\n"
+	@echo "ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml --tags TAG"
 
 
 install:

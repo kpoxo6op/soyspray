@@ -1,0 +1,24 @@
+---
+- include_role:
+    name: app-secret
+  vars:
+    secret_name: cloudflare-api-token
+    secret_namespace: cert-manager
+    create_namespace: true
+    secret_data:
+      - { env_var: 'CLOUDFLARE_API_TOKEN', key: 'api-token' }
+
+- name: Apply Bitnami OCI Helm Repository Secret
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    definition: "{{ lookup('file', playbook_dir + '/argocd/config/bitnami-oci-helm-repo.yaml') }}"
+
+- name: Apply Cert Manager Configuration
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    definition: "{{ lookup('file', playbook_dir + '/argocd/applications/infrastructure/cert-manager/cert-manager-application.yaml') }}"
+
