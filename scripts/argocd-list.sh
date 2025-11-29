@@ -41,7 +41,11 @@ APPS_JSON="$(argocd app list -o json)"
 # Print header
 echo -n "#"
 for field in "${FIELDS[@]}"; do
-  printf " %-20s" "$field"
+  width=20
+  if [[ "$field" == "Name" ]]; then
+    width=35
+  fi
+  printf " %-${width}s" "$field"
 done
 echo ""
 
@@ -57,8 +61,15 @@ echo "$APPS_JSON" | jq -c '.[]' | while read -r row; do
     fi
     # Extract the value
     value="$(echo "$row" | jq -r "$path // \"\"")"
-    # Truncate to 20 chars to keep it neat
-    printf "%-20s " "$(echo "$value" | cut -c1-20)"
+
+    # Dynamic width based on field
+    width=20
+    if [[ "$field" == "Name" ]]; then
+      width=35
+    fi
+
+    # Print formatted column (truncated to width)
+    printf "%-${width}s " "$(echo "$value" | cut -c1-$width)"
   done
   echo ""
 done
