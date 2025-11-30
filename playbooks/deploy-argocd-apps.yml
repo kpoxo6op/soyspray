@@ -129,3 +129,8 @@
       include_role:
         name: apps/immich
       tags: [immich, immich-offsite-backup]
+
+    - name: Deploy Immich Restore Test
+      include_role:
+        name: apps/immich-restore-test
+      tags: [immich-restore-test]

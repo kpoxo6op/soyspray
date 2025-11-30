@@ -30,7 +30,7 @@ spec:
         namespace: postgresql
       sources:
         - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-          targetRevision: "HEAD"
+          targetRevision: "immich-restore-test"
           path: playbooks/argocd/applications/database/cnpg/immich-db/overlays/{{role}}
           kustomize:
             nameSuffix: -{{letter}}
