@@ -13,7 +13,7 @@ spec:
     - name: immich-db-backup
       barmanObjectStore:
         destinationPath: s3://immich-offsite-archive-au2/immich/db/
-        serverName: immich-db-a
+        serverName: immich-db
         s3Credentials:
           accessKeyId:
             name: immich-offsite-restorer
