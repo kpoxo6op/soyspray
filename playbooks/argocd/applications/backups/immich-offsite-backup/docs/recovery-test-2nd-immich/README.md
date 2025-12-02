@@ -105,76 +105,71 @@ done
 - `expiry-date="..."` - Restore completed, file accessible until expiry date
 - `None` or empty - No restore request (should not happen after Step 1)
 
-### Step 3: Wait for DEEP_ARCHIVE Restore Completion
+### Step 3: Wait for DEEP_ARCHIVE Restore Completion ✅ PARTIAL COMPLETION
 
-**IMPORTANT**: Wait for DEEP_ARCHIVE restore to complete before proceeding to Step 4. Do not sync files until all 174 DEEP_ARCHIVE files are restored and accessible.
+**Status Update (2025-12-02)**:
+- **Restored**: 174 files (Bulk restore complete)
+- **Pending**: 2 files (Standard restore initiated on 2025-12-02, available in ~12h)
+- **Missing**: `.../219cf352...png` and `.../93c973c8...png`
 
-Wait 48 hours for Bulk restore (or 12 hours for Standard tier). Verify all files are restored:
+**Decision**: Proceed with Step 4 to sync the 255 available files now. The 2 missing files will be synced later.
 
-```bash
-BUCKET="immich-offsite-archive-au2"
-TARGET_DATE="2025-11-29T23:59:59"
+### Step 4: Sync Media Files to PVC (Partial Sync)
 
-# Count DEEP_ARCHIVE files that are restored and accessible
-DEEP_RESTORED=$(aws s3api list-objects-v2 --bucket "$BUCKET" \
-  --prefix "immich/media/" \
-  --query "Contents[?StorageClass=='DEEP_ARCHIVE' && LastModified<='${TARGET_DATE}']" \
-  --output json | jq -r '.[] | .Key' | while read key; do
-    STATUS=$(aws s3api head-object --bucket "$BUCKET" --key "$key" --query 'Restore' --output text 2>&1)
-    echo "$STATUS" | grep -q "expiry-date" && echo "1" || echo "0"
-  done | grep -c "1")
+Sync the 255 available files (174 restored DEEP_ARCHIVE + 81 STANDARD). The 2 pending files will fail to copy but won't stop the process.
 
-echo "DEEP_ARCHIVE files restored: $DEEP_RESTORED / 174"
-
-# Count all files that are restored and accessible (DEEP_ARCHIVE + STANDARD)
-TOTAL_ACCESSIBLE=$(aws s3api list-objects-v2 --bucket "$BUCKET" \
-  --prefix "immich/media/" \
-  --query "Contents[?LastModified<='${TARGET_DATE}']" \
-  --output json | jq -r '.[] | select(.StorageClass == "STANDARD" or (.Restore // "" | contains("expiry-date"))) | .Key' | wc -l)
-
-echo "Total accessible files: $TOTAL_ACCESSIBLE / 257"
-echo "Expected: 257 files (174 DEEP_ARCHIVE + 83 STANDARD)"
-echo ""
-if [ "$DEEP_RESTORED" -eq 174 ] && [ "$TOTAL_ACCESSIBLE" -eq 257 ]; then
-  echo "✓ All files restored and accessible - proceed to Step 4"
-else
-  echo "⚠ Still waiting for restore completion. DEEP_ARCHIVE restore takes ~48 hours (Bulk tier)"
-fi
-```
-
-**Current Status**: Waiting for DEEP_ARCHIVE restore to complete (~48 hours from Step 1 execution on 2025-11-30)
-
-**Expected Completion Date**: 2025-12-02 (approximately 48 hours after restore initiation on 2025-11-30)
-
-**Timeline**:
-- Step 1 executed: 2025-11-30
-- Restore tier: Bulk (48 hours)
-- Expected available: 2025-12-02
-- Files accessible for: 7 days after restore completes (until ~2025-12-09)
-
-### Step 4: Sync Media Files to PVC (Matching DB Restore Date)
-
-**PREREQUISITE**: Step 3 must show all 257 files are accessible before proceeding.
-
-Once DEEP_ARCHIVE files are restored and accessible (verified in Step 3), sync all files matching the DB restore date (2025-11-29 23:59:59+00:00):
+**Method**: Using direct environment variables (no cluster secret required).
 
 ```bash
-kubectl run -n immich-restore-test restore-media-date-filtered \
+# Credentials (from .env)
+AWS_ACCESS_KEY_ID="A...............7"
+AWS_SECRET_ACCESS_KEY="H..............................5"
+AWS_REGION="ap-southeast-2"
+
+kubectl run -n immich-restore-test restore-media-direct \
   --image=public.ecr.aws/aws-cli/aws-cli:latest \
   --rm -it --restart=Never \
+  --env="AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" \
+  --env="AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" \
+  --env="AWS_REGION=${AWS_REGION}" \
   --overrides='{
     "spec": {
       "securityContext": {"runAsUser": 0, "runAsGroup": 0},
       "containers": [{
         "name": "restore",
         "image": "public.ecr.aws/aws-cli/aws-cli:latest",
-        "command": ["sh", "-c", "TARGET_DATE=\"2025-11-29T23:59:59\" && echo \"Syncing files with LastModified <= ${TARGET_DATE} (matching DB restore date)\" && aws s3api list-objects-v2 --bucket immich-offsite-archive-au2 --prefix immich/media/ --query \"Contents[?LastModified<=\\\`${TARGET_DATE}\\\`].Key\" --output text | grep -v \"thumbs/\" | grep -v \"encoded-video/\" | grep -v \"backups/\" | while read key; do REL_PATH=${key#immich/media/} && mkdir -p \"/library/$(dirname $REL_PATH)\" && aws s3 cp \"s3://immich-offsite-archive-au2/$key\" \"/library/$REL_PATH\" 2>/dev/null && echo \"Synced: $REL_PATH\" || true; done && echo \"Sync complete\""],
-        "envFrom": [{"secretRef": {"name": "immich-offsite-writer"}}],
+        "command": ["sh", "-c"],
+        "args": [
+          "TARGET_DATE=\"2025-11-29T23:59:59\" && echo \"Starting filtered sync...\" && aws s3api list-objects-v2 --bucket immich-offsite-archive-au2 --prefix immich/media/ --query \"Contents[?LastModified<=\\\"${TARGET_DATE}\\\"].Key\" --output text | tr \"\\t\" \"\\n\" | grep -v \"thumbs/\" | grep -v \"encoded-video/\" | grep -v \"backups/\" | while read key; do [ -z \"$key\" ] && continue; REL_PATH=${key#immich/media/}; mkdir -p \"/library/$(dirname \"$REL_PATH\")\"; if aws s3 cp \"s3://immich-offsite-archive-au2/$key\" \"/library/$REL_PATH\" 2>/dev/null; then echo \"Synced: $REL_PATH\"; else echo \"Failed (pending restore?): $REL_PATH\"; fi; done && echo \"Sync complete\""
+        ],
         "volumeMounts": [{"name": "library", "mountPath": "/library"}]
       }],
       "volumes": [{"name": "library", "persistentVolumeClaim": {"claimName": "immich-library-restore-test"}}]
     }
   }' -- /bin/true
+```
+
+**Note**: Expect 2 "Failed (pending restore)" messages for the files that are still restoring.
+
+#### Checking Progress
+
+Since the pod runs in the background (if applied via manifest or detached), check progress with:
+
+```bash
+# View logs to see file downloads
+kubectl logs -n immich-restore-test -f restore-media-direct
+
+# Count downloaded files
+kubectl exec -n immich-restore-test restore-media-direct -- find /library -type f | wc -l
+```
+
+### Step 4a: Sync Remaining 2 Files (Later)
+
+Once the Standard restore completes (approx 12 hours), run the same command again to fetch the remaining 2 files. The script is idempotent and will skip existing files or overwrite them if needed, but `aws s3 cp` effectively syncs.
+
+```bash
+# Run the exact same command as Step 4.
+# It will download the 2 previously failed files once they are restored.
 ```
 
 **Note**: This syncs exactly 257 files (174 DEEP_ARCHIVE + 83 STANDARD) matching the DB restore date. Files backed up after 2025-11-29T23:59:59 are excluded to match database state.
