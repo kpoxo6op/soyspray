@@ -26,7 +26,7 @@ Media backups transition to DEEP_ARCHIVE immediately (day 0). To restore files f
 
 ## Restore Procedure
 
-### Step 1: Restore DEEP_ARCHIVE Files ✅ COMPLETED
+### Step 1: Restore DEEP_ARCHIVE Files
 
 **Executed**: Bulk restore initiated for all 174 DEEP_ARCHIVE files on 2025-11-30
 **Result**: All restore requests successfully initiated. Files showing "RestoreAlreadyInProgress" status.
@@ -114,62 +114,66 @@ done
 
 **Decision**: Proceed with Step 4 to sync the 255 available files now. The 2 missing files will be synced later.
 
-### Step 4: Sync Media Files to PVC (Partial Sync)
+### Step 4: Sync Media Files to PVC (Partial Sync) ✅ COMPLETED
 
 Sync the 255 available files (174 restored DEEP_ARCHIVE + 81 STANDARD). The 2 pending files will fail to copy but won't stop the process.
 
-**Method**: Using direct environment variables (no cluster secret required).
+**Executed**: 2025-12-02 using pod manifest method
+**Result**: 255 files synced successfully, 2 files failed (pending restore)
+
+**Method**: Pod manifest with direct environment variables (no cluster secret required).
+
+Apply the pod manifest (update credentials in the file before applying):
 
 ```bash
-# Credentials (from .env)
-AWS_ACCESS_KEY_ID="A...............7"
-AWS_SECRET_ACCESS_KEY="H..............................5"
-AWS_REGION="ap-southeast-2"
+# Update AWS credentials in restore-pod.yaml first, then apply
+kubectl apply -f restore-pod.yaml
 
-kubectl run -n immich-restore-test restore-media-direct \
-  --image=public.ecr.aws/aws-cli/aws-cli:latest \
-  --rm -it --restart=Never \
-  --env="AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}" \
-  --env="AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}" \
-  --env="AWS_REGION=${AWS_REGION}" \
-  --overrides='{
-    "spec": {
-      "securityContext": {"runAsUser": 0, "runAsGroup": 0},
-      "containers": [{
-        "name": "restore",
-        "image": "public.ecr.aws/aws-cli/aws-cli:latest",
-        "command": ["sh", "-c"],
-        "args": [
-          "TARGET_DATE=\"2025-11-29T23:59:59\" && echo \"Starting filtered sync...\" && aws s3api list-objects-v2 --bucket immich-offsite-archive-au2 --prefix immich/media/ --query \"Contents[?LastModified<=\\\"${TARGET_DATE}\\\"].Key\" --output text | tr \"\\t\" \"\\n\" | grep -v \"thumbs/\" | grep -v \"encoded-video/\" | grep -v \"backups/\" | while read key; do [ -z \"$key\" ] && continue; REL_PATH=${key#immich/media/}; mkdir -p \"/library/$(dirname \"$REL_PATH\")\"; if aws s3 cp \"s3://immich-offsite-archive-au2/$key\" \"/library/$REL_PATH\" 2>/dev/null; then echo \"Synced: $REL_PATH\"; else echo \"Failed (pending restore?): $REL_PATH\"; fi; done && echo \"Sync complete\""
-        ],
-        "volumeMounts": [{"name": "library", "mountPath": "/library"}]
-      }],
-      "volumes": [{"name": "library", "persistentVolumeClaim": {"claimName": "immich-library-restore-test"}}]
-    }
-  }' -- /bin/true
+# Follow logs
+kubectl logs -n immich-restore-test -f restore-media-direct
 ```
+
+The pod manifest is available at `restore-pod.yaml` in this directory.
 
 **Note**: Expect 2 "Failed (pending restore)" messages for the files that are still restoring.
 
+
 #### Checking Progress
 
-Since the pod runs in the background (if applied via manifest or detached), check progress with:
+Monitor restore progress with these commands:
 
 ```bash
-# View logs to see file downloads
+# Check pod status
+kubectl get pod -n immich-restore-test restore-media-direct
+
+# View live logs (follow output)
 kubectl logs -n immich-restore-test -f restore-media-direct
 
-# Count downloaded files
-kubectl exec -n immich-restore-test restore-media-direct -- find /library -type f | wc -l
+# Count synced files (from logs)
+kubectl logs -n immich-restore-test restore-media-direct | grep -c "Synced:"
+
+# Count failed files (expected: 2)
+kubectl logs -n immich-restore-test restore-media-direct | grep -c "Failed"
+
+# Check final sync status
+kubectl logs -n immich-restore-test restore-media-direct | tail -5
 ```
 
-### Step 4a: Sync Remaining 2 Files (Later)
+**Actual Results (2025-12-02)**:
+- Pod status: Completed (Succeeded)
+- Files synced: 255
+- Files failed: 2 (as expected, pending restore)
+- Total size: ~69.1 MB
 
-Once the Standard restore completes (approx 12 hours), run the same command again to fetch the remaining 2 files. The script is idempotent and will skip existing files or overwrite them if needed, but `aws s3 cp` effectively syncs.
+### Step 4a: Sync Remaining 2 Files (Pending)
+
+Once the Standard restore completes (approx 12 hours after 2025-12-02), run the same pod manifest command again to fetch the remaining 2 files. The script is idempotent and will skip existing files or overwrite them if needed, but `aws s3 cp` effectively syncs.
 
 ```bash
-# Run the exact same command as Step 4.
-# It will download the 2 previously failed files once they are restored.
+# Re-apply the same restore-pod.yaml manifest from Step 4
+# It will download the 2 previously failed files once they are restored
+kubectl apply -f restore-pod.yaml
+kubectl logs -n immich-restore-test -f restore-media-direct
 ```
 
 **Note**: This syncs exactly 257 files (174 DEEP_ARCHIVE + 83 STANDARD) matching the DB restore date. Files backed up after 2025-11-29T23:59:59 are excluded to match database state.
@@ -197,18 +201,19 @@ kubectl run -n immich-restore-test create-missing-folders \
 
 ## Verification
 
-Check restored media files:
+Check restored media files with human-readable output:
 
 ```bash
-kubectl run -n immich-restore-test check-media \
+# List all files with ls -ltrh output (recursive, grouped by directory)
+kubectl run -n immich-restore-test ls-all-files \
   --image=busybox --rm -it --restart=Never \
   --overrides='{
     "spec": {
       "securityContext": {"runAsUser": 0, "runAsGroup": 0},
       "containers": [{
-        "name": "check",
+        "name": "ls",
         "image": "busybox",
-        "command": ["sh", "-c", "echo \"File count:\" && find /library -type f | wc -l && echo \"Total size:\" && du -sh /library && echo \"Directory structure:\" && ls -la /library"],
+        "command": ["sh", "-c", "cd /library && ls -ltrhR"],
         "volumeMounts": [{"name": "library", "mountPath": "/library"}]
       }],
       "volumes": [{"name": "library", "persistentVolumeClaim": {"claimName": "immich-library-restore-test"}}]
@@ -216,7 +221,10 @@ kubectl run -n immich-restore-test check-media \
   }' -- /bin/true
 ```
 
-Expected: ~257 files matching database records
+**Expected Results**:
+- File count: ~255 files (2 pending restore)
+- Total size: ~69 MB (varies based on media)
+- All files should be in `/library/upload/` directory structure
 
 ## Timeline
 

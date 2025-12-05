@@ -132,5 +132,5 @@
 
     - name: Deploy Immich Restore Test
       include_role:
-        name: apps/immich-restore-test
+        name: immich-restore-test
       tags: [immich-restore-test]
