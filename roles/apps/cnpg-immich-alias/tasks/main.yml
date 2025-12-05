@@ -5,4 +5,5 @@
     kubeconfig: "{{ kubeconfig_path }}"
     namespace: argocd
     definition: "{{ lookup('file', playbook_dir + '/argocd/applications/database/cnpg/apps/applicationset-immich-alias.yaml') }}"
+  tags: [cnpg-immich-alias]
 
