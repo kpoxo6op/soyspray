@@ -51,6 +51,61 @@ Thumbnail regeneration is **not reliable** for the affected assets:
   - `8:55:59 PM UTC` (`8:55:59 AM NZST`) - Thumbnail created
 - **Result**: Display now works correctly
 
+## Comparison: Successful vs Failed Regeneration (Verbose Logging)
+
+### Successful Regeneration: `9a088b09-0526-48a0-b25a-f00a6556e321`
+- **Original File**: `Screenshot_20251017-233253.png`
+- **Timeline** (UTC / NZST):
+  - `9:09:42 PM UTC` (`9:09:42 AM NZST`) - Last error (preview file missing)
+  - `9:09:45 PM UTC` (`9:09:45 AM NZST`) - `regenerate-thumbnail` job submitted (POST /api/assets/jobs 204)
+  - `9:09:46 PM UTC` (`9:09:46 AM NZST`) - Thumbnail created (20,428 bytes)
+  - `9:09:46 PM UTC` (`9:09:46 AM NZST`) - Preview created (177,748 bytes)
+  - `9:09:47 PM UTC` (`9:09:47 AM NZST`) - First successful GET request (200 status)
+- **Processing Time**: ~1-2 seconds from job submission to file creation
+- **Result**: ✅ Success - Files created and display works
+
+**Key Logs:**
+```
+[VERBOSE] {"assetIds":["9a088b09-0526-48a0-b25a-f00a6556e321"],"name":"regenerate-thumbnail"}
+[DEBUG] GET /api/assets/9a088b09-0526-48a0-b25a-f00a6556e321/thumbnail?size=thumbnail 200 17.95ms
+```
+
+### Failed Regeneration (First Attempt): `0c5dc9f6-39a7-4eb5-a763-97f555ebed5c`
+- **Original File**: `IMG_20251016_130940_551.jpg` (37,995 bytes - EXISTS)
+- **First Attempt Timeline** (UTC / NZST):
+  - `9:07:57 PM UTC` (`9:07:57 AM NZST`) - `refresh-metadata` job submitted
+  - `9:08:01 PM UTC` (`9:08:01 AM NZST`) - `regenerate-thumbnail` job submitted (POST /api/assets/jobs 204)
+  - `9:08:20 PM UTC` (`9:08:20 AM NZST`) - Second `regenerate-thumbnail` job submitted (POST /api/assets/jobs 204)
+  - **No files created** - Thumbnail/preview still missing
+- **Processing Time**: Jobs queued but never processed
+- **Result**: ❌ Failure - Jobs accepted but not processed by microservices worker
+
+**First Attempt Logs:**
+```
+[VERBOSE] {"assetIds":["0c5dc9f6-39a7-4eb5-a763-97f555ebed5c"],"name":"regenerate-thumbnail"}
+[DEBUG] POST /api/assets/jobs 204 20.24ms  (job accepted)
+[ERROR] Unable to send file: ENOENT: no such file or directory (files never created)
+```
+
+### Successful Regeneration (Retry): `0c5dc9f6-39a7-4eb5-a763-97f555ebed5c`
+- **Original File**: `IMG_20251016_130940_551.jpg` (37,995 bytes - EXISTS)
+- **Retry Timeline** (UTC / NZST):
+  - `12:18:27 AM UTC` (`12:18:27 PM NZST`) - Last error (preview file missing)
+  - `12:18:31 AM UTC` (`12:18:31 PM NZST`) - `regenerate-thumbnail` job submitted (POST /api/assets/jobs 204)
+  - `12:18:31 AM UTC` (`12:18:31 PM NZST`) - Thumbnail created (5,824 bytes)
+  - `12:18:31 AM UTC` (`12:18:31 PM NZST`) - Preview created (56,780 bytes)
+  - `12:18:32 AM UTC` (`12:18:32 PM NZST`) - First successful GET request (200 status)
+- **Processing Time**: ~1 second from job submission to file creation
+- **Result**: ✅ Success - Files created and display works
+
+**Retry Logs:**
+```
+[VERBOSE] {"assetIds":["0c5dc9f6-39a7-4eb5-a763-97f555ebed5c"],"name":"regenerate-thumbnail"}
+[DEBUG] GET /api/assets/0c5dc9f6-39a7-4eb5-a763-97f555ebed5c/thumbnail?size=thumbnail 200 9.97ms
+```
+
+**Difference**: The successful asset processed the job immediately (1-2 seconds), while the first attempt's jobs were queued but never processed by the microservices worker. The retry attempt succeeded, demonstrating the unreliable nature of thumbnail regeneration - the same asset failed on first attempt but succeeded on retry.
+
 ## Example: Failed Assets
 
 **Thumbnail Generation Failures** (from logs):
