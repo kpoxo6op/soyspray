@@ -115,6 +115,40 @@ POD_B=$(kubectl -n postgresql get pod -l cnpg.io/cluster=immich-db-b -o name | h
 kubectl -n postgresql exec "$POD_B" -- psql -h localhost -U immich -d immich -c "SELECT COUNT(*) as test_count FROM assets;"
 ```
 
+## Results
+
+**Test Date**: 2025-12-05 (UTC)
+
+### ✅ Successful Restore
+
+1. **Database B Restore**: Successfully restored from S3 backup to point-in-time `2025-11-29 23:59:59+00:00`
+   - Database cluster created and healthy
+   - All extensions loaded correctly (vectors, cube, earthdistance)
+   - Asset count matched expected restore point
+
+2. **Media PVC Restore**: Successfully restored media files from S3 to test instance PVC
+   - 255 files synced from S3 (174 DEEP_ARCHIVE + 81 STANDARD)
+   - All original files verified and accessible
+   - File integrity confirmed via SHA256 checksums
+
+3. **Test Immich Instance**: Successfully deployed and connected to database B
+   - Instance accessible at `https://immich-restore-test.soyspray.vip`
+   - API responding correctly
+   - Connected to `immich-db-b-rw` service
+
+4. **Thumbnail Regeneration**:
+   - Majority of thumbnails regenerated successfully (~248 out of 254 assets)
+   - Regeneration required multiple attempts for some assets
+   - Some assets succeeded on first attempt, others required retries
+   - All thumbnails eventually restored after repeated regeneration attempts
+
+### Notes
+
+- Production Immich (database A) continued running normally throughout the test
+- No impact on production operations
+- Test instance fully validated restore procedure
+- See `playbooks/argocd/applications/backups/immich-offsite-backup/docs/recovery-test-2nd-immich/THUMBNAIL-GENERATION-ERROR-REPORT.md` for detailed thumbnail regeneration analysis
+
 ## Cleanup
 
 After validation is complete, clean up the test resources:
