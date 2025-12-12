@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: restore-media-direct
+  namespace: immich-restore-test
+spec:
+  restartPolicy: Never
+  containers:
+  - name: restore
+    image: public.ecr.aws/aws-cli/aws-cli:latest
+    securityContext:
+      runAsUser: 0
+      runAsGroup: 0
+    env:
+    - name: AWS_ACCESS_KEY_ID
+      value: "A...............7"  # From .env
+    - name: AWS_SECRET_ACCESS_KEY
+      value: "H..............................5"  # From .env
+    - name: AWS_REGION
+      value: "ap-southeast-2"
+    command: ["sh", "-c"]
+    args:
+    - |
+      TARGET_DATE="2025-11-29T23:59:59"
+      echo "Starting filtered sync..."
+      aws s3api list-objects-v2 --bucket immich-offsite-archive-au2 --prefix immich/media/ --query "Contents[?LastModified<='${TARGET_DATE}'].Key" --output text | \
+      tr '\t' '\n' | \
+      grep -v "thumbs/" | grep -v "encoded-video/" | grep -v "backups/" | \
+      while read key; do
+        [ -z "$key" ] && continue
+        REL_PATH=${key#immich/media/}
+        mkdir -p "/library/$(dirname "$REL_PATH")"
+        if aws s3 cp "s3://immich-offsite-archive-au2/$key" "/library/$REL_PATH" 2>/dev/null; then
+          echo "Synced: $REL_PATH"
+        else
+          echo "Failed (pending restore?): $REL_PATH"
+        fi
+      done
+      echo "Sync complete"
+    volumeMounts:
+    - name: library
+      mountPath: /library
+  volumes:
+  - name: library
+    persistentVolumeClaim:
+      claimName: immich-library-restore-test
+
