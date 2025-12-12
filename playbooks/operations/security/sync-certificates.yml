@@ -10,6 +10,7 @@
       - longhorn-system
       - monitoring
       - immich
+      - immich-restore-test
       - media
       - headlamp
   tasks:

@@ -1,0 +1,21 @@
+# playbooks/argocd/applications/media/immich-restore-test/immich-library-pvc.yaml
+#
+# Defines the PersistentVolumeClaim for the Immich restore test library storage.
+# Smaller size for testing purposes only.
+# - Name must match 'existingClaim' in values.yaml.
+# - Namespace must match the Immich application destination namespace.
+# - Uses the 'longhorn' StorageClass.
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: immich-library-restore-test
+  namespace: immich-restore-test
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: longhorn
+

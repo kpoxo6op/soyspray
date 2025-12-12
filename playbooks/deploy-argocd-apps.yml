@@ -5,6 +5,7 @@
   become: true
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
+    playbook_dir: playbooks
   tasks:
     # Observability
     - name: Deploy Prometheus
@@ -14,6 +15,7 @@
 
     - name: Deploy Alloy Loki Manual
       include_role:
+
         name: apps/alloy-loki-manual
       tags: [alloy-loki-manual]
 
@@ -129,3 +131,10 @@
       include_role:
         name: apps/immich
       tags: [immich, immich-offsite-backup]
+
+    - name: Deploy Immich Restore Test
+      include_role:
+        name: apps/immich-restore-test
+      vars:
+        playbook_dir: playbooks
+      tags: [immich-restore-test]

@@ -1,0 +1,22 @@
+# playbooks/argocd/applications/media/immich-restore-test/immich-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: immich-restore-test
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: immich-restore-test
+  sources:
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: "HEAD"
+      path: playbooks/argocd/applications/media/immich-restore-test
+      kustomize:
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+
