@@ -1,15 +1,12 @@
 ---
 - include_role:
     name: app-secret
-    apply:
-      tags: [plex]
   vars:
     secret_name: plex-account-token
     secret_namespace: media
     create_namespace: true
     secret_data:
       - { env_var: 'MY_PLEX_ACCESS_TOKEN', key: 'token' }
-  tags: [plex]
 
 - name: Apply Plex
   kubernetes.core.k8s:
@@ -17,5 +14,4 @@
     kubeconfig: "{{ kubeconfig_path }}"
     namespace: argocd
     definition: "{{ lookup('file', playbook_dir + '/argocd/applications/media/plex/plex-application.yaml') }}"
-  tags: [plex]
 

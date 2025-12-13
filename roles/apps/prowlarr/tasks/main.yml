@@ -1,8 +1,6 @@
 ---
 - include_role:
     name: app-secret
-    apply:
-      tags: [prowlarr]
   vars:
     secret_name: prowlarr-secrets
     secret_namespace: media
@@ -12,7 +10,6 @@
       - { env_var: 'RUTRACKER_USER', key: 'RUTRACKER_USER' }
       - { env_var: 'RUTRACKER_PASS', key: 'RUTRACKER_PASS' }
       - { env_var: 'MYANONAMOUSE_SESSION_ID', key: 'MYANONAMOUSE_SESSION_ID' }
-  tags: [prowlarr]
 
 - name: Apply Prowlarr
   kubernetes.core.k8s:
@@ -20,5 +17,4 @@
     kubeconfig: "{{ kubeconfig_path }}"
     namespace: argocd
     definition: "{{ lookup('file', playbook_dir + '/argocd/applications/media/prowlarr/prowlarr-application.yaml') }}"
-  tags: [prowlarr]
 

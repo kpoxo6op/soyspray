@@ -10,8 +10,6 @@
 - name: Immich Offsite Writer Secret (immich)
   include_role:
     name: app-secret
-    apply:
-      tags: [immich-offsite-backup]
   vars:
     secret_name: immich-offsite-writer
     secret_namespace: immich
@@ -22,13 +20,11 @@
       - { env_var: 'OFFSITE_BACKUP_AWS_REGION', key: 'AWS_REGION' }
       - { env_var: 'OFFSITE_BACKUP_BUCKET_NAME', key: 'BUCKET_NAME' }
       - { env_var: 'OFFSITE_BACKUP_MEDIA_PREFIX', key: 'MEDIA_PREFIX' }
-  tags: [immich-offsite-backup]
+  tags: immich-offsite-backup
 
 - name: Immich Offsite Writer Secret (postgresql)
   include_role:
     name: app-secret
-    apply:
-      tags: [immich-offsite-backup]
   vars:
     secret_name: immich-offsite-writer
     secret_namespace: postgresql
@@ -39,13 +35,11 @@
       - { env_var: 'OFFSITE_BACKUP_AWS_REGION', key: 'AWS_REGION' }
       - { env_var: 'OFFSITE_BACKUP_BUCKET_NAME', key: 'BUCKET_NAME' }
       - { env_var: 'OFFSITE_BACKUP_MEDIA_PREFIX', key: 'MEDIA_PREFIX' }
-  tags: [immich-offsite-backup]
+  tags: immich-offsite-backup
 
 - name: Immich Offsite Restorer Secret (postgresql)
   include_role:
     name: app-secret
-    apply:
-      tags: [immich-offsite-backup]
   vars:
     secret_name: immich-offsite-restorer
     secret_namespace: postgresql
@@ -56,7 +50,7 @@
       - { env_var: 'OFFSITE_BACKUP_AWS_REGION', key: 'AWS_REGION' }
       - { env_var: 'OFFSITE_BACKUP_BUCKET_NAME', key: 'BUCKET_NAME' }
       - { env_var: 'OFFSITE_BACKUP_MEDIA_PREFIX', key: 'MEDIA_PREFIX' }
-  tags: [immich-offsite-backup]
+  tags: immich-offsite-backup
 
 - name: Apply Immich Offsite Backup Configuration
   kubernetes.core.k8s:
