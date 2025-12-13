@@ -5,7 +5,6 @@
   become: true
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
-    playbook_dir: playbooks
   tasks:
     # Observability
     - name: Deploy Prometheus
@@ -15,7 +14,6 @@
 
     - name: Deploy Alloy Loki Manual
       include_role:
-
         name: apps/alloy-loki-manual
       tags: [alloy-loki-manual]
 
@@ -132,9 +130,24 @@
         name: apps/immich
       tags: [immich, immich-offsite-backup]
 
-    - name: Deploy Immich Restore Test
+    # Home Automation
+    - name: Deploy Mosquitto
       include_role:
-        name: apps/immich-restore-test
-      vars:
-        playbook_dir: playbooks
-      tags: [immich-restore-test]
+        name: apps/mosquitto
+        apply:
+          tags: [mosquitto]
+      tags: [mosquitto]
+
+    - name: Deploy Zigbee2MQTT
+      include_role:
+        name: apps/zigbee2mqtt
+        apply:
+          tags: [zigbee2mqtt]
+      tags: [zigbee2mqtt]
+
+    - name: Deploy Home Assistant
+      include_role:
+        name: apps/homeassistant
+        apply:
+          tags: [homeassistant]
+      tags: [homeassistant]
