@@ -1,0 +1,25 @@
+# playbooks/argocd/applications/home-automation/home-assistant/homeassistant-application.yaml
+# ArgoCD Application to manage Home Assistant
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: home-assistant
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: "https://github.com/kpoxo6op/soyspray.git"
+    targetRevision: "HEAD"
+    path: playbooks/argocd/applications/home-automation/home-assistant
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: home-automation
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
