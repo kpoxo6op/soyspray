@@ -1,0 +1,25 @@
+# playbooks/argocd/applications/home-automation/zigbee2mqtt/zigbee2mqtt-application.yaml
+# ArgoCD Application to manage Zigbee2MQTT
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: zigbee2mqtt
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: "https://github.com/kpoxo6op/soyspray.git"
+    targetRevision: "HEAD"
+    path: playbooks/argocd/applications/home-automation/zigbee2mqtt
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: home-automation
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+

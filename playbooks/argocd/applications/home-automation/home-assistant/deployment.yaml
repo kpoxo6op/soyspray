@@ -1,0 +1,64 @@
+# playbooks/argocd/applications/home-automation/home-assistant/deployment.yaml
+# Deployment for Home Assistant
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: home-assistant
+  namespace: home-automation
+  labels:
+    app: home-assistant
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: home-assistant
+  template:
+    metadata:
+      labels:
+        app: home-assistant
+        component: main
+    spec:
+      initContainers:
+        - name: bootstrap-config
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              test -f /config/configuration.yaml || cp /bootstrap/configuration.yaml /config/configuration.yaml
+              test -f /config/automations.yaml || cp /bootstrap/automations.yaml /config/automations.yaml
+          volumeMounts:
+            - name: config
+              mountPath: /config
+            - name: bootstrap
+              mountPath: /bootstrap
+      containers:
+        - name: home-assistant
+          image: ghcr.io/home-assistant/home-assistant:2025.7.2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8123
+              name: http
+          env:
+            - name: TZ
+              value: "Pacific/Auckland"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: home-assistant-config
+        - name: bootstrap
+          configMap:
+            name: home-assistant-bootstrap
+

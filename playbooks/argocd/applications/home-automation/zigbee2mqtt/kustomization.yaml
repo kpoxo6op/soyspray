@@ -1,0 +1,19 @@
+# playbooks/argocd/applications/home-automation/zigbee2mqtt/kustomization.yaml
+# Kustomize configuration for Zigbee2MQTT
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - zigbee2mqtt-application.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - pvc-data.yaml
+  - configmap-config.yaml
+
+namespace: home-automation
+
+commonLabels:
+  app: zigbee2mqtt
+  managed-by: argocd
+
