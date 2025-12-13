@@ -1,0 +1,19 @@
+# playbooks/argocd/applications/home-automation/zigbee2mqtt/configmap-config.yaml
+# ConfigMap for Zigbee2MQTT initial configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zigbee2mqtt-config
+  namespace: home-automation
+data:
+  configuration.yaml: |-
+    homeassistant: true
+    permit_join: false
+    mqtt:
+      server: 'mqtt://mosquitto.home-automation.svc.cluster.local:1883'
+    serial:
+      port: '/dev/ttyUSB.zigbee'
+    frontend:
+      port: 8080
+      host: 0.0.0.0
+

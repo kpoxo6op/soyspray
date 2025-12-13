@@ -1,0 +1,18 @@
+# playbooks/argocd/applications/home-automation/mosquitto/kustomization.yaml
+# Kustomize configuration for Mosquitto
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - mosquitto-application.yaml
+  - deployment.yaml
+  - service.yaml
+  - pvc-data.yaml
+  - configmap-config.yaml
+
+namespace: home-automation
+
+commonLabels:
+  app: mosquitto
+  managed-by: argocd
+

@@ -1,0 +1,28 @@
+# playbooks/argocd/applications/home-automation/mosquitto/configmap-config.yaml
+# ConfigMap for Mosquitto configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mosquitto-config
+  namespace: home-automation
+data:
+  mosquitto.conf: |-
+    # Mosquitto MQTT broker configuration
+    persistence true
+    persistence_location /mosquitto/data/
+    log_dest file /mosquitto/log/mosquitto.log
+    log_type error
+    log_type warning
+    log_type notice
+    log_type information
+    
+    # MQTT listener on port 1883
+    listener 1883 0.0.0.0
+    protocol mqtt
+    allow_anonymous true
+    
+    # WebSockets listener on port 9001
+    listener 9001 0.0.0.0
+    protocol websockets
+    allow_anonymous true
+

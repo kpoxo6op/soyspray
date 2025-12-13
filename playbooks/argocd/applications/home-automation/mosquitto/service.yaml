@@ -1,0 +1,24 @@
+# playbooks/argocd/applications/home-automation/mosquitto/service.yaml
+# Service for Mosquitto MQTT broker
+apiVersion: v1
+kind: Service
+metadata:
+  name: mosquitto
+  namespace: home-automation
+  labels:
+    app: mosquitto
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.1.32
+  ports:
+    - name: mqtt
+      port: 1883
+      targetPort: 1883
+      protocol: TCP
+    - name: websockets
+      port: 9001
+      targetPort: 9001
+      protocol: TCP
+  selector:
+    app: mosquitto
+
