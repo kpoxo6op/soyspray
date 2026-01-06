@@ -1,0 +1,17 @@
+# playbooks/argocd/applications/media/booklore/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: booklore
+  namespace: media
+  labels:
+    app: booklore
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6060
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: booklore
