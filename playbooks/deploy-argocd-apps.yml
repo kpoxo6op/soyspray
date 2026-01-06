@@ -103,12 +103,21 @@
     - name: Deploy qBittorrent
       include_role:
         name: apps/qbittorrent
+        apply:
+          tags: [qbittorrent]
       tags: [qbittorrent]
 
     - name: Deploy LazyLibrarian
       include_role:
         name: apps/lazylibrarian
       tags: [lazylibrarian]
+
+    - name: Deploy Booklore
+      include_role:
+        name: apps/booklore
+        apply:
+          tags: [booklore]
+      tags: [booklore]
 
     - name: Deploy Sonarr
       include_role:
