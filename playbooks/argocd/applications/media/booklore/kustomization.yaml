@@ -1,0 +1,19 @@
+# playbooks/argocd/applications/media/booklore/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: media
+
+resources:
+  - pvc-config.yaml
+  - pvc-data.yaml
+  - mariadb-deployment.yaml
+  - mariadb-service.yaml
+  - mariadb-pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - booklore-secret.yaml
+
+commonLabels:
+  app: booklore

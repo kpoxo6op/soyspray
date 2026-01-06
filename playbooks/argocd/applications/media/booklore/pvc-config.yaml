@@ -1,0 +1,13 @@
+# playbooks/argocd/applications/media/booklore/pvc-config.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: booklore-config
+  namespace: media
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 100Mi

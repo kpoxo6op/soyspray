@@ -1,0 +1,79 @@
+# playbooks/argocd/applications/media/booklore/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: booklore
+  namespace: media
+  labels:
+    app: booklore
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: booklore
+  template:
+    metadata:
+      labels:
+        app: booklore
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: booklore
+          image: ghcr.io/booklore-app/booklore:v1.16.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 6060
+              name: http
+          env:
+            - name: APP_USER_ID
+              value: "1000"
+            - name: APP_GROUP_ID
+              value: "1000"
+            - name: TZ
+              value: "Pacific/Auckland"
+            - name: DATABASE_HOST
+              value: "booklore-mariadb"
+            - name: DATABASE_PORT
+              value: "3306"
+            - name: DATABASE_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: booklore-db-secret
+                  key: db-name
+            - name: DATABASE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: booklore-db-secret
+                  key: db-user
+            - name: DATABASE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: booklore-db-secret
+                  key: db-password
+          resources:
+            requests:
+              cpu: 100m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+          volumeMounts:
+            - name: config
+              mountPath: /app/config
+            - name: data
+              mountPath: /app/data
+            - name: downloads-books
+              mountPath: /books
+              subPath: books
+      volumes:
+        - name: config
+          persistentVolumeClaim:
+            claimName: booklore-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: booklore-data
+        - name: downloads-books
+          persistentVolumeClaim:
+            claimName: qbittorrent-downloads
