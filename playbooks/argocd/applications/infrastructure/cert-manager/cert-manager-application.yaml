@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "codex/locate-automatic-certificate-reissue-functionality"
+    targetRevision: "HEAD"
     path: playbooks/argocd/applications/infrastructure/cert-manager
     kustomize:
   destination:
