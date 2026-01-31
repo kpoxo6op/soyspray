@@ -60,3 +60,4 @@ configMapGenerator:
 
 resources:
   - alerts/backups-essential.yaml
+  - alerts/cert-expiry.yaml
