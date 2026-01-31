@@ -31,10 +31,16 @@ This ArgoCD application adds:
   - Staging issuer for testing
   - Production issuer for valid certificates
 - Test and production certificates
+- Secret reflector deployment for automatic TLS secret replication
 - Sample workloads with HTTPS ingress
 - DNS-01 challenge using Cloudflare
   - Domain soyspray.vip managed by Cloudflare DNS
   - Uses [Cloudflare API token] for DNS validation
+
+The production wildcard certificate remains in the cert-manager namespace. The
+secret reflector watches the `prod-cert-tls` secret and automatically copies it
+into the allowed namespaces via the annotations defined on the Certificate's
+`secretTemplate`.
 
 ## DNS Verification
 
