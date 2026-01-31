@@ -5,8 +5,11 @@ This repo manages a kubespray-provisioned Kubernetes cluster and its workloads
 (Ansible + Argo CD apps). Work often includes cluster operations, logs/alerts,
 and backup/retention checks.
 
-## Primary Tools
+## Tools
 - `kubectl`: Inspect cluster resources, pods, logs, and CRs.
 - `aws` CLI: Check backup objects and IAM policies/permissions when S3 is
   involved.
 - `gh` (GitHub CLI): Create/merge PRs and update PR descriptions.
+- `ansible-playbook`: Run runbooks with the repo’s inventory and standard
+  privilege escalation; check `Makefile` targets for canonical command
+  templates.
