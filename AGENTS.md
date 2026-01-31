@@ -13,3 +13,10 @@ and backup/retention checks.
 - `ansible-playbook`: Run runbooks with the repo’s inventory and standard
   privilege escalation; check `Makefile` targets for canonical command
   templates.
+
+## Workflow
+- Never modify `main` directly. Always work in a branch (PR branch or local
+  topic branch) and keep `main` untouched.
+- For PR work: check out the PR branch, make changes there, push, then deploy.
+- Push changes to the remote before running any deploys or cluster actions.
+- Prefer explicit confirmations before destructive cluster actions.
