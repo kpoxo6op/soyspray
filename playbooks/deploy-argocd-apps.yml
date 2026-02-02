@@ -15,6 +15,8 @@
     - name: Deploy Alloy Loki Manual
       include_role:
         name: apps/alloy-loki-manual
+        apply:
+          tags: [alloy-loki-manual]
       tags: [alloy-loki-manual]
 
     - name: Deploy Alert Test
