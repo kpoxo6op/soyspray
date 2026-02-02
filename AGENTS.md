@@ -15,8 +15,10 @@ and backup/retention checks.
   templates.
 
 ## Workflow
+- Never run impertive commands modifying the cluster. Make changes in code.
 - Never modify `main` directly. Always work in a branch (PR branch or local
-  topic branch) and keep `main` untouched.
+  topic branch) and keep `main` untouched. The omly exception is modifying
+  markdown and comments.
 - For PR work: check out the PR branch, make changes there, push, then deploy.
 - Push changes to the remote before running any deploys or cluster actions.
 - Prefer explicit confirmations before destructive cluster actions.
