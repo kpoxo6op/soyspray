@@ -24,3 +24,5 @@ and backup/retention checks.
 - Push changes to the remote before running any deploys or cluster actions.
 - When deploying a branch before merge, temporarily point the Argo app
   `targetRevision` at that branch, then revert to `HEAD` after merge.
+- When creating PRs, ensure any temporary Argo `targetRevision` changes are
+  set back to `HEAD`.
