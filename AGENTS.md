@@ -22,4 +22,5 @@ and backup/retention checks.
   markdown and comments.
 - Run `make go` before deploying changes.
 - Push changes to the remote before running any deploys or cluster actions.
-- update
+- When deploying a branch before merge, temporarily point the Argo app
+  `targetRevision` at that branch, then revert to `HEAD` after merge.

@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "HEAD"
+    targetRevision: "loki-retention-7d"
     path: playbooks/argocd/applications/observability/alloy-loki-manual
   destination:
     server: "https://kubernetes.default.svc"
