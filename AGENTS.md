@@ -12,13 +12,14 @@ and backup/retention checks.
 - `gh` (GitHub CLI): Create/merge PRs and update PR descriptions.
 - `ansible-playbook`: Run runbooks with the repo’s inventory and standard
   privilege escalation; check `Makefile` targets for canonical command
-  templates.
+  templates.w
 
 ## Workflow
 - Never run impertive commands modifying the cluster. Make changes in code.
+  Prefer explicit confirmations before destructive cluster actions.
 - Never modify `main` directly. Always work in a branch (PR branch or local
-  topic branch) and keep `main` untouched. The omly exception is modifying
+  topic branch) and keep `main` untouched. The only exception is modifying
   markdown and comments.
-- For PR work: check out the PR branch, make changes there, push, then deploy.
+- Run `make go` before deploying changes.
 - Push changes to the remote before running any deploys or cluster actions.
-- Prefer explicit confirmations before destructive cluster actions.
+- update
