@@ -14,6 +14,16 @@ and backup/retention checks.
   privilege escalation; check `Makefile` targets for canonical command
   templates.
 
+## Node Access
+- Use `make master` (SSH) to access the single Kubernetes node.
+- The node IP is `192.168.1.10` and the SSH user is `ubuntu` (per `Makefile`).
+
+## Networking Notes
+- Router (OpenWrt) is at `192.168.1.1`.
+- LAN subnet: `192.168.1.0/24`.
+- DNS override: `soyspray.vip` resolves to `192.168.1.20` via router dnsmasq.
+- Tailscale on the router advertises the LAN route `192.168.1.0/24` and forwards `tailscale -> lan`.
+
 ## Workflow
 - Never run impertive commands modifying the cluster. Make changes in code.
 - Never modify `main` directly. Always work in a branch (PR branch or local
