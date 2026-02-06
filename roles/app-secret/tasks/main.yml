@@ -48,3 +48,4 @@
         name: "{{ secret_name }}"
         namespace: "{{ secret_namespace }}"
       stringData: "{{ _loaded_secrets }}"
+  no_log: true

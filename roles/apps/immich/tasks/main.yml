@@ -8,8 +8,10 @@
   tags: immich
 
 - name: Immich Offsite Writer Secret (immich)
-  include_role:
+  ansible.builtin.include_role:
     name: app-secret
+    apply:
+      tags: [immich-offsite-backup]
   vars:
     secret_name: immich-offsite-writer
     secret_namespace: immich
@@ -23,8 +25,10 @@
   tags: immich-offsite-backup
 
 - name: Immich Offsite Writer Secret (postgresql)
-  include_role:
+  ansible.builtin.include_role:
     name: app-secret
+    apply:
+      tags: [immich-offsite-backup]
   vars:
     secret_name: immich-offsite-writer
     secret_namespace: postgresql
@@ -38,8 +42,10 @@
   tags: immich-offsite-backup
 
 - name: Immich Offsite Restorer Secret (postgresql)
-  include_role:
+  ansible.builtin.include_role:
     name: app-secret
+    apply:
+      tags: [immich-offsite-backup]
   vars:
     secret_name: immich-offsite-restorer
     secret_namespace: postgresql
@@ -59,4 +65,3 @@
     namespace: argocd
     definition: "{{ lookup('file', playbook_dir + '/argocd/applications/backups/immich-offsite-backup/immich-offsite-backup-application.yaml') }}"
   tags: immich-offsite-backup
-
