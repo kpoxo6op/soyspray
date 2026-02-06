@@ -2,7 +2,7 @@
 # Install Plex Media Server for bare-metal testing
 ---
 - name: Common tasks for every playbook
-  import_playbook: ../../kubespray/playbooks/boilerplate.yml
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
 
 - name: Install Plex Media Server
   hosts: all

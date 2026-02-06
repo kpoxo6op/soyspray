@@ -1,7 +1,9 @@
 ---
 - name: Obsidian LiveSync Secrets
-  include_role:
+  ansible.builtin.include_role:
     name: app-secret
+    apply:
+      tags: [obsidian]
   vars:
     secret_name: obsidian-livesync-couchdb
     secret_namespace: obsidian
@@ -22,8 +24,10 @@
   tags: obsidian
 
 - name: Obsidian Offsite Backup Secrets
-  include_role:
+  ansible.builtin.include_role:
     name: app-secret
+    apply:
+      tags: [obsidian-offsite-backup]
   vars:
     secret_name: obsidian-offsite-writer
     secret_namespace: obsidian
@@ -35,4 +39,3 @@
       - { env_var: 'OFFSITE_BACKUP_OBSIDIAN_BUCKET_NAME', key: 'BUCKET_NAME' }
       - { env_var: 'OFFSITE_BACKUP_OBSIDIAN_PREFIX', key: 'BACKUP_PREFIX' }
   tags: obsidian-offsite-backup
-

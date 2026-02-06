@@ -1,7 +1,7 @@
 # playbooks/enable-kustomize-argocd.yml
 ---
 - name: Common tasks for every playbook
-  import_playbook: ../kubespray/playbooks/boilerplate.yml
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
 
 - name: Enable Helm Support in Kustomize Argo CD
   hosts: localhost

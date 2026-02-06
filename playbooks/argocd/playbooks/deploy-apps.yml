@@ -1,0 +1,7 @@
+# playbooks/argocd/playbooks/deploy-apps.yml
+#
+# Back-compat entrypoint kept because docs and `main.yml` historically referenced
+# this path. The canonical playbook is `playbooks/deploy-argocd-apps.yml`.
+---
+- import_playbook: ../../deploy-argocd-apps.yml
+

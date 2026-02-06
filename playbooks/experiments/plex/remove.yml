@@ -2,7 +2,7 @@
 # Completely remove Plex Media Server (idempotent)
 ---
 - name: Common tasks for every playbook
-  import_playbook: ../../kubespray/playbooks/boilerplate.yml
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
 
 - name: Remove Plex Media Server
   hosts: all

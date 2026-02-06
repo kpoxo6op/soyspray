@@ -1,7 +1,7 @@
 # playbooks/expose-argocd.yml
 ---
 - name: Common tasks for every playbook
-  import_playbook: ../kubespray/playbooks/boilerplate.yml
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
 
 - name: Expose ArgoCD server via MetalLB
   hosts: localhost
