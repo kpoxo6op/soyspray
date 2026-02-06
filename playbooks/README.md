@@ -29,10 +29,10 @@ Experimental playbooks and proof-of-concepts.
 
 ```bash
 # Deploy all ArgoCD applications
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu argocd/playbooks/deploy-apps.yml
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml
 
 # Configure ArgoCD ingress
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu argocd/config/argocd-configure-ingress.yml
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/argocd/config/argocd-configure-ingress.yml
 ```
 
 ### Node Operations
@@ -71,4 +71,3 @@ Examples:
 - install-tailscale.yml
 - restart-node.yml
 - initialize-longhorn-storage.yml
-
