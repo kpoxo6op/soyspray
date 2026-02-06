@@ -2,7 +2,7 @@
 # Playbook to remove Tailscale and clean up configuration from the home Kubernetes node
 
 - name: Common tasks for every playbook
-  import_playbook: ../kubespray/playbooks/boilerplate.yml
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
 
 - name: Remove Tailscale from Home Node-A
   hosts: kube_control_plane[0]

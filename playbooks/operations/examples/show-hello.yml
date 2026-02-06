@@ -1,7 +1,7 @@
 # playbooks/hello-soy.yml
 ---
 - name: Common tasks for every playbook
-  import_playbook: ../kubespray/playbooks/boilerplate.yml
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
 
 - name: Soy Hello
   hosts: etcd:k8s_cluster:calico_rr

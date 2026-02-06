@@ -6,7 +6,7 @@
 # Revocation: delete the Secret 'headlamp-admin-token' or remove the ClusterRoleBinding.
 
 - name: Common tasks for every playbook
-  import_playbook: ../kubespray/playbooks/boilerplate.yml
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
 
 - name: Create Headlamp static ServiceAccount token (uses chart's existing SA and RBAC)
   hosts: kube_control_plane[0]

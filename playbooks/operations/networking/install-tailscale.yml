@@ -2,7 +2,7 @@
 # Playbook to install and configure Tailscale on the home Kubernetes node
 
 - name: Common tasks for every playbook
-  import_playbook: ../kubespray/playbooks/boilerplate.yml
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
 
 - name: Install and configure Tailscale on Home Node-A
   hosts: kube_control_plane[0]

@@ -4,7 +4,7 @@
 
 ---
 - name: Common tasks for every playbook
-  import_playbook: ../kubespray/playbooks/boilerplate.yml
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
 
 - name: Install Kubernetes Python dependencies and monitoring tools via apt
   hosts: kube_control_plane,kube_node
