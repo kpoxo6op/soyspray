@@ -65,6 +65,8 @@ spec:
               mountPath: /etc/loki
             - name: storage
               mountPath: /var/loki
+            - name: tmp
+              mountPath: /tmp
             - name: rules
               mountPath: /etc/loki/rules/fake
               readOnly: true
@@ -81,6 +83,8 @@ spec:
                   name: loki-rules-kubernetes
               - configMap:
                   name: loki-rules-backup
+        - name: tmp
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: storage
@@ -91,5 +95,4 @@ spec:
         storageClassName: longhorn
         resources:
           requests:
-            # yes this is small, will get more storage later
             storage: 10Gi
