@@ -10,7 +10,6 @@ resources:
   - loki-rules-backup.yaml
   - loki-service.yaml
   - loki-statefulset.yaml
-  - loki-pvc.yaml
   - loki-servicemonitor.yaml
   - alloy-rbac.yaml
   - alloy-configmap.yaml
