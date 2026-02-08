@@ -76,9 +76,6 @@ spec:
         - name: config
           configMap:
             name: loki-config
-        - name: storage
-          persistentVolumeClaim:
-            claimName: storage-loki-0
         - name: rules
           projected:
             sources:
@@ -88,3 +85,14 @@ spec:
                   name: loki-rules-backup
         - name: tmp
           emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: storage
+        labels:
+          app.kubernetes.io/name: loki
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 10Gi
