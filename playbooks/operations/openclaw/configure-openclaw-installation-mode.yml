@@ -1,0 +1,140 @@
+---
+# Playbook to configure OpenClaw hardened installation mode files
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Configure OpenClaw hardened installation mode
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    openclaw_user: openclaw
+    openclaw_home: "/home/{{ openclaw_user }}"
+    openclaw_primary_model: openai-codex/gpt-5.3-codex
+    openclaw_config_dir: "{{ openclaw_home }}/.openclaw"
+    openclaw_config_file: "{{ openclaw_config_dir }}/openclaw.json"
+    openclaw_env_file: "{{ openclaw_config_dir }}/.env"
+    openclaw_gateway_unit_file: "{{ openclaw_home }}/.config/systemd/user/openclaw-gateway.service"
+    openclaw_telegram_bot_token: "{{ lookup('env', 'OPENCLAW_TELEGRAM_BOT_TOKEN') }}"
+    openclaw_require_telegram_token: false
+  pre_tasks:
+    - name: Check whether openclaw user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ openclaw_user }}"
+        fail_key: false
+      register: openclaw_passwd
+
+    - name: Set user existence fact
+      ansible.builtin.set_fact:
+        openclaw_user_exists: >-
+          {{
+            openclaw_passwd.ansible_facts.getent_passwd is defined and
+            openclaw_user in openclaw_passwd.ansible_facts.getent_passwd
+          }}
+
+    - name: Fail when openclaw user is missing
+      ansible.builtin.fail:
+        msg: "openclaw user does not exist. Run install-openclaw-host.yml first."
+      when: not openclaw_user_exists
+
+    - name: Fail when token is required but not provided
+      ansible.builtin.fail:
+        msg: "OPENCLAW_TELEGRAM_BOT_TOKEN is required when openclaw_require_telegram_token=true."
+      when: openclaw_require_telegram_token | bool and (openclaw_telegram_bot_token | length == 0)
+
+  tasks:
+    - name: Ensure OpenClaw config directory exists
+      ansible.builtin.file:
+        path: "{{ openclaw_config_dir }}"
+        state: directory
+        owner: "{{ openclaw_user }}"
+        group: "{{ openclaw_user }}"
+        mode: "0700"
+
+    - name: Ensure OpenClaw kube directory exists
+      ansible.builtin.file:
+        path: "{{ openclaw_home }}/.kube"
+        state: directory
+        owner: "{{ openclaw_user }}"
+        group: "{{ openclaw_user }}"
+        mode: "0700"
+
+    - name: Write hardened OpenClaw configuration
+      ansible.builtin.copy:
+        dest: "{{ openclaw_config_file }}"
+        owner: "{{ openclaw_user }}"
+        group: "{{ openclaw_user }}"
+        mode: "0600"
+        content: |
+          {
+            "agents": {
+              "defaults": {
+                "model": {
+                  "primary": "{{ openclaw_primary_model }}"
+                },
+                "heartbeat": {
+                  "every": "0m"
+                }
+              }
+            },
+            "gateway": {
+              "mode": "local"
+            },
+            "channels": {
+              "telegram": {
+                "enabled": true,
+                "botToken": "${TELEGRAM_BOT_TOKEN}",
+                "dmPolicy": "pairing",
+                "groupPolicy": "disabled"
+              }
+            },
+            "tools": {
+              "deny": ["group:fs", "browser", "canvas", "nodes", "cron", "gateway"],
+              "elevated": {
+                "enabled": false
+              }
+            }
+          }
+
+    - name: Write Telegram token env file when token is provided
+      ansible.builtin.copy:
+        dest: "{{ openclaw_env_file }}"
+        owner: "{{ openclaw_user }}"
+        group: "{{ openclaw_user }}"
+        mode: "0600"
+        content: |
+          TELEGRAM_BOT_TOKEN={{ openclaw_telegram_bot_token }}
+      no_log: true
+      when: openclaw_telegram_bot_token | length > 0
+
+    - name: Warn when token file is skipped
+      ansible.builtin.debug:
+        msg: "OPENCLAW_TELEGRAM_BOT_TOKEN not set. Add {{ openclaw_env_file }} manually before Telegram pairing."
+      when: openclaw_telegram_bot_token | length == 0
+
+    - name: Check whether OpenClaw gateway user unit exists
+      ansible.builtin.stat:
+        path: "{{ openclaw_gateway_unit_file }}"
+      register: openclaw_gateway_unit
+
+    - name: Restart OpenClaw gateway user service when available
+      ansible.builtin.command: "runuser -l {{ openclaw_user }} -c 'systemctl --user restart openclaw-gateway'"
+      register: openclaw_gateway_restart
+      changed_when: openclaw_gateway_restart.rc == 0
+      failed_when: false
+      when: openclaw_gateway_unit.stat.exists
+
+    - name: Print remaining manual phases
+      ansible.builtin.debug:
+        msg:
+          - "Manual follow-up required:"
+          - "1) openclaw onboard --install-daemon --auth-choice openai-codex (as openclaw)"
+          - "2) openclaw pairing list telegram && openclaw pairing approve telegram <CODE>"
+          - "3) Enable gateway on boot via Ansible:"
+          - "   ansible-playbook .../operations/openclaw/enable-openclaw-gateway-autostart.yml"
+          - "4) If you want full browser automation later, run:"
+          - "   ansible-playbook .../operations/openclaw/configure-openclaw-full-web-browsing.yml"
+          - "5) If starting manually, force its working dir and HOME:"
+          - "   sudo -u openclaw sh -lc 'cd /home/openclaw && HOME=/home/openclaw openclaw gateway run'"
+          - "5) Configure Exec approvals allowlist in Control UI with /usr/local/bin/kubectl only"

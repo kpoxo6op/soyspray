@@ -1,0 +1,19 @@
+---
+# Canonical one-command disablement for optional OpenClaw tool capabilities
+
+- import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+- import_playbook: ./disable-openclaw-full-web-browsing.yml
+  tags:
+    - openclaw
+    - openclaw-tools
+    - openclaw-tools-browser
+- import_playbook: ./disable-openclaw-exec-tool.yml
+  tags:
+    - openclaw
+    - openclaw-tools
+    - openclaw-tools-exec
+- import_playbook: ./disable-openclaw-file-tool.yml
+  tags:
+    - openclaw
+    - openclaw-tools
+    - openclaw-tools-file

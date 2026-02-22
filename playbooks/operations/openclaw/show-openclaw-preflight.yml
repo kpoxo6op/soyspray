@@ -1,0 +1,62 @@
+---
+# Read-only preflight checks before OpenClaw installation mode rollout
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Show OpenClaw preflight status
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    openclaw_user: openclaw
+    kubectl_expected_path: /usr/local/bin/kubectl
+    kubeconfig_admin_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Check OpenClaw CLI path
+      ansible.builtin.shell: command -v openclaw
+      args:
+        executable: /bin/bash
+      register: openclaw_path
+      changed_when: false
+      failed_when: false
+
+    - name: Check openclaw user existence
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ openclaw_user }}"
+        fail_key: false
+      register: openclaw_passwd
+
+    - name: Check expected kubectl path exists
+      ansible.builtin.stat:
+        path: "{{ kubectl_expected_path }}"
+      register: kubectl_expected_stat
+
+    - name: Check admin kubeconfig exists
+      ansible.builtin.stat:
+        path: "{{ kubeconfig_admin_path }}"
+      register: admin_kubeconfig_stat
+
+    - name: Check reboot-required marker
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Check admin kubeconfig delete privileges
+      ansible.builtin.command: >-
+        kubectl --kubeconfig={{ kubeconfig_admin_path }}
+        auth can-i delete pods --all-namespaces
+      register: admin_can_delete_pods
+      changed_when: false
+      failed_when: false
+      when: admin_kubeconfig_stat.stat.exists
+
+    - name: Show preflight summary
+      ansible.builtin.debug:
+        msg:
+          - "openclaw binary present: {{ openclaw_path.rc == 0 }}"
+          - "openclaw user present: {{ (openclaw_passwd.ansible_facts.getent_passwd is defined) and (openclaw_user in openclaw_passwd.ansible_facts.getent_passwd) }}"
+          - "kubectl path {{ kubectl_expected_path }} present: {{ kubectl_expected_stat.stat.exists }}"
+          - "admin kubeconfig present: {{ admin_kubeconfig_stat.stat.exists }}"
+          - "reboot required: {{ reboot_required.stat.exists }}"
+          - "admin can delete pods -A: {{ (admin_can_delete_pods.stdout | trim) if admin_kubeconfig_stat.stat.exists else 'unknown (admin kubeconfig missing)' }}"

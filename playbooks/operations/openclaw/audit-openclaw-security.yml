@@ -1,0 +1,59 @@
+---
+# Playbook to run OpenClaw security audit as the dedicated service account
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Run OpenClaw security audit
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    openclaw_user: openclaw
+    openclaw_apply_fixes: false
+  pre_tasks:
+    - name: Check whether openclaw user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ openclaw_user }}"
+        fail_key: false
+      register: openclaw_passwd
+
+    - name: Set user existence fact
+      ansible.builtin.set_fact:
+        openclaw_user_exists: >-
+          {{
+            openclaw_passwd.ansible_facts.getent_passwd is defined and
+            openclaw_user in openclaw_passwd.ansible_facts.getent_passwd
+          }}
+
+    - name: Fail when openclaw user is missing
+      ansible.builtin.fail:
+        msg: "openclaw user does not exist. Run install-openclaw-host.yml first."
+      when: not openclaw_user_exists
+  tasks:
+    - name: Run deep OpenClaw security audit
+      ansible.builtin.command: "runuser -l {{ openclaw_user }} -c 'openclaw security audit --deep'"
+      register: openclaw_audit_deep_before
+      changed_when: false
+      failed_when: false
+
+    - name: Apply OpenClaw security audit fixes
+      ansible.builtin.command: "runuser -l {{ openclaw_user }} -c 'openclaw security audit --fix'"
+      register: openclaw_audit_fix
+      changed_when: openclaw_audit_fix.rc == 0
+      failed_when: false
+      when: openclaw_apply_fixes | bool
+
+    - name: Run deep OpenClaw security audit after fixes
+      ansible.builtin.command: "runuser -l {{ openclaw_user }} -c 'openclaw security audit --deep'"
+      register: openclaw_audit_deep_after
+      changed_when: false
+      failed_when: false
+      when: openclaw_apply_fixes | bool
+
+    - name: Show audit command return codes
+      ansible.builtin.debug:
+        msg:
+          - "deep audit rc(before): {{ openclaw_audit_deep_before.rc }}"
+          - "fix rc: {{ (openclaw_audit_fix.rc if (openclaw_apply_fixes | bool) else 'skipped') }}"
+          - "deep audit rc(after): {{ (openclaw_audit_deep_after.rc if (openclaw_apply_fixes | bool) else 'skipped') }}"
