@@ -68,6 +68,7 @@ controller:
       } else {
         println("Bootstrap job already exists: ${bootstrapJobName}")
       }
+    }
 
   containerEnv:
     - name: JENKINS_BOOTSTRAP_USER
