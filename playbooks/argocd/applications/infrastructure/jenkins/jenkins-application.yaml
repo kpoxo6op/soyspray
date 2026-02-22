@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jenkins
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  sources:
+    - repoURL: https://charts.jenkins.io
+      chart: jenkins
+      targetRevision: "5.8.140"
+      helm:
+        valueFiles:
+          - $values/playbooks/argocd/applications/infrastructure/jenkins/values.yaml
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: "test/cloudbees-jenkins-cli-calls"
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: jenkins
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

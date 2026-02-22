@@ -1,0 +1,78 @@
+# Minimal Jenkins release for ArgoCD bootstrap testing.
+controller:
+  # Deterministic admin user for repeatable bootstrap.
+  admin:
+    username: jenkins-admin
+    password: jenkins-admin-pass
+
+  # Bootstrap Groovy + simple test job and API token creation.
+  initScripts:
+    bootstrap.groovy: |
+      import jenkins.model.Jenkins
+      import hudson.model.User
+      import jenkins.security.ApiTokenProperty
+
+      def bootstrapUser = System.getenv("JENKINS_BOOTSTRAP_USER") ?: "cloudbees-cli"
+      def bootstrapPassword = System.getenv("JENKINS_BOOTSTRAP_PASSWORD") ?: "cli-password"
+      def bootstrapJobName = System.getenv("JENKINS_BOOTSTRAP_JOB_NAME") ?: "silly-job"
+      def tokenName = "bootstrap-" + java.util.UUID.randomUUID().toString()
+
+      def jenkins = Jenkins.get()
+
+      def user = User.get(bootstrapUser, false)
+      if (user == null) {
+        println("Creating bootstrap user: ${bootstrapUser}")
+        jenkins.securityRealm.createAccount(bootstrapUser, bootstrapPassword)
+        user = User.get(bootstrapUser, false)
+      } else {
+        println("Bootstrap user already exists: ${bootstrapUser}")
+      }
+
+      def apiTokenProperty = user.getProperty(ApiTokenProperty.class)
+      if (apiTokenProperty == null) {
+        apiTokenProperty = new ApiTokenProperty()
+        user.addProperty(apiTokenProperty)
+      }
+
+      def tokenStore = apiTokenProperty.tokenStore
+      def token = tokenStore.generateNewToken(tokenName)
+      println("Created API token for ${bootstrapUser}: ${tokenName} -> ${token.plainValue}")
+      user.save()
+
+      if (jenkins.getItem(bootstrapJobName) == null) {
+        println("Creating bootstrap freestyle job: ${bootstrapJobName}")
+        def jobXml = """<?xml version='1.1' encoding='UTF-8'?>
+<project>
+  <description>Created by Jenkins bootstrap init script.</description>
+  <keepDependencies>false</keepDependencies>
+  <properties/>
+  <scm class='hudson.scm.NullSCM'/>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <triggers class='vector'/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>echo "silly job executed from bootstrap"</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project>
+"""
+        def stream = new java.io.ByteArrayInputStream(jobXml.getBytes("UTF-8"))
+        jenkins.createProjectFromXML(bootstrapJobName, stream)
+        println("Created bootstrap job: ${bootstrapJobName}")
+      } else {
+        println("Bootstrap job already exists: ${bootstrapJobName}")
+      }
+
+  containerEnv:
+    - name: JENKINS_BOOTSTRAP_USER
+      value: cloudbees-cli
+    - name: JENKINS_BOOTSTRAP_PASSWORD
+      value: cli-password
+    - name: JENKINS_BOOTSTRAP_JOB_NAME
+      value: silly-job
