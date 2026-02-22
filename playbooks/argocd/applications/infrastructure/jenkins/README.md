@@ -94,7 +94,15 @@ curl -s -b "$COOKIE_JAR" -u "cloudbees-cli:$TOKEN" \
   -X POST "https://jenkins.soyspray.vip/job/silly-job/buildWithParameters"
 ```
 
-If the job was created before this change and returns `silly-job is not parameterized`, delete/recreate it once from Jenkins UI (`job/silly-job/` > delete) or recreate it by forcing a new bootstrap init, then rerun steps 1-3.
+If this happens, the existing `silly-job` was created before the new parameterized bootstrap script:
+- sync this ArgoCD branch (`test/cloudbees-jenkins-cli-calls`),
+- then restart Jenkins so init scripts rerun, and run steps 1-3 again.
+
+If you need an immediate local fix without waiting for the next auto-sync:
+
+```bash
+kubectl -n jenkins delete pod jenkins-0
+```
 
 ### 4) Read queue / build output
 
