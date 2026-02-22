@@ -15,15 +15,43 @@ Use a Jenkins user/token pair. In this cluster the bootstrap script creates:
 
 - user: `cloudbees-cli`
 - password: `cli-password`
-- job: `silly-job` (echoes `silly job executed from bootstrap`)
+- job: `silly-job`
+  - parameter: `environments` (default `sandpit`)
+  - parameter: `commands` (choices: `plan`, `apply`; default `plan`)
 
-Because the bootstrap script also prints a generated API token to pod init logs on startup, read the latest token from:
+The bootstrap script prints a generated API token once when the controller initializes.
+
+Fetch it from logs:
 
 ```bash
-kubectl -n jenkins logs jenkins-0 -c init --tail=80
+kubectl -n jenkins logs jenkins-0 -c init \
+  | rg "Created API token for cloudbees-cli" \
+  | awk -F'-> ' '{print $2}' \
+  | tail -n 1
 ```
 
-Example token format: `<TOKEN_FROM_INIT_LOGS>`
+If that returns nothing (controller already initialized), create a new token with the same user/password:
+
+```bash
+USER=cloudbees-cli
+PASS=cli-password
+CRUMB_JSON=$(curl -s -u "$USER:$PASS" https://jenkins.soyspray.vip/crumbIssuer/api/json)
+CRUMB_FIELD=$(echo "$CRUMB_JSON" | jq -r '.crumbRequestField')
+CRUMB_VALUE=$(echo "$CRUMB_JSON" | jq -r '.crumb')
+TOKEN=$(curl -s -u "$USER:$PASS" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -H "$CRUMB_FIELD: $CRUMB_VALUE" \
+  --data-urlencode "newTokenName=manual-token-$(date +%s)" \
+  "https://jenkins.soyspray.vip/user/$USER/descriptorByName/jenkins.security.ApiTokenProperty/generateNewToken" \
+  | jq -r '.data.tokenValue')
+echo "$TOKEN"
+```
+
+Set it locally:
+
+```bash
+export TOKEN='<token from log or generated command>'
+```
 
 ### 1) Check job exists
 
@@ -42,15 +70,29 @@ CRUMB_VALUE=$(printf '%s' "$CRUMB_JSON" | sed -n 's/.*"crumb":"\([^"]*\)".*/\1/p
 echo $CRUMB_VALUE
 ```
 
-### 3) Trigger build
+### 3) Trigger build with defaults
 
 ```bash
-curl -s -b "$COOKIE_JAR" -u "cloudbees-cli:$TOKEN" -H "$CRUMB_FIELD: $CRUMB_VALUE" -X POST "https://jenkins.soyspray.vip/job/silly-job/build"
+curl -s -b "$COOKIE_JAR" -u "cloudbees-cli:$TOKEN" \
+  -H "$CRUMB_FIELD: $CRUMB_VALUE" \
+  -d "environments=sandpit&commands=plan" \
+  -X POST "https://jenkins.soyspray.vip/job/silly-job/buildWithParameters"
 ```
 
 The response includes:
 
 - `Location: https://jenkins.soyspray.vip/queue/item/<id>/`
+
+To run apply for another environment:
+
+```bash
+curl -s -b "$COOKIE_JAR" -u "cloudbees-cli:$TOKEN" \
+  -H "$CRUMB_FIELD: $CRUMB_VALUE" \
+  -d "environments=prod&commands=apply" \
+  -X POST "https://jenkins.soyspray.vip/job/silly-job/buildWithParameters"
+```
+
+If the job was created before this change and returns `silly-job is not parameterized`, delete/recreate it once from Jenkins UI (`job/silly-job/` > delete) or recreate it by forcing a new bootstrap init, then rerun steps 1-3.
 
 ### 4) Read queue / build output
 

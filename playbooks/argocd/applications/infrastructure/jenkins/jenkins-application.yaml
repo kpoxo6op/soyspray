@@ -49,12 +49,29 @@ spec:
                 import hudson.model.User
                 import hudson.tasks.Shell
                 import hudson.model.FreeStyleProject
+                import hudson.model.ParametersDefinitionProperty
+                import hudson.model.ChoiceParameterDefinition
+                import hudson.model.StringParameterDefinition
                 import jenkins.security.ApiTokenProperty
 
                 def bootstrapUser = System.getenv("JENKINS_BOOTSTRAP_USER") ?: "cloudbees-cli"
                 def bootstrapPassword = System.getenv("JENKINS_BOOTSTRAP_PASSWORD") ?: "cli-password"
                 def bootstrapJobName = System.getenv("JENKINS_BOOTSTRAP_JOB_NAME") ?: "silly-job"
                 def tokenName = "bootstrap-" + java.util.UUID.randomUUID().toString()
+                def parameterDefs = [
+                  new StringParameterDefinition("environments", "sandpit", "Environment for execution."),
+                  new ChoiceParameterDefinition("commands", ["plan", "apply"].join("\\n"), "Command mode to run.")
+                ]
+                def shellText = '''#!/bin/sh
+echo "silly job executed from bootstrap"
+echo "environment=${environments}"
+echo "commands=${commands}"
+if [ "$commands" = "plan" ]; then
+  echo "would run plan for ${environments}"
+elif [ "$commands" = "apply" ]; then
+  echo "would run apply for ${environments}"
+fi
+'''
 
                 def jenkins = Jenkins.get()
 
@@ -82,12 +99,28 @@ spec:
                   println("Creating bootstrap freestyle job: ${bootstrapJobName}")
                   def job = jenkins.createProject(FreeStyleProject, bootstrapJobName)
                   job.setDescription("Created by Jenkins bootstrap init script.")
-                  def shellStep = new hudson.tasks.Shell('echo "silly job executed from bootstrap"')
-                  job.getBuildersList().add(shellStep)
                   job.save()
                   println("Created bootstrap job: ${bootstrapJobName}")
                 } else {
                   println("Bootstrap job already exists: ${bootstrapJobName}")
+                }
+
+                def job = jenkins.getItem(bootstrapJobName)
+                if (job != null) {
+                  if (!(job instanceof FreeStyleProject)) {
+                    println("${bootstrapJobName} is not a Freestyle job; manual cleanup is required.")
+                    return
+                  }
+                  job.setDescription("Created by Jenkins bootstrap init script.")
+                  def existingParams = job.getProperty(ParametersDefinitionProperty.class)
+                  if (existingParams != null) {
+                    job.removeProperty(existingParams)
+                  }
+                  job.addProperty(new ParametersDefinitionProperty(parameterDefs))
+                  job.getBuildersList().clear()
+                  job.getBuildersList().add(new hudson.tasks.Shell(shellText))
+                  job.save()
+                  println("Configured bootstrap job: ${bootstrapJobName}")
                 }
 
             containerEnv:
