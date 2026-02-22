@@ -60,18 +60,18 @@ spec:
                 def tokenName = "bootstrap-" + java.util.UUID.randomUUID().toString()
                 def parameterDefs = [
                   new StringParameterDefinition("environments", "sandpit", "Environment for execution."),
-                  new ChoiceParameterDefinition("commands", ["plan", "apply"].join("\\n"), "Command mode to run.")
+                  new ChoiceParameterDefinition("commands", ["plan", "apply"].join("\n"), "Command mode to run.")
                 ]
                 def shellText = '''#!/bin/sh
-echo "silly job executed from bootstrap"
-echo "environment=${environments}"
-echo "commands=${commands}"
-if [ "$commands" = "plan" ]; then
-  echo "would run plan for ${environments}"
-elif [ "$commands" = "apply" ]; then
-  echo "would run apply for ${environments}"
-fi
-'''
+                echo "silly job executed from bootstrap"
+                echo "environment=$environments"
+                echo "commands=$commands"
+                if [ "$commands" = "plan" ]; then
+                  echo "would run plan for $environments"
+                elif [ "$commands" = "apply" ]; then
+                  echo "would run apply for $environments"
+                fi
+                '''
 
                 def jenkins = Jenkins.get()
 
