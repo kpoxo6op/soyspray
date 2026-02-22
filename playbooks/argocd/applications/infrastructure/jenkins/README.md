@@ -15,7 +15,10 @@ Use a Jenkins user/token pair. In this cluster the bootstrap script creates:
 
 - user: `cloudbees-cli`
 - password: `cli-password`
-- job: `silly-job`
+- teams/spaces:
+  - `event-streaming`
+  - `platform-team`
+- job: `silly-job` under team `event-streaming`
   - parameter: `environments` (default `sandpit`)
   - parameter: `commands` (choices: `plan`, `apply`; default `plan`)
 
@@ -54,12 +57,23 @@ Set it locally:
 ```bash
 export TOKEN='<token from log or generated command>'
 ```
+export TEAM=event-streaming
+export JOB=silly-job
+export BASE_URL="https://jenkins.soyspray.vip/job/${TEAM}/job/${JOB}"
+```
 
 ### 1) Check job exists
 
 
 ```bash
-curl -s -u "cloudbees-cli:$TOKEN" https://jenkins.soyspray.vip/job/silly-job/api/json | jq
+curl -s -u "cloudbees-cli:$TOKEN" "$BASE_URL/api/json" | jq
+```
+
+Confirm both teams exist:
+
+```bash
+curl -s -u "cloudbees-cli:$TOKEN" https://jenkins.soyspray.vip/job/event-streaming/api/json | jq -r '.name,.jobs[].name'
+curl -s -u "cloudbees-cli:$TOKEN" https://jenkins.soyspray.vip/job/platform-team/api/json | jq -r '.name'
 ```
 
 ### 2) Get CSRF crumb
@@ -78,7 +92,7 @@ echo $CRUMB_VALUE
 curl -s -b "$COOKIE_JAR" -u "cloudbees-cli:$TOKEN" \
   -H "$CRUMB_FIELD: $CRUMB_VALUE" \
   -d "environments=sandpit&commands=plan" \
-  -X POST "https://jenkins.soyspray.vip/job/silly-job/buildWithParameters"
+  -X POST "$BASE_URL/buildWithParameters"
 ```
 
 The response includes:
@@ -91,7 +105,7 @@ To run apply for another environment:
 curl -s -b "$COOKIE_JAR" -u "cloudbees-cli:$TOKEN" \
   -H "$CRUMB_FIELD: $CRUMB_VALUE" \
   -d "environments=prod&commands=apply" \
-  -X POST "https://jenkins.soyspray.vip/job/silly-job/buildWithParameters"
+  -X POST "$BASE_URL/buildWithParameters"
 ```
 
 If this happens, the existing `silly-job` was created before the new parameterized bootstrap script:
@@ -107,7 +121,7 @@ kubectl -n jenkins delete pod jenkins-0
 ### 4) Read queue / build output
 
 ```bash
-curl -s -b "$COOKIE_JAR" -u "cloudbees-cli:$TOKEN" https://jenkins.soyspray.vip/job/silly-job/1/consoleText
+curl -s -b "$COOKIE_JAR" -u "cloudbees-cli:$TOKEN" "$BASE_URL/1/consoleText"
 ```
 
 Expected output for the bootstrap job:
@@ -120,3 +134,9 @@ silly job executed from bootstrap
 
 - Jenkins UI is reachable at `https://jenkins.soyspray.vip/` (NGINX ingress, TLS secret `prod-cert-tls`).
 - ArgoCD app is `Synced` + `Healthy`.
+
+To target the team/job location directly:
+
+```bash
+https://jenkins.soyspray.vip/job/event-streaming/job/silly-job/
+```

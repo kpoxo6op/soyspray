@@ -46,6 +46,7 @@ spec:
             initScripts:
               bootstrap.groovy: |
                 import jenkins.model.Jenkins
+                import com.cloudbees.hudson.plugins.folder.Folder
                 import hudson.model.User
                 import hudson.tasks.Shell
                 import hudson.model.FreeStyleProject
@@ -57,6 +58,8 @@ spec:
                 def bootstrapUser = System.getenv("JENKINS_BOOTSTRAP_USER") ?: "cloudbees-cli"
                 def bootstrapPassword = System.getenv("JENKINS_BOOTSTRAP_PASSWORD") ?: "cli-password"
                 def bootstrapJobName = System.getenv("JENKINS_BOOTSTRAP_JOB_NAME") ?: "silly-job"
+                def bootstrapTeam = System.getenv("JENKINS_BOOTSTRAP_JOB_TEAM") ?: "event-streaming"
+                def bootstrapTeamSecondary = System.getenv("JENKINS_BOOTSTRAP_SECONDARY_TEAM") ?: "platform-team"
                 def tokenName = "bootstrap-" + java.util.UUID.randomUUID().toString()
                 def parameterDefs = [
                   new StringParameterDefinition("environments", "sandpit", "Environment for execution."),
@@ -95,9 +98,29 @@ spec:
                 println("Created API token for ${bootstrapUser}: ${tokenName} -> ${token.plainValue}")
                 user.save()
 
-                if (jenkins.getItem(bootstrapJobName) == null) {
+                def teamNames = [bootstrapTeam, bootstrapTeamSecondary].findAll { it != null && it.trim() }
+
+                def teamFolders = [:]
+                teamNames.each { name ->
+                  def folder = jenkins.getItem(name.trim())
+                  if (folder == null) {
+                    println("Creating team folder: ${name}")
+                    folder = jenkins.createProject(Folder, name.trim())
+                  } else {
+                    println("Team folder already exists: ${name}")
+                  }
+                  teamFolders[name.trim()] = folder
+                }
+
+                def targetTeam = teamFolders.get(bootstrapTeam.trim())
+                if (targetTeam == null) {
+                  println("Team folder '${bootstrapTeam}' missing; using Jenkins root.")
+                  targetTeam = jenkins
+                }
+
+                if (targetTeam.getItem(bootstrapJobName) == null) {
                   println("Creating bootstrap freestyle job: ${bootstrapJobName}")
-                  def job = jenkins.createProject(FreeStyleProject, bootstrapJobName)
+                  def job = targetTeam.createProject(FreeStyleProject, bootstrapJobName)
                   job.setDescription("Created by Jenkins bootstrap init script.")
                   job.save()
                   println("Created bootstrap job: ${bootstrapJobName}")
@@ -105,7 +128,7 @@ spec:
                   println("Bootstrap job already exists: ${bootstrapJobName}")
                 }
 
-                def job = jenkins.getItem(bootstrapJobName)
+                def job = targetTeam.getItem(bootstrapJobName)
                 if (job != null) {
                   if (!(job instanceof FreeStyleProject)) {
                     println("${bootstrapJobName} is not a Freestyle job; manual cleanup is required.")
@@ -130,6 +153,10 @@ spec:
                 value: cli-password
               - name: JENKINS_BOOTSTRAP_JOB_NAME
                 value: silly-job
+              - name: JENKINS_BOOTSTRAP_JOB_TEAM
+                value: event-streaming
+              - name: JENKINS_BOOTSTRAP_SECONDARY_TEAM
+                value: platform-team
     - repoURL: https://github.com/kpoxo6op/soyspray.git
       targetRevision: "test/cloudbees-jenkins-cli-calls"
       ref: values
