@@ -28,6 +28,7 @@ spec:
             installPlugins: false
             installLatestPlugins: false
             additionalPlugins: []
+            initializeOnce: false
 
             # Expose Jenkins through ingress.
             ingress:
