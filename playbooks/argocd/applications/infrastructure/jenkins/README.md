@@ -35,10 +35,12 @@ If that returns nothing (controller already initialized), create a new token wit
 ```bash
 USER=cloudbees-cli
 PASS=cli-password
-CRUMB_JSON=$(curl -s -u "$USER:$PASS" https://jenkins.soyspray.vip/crumbIssuer/api/json)
+COOKIE_JAR=$(mktemp)
+CRUMB_JSON=$(curl -s -c "$COOKIE_JAR" -u "$USER:$PASS" https://jenkins.soyspray.vip/crumbIssuer/api/json)
 CRUMB_FIELD=$(echo "$CRUMB_JSON" | jq -r '.crumbRequestField')
 CRUMB_VALUE=$(echo "$CRUMB_JSON" | jq -r '.crumb')
 TOKEN=$(curl -s -u "$USER:$PASS" \
+  -b "$COOKIE_JAR" -c "$COOKIE_JAR" \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -H "$CRUMB_FIELD: $CRUMB_VALUE" \
   --data-urlencode "newTokenName=manual-token-$(date +%s)" \
