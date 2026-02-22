@@ -9,6 +9,7 @@ controller:
   initScripts:
     bootstrap.groovy: |
       import jenkins.model.Jenkins
+      import hudson.model.FreeStyleProject
       import hudson.model.User
       import jenkins.security.ApiTokenProperty
 
@@ -41,29 +42,11 @@ controller:
 
       if (jenkins.getItem(bootstrapJobName) == null) {
         println("Creating bootstrap freestyle job: ${bootstrapJobName}")
-        def jobXml = """<?xml version='1.1' encoding='UTF-8'?>
-<project>
-  <description>Created by Jenkins bootstrap init script.</description>
-  <keepDependencies>false</keepDependencies>
-  <properties/>
-  <scm class='hudson.scm.NullSCM'/>
-  <canRoam>true</canRoam>
-  <disabled>false</disabled>
-  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
-  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
-  <triggers class='vector'/>
-  <concurrentBuild>false</concurrentBuild>
-  <builders>
-    <hudson.tasks.Shell>
-      <command>echo "silly job executed from bootstrap"</command>
-    </hudson.tasks.Shell>
-  </builders>
-  <publishers/>
-  <buildWrappers/>
-</project>
-"""
-        def stream = new java.io.ByteArrayInputStream(jobXml.getBytes("UTF-8"))
-        jenkins.createProjectFromXML(bootstrapJobName, stream)
+        def job = jenkins.createProject(FreeStyleProject, bootstrapJobName)
+        job.setDescription("Created by Jenkins bootstrap init script.")
+        def shellStep = new hudson.tasks.Shell('echo "silly job executed from bootstrap"')
+        job.getBuildersList().add(shellStep)
+        job.save()
         println("Created bootstrap job: ${bootstrapJobName}")
       } else {
         println("Bootstrap job already exists: ${bootstrapJobName}")
