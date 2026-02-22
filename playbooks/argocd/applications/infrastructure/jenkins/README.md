@@ -27,27 +27,25 @@ Example token format: `<TOKEN_FROM_INIT_LOGS>`
 
 ### 1) Check job exists
 
+
 ```bash
-curl -sk -u "cloudbees-cli:<TOKEN>" \
-  https://jenkins.soyspray.vip/job/silly-job/api/json
+curl -s -u "cloudbees-cli:$TOKEN" https://jenkins.soyspray.vip/job/silly-job/api/json | jq
 ```
 
 ### 2) Get CSRF crumb
 
 ```bash
-CRUMB_JSON=$(curl -sk -u "cloudbees-cli:<TOKEN>" \
-  https://jenkins.soyspray.vip/crumbIssuer/api/json)
+COOKIE_JAR=$(mktemp)
+CRUMB_JSON=$(curl -s -c "$COOKIE_JAR" -u "cloudbees-cli:$TOKEN" https://jenkins.soyspray.vip/crumbIssuer/api/json)
 CRUMB_FIELD=$(printf '%s' "$CRUMB_JSON" | sed -n 's/.*"crumbRequestField":"\([^"]*\)".*/\1/p')
 CRUMB_VALUE=$(printf '%s' "$CRUMB_JSON" | sed -n 's/.*"crumb":"\([^"]*\)".*/\1/p')
+echo $CRUMB_VALUE
 ```
 
 ### 3) Trigger build
 
 ```bash
-curl -sk -u "cloudbees-cli:<TOKEN>" \
-  -H "$CRUMB_FIELD: $CRUMB_VALUE" \
-  -X POST \
-  "https://jenkins.soyspray.vip/job/silly-job/build"
+curl -s -b "$COOKIE_JAR" -u "cloudbees-cli:$TOKEN" -H "$CRUMB_FIELD: $CRUMB_VALUE" -X POST "https://jenkins.soyspray.vip/job/silly-job/build"
 ```
 
 The response includes:
@@ -57,8 +55,7 @@ The response includes:
 ### 4) Read queue / build output
 
 ```bash
-curl -sk -u "cloudbees-cli:<TOKEN>" \
-  https://jenkins.soyspray.vip/job/silly-job/1/consoleText
+curl -s -b "$COOKIE_JAR" -u "cloudbees-cli:$TOKEN" https://jenkins.soyspray.vip/job/silly-job/1/consoleText
 ```
 
 Expected output for the bootstrap job:
