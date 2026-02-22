@@ -14,6 +14,89 @@ spec:
       helm:
         valueFiles:
           - $values/playbooks/argocd/applications/infrastructure/jenkins/values.yaml
+        values: |
+          controller:
+            # Deterministic admin user for repeatable bootstrap.
+            admin:
+              username: jenkins-admin
+              password: jenkins-admin-pass
+
+            # Keep one executor so queued jobs actually run.
+            numExecutors: 1
+
+            # Keep startup deterministic and avoid unexpected plugin churn.
+            installPlugins: false
+            installLatestPlugins: false
+            additionalPlugins: []
+            initializeOnce: true
+
+            # Expose Jenkins through ingress.
+            ingress:
+              enabled: true
+              ingressClassName: nginx
+              hostName: jenkins.soyspray.vip
+              path: /
+              pathType: Prefix
+              tls:
+                - hosts:
+                    - jenkins.soyspray.vip
+                  secretName: prod-cert-tls
+
+            # Bootstrap Groovy + simple test job and API token creation.
+            initScripts:
+              bootstrap.groovy: |
+                import jenkins.model.Jenkins
+                import hudson.model.User
+                import hudson.tasks.Shell
+                import hudson.model.FreeStyleProject
+                import jenkins.security.ApiTokenProperty
+
+                def bootstrapUser = System.getenv("JENKINS_BOOTSTRAP_USER") ?: "cloudbees-cli"
+                def bootstrapPassword = System.getenv("JENKINS_BOOTSTRAP_PASSWORD") ?: "cli-password"
+                def bootstrapJobName = System.getenv("JENKINS_BOOTSTRAP_JOB_NAME") ?: "silly-job"
+                def tokenName = "bootstrap-" + java.util.UUID.randomUUID().toString()
+
+                def jenkins = Jenkins.get()
+
+                def user = User.get(bootstrapUser, false)
+                if (user == null) {
+                  println("Creating bootstrap user: ${bootstrapUser}")
+                  jenkins.securityRealm.createAccount(bootstrapUser, bootstrapPassword)
+                  user = User.get(bootstrapUser, false)
+                } else {
+                  println("Bootstrap user already exists: ${bootstrapUser}")
+                }
+
+                def apiTokenProperty = user.getProperty(ApiTokenProperty.class)
+                if (apiTokenProperty == null) {
+                  apiTokenProperty = new ApiTokenProperty()
+                  user.addProperty(apiTokenProperty)
+                }
+
+                def tokenStore = apiTokenProperty.tokenStore
+                def token = tokenStore.generateNewToken(tokenName)
+                println("Created API token for ${bootstrapUser}: ${tokenName} -> ${token.plainValue}")
+                user.save()
+
+                if (jenkins.getItem(bootstrapJobName) == null) {
+                  println("Creating bootstrap freestyle job: ${bootstrapJobName}")
+                  def job = jenkins.createProject(FreeStyleProject, bootstrapJobName)
+                  job.setDescription("Created by Jenkins bootstrap init script.")
+                  def shellStep = new hudson.tasks.Shell('echo "silly job executed from bootstrap"')
+                  job.getBuildersList().add(shellStep)
+                  job.save()
+                  println("Created bootstrap job: ${bootstrapJobName}")
+                } else {
+                  println("Bootstrap job already exists: ${bootstrapJobName}")
+                }
+
+            containerEnv:
+              - name: JENKINS_BOOTSTRAP_USER
+                value: cloudbees-cli
+              - name: JENKINS_BOOTSTRAP_PASSWORD
+                value: cli-password
+              - name: JENKINS_BOOTSTRAP_JOB_NAME
+                value: silly-job
     - repoURL: https://github.com/kpoxo6op/soyspray.git
       targetRevision: "test/cloudbees-jenkins-cli-calls"
       ref: values

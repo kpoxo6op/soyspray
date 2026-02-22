@@ -5,12 +5,34 @@ controller:
     username: jenkins-admin
     password: jenkins-admin-pass
 
+  # Run a controller with one executor so manual/job runs can execute locally.
+  numExecutors: 1
+
+  # Install no extra plugins via init; keep startup lean and deterministic.
+  installPlugins: false
+  installLatestPlugins: false
+  additionalPlugins: []
+  initializeOnce: true
+
+  # Expose Jenkins through the cluster ingress on jenkins.soyspray.vip.
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hostName: jenkins.soyspray.vip
+    path: /
+    pathType: Prefix
+    tls:
+      - hosts:
+          - jenkins.soyspray.vip
+        secretName: prod-cert-tls
+
   # Bootstrap Groovy + simple test job and API token creation.
   initScripts:
     bootstrap.groovy: |
       import jenkins.model.Jenkins
-      import hudson.model.FreeStyleProject
       import hudson.model.User
+      import hudson.tasks.Shell
+      import hudson.model.FreeStyleProject
       import jenkins.security.ApiTokenProperty
 
       def bootstrapUser = System.getenv("JENKINS_BOOTSTRAP_USER") ?: "cloudbees-cli"
@@ -50,7 +72,6 @@ controller:
         println("Created bootstrap job: ${bootstrapJobName}")
       } else {
         println("Bootstrap job already exists: ${bootstrapJobName}")
-      }
       }
 
   containerEnv:
