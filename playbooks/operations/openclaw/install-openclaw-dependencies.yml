@@ -1,0 +1,187 @@
+---
+# Install optional dependencies used by OpenClaw integrations (Gmail/webhooks workflows)
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Install OpenClaw integration dependencies
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    openclaw_tailscale_gpg_keyring: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    openclaw_tailscale_version: "1.86.2"
+    openclaw_apt_release: "{{ ansible_distribution_release | default('jammy') }}"
+    openclaw_tailscale_repo: "deb [signed-by={{ openclaw_tailscale_gpg_keyring }}] https://pkgs.tailscale.com/stable/ubuntu {{ openclaw_apt_release }} main"
+
+    openclaw_google_cloud_cli_gpg_keyring: /usr/share/keyrings/google-cloud-sdk-archive-keyring.gpg
+    openclaw_google_cloud_cli_apt_repo: "deb [signed-by={{ openclaw_google_cloud_cli_gpg_keyring }}] https://packages.cloud.google.com/apt cloud-sdk main"
+    openclaw_gog_cli_arch: "{{ 'amd64' if ansible_architecture in ['x86_64', 'amd64'] else 'arm64' }}"
+    openclaw_gog_cli_version: "v0.11.0"
+    openclaw_gog_cli_tmp_archive: /tmp/gogcli_{{ openclaw_gog_cli_version }}_linux_{{ openclaw_gog_cli_arch }}.tar.gz
+    openclaw_gog_cli_url: "https://github.com/steipete/gogcli/releases/download/{{ openclaw_gog_cli_version }}/gogcli_{{ openclaw_gog_cli_version | regex_replace('^v', '') }}_linux_{{ openclaw_gog_cli_arch }}.tar.gz"
+    openclaw_gog_binary: /usr/local/bin/gog
+  tasks:
+    - name: Check existing gcloud installation
+      ansible.builtin.command: gcloud --version
+      register: openclaw_gcloud_version_before
+      changed_when: false
+      failed_when: false
+
+    - name: Check existing gog installation
+      ansible.builtin.command: gog --version
+      register: openclaw_gog_version_before
+      changed_when: false
+      failed_when: false
+
+    - name: Check existing tailscale installation
+      ansible.builtin.command: tailscale version
+      register: openclaw_tailscale_before
+      changed_when: false
+      failed_when: false
+
+    - name: Install Google Cloud CLI
+      block:
+        - name: Install Google Cloud apt prerequisites
+          ansible.builtin.apt:
+            name:
+              - apt-transport-https
+              - ca-certificates
+              - curl
+              - gnupg
+            state: present
+            update_cache: true
+
+        - name: Install Google Cloud signing key
+          ansible.builtin.shell: |
+            curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+              | gpg --dearmor -o {{ openclaw_google_cloud_cli_gpg_keyring }}
+          args:
+            creates: "{{ openclaw_google_cloud_cli_gpg_keyring }}"
+
+        - name: Configure Google Cloud apt repository
+          ansible.builtin.apt_repository:
+            repo: "{{ openclaw_google_cloud_cli_apt_repo }}"
+            filename: google-cloud-sdk
+
+        - name: Install google-cloud-cli package
+          ansible.builtin.apt:
+            name: google-cloud-cli
+            state: present
+            update_cache: true
+
+        - name: Report installed gcloud version
+          ansible.builtin.command: gcloud --version
+          register: openclaw_gcloud_version_after
+          changed_when: false
+          failed_when: false
+
+        - name: Show gcloud version
+          ansible.builtin.debug:
+            msg: "gcloud installed: {{ openclaw_gcloud_version_after.stdout_lines[0] | default('n/a') }}"
+      when: openclaw_gcloud_version_before.rc != 0
+
+    - name: Skip gcloud install
+      ansible.builtin.debug:
+        msg: "gcloud already available: {{ openclaw_gcloud_version_before.stdout_lines[0] | default('unknown') }}"
+      when: openclaw_gcloud_version_before.rc == 0
+
+    - name: Install gog CLI
+      block:
+        - name: Ensure prerequisite packages for gog are present
+          ansible.builtin.apt:
+            name:
+              - curl
+            state: present
+            update_cache: true
+
+        - name: Download gog Linux archive
+          ansible.builtin.get_url:
+            url: "{{ openclaw_gog_cli_url }}"
+            dest: "{{ openclaw_gog_cli_tmp_archive }}"
+            mode: "0644"
+
+        - name: Install gog binary
+          ansible.builtin.unarchive:
+            src: "{{ openclaw_gog_cli_tmp_archive }}"
+            dest: /usr/local/bin
+            remote_src: true
+
+        - name: Set gog executable bit
+          ansible.builtin.file:
+            path: "{{ openclaw_gog_binary }}"
+            mode: "0755"
+
+        - name: Verify gog installation
+          ansible.builtin.command: gog --version
+          register: openclaw_gog_version_after
+          changed_when: false
+          failed_when: false
+
+        - name: Show gog version
+          ansible.builtin.debug:
+            msg: "gog installed: {{ openclaw_gog_version_after.stdout_lines[0] | default(openclaw_gog_version_after.stderr_lines[0] | default('n/a')) }}"
+
+        - name: Remove temporary gog archive
+          ansible.builtin.file:
+            path: "{{ openclaw_gog_cli_tmp_archive }}"
+            state: absent
+      when: openclaw_gog_version_before.rc != 0
+
+    - name: Skip gog install
+      ansible.builtin.debug:
+        msg: >-
+          gog already available: {{
+            openclaw_gog_version_before.stdout_lines[0] |
+            default(openclaw_gog_version_before.stderr_lines[0] | default('unknown'))
+          }}
+      when: openclaw_gog_version_before.rc == 0
+
+    - name: Install tailscale
+      block:
+        - name: Ensure prerequisite packages for tailscale are installed
+          ansible.builtin.apt:
+            name:
+              - curl
+              - gnupg
+            state: present
+            update_cache: true
+
+        - name: Install tailscale signing key
+          ansible.builtin.shell: |
+            curl -fsSL https://pkgs.tailscale.com/stable/ubuntu/{{ openclaw_apt_release }}.gpg \
+              | gpg --dearmor -o {{ openclaw_tailscale_gpg_keyring }}
+          args:
+            creates: "{{ openclaw_tailscale_gpg_keyring }}"
+
+        - name: Configure tailscale apt repository
+          ansible.builtin.apt_repository:
+            repo: "{{ openclaw_tailscale_repo }}"
+            filename: tailscale
+
+        - name: Install tailscale package
+          ansible.builtin.apt:
+            name: "tailscale={{ openclaw_tailscale_version }}"
+            state: present
+            update_cache: true
+
+        - name: Ensure tailscaled is started
+          ansible.builtin.service:
+            name: tailscaled
+            state: started
+            enabled: true
+
+        - name: Verify tailscale installation
+          ansible.builtin.command: tailscale version
+          register: openclaw_tailscale_after
+          changed_when: false
+          failed_when: false
+
+        - name: Show tailscale version
+          ansible.builtin.debug:
+            msg: "tailscale installed: {{ openclaw_tailscale_after.stdout_lines[0] | default('n/a') }}"
+      when: openclaw_tailscale_before.rc != 0
+
+    - name: Skip tailscale install
+      ansible.builtin.debug:
+        msg: "tailscale already available: {{ openclaw_tailscale_before.stdout_lines[0] | default('unknown') }}"
+      when: openclaw_tailscale_before.rc == 0

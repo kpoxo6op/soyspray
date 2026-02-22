@@ -1,0 +1,76 @@
+---
+# Remove optional dependencies used by OpenClaw integrations (Gmail/webhooks workflows)
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Remove OpenClaw integration dependencies
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    openclaw_tailscale_gpg_keyring: /usr/share/keyrings/tailscale-archive-keyring.gpg
+    openclaw_google_cloud_cli_gpg_keyring: /usr/share/keyrings/google-cloud-sdk-archive-keyring.gpg
+    openclaw_gog_binary: /usr/local/bin/gog
+    openclaw_google_cloud_repo_file: /etc/apt/sources.list.d/google-cloud-sdk.list
+    openclaw_tailscale_repo_file: /etc/apt/sources.list.d/tailscale.list
+
+  tasks:
+    - name: Check gog installation
+      ansible.builtin.stat:
+        path: "{{ openclaw_gog_binary }}"
+      register: openclaw_gog_binary_check
+
+    - name: Remove gog binary
+      ansible.builtin.file:
+        path: "{{ openclaw_gog_binary }}"
+        state: absent
+      when: openclaw_gog_binary_check.stat.exists
+
+    - name: Remove gcloud apt repository package
+      ansible.builtin.apt:
+        name: google-cloud-cli
+        state: absent
+        purge: true
+      register: openclaw_gcloud_apt_removed
+      failed_when: false
+
+    - name: Remove tailscale package
+      ansible.builtin.apt:
+        name: tailscale
+        state: absent
+        purge: true
+      register: openclaw_tailscale_apt_removed
+      failed_when: false
+
+    - name: Stop and disable tailscaled service
+      ansible.builtin.service:
+        name: tailscaled
+        state: stopped
+        enabled: false
+      failed_when: false
+
+    - name: Remove google cloud apt sources and keyring
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ openclaw_google_cloud_repo_file }}"
+        - "{{ openclaw_google_cloud_cli_gpg_keyring }}"
+
+    - name: Remove tailscale apt sources and keyring
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ openclaw_tailscale_repo_file }}"
+        - "{{ openclaw_tailscale_gpg_keyring }}"
+
+    - name: Refresh apt package cache
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Verify gcloud and tailscale removals
+      ansible.builtin.debug:
+        msg: >-
+          google-cloud-cli removed: {{ openclaw_gcloud_apt_removed.changed | default(false) }};
+          tailscale removed: {{ openclaw_tailscale_apt_removed.changed | default(false) }}

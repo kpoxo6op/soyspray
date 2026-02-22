@@ -1,0 +1,132 @@
+---
+# Status checks after OpenClaw installation mode rollout
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Show OpenClaw installation mode status
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    openclaw_user: openclaw
+    openclaw_home: "/home/{{ openclaw_user }}"
+    openclaw_config_file: "{{ openclaw_home }}/.openclaw/openclaw.json"
+    openclaw_env_file: "{{ openclaw_home }}/.openclaw/.env"
+    openclaw_kubeconfig_path: "{{ openclaw_home }}/.kube/config"
+    openclaw_service_name: openclaw-gateway
+    openclaw_service_unit_file: "/etc/systemd/system/{{ openclaw_service_name }}.service"
+  tasks:
+    - name: Check OpenClaw CLI version
+      ansible.builtin.command: "runuser -l {{ openclaw_user }} -c 'openclaw --version'"
+      register: openclaw_version
+      changed_when: false
+      failed_when: false
+
+    - name: Check openclaw user existence
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ openclaw_user }}"
+        fail_key: false
+      register: openclaw_passwd
+
+    - name: Check linger marker
+      ansible.builtin.stat:
+        path: "/var/lib/systemd/linger/{{ openclaw_user }}"
+      register: openclaw_linger
+
+    - name: Check OpenClaw config file
+      ansible.builtin.stat:
+        path: "{{ openclaw_config_file }}"
+      register: openclaw_config_stat
+
+    - name: Check OpenClaw env file
+      ansible.builtin.stat:
+        path: "{{ openclaw_env_file }}"
+      register: openclaw_env_stat
+
+    - name: Check OpenClaw kubeconfig file
+      ansible.builtin.stat:
+        path: "{{ openclaw_kubeconfig_path }}"
+      register: openclaw_kubeconfig_stat
+
+    - name: Check OpenClaw systemd service file
+      ansible.builtin.stat:
+        path: "{{ openclaw_service_unit_file }}"
+      register: openclaw_service_unit
+
+    - name: Read OpenClaw config for browser policy
+      ansible.builtin.slurp:
+        path: "{{ openclaw_config_file }}"
+      register: openclaw_config_raw
+      when: openclaw_config_stat.stat.exists
+
+    - name: Parse OpenClaw config
+      ansible.builtin.set_fact:
+        openclaw_config_json: "{{ openclaw_config_raw.content | b64decode | from_json }}"
+      when: openclaw_config_stat.stat.exists
+
+    - name: Read main agent tool allowlist for session-level diagnostics
+      ansible.builtin.set_fact:
+        openclaw_main_agent_tools_allow: >-
+          {{
+            (
+              openclaw_config_json.agents.list | default([])
+              | selectattr("id", "equalto", "main")
+              | map(attribute="tools")
+              | map(attribute="allow", default=[])
+              | list
+            )[0] | default([])
+          }}
+      when: openclaw_config_stat.stat.exists
+
+    - name: Check if OpenClaw gateway service is enabled
+      ansible.builtin.command: "systemctl is-enabled {{ openclaw_service_name }}.service"
+      register: openclaw_service_enabled
+      changed_when: false
+      failed_when: false
+
+    - name: Check if OpenClaw gateway service is active
+      ansible.builtin.command: "systemctl is-active {{ openclaw_service_name }}.service"
+      register: openclaw_service_active
+      changed_when: false
+      failed_when: false
+
+    - name: Check read access with OpenClaw kubeconfig
+      ansible.builtin.command: >-
+        runuser -l {{ openclaw_user }} -c
+        "kubectl --kubeconfig={{ openclaw_kubeconfig_path }} auth can-i get pods --all-namespaces"
+      register: openclaw_can_get_pods
+      changed_when: false
+      failed_when: false
+      when: openclaw_kubeconfig_stat.stat.exists
+
+    - name: Check delete access with OpenClaw kubeconfig
+      ansible.builtin.command: >-
+        runuser -l {{ openclaw_user }} -c
+        "kubectl --kubeconfig={{ openclaw_kubeconfig_path }} auth can-i delete pods --all-namespaces"
+      register: openclaw_can_delete_pods
+      changed_when: false
+      failed_when: false
+      when: openclaw_kubeconfig_stat.stat.exists
+
+    - name: Show status summary
+      ansible.builtin.debug:
+        msg:
+          - "openclaw version command rc: {{ openclaw_version.rc }}"
+          - "openclaw version: {{ openclaw_version.stdout | default('not installed') }}"
+          - "openclaw user present: {{ (openclaw_passwd.ansible_facts.getent_passwd is defined) and (openclaw_user in openclaw_passwd.ansible_facts.getent_passwd) }}"
+          - "linger enabled: {{ openclaw_linger.stat.exists }}"
+          - "config file present: {{ openclaw_config_stat.stat.exists }}"
+          - "env file present: {{ openclaw_env_stat.stat.exists }}"
+          - "kubeconfig present: {{ openclaw_kubeconfig_stat.stat.exists }}"
+          - "systemd unit present: {{ openclaw_service_unit.stat.exists }}"
+          - "systemd enabled: {{ (openclaw_service_enabled.stdout | trim) if openclaw_service_enabled.rc == 0 else 'disabled' }}"
+          - "systemd active: {{ (openclaw_service_active.stdout | trim) if openclaw_service_active.rc == 0 else 'inactive' }}"
+          - "browser tool denied: {{ 'browser' in (openclaw_config_json.tools.deny | default([])) if openclaw_config_stat.stat.exists else 'unknown' }}"
+          - "browser enabled: {{ (openclaw_config_json.browser.enabled | default(false)) if openclaw_config_stat.stat.exists else 'unknown' }}"
+          - "main agent browser allowlist: {{ openclaw_main_agent_tools_allow | default([]) if openclaw_config_stat.stat.exists else 'unknown' }}"
+          - "filesystem tools denied: {{ 'group:fs' in (openclaw_config_json.tools.deny | default([])) if openclaw_config_stat.stat.exists else 'unknown' }}"
+          - "exec tool denied: {{ 'exec' in (openclaw_config_json.tools.deny | default([])) if openclaw_config_stat.stat.exists else 'unknown' }}"
+          - "main agent exec allowlisted: {{ 'exec' in (openclaw_main_agent_tools_allow | default([])) if openclaw_config_stat.stat.exists else 'unknown' }}"
+          - "kube can-i get pods -A: {{ (openclaw_can_get_pods.stdout | trim) if openclaw_kubeconfig_stat.stat.exists else 'not checked' }}"
+          - "kube can-i delete pods -A: {{ (openclaw_can_delete_pods.stdout | trim) if openclaw_kubeconfig_stat.stat.exists else 'not checked' }}"

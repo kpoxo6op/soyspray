@@ -1,0 +1,90 @@
+---
+# Playbook to prepare host prerequisites and install OpenClaw CLI
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Install OpenClaw host prerequisites
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    openclaw_user: openclaw
+    openclaw_expected_kubectl_path: /usr/local/bin/kubectl
+    openclaw_install_script_url: https://openclaw.ai/install.sh
+    openclaw_prerequisite_packages:
+      - curl
+      - ca-certificates
+      - gnupg
+      - jq
+      - git
+      - openssl
+  pre_tasks:
+    - name: Check expected kubectl path exists
+      ansible.builtin.stat:
+        path: "{{ openclaw_expected_kubectl_path }}"
+      register: kubectl_path_check
+
+    - name: Fail if kubectl path does not match plan
+      ansible.builtin.fail:
+        msg: "Expected kubectl at {{ openclaw_expected_kubectl_path }} but it is missing on target node."
+      when: not kubectl_path_check.stat.exists
+
+    - name: Check whether reboot is pending
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Warn when node reboot is still pending
+      ansible.builtin.debug:
+        msg: "Maintenance warning: /var/run/reboot-required is present. Schedule downtime before rollout."
+      when: reboot_required.stat.exists
+  tasks:
+    - name: Upgrade apt packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: dist
+
+    - name: Ensure OpenClaw prerequisite packages are installed
+      ansible.builtin.apt:
+        name: "{{ openclaw_prerequisite_packages }}"
+        state: present
+        update_cache: true
+
+    - name: Ensure openclaw service account exists
+      ansible.builtin.user:
+        name: "{{ openclaw_user }}"
+        create_home: true
+        shell: /bin/bash
+        state: present
+
+    - name: Check linger marker for openclaw
+      ansible.builtin.stat:
+        path: "/var/lib/systemd/linger/{{ openclaw_user }}"
+      register: openclaw_linger
+
+    - name: Enable linger for openclaw
+      ansible.builtin.command: "loginctl enable-linger {{ openclaw_user }}"
+      when: not openclaw_linger.stat.exists
+
+    - name: Check existing OpenClaw installation
+      ansible.builtin.command: openclaw --version
+      register: openclaw_version_before
+      changed_when: false
+      failed_when: false
+
+    - name: Install OpenClaw CLI without onboarding
+      ansible.builtin.shell: |
+        curl -fsSL {{ openclaw_install_script_url }} | bash -s -- --no-onboard
+      args:
+        executable: /bin/bash
+      when: openclaw_version_before.rc != 0
+      changed_when: true
+
+    - name: Validate OpenClaw CLI can be executed after install
+      ansible.builtin.command: openclaw --version
+      register: openclaw_version_after
+      changed_when: false
+
+    - name: Show installed OpenClaw version
+      ansible.builtin.debug:
+        msg: "{{ openclaw_version_after.stdout }}"

@@ -1,0 +1,85 @@
+---
+# Playbook to remove OpenClaw host installation and service account
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Remove OpenClaw host prerequisites
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    openclaw_user: openclaw
+    openclaw_service_name: openclaw-gateway
+    openclaw_service_unit: "/etc/systemd/system/{{ openclaw_service_name }}.service"
+    openclaw_binary_paths:
+      - /usr/local/bin/openclaw
+      - /usr/bin/openclaw
+  pre_tasks:
+    - name: Check whether openclaw user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ openclaw_user }}"
+        fail_key: false
+      register: openclaw_passwd
+
+    - name: Set user existence fact
+      ansible.builtin.set_fact:
+        openclaw_user_exists: >-
+          {{
+            openclaw_passwd.ansible_facts.getent_passwd is defined and
+            openclaw_user in openclaw_passwd.ansible_facts.getent_passwd
+          }}
+  tasks:
+    - name: Stop and disable OpenClaw gateway system service
+      ansible.builtin.systemd:
+        name: "{{ openclaw_service_name }}.service"
+        enabled: false
+        state: stopped
+      failed_when: false
+
+    - name: Remove OpenClaw gateway system service file
+      ansible.builtin.file:
+        path: "{{ openclaw_service_unit }}"
+        state: absent
+
+    - name: Stop OpenClaw gateway user service if present
+      ansible.builtin.command: "runuser -l {{ openclaw_user }} -c 'systemctl --user stop openclaw-gateway'"
+      register: openclaw_gateway_stop
+      changed_when: openclaw_gateway_stop.rc == 0
+      failed_when: false
+      when: openclaw_user_exists
+
+    - name: Reload systemd manager configuration
+      ansible.builtin.command: systemctl daemon-reload
+      changed_when: false
+
+    - name: Disable linger for openclaw
+      ansible.builtin.command: "loginctl disable-linger {{ openclaw_user }}"
+      register: openclaw_linger_disable
+      changed_when: openclaw_linger_disable.rc == 0
+      failed_when: false
+      when: openclaw_user_exists
+
+    - name: Remove openclaw user and home directory
+      ansible.builtin.user:
+        name: "{{ openclaw_user }}"
+        state: absent
+        remove: true
+        force: true
+      when: openclaw_user_exists
+
+    - name: Remove lingering marker
+      ansible.builtin.file:
+        path: "/var/lib/systemd/linger/{{ openclaw_user }}"
+        state: absent
+
+    - name: Remove OpenClaw binaries from common locations
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ openclaw_binary_paths }}"
+
+    - name: Remove legacy openclaw auto-update cron entry
+      ansible.builtin.cron:
+        name: "openclaw auto-update"
+        state: absent
