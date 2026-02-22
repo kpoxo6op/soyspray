@@ -56,7 +56,6 @@ Set it locally:
 
 ```bash
 export TOKEN='<token from log or generated command>'
-```
 export TEAM=event-streaming
 export JOB=silly-job
 export BASE_URL="https://jenkins.soyspray.vip/job/${TEAM}/job/${JOB}"
