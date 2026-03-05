@@ -18,6 +18,13 @@
       - /usr/bin/openclaw
       - /usr/local/sbin/openclaw
       - /usr/sbin/openclaw
+    openclaw_service_path: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    openclaw_gateway_service_dropin_dir: "/etc/systemd/system/{{ openclaw_service_name }}.service.d"
+    openclaw_gateway_service_dropin_path: "{{ openclaw_gateway_service_dropin_dir }}/openclaw.conf"
+    openclaw_gateway_memlock_limit: "1G"
+    openclaw_gateway_bind: loopback
+    openclaw_gateway_port: 18789
+    openclaw_gateway_health_host: "{{ '127.0.0.1' if openclaw_gateway_bind == 'loopback' else (ansible_host | default('127.0.0.1')) }}"
   pre_tasks:
     - name: Check whether openclaw user exists
       ansible.builtin.getent:
@@ -91,15 +98,34 @@
           Group={{ openclaw_user }}
           WorkingDirectory={{ openclaw_home }}
           Environment=HOME={{ openclaw_home }}
+          Environment=PATH={{ openclaw_service_path }}
           EnvironmentFile=-{{ openclaw_home }}/.openclaw/.env
-          ExecStart={{ openclaw_gateway_binary }} gateway run
-          Restart=on-failure
+          ExecStart={{ openclaw_gateway_binary }} gateway run --bind {{ openclaw_gateway_bind }} --port {{ openclaw_gateway_port }} --force
+          Restart=always
           RestartSec=5
           TimeoutStartSec=120
           LimitNOFILE=65535
 
           [Install]
           WantedBy=multi-user.target
+
+    - name: Ensure gateway service drop-in directory exists
+      ansible.builtin.file:
+        path: "{{ openclaw_gateway_service_dropin_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Set browser-friendly gateway service limits
+      ansible.builtin.copy:
+        dest: "{{ openclaw_gateway_service_dropin_path }}"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Service]
+          LimitMEMLOCK={{ openclaw_gateway_memlock_limit }}
 
     - name: Enable and start OpenClaw gateway system service
       ansible.builtin.systemd:
@@ -110,8 +136,8 @@
 
     - name: Verify gateway is reachable on the loopback bind
       ansible.builtin.wait_for:
-        host: 127.0.0.1
-        port: 18789
+        host: "{{ openclaw_gateway_health_host }}"
+        port: "{{ openclaw_gateway_port }}"
         timeout: 20
         state: started
       register: openclaw_gateway_loopback_check
@@ -121,5 +147,5 @@
         msg:
           - "Installed systemd service: {{ openclaw_service_unit }}"
           - "Autostart enabled: yes"
-          - "Gateway listening on: 127.0.0.1:18789"
+          - "Gateway listening on: {{ openclaw_gateway_health_host }}:{{ openclaw_gateway_port }}"
           - "Loopback check: {{ openclaw_gateway_loopback_check.state }}"

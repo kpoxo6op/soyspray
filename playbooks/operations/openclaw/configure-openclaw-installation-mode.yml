@@ -11,6 +11,11 @@
     openclaw_user: openclaw
     openclaw_home: "/home/{{ openclaw_user }}"
     openclaw_primary_model: openai-codex/gpt-5.3-codex
+    openclaw_gateway_bind: loopback
+    openclaw_gateway_port: 18789
+    openclaw_gateway_auth: token
+    openclaw_gateway_token: ""
+    openclaw_gateway_bind_host: "{{ ansible_host }}"
     openclaw_config_dir: "{{ openclaw_home }}/.openclaw"
     openclaw_config_file: "{{ openclaw_config_dir }}/openclaw.json"
     openclaw_env_file: "{{ openclaw_config_dir }}/.env"
@@ -60,6 +65,19 @@
         group: "{{ openclaw_user }}"
         mode: "0700"
 
+    - name: Build OpenClaw Control UI allowlist
+      ansible.builtin.set_fact:
+        openclaw_gateway_control_ui_allowed_origins: >-
+          {{ [
+            "http://127.0.0.1:" ~ (openclaw_gateway_port | string),
+            "http://localhost:" ~ (openclaw_gateway_port | string),
+            "http://[::1]:" ~ (openclaw_gateway_port | string)
+          ]
+          + ([
+            "http://" ~ (openclaw_gateway_bind_host | default(ansible_host | default('127.0.0.1'))) ~ ":" ~ (openclaw_gateway_port | string)
+          ] if openclaw_gateway_bind != 'loopback' else [])
+          | unique }}
+
     - name: Write hardened OpenClaw configuration
       ansible.builtin.copy:
         dest: "{{ openclaw_config_file }}"
@@ -79,7 +97,17 @@
               }
             },
             "gateway": {
-              "mode": "local"
+              "mode": "local",
+              "bind": "{{ openclaw_gateway_bind }}",
+              "port": {{ openclaw_gateway_port }},
+              "auth": {
+                "mode": "{{ openclaw_gateway_auth }}"{% if openclaw_gateway_token | length > 0 %},
+                "token": "{{ openclaw_gateway_token }}"{% endif %}
+              },
+              "controlUi": {
+                "allowedOrigins": {{ openclaw_gateway_control_ui_allowed_origins | to_json }},
+                "dangerouslyAllowHostHeaderOriginFallback": {{ 'true' if openclaw_gateway_bind != 'loopback' else 'false' }}
+              }
             },
             "channels": {
               "telegram": {
@@ -129,7 +157,8 @@
       ansible.builtin.debug:
         msg:
           - "Manual follow-up required:"
-          - "1) openclaw onboard --install-daemon --auth-choice openai-codex (as openclaw)"
+          - "1) If OPENCLAW_OAUTH_ACCESS_TOKEN is set during install/bootstrap, token refresh is handled automatically."
+          - "   Otherwise run onboarding once (as openclaw): openclaw onboard --install-daemon --auth-choice openai-codex"
           - "2) openclaw pairing list telegram && openclaw pairing approve telegram <CODE>"
           - "3) Enable gateway on boot via Ansible:"
           - "   ansible-playbook .../operations/openclaw/enable-openclaw-gateway-autostart.yml"

@@ -11,6 +11,7 @@
     openclaw_user: openclaw
     openclaw_expected_kubectl_path: /usr/local/bin/kubectl
     openclaw_install_script_url: https://openclaw.ai/install.sh
+    openclaw_upgrade: false
     openclaw_prerequisite_packages:
       - curl
       - ca-certificates
@@ -72,13 +73,18 @@
       changed_when: false
       failed_when: false
 
-    - name: Install OpenClaw CLI without onboarding
+    - name: Install or upgrade OpenClaw CLI without onboarding
       ansible.builtin.shell: |
-        curl -fsSL {{ openclaw_install_script_url }} | bash -s -- --no-onboard
+        curl -fsSL {{ openclaw_install_script_url }} | bash -s -- --no-onboard --no-prompt
       args:
         executable: /bin/bash
-      when: openclaw_version_before.rc != 0
+      when: openclaw_version_before.rc != 0 or (openclaw_upgrade | bool)
       changed_when: true
+
+    - name: Skip install when OpenClaw exists and upgrade is not requested
+      ansible.builtin.debug:
+        msg: "OpenClaw is already installed ({{ openclaw_version_before.stdout | default('unknown version') }}). Set -e openclaw_upgrade=true to force an upgrade."
+      when: openclaw_version_before.rc == 0 and not (openclaw_upgrade | bool)
 
     - name: Validate OpenClaw CLI can be executed after install
       ansible.builtin.command: openclaw --version

@@ -1,0 +1,218 @@
+---
+# Playbook to update OpenClaw OAuth auth profile non-interactively
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Reconfigure OpenClaw OAuth auth profile
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    openclaw_user: openclaw
+    openclaw_home: "/home/{{ openclaw_user }}"
+    openclaw_auth_profiles_file: "{{ openclaw_home }}/.openclaw/agents/main/agent/auth-profiles.json"
+    openclaw_auth_profiles_dir: "{{ openclaw_auth_profiles_file | dirname }}"
+    openclaw_gateway_service_name: openclaw-gateway
+    openclaw_provider: openai-codex
+    openclaw_profile_id: "openai-codex:default"
+    openclaw_require_oauth_token: true
+    openclaw_oauth_token: "{{ lookup('env', 'OPENCLAW_OAUTH_ACCESS_TOKEN') }}"
+    openclaw_oauth_refresh_token: "{{ lookup('env', 'OPENCLAW_OAUTH_REFRESH_TOKEN') | default('', true) }}"
+    openclaw_oauth_expires_in: "{{ lookup('env', 'OPENCLAW_OAUTH_EXPIRES_IN') | default('', true) }}"
+
+  pre_tasks:
+    - name: Check whether openclaw user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ openclaw_user }}"
+        fail_key: false
+      register: openclaw_passwd
+
+    - name: Set user existence fact
+      ansible.builtin.set_fact:
+        openclaw_user_exists: >-
+          {{
+            openclaw_passwd.ansible_facts.getent_passwd is defined and
+            openclaw_user in openclaw_passwd.ansible_facts.getent_passwd
+          }}
+
+    - name: Fail when openclaw user is missing
+      ansible.builtin.fail:
+        msg: "openclaw user does not exist. Run install-openclaw-host.yml first."
+      when: not openclaw_user_exists
+
+    - name: Determine whether token update is requested
+      ansible.builtin.set_fact:
+        openclaw_oauth_update_requested: "{{ openclaw_oauth_token | length > 0 }}"
+
+    - name: Validate OAuth token input
+      ansible.builtin.fail:
+        msg: "Provide OPENCLAW_OAUTH_ACCESS_TOKEN in the environment or as extra vars."
+      when: openclaw_require_oauth_token and not openclaw_oauth_update_requested
+
+    - name: Skip token reconfiguration when no token is supplied
+      ansible.builtin.debug:
+        msg: "OPENCLAW_OAUTH_ACCESS_TOKEN not provided and openclaw_require_oauth_token=false; skipping auth token reconfiguration."
+      when: (not openclaw_require_oauth_token) and not openclaw_oauth_update_requested
+
+  tasks:
+    - name: Ensure auth profile storage directory exists
+      ansible.builtin.file:
+        path: "{{ openclaw_auth_profiles_dir }}"
+        state: directory
+        owner: "{{ openclaw_user }}"
+        group: "{{ openclaw_user }}"
+        mode: "0700"
+      when: openclaw_oauth_update_requested
+
+    - name: Check for OpenClaw auth profile storage
+      ansible.builtin.stat:
+        path: "{{ openclaw_auth_profiles_file }}"
+      register: openclaw_auth_profiles_stat
+      when: openclaw_oauth_update_requested
+
+    - name: Initialize auth profile file when missing
+      ansible.builtin.copy:
+        dest: "{{ openclaw_auth_profiles_file }}"
+        owner: "{{ openclaw_user }}"
+        group: "{{ openclaw_user }}"
+        mode: "0600"
+        content: |
+          {
+            "version": 1,
+            "profiles": {},
+            "lastGood": {},
+            "usageStats": {}
+          }
+      when:
+        - openclaw_oauth_update_requested
+        - not openclaw_auth_profiles_stat.stat.exists
+
+    - name: Fail when auth profile file is missing
+      ansible.builtin.fail:
+        msg: "Auth profile file missing at {{ openclaw_auth_profiles_file }}. Run configure-openclaw-installation-mode.yml first."
+      when:
+        - openclaw_oauth_update_requested
+        - not openclaw_auth_profiles_stat.stat.exists
+
+    - name: Update OpenClaw OAuth auth profile JSON
+      ansible.builtin.shell: |
+        set -euo pipefail
+
+        python3 - <<'PY'
+        import base64
+        import json
+        import os
+        import re
+        import time
+
+        path = os.environ["OPENCLAW_AUTH_PROFILES_FILE"]
+        provider = os.environ["OPENCLAW_PROVIDER"]
+        profile_id = os.environ["OPENCLAW_PROFILE_ID"]
+        access_token = os.environ["OPENCLAW_ACCESS_TOKEN"]
+        refresh_token = os.environ.get("OPENCLAW_REFRESH_TOKEN", "")
+        expires_in = os.environ.get("OPENCLAW_EXPIRES_IN", "").strip()
+
+        def parse_expires_in(value):
+            match = re.fullmatch(r"(\d+)([smhdwMy])", value)
+            if not match:
+                return None
+            amount = int(match.group(1))
+            unit = match.group(2)
+            seconds = {
+                "s": 1,
+                "m": 60,
+                "h": 60 * 60,
+                "d": 24 * 60 * 60,
+                "w": 7 * 24 * 60 * 60,
+                "M": 30 * 24 * 60 * 60,
+                "y": 365 * 24 * 60 * 60,
+            }[unit]
+            return amount * seconds
+
+        with open(path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+
+        profiles = data.setdefault("profiles", {})
+        profile = profiles.setdefault(profile_id, {})
+
+        profile["type"] = "oauth"
+        profile["provider"] = provider
+        profile["access"] = access_token
+
+        if refresh_token:
+            profile["refresh"] = refresh_token
+        else:
+            profile.pop("refresh", None)
+
+        try:
+            token_parts = access_token.split(".")
+            if len(token_parts) == 3:
+                payload_b64 = token_parts[1] + "=" * (-len(token_parts[1]) % 4)
+                payload_json = base64.urlsafe_b64decode(payload_b64.encode()).decode()
+                payload = json.loads(payload_json)
+                if isinstance(payload, dict) and payload.get("exp"):
+                    profile["expires"] = int(payload["exp"]) * 1000
+                else:
+                    raise ValueError
+            else:
+                raise ValueError
+        except Exception:
+            if expires_in:
+                duration = parse_expires_in(expires_in)
+                if duration is None:
+                    raise SystemExit(f"Unsupported OPENCLAW_OAUTH_EXPIRES_IN format: {expires_in}")
+                profile["expires"] = int(time.time() * 1000 + duration * 1000)
+            else:
+                profile["expires"] = int(time.time() * 1000 + (30 * 24 * 60 * 60 * 1000))
+
+        if not isinstance(data.get("lastGood"), dict):
+            data["lastGood"] = {}
+        data["lastGood"][provider] = profile_id
+
+        usage_stats = data.setdefault("usageStats", {})
+        usage = usage_stats.setdefault(profile_id, {})
+        usage["lastUsed"] = int(time.time() * 1000)
+        usage["errorCount"] = 0
+
+        with open(path + ".tmp", "w", encoding="utf-8") as handle:
+            json.dump(data, handle, indent=2)
+            handle.write("\n")
+
+        os.replace(path + ".tmp", path)
+        PY
+      args:
+        executable: /bin/bash
+      environment:
+        OPENCLAW_AUTH_PROFILES_FILE: "{{ openclaw_auth_profiles_file }}"
+        OPENCLAW_PROVIDER: "{{ openclaw_provider }}"
+        OPENCLAW_PROFILE_ID: "{{ openclaw_profile_id }}"
+        OPENCLAW_ACCESS_TOKEN: "{{ openclaw_oauth_token }}"
+        OPENCLAW_REFRESH_TOKEN: "{{ openclaw_oauth_refresh_token }}"
+        OPENCLAW_EXPIRES_IN: "{{ openclaw_oauth_expires_in }}"
+      when: openclaw_oauth_update_requested
+      no_log: true
+
+    - name: Fix ownership and permissions on auth profile file
+      ansible.builtin.file:
+        path: "{{ openclaw_auth_profiles_file }}"
+        owner: "{{ openclaw_user }}"
+        group: "{{ openclaw_user }}"
+        mode: "0600"
+      when: openclaw_oauth_update_requested
+
+    - name: Restart OpenClaw gateway to pick up refreshed credentials
+      ansible.builtin.systemd:
+        daemon_reload: true
+        name: "{{ openclaw_gateway_service_name }}.service"
+        state: restarted
+      ignore_errors: true
+      when: openclaw_oauth_update_requested
+
+    - name: Report auth profile reconfigure result
+      ansible.builtin.debug:
+        msg:
+          - "Updated profile {{ openclaw_profile_id }} for provider {{ openclaw_provider }}"
+          - "Auth token configured from OPENCLAW_OAUTH_ACCESS_TOKEN"
+          - "Refresh token supplied: {{ (openclaw_oauth_refresh_token | length > 0) | ternary('yes', 'no') }}"
+      when: openclaw_oauth_update_requested
