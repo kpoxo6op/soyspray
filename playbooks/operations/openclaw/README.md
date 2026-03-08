@@ -14,6 +14,10 @@ To force a CLI refresh/upgrade on an existing host run:
 
 - `ansible-playbook playbooks/operations/openclaw/openclaw-install.yml -e "openclaw_upgrade=true"`
 
+`install-openclaw-host.yml` now treats `/usr/local/bin/openclaw` as the managed
+installation path and removes a legacy duplicate install if it still exists at
+`/usr/bin/openclaw` backed by `/usr/lib/node_modules/openclaw`.
+
 You can also limit scope to the host step with tags:
 
 - `ansible-playbook playbooks/operations/openclaw/openclaw-install.yml -t openclaw-host -e "openclaw_upgrade=true"`
