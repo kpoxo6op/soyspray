@@ -122,7 +122,7 @@ openclaw onboard --install-daemon --auth-choice openai-codex
 Wizard targets:
 
 - Auth choice: `openai-codex`
-- Primary model: `openai-codex/gpt-5.3-codex`
+- Primary model: `openai-codex/gpt-5.4`
 - Complete headless OAuth flow if callback cannot bind
 
 Validation:
@@ -151,7 +151,7 @@ EOF
 {
   agents: {
     defaults: {
-      model: { primary: "openai-codex/gpt-5.3-codex" },
+      model: { primary: "openai-codex/gpt-5.4" },
       heartbeat: { every: "0m" },
     },
   },
