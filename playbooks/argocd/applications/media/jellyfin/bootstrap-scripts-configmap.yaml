@@ -22,9 +22,7 @@ data:
     API_CLIENT = 'MediaBrowser Client="soyspray-bootstrap", Device="argo-job", DeviceId="soyspray-jellyfin-bootstrap", Version="1.0.0"'
 
     LIBRARIES = [
-        {"name": "TV Shows", "path": "/media/tv", "collectionType": "tvshows", "required": True},
         {"name": "Movies", "path": "/media/movies", "collectionType": "movies", "required": True},
-        {"name": "Scenes", "path": "/media/scenes", "collectionType": "homevideos", "required": False},
     ]
 
     def log(message):
@@ -161,6 +159,29 @@ data:
     def get_virtual_folders(token):
         return request("GET", "/Library/VirtualFolders", token=token, expected=(200,)) or []
 
+    def remove_library(token, name):
+        params = urllib.parse.urlencode(
+            [
+                ("name", name),
+                ("refreshLibrary", "true"),
+            ]
+        )
+        log(f"Removing library {name}")
+        request(
+            "DELETE",
+            f"/Library/VirtualFolders?{params}",
+            token=token,
+            expected=(204,),
+            tolerate=(404,),
+        )
+
+    def ensure_only_desired_libraries(token):
+        desired_names = {library["name"] for library in LIBRARIES}
+        for item in get_virtual_folders(token):
+            name = item.get("name")
+            if name not in desired_names:
+                remove_library(token, name)
+
     def ensure_library(token, library):
         existing = get_virtual_folders(token)
         for item in existing:
@@ -204,6 +225,7 @@ data:
         bootstrap_startup_wizard()
         token = authenticate(ADMIN_USER, ADMIN_PASSWORD)
         ensure_tablet_user(token)
+        ensure_only_desired_libraries(token)
         for library in LIBRARIES:
             ensure_library(token, library)
         refresh_library(token)
