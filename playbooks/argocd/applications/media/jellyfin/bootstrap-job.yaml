@@ -1,0 +1,72 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: jellyfin-bootstrap
+  namespace: media
+  labels:
+    app: jellyfin
+    component: bootstrap
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+spec:
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app: jellyfin
+        component: bootstrap
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: bootstrap
+          image: python:3.12-alpine
+          command:
+            - python
+            - /scripts/bootstrap.py
+          env:
+            - name: BASE_URL
+              value: http://jellyfin.media.svc.cluster.local:8096
+            - name: JELLYFIN_SERVER_NAME
+              value: soyspray-jellyfin
+            - name: JELLYFIN_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: jellyfin-secrets
+                  key: JELLYFIN_ADMIN_USER
+            - name: JELLYFIN_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: jellyfin-secrets
+                  key: JELLYFIN_ADMIN_PASSWORD
+            - name: JELLYFIN_TABLET_USER
+              valueFrom:
+                secretKeyRef:
+                  name: jellyfin-secrets
+                  key: JELLYFIN_TABLET_USER
+            - name: JELLYFIN_TABLET_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: jellyfin-secrets
+                  key: JELLYFIN_TABLET_PASSWORD
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "250m"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+              readOnly: true
+            - name: media
+              mountPath: /media
+              readOnly: true
+      volumes:
+        - name: scripts
+          configMap:
+            name: jellyfin-bootstrap-scripts
+            defaultMode: 0755
+        - name: media
+          persistentVolumeClaim:
+            claimName: qbittorrent-downloads

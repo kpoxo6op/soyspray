@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: qbittorrent
+  name: jellyfin
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
     targetRevision: "ellis-media"
-    path: playbooks/argocd/applications/media/qbittorrent
+    path: playbooks/argocd/applications/media/jellyfin
   destination:
     server: https://kubernetes.default.svc
     namespace: media

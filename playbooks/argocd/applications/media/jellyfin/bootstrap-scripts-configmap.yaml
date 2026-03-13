@@ -1,0 +1,214 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jellyfin-bootstrap-scripts
+  namespace: media
+data:
+  bootstrap.py: |-
+    import json
+    import os
+    import sys
+    import time
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    BASE_URL = os.environ.get("BASE_URL", "http://jellyfin.media.svc.cluster.local:8096")
+    SERVER_NAME = os.environ.get("JELLYFIN_SERVER_NAME", "soyspray-jellyfin")
+    ADMIN_USER = os.environ["JELLYFIN_ADMIN_USER"]
+    ADMIN_PASSWORD = os.environ["JELLYFIN_ADMIN_PASSWORD"]
+    TABLET_USER = os.environ["JELLYFIN_TABLET_USER"]
+    TABLET_PASSWORD = os.environ["JELLYFIN_TABLET_PASSWORD"]
+    API_CLIENT = 'MediaBrowser Client="soyspray-bootstrap", Device="argo-job", DeviceId="soyspray-jellyfin-bootstrap", Version="1.0.0"'
+
+    LIBRARIES = [
+        {"name": "TV Shows", "path": "/media/tv", "collectionType": "tvshows", "required": True},
+        {"name": "Movies", "path": "/media/movies", "collectionType": "movies", "required": True},
+        {"name": "Scenes", "path": "/media/scenes", "collectionType": "homevideos", "required": False},
+    ]
+
+    def log(message):
+        print(message, flush=True)
+
+    def norm_dict(obj):
+        if isinstance(obj, dict):
+            return {str(k).lower(): norm_dict(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [norm_dict(v) for v in obj]
+        return obj
+
+    def request(method, path, payload=None, token=None, expected=(200, 204), tolerate=()):
+        url = BASE_URL.rstrip("/") + path
+        data = None
+        headers = {"Authorization": API_CLIENT}
+        if token:
+          headers["Authorization"] = f'{API_CLIENT}, Token="{token}"'
+          headers["X-Emby-Token"] = token
+        if payload is not None:
+            data = json.dumps(payload).encode("utf-8")
+            headers["Content-Type"] = "application/json"
+        req = urllib.request.Request(url, data=data, method=method, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                body = resp.read()
+                if resp.status not in expected:
+                    raise RuntimeError(f"{method} {path} returned {resp.status}: {body[:200]!r}")
+                if body:
+                    return norm_dict(json.loads(body.decode("utf-8")))
+                return None
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", "replace")
+            if exc.code in tolerate:
+                return {"status": exc.code, "body": body}
+            raise RuntimeError(f"{method} {path} failed with {exc.code}: {body[:500]}")
+
+    def wait_for_server():
+        for _ in range(120):
+            try:
+                request("GET", "/System/Info/Public", expected=(200,))
+                log("Jellyfin HTTP API is reachable")
+                return
+            except Exception:
+                time.sleep(5)
+        raise RuntimeError("Timed out waiting for Jellyfin to become reachable")
+
+    def bootstrap_startup_wizard():
+        log("Attempting startup wizard bootstrap")
+        request(
+            "POST",
+            "/Startup/Configuration",
+            {
+                "ServerName": SERVER_NAME,
+                "UICulture": "en-NZ",
+                "MetadataCountryCode": "NZ",
+                "PreferredMetadataLanguage": "en",
+            },
+            expected=(204,),
+            tolerate=(401, 403),
+        )
+        request(
+            "POST",
+            "/Startup/User",
+            {"Name": ADMIN_USER, "Password": ADMIN_PASSWORD},
+            expected=(204,),
+            tolerate=(401, 403),
+        )
+        request(
+            "POST",
+            "/Startup/Complete",
+            payload={},
+            expected=(204,),
+            tolerate=(401, 403),
+        )
+
+    def authenticate(username, password):
+        for _ in range(24):
+            try:
+                result = request(
+                    "POST",
+                    "/Users/AuthenticateByName",
+                    {"Username": username, "Pw": password},
+                    expected=(200,),
+                )
+                token = result.get("accesstoken")
+                if token:
+                    log(f"Authenticated as {username}")
+                    return token
+            except Exception:
+                pass
+            time.sleep(5)
+        raise RuntimeError(f"Failed to authenticate as {username}")
+
+    def get_users(token):
+        return request("GET", "/Users", token=token, expected=(200,)) or []
+
+    def find_user(users, username):
+        for user in users:
+            if user.get("name") == username:
+                return user
+        return None
+
+    def ensure_tablet_user(token):
+        users = get_users(token)
+        existing = find_user(users, TABLET_USER)
+        if existing:
+            log(f"User {TABLET_USER} already exists")
+            return existing
+        log(f"Creating user {TABLET_USER}")
+        created = request(
+            "POST",
+            "/Users/New",
+            {"Name": TABLET_USER, "Password": TABLET_PASSWORD},
+            token=token,
+            expected=(200,),
+        )
+        return created
+
+    def ensure_media_paths():
+        missing = []
+        for lib in LIBRARIES:
+            exists = os.path.isdir(lib["path"])
+            if lib["required"] and not exists:
+                missing.append(lib["path"])
+            if exists:
+                log(f"Found media path {lib['path']}")
+        if missing:
+            raise RuntimeError(f"Missing required media paths: {', '.join(missing)}")
+
+    def get_virtual_folders(token):
+        return request("GET", "/Library/VirtualFolders", token=token, expected=(200,)) or []
+
+    def ensure_library(token, library):
+        existing = get_virtual_folders(token)
+        for item in existing:
+            if item.get("name") == library["name"]:
+                locations = item.get("locations") or []
+                if library["path"] in locations:
+                    log(f"Library {library['name']} already points to {library['path']}")
+                    return
+                raise RuntimeError(
+                    f"Library {library['name']} already exists with different paths: {locations}"
+                )
+        if not os.path.isdir(library["path"]):
+            if library["required"]:
+                raise RuntimeError(f"Required library path missing: {library['path']}")
+            log(f"Skipping optional library {library['name']} because {library['path']} is absent")
+            return
+        params = urllib.parse.urlencode(
+            [
+                ("name", library["name"]),
+                ("collectionType", library["collectionType"]),
+                ("paths", library["path"]),
+                ("refreshLibrary", "true"),
+            ]
+        )
+        log(f"Creating library {library['name']}")
+        request(
+            "POST",
+            f"/Library/VirtualFolders?{params}",
+            payload={},
+            token=token,
+            expected=(204,),
+        )
+
+    def refresh_library(token):
+        log("Triggering library refresh")
+        request("POST", "/Library/Refresh", payload={}, token=token, expected=(204,))
+
+    def main():
+        ensure_media_paths()
+        wait_for_server()
+        bootstrap_startup_wizard()
+        token = authenticate(ADMIN_USER, ADMIN_PASSWORD)
+        ensure_tablet_user(token)
+        for library in LIBRARIES:
+            ensure_library(token, library)
+        refresh_library(token)
+        log("Jellyfin bootstrap completed")
+
+    if __name__ == "__main__":
+        try:
+            main()
+        except Exception as exc:
+            print(f"Bootstrap failed: {exc}", file=sys.stderr, flush=True)
+            sys.exit(1)
