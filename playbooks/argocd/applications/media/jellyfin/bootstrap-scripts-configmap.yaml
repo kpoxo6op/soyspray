@@ -22,7 +22,39 @@ data:
     API_CLIENT = 'MediaBrowser Client="soyspray-bootstrap", Device="argo-job", DeviceId="soyspray-jellyfin-bootstrap", Version="1.0.0"'
 
     LIBRARIES = [
-        {"name": "Movies", "path": "/media/movies", "collectionType": "homevideos", "required": True},
+        {
+            "name": "Movies",
+            "path": "/media/movies",
+            "collectionType": "homevideos",
+            "required": True,
+            "libraryOptions": {
+                "EnableInternetProviders": False,
+                "EnablePhotos": False,
+                "EnableRealtimeMonitor": False,
+                "EnableChapterImageExtraction": False,
+                "ExtractChapterImagesDuringLibraryScan": False,
+                "EnableTrickplayImageExtraction": False,
+                "ExtractTrickplayImagesDuringLibraryScan": False,
+                "SaveLocalMetadata": False,
+                "EnableAutomaticSeriesGrouping": False,
+                "EnableEmbeddedTitles": True,
+                "EnableEmbeddedExtrasTitles": True,
+                "EnableEmbeddedEpisodeInfos": True,
+                "DisabledLocalMetadataReaders": [],
+                "DisabledSubtitleFetchers": [],
+                "SubtitleFetcherOrder": [],
+                "DisabledMediaSegmentProviders": [],
+                "MediaSegmentProviderOrder": [],
+                "SaveSubtitlesWithMedia": True,
+                "SaveLyricsWithMedia": False,
+                "SaveTrickplayWithMedia": False,
+                "DisabledLyricFetchers": [],
+                "LyricFetcherOrder": [],
+                "AutomaticallyAddToCollection": False,
+                "AllowEmbeddedSubtitles": "AllowAll",
+                "TypeOptions": [],
+            },
+        },
     ]
 
     def log(message):
@@ -217,7 +249,7 @@ data:
         request(
             "POST",
             f"/Library/VirtualFolders?{params}",
-            payload={},
+            payload=library.get("libraryOptions", {}),
             token=token,
             expected=(204,),
         )
