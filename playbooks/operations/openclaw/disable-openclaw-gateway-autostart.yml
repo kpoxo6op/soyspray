@@ -1,0 +1,41 @@
+---
+# Playbook to disable and remove OpenClaw gateway autostart systemd service
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Disable OpenClaw gateway autostart service
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    openclaw_service_name: openclaw-gateway
+    openclaw_service_unit: "/etc/systemd/system/{{ openclaw_service_name }}.service"
+    openclaw_gateway_service_dropin_path: "/etc/systemd/system/{{ openclaw_service_name }}.service.d/openclaw.conf"
+  tasks:
+    - name: Stop OpenClaw gateway system service
+      ansible.builtin.systemd:
+        name: "{{ openclaw_service_name }}.service"
+        enabled: false
+        state: stopped
+      failed_when: false
+
+    - name: Remove OpenClaw gateway system service file
+      ansible.builtin.file:
+        path: "{{ openclaw_service_unit }}"
+        state: absent
+
+    - name: Remove OpenClaw gateway systemd drop-in
+      ansible.builtin.file:
+        path: "{{ openclaw_gateway_service_dropin_path }}"
+        state: absent
+
+    - name: Reload systemd manager configuration
+      ansible.builtin.command: systemctl daemon-reload
+      changed_when: false
+      failed_when: false
+
+    - name: Report autostart status
+      ansible.builtin.debug:
+        msg:
+          - "Removed systemd service: {{ openclaw_service_unit }}"
+          - "Autostart disabled: yes"

@@ -26,9 +26,19 @@ Storage initialization and management playbooks.
 - initialize-longhorn-storage.yml - Initialize Longhorn storage system
 
 ### security/
-Security and certificate management playbooks.
+Security playbooks.
 
 - sync-certificates.yml - Synchronize TLS certificates across namespaces
+
+### openclaw/
+OpenClaw install, runtime, and webhook automation runbooks.
+
+- openclaw-install.yml - one-command bootstrap for host, dependencies, baseline config, kubeconfig, and gateway autostart
+- openclaw-remove.yml - one-command teardown (autostart disabled, configs/kubeconfig/host removed)
+- configure-openclaw-oauth-token.yml - reconfigure OpenClaw OAuth token using OPENCLAW_OAUTH_ACCESS_TOKEN (and optional OPENCLAW_OAUTH_REFRESH_TOKEN)
+- openclaw-enable-tools.yml - enable optional tool capabilities (`file`, `exec`, `browser`) in one run
+- openclaw-disable-tools.yml - disable optional tool capabilities (`browser`, `exec`, `file`) in one run
+- (legacy single-purpose runbooks available under `openclaw/` for direct invocation)
 
 ### examples/
 Example and utility playbooks.
@@ -52,5 +62,3 @@ Playbooks use `verb-subject.yml` format:
 - restart-node.yml
 - set-node-labels.yml
 - initialize-longhorn-storage.yml
-
-

@@ -1,0 +1,46 @@
+---
+# Canonical one-command OpenClaw platform bootstrap
+
+- import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+- import_playbook: ./show-openclaw-preflight.yml
+  tags:
+    - openclaw
+    - openclaw-preflight
+- import_playbook: ./install-openclaw-host.yml
+  tags:
+    - openclaw
+    - openclaw-bootstrap
+    - openclaw-host
+- import_playbook: ./install-openclaw-dependencies.yml
+  tags:
+    - openclaw
+    - openclaw-bootstrap
+    - openclaw-deps
+- import_playbook: ./configure-openclaw-installation-mode.yml
+  tags:
+    - openclaw
+    - openclaw-bootstrap
+    - openclaw-config
+# Set OPENCLAW_OAUTH_ACCESS_TOKEN (+ optional REFRESH/EXPIRES_IN) to
+# refresh OAuth tokens in one pass during bootstrap.
+- import_playbook: ./configure-openclaw-oauth-token.yml
+  vars:
+    openclaw_require_oauth_token: false
+  tags:
+    - openclaw
+    - openclaw-bootstrap
+    - openclaw-config
+- import_playbook: ./configure-openclaw-kubeconfig.yml
+  tags:
+    - openclaw
+    - openclaw-bootstrap
+    - openclaw-config
+- import_playbook: ./enable-openclaw-gateway-autostart.yml
+  tags:
+    - openclaw
+    - openclaw-bootstrap
+    - openclaw-service
+- import_playbook: ./show-openclaw-installation-mode-status.yml
+  tags:
+    - openclaw
+    - openclaw-postcheck

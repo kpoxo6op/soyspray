@@ -1,0 +1,33 @@
+---
+# Canonical one-command OpenClaw platform teardown (runtime + host cleanup)
+
+- import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+- import_playbook: ./disable-openclaw-gateway-autostart.yml
+  tags:
+    - openclaw
+    - openclaw-teardown
+    - openclaw-service
+- import_playbook: ./remove-openclaw-installation-mode.yml
+  tags:
+    - openclaw
+    - openclaw-teardown
+    - openclaw-config
+- import_playbook: ./remove-openclaw-kubeconfig.yml
+  tags:
+    - openclaw
+    - openclaw-teardown
+    - openclaw-config
+- import_playbook: ./remove-openclaw-dependencies.yml
+  tags:
+    - openclaw
+    - openclaw-teardown
+    - openclaw-deps
+- import_playbook: ./remove-openclaw-host.yml
+  tags:
+    - openclaw
+    - openclaw-teardown
+    - openclaw-host
+- import_playbook: ./show-openclaw-preflight.yml
+  tags:
+    - openclaw
+    - openclaw-postcheck

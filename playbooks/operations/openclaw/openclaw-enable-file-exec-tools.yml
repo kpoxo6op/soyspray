@@ -1,0 +1,14 @@
+---
+# Enable OpenClaw file-system and exec tooling without browser automation
+
+- import_playbook: ./configure-openclaw-file-tool.yml
+  tags:
+    - openclaw
+    - openclaw-tools
+    - openclaw-tools-file
+
+- import_playbook: ./configure-openclaw-exec-tool.yml
+  tags:
+    - openclaw
+    - openclaw-tools
+    - openclaw-tools-exec
