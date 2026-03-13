@@ -10,4 +10,4 @@ spec:
   storageClassName: longhorn-rwx
   resources:
     requests:
-      storage: 200Gi
+      storage: 20Gi

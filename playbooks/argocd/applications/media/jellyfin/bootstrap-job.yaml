@@ -61,7 +61,6 @@ spec:
               readOnly: true
             - name: media
               mountPath: /media
-              readOnly: true
       volumes:
         - name: scripts
           configMap:
