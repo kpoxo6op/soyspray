@@ -22,7 +22,7 @@ data:
     API_CLIENT = 'MediaBrowser Client="soyspray-bootstrap", Device="argo-job", DeviceId="soyspray-jellyfin-bootstrap", Version="1.0.0"'
 
     LIBRARIES = [
-        {"name": "Movies", "path": "/media/movies", "collectionType": "movies", "required": True},
+        {"name": "Movies", "path": "/media/movies", "collectionType": "homevideos", "required": True},
     ]
 
     def log(message):
@@ -187,6 +187,13 @@ data:
         for item in existing:
             if item.get("name") == library["name"]:
                 locations = item.get("locations") or []
+                collection_type = item.get("collectiontype")
+                if collection_type != library["collectionType"]:
+                    log(
+                        f"Library {library['name']} has collection type {collection_type}, recreating"
+                    )
+                    remove_library(token, library["name"])
+                    break
                 if library["path"] in locations:
                     log(f"Library {library['name']} already points to {library['path']}")
                     return
