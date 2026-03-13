@@ -87,6 +87,12 @@ data:
             tolerate=(401, 403),
         )
         request(
+            "GET",
+            "/Startup/User",
+            expected=(200,),
+            tolerate=(401, 403),
+        )
+        request(
             "POST",
             "/Startup/User",
             {"Name": ADMIN_USER, "Password": ADMIN_PASSWORD},
