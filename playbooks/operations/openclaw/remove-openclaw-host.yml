@@ -14,6 +14,9 @@
     openclaw_binary_paths:
       - /usr/local/bin/openclaw
       - /usr/bin/openclaw
+    openclaw_module_paths:
+      - /usr/local/lib/node_modules/openclaw
+      - /usr/lib/node_modules/openclaw
   pre_tasks:
     - name: Check whether openclaw user exists
       ansible.builtin.getent:
@@ -78,6 +81,12 @@
         path: "{{ item }}"
         state: absent
       loop: "{{ openclaw_binary_paths }}"
+
+    - name: Remove OpenClaw module directories from common locations
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ openclaw_module_paths }}"
 
     - name: Remove legacy openclaw auto-update cron entry
       ansible.builtin.cron:

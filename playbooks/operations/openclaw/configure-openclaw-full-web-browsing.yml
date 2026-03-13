@@ -13,10 +13,19 @@
     openclaw_config_file: "{{ openclaw_home }}/.openclaw/openclaw.json"
     openclaw_service_name: openclaw-gateway
     openclaw_service_unit_file: "/etc/systemd/system/{{ openclaw_service_name }}.service"
+    openclaw_browser_executable_candidates:
+      - /usr/bin/google-chrome-stable
+      - /usr/bin/google-chrome
+      - /usr/bin/chromium
+      - /usr/bin/chromium-browser
+      - /snap/bin/chromium
     openclaw_browser_block:
       enabled: true
-      defaultProfile: openclaw
+      defaultProfile: chrome
       headless: true
+      executablePath: "{{ openclaw_browser_executable_path }}"
+      attachOnly: false
+      noSandbox: true
     openclaw_browser_agent_id: "main"
     openclaw_browser_tool_name: "browser"
     openclaw_system_packages:
@@ -25,6 +34,24 @@
       - chromium-driver
     openclaw_node_packages:
       - playwright
+    openclaw_node_prerequisite_packages:
+      - nodejs
+      - npm
+    openclaw_playwright_browsers_path: "{{ openclaw_home }}/.cache/ms-playwright"
+    openclaw_playwright_root_cache_path: /root/.cache/ms-playwright
+    openclaw_google_chrome_deb: /tmp/google-chrome-stable_current_amd64.deb
+    openclaw_google_chrome_url: https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+    openclaw_npm_binary_fallbacks:
+      - /usr/bin/npm
+      - /usr/local/bin/npm
+      - /bin/npm
+      - /usr/local/sbin/npm
+    openclaw_npm_home: "{{ openclaw_home }}"
+    openclaw_npm_prefix: /usr/local
+    openclaw_npm_environment:
+      HOME: "{{ openclaw_npm_home }}"
+      NPM_CONFIG_PREFIX: "{{ openclaw_npm_prefix }}"
+      PLAYWRIGHT_BROWSERS_PATH: "{{ openclaw_playwright_browsers_path }}"
   pre_tasks:
     - name: Check whether openclaw user exists
       ansible.builtin.getent:
@@ -71,27 +98,168 @@
         openclaw_browser_package_installed: >-
           {{ openclaw_browser_package_install.results | map(attribute='failed') | select('equalto', false) | list | length > 0 }}
 
-    - name: Ensure npm global prefix is available
-      ansible.builtin.command: npm config get prefix
-      register: openclaw_npm_prefix
+    - name: Resolve npm executable
+      ansible.builtin.shell: |
+        if command -v npm >/dev/null 2>&1; then
+          command -v npm
+          exit 0
+        fi
+
+        for candidate in "{{ openclaw_npm_binary_fallbacks | join(' ') }}"; do
+          if [ -x "$candidate" ]; then
+            echo "$candidate"
+            exit 0
+          fi
+        done
+        exit 1
+      register: openclaw_npm_binary_lookup
       changed_when: false
-      failed_when: openclaw_npm_prefix.rc != 0
+      failed_when: false
+
+    - name: Ensure Node.js and npm are installed
+      ansible.builtin.apt:
+        name: "{{ openclaw_node_prerequisite_packages }}"
+        state: present
+        update_cache: true
+      when: openclaw_npm_binary_lookup.rc != 0
+
+    - name: Set npm executable path
+      ansible.builtin.set_fact:
+        openclaw_npm_binary: "{{ openclaw_npm_binary_lookup.stdout | trim }}"
+
+    - name: Resolve npm executable after install attempt
+      ansible.builtin.shell: |
+        if command -v npm >/dev/null 2>&1; then
+          command -v npm
+          exit 0
+        fi
+
+        for candidate in "{{ openclaw_npm_binary_fallbacks | join(' ') }}"; do
+          if [ -x "$candidate" ]; then
+            echo "$candidate"
+            exit 0
+          fi
+        done
+        exit 1
+      register: openclaw_npm_binary_lookup_retry
+      changed_when: false
+      failed_when: openclaw_npm_binary_lookup_retry.rc != 0
+
+    - name: Set npm executable path after install attempt
+      ansible.builtin.set_fact:
+        openclaw_npm_binary: "{{ openclaw_npm_binary_lookup_retry.stdout | trim }}"
 
     - name: Check whether full Playwright package is installed
-      ansible.builtin.stat:
-        path: "{{ (openclaw_npm_prefix.stdout | trim) }}/lib/node_modules/playwright/package.json"
+      ansible.builtin.command: "{{ openclaw_npm_binary }} list -g --depth=0 playwright"
       register: openclaw_playwright_package
+      changed_when: false
+      failed_when: false
+      environment: "{{ openclaw_npm_environment }}"
 
     - name: Install full Playwright package
-      ansible.builtin.command: "{{ openclaw_npm_prefix.stdout | trim }}/bin/npm install -g {{ openclaw_node_packages | join(' ') }}"
+      ansible.builtin.command: "{{ openclaw_npm_binary }} install -g {{ openclaw_node_packages | join(' ') }}"
       register: openclaw_playwright_install
       changed_when: openclaw_playwright_install.rc == 0
-      when: not openclaw_playwright_package.stat.exists
+      when: openclaw_playwright_package.rc != 0
+      environment: "{{ openclaw_npm_environment }}"
 
     - name: Install Playwright Chromium browser binaries
-      ansible.builtin.command: "{{ openclaw_npm_prefix.stdout | trim }}/bin/playwright install chromium"
+      ansible.builtin.command: "{{ openclaw_npm_binary }} exec playwright install chromium"
       register: openclaw_playwright_browsers
       changed_when: openclaw_playwright_browsers.rc == 0
+      environment: "{{ openclaw_npm_environment }}"
+
+    - name: Mirror root Playwright cache for openclaw user access
+      ansible.builtin.shell: |
+        if [ -d "{{ openclaw_playwright_root_cache_path }}" ]; then
+          mkdir -p "{{ openclaw_playwright_browsers_path }}"
+          cp -a "{{ openclaw_playwright_root_cache_path }}/." "{{ openclaw_playwright_browsers_path }}/"
+          chown -R "{{ openclaw_user }}:{{ openclaw_user }}" "{{ openclaw_playwright_browsers_path }}"
+        fi
+      changed_when: true
+
+    - name: Find Playwright Chromium executable
+      ansible.builtin.find:
+        paths: "{{ openclaw_playwright_browsers_path }}"
+        patterns: "chrome"
+        recurse: true
+        file_type: file
+      register: openclaw_playwright_browser_lookup
+
+    - name: Add Playwright executable candidates
+      ansible.builtin.set_fact:
+        openclaw_browser_executable_candidates: >-
+          {{
+            openclaw_browser_executable_candidates + (
+              openclaw_playwright_browser_lookup.files
+              | map(attribute='path')
+              | select('search', '/chrome-linux/chrome$')
+              | list
+              | sort
+            )
+          }}
+
+    - name: Resolve browser executable path
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ openclaw_browser_executable_candidates }}"
+      register: openclaw_browser_executable_checks
+
+    - name: Set browser executable path
+      ansible.builtin.set_fact:
+        openclaw_browser_executable_path: >-
+          {{
+            (
+              openclaw_browser_executable_checks.results
+              | selectattr('stat.exists', 'equalto', true)
+              | reject('search', '/snap/')
+              | reject('search', '/usr/bin/chromium-browser$')
+              | map(attribute='item')
+              | list
+              | first
+            ) | default(
+              (
+                openclaw_browser_executable_checks.results
+                | selectattr('stat.exists', 'equalto', true)
+                | map(attribute='item')
+                | list
+                | first
+              )
+            ) | default('')
+          }}
+
+    - name: Install Google Chrome fallback when snap/legacy path is selected
+      ansible.builtin.get_url:
+        url: "{{ openclaw_google_chrome_url }}"
+        dest: "{{ openclaw_google_chrome_deb }}"
+        mode: "0644"
+      when:
+        - openclaw_browser_executable_path in ['/usr/bin/chromium-browser', '/snap/bin/chromium']
+
+    - name: Install Google Chrome fallback package
+      ansible.builtin.apt:
+        deb: "{{ openclaw_google_chrome_deb }}"
+        state: present
+      when:
+        - openclaw_browser_executable_path in ['/usr/bin/chromium-browser', '/snap/bin/chromium']
+
+    - name: Re-resolve browser executable path after Chrome fallback install
+      ansible.builtin.set_fact:
+        openclaw_browser_executable_path: /usr/bin/google-chrome-stable
+      when:
+        - openclaw_browser_executable_path in ['/usr/bin/chromium-browser', '/snap/bin/chromium']
+        - ansible_facts['distribution'] is defined
+
+    - name: Build browser block with resolved executable path
+      ansible.builtin.set_fact:
+        openclaw_browser_block_resolved: "{{ openclaw_browser_block | combine({'executablePath': openclaw_browser_executable_path}, recursive=True) }}"
+
+    - name: Verify browser executable exists
+      ansible.builtin.fail:
+        msg: >-
+          No browser executable found in {{ openclaw_browser_executable_candidates | join(', ') }}.
+          Install chromium before enabling full web browsing.
+      when: openclaw_browser_executable_path | length == 0
 
     - name: Read current OpenClaw config
       ansible.builtin.slurp:
@@ -114,7 +282,7 @@
       ansible.builtin.set_fact:
         openclaw_config_json_updated: "{{ openclaw_config_json | combine({
           'tools': openclaw_tools,
-          'browser': ((openclaw_config_json.browser | default({})) | combine(openclaw_browser_block, recursive=True))
+          'browser': ((openclaw_config_json.browser | default({})) | combine(openclaw_browser_block_resolved, recursive=True))
         }, recursive=True) }}"
 
     - name: Persist OpenClaw config

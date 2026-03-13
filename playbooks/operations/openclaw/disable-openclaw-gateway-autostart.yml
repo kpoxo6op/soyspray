@@ -10,6 +10,7 @@
   vars:
     openclaw_service_name: openclaw-gateway
     openclaw_service_unit: "/etc/systemd/system/{{ openclaw_service_name }}.service"
+    openclaw_gateway_service_dropin_path: "/etc/systemd/system/{{ openclaw_service_name }}.service.d/openclaw.conf"
   tasks:
     - name: Stop OpenClaw gateway system service
       ansible.builtin.systemd:
@@ -21,6 +22,11 @@
     - name: Remove OpenClaw gateway system service file
       ansible.builtin.file:
         path: "{{ openclaw_service_unit }}"
+        state: absent
+
+    - name: Remove OpenClaw gateway systemd drop-in
+      ansible.builtin.file:
+        path: "{{ openclaw_gateway_service_dropin_path }}"
         state: absent
 
     - name: Reload systemd manager configuration

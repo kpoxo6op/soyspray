@@ -21,6 +21,15 @@
     - openclaw
     - openclaw-bootstrap
     - openclaw-config
+# Set OPENCLAW_OAUTH_ACCESS_TOKEN (+ optional REFRESH/EXPIRES_IN) to
+# refresh OAuth tokens in one pass during bootstrap.
+- import_playbook: ./configure-openclaw-oauth-token.yml
+  vars:
+    openclaw_require_oauth_token: false
+  tags:
+    - openclaw
+    - openclaw-bootstrap
+    - openclaw-config
 - import_playbook: ./configure-openclaw-kubeconfig.yml
   tags:
     - openclaw

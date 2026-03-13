@@ -11,6 +11,11 @@
     openclaw_user: openclaw
     openclaw_expected_kubectl_path: /usr/local/bin/kubectl
     openclaw_install_script_url: https://openclaw.ai/install.sh
+    openclaw_upgrade: false
+    openclaw_managed_binary_path: /usr/local/bin/openclaw
+    openclaw_legacy_binary_path: /usr/bin/openclaw
+    openclaw_managed_module_path: /usr/local/lib/node_modules/openclaw
+    openclaw_legacy_module_path: /usr/lib/node_modules/openclaw
     openclaw_prerequisite_packages:
       - curl
       - ca-certificates
@@ -72,13 +77,66 @@
       changed_when: false
       failed_when: false
 
-    - name: Install OpenClaw CLI without onboarding
+    - name: Check canonical managed OpenClaw binary path
+      ansible.builtin.stat:
+        path: "{{ openclaw_managed_binary_path }}"
+      register: openclaw_managed_binary
+
+    - name: Check legacy OpenClaw binary path
+      ansible.builtin.stat:
+        path: "{{ openclaw_legacy_binary_path }}"
+      register: openclaw_legacy_binary
+
+    - name: Install or upgrade OpenClaw CLI without onboarding
       ansible.builtin.shell: |
-        curl -fsSL {{ openclaw_install_script_url }} | bash -s -- --no-onboard
+        curl -fsSL {{ openclaw_install_script_url }} | bash -s -- --no-onboard --no-prompt
       args:
         executable: /bin/bash
-      when: openclaw_version_before.rc != 0
+      when: >-
+        openclaw_version_before.rc != 0 or
+        (openclaw_upgrade | bool) or
+        not openclaw_managed_binary.stat.exists
       changed_when: true
+
+    - name: Skip install when OpenClaw exists and upgrade is not requested
+      ansible.builtin.debug:
+        msg: >-
+          OpenClaw is already installed
+          ({{ openclaw_version_before.stdout | default('unknown version') }})
+          at {{ openclaw_managed_binary_path }}.
+          Set -e openclaw_upgrade=true to force an upgrade.
+      when: >-
+        openclaw_version_before.rc == 0 and
+        not (openclaw_upgrade | bool) and
+        openclaw_managed_binary.stat.exists
+
+    - name: Refresh managed OpenClaw binary facts after install
+      ansible.builtin.stat:
+        path: "{{ openclaw_managed_binary_path }}"
+      register: openclaw_managed_binary_after
+
+    - name: Fail when managed OpenClaw binary is still missing
+      ansible.builtin.fail:
+        msg: >-
+          Expected managed OpenClaw binary at {{ openclaw_managed_binary_path }}
+          after install, but it is still missing.
+      when: not openclaw_managed_binary_after.stat.exists
+
+    - name: Remove legacy duplicate OpenClaw binary path
+      ansible.builtin.file:
+        path: "{{ openclaw_legacy_binary_path }}"
+        state: absent
+      when:
+        - openclaw_managed_binary_after.stat.exists
+        - openclaw_legacy_binary.stat.exists
+
+    - name: Remove legacy duplicate OpenClaw module path
+      ansible.builtin.file:
+        path: "{{ openclaw_legacy_module_path }}"
+        state: absent
+      when:
+        - openclaw_managed_binary_after.stat.exists
+        - openclaw_legacy_binary.stat.exists
 
     - name: Validate OpenClaw CLI can be executed after install
       ansible.builtin.command: openclaw --version
@@ -87,4 +145,7 @@
 
     - name: Show installed OpenClaw version
       ansible.builtin.debug:
-        msg: "{{ openclaw_version_after.stdout }}"
+        msg:
+          - "{{ openclaw_version_after.stdout }}"
+          - "Managed binary path: {{ openclaw_managed_binary_path }}"
+          - "Legacy duplicate removed: {{ openclaw_legacy_binary.stat.exists }}"
