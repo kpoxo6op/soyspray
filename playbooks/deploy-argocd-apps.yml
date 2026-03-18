@@ -19,7 +19,6 @@
       - { name: External DNS, role: apps/external-dns }
       - { name: Headlamp, role: apps/headlamp }
       - { name: Jenkins, role: apps/jenkins }
-      - { name: OpenClaw RBAC, role: apps/openclaw-rbac }
 
       # Database
       - { name: CNPG Operator, role: apps/cnpg-operator }
