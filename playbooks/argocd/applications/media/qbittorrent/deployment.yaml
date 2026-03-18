@@ -17,6 +17,8 @@ metadata:
   namespace: media
   labels:
     app: qbittorrent
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   replicas: 1
   strategy:
