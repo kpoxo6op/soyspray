@@ -61,4 +61,4 @@ spec:
           emptyDir: {}
         - name: media
           persistentVolumeClaim:
-            claimName: qbittorrent-downloads
+            claimName: media-downloads

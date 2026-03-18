@@ -57,4 +57,4 @@ spec:
             claimName: radarr-movies
         - name: downloads
           persistentVolumeClaim:
-            claimName: qbittorrent-downloads
+            claimName: media-downloads

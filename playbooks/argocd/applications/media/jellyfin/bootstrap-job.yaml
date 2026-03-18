@@ -69,4 +69,4 @@ spec:
             defaultMode: 0755
         - name: media
           persistentVolumeClaim:
-            claimName: qbittorrent-downloads
+            claimName: media-downloads

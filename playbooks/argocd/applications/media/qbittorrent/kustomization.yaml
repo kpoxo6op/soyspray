@@ -4,6 +4,8 @@ kind: Kustomization
 namespace: media
 
 resources:
+  - storageclass-local-media.yaml
+  - pv-downloads.yaml
   - pvc-downloads.yaml
   - deployment.yaml
   - service.yaml

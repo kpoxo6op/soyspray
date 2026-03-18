@@ -12,6 +12,10 @@ including:
 3. A Deployment with environment variables and resource limits
 4. A Service of type LoadBalancer with IP 192.168.1.30
 
+The `media-downloads` claim is bound to a static local PersistentVolume at
+`/srv/media/downloads` on `node-0`. Prepare and mount the USB disk on the host
+before syncing this app.
+
 ## Validation Steps
 
 1. Wait for the Service to assign the LoadBalancer IP **192.168.1.30**.
@@ -52,5 +56,5 @@ kubectl delete job qbittorrent-bootstrap -n media
 kubectl delete service qbittorrent qbittorrent-peers -n media
 kubectl delete configmap qbittorrent-conf -n media
 kubectl delete ingress qbittorrent-ingress -n media
-kubectl delete pvc qbittorrent-config qbittorrent-downloads -n media
+kubectl delete pvc qbittorrent-config media-downloads -n media
 ```

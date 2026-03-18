@@ -2,8 +2,10 @@
 
 Raw Kubernetes manifests for Jellyfin in the `media` namespace.
 
-This deployment is intended for LAN-only playback and mounts the existing
-`qbittorrent-downloads` PVC read-only at `/media`.
+This deployment is intended for LAN-only playback and mounts the
+`media-downloads` PVC read-only at `/media`. On this branch that claim is
+backed by a static local PersistentVolume rooted at `/srv/media/downloads` on
+`node-0`.
 
 Fresh installs are bootstrapped to a single `Movies` library backed by
 `/media/movies`. The library is created as `homevideos` so Jellyfin uses local

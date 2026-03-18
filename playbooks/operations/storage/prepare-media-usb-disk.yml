@@ -1,0 +1,218 @@
+# prepare-media-usb-disk.yml
+#
+# Repartitions and reformats a dedicated USB media disk, mounts it at /srv/media,
+# and prepares the directories used by local PersistentVolumes.
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Prepare USB media disk for local PersistentVolumes
+  hosts: kube_control_plane[0]
+  become: true
+  gather_facts: true
+
+  vars:
+    media_disk_device: /dev/disk/by-id/scsi-35000000000000001
+    media_disk_partition: "{{ media_disk_device }}-part1"
+    media_disk_mount: /srv/media
+    media_disk_fstype: ext4
+    media_disk_label: media
+    media_disk_expected_model_substring: "One Touch"
+    media_disk_expected_transport: usb
+    media_disk_force_reformat: false
+    media_disk_root_owner: 1000
+    media_disk_root_group: 1000
+    media_disk_directories:
+      - downloads
+      - movies
+      - tv
+    media_disk_download_directories:
+      - incomplete
+      - movies
+      - tv
+      - books
+      - audiobooks
+      - scenes
+
+  pre_tasks:
+    - name: Refuse destructive run unless reformat is explicitly confirmed
+      ansible.builtin.fail:
+        msg: >-
+          This playbook repartitions and reformats {{ media_disk_device }}.
+          Re-run with -e media_disk_force_reformat=true after confirming the disk selection.
+      when: not (media_disk_force_reformat | bool)
+
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - parted
+          - e2fsprogs
+          - util-linux
+        state: present
+        update_cache: true
+
+  tasks:
+    - name: Verify target device exists
+      ansible.builtin.stat:
+        path: "{{ media_disk_device }}"
+      register: media_disk_device_stat
+
+    - name: Fail if target device does not exist
+      ansible.builtin.fail:
+        msg: "Target media disk {{ media_disk_device }} does not exist"
+      when: not media_disk_device_stat.stat.exists
+
+    - name: Resolve media disk path
+      ansible.builtin.command:
+        argv:
+          - readlink
+          - -f
+          - "{{ media_disk_device }}"
+      register: media_disk_real_device
+      changed_when: false
+
+    - name: Get media disk model
+      ansible.builtin.command:
+        argv:
+          - lsblk
+          - -ndo
+          - MODEL
+          - "{{ media_disk_real_device.stdout }}"
+      register: media_disk_model
+      changed_when: false
+
+    - name: Get media disk transport
+      ansible.builtin.command:
+        argv:
+          - lsblk
+          - -ndo
+          - TRAN
+          - "{{ media_disk_real_device.stdout }}"
+      register: media_disk_transport
+      changed_when: false
+
+    - name: Verify expected media disk identity
+      ansible.builtin.fail:
+        msg: >-
+          Refusing to format {{ media_disk_real_device.stdout }}.
+          Expected model containing "{{ media_disk_expected_model_substring }}" on
+          transport "{{ media_disk_expected_transport }}", found model
+          "{{ media_disk_model.stdout | trim }}" and transport
+          "{{ media_disk_transport.stdout | trim }}".
+      when:
+        - media_disk_expected_model_substring not in (media_disk_model.stdout | trim)
+          or media_disk_expected_transport != (media_disk_transport.stdout | trim)
+
+    - name: Unmount media mountpoint if already mounted
+      ansible.builtin.mount:
+        path: "{{ media_disk_mount }}"
+        state: unmounted
+      failed_when: false
+
+    - name: Wipe existing signatures from media disk
+      ansible.builtin.command:
+        argv:
+          - wipefs
+          - --all
+          - --force
+          - "{{ media_disk_real_device.stdout }}"
+
+    - name: Create GPT partition table on media disk
+      ansible.builtin.command:
+        argv:
+          - parted
+          - -s
+          - "{{ media_disk_real_device.stdout }}"
+          - mklabel
+          - gpt
+
+    - name: Create primary partition for media disk
+      ansible.builtin.parted:
+        device: "{{ media_disk_real_device.stdout }}"
+        number: 1
+        state: present
+        part_start: 1MiB
+        part_end: 100%
+        fs_type: "{{ media_disk_fstype }}"
+
+    - name: Wait for partition symlink to appear
+      ansible.builtin.wait_for:
+        path: "{{ media_disk_partition }}"
+        timeout: 30
+
+    - name: Create filesystem on media partition
+      ansible.builtin.filesystem:
+        fstype: "{{ media_disk_fstype }}"
+        dev: "{{ media_disk_partition }}"
+        opts: "-L {{ media_disk_label }}"
+        force: true
+
+    - name: Read media partition UUID
+      ansible.builtin.command:
+        argv:
+          - blkid
+          - -s
+          - UUID
+          - -o
+          - value
+          - "{{ media_disk_partition }}"
+      register: media_disk_uuid
+      changed_when: false
+
+    - name: Ensure media mountpoint exists
+      ansible.builtin.file:
+        path: "{{ media_disk_mount }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Mount media disk by UUID
+      ansible.builtin.mount:
+        path: "{{ media_disk_mount }}"
+        src: "UUID={{ media_disk_uuid.stdout | trim }}"
+        fstype: "{{ media_disk_fstype }}"
+        opts: defaults,noatime
+        dump: 0
+        passno: 2
+        state: mounted
+
+    - name: Ensure top-level media directories exist
+      ansible.builtin.file:
+        path: "{{ media_disk_mount }}/{{ item }}"
+        state: directory
+        owner: "{{ media_disk_root_owner }}"
+        group: "{{ media_disk_root_group }}"
+        mode: "0775"
+      loop: "{{ media_disk_directories }}"
+
+    - name: Ensure qBittorrent download directories exist
+      ansible.builtin.file:
+        path: "{{ media_disk_mount }}/downloads/{{ item }}"
+        state: directory
+        owner: "{{ media_disk_root_owner }}"
+        group: "{{ media_disk_root_group }}"
+        mode: "0775"
+      loop: "{{ media_disk_download_directories }}"
+
+    - name: Show resulting media disk layout
+      ansible.builtin.command:
+        argv:
+          - lsblk
+          - -o
+          - NAME,MODEL,SIZE,FSTYPE,MOUNTPOINT,TRAN
+          - "{{ media_disk_real_device.stdout }}"
+      register: media_disk_layout
+      changed_when: false
+
+    - name: Display media disk summary
+      ansible.builtin.debug:
+        msg: |
+          Media disk configured successfully:
+          Device: {{ media_disk_real_device.stdout }}
+          Model: {{ media_disk_model.stdout | trim }}
+          UUID: {{ media_disk_uuid.stdout | trim }}
+          Mount: {{ media_disk_mount }}
+          Directories: {{ media_disk_directories | join(', ') }}
+
+          {{ media_disk_layout.stdout }}

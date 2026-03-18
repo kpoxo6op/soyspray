@@ -24,6 +24,7 @@ Network setup and tooling playbooks.
 Storage initialization and management playbooks.
 
 - initialize-longhorn-storage.yml - Initialize Longhorn storage system
+- prepare-media-usb-disk.yml - repartition, format, mount, and prepare the USB media disk at `/srv/media`
 
 ### security/
 Security playbooks.

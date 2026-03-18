@@ -1,13 +1,15 @@
-# playbooks/yaml/argocd-apps/qbittorrent/pvc-downloads.yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: qbittorrent-downloads
+  name: media-downloads
   namespace: media
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   accessModes:
-    - ReadWriteMany
-  storageClassName: longhorn-rwx
+    - ReadWriteOnce
+  storageClassName: local-media
+  volumeName: media-downloads-local-node-0
   resources:
     requests:
-      storage: 20Gi
+      storage: 1800Gi
