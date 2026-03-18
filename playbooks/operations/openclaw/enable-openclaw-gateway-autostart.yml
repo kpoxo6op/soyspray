@@ -1,0 +1,125 @@
+---
+# Playbook to install and enable a systemd service for OpenClaw gateway autostart
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Enable OpenClaw gateway autostart service
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    openclaw_user: openclaw
+    openclaw_home: "/home/{{ openclaw_user }}"
+    openclaw_service_name: openclaw-gateway
+    openclaw_service_unit: "/etc/systemd/system/{{ openclaw_service_name }}.service"
+    openclaw_user_service_unit: "{{ openclaw_home }}/.config/systemd/user/{{ openclaw_service_name }}.service"
+    openclaw_gateway_binary_candidates:
+      - /usr/local/bin/openclaw
+      - /usr/bin/openclaw
+      - /usr/local/sbin/openclaw
+      - /usr/sbin/openclaw
+  pre_tasks:
+    - name: Check whether openclaw user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ openclaw_user }}"
+        fail_key: false
+      register: openclaw_passwd
+
+    - name: Set user existence fact
+      ansible.builtin.set_fact:
+        openclaw_user_exists: >-
+          {{
+            openclaw_passwd.ansible_facts.getent_passwd is defined and
+            openclaw_user in openclaw_passwd.ansible_facts.getent_passwd
+          }}
+
+    - name: Fail when openclaw user does not exist
+      ansible.builtin.fail:
+        msg: "openclaw user does not exist. Run install-openclaw-host.yml first."
+      when: not openclaw_user_exists
+
+    - name: Check known OpenClaw binary locations
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ openclaw_gateway_binary_candidates }}"
+      register: openclaw_binary_checks
+
+    - name: Resolve OpenClaw CLI binary path
+      ansible.builtin.set_fact:
+        openclaw_gateway_binary: >-
+          {{
+            (openclaw_binary_checks.results
+            | selectattr('stat.exists', 'equalto', true)
+            | map(attribute='item')
+            | list
+            | first | default(''))
+          }}
+
+    - name: Verify OpenClaw CLI binary
+      ansible.builtin.fail:
+        msg: "OpenClaw binary was not found in {{ openclaw_gateway_binary_candidates | join(', ') }}. Run install-openclaw-host.yml first."
+      when: openclaw_gateway_binary | length == 0
+  tasks:
+    - name: Check whether legacy user service exists
+      ansible.builtin.stat:
+        path: "{{ openclaw_user_service_unit }}"
+      register: openclaw_user_service_unit_stat
+
+    - name: Stop and disable legacy user service if present
+      ansible.builtin.command: "runuser -l {{ openclaw_user }} -c 'systemctl --user stop {{ openclaw_service_name }} && systemctl --user disable {{ openclaw_service_name }}'"
+      register: openclaw_user_service_disable
+      changed_when: openclaw_user_service_disable.rc == 0
+      failed_when: false
+      when: openclaw_user_service_unit_stat.stat.exists
+
+    - name: Install systemd service for OpenClaw gateway
+      ansible.builtin.copy:
+        dest: "{{ openclaw_service_unit }}"
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          [Unit]
+          Description=OpenClaw Gateway
+          After=network-online.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          User={{ openclaw_user }}
+          Group={{ openclaw_user }}
+          WorkingDirectory={{ openclaw_home }}
+          Environment=HOME={{ openclaw_home }}
+          EnvironmentFile=-{{ openclaw_home }}/.openclaw/.env
+          ExecStart={{ openclaw_gateway_binary }} gateway run
+          Restart=on-failure
+          RestartSec=5
+          TimeoutStartSec=120
+          LimitNOFILE=65535
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable and start OpenClaw gateway system service
+      ansible.builtin.systemd:
+        daemon_reload: true
+        name: "{{ openclaw_service_name }}.service"
+        enabled: true
+        state: started
+
+    - name: Verify gateway is reachable on the loopback bind
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 18789
+        timeout: 20
+        state: started
+      register: openclaw_gateway_loopback_check
+
+    - name: Report autostart status
+      ansible.builtin.debug:
+        msg:
+          - "Installed systemd service: {{ openclaw_service_unit }}"
+          - "Autostart enabled: yes"
+          - "Gateway listening on: 127.0.0.1:18789"
+          - "Loopback check: {{ openclaw_gateway_loopback_check.state }}"

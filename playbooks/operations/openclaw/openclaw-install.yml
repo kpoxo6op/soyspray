@@ -1,0 +1,37 @@
+---
+# Canonical one-command OpenClaw platform bootstrap
+
+- import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+- import_playbook: ./show-openclaw-preflight.yml
+  tags:
+    - openclaw
+    - openclaw-preflight
+- import_playbook: ./install-openclaw-host.yml
+  tags:
+    - openclaw
+    - openclaw-bootstrap
+    - openclaw-host
+- import_playbook: ./install-openclaw-dependencies.yml
+  tags:
+    - openclaw
+    - openclaw-bootstrap
+    - openclaw-deps
+- import_playbook: ./configure-openclaw-installation-mode.yml
+  tags:
+    - openclaw
+    - openclaw-bootstrap
+    - openclaw-config
+- import_playbook: ./configure-openclaw-kubeconfig.yml
+  tags:
+    - openclaw
+    - openclaw-bootstrap
+    - openclaw-config
+- import_playbook: ./enable-openclaw-gateway-autostart.yml
+  tags:
+    - openclaw
+    - openclaw-bootstrap
+    - openclaw-service
+- import_playbook: ./show-openclaw-installation-mode-status.yml
+  tags:
+    - openclaw
+    - openclaw-postcheck

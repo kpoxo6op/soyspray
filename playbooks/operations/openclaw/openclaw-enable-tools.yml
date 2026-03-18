@@ -1,0 +1,24 @@
+---
+# Canonical one-command enablement for optional OpenClaw tool capabilities
+
+- import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+- import_playbook: ./configure-openclaw-file-tool.yml
+  tags:
+    - openclaw
+    - openclaw-tools
+    - openclaw-tools-file
+- import_playbook: ./configure-openclaw-web-search.yml
+  tags:
+    - openclaw
+    - openclaw-tools
+    - openclaw-tools-web
+- import_playbook: ./configure-openclaw-exec-tool.yml
+  tags:
+    - openclaw
+    - openclaw-tools
+    - openclaw-tools-exec
+- import_playbook: ./configure-openclaw-full-web-browsing.yml
+  tags:
+    - openclaw
+    - openclaw-tools
+    - openclaw-tools-browser

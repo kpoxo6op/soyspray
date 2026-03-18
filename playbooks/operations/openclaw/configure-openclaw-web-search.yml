@@ -1,0 +1,171 @@
+---
+# Playbook to enable OpenClaw web search/fetch tools
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Enable OpenClaw web search tooling
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    openclaw_user: openclaw
+    openclaw_home: "/home/{{ openclaw_user }}"
+    openclaw_config_dir: "{{ openclaw_home }}/.openclaw"
+    openclaw_config_file: "{{ openclaw_config_dir }}/openclaw.json"
+    openclaw_env_file: "{{ openclaw_config_dir }}/.env"
+    openclaw_service_name: openclaw-gateway
+    openclaw_service_unit_file: "/etc/systemd/system/{{ openclaw_service_name }}.service"
+    openclaw_agent_id: "main"
+    openclaw_web_tool_names:
+      - web_fetch
+      - web_search
+    openclaw_web_search_provider: brave
+    openclaw_brave_api_key: "{{ lookup('env', 'BRAVE_API_KEY') }}"
+  pre_tasks:
+    - name: Check whether openclaw user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ openclaw_user }}"
+        fail_key: false
+      register: openclaw_passwd
+
+    - name: Set user existence fact
+      ansible.builtin.set_fact:
+        openclaw_user_exists: >-
+          {{
+            openclaw_passwd.ansible_facts.getent_passwd is defined and
+            openclaw_user in openclaw_passwd.ansible_facts.getent_passwd
+          }}
+
+    - name: Fail when openclaw user is missing
+      ansible.builtin.fail:
+        msg: "openclaw user does not exist. Run install-openclaw-host.yml first."
+      when: not openclaw_user_exists
+
+    - name: Check whether OpenClaw config exists
+      ansible.builtin.stat:
+        path: "{{ openclaw_config_file }}"
+      register: openclaw_config_stat
+
+    - name: Fail when OpenClaw config is missing
+      ansible.builtin.fail:
+        msg: "OpenClaw config not found at {{ openclaw_config_file }}. Run configure-openclaw-installation-mode.yml first."
+      when: not openclaw_config_stat.stat.exists
+
+    - name: Fail when Brave API key is missing
+      ansible.builtin.fail:
+        msg: "BRAVE_API_KEY is required to enable OpenClaw web_search with the Brave provider."
+      when: openclaw_brave_api_key | length == 0
+  tasks:
+    - name: Read current OpenClaw config
+      ansible.builtin.slurp:
+        path: "{{ openclaw_config_file }}"
+      register: openclaw_config_raw
+
+    - name: Parse OpenClaw config
+      ansible.builtin.set_fact:
+        openclaw_config_json: "{{ openclaw_config_raw.content | b64decode | from_json }}"
+
+    - name: Build updated OpenClaw web tool block
+      ansible.builtin.set_fact:
+        openclaw_tools_web_updated:
+          fetch: "{{ (openclaw_config_json.tools.web.fetch | default({})) | combine({'enabled': true}, recursive=True) }}"
+          search: "{{ (openclaw_config_json.tools.web.search | default({})) | combine({'enabled': true, 'provider': openclaw_web_search_provider, 'apiKey': '${BRAVE_API_KEY}'}, recursive=True) }}"
+
+    - name: Enable web fetch and search provider configuration
+      ansible.builtin.set_fact:
+        openclaw_config_json_updated: "{{ openclaw_config_json | combine({
+          'tools': ((openclaw_config_json.tools | default({})) | combine({
+            'web': openclaw_tools_web_updated
+          }, recursive=True))
+        }, recursive=True) }}"
+
+    - name: Persist OpenClaw config
+      ansible.builtin.copy:
+        dest: "{{ openclaw_config_file }}"
+        owner: "{{ openclaw_user }}"
+        group: "{{ openclaw_user }}"
+        mode: "0600"
+        content: "{{ openclaw_config_json_updated | to_nice_json }}"
+
+    - name: Ensure Brave API key is present in OpenClaw env
+      ansible.builtin.lineinfile:
+        path: "{{ openclaw_env_file }}"
+        regexp: "^BRAVE_API_KEY="
+        line: "BRAVE_API_KEY={{ openclaw_brave_api_key }}"
+        create: true
+        owner: "{{ openclaw_user }}"
+        group: "{{ openclaw_user }}"
+        mode: "0600"
+      no_log: true
+
+    - name: Ensure web tools are allowlisted for main agent
+      ansible.builtin.shell: |
+        python3 - <<'PY'
+        import json
+
+        config_path = '{{ openclaw_config_file }}'
+        agent_id = '{{ openclaw_agent_id }}'
+        tool_names = {{ openclaw_web_tool_names | to_json }}
+
+        with open(config_path, 'r', encoding='utf-8') as f:
+            cfg = json.load(f)
+
+        agents_block = cfg.get('agents') or {}
+        agents = agents_block.get('list')
+        if not isinstance(agents, list):
+            agents = []
+
+        updated = False
+        for agent in agents:
+            if not isinstance(agent, dict) or agent.get('id') != agent_id:
+                continue
+            tools = agent.setdefault('tools', {})
+            allow = tools.get('allow')
+            if not isinstance(allow, list):
+                allow = []
+            allow.extend(tool_names)
+            tools['allow'] = sorted(dict.fromkeys(allow))
+            agent['tools'] = tools
+            updated = True
+            break
+
+        if not updated:
+            agents.append({'id': agent_id, 'tools': {'allow': sorted(tool_names)}})
+
+        agents_block['list'] = agents
+        cfg['agents'] = agents_block
+
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(cfg, f, indent=2)
+            f.write('\n')
+        PY
+      changed_when: true
+
+    - name: Check whether OpenClaw systemd unit exists
+      ansible.builtin.stat:
+        path: "{{ openclaw_service_unit_file }}"
+      register: openclaw_systemd_unit
+
+    - name: Restart OpenClaw gateway (systemd)
+      ansible.builtin.systemd:
+        name: "{{ openclaw_service_name }}.service"
+        state: restarted
+      when: openclaw_systemd_unit.stat.exists
+      failed_when: false
+
+    - name: Restart OpenClaw gateway (user service fallback)
+      ansible.builtin.command: "runuser -l {{ openclaw_user }} -c 'systemctl --user restart {{ openclaw_service_name }}'"
+      register: openclaw_gateway_restart_fallback
+      changed_when: openclaw_gateway_restart_fallback.rc == 0
+      failed_when: false
+      when: not openclaw_systemd_unit.stat.exists
+
+    - name: Show runbook summary
+      ansible.builtin.debug:
+        msg:
+          - "Enabled tools.web.fetch.enabled"
+          - "Enabled tools.web.search.enabled with provider {{ openclaw_web_search_provider }}"
+          - "Stored BRAVE_API_KEY in {{ openclaw_env_file }}"
+          - "Added {{ openclaw_web_tool_names | join(', ') }} to main agent allowlist"
+          - "OpenClaw gateway restart attempted"
