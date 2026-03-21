@@ -18,7 +18,6 @@
       - { name: Cert Manager, role: apps/cert-manager }
       - { name: External DNS, role: apps/external-dns }
       - { name: Headlamp, role: apps/headlamp }
-      - { name: Jenkins, role: apps/jenkins }
 
       # Database
       - { name: CNPG Operator, role: apps/cnpg-operator }
