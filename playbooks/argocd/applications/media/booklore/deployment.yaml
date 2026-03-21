@@ -76,4 +76,4 @@ spec:
             claimName: booklore-data
         - name: downloads-books
           persistentVolumeClaim:
-            claimName: qbittorrent-downloads
+            claimName: media-downloads

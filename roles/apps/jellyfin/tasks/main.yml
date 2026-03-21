@@ -1,0 +1,24 @@
+---
+- name: Jellyfin Secrets
+  ansible.builtin.include_role:
+    name: app-secret
+    apply:
+      tags: [jellyfin]
+  vars:
+    secret_name: jellyfin-secrets
+    secret_namespace: media
+    create_namespace: true
+    secret_data:
+      - { env_var: 'JELLYFIN_ADMIN_USER', key: 'JELLYFIN_ADMIN_USER', default: 'admin' }
+      - { env_var: 'JELLYFIN_ADMIN_PASSWORD', key: 'JELLYFIN_ADMIN_PASSWORD' }
+      - { env_var: 'JELLYFIN_TABLET_USER', key: 'JELLYFIN_TABLET_USER', default: 'tablet' }
+      - { env_var: 'JELLYFIN_TABLET_PASSWORD', key: 'JELLYFIN_TABLET_PASSWORD' }
+  tags: jellyfin
+
+- name: Apply Jellyfin
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    definition: "{{ lookup('file', playbook_dir + '/argocd/applications/media/jellyfin/jellyfin-application.yaml') }}"
+  tags: jellyfin

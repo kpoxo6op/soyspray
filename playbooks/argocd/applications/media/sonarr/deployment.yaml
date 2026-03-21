@@ -84,7 +84,7 @@ spec:
             claimName: sonarr-tv
         - name: downloads
           persistentVolumeClaim:
-            claimName: qbittorrent-downloads
+            claimName: media-downloads
         - name: initial-config
           configMap:
             name: sonarr-initial-config

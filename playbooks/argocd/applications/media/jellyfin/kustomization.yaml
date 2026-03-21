@@ -4,16 +4,12 @@ kind: Kustomization
 namespace: media
 
 resources:
-  - storageclass-local-media.yaml
-  - pv-downloads.yaml
-  - pvc-downloads.yaml
+  - pvc-config.yaml
   - deployment.yaml
   - service.yaml
-  - service-peers.yaml
   - ingress.yaml
-  - pvc-config.yaml
-  - configmap.yaml
+  - bootstrap-scripts-configmap.yaml
   - bootstrap-job.yaml
 
 commonLabels:
-  app: qbittorrent
+  app: jellyfin

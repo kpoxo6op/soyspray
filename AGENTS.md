@@ -22,7 +22,8 @@ and backup/retention checks.
 - Router (OpenWrt) is at `192.168.1.1`.
 - LAN subnet: `192.168.1.0/24`.
 - DNS override: `soyspray.vip` resolves to `192.168.1.20` via router dnsmasq.
-- Tailscale on the router advertises the LAN route `192.168.1.0/24` and forwards `tailscale -> lan`.
+- Tailscale on the router advertises the LAN route `192.168.1.0/24` and forwards
+  `tailscale -> lan`.
 
 ## Workflow
 - Never run impertive commands modifying the cluster. Make changes in code.
@@ -39,3 +40,36 @@ and backup/retention checks.
 - When creating PRs, ensure any temporary Argo `targetRevision` changes are
   set back to `HEAD`.
 - Prefer explicit confirmations before destructive cluster actions.
+
+## OpenClaw
+- Keep the browser on direct OpenClaw control only (no Chrome extension relay).
+- Known issue this session: browser control failed due bad Chrome path resolution; enforce
+  `browser.executablePath=/usr/bin/google-chrome-stable` in config.
+- Auth is OAuth-only (`openai-codex`) moving forward (use your ChatGPT subscription flow).
+- Do not store OpenAI API keys or static provider tokens in repo or checked-in configs.
+- Re-run OAuth when auth is broken:
+  - `sudo su - openclaw -c "openclaw onboard --auth-choice openai-codex --set-default"`
+  - or `sudo su - openclaw -c "openclaw models auth login --provider openai-codex --method oauth --set-default"`
+- After OAuth, verify quickly:
+  - `sudo su - openclaw -c "openclaw models auth list"`
+  - `sudo su - openclaw -c "openclaw models status"`
+- Non-interactive OAuth token refresh:
+  - Set `OPENCLAW_OAUTH_ACCESS_TOKEN='<access-token>'` (required), optional
+    `OPENCLAW_OAUTH_REFRESH_TOKEN='<refresh-token>'`, optional `OPENCLAW_OAUTH_EXPIRES_IN='30d'`.
+  - Run: `ansible-playbook playbooks/operations/openclaw/configure-openclaw-oauth-token.yml`
+- Re-extract fresh token after interactive OAuth flow:
+  - `sudo su - openclaw -c "jq -r '.profiles[\"openai-codex:default\"].access' ~/.openclaw/agents/main/agent/auth-profiles.json"`
+- If browser automation fails:
+  - `sudo su - openclaw -c "openclaw browser status --browser-profile openclaw2 --json"`
+  - `sudo su - openclaw -c "openclaw browser stop --browser-profile openclaw2"`
+  - `sudo su - openclaw -c "openclaw browser start --browser-profile openclaw2"`
+  - `sudo su - openclaw -c "openclaw browser --json status --browser-profile openclaw2"`
+- Service checks after restart:
+  - `sudo su - openclaw -c "openclaw gateway status --json"`
+  - `sudo su - openclaw -c "openclaw health"`
+- Keep stable config targets in `~/.openclaw/openclaw.json`:
+  - `gateway.auth.mode=token`, `gateway.auth.token` present
+  - `browser.executablePath=/usr/bin/google-chrome-stable`
+  - `browser.profiles.openclaw2.cdpPort` expected to stay stable
+- If jobs fail after service restart, rerun one-off job before changing anything else:
+  - `openclaw runjob once openclaw2`

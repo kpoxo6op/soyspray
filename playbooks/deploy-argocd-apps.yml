@@ -32,6 +32,7 @@
 
       # Media
       - { name: Plex, role: apps/plex }
+      - { name: Jellyfin, role: apps/jellyfin }
       - { name: Prowlarr, role: apps/prowlarr }
       - { name: qBittorrent, role: apps/qbittorrent }
       - { name: LazyLibrarian, role: apps/lazylibrarian }

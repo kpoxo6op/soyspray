@@ -63,7 +63,7 @@ spec:
             name: lazylibrarian-initial-config
         - name: downloads-shared
           persistentVolumeClaim:
-            claimName: qbittorrent-downloads
+            claimName: media-downloads
         - name: books-library
           persistentVolumeClaim:
             claimName: lazylibrarian-books

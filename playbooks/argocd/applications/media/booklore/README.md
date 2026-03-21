@@ -18,8 +18,8 @@ qBittorrent downloads books to `/downloads/books`, Booklore indexes this folder 
 
 | App | Mount Path | Underlying PVC |
 |-----|------------|----------------|
-| qBittorrent | `/downloads/books` | qbittorrent-downloads |
-| Booklore | `/books` | qbittorrent-downloads (subPath: books) |
+| qBittorrent | `/downloads/books` | media-downloads |
+| Booklore | `/books` | media-downloads (subPath: books) |
 
 Setup in Booklore:
 1. Create a Library pointing to `/books`

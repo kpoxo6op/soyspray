@@ -7,7 +7,7 @@
 #   - linuxserver build ls73 (multi‑arch: amd64 & arm64)
 # * Volumes:
 #     • /config  -> pvc: qbittorrent-config (1 Gi, Longhorn)
-#     • /downloads -> pvc: qbittorrent-downloads (10 Gi, Longhorn)
+#     • /downloads -> pvc: media-downloads (1800 Gi, local PV on /srv/media/downloads)
 # * Resource requests/limits: 100 m CPU / 256 Mi mem  → 500 m / 512 Mi
 #------------------------------------------------------------------------------
 apiVersion: apps/v1
@@ -17,6 +17,8 @@ metadata:
   namespace: media
   labels:
     app: qbittorrent
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
 spec:
   replicas: 1
   strategy:
@@ -82,7 +84,7 @@ spec:
         # PVC for /downloads
         - name: downloads
           persistentVolumeClaim:
-            claimName: qbittorrent-downloads
+            claimName: media-downloads
         # ConfigMap volume for reading qBittorrent.conf
         - name: qbittorrent-conf
           configMap:
