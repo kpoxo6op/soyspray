@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "ellis-media"
+    targetRevision: "HEAD"
     path: playbooks/argocd/applications/media/radarr
   destination:
     server: "https://kubernetes.default.svc"
