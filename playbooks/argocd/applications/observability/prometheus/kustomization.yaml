@@ -47,6 +47,15 @@ configMapGenerator:
       annotations:
         kustomize.toolkit.fluxcd.io/substitute: disabled
 
+  - name: grafana-dashboard-remote-backup-restore-status
+    files:
+      - dashboards/remote-backup-restore-status.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
   # Commented out large dashboard that causes "Too long" errors
   # - name: grafana-dashboard-node-exporter-full
   #   files:
