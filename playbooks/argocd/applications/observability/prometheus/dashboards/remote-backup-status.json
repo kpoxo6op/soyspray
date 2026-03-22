@@ -727,7 +727,7 @@
       },
       "description": "Recent Kubernetes events for Immich media backup runs, including completion and scheduling.",
       "gridPos": {
-        "h": 8,
+        "h": 16,
         "w": 24,
         "x": 0,
         "y": 21
@@ -766,10 +766,10 @@
       },
       "description": "Recent Obsidian backup job logs, including completion markers and upload flow.",
       "gridPos": {
-        "h": 8,
+        "h": 16,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 37
       },
       "id": 11,
       "options": {
@@ -805,10 +805,10 @@
       },
       "description": "Detailed CNPG backup and WAL archive logs from PostgreSQL for troubleshooting and backup health inspection.",
       "gridPos": {
-        "h": 10,
+        "h": 20,
         "w": 24,
         "x": 0,
-        "y": 37
+        "y": 53
       },
       "id": 13,
       "options": {
