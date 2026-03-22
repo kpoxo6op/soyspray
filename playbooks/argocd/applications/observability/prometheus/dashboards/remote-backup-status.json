@@ -717,7 +717,7 @@
       },
       "id": 103,
       "panels": [],
-      "title": "Recent Activity",
+      "title": "Logs",
       "type": "row"
     },
     {
@@ -728,7 +728,7 @@
       "description": "Recent Kubernetes events for Immich media backup runs, including completion and scheduling.",
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 24,
         "x": 0,
         "y": 21
       },
@@ -767,9 +767,9 @@
       "description": "Recent Obsidian backup job logs, including completion markers and upload flow.",
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 21
+        "w": 24,
+        "x": 0,
+        "y": 29
       },
       "id": 11,
       "options": {
@@ -803,29 +803,12 @@
         "type": "loki",
         "uid": "loki"
       },
-      "collapsed": false,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 29
-      },
-      "id": 104,
-      "panels": [],
-      "title": "Database Detail",
-      "type": "row"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "loki"
-      },
       "description": "Detailed CNPG backup and WAL archive logs from PostgreSQL for troubleshooting and backup health inspection.",
       "gridPos": {
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 37
       },
       "id": 13,
       "options": {
