@@ -286,7 +286,7 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Restore-readiness proxy based on recent WAL archive activity to remote storage.",
+      "description": "Restore-readiness proxy based on recent WAL archive activity to remote storage in the last hour.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -354,7 +354,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({namespace=\"postgresql\"} |= \"Executing barman-cloud-wal-archive\"[30m]))",
+          "expr": "sum(count_over_time({namespace=\"postgresql\"} |= \"Executing barman-cloud-wal-archive\"[1h]))",
           "instant": true,
           "queryType": "instant",
           "refId": "A"
