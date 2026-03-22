@@ -871,8 +871,8 @@
   },
   "timepicker": {},
   "timezone": "Pacific/Auckland",
-  "title": "Remote Backup & Restore Status",
-  "uid": "remote-backup-restore-status",
+  "title": "Remote Backup Status",
+  "uid": "remote-backup-status",
   "version": 2,
   "weekStart": ""
 }

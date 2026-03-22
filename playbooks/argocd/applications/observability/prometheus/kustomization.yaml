@@ -47,9 +47,9 @@ configMapGenerator:
       annotations:
         kustomize.toolkit.fluxcd.io/substitute: disabled
 
-  - name: grafana-dashboard-remote-backup-restore-status
+  - name: grafana-dashboard-remote-backup-status
     files:
-      - dashboards/remote-backup-restore-status.json
+      - dashboards/remote-backup-status.json
     options:
       labels:
         grafana_dashboard: "1"
