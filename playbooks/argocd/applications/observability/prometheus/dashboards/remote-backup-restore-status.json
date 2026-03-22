@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Loki-driven remote backup freshness, failure, and restore-readiness signals for Immich media, CNPG database, and Obsidian.",
+  "description": "Loki-driven remote backup freshness, failure, and WAL archive health for Immich media, CNPG database, and Obsidian.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -286,7 +286,7 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Restore-readiness proxy based on recent WAL archive activity to remote storage in the last hour.",
+      "description": "Recent CNPG WAL archive activity to remote storage in the last hour.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -360,7 +360,7 @@
           "refId": "A"
         }
       ],
-      "title": "PITR WAL Window",
+      "title": "CNPG WAL Archive Window",
       "type": "stat"
     },
     {
@@ -803,41 +803,6 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Recent restore-related PostgreSQL logs. Empty state means no recent restore drill activity was observed.",
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 21
-      },
-      "id": 12,
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": true,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": true
-      },
-      "pluginVersion": "11.3.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "editorMode": "code",
-          "expr": "{namespace=\"postgresql\"} |~ \"(?i)(recovery|restore|restored|bootstrap)\"",
-          "queryType": "range",
-          "refId": "A"
-        }
-      ],
-      "title": "Restore Activity",
-      "type": "logs"
-    },
-    {
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -855,7 +820,7 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Detailed CNPG backup and WAL archive logs from PostgreSQL for troubleshooting and restore-readiness inspection.",
+      "description": "Detailed CNPG backup and WAL archive logs from PostgreSQL for troubleshooting and backup health inspection.",
       "gridPos": {
         "h": 10,
         "w": 24,
@@ -894,7 +859,6 @@
   "schemaVersion": 39,
   "tags": [
     "backup",
-    "restore",
     "loki",
     "gitops"
   ],
