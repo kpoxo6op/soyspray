@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Remote backup posture across Immich media, CNPG database, and Obsidian, driven by Loki log and event signals.",
+  "description": "Loki-driven remote backup freshness, failure, and restore-readiness signals for Immich media, CNPG database, and Obsidian.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -23,33 +23,24 @@
   "links": [],
   "panels": [
     {
+      "collapsed": false,
       "gridPos": {
-        "h": 5,
-        "w": 8,
+        "h": 1,
+        "w": 24,
         "x": 0,
         "y": 0
       },
-      "id": 1,
-      "options": {
-        "code": {
-          "language": "markdown",
-          "showLineNumbers": false,
-          "showMiniMap": false
-        },
-        "content": "## Remote Backup Posture\nA Loki-driven view of remote backup freshness, failure signals, and restore readiness.\n\nGreen cards mean the expected success signal was seen inside the active window. Failure cards stay green at `0` and turn hot when Loki sees errors or backoff events.",
-        "mode": "markdown"
-      },
-      "pluginVersion": "11.3.0",
-      "title": "",
-      "transparent": true,
-      "type": "text"
+      "id": 100,
+      "panels": [],
+      "title": "Freshness Windows",
+      "type": "row"
     },
     {
       "datasource": {
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Fresh when a completed Immich media backup job was seen in the last 30h.",
+      "description": "Fresh when a completed Immich media backup job was seen in the last 30 hours.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -86,9 +77,9 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 8,
-        "y": 0
+        "w": 6,
+        "x": 0,
+        "y": 1
       },
       "id": 2,
       "options": {
@@ -105,7 +96,7 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "value_and_name",
+        "textMode": "value",
         "wideLayout": true
       },
       "pluginVersion": "11.3.0",
@@ -130,7 +121,7 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Fresh when an Obsidian backup completed in the last 30h.",
+      "description": "Fresh when an Obsidian backup completed in the last 30 hours.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -167,9 +158,9 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 12,
-        "y": 0
+        "w": 6,
+        "x": 6,
+        "y": 1
       },
       "id": 3,
       "options": {
@@ -186,7 +177,7 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "value_and_name",
+        "textMode": "value",
         "wideLayout": true
       },
       "pluginVersion": "11.3.0",
@@ -211,7 +202,7 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Fresh when a CNPG remote backup completed in the last 30h.",
+      "description": "Fresh when a CNPG remote backup completed in the last 30 hours.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -248,9 +239,9 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 16,
-        "y": 0
+        "w": 6,
+        "x": 12,
+        "y": 1
       },
       "id": 4,
       "options": {
@@ -267,7 +258,7 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "value_and_name",
+        "textMode": "value",
         "wideLayout": true
       },
       "pluginVersion": "11.3.0",
@@ -292,7 +283,7 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Restore readiness proxy: recent WAL archive activity to remote storage.",
+      "description": "Restore-readiness proxy based on recent WAL archive activity to remote storage.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -329,9 +320,9 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 20,
-        "y": 0
+        "w": 6,
+        "x": 18,
+        "y": 1
       },
       "id": 5,
       "options": {
@@ -348,7 +339,7 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "value_and_name",
+        "textMode": "value",
         "wideLayout": true
       },
       "pluginVersion": "11.3.0",
@@ -369,11 +360,24 @@
       "type": "stat"
     },
     {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "id": 101,
+      "panels": [],
+      "title": "Failure Signals",
+      "type": "row"
+    },
+    {
       "datasource": {
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Immich failures or backoff events over the last 48h.",
+      "description": "Immich failures or backoff events in the last 48 hours. Healthy state is 0.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -403,9 +407,9 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
+        "w": 8,
         "x": 0,
-        "y": 5
+        "y": 7
       },
       "id": 6,
       "options": {
@@ -422,7 +426,7 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "value_and_name",
+        "textMode": "value",
         "wideLayout": true
       },
       "pluginVersion": "11.3.0",
@@ -447,7 +451,7 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Obsidian failures or backoff events over the last 48h.",
+      "description": "Obsidian failures or backoff events in the last 48 hours. Healthy state is 0.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -477,9 +481,9 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 4,
-        "y": 5
+        "w": 8,
+        "x": 8,
+        "y": 7
       },
       "id": 7,
       "options": {
@@ -496,7 +500,7 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "value_and_name",
+        "textMode": "value",
         "wideLayout": true
       },
       "pluginVersion": "11.3.0",
@@ -521,7 +525,7 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "CNPG backup or WAL archive failures over the last 6h.",
+      "description": "CNPG backup or WAL archive failures in the last 6 hours. Healthy state is 0.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -551,9 +555,9 @@
       },
       "gridPos": {
         "h": 5,
-        "w": 4,
-        "x": 8,
-        "y": 5
+        "w": 8,
+        "x": 16,
+        "y": 7
       },
       "id": 8,
       "options": {
@@ -570,7 +574,7 @@
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "value_and_name",
+        "textMode": "value",
         "wideLayout": true
       },
       "pluginVersion": "11.3.0",
@@ -591,10 +595,24 @@
       "type": "stat"
     },
     {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "id": 102,
+      "panels": [],
+      "title": "Activity Trends",
+      "type": "row"
+    },
+    {
       "datasource": {
         "type": "loki",
         "uid": "loki"
       },
+      "description": "Rolling completion windows for the three backup systems over the current dashboard time range.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -625,10 +643,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 5,
-        "w": 12,
-        "x": 12,
-        "y": 5
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 13
       },
       "id": 9,
       "options": {
@@ -683,15 +701,29 @@
       "type": "timeseries"
     },
     {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 20
+      },
+      "id": 103,
+      "panels": [],
+      "title": "Recent Activity",
+      "type": "row"
+    },
+    {
       "datasource": {
         "type": "loki",
         "uid": "loki"
       },
+      "description": "Recent Kubernetes events for Immich media backup runs, including completion and scheduling.",
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 10
+        "y": 21
       },
       "id": 10,
       "options": {
@@ -725,11 +757,12 @@
         "type": "loki",
         "uid": "loki"
       },
+      "description": "Recent Obsidian backup job logs, including completion markers and upload flow.",
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 10
+        "y": 21
       },
       "id": 11,
       "options": {
@@ -763,11 +796,12 @@
         "type": "loki",
         "uid": "loki"
       },
+      "description": "Recent restore-related PostgreSQL logs. Empty state means no recent restore drill activity was observed.",
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 10
+        "y": 21
       },
       "id": 12,
       "options": {
@@ -797,15 +831,29 @@
       "type": "logs"
     },
     {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      },
+      "id": 104,
+      "panels": [],
+      "title": "Database Detail",
+      "type": "row"
+    },
+    {
       "datasource": {
         "type": "loki",
         "uid": "loki"
       },
+      "description": "Detailed CNPG backup and WAL archive logs from PostgreSQL for troubleshooting and restore-readiness inspection.",
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 24,
         "x": 0,
-        "y": 18
+        "y": 30
       },
       "id": 13,
       "options": {
@@ -854,6 +902,6 @@
   "timezone": "Pacific/Auckland",
   "title": "Remote Backup & Restore Status",
   "uid": "remote-backup-restore-status",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
