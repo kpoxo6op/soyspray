@@ -1,5 +1,5 @@
 ---
-- name: Seed reflected wildcard TLS secret into a target namespace
+- name: Seed wildcard TLS secret into a target namespace
   hosts: kube_control_plane[0]
   become: true
   gather_facts: false
@@ -36,7 +36,5 @@
           metadata:
             name: "{{ target_secret_name }}"
             namespace: "{{ target_namespace }}"
-            annotations:
-              reflector.v1.k8s.emberstack.com/reflects: "{{ source_namespace }}/{{ source_secret_name }}"
           type: "{{ source_secret.resources[0].type }}"
           data: "{{ source_secret.resources[0].data }}"
