@@ -13,4 +13,3 @@ helmCharts:
 
 resources:
   - ingress.yaml
-  - prod-cert-tls-reflector.yaml

@@ -1,0 +1,42 @@
+---
+- name: Seed reflected wildcard TLS secret into a target namespace
+  hosts: kube_control_plane[0]
+  become: true
+  gather_facts: false
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    source_namespace: cert-manager
+    source_secret_name: prod-cert-tls
+    target_namespace: obsidian
+    target_secret_name: prod-cert-tls
+
+  tasks:
+    - name: Read source wildcard TLS secret
+      kubernetes.core.k8s_info:
+        kubeconfig: "{{ kubeconfig_path }}"
+        api_version: v1
+        kind: Secret
+        namespace: "{{ source_namespace }}"
+        name: "{{ source_secret_name }}"
+      register: source_secret
+
+    - name: Assert source wildcard TLS secret exists
+      ansible.builtin.assert:
+        that:
+          - source_secret.resources | length == 1
+        fail_msg: "Missing source secret {{ source_namespace }}/{{ source_secret_name }}"
+
+    - name: Seed target wildcard TLS secret
+      kubernetes.core.k8s:
+        kubeconfig: "{{ kubeconfig_path }}"
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ target_secret_name }}"
+            namespace: "{{ target_namespace }}"
+            annotations:
+              reflector.v1.k8s.emberstack.com/reflects: "{{ source_namespace }}/{{ source_secret_name }}"
+          type: "{{ source_secret.resources[0].type }}"
+          data: "{{ source_secret.resources[0].data }}"
