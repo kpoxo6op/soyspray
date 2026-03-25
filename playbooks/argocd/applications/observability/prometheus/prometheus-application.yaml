@@ -12,7 +12,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "HEAD"
+    targetRevision: "fix/cert-renewal-declarative"
     path: playbooks/argocd/applications/observability/prometheus
     kustomize:
       helm:

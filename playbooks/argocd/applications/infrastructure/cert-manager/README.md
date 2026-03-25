@@ -54,6 +54,11 @@ dig soyspray.vip
 dig _acme-challenge.soyspray.vip TXT
 ```
 
+For DNS-01 renewals, `soyspray.vip` must remain present in public
+authoritative DNS even if every application hostname resolves only internally.
+Only the ACME TXT records need to be public; the A and AAAA records can remain
+internal-only.
+
 ## DNSSEC
 
 DNSSEC is enabled and managed by Cloudflare. Cert-manager is configured to use DNSSEC-aware nameservers for validation.

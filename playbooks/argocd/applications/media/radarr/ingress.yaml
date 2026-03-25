@@ -8,14 +8,13 @@ metadata:
   labels:
     app: radarr
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - radarr.soyspray.vip
-      secretName: radarr-tls
+      secretName: prod-cert-tls
   rules:
     - host: radarr.soyspray.vip
       http:

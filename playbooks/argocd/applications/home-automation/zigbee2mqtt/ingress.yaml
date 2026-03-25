@@ -7,14 +7,12 @@ metadata:
   namespace: home-automation
   labels:
     app: zigbee2mqtt
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - zigbee2mqtt.soyspray.vip
-      secretName: zigbee2mqtt-tls
+      secretName: prod-cert-tls
   rules:
     - host: zigbee2mqtt.soyspray.vip
       http:
@@ -26,4 +24,3 @@ spec:
                 name: zigbee2mqtt
                 port:
                   number: 8080
-

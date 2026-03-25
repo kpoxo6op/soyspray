@@ -8,14 +8,13 @@ metadata:
   labels:
     app: sonarr
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - sonarr.soyspray.vip
-      secretName: sonarr-tls
+      secretName: prod-cert-tls
   rules:
     - host: sonarr.soyspray.vip
       http:
