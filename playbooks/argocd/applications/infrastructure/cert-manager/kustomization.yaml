@@ -4,5 +4,6 @@ kind: Kustomization
 resources:
   - letsencrypt-issuers.yaml
   - reflector.yaml
+  - acme-renewal-smoke-certificate.yaml
   - test-certificate.yaml
   - prod-certificate.yaml
