@@ -3,6 +3,8 @@ kind: Application
 metadata:
   name: obsidian-livesync
   namespace: argocd
+  annotations:
+    cert-renewal-refresh-ts: "20260325-0742"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
