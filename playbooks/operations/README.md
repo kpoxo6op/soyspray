@@ -30,7 +30,6 @@ Storage initialization and management playbooks.
 Security playbooks.
 
 - sync-certificates.yml - Synchronize TLS certificates across namespaces
-- cleanup-stale-cert-manager-resources.yml - report or remove stale cert-manager Certificates, CertificateRequests, Orders, Challenges, and legacy TLS Secrets after switching wildcard-covered ingresses to the shared reflected certificate
 
 ### openclaw/
 OpenClaw install, runtime, and webhook automation runbooks.

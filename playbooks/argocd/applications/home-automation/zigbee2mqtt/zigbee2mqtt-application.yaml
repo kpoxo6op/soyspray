@@ -11,7 +11,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "fix/cert-renewal-declarative"
+    targetRevision: "HEAD"
     path: playbooks/argocd/applications/home-automation/zigbee2mqtt
   destination:
     server: "https://kubernetes.default.svc"

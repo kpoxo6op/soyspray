@@ -14,7 +14,7 @@ spec:
     namespace: obsidian
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: "fix/cert-renewal-declarative"
+    targetRevision: "HEAD"
     path: playbooks/argocd/applications/database/obsidian-livesync
   syncPolicy:
     automated:
