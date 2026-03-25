@@ -4,13 +4,13 @@ metadata:
   name: obsidian-livesync-ingress
   namespace: obsidian
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
     kubernetes.io/ingress.class: nginx
 spec:
+  ingressClassName: nginx
   tls:
     - hosts:
         - obsidian.soyspray.vip
-      secretName: obsidian-livesync-tls
+      secretName: prod-cert-tls
   rules:
     - host: obsidian.soyspray.vip
       http:
@@ -22,4 +22,3 @@ spec:
                 name: obsidian-livesync-svc-couchdb
                 port:
                   number: 5984
-

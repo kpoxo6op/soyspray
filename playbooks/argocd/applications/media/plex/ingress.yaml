@@ -6,14 +6,13 @@ metadata:
   name: plex
   namespace: media
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - plex.soyspray.vip
-      secretName: plex-tls
+      secretName: prod-cert-tls
   rules:
     - host: plex.soyspray.vip
       http:

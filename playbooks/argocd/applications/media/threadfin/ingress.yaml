@@ -6,14 +6,13 @@ metadata:
   name: threadfin
   namespace: media
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-prod
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - threadfin.soyspray.vip
-      secretName: threadfin-tls
+      secretName: prod-cert-tls
   rules:
     - host: threadfin.soyspray.vip
       http:
