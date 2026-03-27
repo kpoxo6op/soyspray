@@ -1,0 +1,35 @@
+---
+- name: Cloudflare API Token Secret For Domain Health
+  ansible.builtin.include_role:
+    name: app-secret
+    apply:
+      tags: [domain-health]
+  vars:
+    secret_name: cloudflare-api-token
+    secret_namespace: domain-health
+    create_namespace: true
+    secret_data:
+      - { env_var: 'CLOUDFLARE_API_TOKEN', key: 'api-token' }
+  tags: domain-health
+
+- name: Domain Health Config Secret
+  ansible.builtin.include_role:
+    name: app-secret
+    apply:
+      tags: [domain-health]
+  vars:
+    secret_name: domain-health-config
+    secret_namespace: domain-health
+    create_namespace: true
+    secret_data:
+      - { env_var: 'DOMAIN_HEALTHCHECKS_PING_URL', key: 'healthchecks-ping-url' }
+      - { env_var: 'SOYSPRAY_VIP_EXPECTED_NAMESERVERS', key: 'expected-nameservers' }
+  tags: domain-health
+
+- name: Apply Domain Health
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    definition: "{{ lookup('file', playbook_dir + '/argocd/applications/observability/domain-health/domain-health-application.yaml') }}"
+  tags: domain-health
