@@ -12,7 +12,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "issue-122-add-domain-expiry-and-dns-health-alerting-for-soyspray-vip"
+    targetRevision: "HEAD"
     path: playbooks/argocd/applications/observability/prometheus
     kustomize:
       helm:
