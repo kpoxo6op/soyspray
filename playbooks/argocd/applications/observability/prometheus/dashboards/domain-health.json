@@ -48,6 +48,7 @@
         "y": 0
       },
       "id": 1,
+      "description": "Summary of what the exporter validates and which alert thresholds back this dashboard.",
       "options": {
         "content": "This dashboard tracks the in-cluster `domain-health` exporter for `soyspray.vip`.\n\nCommon checks:\n- RDAP expiry date and days remaining\n- Cloudflare zone exists and is `active`\n- Cloudflare nameservers match expected values\n- Public DNS NS answers match expected values\n- Exporter heartbeat succeeded recently\n\nAlert thresholds:\n- Expiry warning: `< 30 days`\n- Expiry critical: `< 14 days`\n- No recent successful run: `> 12 hours`\n",
         "mode": "markdown"
@@ -76,6 +77,7 @@
         "y": 5
       },
       "id": 2,
+      "description": "High-level current state for domain registration expiry and exporter freshness.",
       "panels": [],
       "title": "Overview",
       "type": "row"
@@ -119,6 +121,7 @@
         "y": 6
       },
       "id": 3,
+      "description": "Whole days remaining until the RDAP-reported expiry date for soyspray.vip.",
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -180,6 +183,7 @@
         "y": 6
       },
       "id": 4,
+      "description": "Absolute expiry date from RDAP. Prometheus stores timestamps in seconds, so this panel converts to milliseconds for Grafana date rendering.",
       "options": {
         "colorMode": "none",
         "graphMode": "none",
@@ -202,7 +206,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "domain_health_rdap_expiry_timestamp_seconds{domain=\"soyspray.vip\"}",
+          "expr": "domain_health_rdap_expiry_timestamp_seconds{domain=\"soyspray.vip\"} * 1000",
           "instant": true,
           "legendFormat": "expiry",
           "refId": "A"
@@ -250,6 +254,7 @@
         "y": 6
       },
       "id": 5,
+      "description": "How many hours have elapsed since the exporter last completed a successful overall run.",
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -330,6 +335,7 @@
         "y": 6
       },
       "id": 6,
+      "description": "Overall heartbeat result. Healthy means the exporter completed all checks successfully on its most recent run.",
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -370,6 +376,7 @@
         "y": 11
       },
       "id": 7,
+      "description": "Individual validation checks that feed the overall exporter status and Prometheus alerts.",
       "panels": [],
       "title": "Common Checks",
       "type": "row"
@@ -422,6 +429,7 @@
         "y": 12
       },
       "id": 8,
+      "description": "Whether the RDAP lookup completed successfully. This is execution success, not the expiry threshold result.",
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -500,6 +508,7 @@
         "y": 12
       },
       "id": 9,
+      "description": "Whether Cloudflare currently returns a zone object for soyspray.vip.",
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -578,6 +587,7 @@
         "y": 12
       },
       "id": 10,
+      "description": "Whether the Cloudflare zone exists and reports status=active.",
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -656,6 +666,7 @@
         "y": 12
       },
       "id": 11,
+      "description": "Whether Cloudflare's configured nameservers match the expected nameservers stored in the domain-health secret.",
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -734,6 +745,7 @@
         "y": 12
       },
       "id": 12,
+      "description": "Whether public DNS NS answers for soyspray.vip match the expected Cloudflare nameservers.",
       "options": {
         "colorMode": "background",
         "graphMode": "none",
@@ -773,6 +785,7 @@
         "y": 17
       },
       "id": 13,
+      "description": "History for expiry countdown and exporter check outcomes.",
       "panels": [],
       "title": "Trends",
       "type": "row"
@@ -841,6 +854,7 @@
         "y": 18
       },
       "id": 14,
+      "description": "Trend of the RDAP expiry countdown. A healthy domain generally shows a slow downward slope with occasional resets after renewal.",
       "options": {
         "legend": {
           "calcs": [],
@@ -932,6 +946,7 @@
         "y": 18
       },
       "id": 15,
+      "description": "Per-check success signals over time. 1 means the check succeeded on that scrape interval, 0 means the most recent run failed.",
       "options": {
         "legend": {
           "calcs": [],
