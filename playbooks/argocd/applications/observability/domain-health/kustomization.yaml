@@ -5,6 +5,8 @@ configMapGenerator:
   - name: domain-health-exporter
     files:
       - domain-health-exporter.py
+    options:
+      disableNameSuffixHash: true
 
 resources:
   - deployment.yaml
