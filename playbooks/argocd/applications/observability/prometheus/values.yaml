@@ -73,6 +73,17 @@ prometheus:
         - port: metrics
           interval: 60s
 
+    - name: domain-health
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: domain-health
+      namespaceSelector:
+        matchNames:
+          - domain-health
+      endpoints:
+        - port: metrics
+          interval: 60s
+
 grafana:
   namespaceOverride: monitoring
   resources:

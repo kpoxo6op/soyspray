@@ -70,3 +70,4 @@ configMapGenerator:
 resources:
   - alerts/backups-essential.yaml
   - alerts/cert-expiry.yaml
+  - alerts/domain-health.yaml
