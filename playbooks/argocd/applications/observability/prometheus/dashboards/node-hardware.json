@@ -81,6 +81,7 @@
           "refId": "A"
         }
       ],
+      "description": "Percent of CPU time spent doing work instead of idling. Sustained 70%+ means the node is busy; sustained 90%+ means it is close to saturation or has a runaway workload.",
       "title": "CPU Busy",
       "type": "stat"
     },
@@ -143,6 +144,7 @@
           "refId": "A"
         }
       ],
+      "description": "Percent of RAM consumed after accounting for readily available memory. Sustained 75%+ is worth watching; sustained 90%+ means memory pressure and eviction risk.",
       "title": "Memory Used",
       "type": "stat"
     },
@@ -205,6 +207,7 @@
           "refId": "A"
         }
       ],
+      "description": "Usage of the root filesystem on the NVMe boot disk. Watch for growth from logs, images, or temp files. Above 70% needs attention; above 85% is uncomfortable.",
       "title": "Root Filesystem Used",
       "type": "stat"
     },
@@ -266,6 +269,7 @@
           "refId": "A"
         }
       ],
+      "description": "Highest temperature currently seen from CPU package or NVMe sensors. 60C+ is warm, 75C+ is hot enough to investigate cooling or workload spikes.",
       "title": "Max Host Temperature",
       "type": "stat"
     },
@@ -338,6 +342,7 @@
           "refId": "A"
         }
       ],
+      "description": "Overall SMART pass/fail per monitored disk. This should stay Pass. Any Fail means the drive firmware thinks the device is unhealthy and should be investigated immediately.",
       "title": "SMART Status",
       "type": "stat"
     },
@@ -400,6 +405,7 @@
           "refId": "A"
         }
       ],
+      "description": "Raw Current_Pending_Sector count from SMART. This should ideally be 0. Any non-zero value means the disk has sectors it could not read cleanly and is a real warning sign.",
       "title": "Pending Sectors",
       "type": "stat"
     },
@@ -478,6 +484,7 @@
           "refId": "B"
         }
       ],
+      "description": "CPU busy over time plus 1-minute load average. Rising load with high CPU means real compute pressure; rising load with modest CPU can point to blocking on disk or scheduling.",
       "title": "CPU And Load",
       "type": "timeseries"
     },
@@ -561,6 +568,7 @@
           "refId": "C"
         }
       ],
+      "description": "CPU package, NVMe, and SMART-reported disk temperatures. Look for sustained upward trends, not just spikes. NVMe around the mid-50s is normal here; 65C+ deserves attention.",
       "title": "Temperatures",
       "type": "timeseries"
     },
@@ -623,6 +631,7 @@
           "refId": "A"
         }
       ],
+      "description": "Percent used for /, /storage, and /srv/media. /storage and /srv/media are the important data mounts. Investigate any mount trending toward 80% before writes start failing or backups get tight.",
       "title": "Filesystem Usage",
       "type": "bargauge"
     },
@@ -701,6 +710,7 @@
           "refId": "B"
         }
       ],
+      "description": "Read and write throughput by physical disk. Use this to see which disk is active. High sustained throughput is not automatically bad; correlate it with disk util, queue depth, and application activity.",
       "title": "Disk Throughput",
       "type": "timeseries"
     },
@@ -779,6 +789,7 @@
           "refId": "B"
         }
       ],
+      "description": "Disk busy time and queue depth for the main physical disks. Sustained high util with a growing queue means the disk is the bottleneck. Short spikes are normal; long plateaus are not.",
       "title": "Disk Utilization And Queue",
       "type": "timeseries"
     },
@@ -846,6 +857,7 @@
           "refId": "B"
         }
       ],
+      "description": "NVMe lifetime wear percentage and remaining spare capacity. Wear should grow slowly over months, not jump suddenly. Spare should stay high; if it falls toward threshold, plan replacement.",
       "title": "NVMe Wear And Spare",
       "type": "bargauge"
     },
@@ -929,6 +941,7 @@
           "refId": "C"
         }
       ],
+      "description": "Linux PSI signals for CPU, IO, and memory waiting time. These are early warnings for contention. Persistent IO waiting is often more actionable than raw load average on a storage-heavy node.",
       "title": "Pressure Stall Indicators",
       "type": "timeseries"
     },
@@ -1007,6 +1020,7 @@
           "refId": "B"
         }
       ],
+      "description": "Receive and transmit throughput for non-loopback interfaces. Useful for spotting backup traffic, media streaming bursts, or network bottlenecks. Pair this with app behavior rather than raw bandwidth alone.",
       "title": "Network Throughput",
       "type": "timeseries"
     }
@@ -1029,6 +1043,7 @@
   },
   "timepicker": {},
   "timezone": "Pacific/Auckland",
+  "description": "Single-node hardware and host health for soyspray. Focus first on pending sectors, SMART pass/fail, filesystem headroom, sustained disk queueing, and temperatures that keep climbing instead of settling.",
   "title": "Node Hardware",
   "uid": "node-hardware",
   "version": 1,
