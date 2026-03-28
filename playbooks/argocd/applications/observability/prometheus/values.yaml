@@ -82,6 +82,23 @@ prometheus:
         - port: metrics
           interval: 60s
 
+  additionalPodMonitors:
+    - name: smartctl-exporter
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: smartctl-exporter
+      namespaceSelector:
+        matchNames:
+          - monitoring
+      podMetricsEndpoints:
+        - port: metrics
+          interval: 300s
+          relabelings:
+            - action: replace
+              sourceLabels:
+                - __meta_kubernetes_pod_node_name
+              targetLabel: node
+
 grafana:
   namespaceOverride: monitoring
   resources:

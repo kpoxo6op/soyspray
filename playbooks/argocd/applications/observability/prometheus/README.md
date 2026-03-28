@@ -57,6 +57,7 @@ This UUID corresponds to the check configured in the Healthchecks.io dashboard:
 |-----------|--------|-------|
 | **Kubernetes Core** | ServiceMonitor | API Server, Kubelet, Controller Manager, Scheduler, CoreDNS |
 | **Node Metrics** | Node Exporter | CPU, Memory, Disk, Network for all nodes |
+| **Disk SMART Health** | smartctl_exporter | SMART status, temperatures, pending sectors, NVMe wear |
 | **Cluster State** | Kube State Metrics | Deployment status, Pod phases, etc. |
 | **ArgoCD** | ServiceMonitor | Application sync status and health |
 | **Cert-Manager** | ServiceMonitor | Certificate expiration and renewal status |
