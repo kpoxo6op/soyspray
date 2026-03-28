@@ -12,7 +12,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "feature/node-dashboard-and-smart-metrics"
+    targetRevision: "HEAD"
     path: playbooks/argocd/applications/observability/prometheus
     kustomize:
       helm:
