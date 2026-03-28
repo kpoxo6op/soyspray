@@ -827,15 +827,15 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 4,
         "x": 16,
         "y": 12
       },
       "options": {
-        "displayMode": "gradient",
-        "minVizHeight": 10,
-        "minVizWidth": 0,
-        "orientation": "horizontal",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -843,23 +843,81 @@
           "fields": "",
           "values": false
         },
-        "showUnfilled": true
+        "textMode": "value_and_name"
       },
       "targets": [
         {
           "expr": "smartctl_device_percentage_used",
           "legendFormat": "{{device}} wear",
           "refId": "A"
+        }
+      ],
+      "description": "NVMe lifetime wear used percentage. Lower is better. This should grow slowly over months or years, not jump suddenly. 100% used would mean the rated endurance has been consumed.",
+      "title": "NVMe Wear Used",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 20
+              },
+              {
+                "color": "green",
+                "value": 50
+              }
+            ]
+          },
+          "unit": "percent"
         },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 20,
+        "y": 12
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name"
+      },
+      "targets": [
         {
           "expr": "smartctl_device_available_spare",
           "legendFormat": "{{device}} spare",
-          "refId": "B"
+          "refId": "A"
         }
       ],
-      "description": "NVMe lifetime wear percentage and remaining spare capacity. Wear should grow slowly over months, not jump suddenly. Spare should stay high; if it falls toward threshold, plan replacement.",
-      "title": "NVMe Wear And Spare",
-      "type": "bargauge"
+      "description": "NVMe spare capacity still available. Higher is better. 100% remaining spare is healthy and normal; this only becomes concerning if it trends down toward the device threshold.",
+      "title": "NVMe Spare Remaining",
+      "type": "stat"
     },
     {
       "datasource": {
