@@ -31,13 +31,15 @@ spec:
         - name: splunk
           image: splunk/splunk:latest
           imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: splunk-env
           env:
-            - name: SPLUNK_GENERAL_TERMS
-              value: --accept-sgt-current-at-splunk-com
-            - name: SPLUNK_START_ARGS
-              value: --accept-license
             - name: SPLUNK_PASSWORD
-              value: AdminPassword123!
+              valueFrom:
+                secretKeyRef:
+                  name: splunk-env
+                  key: SPLUNK_ADMIN_PASSWORD
             - name: SPLUNK_HOME_OWNERSHIP_ENFORCEMENT
               value: "false"
           ports:

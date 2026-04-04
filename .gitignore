@@ -1,3 +1,4 @@
 soyspray-venv
 .env
+!playbooks/argocd/applications/observability/splunk/.env
 *.txt

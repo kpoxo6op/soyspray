@@ -7,6 +7,10 @@ metadata:
     app: splunk
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - splunk.soyspray.vip
+      secretName: splunk-tls
   rules:
     - host: splunk.soyspray.vip
       http:

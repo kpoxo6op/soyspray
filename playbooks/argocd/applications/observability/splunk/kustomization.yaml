@@ -3,24 +3,16 @@ kind: Kustomization
 
 namespace: splunk
 
-configMapGenerator:
-  - name: splunk-rest-pipeline
-    files:
-      - pipeline/bootstrap.py
-      - pipeline/splunk_dashboard_pipeline.py
-    options:
-      disableNameSuffixHash: true
-  - name: splunk-rest-dashboards
-    files:
-      - dashboards/ops-overview.xml
-      - dashboards/platform-posture.xml
-      - dashboards/rest-pipeline-health.xml
+secretGenerator:
+  - name: splunk-env
+    envs:
+      - .env
     options:
       disableNameSuffixHash: true
 
 resources:
+  - certificate.yaml
   - pvc.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
-  - bootstrap-job.yaml
