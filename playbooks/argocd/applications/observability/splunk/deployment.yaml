@@ -30,6 +30,8 @@ spec:
           image: splunk/splunk:latest
           imagePullPolicy: IfNotPresent
           env:
+            - name: SPLUNK_GENERAL_TERMS
+              value: --accept-sgt-current-at-splunk-com
             - name: SPLUNK_START_ARGS
               value: --accept-license
             - name: SPLUNK_PASSWORD
