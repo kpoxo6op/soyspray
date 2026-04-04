@@ -13,6 +13,7 @@
       - { name: Alloy Loki Manual, role: apps/alloy-loki-manual }
       - { name: Alert Test, role: apps/alert-test }
       - { name: Domain Health, role: apps/domain-health }
+      - { name: Splunk, role: apps/splunk }
 
       # Infrastructure
       - { name: Longhorn, role: apps/longhorn }

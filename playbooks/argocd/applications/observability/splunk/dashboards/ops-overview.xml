@@ -1,0 +1,122 @@
+<dashboard version="2" theme="light">
+  <label>Ops Overview</label>
+  <description>High-level sample metrics for the experimental Splunk deployment.</description>
+  <definition><![CDATA[
+{
+  "title": "Ops Overview",
+  "description": "High-level sample metrics for the experimental Splunk deployment.",
+  "defaults": {
+    "dataSources": {
+      "ds.search": {
+        "options": {
+          "queryParameters": {
+            "earliest": "$global_time.earliest$",
+            "latest": "$global_time.latest$"
+          }
+        }
+      }
+    }
+  },
+  "inputs": {
+    "global_time": {
+      "type": "input.timerange",
+      "title": "Time Range",
+      "options": {
+        "token": "global_time",
+        "defaultValue": "-24h@h,now"
+      }
+    }
+  },
+  "visualizations": {
+    "viz_summary": {
+      "type": "splunk.singlevalue",
+      "dataSources": {
+        "primary": "ds_summary"
+      },
+      "title": "Managed Dashboards",
+      "options": {
+        "showSparkline": false,
+        "majorColor": "#0f172a",
+        "trendColorInterpretation": "standard"
+      }
+    },
+    "viz_text": {
+      "type": "splunk.markdown",
+      "options": {
+        "markdown": "### Experimental Splunk\nThis instance is managed from Git.\n\n- App: `soyspray_dashboards`\n- Owner: `svc_dashboards`\n- Source: REST pipeline"
+      }
+    },
+    "viz_status": {
+      "type": "splunk.singlevalue",
+      "dataSources": {
+        "primary": "ds_status"
+      },
+      "title": "Pipeline State",
+      "options": {
+        "majorColor": "#0f766e",
+        "sparklineDisplay": "off"
+      }
+    }
+  },
+  "dataSources": {
+    "ds_summary": {
+      "type": "ds.search",
+      "name": "Dashboard count",
+      "options": {
+        "query": "| makeresults | eval dashboards=3"
+      }
+    },
+    "ds_status": {
+      "type": "ds.search",
+      "name": "Pipeline status",
+      "options": {
+        "query": "| makeresults | eval state=\"healthy\""
+      }
+    }
+  },
+  "layout": {
+    "type": "absolute",
+    "options": {
+      "display": "auto-scale",
+      "width": 1440,
+      "height": 900
+    },
+    "globalInputs": [
+      "global_time"
+    ],
+    "structure": [
+      {
+        "item": "viz_summary",
+        "type": "block",
+        "position": {
+          "x": 80,
+          "y": 90,
+          "w": 280,
+          "h": 220
+        }
+      },
+      {
+        "item": "viz_status",
+        "type": "block",
+        "position": {
+          "x": 400,
+          "y": 90,
+          "w": 280,
+          "h": 220
+        }
+      },
+      {
+        "item": "viz_text",
+        "type": "block",
+        "position": {
+          "x": 80,
+          "y": 360,
+          "w": 600,
+          "h": 260
+        }
+      }
+    ]
+  }
+}
+  ]]></definition>
+</dashboard>

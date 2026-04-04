@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: splunk
+  namespace: splunk
+  labels:
+    app: splunk
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: splunk
+  template:
+    metadata:
+      labels:
+        app: splunk
+    spec:
+      initContainers:
+        - name: prepare-data-dirs
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - mkdir -p /data/etc /data/var
+          volumeMounts:
+            - name: splunk-data
+              mountPath: /data
+      containers:
+        - name: splunk
+          image: splunk/splunk:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SPLUNK_START_ARGS
+              value: --accept-license
+            - name: SPLUNK_PASSWORD
+              value: AdminPassword123!
+            - name: SPLUNK_HOME_OWNERSHIP_ENFORCEMENT
+              value: "false"
+          ports:
+            - name: web
+              containerPort: 8000
+            - name: mgmt
+              containerPort: 8089
+          readinessProbe:
+            tcpSocket:
+              port: web
+            initialDelaySeconds: 120
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 20
+          livenessProbe:
+            tcpSocket:
+              port: web
+            initialDelaySeconds: 180
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 10
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+          volumeMounts:
+            - name: splunk-data
+              mountPath: /opt/splunk/etc
+              subPath: etc
+            - name: splunk-data
+              mountPath: /opt/splunk/var
+              subPath: var
+      volumes:
+        - name: splunk-data
+          persistentVolumeClaim:
+            claimName: splunk-data
