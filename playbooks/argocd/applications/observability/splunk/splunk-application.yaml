@@ -5,6 +5,7 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: "2"
+    soyspray.revision: "0d943ac"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
