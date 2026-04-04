@@ -202,7 +202,13 @@ class SplunkClient:
         for entry in payload.get("entry") or []:
             name = entry.get("name")
             content = entry.get("content", {}).get("eai:data")
-            if name and content:
+            acl = entry.get("acl") or {}
+            if (
+                name
+                and content
+                and acl.get("owner") == owner
+                and acl.get("app") == app
+            ):
                 result[name] = content
         return result
 
