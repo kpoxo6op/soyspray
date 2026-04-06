@@ -15,6 +15,9 @@ This document describes the configuration of Ingress resources in the cluster an
 ### 1. DNS Configuration
 
 - DNS entries point to the Nginx Ingress Controller VIP (192.168.1.20)
+- If LAN VIP access becomes unstable on the single-node cluster, pin MetalLB
+  `L2Advertisement` resources to `eno1` with
+  `playbooks/operations/networking/pin-metallb-l2-interfaces.yml`
 - Example DNS records:
 
   ```

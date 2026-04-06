@@ -19,6 +19,7 @@ Network setup and tooling playbooks.
 - install-tailscale.yml - Install Tailscale VPN
 - remove-tailscale.yml - Remove Tailscale VPN
 - publish-headlamp-token.yml - Generate and publish Headlamp token
+- pin-metallb-l2-interfaces.yml - Constrain MetalLB VIP announcements to the LAN NIC
 
 ### storage/
 Storage initialization and management playbooks.

@@ -1,0 +1,28 @@
+---
+- name: Pin MetalLB L2 advertisements to the LAN interface
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    metallb_namespace: metallb-system
+    metallb_l2_interface: eno1
+    metallb_l2_pools:
+      - primary
+      - torrent
+  tasks:
+    - name: Constrain MetalLB L2 advertisements to the LAN NIC
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: metallb.io/v1beta1
+          kind: L2Advertisement
+          metadata:
+            name: "{{ item }}"
+            namespace: "{{ metallb_namespace }}"
+          spec:
+            ipAddressPools:
+              - "{{ item }}"
+            interfaces:
+              - "{{ metallb_l2_interface }}"
+      loop: "{{ metallb_l2_pools }}"
