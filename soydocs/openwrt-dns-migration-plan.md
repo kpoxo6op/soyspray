@@ -12,6 +12,8 @@ hostnames on LAN and remotely.
 * Router: **OpenWrt 24.10.0** at **192.168.1.1** with DHCP scope **192.168.1.100–192.168.1.249** (`start=100`, `limit=150`)
 * K8s Node: **node-0** at **192.168.1.10**
 * MetalLB Primary Pool: **192.168.1.20–192.168.1.38** (outside router DHCP range)
+* If MetalLB VIP announcements get noisy, pin the `L2Advertisement` resources to
+  the node LAN interface **eno1**
 * MetalLB Torrent Pool: **192.168.1.39**
 * Current DNS: **Pi‑hole in k8s**
 * Target Domain: **soyspray.vip**
