@@ -10,7 +10,7 @@ spec:
   project: default
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "HEAD"
+    targetRevision: "codex/booklore-upgrade"
     path: playbooks/argocd/applications/media/booklore
   destination:
     server: "https://kubernetes.default.svc"
