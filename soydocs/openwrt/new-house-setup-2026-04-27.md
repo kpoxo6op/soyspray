@@ -845,3 +845,175 @@ Follow-up needed:
 - Either keep Tailscale disconnected on the phone while on the local
   `123AAotea` Wi-Fi, or configure Tailscale DNS so `soyspray.vip` resolves via
   the home DNS path instead of failing through Tailscale DNS.
+
+## Phone Tailscale cluster access fix
+
+Date: 2026-04-27.
+
+Goal:
+
+- Allow the phone to access cluster services using the normal service hostnames
+  while Tailscale is enabled:
+  - `obsidian.soyspray.vip`
+  - `argocd.soyspray.vip`
+  - other `*.soyspray.vip` ingress names
+
+Root cause:
+
+- Tailscale tailnet DNS still had a split DNS route:
+
+```text
+soyspray.vip -> 192.168.1.1
+```
+
+- `192.168.1.1` was the old OpenWrt LAN IP before the move.
+- New OpenWrt LAN IP is `192.168.20.1`.
+- New OpenWrt Tailscale IP is `100.96.77.28`.
+- The router already answered correctly when queried directly:
+
+```text
+@100.96.77.28 obsidian.soyspray.vip -> 192.168.20.20
+@192.168.20.1 obsidian.soyspray.vip -> 192.168.20.20
+```
+
+Chosen fix:
+
+- Keep the existing Tailscale DNS split route working by making the old DNS IP
+  reachable as a narrow compatibility route.
+- This avoids depending on phone-local DNS behavior and works both on home Wi-Fi
+  and away from home over Tailscale.
+
+OpenWrt changes:
+
+1. Added an nftables compatibility rule file:
+
+```text
+/etc/nftables.d/20-tailscale-legacy-dns.nft
+```
+
+Contents:
+
+```nft
+# Compatibility for stale Tailscale split DNS configuration.
+# Tailnet currently sends soyspray.vip DNS to old router IP 192.168.1.1.
+# Redirect only DNS traffic arriving from tailscale0 to local dnsmasq.
+chain tailscale_legacy_dns_dstnat {
+    type nat hook prerouting priority -101; policy accept;
+    iifname "tailscale0" ip daddr 192.168.1.1 udp dport 53 redirect to :53 comment "tailscale stale soyspray.vip DNS UDP"
+    iifname "tailscale0" ip daddr 192.168.1.1 tcp dport 53 redirect to :53 comment "tailscale stale soyspray.vip DNS TCP"
+}
+```
+
+2. Validated and reloaded firewall:
+
+```sh
+fw4 check
+/etc/init.d/firewall reload
+```
+
+Result:
+
+```text
+Ruleset passes nftables check.
+```
+
+3. Updated OpenWrt Tailscale advertised routes:
+
+```sh
+tailscale set --advertise-routes=192.168.20.0/24,192.168.1.1/32
+```
+
+Tailscale admin action:
+
+- Approved the new advertised `192.168.1.1/32` route on the `openwrt` machine.
+- Kept the existing `192.168.20.0/24` route approved.
+
+Approved routes after the change:
+
+```text
+192.168.1.1/32
+192.168.20.0/24
+```
+
+Router verification:
+
+```text
+AllowedIPs:
+  100.96.77.28/32
+  fd7a:115c:a1e0::b337:4d1c/128
+  192.168.1.1/32
+  192.168.20.0/24
+
+PrimaryRoutes:
+  192.168.1.1/32
+  192.168.20.0/24
+```
+
+Phone verification with Tailscale enabled on home Wi-Fi:
+
+Phone routes included:
+
+```text
+192.168.1.1 dev tun0
+192.168.20.0/24 dev tun0
+192.168.20.0/24 dev wlan0
+```
+
+Phone DNS result:
+
+```text
+obsidian.soyspray.vip -> 192.168.20.20
+argocd.soyspray.vip   -> 192.168.20.20
+```
+
+Phone verification with Wi-Fi disabled:
+
+- Disabled phone Wi-Fi temporarily.
+- Confirmed phone had no Wi-Fi IP.
+- Tailscale routes still included:
+
+```text
+192.168.1.1 dev tun0
+192.168.20.0/24 dev tun0
+```
+
+- DNS still resolved:
+
+```text
+obsidian.soyspray.vip -> 192.168.20.20
+argocd.soyspray.vip   -> 192.168.20.20
+```
+
+- Re-enabled phone Wi-Fi and confirmed it rejoined `123AAotea` as
+  `192.168.20.120`.
+
+Obsidian LiveSync validation:
+
+- Restarted Obsidian on the phone with Tailscale enabled.
+- CouchDB logs showed authenticated LiveSync traffic:
+
+```text
+admin GET /obsidian-main/_local/obsidian_livesync_sync_parameters 304
+admin GET /obsidian-main/ 200
+admin GET /obsidian-main/obsydian_livesync_version 304
+admin PUT /obsidian-main/_local/obsydian_livesync_milestone 202
+admin POST /obsidian-main/_changes?... 200
+```
+
+Current access model:
+
+- On the phone, leave Tailscale enabled.
+- Use the same service URLs:
+  - `https://obsidian.soyspray.vip`
+  - `https://argocd.soyspray.vip`
+- Tailscale handles the remote route to the new home LAN.
+- The compatibility `/32` route exists only so the existing tailnet split DNS
+  target `192.168.1.1` continues to work after the move.
+
+Future cleanup:
+
+- The cleaner long-term setting is to update Tailscale admin DNS so the
+  restricted nameserver for `soyspray.vip` points directly to
+  `100.96.77.28`.
+- After that is verified, remove the compatibility `192.168.1.1/32` route and
+  `/etc/nftables.d/20-tailscale-legacy-dns.nft`.
