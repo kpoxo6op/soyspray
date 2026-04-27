@@ -141,9 +141,39 @@ Verification:
 - There was no local Tailscale CLI command available to approve or disable
   subnet routes in the control plane from this session.
 
+### Tailscale admin approval completed
+
+After the route was approved in the Tailscale admin console:
+
+- `openwrt` showed approved subnet route `192.168.20.0/24`.
+- `openwrt` showed no routes awaiting approval.
+- Router-side `tailscale status --json` showed `AllowedIPs` containing
+  `192.168.20.0/24`.
+- Router-side `tailscale status --json` showed `PrimaryRoutes` containing
+  `192.168.20.0/24`.
+- Laptop-side `tailscale status --json` also showed `openwrt` with
+  `AllowedIPs` and `PrimaryRoutes` set to `192.168.20.0/24`.
+- The old `192.168.1.0/24` subnet route was absent from the current route
+  approval state.
+
+Because this laptop accepts Tailscale subnet routes, approving
+`192.168.20.0/24` initially made the laptop route `192.168.20.1` through
+`tailscale0` even while physically attached to the same LAN. A local route was
+added to Tailscale table 52 so the laptop uses Ethernet directly while on this
+LAN:
+
+```sh
+ip route replace 192.168.20.0/24 dev enp0s31f6 src 192.168.20.124 table 52
+```
+
+Verification after that:
+
+- `ip route get 192.168.20.1` returned
+  `192.168.20.1 dev enp0s31f6 table 52 src 192.168.20.124`.
+- `ping 192.168.20.1` from the laptop returned sub-millisecond LAN latency.
+
 Remaining follow-up:
 
-- Update Tailscale admin route approval for the new subnet.
 - Update cluster inventory and MetalLB/static service IPs from `192.168.1.x` to
   `192.168.20.x` before bringing cluster services back behind this router.
 
