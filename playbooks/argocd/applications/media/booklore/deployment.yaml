@@ -17,6 +17,7 @@ spec:
     metadata:
       labels:
         app: booklore
+        component: web
     spec:
       enableServiceLinks: false
       containers:
