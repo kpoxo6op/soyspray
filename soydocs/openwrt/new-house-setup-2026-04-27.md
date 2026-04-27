@@ -35,9 +35,10 @@ What changed:
 - Cluster service IPs moved from `192.168.1.x` to `192.168.20.x`.
 - `soyspray.vip` now resolves to the new ingress IP `192.168.20.20`.
 - Tailscale now advertises the new home LAN route `192.168.20.0/24`.
-- A small compatibility route, `192.168.1.1/32`, was added so phone Tailscale
-  DNS keeps working until the old split-DNS setting is cleaned up in the
-  Tailscale admin console.
+- Tailscale DNS now sends `soyspray.vip` queries directly to OpenWrt's
+  Tailscale IP, `100.96.77.28`.
+- The temporary `192.168.1.1/32` compatibility route and OpenWrt nftables DNS
+  redirect were removed after the clean Tailscale DNS path was tested.
 
 What was tested:
 
@@ -59,12 +60,14 @@ How to access the cluster now:
 - Do not use the old `192.168.1.x` cluster addresses directly; the cluster is
   now on `192.168.20.x`.
 
-Important cleanup for later:
+Cleanup already completed:
 
-- In Tailscale admin DNS, change the restricted nameserver for `soyspray.vip`
-  from old `192.168.1.1` to OpenWrt's Tailscale IP `100.96.77.28`.
-- After that is tested, remove the temporary `192.168.1.1/32` route and the
-  OpenWrt compatibility nftables rule.
+- Tailscale admin DNS restricted nameserver for `soyspray.vip` was changed from
+  old `192.168.1.1` to OpenWrt's Tailscale IP `100.96.77.28`.
+- OpenWrt now advertises only the real new-house LAN route,
+  `192.168.20.0/24`.
+- `/etc/nftables.d/20-tailscale-legacy-dns.nft` was deleted and the firewall
+  was restarted; the legacy nftables chain is no longer present.
 
 ## Execution log
 
@@ -942,7 +945,7 @@ soyspray.vip -> 192.168.1.1
 @192.168.20.1 obsidian.soyspray.vip -> 192.168.20.20
 ```
 
-Chosen fix:
+Temporary fix used first:
 
 - Keep the existing Tailscale DNS split route working by making the old DNS IP
   reachable as a narrow compatibility route.
@@ -1076,10 +1079,104 @@ Current access model:
 - The compatibility `/32` route exists only so the existing tailnet split DNS
   target `192.168.1.1` continues to work after the move.
 
-Future cleanup:
+### Tailscale DNS permanent cleanup
 
-- The cleaner long-term setting is to update Tailscale admin DNS so the
-  restricted nameserver for `soyspray.vip` points directly to
-  `100.96.77.28`.
-- After that is verified, remove the compatibility `192.168.1.1/32` route and
-  `/etc/nftables.d/20-tailscale-legacy-dns.nft`.
+Date: 2026-04-27, after returning to the old flat.
+
+Goal:
+
+- Remove the old `192.168.1.1` compatibility path.
+- Keep remote cluster access working through Tailscale.
+
+Why this was needed:
+
+- The temporary fix worked, but it kept an old address alive only for DNS.
+- The cleaner design is for Tailscale DNS to send `soyspray.vip` lookups
+  directly to OpenWrt's Tailscale IP.
+- That avoids carrying an old-house route that is not part of the real new
+  network.
+
+Tailscale admin change:
+
+- Opened `https://login.tailscale.com/admin/dns`.
+- Edited the split DNS nameserver for `soyspray.vip`.
+- Changed the nameserver from:
+
+```text
+192.168.1.1
+```
+
+to:
+
+```text
+100.96.77.28
+```
+
+Client-side verification on the laptop:
+
+```text
+soyspray.vip split DNS -> 100.96.77.28
+```
+
+Direct DNS verification against OpenWrt over Tailscale:
+
+```text
+@100.96.77.28 obsidian.soyspray.vip -> 192.168.20.20
+```
+
+OpenWrt cleanup:
+
+```sh
+tailscale set --advertise-routes=192.168.20.0/24
+rm -f /etc/nftables.d/20-tailscale-legacy-dns.nft
+fw4 check
+/etc/init.d/firewall restart
+```
+
+Router verification after cleanup:
+
+```text
+AdvertiseRoutes:
+  192.168.20.0/24
+
+nft legacy search:
+  no tailscale_legacy_dns_dstnat chain
+  no "tailscale stale soyspray.vip DNS" rules
+
+router DNS over Tailscale:
+  obsidian.soyspray.vip -> 192.168.20.20
+```
+
+Laptop Tailscale DNS setting:
+
+- The laptop was at the old flat and had Tailscale route access, but normal
+  `*.soyspray.vip` lookups failed because local Tailscale DNS acceptance was
+  disabled.
+- `tailscale debug prefs` showed `CorpDNS: false`.
+- Re-enabled Tailscale DNS on the laptop:
+
+```sh
+sudo tailscale set --accept-dns=true
+```
+
+Laptop verification after re-enabling Tailscale DNS:
+
+```text
+TailscaleDNS: true
+soyspray.vip split DNS -> 100.96.77.28
+obsidian.soyspray.vip -> 192.168.20.20
+https://obsidian.soyspray.vip/ -> HTTP 200
+```
+
+Final current state:
+
+- Tailscale admin DNS sends `soyspray.vip` to `100.96.77.28`.
+- OpenWrt advertises only `192.168.20.0/24`.
+- The old `192.168.1.1/32` compatibility route is no longer advertised by
+  OpenWrt.
+- The OpenWrt nftables compatibility file has been removed.
+- Cluster service names should work from home Wi-Fi and remotely through
+  Tailscale:
+  - `https://obsidian.soyspray.vip`
+  - `https://argocd.soyspray.vip`
+  - `https://booklore.soyspray.vip`
