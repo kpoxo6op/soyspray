@@ -11,7 +11,6 @@
       # Observability
       - { name: Prometheus, role: apps/prometheus }
       - { name: Alloy Loki Manual, role: apps/alloy-loki-manual }
-      - { name: Alert Test, role: apps/alert-test }
       - { name: Domain Health, role: apps/domain-health }
 
       # Infrastructure
@@ -32,13 +31,11 @@
       - { name: Obsidian, role: apps/obsidian }
 
       # Media
-      - { name: Plex, role: apps/plex }
       - { name: Jellyfin, role: apps/jellyfin }
       - { name: Prowlarr, role: apps/prowlarr }
       - { name: qBittorrent, role: apps/qbittorrent }
       - { name: LazyLibrarian, role: apps/lazylibrarian }
       - { name: Booklore, role: apps/booklore }
-      - { name: Sonarr, role: apps/sonarr }
       - { name: Threadfin, role: apps/threadfin }
       - { name: Streamlink, role: apps/streamlink }
       - { name: Immich, role: apps/immich }
