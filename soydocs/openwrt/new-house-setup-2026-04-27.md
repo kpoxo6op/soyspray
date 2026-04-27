@@ -571,3 +571,150 @@ Known remaining issues:
 - Some intentionally noisy/test workloads remain non-running, including
   `alert-test` pods. Some newly reconciled media/home-automation pods were
   still `Progressing` at the time of this note.
+
+## Browser service validation
+
+Date: 2026-04-27.
+
+Browser used: Playwright-controlled Chrome session on the laptop.
+
+Argo CD:
+
+- Opened `https://argocd.soyspray.vip`.
+- Login page loaded.
+- Logged in with the known local admin account.
+- Confirmed the Argo CD Applications Tiles view loaded.
+- The page showed Argo CD `v2.12.4+27d1e64` and app cards, including
+  `booklore`.
+- CLI cross-check:
+
+```sh
+argocd app get booklore --grpc-web --refresh
+```
+
+Result:
+
+```text
+Sync Status:   Synced to backup/snapshot-openwrt-pre-move-2026-04-18-before-cleanup (d3973f4)
+Health Status: Healthy
+```
+
+BookLore:
+
+- Opened `https://booklore.soyspray.vip`.
+- Initial browser/API result was HTTP 502 on
+  `/api/v1/public-settings`.
+- Pod logs showed the recovery branch had rolled BookLore back to an image that
+  was older than the live database schema. The old image failed against schema
+  version `132`.
+- Updated the recovery branch to the newer BookLore image already compatible
+  with the live database.
+- Fixed the BookLore Service selector and Deployment labels so the Service
+  resolves only the web pod, not MariaDB.
+- Re-synced the Argo app and waited for the replacement pod.
+- The replacement pod took about 197 seconds to finish Spring Boot startup.
+- Verified inside the pod that BookLore was listening on port `6060`.
+- Verified the public settings API from the laptop:
+
+```sh
+curl -k -sS -o /tmp/booklore-public-settings.json \
+  -w '%{http_code}\n' \
+  https://booklore.soyspray.vip/api/v1/public-settings
+```
+
+Result:
+
+```text
+200
+```
+
+The BookLore browser tab then served the frontend. The remaining console error
+was HTTP 403 on `/api/v1/libraries/health`, which is an authenticated endpoint
+being queried before login; it is different from the earlier 502 outage.
+
+## Repo and submodule audit
+
+### Kubespray submodule
+
+Repository: `kubespray`.
+
+Branch: `torrent-pool`.
+
+Commit pushed:
+
+```text
+ee62329b0 Update soycluster LAN for new house
+```
+
+Changed files:
+
+- `inventory/soycluster/hosts.yml`
+- `inventory/soycluster/group_vars/k8s_cluster/addons.yml`
+
+Changes:
+
+- Moved `node-0` from `192.168.1.10` to `192.168.20.10`:
+  `ansible_host`, `ip`, and `access_ip`.
+- Moved the MetalLB primary pool from `192.168.1.20-192.168.1.38` to
+  `192.168.20.20-192.168.20.38`.
+- Removed the dedicated `torrent` MetalLB address pool
+  `192.168.1.39-192.168.1.39`.
+
+Runtime actions performed from the updated submodule:
+
+- Ran the Kubespray cluster playbook against `192.168.20.10`.
+- Regenerated stale Kubernetes static manifests after the API server manifest
+  still referenced `192.168.1.10`.
+- Confirmed the node returned as Ready with internal IP `192.168.20.10`.
+
+### Soyspray parent repo
+
+Repository: `soyspray`.
+
+Branch: `backup/snapshot-openwrt-pre-move-2026-04-18-before-cleanup`.
+
+Commits pushed:
+
+```text
+a09fa05 Update cluster network for new house
+784d489 docs: record new-house cluster recovery
+532572e Fix BookLore deployment on recovery branch
+d3973f4 Fix BookLore service pod selector
+```
+
+Network/config changes in `a09fa05`:
+
+- Updated `Makefile` SSH targets from `192.168.1.10` to `192.168.20.10`.
+- Updated `AGENTS.md` networking notes:
+  - router `192.168.20.1`
+  - LAN `192.168.20.0/24`
+  - `soyspray.vip` DNS override `192.168.20.20`
+  - Tailscale advertised subnet `192.168.20.0/24`
+- Updated Argo CD LoadBalancer IP from `192.168.1.21` to `192.168.20.21`.
+- Updated app/service LoadBalancer IPs into the new `192.168.20.x` LAN.
+- Removed `qbittorrent-peers` from the active qBittorrent kustomization and
+  deleted its dedicated service manifest because the new house connection does
+  not have a static public IP.
+- Updated the OpenWrt syslog playbook target from `192.168.1.1` to
+  `192.168.20.1`.
+- Updated docs that referenced the old LAN and service IPs.
+- Committed the updated Kubespray submodule pointer.
+
+BookLore fixes:
+
+- `532572e` changed the BookLore image to
+  `ghcr.io/the-booklore/booklore:v2.2.2`, matching the live database schema.
+- `532572e` also changed the BookLore Service selector to
+  `app=booklore, component=web`.
+- `d3973f4` added `component: web` to the BookLore pod template labels so the
+  Service has the correct endpoint.
+
+Deployment actions:
+
+- Pushed the recovery branch before Argo sync operations.
+- Temporarily pointed live Argo Applications at
+  `backup/snapshot-openwrt-pre-move-2026-04-18-before-cleanup` so the cluster
+  could deploy this unmerged recovery branch.
+- Synced the affected Argo apps from the branch.
+- Pruned the old qBittorrent peer service via Argo after it was removed from
+  the branch.
