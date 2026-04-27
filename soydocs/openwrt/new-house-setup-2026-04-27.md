@@ -353,3 +353,221 @@ tailscale up --accept-dns=false --accept-routes=true \
 tailscale status --json | head
 '
 ```
+
+## Cluster recovery execution
+
+What was approved live:
+
+1. Tailscale admin route approval for `192.168.20.0/24` was completed.
+2. The old `192.168.1.0/24` subnet route was removed from the OpenWrt
+   Tailscale advertisement.
+3. Torrent peer exposure was disabled because the new upstream has no stable
+   public IP.
+4. The laptop was moved fully onto `123AAotea`; Tailscale DNS acceptance was
+   disabled on the laptop so local DNS comes from OpenWrt.
+5. The mini PC was plugged into the OpenWrt 1G port and recovered as
+   `node-0` on `192.168.20.10`.
+
+Repository state applied:
+
+- Parent repo branch:
+  `backup/snapshot-openwrt-pre-move-2026-04-18-before-cleanup`
+- Parent repo commit deployed:
+  `a09fa05 Update cluster network for new house`
+- Kubespray submodule branch: `torrent-pool`
+- Kubespray submodule commit deployed:
+  `ee62329b0 Update soycluster LAN for new house`
+- Both the submodule branch and parent branch were pushed before cluster
+  recovery actions.
+
+Commands and outcomes:
+
+```sh
+make go
+```
+
+Initial result: failed because `argocd.soyspray.vip` resolved through
+Tailscale DNS (`100.100.100.100`) and had no record while ingress was still on
+the old service IP.
+
+```sh
+source soyspray-venv/bin/activate
+ansible -i kubespray/inventory/soycluster/hosts.yml \
+  all --become --become-user=root --user ubuntu -m ping
+```
+
+Result: `node-0 | SUCCESS`, proving SSH and Ansible reachability at
+`192.168.20.10`.
+
+```sh
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu kubespray/cluster.yml
+```
+
+Important Kubespray effects:
+
+- Wrote node host mapping with `192.168.20.10 node-0.cluster.local node-0`.
+- Regenerated etcd cert/config and confirmed etcd health.
+- Updated kubelet config for `192.168.20.10`.
+- Renewed/backed up control-plane certificates.
+- Verified apiserver SAN includes `192.168.20.10`.
+- Reapplied Calico, CoreDNS, ingress-nginx, MetalLB, cert-manager,
+  metrics-server, and Argo CD base resources.
+
+Manual control-plane remediation:
+
+The apiserver stayed down after the first Kubespray pass because the static
+manifest still contained `192.168.1.10`. The manifest was regenerated from the
+new kubeadm config:
+
+```sh
+ssh ubuntu@192.168.20.10
+sudo kubeadm init phase control-plane apiserver \
+  --config /etc/kubernetes/kubeadm-config.yaml
+sudo mkdir -p /etc/kubernetes/manifest-backups
+sudo mv /etc/kubernetes/manifests/kube-apiserver.yaml.before-new-house-manifest-regenerate.* \
+  /etc/kubernetes/manifest-backups/
+sudo systemctl restart kubelet
+```
+
+Reason for moving the backup file: any extra apiserver manifest left under
+`/etc/kubernetes/manifests` is treated as a live static pod by kubelet.
+
+Kubespray blockers resolved:
+
+- `passlib` was missing from `soyspray-venv`, causing Argo admin password
+  hashing to fail. Installed `passlib`.
+- `bcrypt 5.0.0` was incompatible with the pinned `passlib` path. Replaced it
+  with `bcrypt<4`.
+- Argo admin password was patched with a valid bcrypt hash after the failed
+  Kubespray task.
+- Old cert-manager ACME Challenge finalizers blocked namespace cleanup. The
+  dead cert-manager webhook configs were removed and the stale Challenge
+  finalizers were cleared, allowing Kubespray to recreate cert-manager.
+
+Laptop DNS fix:
+
+```sh
+sudo tailscale set --accept-dns=false
+```
+
+Resulting resolver:
+
+```text
+nameserver 192.168.20.1
+```
+
+Verification:
+
+```sh
+getent hosts argocd.soyspray.vip
+```
+
+Result:
+
+```text
+192.168.20.20 argocd.soyspray.vip
+```
+
+Argo/application deployment:
+
+```sh
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/deploy-argocd-apps.yml
+```
+
+The full app deploy stopped on an existing missing file reference:
+
+```text
+playbooks/argocd/applications/database/cnpg/immich-db-active-application.yaml
+```
+
+The network-facing app subset was then applied with tags:
+
+```sh
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/deploy-argocd-apps.yml \
+  --tags redis,obsidian,plex,jellyfin,prowlarr,qbittorrent,lazylibrarian,booklore,sonarr,threadfin,streamlink,immich,mosquitto,zigbee2mqtt,homeassistant
+```
+
+Temporary branch deployment:
+
+Live Argo Applications whose repo source was `https://github.com/kpoxo6op/soyspray.git`
+and target revision was `HEAD` were temporarily patched to:
+
+```text
+backup/snapshot-openwrt-pre-move-2026-04-18-before-cleanup
+```
+
+This was required because the branch is not merged yet, while the repo changes
+for the new LAN are already pushed there.
+
+MetalLB transition:
+
+- Primary pool was temporarily widened to allow both old and new ranges while
+  existing services moved off `192.168.1.x`.
+- Ingress service was patched to `loadBalancerIP: 192.168.20.20` because the
+  Kubespray ingress-nginx service template does not declare a fixed
+  LoadBalancer IP.
+- After all services moved, the pool was narrowed back to
+  `192.168.20.20-192.168.20.38`.
+- The `torrent` IPAddressPool and `torrent` L2Advertisement were deleted.
+
+Final LoadBalancer state:
+
+```text
+ingress-nginx/ingress-nginx                  192.168.20.20
+media/qbittorrent                            192.168.20.30
+media/prowlarr                               192.168.20.31
+home-automation/mosquitto                    192.168.20.32
+home-automation/home-assistant               192.168.20.33
+monitoring/kube-prometheus-stack-prometheus  192.168.20.34
+monitoring/kube-prometheus-stack-alertmanager 192.168.20.35
+immich/immich-server                         192.168.20.36
+```
+
+Final checks:
+
+```sh
+make go
+```
+
+Result: Argo login succeeded via `argocd.soyspray.vip`.
+
+```sh
+curl -k -I https://argocd.soyspray.vip
+curl -I http://192.168.20.30:8080
+curl -I http://192.168.20.31:9696
+```
+
+Results:
+
+- Argo CD returned HTTP 200.
+- qBittorrent web UI returned HTTP 200 on `192.168.20.30:8080`.
+- Prowlarr returned HTTP 401 on `192.168.20.31:9696`, which proves the service
+  is reachable and enforcing auth.
+
+```sh
+kubectl get nodes -o wide
+```
+
+Observed on the node:
+
+```text
+node-0 Ready control-plane,worker INTERNAL-IP 192.168.20.10
+```
+
+Known remaining issues:
+
+- `immich` and `kube-prometheus-stack` Argo comparisons are `Unknown` because
+  their kustomizations require Helm rendering and Argo reports
+  `must specify --enable-helm`.
+- The full `deploy-argocd-apps.yml` currently stops at the missing
+  `immich-db-active-application.yaml` reference.
+- Some intentionally noisy/test workloads remain non-running, including
+  `alert-test` pods. Some newly reconciled media/home-automation pods were
+  still `Progressing` at the time of this note.
