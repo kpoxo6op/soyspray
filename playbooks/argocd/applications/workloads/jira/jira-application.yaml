@@ -1,0 +1,23 @@
+# playbooks/argocd/applications/workloads/jira/jira-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jira
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: "https://github.com/kpoxo6op/soyspray.git"
+    targetRevision: "battlemap"
+    path: playbooks/argocd/applications/workloads/jira
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: jira
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

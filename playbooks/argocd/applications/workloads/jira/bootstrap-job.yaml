@@ -1,0 +1,60 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: jira-bootstrap
+  namespace: jira
+  labels:
+    app: jira-bootstrap
+spec:
+  backoffLimit: 12
+  template:
+    metadata:
+      labels:
+        app: jira-bootstrap
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: jira-bootstrap
+      containers:
+        - name: bootstrap
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - /scripts/bootstrap.py
+          env:
+            - name: JIRA_BASE_URL
+              value: http://jira:8080
+            - name: JIRA_PUBLIC_URL
+              value: https://jira.soyspray.vip
+            - name: JIRA_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: jira-demo-secret
+                  key: jira-username
+            - name: JIRA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: jira-demo-secret
+                  key: jira-password
+            - name: JIRA_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: jira-demo-secret
+                  key: jira-email
+            - name: JIRA_FULL_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: jira-demo-secret
+                  key: jira-full-name
+            - name: JIRA_LICENSE
+              valueFrom:
+                secretKeyRef:
+                  name: jira-demo-secret
+                  key: jira-license
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: jira-bootstrap

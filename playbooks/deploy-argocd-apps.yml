@@ -31,6 +31,9 @@
       - { name: Redis, role: apps/redis }
       - { name: Obsidian, role: apps/obsidian }
 
+      # Workloads
+      - { name: Jira, role: apps/jira }
+
       # Media
       - { name: Plex, role: apps/plex }
       - { name: Jellyfin, role: apps/jellyfin }

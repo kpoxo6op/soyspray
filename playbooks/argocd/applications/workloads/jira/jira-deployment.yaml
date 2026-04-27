@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jira
+  namespace: jira
+  labels:
+    app: jira
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: jira
+  template:
+    metadata:
+      labels:
+        app: jira
+        component: web
+    spec:
+      enableServiceLinks: false
+      containers:
+        - name: jira
+          image: atlassian/jira-software:10.3.15-ubuntu-jdk17
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: TZ
+              value: Pacific/Auckland
+            - name: JVM_MINIMUM_MEMORY
+              value: 1024m
+            - name: JVM_MAXIMUM_MEMORY
+              value: 2048m
+            - name: ATL_PROXY_NAME
+              value: jira.soyspray.vip
+            - name: ATL_PROXY_PORT
+              value: "443"
+            - name: ATL_TOMCAT_SCHEME
+              value: https
+            - name: ATL_TOMCAT_SECURE
+              value: "true"
+            - name: ATL_TOMCAT_PORT
+              value: "8080"
+            - name: ATL_JDBC_URL
+              value: jdbc:postgresql://jira-postgres.jira.svc.cluster.local:5432/jira
+            - name: ATL_JDBC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: jira-demo-secret
+                  key: postgres-user
+            - name: ATL_JDBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: jira-demo-secret
+                  key: postgres-password
+            - name: ATL_DB_DRIVER
+              value: org.postgresql.Driver
+            - name: ATL_DB_TYPE
+              value: postgres72
+            - name: ATL_DB_SCHEMA_NAME
+              value: public
+          startupProbe:
+            httpGet:
+              path: /status
+              port: http
+            failureThreshold: 90
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /status
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 15
+            failureThreshold: 8
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          volumeMounts:
+            - name: jira-home
+              mountPath: /var/atlassian/application-data/jira
+      volumes:
+        - name: jira-home
+          persistentVolumeClaim:
+            claimName: jira-home

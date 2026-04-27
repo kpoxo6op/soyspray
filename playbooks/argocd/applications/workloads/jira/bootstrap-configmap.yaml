@@ -1,0 +1,343 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jira-bootstrap
+  namespace: jira
+data:
+  bootstrap.py: |
+    import base64
+    import json
+    import os
+    import ssl
+    import sys
+    import time
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    base_url = os.environ["JIRA_BASE_URL"].rstrip("/")
+    public_url = os.environ["JIRA_PUBLIC_URL"].rstrip("/")
+    username = os.environ["JIRA_USERNAME"]
+    password = os.environ["JIRA_PASSWORD"]
+    email = os.environ["JIRA_EMAIL"]
+    full_name = os.environ["JIRA_FULL_NAME"]
+    license_key = os.environ.get("JIRA_LICENSE", "")
+    auth_header = "Basic " + base64.b64encode(f"{username}:{password}".encode()).decode()
+
+    def request(method, path, body=None, auth=False, headers=None, timeout=60):
+        data = None
+        req_headers = {"Accept": "application/json"}
+        if headers:
+            req_headers.update(headers)
+        if body is not None:
+            data = json.dumps(body).encode()
+            req_headers["Content-Type"] = "application/json"
+        if auth:
+            req_headers["Authorization"] = auth_header
+        req = urllib.request.Request(base_url + path, data=data, headers=req_headers, method=method)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as res:
+                payload = res.read()
+                if not payload:
+                    return res.status, None
+                ctype = res.headers.get("content-type", "")
+                if "application/json" in ctype:
+                    return res.status, json.loads(payload.decode())
+                return res.status, payload.decode(errors="replace")
+        except urllib.error.HTTPError as exc:
+            payload = exc.read().decode(errors="replace")
+            try:
+                parsed = json.loads(payload)
+            except Exception:
+                parsed = payload
+            return exc.code, parsed
+
+    def wait_for_jira():
+        deadline = time.time() + 1800
+        while time.time() < deadline:
+            try:
+                status, _ = request("GET", "/status", timeout=15)
+                if status in (200, 302, 503):
+                    return
+            except Exception as exc:
+                print(f"waiting for Jira HTTP: {exc}", flush=True)
+            time.sleep(15)
+        raise RuntimeError("Jira did not become reachable within 30 minutes")
+
+    def require_configured():
+        deadline = time.time() + 3600
+        while time.time() < deadline:
+            status, body = request("GET", "/rest/api/2/serverInfo", auth=True, timeout=30)
+            if status == 200:
+                return body
+            if status in (401, 403):
+                print("Jira is reachable but demo credentials are not active yet.", flush=True)
+            else:
+                print(f"Jira not ready for REST bootstrap yet: HTTP {status} {body}", flush=True)
+                if not license_key:
+                    print(
+                        "Jira setup still requires a license. Add a Jira Software trial/Data Center "
+                        "license to secret key jira-license, then rerun this job.",
+                        flush=True,
+                    )
+            time.sleep(20)
+        raise RuntimeError("Jira REST API did not become available with the demo admin user")
+
+    def get_json(path):
+        status, body = request("GET", path, auth=True)
+        if status >= 400:
+            raise RuntimeError(f"GET {path} failed: HTTP {status} {body}")
+        return body
+
+    def post_json(path, body):
+        status, response = request("POST", path, body=body, auth=True)
+        if status >= 400:
+            raise RuntimeError(f"POST {path} failed: HTTP {status} {response}")
+        return response
+
+    def put_json(path, body):
+        status, response = request("PUT", path, body=body, auth=True)
+        if status >= 400:
+            raise RuntimeError(f"PUT {path} failed: HTTP {status} {response}")
+        return response
+
+    def ensure_pat():
+        status, body = request(
+            "POST",
+            "/rest/pat/latest/tokens",
+            body={"name": "soyspray-demo-programmatic", "expirationDuration": 90},
+            auth=True,
+        )
+        if status in (200, 201):
+            return body.get("rawToken") or body.get("token") or body.get("personalAccessToken")
+        print(f"PAT creation returned HTTP {status}; continuing with basic auth token only: {body}", flush=True)
+        return ""
+
+    def ensure_project():
+        status, _ = request("GET", "/rest/api/2/project/SPICE", auth=True)
+        if status == 200:
+            return
+        payloads = [
+            {
+                "key": "SPICE",
+                "name": "SPICE Kafka Platform",
+                "projectTypeKey": "software",
+                "projectTemplateKey": "com.pyxis.greenhopper.jira:gh-scrum-template",
+                "lead": username,
+                "assigneeType": "UNASSIGNED",
+            },
+            {
+                "key": "SPICE",
+                "name": "SPICE Kafka Platform",
+                "projectTypeKey": "software",
+                "lead": username,
+                "assigneeType": "UNASSIGNED",
+            },
+        ]
+        errors = []
+        for payload in payloads:
+            status, body = request("POST", "/rest/api/2/project", body=payload, auth=True)
+            if status in (200, 201):
+                return
+            errors.append(f"HTTP {status} {body}")
+        raise RuntimeError("could not create SPICE project: " + " | ".join(errors))
+
+    def issue_type_name():
+        types = get_json("/rest/api/2/issuetype")
+        names = [item["name"] for item in types]
+        for wanted in ("Story", "Task", "Bug"):
+            if wanted in names:
+                return wanted
+        return names[0]
+
+    def existing_issue_count():
+        jql = urllib.parse.quote("project = SPICE")
+        status, body = request("GET", f"/rest/api/2/search?jql={jql}&maxResults=0", auth=True)
+        if status >= 400:
+            raise RuntimeError(f"issue count failed: HTTP {status} {body}")
+        return int(body.get("total", 0))
+
+    def create_issues():
+        summaries = [
+            "Define schema registry compatibility policy",
+            "Build Kafka Connect deployment pipeline",
+            "Create topic naming standards for product domains",
+            "Automate ACL provisioning for producer teams",
+            "Add consumer lag SLO dashboard",
+            "Implement dead-letter topic replay workflow",
+            "Write platform onboarding checklist",
+            "Create Terraform module for Kafka topics",
+            "Add schema evolution contract tests",
+            "Deploy tiered storage proof of concept",
+            "Tune broker JVM heap settings",
+            "Document partition count decision model",
+            "Build MirrorMaker failover exercise",
+            "Create connector secrets rotation runbook",
+            "Add ksqlDB sandbox environment",
+            "Instrument producer latency metrics",
+            "Standardize Avro subject naming",
+            "Build self-service topic request workflow",
+            "Add quota templates for client teams",
+            "Create audit trail for ACL changes",
+            "Test broker rolling restart automation",
+            "Publish Kafka client baseline libraries",
+            "Build event catalog import job",
+            "Create data product ownership model",
+            "Add backup validation for cluster metadata",
+            "Implement canary producer and consumer",
+            "Define incident severity matrix",
+            "Create multi-region replication dashboard",
+            "Add connector task failure alerts",
+            "Build platform cost allocation report",
+            "Validate exactly-once processing example",
+            "Create consumer group cleanup job",
+            "Document retention policy exceptions",
+            "Add SASL credential expiry alerts",
+            "Build staging cluster smoke tests",
+            "Create stream processing reference app",
+            "Run partition rebalance game day",
+            "Add broker disk pressure alert tuning",
+            "Implement Kafka upgrade rehearsal plan",
+            "Publish SPICE platform launch notes",
+        ]
+        current = existing_issue_count()
+        if current >= 40:
+            return
+        itype = issue_type_name()
+        for summary in summaries[current:40]:
+            post_json(
+                "/rest/api/2/issue",
+                {
+                    "fields": {
+                        "project": {"key": "SPICE"},
+                        "summary": summary,
+                        "description": "Demo work item for Confluent Kafka platform development.",
+                        "issuetype": {"name": itype},
+                        "labels": ["confluent", "kafka", "platform", "demo"],
+                    }
+                },
+            )
+
+    def search_issues():
+        jql = urllib.parse.quote("project = SPICE ORDER BY key ASC")
+        body = get_json(f"/rest/api/2/search?jql={jql}&maxResults=50&fields=status")
+        return body.get("issues", [])
+
+    def transition(issue_key, wanted):
+        status, body = request("GET", f"/rest/api/2/issue/{issue_key}/transitions", auth=True)
+        if status >= 400:
+            print(f"could not list transitions for {issue_key}: HTTP {status} {body}", flush=True)
+            return
+        transitions = body.get("transitions", [])
+        for item in transitions:
+            name = item["name"].lower()
+            target = item.get("to", {}).get("name", "").lower()
+            if wanted == "progress" and ("progress" in name or "progress" in target):
+                post_json(f"/rest/api/2/issue/{issue_key}/transitions", {"transition": {"id": item["id"]}})
+                return
+            if wanted == "done" and (target in ("done", "closed", "resolved") or "done" in name or "close" in name):
+                post_json(f"/rest/api/2/issue/{issue_key}/transitions", {"transition": {"id": item["id"]}})
+                return
+
+    def spread_statuses():
+        issues = search_issues()
+        for idx, issue in enumerate(issues):
+            key = issue["key"]
+            status_name = issue["fields"]["status"]["name"].lower()
+            if idx % 4 in (1, 2) and "progress" not in status_name:
+                transition(key, "progress")
+            if idx % 4 == 3 and status_name not in ("done", "closed", "resolved"):
+                transition(key, "progress")
+                transition(key, "done")
+
+    def ensure_filter_and_board():
+        jql = "project = SPICE ORDER BY Rank ASC"
+        encoded = urllib.parse.quote("SPICE Kafka Platform Board")
+        status, body = request("GET", f"/rest/api/2/filter/search?filterName={encoded}", auth=True)
+        filter_id = None
+        if status == 200:
+            values = body.get("values", []) if isinstance(body, dict) else []
+            for item in values:
+                if item.get("name") == "SPICE Kafka Platform Board":
+                    filter_id = item.get("id")
+                    break
+        if not filter_id:
+            created = post_json(
+                "/rest/api/2/filter",
+                {"name": "SPICE Kafka Platform Board", "description": "Demo SPICE board filter", "jql": jql, "favourite": True},
+            )
+            filter_id = created.get("id")
+        status, body = request("GET", "/rest/agile/1.0/board?projectKeyOrId=SPICE", auth=True)
+        if status == 200 and body.get("values"):
+            return
+        if filter_id:
+            status, body = request(
+                "POST",
+                "/rest/agile/1.0/board",
+                body={"name": "SPICE Kafka Platform Board", "type": "scrum", "filterId": int(filter_id)},
+                auth=True,
+            )
+            if status >= 400:
+                print(f"board creation returned HTTP {status}: {body}", flush=True)
+
+    def save_secret(pat):
+        namespace = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read().strip()
+        token = open("/var/run/secrets/kubernetes.io/serviceaccount/token").read().strip()
+        ca_path = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+        api = f"https://kubernetes.default.svc/api/v1/namespaces/{namespace}/secrets"
+        basic = base64.b64encode(f"{username}:{password}".encode()).decode()
+        env_content = "\n".join(
+            [
+                f"JIRA_BASE_URL={public_url}",
+                f"JIRA_USERNAME={username}",
+                f"JIRA_PASSWORD={password}",
+                f"JIRA_BASIC_AUTH={basic}",
+                f"JIRA_PERSONAL_ACCESS_TOKEN={pat}",
+                "",
+            ]
+        )
+        data = {
+            "JIRA_BASE_URL": base64.b64encode(public_url.encode()).decode(),
+            "JIRA_USERNAME": base64.b64encode(username.encode()).decode(),
+            "JIRA_PASSWORD": base64.b64encode(password.encode()).decode(),
+            "JIRA_BASIC_AUTH": base64.b64encode(basic.encode()).decode(),
+            "JIRA_PERSONAL_ACCESS_TOKEN": base64.b64encode(pat.encode()).decode(),
+            ".env": base64.b64encode(env_content.encode()).decode(),
+        }
+        payload = {"apiVersion": "v1", "kind": "Secret", "metadata": {"name": "jira-api-access"}, "type": "Opaque", "data": data}
+        context = ssl.create_default_context(cafile=ca_path)
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        req = urllib.request.Request(api, data=json.dumps(payload).encode(), headers=headers, method="POST")
+        try:
+            urllib.request.urlopen(req, context=context, timeout=30).read()
+            return
+        except urllib.error.HTTPError as exc:
+            if exc.code != 409:
+                raise
+        patch_headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/merge-patch+json"}
+        req = urllib.request.Request(
+            api + "/jira-api-access",
+            data=json.dumps({"data": data}).encode(),
+            headers=patch_headers,
+            method="PATCH",
+        )
+        urllib.request.urlopen(req, context=context, timeout=30).read()
+
+    def main():
+        wait_for_jira()
+        info = require_configured()
+        print(f"Jira REST ready: {info.get('version')} at {info.get('baseUrl')}", flush=True)
+        ensure_project()
+        create_issues()
+        spread_statuses()
+        ensure_filter_and_board()
+        pat = ensure_pat()
+        save_secret(pat)
+        print("Jira demo bootstrap complete", flush=True)
+
+    if __name__ == "__main__":
+        try:
+            main()
+        except Exception as exc:
+            print(f"bootstrap failed: {exc}", file=sys.stderr, flush=True)
+            raise

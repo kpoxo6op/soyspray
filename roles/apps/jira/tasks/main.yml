@@ -1,0 +1,8 @@
+---
+- name: Apply Jira
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    definition: "{{ lookup('file', playbook_dir + '/argocd/applications/workloads/jira/jira-application.yaml') }}"
+  tags: jira
