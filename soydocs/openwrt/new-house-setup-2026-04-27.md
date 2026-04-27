@@ -1180,3 +1180,97 @@ Final current state:
   - `https://obsidian.soyspray.vip`
   - `https://argocd.soyspray.vip`
   - `https://booklore.soyspray.vip`
+
+### Mobile-safe Tailscale cluster DNS
+
+Later testing from the old house showed Android could route the new LAN over
+Tailscale, but `*.soyspray.vip` still failed until the phone's Tailscale VPN was
+restarted. To make mobile access less dependent on Android split-DNS and subnet
+route behavior, OpenWrt now answers `soyspray.vip` names with its own Tailscale
+IP and forwards web traffic to the ingress VIP.
+
+Current OpenWrt DNS override:
+
+```text
+/soyspray.vip/100.96.77.28
+/.soyspray.vip/100.96.77.28
+```
+
+Current OpenWrt firewall redirects:
+
+```text
+soyspray-tailscale-http   tailscale 100.96.77.28:80  -> 192.168.20.20:80
+soyspray-tailscale-https  tailscale 100.96.77.28:443 -> 192.168.20.20:443
+soyspray-lan-http         lan       100.96.77.28:80  -> 192.168.20.20:80
+soyspray-lan-https        lan       100.96.77.28:443 -> 192.168.20.20:443
+```
+
+Verification from the laptop:
+
+```text
+@100.96.77.28 argocd.soyspray.vip -> 100.96.77.28
+@100.100.100.100 argocd.soyspray.vip -> 100.96.77.28
+https://booklore.soyspray.vip -> HTTP 200
+https://immich.soyspray.vip -> HTTP 200
+https://obsidian.soyspray.vip -> HTTP 200
+```
+
+Verification from the Pixel with Wi-Fi disabled:
+
+```text
+VPN route to 100.96.77.28 via tun0
+VPN route to 192.168.20.20 via tun0
+argocd.soyspray.vip -> 100.96.77.28 after restarting Tailscale on Android
+HTTP to booklore.soyspray.vip over Tailscale reached ingress-nginx
+HTTP to immich.soyspray.vip over Tailscale reached ingress-nginx
+HTTP to obsidian.soyspray.vip over Tailscale reached ingress-nginx
+```
+
+Plain-English flow:
+
+```text
+phone browser
+  asks Tailscale DNS for booklore.soyspray.vip
+  gets 100.96.77.28, the OpenWrt Tailscale address
+  connects to 100.96.77.28:443 over the Tailscale VPN
+OpenWrt
+  forwards that HTTPS connection to the cluster ingress VIP, 192.168.20.20:443
+ingress-nginx
+  uses the Host header, for example booklore.soyspray.vip, to choose the app
+```
+
+The hostname still matters. `booklore.soyspray.vip`, `grafana.soyspray.vip`,
+`longhorn.soyspray.vip`, and `argocd.soyspray.vip` all resolve to the same
+Tailscale IP, but ingress routes them to different apps by hostname. Do not
+route the apex domain `soyspray.vip` to an app.
+
+Mobile verification after restarting the Tailscale Android app:
+
+```text
+argocd.soyspray.vip   -> Argo CD login page loaded in Chrome
+booklore.soyspray.vip -> BookLore login page loaded in Chrome
+longhorn.soyspray.vip -> LongHorn dashboard loaded in Chrome
+grafana.soyspray.vip  -> Grafana home page loaded in Chrome
+```
+
+Argo CD note:
+
+- The live `argocd-cmd-params-cm` was missing `server.insecure: "true"`, even
+  though the repo has that setting in
+  `playbooks/argocd/config/argocd-cmd-params-cm.yaml`.
+- With HTTPS terminated at ingress and Argo CD not in insecure HTTP mode, Argo
+  returned a same-URL redirect loop at `https://argocd.soyspray.vip/`.
+- Restoring `server.insecure: "true"` and restarting `argocd-server` fixed
+  Argo CD behind ingress.
+
+Known caveat:
+
+- Android on the old-house Wi-Fi resolved the apex `soyspray.vip` through
+  Tailscale but did not resolve `*.soyspray.vip` subdomains, even though
+  MagicDNS and the VPN route were active. Do not route the apex domain to an
+  application; app access must stay on the app-specific hostnames such as
+  `booklore.soyspray.vip`.
+- Restarting the Tailscale Android app while Wi-Fi stayed connected refreshed
+  the phone VPN DNS path. After the restart, `booklore.soyspray.vip` resolved
+  to `100.96.77.28` and Chrome loaded BookLore at
+  `https://booklore.soyspray.vip/login`.
