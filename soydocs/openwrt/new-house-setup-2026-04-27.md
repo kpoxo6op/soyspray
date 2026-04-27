@@ -718,3 +718,130 @@ Deployment actions:
 - Synced the affected Argo apps from the branch.
 - Pruned the old qBittorrent peer service via Argo after it was removed from
   the branch.
+
+## Phone Obsidian LiveSync DNS incident
+
+Date: 2026-04-27.
+
+Symptom:
+
+- Obsidian on the Pixel 9 Pro XL showed:
+
+```text
+Network Error: Failed to fetch: Error:Request Failed:
+UnknownHostException Unable to resolve host "obsidian.soyspray.vip":
+No address associated with hostname
+Failed to initialise the encryption key, preventing replication.
+```
+
+Phone state:
+
+- Phone: Pixel 9 Pro XL, ADB serial `48221FDAS007PS`.
+- Wi-Fi SSID: `123AAotea`.
+- Phone IP: `192.168.20.120`.
+- DHCP gateway: `192.168.20.1`.
+- DHCP DNS: `192.168.20.1`.
+- Tailscale was also active on the phone.
+
+Backend checks:
+
+- `obsidian-livesync` Argo health was `Healthy`, but sync comparison was
+  `Unknown` because Argo cannot render this kustomization without
+  `--enable-helm`.
+- CouchDB pod was running:
+
+```text
+obsidian-livesync-couchdb-0 1/1 Running
+```
+
+- Ingress existed for `obsidian.soyspray.vip`.
+- Laptop DNS resolved `obsidian.soyspray.vip` to `192.168.20.20`.
+- Router DNS resolved `obsidian.soyspray.vip` and `argocd.soyspray.vip` to
+  `192.168.20.20`.
+- Laptop HTTP checks worked:
+
+```text
+https://obsidian.soyspray.vip/          200
+https://obsidian.soyspray.vip/_all_dbs  401 without auth, as expected
+```
+
+CORS checks:
+
+- CouchDB returned HTTP 204 preflight responses for configured Obsidian
+  origins:
+  - `app://obsidian.md`
+  - `capacitor://localhost`
+  - `http://localhost`
+- `ionic://localhost` returned 401 because it is not in the configured CouchDB
+  CORS origins. This was noted as a possible future compatibility issue, but it
+  was not the observed failure in this incident.
+
+Phone DNS proof:
+
+With Tailscale active:
+
+```text
+ping obsidian.soyspray.vip
+ping: unknown host obsidian.soyspray.vip
+
+ping argocd.soyspray.vip
+ping: unknown host argocd.soyspray.vip
+```
+
+The phone had a Tailscale `tun0` network and routes including
+`100.100.100.100` and the advertised `192.168.20.0/24` subnet. The local
+OpenWrt DNS override was therefore not being used by Android for these names.
+
+Action taken:
+
+- Temporarily force-stopped Tailscale on the phone:
+
+```sh
+adb shell 'am force-stop com.tailscale.ipn'
+```
+
+- Re-tested phone DNS:
+
+```text
+PING obsidian.soyspray.vip (192.168.20.20)
+PING argocd.soyspray.vip (192.168.20.20)
+```
+
+ICMP to `192.168.20.20` returned destination-port-unreachable, which is
+acceptable for the ingress IP; the important part is that hostname resolution
+started working.
+
+- Restarted Obsidian:
+
+```sh
+adb shell 'am force-stop md.obsidian; monkey -p md.obsidian 1'
+```
+
+Result:
+
+- Obsidian changed from the `UnknownHostException` error to live sync activity.
+- CouchDB logs showed authenticated phone-originated LiveSync traffic through
+  ingress:
+
+```text
+admin GET /obsidian-main/_local/obsidian_livesync_sync_parameters 304
+admin GET /obsidian-main/ 200
+admin PUT /obsidian-main/_local/obsydian_livesync_milestone 202
+admin POST /obsidian-main/_revs_diff 200
+admin POST /obsidian-main/_changes?... 200
+admin POST /obsidian-main/_bulk_docs 201
+```
+
+Conclusion:
+
+- The Obsidian LiveSync backend was not down.
+- The phone failed because Tailscale DNS/VPN handling overrode or bypassed the
+  local OpenWrt DNS override for `soyspray.vip`.
+- Force-stopping Tailscale restored Android resolution through OpenWrt DNS and
+  LiveSync resumed.
+
+Follow-up needed:
+
+- Either keep Tailscale disconnected on the phone while on the local
+  `123AAotea` Wi-Fi, or configure Tailscale DNS so `soyspray.vip` resolves via
+  the home DNS path instead of failing through Tailscale DNS.
