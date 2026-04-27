@@ -1,5 +1,71 @@
 # OpenWrt New-House Setup
 
+## Plain-English summary
+
+On 2026-04-27 we moved the home cluster network to the new house.
+
+The new house internet reaches our OpenWrt router through Ethernet-over-power:
+
+```text
+owner router -> Ethernet-over-power wall adapter -> OpenWrt WAN
+```
+
+OpenWrt now creates our own private home network behind the owner's router:
+
+```text
+owner network: 192.168.1.0/24
+our OpenWrt network: 192.168.20.0/24
+OpenWrt LAN IP: 192.168.20.1
+cluster node: 192.168.20.10
+cluster ingress: 192.168.20.20
+```
+
+The important user-facing result is that the normal service names still work:
+
+```text
+https://argocd.soyspray.vip
+https://obsidian.soyspray.vip
+https://booklore.soyspray.vip
+```
+
+What changed:
+
+- The router LAN moved from `192.168.1.x` to `192.168.20.x`.
+- The Kubernetes node moved from `192.168.1.10` to `192.168.20.10`.
+- Cluster service IPs moved from `192.168.1.x` to `192.168.20.x`.
+- `soyspray.vip` now resolves to the new ingress IP `192.168.20.20`.
+- Tailscale now advertises the new home LAN route `192.168.20.0/24`.
+- A small compatibility route, `192.168.1.1/32`, was added so phone Tailscale
+  DNS keeps working until the old split-DNS setting is cleaned up in the
+  Tailscale admin console.
+
+What was tested:
+
+- The laptop can use the new OpenWrt Wi-Fi.
+- The OpenWrt router has internet through the wall Ethernet-over-power adapter.
+- The cluster node is reachable and Kubernetes is Ready.
+- Argo CD opens in the browser and accepts login.
+- BookLore opens again after fixing the recovery branch to use the newer image
+  that matches the existing database.
+- The phone can sync Obsidian LiveSync with Tailscale enabled.
+- The phone can still resolve cluster names when Wi-Fi is turned off, proving
+  remote access over Tailscale works.
+
+How to access the cluster now:
+
+- At home on Wi-Fi, use the same `*.soyspray.vip` URLs as before.
+- Away from home, turn on Tailscale on the phone or laptop, then use the same
+  `*.soyspray.vip` URLs.
+- Do not use the old `192.168.1.x` cluster addresses directly; the cluster is
+  now on `192.168.20.x`.
+
+Important cleanup for later:
+
+- In Tailscale admin DNS, change the restricted nameserver for `soyspray.vip`
+  from old `192.168.1.1` to OpenWrt's Tailscale IP `100.96.77.28`.
+- After that is tested, remove the temporary `192.168.1.1/32` route and the
+  OpenWrt compatibility nftables rule.
+
 ## Execution log
 
 This section records what was actually done on `2026-04-27` during the
