@@ -21,7 +21,7 @@ spec:
       enableServiceLinks: false
       containers:
         - name: booklore
-          image: ghcr.io/booklore-app/booklore:v1.16.0
+          image: ghcr.io/the-booklore/booklore:v2.2.2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 6060
