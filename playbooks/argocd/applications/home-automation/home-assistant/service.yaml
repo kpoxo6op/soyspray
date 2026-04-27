@@ -9,7 +9,7 @@ metadata:
     app: home-assistant
 spec:
   type: LoadBalancer
-  loadBalancerIP: 192.168.1.33
+  loadBalancerIP: 192.168.20.33
   ports:
     - name: http
       port: 8123

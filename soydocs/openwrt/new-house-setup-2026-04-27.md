@@ -1,0 +1,1182 @@
+# OpenWrt New-House Setup
+
+## Plain-English summary
+
+On 2026-04-27 we moved the home cluster network to the new house.
+
+The new house internet reaches our OpenWrt router through Ethernet-over-power:
+
+```text
+owner router -> Ethernet-over-power wall adapter -> OpenWrt WAN
+```
+
+OpenWrt now creates our own private home network behind the owner's router:
+
+```text
+owner network: 192.168.1.0/24
+our OpenWrt network: 192.168.20.0/24
+OpenWrt LAN IP: 192.168.20.1
+cluster node: 192.168.20.10
+cluster ingress: 192.168.20.20
+```
+
+The important user-facing result is that the normal service names still work:
+
+```text
+https://argocd.soyspray.vip
+https://obsidian.soyspray.vip
+https://booklore.soyspray.vip
+```
+
+What changed:
+
+- The router LAN moved from `192.168.1.x` to `192.168.20.x`.
+- The Kubernetes node moved from `192.168.1.10` to `192.168.20.10`.
+- Cluster service IPs moved from `192.168.1.x` to `192.168.20.x`.
+- `soyspray.vip` now resolves to the new ingress IP `192.168.20.20`.
+- Tailscale now advertises the new home LAN route `192.168.20.0/24`.
+- Tailscale DNS now sends `soyspray.vip` queries directly to OpenWrt's
+  Tailscale IP, `100.96.77.28`.
+- The temporary `192.168.1.1/32` compatibility route and OpenWrt nftables DNS
+  redirect were removed after the clean Tailscale DNS path was tested.
+
+What was tested:
+
+- The laptop can use the new OpenWrt Wi-Fi.
+- The OpenWrt router has internet through the wall Ethernet-over-power adapter.
+- The cluster node is reachable and Kubernetes is Ready.
+- Argo CD opens in the browser and accepts login.
+- BookLore opens again after fixing the recovery branch to use the newer image
+  that matches the existing database.
+- The phone can sync Obsidian LiveSync with Tailscale enabled.
+- The phone can still resolve cluster names when Wi-Fi is turned off, proving
+  remote access over Tailscale works.
+
+How to access the cluster now:
+
+- At home on Wi-Fi, use the same `*.soyspray.vip` URLs as before.
+- Away from home, turn on Tailscale on the phone or laptop, then use the same
+  `*.soyspray.vip` URLs.
+- Do not use the old `192.168.1.x` cluster addresses directly; the cluster is
+  now on `192.168.20.x`.
+
+Cleanup already completed:
+
+- Tailscale admin DNS restricted nameserver for `soyspray.vip` was changed from
+  old `192.168.1.1` to OpenWrt's Tailscale IP `100.96.77.28`.
+- OpenWrt now advertises only the real new-house LAN route,
+  `192.168.20.0/24`.
+- `/etc/nftables.d/20-tailscale-legacy-dns.nft` was deleted and the firewall
+  was restarted; the legacy nftables chain is no longer present.
+
+## Execution log
+
+This section records what was actually done on `2026-04-27` during the
+new-house router setup.
+
+### Starting state
+
+- Laptop was on hotspot for internet.
+- Laptop Ethernet was connected directly to the OpenWrt `1G` LAN port.
+- Wall/EoP adapter was initially unplugged from OpenWrt.
+- OpenWrt was reachable only after adding a temporary laptop host route because
+  Tailscale was still routing `192.168.1.0/24` through `tailscale0`.
+- Temporary laptop management address used: `192.168.1.2/24` on `enp0s31f6`.
+- Temporary route used: `192.168.1.1/32` via `enp0s31f6` in Tailscale table 52.
+- Live router version before changes: OpenWrt `25.12.1`, target
+  `mediatek/filogic`, arch `aarch64_cortex-a53`.
+- Live pre-change LAN: `192.168.1.1/24` on `br-lan`.
+- Live pre-change WAN: DHCP on tagged device `eth0.10`.
+- Live pre-change DNS override: `soyspray.vip -> 192.168.1.20`.
+- Live pre-change reservations:
+  - `node-0 -> 192.168.1.10`
+  - `mox -> 192.168.1.50`
+- Live pre-change syslog target: `192.168.1.10:514/udp`.
+
+### Backup
+
+A raw router backup was saved outside git before changing config:
+
+```sh
+.router-backups/openwrt-before-new-house-2026-04-27.tar.gz
+```
+
+That archive is not safe to commit because it contains raw `/etc/config` and
+Tailscale state.
+
+`.router-backups/` was added to `.gitignore` so raw router backups are not
+accidentally committed.
+
+### Changes applied
+
+- Changed OpenWrt LAN from `192.168.1.1/24` to `192.168.20.1/24`.
+- Kept the LAN bridge on `br-lan`.
+- Changed WAN from old tagged `eth0.10` DHCP to untagged `eth0` DHCP.
+- Changed WAN6 from old tagged `eth0.10` DHCPv6 to untagged `eth0` DHCPv6.
+- Removed the old `eth0.10` VLAN device from UCI.
+- Changed local DNS override from `soyspray.vip -> 192.168.1.20` to
+  `soyspray.vip -> 192.168.20.20`.
+- Kept dnsmasq wide-listening for LAN and Tailscale DNS:
+  - `nonwildcard=0`
+  - `localservice=0`
+  - no `list interface` pinning
+- Changed static DHCP reservations:
+  - `node-0`: `192.168.1.10` to `192.168.20.10`
+  - `mox`: `192.168.1.50` to `192.168.20.50`
+- Changed remote syslog target from `192.168.1.10` to `192.168.20.10`.
+
+The first SSH session dropped during `/etc/init.d/network reload`, leaving the
+live interface temporarily answering on old `192.168.1.1` while UCI already
+contained `network.lan.ipaddr=192.168.20.1`. The remaining host reservation,
+WAN, WAN6, and syslog changes were then completed over `192.168.1.1`, followed
+by `/etc/init.d/network restart`.
+
+### Verified state after LAN migration
+
+After the network restart:
+
+- Laptop temporary management address changed to `192.168.20.2/24`.
+- OpenWrt answered ping and SSH at `192.168.20.1`.
+- `br-lan` had `192.168.20.1/24`.
+- UCI LAN config was `network.lan.ipaddr='192.168.20.1'`.
+- UCI WAN config was `network.wan.device='eth0'`, `network.wan.proto='dhcp'`.
+- UCI WAN6 config was `network.wan6.device='eth0'`,
+  `network.wan6.proto='dhcpv6'`.
+- UCI DNS override was `/soyspray.vip/192.168.20.20`.
+- UCI reservations were `node-0=192.168.20.10` and `mox=192.168.20.50`.
+- UCI syslog target was `192.168.20.10`.
+
+### Verified state after plugging wall/EoP into OpenWrt WAN
+
+After the wall/EoP cable was plugged into OpenWrt WAN:
+
+- OpenWrt `eth0` link was up.
+- OpenWrt WAN DHCP lease: `192.168.1.2/24` on `eth0`.
+- OpenWrt default route: `default via 192.168.1.1 dev eth0`.
+- OpenWrt LAN stayed on `192.168.20.1/24` on `br-lan`.
+- OpenWrt could ping `1.1.1.1` with `0%` packet loss.
+- OpenWrt dnsmasq resolved `github.com`.
+- OpenWrt dnsmasq resolved `soyspray.vip` to `192.168.20.20`.
+
+### Laptop moved from temporary management to router DHCP
+
+After WAN verification, the temporary static laptop Ethernet setup was removed:
+
+- Removed temporary Tailscale table 52 host routes for old and new router
+  management IPs.
+- Flushed manual addresses from laptop Ethernet `enp0s31f6`.
+- Reconnected `enp0s31f6` with NetworkManager DHCP.
+
+Result:
+
+- Laptop DHCP lease from OpenWrt: `192.168.20.124/24`.
+- Laptop default route preferred OpenWrt LAN:
+  `default via 192.168.20.1 dev enp0s31f6`.
+- Hotspot remained connected as a lower-priority fallback:
+  `default via 10.147.147.130 dev wlp2s0 metric 600`.
+- OpenWrt lease table showed laptop MAC `c8:f7:50:4e:05:c6` leased
+  `192.168.20.124`.
+- Laptop could ping `192.168.20.1`.
+- Laptop could ping `1.1.1.1` through OpenWrt.
+- Laptop DNS resolved `github.com`.
+- Laptop HTTPS to `https://github.com` returned `HTTP/2 200`.
+- Laptop route to the owner's router became
+  `192.168.1.1 via 192.168.20.1 dev enp0s31f6`.
+- Laptop could ping upstream gateway `192.168.1.1` through OpenWrt.
+- `tailscale ping openwrt` worked via direct LAN path
+  `192.168.20.1:41641`.
+
+### Tailscale route update
+
+The router-side Tailscale advertised route was changed with:
+
+```sh
+tailscale up --accept-dns=false --accept-routes=true \
+  --advertise-routes=192.168.20.0/24 \
+  --ssh
+```
+
+Verification:
+
+- `tailscale debug prefs` showed `AdvertiseRoutes: ["192.168.20.0/24"]`.
+- `tailscale status --json` still showed the old approved route
+  `192.168.1.0/24` in `AllowedIPs` and `PrimaryRoutes`.
+- That means the router is requesting the new subnet, but the Tailscale control
+  plane still needs the new `192.168.20.0/24` route approved and the old
+  `192.168.1.0/24` route removed or disabled.
+- Tailscale also reported a health warning about the Sydney relay. The router
+  still had WAN internet at the same time, so this was not treated as a WAN
+  failure.
+- There was no local Tailscale CLI command available to approve or disable
+  subnet routes in the control plane from this session.
+
+### Tailscale admin approval completed
+
+After the route was approved in the Tailscale admin console:
+
+- `openwrt` showed approved subnet route `192.168.20.0/24`.
+- `openwrt` showed no routes awaiting approval.
+- Router-side `tailscale status --json` showed `AllowedIPs` containing
+  `192.168.20.0/24`.
+- Router-side `tailscale status --json` showed `PrimaryRoutes` containing
+  `192.168.20.0/24`.
+- Laptop-side `tailscale status --json` also showed `openwrt` with
+  `AllowedIPs` and `PrimaryRoutes` set to `192.168.20.0/24`.
+- The old `192.168.1.0/24` subnet route was absent from the current route
+  approval state.
+
+Because this laptop accepts Tailscale subnet routes, approving
+`192.168.20.0/24` initially made the laptop route `192.168.20.1` through
+`tailscale0` even while physically attached to the same LAN. A local route was
+added to Tailscale table 52 so the laptop uses Ethernet directly while on this
+LAN:
+
+```sh
+ip route replace 192.168.20.0/24 dev enp0s31f6 src 192.168.20.124 table 52
+```
+
+Verification after that:
+
+- `ip route get 192.168.20.1` returned
+  `192.168.20.1 dev enp0s31f6 table 52 src 192.168.20.124`.
+- `ping 192.168.20.1` from the laptop returned sub-millisecond LAN latency.
+
+### Laptop moved from Ethernet to OpenWrt Wi-Fi
+
+The laptop was moved from wired OpenWrt LAN to OpenWrt Wi-Fi SSID
+`123AAotea`.
+
+Before disconnecting Ethernet, Wi-Fi was verified independently:
+
+- NetworkManager showed `wlp2s0` connected to `123AAotea`.
+- Laptop Wi-Fi DHCP lease: `192.168.20.50/24`.
+- Wi-Fi-only ping to `192.168.20.1` succeeded.
+- Wi-Fi-only ping to `1.1.1.1` succeeded.
+- Wi-Fi-only HTTPS to `https://github.com` returned `HTTP/2 200`.
+
+Then Ethernet was disconnected from the laptop. Final verified laptop state:
+
+- `enp0s31f6` was `DOWN` / unavailable.
+- `wlp2s0` was connected to `123AAotea`.
+- Laptop address: `192.168.20.50/24`.
+- Default route: `default via 192.168.20.1 dev wlp2s0`.
+- Active NetworkManager connections: `123AAotea`, `tailscale0`, `lo`,
+  `docker0`.
+- Ping to router `192.168.20.1`: `0%` packet loss.
+- Ping to `1.1.1.1`: `0%` packet loss.
+- HTTPS to `https://github.com`: `HTTP/2 200`.
+
+OpenWrt Wi-Fi evidence:
+
+- DHCP lease table showed laptop Wi-Fi MAC `a8:6d:aa:07:93:1f` leased
+  `192.168.20.50` with hostname `mox`.
+- `iw dev phy0-ap0 station dump` showed the laptop associated on `123AAotea`.
+- Router WAN route stayed `default via 192.168.1.1 dev eth0`.
+- Router local DNS still resolved `soyspray.vip` to `192.168.20.20`.
+
+Remaining follow-up:
+
+- Update cluster inventory and MetalLB/static service IPs from `192.168.1.x` to
+  `192.168.20.x` before bringing cluster services back behind this router.
+
+### Cluster recovery started after node was plugged into OpenWrt
+
+The mini PC was plugged into the OpenWrt `1G` LAN port after the router move.
+
+Live checks:
+
+- OpenWrt DHCP lease table showed `node-0 -> 192.168.20.10`.
+- OpenWrt DNS resolved `node-0` to `192.168.20.10`.
+- Laptop could ping `192.168.20.10`.
+- SSH to `ubuntu@192.168.20.10` worked.
+- Node interface `eno1` had `192.168.20.10/24`.
+- Node default route was `default via 192.168.20.1 dev eno1`.
+- `containerd` was active.
+- `kubelet` was restarting/failing.
+
+Root cause found on the node:
+
+- Kubernetes generated config still referenced the old node IP
+  `192.168.1.10`.
+- Old references were present in kube-apiserver manifest, etcd server URL,
+  kubelet node IP, kubeadm config, kubeconfigs, and certificate SAN config.
+- Laptop `kubectl` also still pointed at `https://192.168.1.10:6443`.
+
+Approved recovery work:
+
+1. Update repo desired state from `192.168.1.x` to `192.168.20.x`.
+2. Disable torrent-specific external exposure because the new upstream has no
+   stable public IP.
+3. Push repo and submodule changes before deployment.
+4. Run validation and Ansible/Kubespray recovery from the updated inventory.
+5. Verify Kubernetes, Argo CD, ingress, and LAN/Tailscale access.
+
+Repo changes made for recovery:
+
+- `Makefile` node addresses changed to `192.168.20.10`.
+- `AGENTS.md` networking notes changed to the new LAN.
+- `kubespray/inventory/soycluster/hosts.yml` changed to
+  `192.168.20.10`.
+- MetalLB primary pool changed to `192.168.20.20-192.168.20.38`.
+- MetalLB torrent pool removed.
+- Argo CD LoadBalancer changed to `192.168.20.21`.
+- Application LoadBalancer IPs changed to matching `192.168.20.x` addresses.
+- qBittorrent peer LoadBalancer was removed from the active kustomization.
+- qBittorrent peer service manifest was deleted so it cannot accidentally
+  publish the old torrent peer endpoint.
+- Syslog playbook changed OpenWrt source IP to `192.168.20.1`.
+
+Current observed uplink from the powerline adapter on the laptop:
+
+- Laptop wired address: `192.168.1.124/24`
+- Upstream gateway/DNS: `192.168.1.1`
+- Internet works through that gateway
+- Upstream does not answer ping, HTTP, or SSH from the laptop
+
+## Required topology change
+
+The old OpenWrt LAN was also `192.168.1.1/24`, so it must not keep that subnet
+when its WAN is connected to the owner's router. Use a distinct soyspray LAN:
+
+- OpenWrt LAN gateway: `192.168.20.1/24`
+- DHCP pool: `192.168.20.100-192.168.20.249`
+- `node-0`: `192.168.20.10`
+- MetalLB primary VIP: `192.168.20.20`
+- `mox`: `192.168.20.50`
+- `soyspray.vip`: `192.168.20.20`
+- Tailscale advertised route: `192.168.20.0/24`
+
+## Safe order
+
+1. Connect laptop directly to an OpenWrt LAN port, not through the powerline
+   adapter.
+2. SSH to the router on the old LAN address: `ssh -F /dev/null root@192.168.1.1`.
+3. Change LAN subnet, DNS override, DHCP reservations, and syslog target.
+4. Change WAN from old tagged `eth0.10` DHCP to untagged WAN DHCP for the
+   powerline/owner-router handoff.
+5. Reboot or reload network.
+6. Reconnect laptop to OpenWrt LAN/Wi-Fi and verify it gets `192.168.20.x`.
+7. Plug OpenWrt WAN into the powerline adapter.
+8. Verify OpenWrt gets a WAN lease from the owner router and has internet.
+9. Update cluster inventory/MetalLB manifests for `192.168.20.0/24` before
+   bringing the cluster back behind the router.
+
+## Router commands
+
+Run from a direct laptop-to-OpenWrt LAN connection:
+
+```sh
+ssh -F /dev/null root@192.168.1.1
+```
+
+Then on OpenWrt:
+
+```sh
+uci set network.lan.ipaddr='192.168.20.1'
+uci set network.lan.netmask='255.255.255.0'
+
+uci set dhcp.lan.start='100'
+uci set dhcp.lan.limit='150'
+uci -q delete dhcp.@dnsmasq[0].address
+uci add_list dhcp.@dnsmasq[0].address='/soyspray.vip/192.168.20.20'
+uci -q delete dhcp.@dnsmasq[0].interface
+uci set dhcp.@dnsmasq[0].nonwildcard='0'
+uci set dhcp.@dnsmasq[0].localservice='0'
+
+uci set dhcp.@host[0].ip='192.168.20.10'
+uci set dhcp.@host[1].ip='192.168.20.50'
+
+uci set system.@system[0].log_ip='192.168.20.10'
+
+uci set network.wan.device='eth0'
+uci set network.wan.proto='dhcp'
+uci set network.wan6.device='eth0'
+uci set network.wan6.proto='dhcpv6'
+uci set network.wan6.reqaddress='try'
+uci set network.wan6.reqprefix='auto'
+
+uci commit network
+uci commit dhcp
+uci commit system
+
+reboot
+```
+
+After reconnecting to OpenWrt on the new LAN:
+
+```sh
+ssh -F /dev/null root@192.168.20.1 '
+ip -4 addr show
+ip route
+nslookup soyspray.vip 127.0.0.1
+'
+```
+
+After the WAN is in the powerline adapter and internet works from OpenWrt:
+
+```sh
+ssh -F /dev/null root@192.168.20.1 '
+tailscale up --accept-dns=false --accept-routes=true \
+  --advertise-routes=192.168.20.0/24 \
+  --ssh
+tailscale status --json | head
+'
+```
+
+## Cluster recovery execution
+
+What was approved live:
+
+1. Tailscale admin route approval for `192.168.20.0/24` was completed.
+2. The old `192.168.1.0/24` subnet route was removed from the OpenWrt
+   Tailscale advertisement.
+3. Torrent peer exposure was disabled because the new upstream has no stable
+   public IP.
+4. The laptop was moved fully onto `123AAotea`; Tailscale DNS acceptance was
+   disabled on the laptop so local DNS comes from OpenWrt.
+5. The mini PC was plugged into the OpenWrt 1G port and recovered as
+   `node-0` on `192.168.20.10`.
+
+Repository state applied:
+
+- Parent repo branch:
+  `backup/snapshot-openwrt-pre-move-2026-04-18-before-cleanup`
+- Parent repo commit deployed:
+  `a09fa05 Update cluster network for new house`
+- Kubespray submodule branch: `torrent-pool`
+- Kubespray submodule commit deployed:
+  `ee62329b0 Update soycluster LAN for new house`
+- Both the submodule branch and parent branch were pushed before cluster
+  recovery actions.
+
+Commands and outcomes:
+
+```sh
+make go
+```
+
+Initial result: failed because `argocd.soyspray.vip` resolved through
+Tailscale DNS (`100.100.100.100`) and had no record while ingress was still on
+the old service IP.
+
+```sh
+source soyspray-venv/bin/activate
+ansible -i kubespray/inventory/soycluster/hosts.yml \
+  all --become --become-user=root --user ubuntu -m ping
+```
+
+Result: `node-0 | SUCCESS`, proving SSH and Ansible reachability at
+`192.168.20.10`.
+
+```sh
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu kubespray/cluster.yml
+```
+
+Important Kubespray effects:
+
+- Wrote node host mapping with `192.168.20.10 node-0.cluster.local node-0`.
+- Regenerated etcd cert/config and confirmed etcd health.
+- Updated kubelet config for `192.168.20.10`.
+- Renewed/backed up control-plane certificates.
+- Verified apiserver SAN includes `192.168.20.10`.
+- Reapplied Calico, CoreDNS, ingress-nginx, MetalLB, cert-manager,
+  metrics-server, and Argo CD base resources.
+
+Manual control-plane remediation:
+
+The apiserver stayed down after the first Kubespray pass because the static
+manifest still contained `192.168.1.10`. The manifest was regenerated from the
+new kubeadm config:
+
+```sh
+ssh ubuntu@192.168.20.10
+sudo kubeadm init phase control-plane apiserver \
+  --config /etc/kubernetes/kubeadm-config.yaml
+sudo mkdir -p /etc/kubernetes/manifest-backups
+sudo mv /etc/kubernetes/manifests/kube-apiserver.yaml.before-new-house-manifest-regenerate.* \
+  /etc/kubernetes/manifest-backups/
+sudo systemctl restart kubelet
+```
+
+Reason for moving the backup file: any extra apiserver manifest left under
+`/etc/kubernetes/manifests` is treated as a live static pod by kubelet.
+
+Kubespray blockers resolved:
+
+- `passlib` was missing from `soyspray-venv`, causing Argo admin password
+  hashing to fail. Installed `passlib`.
+- `bcrypt 5.0.0` was incompatible with the pinned `passlib` path. Replaced it
+  with `bcrypt<4`.
+- Argo admin password was patched with a valid bcrypt hash after the failed
+  Kubespray task.
+- Old cert-manager ACME Challenge finalizers blocked namespace cleanup. The
+  dead cert-manager webhook configs were removed and the stale Challenge
+  finalizers were cleared, allowing Kubespray to recreate cert-manager.
+
+Laptop DNS fix:
+
+```sh
+sudo tailscale set --accept-dns=false
+```
+
+Resulting resolver:
+
+```text
+nameserver 192.168.20.1
+```
+
+Verification:
+
+```sh
+getent hosts argocd.soyspray.vip
+```
+
+Result:
+
+```text
+192.168.20.20 argocd.soyspray.vip
+```
+
+Argo/application deployment:
+
+```sh
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/deploy-argocd-apps.yml
+```
+
+The full app deploy stopped on an existing missing file reference:
+
+```text
+playbooks/argocd/applications/database/cnpg/immich-db-active-application.yaml
+```
+
+The network-facing app subset was then applied with tags:
+
+```sh
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/deploy-argocd-apps.yml \
+  --tags redis,obsidian,plex,jellyfin,prowlarr,qbittorrent,lazylibrarian,booklore,sonarr,threadfin,streamlink,immich,mosquitto,zigbee2mqtt,homeassistant
+```
+
+Temporary branch deployment:
+
+Live Argo Applications whose repo source was `https://github.com/kpoxo6op/soyspray.git`
+and target revision was `HEAD` were temporarily patched to:
+
+```text
+backup/snapshot-openwrt-pre-move-2026-04-18-before-cleanup
+```
+
+This was required because the branch is not merged yet, while the repo changes
+for the new LAN are already pushed there.
+
+MetalLB transition:
+
+- Primary pool was temporarily widened to allow both old and new ranges while
+  existing services moved off `192.168.1.x`.
+- Ingress service was patched to `loadBalancerIP: 192.168.20.20` because the
+  Kubespray ingress-nginx service template does not declare a fixed
+  LoadBalancer IP.
+- After all services moved, the pool was narrowed back to
+  `192.168.20.20-192.168.20.38`.
+- The `torrent` IPAddressPool and `torrent` L2Advertisement were deleted.
+
+Final LoadBalancer state:
+
+```text
+ingress-nginx/ingress-nginx                  192.168.20.20
+media/qbittorrent                            192.168.20.30
+media/prowlarr                               192.168.20.31
+home-automation/mosquitto                    192.168.20.32
+home-automation/home-assistant               192.168.20.33
+monitoring/kube-prometheus-stack-prometheus  192.168.20.34
+monitoring/kube-prometheus-stack-alertmanager 192.168.20.35
+immich/immich-server                         192.168.20.36
+```
+
+Final checks:
+
+```sh
+make go
+```
+
+Result: Argo login succeeded via `argocd.soyspray.vip`.
+
+```sh
+curl -k -I https://argocd.soyspray.vip
+curl -I http://192.168.20.30:8080
+curl -I http://192.168.20.31:9696
+```
+
+Results:
+
+- Argo CD returned HTTP 200.
+- qBittorrent web UI returned HTTP 200 on `192.168.20.30:8080`.
+- Prowlarr returned HTTP 401 on `192.168.20.31:9696`, which proves the service
+  is reachable and enforcing auth.
+
+```sh
+kubectl get nodes -o wide
+```
+
+Observed on the node:
+
+```text
+node-0 Ready control-plane,worker INTERNAL-IP 192.168.20.10
+```
+
+Known remaining issues:
+
+- `immich` and `kube-prometheus-stack` Argo comparisons are `Unknown` because
+  their kustomizations require Helm rendering and Argo reports
+  `must specify --enable-helm`.
+- The full `deploy-argocd-apps.yml` currently stops at the missing
+  `immich-db-active-application.yaml` reference.
+- Some intentionally noisy/test workloads remain non-running, including
+  `alert-test` pods. Some newly reconciled media/home-automation pods were
+  still `Progressing` at the time of this note.
+
+## Browser service validation
+
+Date: 2026-04-27.
+
+Browser used: Playwright-controlled Chrome session on the laptop.
+
+Argo CD:
+
+- Opened `https://argocd.soyspray.vip`.
+- Login page loaded.
+- Logged in with the known local admin account.
+- Confirmed the Argo CD Applications Tiles view loaded.
+- The page showed Argo CD `v2.12.4+27d1e64` and app cards, including
+  `booklore`.
+- CLI cross-check:
+
+```sh
+argocd app get booklore --grpc-web --refresh
+```
+
+Result:
+
+```text
+Sync Status:   Synced to backup/snapshot-openwrt-pre-move-2026-04-18-before-cleanup (d3973f4)
+Health Status: Healthy
+```
+
+BookLore:
+
+- Opened `https://booklore.soyspray.vip`.
+- Initial browser/API result was HTTP 502 on
+  `/api/v1/public-settings`.
+- Pod logs showed the recovery branch had rolled BookLore back to an image that
+  was older than the live database schema. The old image failed against schema
+  version `132`.
+- Updated the recovery branch to the newer BookLore image already compatible
+  with the live database.
+- Fixed the BookLore Service selector and Deployment labels so the Service
+  resolves only the web pod, not MariaDB.
+- Re-synced the Argo app and waited for the replacement pod.
+- The replacement pod took about 197 seconds to finish Spring Boot startup.
+- Verified inside the pod that BookLore was listening on port `6060`.
+- Verified the public settings API from the laptop:
+
+```sh
+curl -k -sS -o /tmp/booklore-public-settings.json \
+  -w '%{http_code}\n' \
+  https://booklore.soyspray.vip/api/v1/public-settings
+```
+
+Result:
+
+```text
+200
+```
+
+The BookLore browser tab then served the frontend. The remaining console error
+was HTTP 403 on `/api/v1/libraries/health`, which is an authenticated endpoint
+being queried before login; it is different from the earlier 502 outage.
+
+## Repo and submodule audit
+
+### Kubespray submodule
+
+Repository: `kubespray`.
+
+Branch: `torrent-pool`.
+
+Commit pushed:
+
+```text
+ee62329b0 Update soycluster LAN for new house
+```
+
+Changed files:
+
+- `inventory/soycluster/hosts.yml`
+- `inventory/soycluster/group_vars/k8s_cluster/addons.yml`
+
+Changes:
+
+- Moved `node-0` from `192.168.1.10` to `192.168.20.10`:
+  `ansible_host`, `ip`, and `access_ip`.
+- Moved the MetalLB primary pool from `192.168.1.20-192.168.1.38` to
+  `192.168.20.20-192.168.20.38`.
+- Removed the dedicated `torrent` MetalLB address pool
+  `192.168.1.39-192.168.1.39`.
+
+Runtime actions performed from the updated submodule:
+
+- Ran the Kubespray cluster playbook against `192.168.20.10`.
+- Regenerated stale Kubernetes static manifests after the API server manifest
+  still referenced `192.168.1.10`.
+- Confirmed the node returned as Ready with internal IP `192.168.20.10`.
+
+### Soyspray parent repo
+
+Repository: `soyspray`.
+
+Branch: `backup/snapshot-openwrt-pre-move-2026-04-18-before-cleanup`.
+
+Commits pushed:
+
+```text
+a09fa05 Update cluster network for new house
+784d489 docs: record new-house cluster recovery
+532572e Fix BookLore deployment on recovery branch
+d3973f4 Fix BookLore service pod selector
+```
+
+Network/config changes in `a09fa05`:
+
+- Updated `Makefile` SSH targets from `192.168.1.10` to `192.168.20.10`.
+- Updated `AGENTS.md` networking notes:
+  - router `192.168.20.1`
+  - LAN `192.168.20.0/24`
+  - `soyspray.vip` DNS override `192.168.20.20`
+  - Tailscale advertised subnet `192.168.20.0/24`
+- Updated Argo CD LoadBalancer IP from `192.168.1.21` to `192.168.20.21`.
+- Updated app/service LoadBalancer IPs into the new `192.168.20.x` LAN.
+- Removed `qbittorrent-peers` from the active qBittorrent kustomization and
+  deleted its dedicated service manifest because the new house connection does
+  not have a static public IP.
+- Updated the OpenWrt syslog playbook target from `192.168.1.1` to
+  `192.168.20.1`.
+- Updated docs that referenced the old LAN and service IPs.
+- Committed the updated Kubespray submodule pointer.
+
+BookLore fixes:
+
+- `532572e` changed the BookLore image to
+  `ghcr.io/the-booklore/booklore:v2.2.2`, matching the live database schema.
+- `532572e` also changed the BookLore Service selector to
+  `app=booklore, component=web`.
+- `d3973f4` added `component: web` to the BookLore pod template labels so the
+  Service has the correct endpoint.
+
+Deployment actions:
+
+- Pushed the recovery branch before Argo sync operations.
+- Temporarily pointed live Argo Applications at
+  `backup/snapshot-openwrt-pre-move-2026-04-18-before-cleanup` so the cluster
+  could deploy this unmerged recovery branch.
+- Synced the affected Argo apps from the branch.
+- Pruned the old qBittorrent peer service via Argo after it was removed from
+  the branch.
+
+## Phone Obsidian LiveSync DNS incident
+
+Date: 2026-04-27.
+
+Symptom:
+
+- Obsidian on the Pixel 9 Pro XL showed:
+
+```text
+Network Error: Failed to fetch: Error:Request Failed:
+UnknownHostException Unable to resolve host "obsidian.soyspray.vip":
+No address associated with hostname
+Failed to initialise the encryption key, preventing replication.
+```
+
+Phone state:
+
+- Phone: Pixel 9 Pro XL, ADB serial `48221FDAS007PS`.
+- Wi-Fi SSID: `123AAotea`.
+- Phone IP: `192.168.20.120`.
+- DHCP gateway: `192.168.20.1`.
+- DHCP DNS: `192.168.20.1`.
+- Tailscale was also active on the phone.
+
+Backend checks:
+
+- `obsidian-livesync` Argo health was `Healthy`, but sync comparison was
+  `Unknown` because Argo cannot render this kustomization without
+  `--enable-helm`.
+- CouchDB pod was running:
+
+```text
+obsidian-livesync-couchdb-0 1/1 Running
+```
+
+- Ingress existed for `obsidian.soyspray.vip`.
+- Laptop DNS resolved `obsidian.soyspray.vip` to `192.168.20.20`.
+- Router DNS resolved `obsidian.soyspray.vip` and `argocd.soyspray.vip` to
+  `192.168.20.20`.
+- Laptop HTTP checks worked:
+
+```text
+https://obsidian.soyspray.vip/          200
+https://obsidian.soyspray.vip/_all_dbs  401 without auth, as expected
+```
+
+CORS checks:
+
+- CouchDB returned HTTP 204 preflight responses for configured Obsidian
+  origins:
+  - `app://obsidian.md`
+  - `capacitor://localhost`
+  - `http://localhost`
+- `ionic://localhost` returned 401 because it is not in the configured CouchDB
+  CORS origins. This was noted as a possible future compatibility issue, but it
+  was not the observed failure in this incident.
+
+Phone DNS proof:
+
+With Tailscale active:
+
+```text
+ping obsidian.soyspray.vip
+ping: unknown host obsidian.soyspray.vip
+
+ping argocd.soyspray.vip
+ping: unknown host argocd.soyspray.vip
+```
+
+The phone had a Tailscale `tun0` network and routes including
+`100.100.100.100` and the advertised `192.168.20.0/24` subnet. The local
+OpenWrt DNS override was therefore not being used by Android for these names.
+
+Action taken:
+
+- Temporarily force-stopped Tailscale on the phone:
+
+```sh
+adb shell 'am force-stop com.tailscale.ipn'
+```
+
+- Re-tested phone DNS:
+
+```text
+PING obsidian.soyspray.vip (192.168.20.20)
+PING argocd.soyspray.vip (192.168.20.20)
+```
+
+ICMP to `192.168.20.20` returned destination-port-unreachable, which is
+acceptable for the ingress IP; the important part is that hostname resolution
+started working.
+
+- Restarted Obsidian:
+
+```sh
+adb shell 'am force-stop md.obsidian; monkey -p md.obsidian 1'
+```
+
+Result:
+
+- Obsidian changed from the `UnknownHostException` error to live sync activity.
+- CouchDB logs showed authenticated phone-originated LiveSync traffic through
+  ingress:
+
+```text
+admin GET /obsidian-main/_local/obsidian_livesync_sync_parameters 304
+admin GET /obsidian-main/ 200
+admin PUT /obsidian-main/_local/obsydian_livesync_milestone 202
+admin POST /obsidian-main/_revs_diff 200
+admin POST /obsidian-main/_changes?... 200
+admin POST /obsidian-main/_bulk_docs 201
+```
+
+Conclusion:
+
+- The Obsidian LiveSync backend was not down.
+- The phone failed because Tailscale DNS/VPN handling overrode or bypassed the
+  local OpenWrt DNS override for `soyspray.vip`.
+- Force-stopping Tailscale restored Android resolution through OpenWrt DNS and
+  LiveSync resumed.
+
+Follow-up needed:
+
+- Either keep Tailscale disconnected on the phone while on the local
+  `123AAotea` Wi-Fi, or configure Tailscale DNS so `soyspray.vip` resolves via
+  the home DNS path instead of failing through Tailscale DNS.
+
+## Phone Tailscale cluster access fix
+
+Date: 2026-04-27.
+
+Goal:
+
+- Allow the phone to access cluster services using the normal service hostnames
+  while Tailscale is enabled:
+  - `obsidian.soyspray.vip`
+  - `argocd.soyspray.vip`
+  - other `*.soyspray.vip` ingress names
+
+Root cause:
+
+- Tailscale tailnet DNS still had a split DNS route:
+
+```text
+soyspray.vip -> 192.168.1.1
+```
+
+- `192.168.1.1` was the old OpenWrt LAN IP before the move.
+- New OpenWrt LAN IP is `192.168.20.1`.
+- New OpenWrt Tailscale IP is `100.96.77.28`.
+- The router already answered correctly when queried directly:
+
+```text
+@100.96.77.28 obsidian.soyspray.vip -> 192.168.20.20
+@192.168.20.1 obsidian.soyspray.vip -> 192.168.20.20
+```
+
+Temporary fix used first:
+
+- Keep the existing Tailscale DNS split route working by making the old DNS IP
+  reachable as a narrow compatibility route.
+- This avoids depending on phone-local DNS behavior and works both on home Wi-Fi
+  and away from home over Tailscale.
+
+OpenWrt changes:
+
+1. Added an nftables compatibility rule file:
+
+```text
+/etc/nftables.d/20-tailscale-legacy-dns.nft
+```
+
+Contents:
+
+```nft
+# Compatibility for stale Tailscale split DNS configuration.
+# Tailnet currently sends soyspray.vip DNS to old router IP 192.168.1.1.
+# Redirect only DNS traffic arriving from tailscale0 to local dnsmasq.
+chain tailscale_legacy_dns_dstnat {
+    type nat hook prerouting priority -101; policy accept;
+    iifname "tailscale0" ip daddr 192.168.1.1 udp dport 53 redirect to :53 comment "tailscale stale soyspray.vip DNS UDP"
+    iifname "tailscale0" ip daddr 192.168.1.1 tcp dport 53 redirect to :53 comment "tailscale stale soyspray.vip DNS TCP"
+}
+```
+
+2. Validated and reloaded firewall:
+
+```sh
+fw4 check
+/etc/init.d/firewall reload
+```
+
+Result:
+
+```text
+Ruleset passes nftables check.
+```
+
+3. Updated OpenWrt Tailscale advertised routes:
+
+```sh
+tailscale set --advertise-routes=192.168.20.0/24,192.168.1.1/32
+```
+
+Tailscale admin action:
+
+- Approved the new advertised `192.168.1.1/32` route on the `openwrt` machine.
+- Kept the existing `192.168.20.0/24` route approved.
+
+Approved routes after the change:
+
+```text
+192.168.1.1/32
+192.168.20.0/24
+```
+
+Router verification:
+
+```text
+AllowedIPs:
+  100.96.77.28/32
+  fd7a:115c:a1e0::b337:4d1c/128
+  192.168.1.1/32
+  192.168.20.0/24
+
+PrimaryRoutes:
+  192.168.1.1/32
+  192.168.20.0/24
+```
+
+Phone verification with Tailscale enabled on home Wi-Fi:
+
+Phone routes included:
+
+```text
+192.168.1.1 dev tun0
+192.168.20.0/24 dev tun0
+192.168.20.0/24 dev wlan0
+```
+
+Phone DNS result:
+
+```text
+obsidian.soyspray.vip -> 192.168.20.20
+argocd.soyspray.vip   -> 192.168.20.20
+```
+
+Phone verification with Wi-Fi disabled:
+
+- Disabled phone Wi-Fi temporarily.
+- Confirmed phone had no Wi-Fi IP.
+- Tailscale routes still included:
+
+```text
+192.168.1.1 dev tun0
+192.168.20.0/24 dev tun0
+```
+
+- DNS still resolved:
+
+```text
+obsidian.soyspray.vip -> 192.168.20.20
+argocd.soyspray.vip   -> 192.168.20.20
+```
+
+- Re-enabled phone Wi-Fi and confirmed it rejoined `123AAotea` as
+  `192.168.20.120`.
+
+Obsidian LiveSync validation:
+
+- Restarted Obsidian on the phone with Tailscale enabled.
+- CouchDB logs showed authenticated LiveSync traffic:
+
+```text
+admin GET /obsidian-main/_local/obsidian_livesync_sync_parameters 304
+admin GET /obsidian-main/ 200
+admin GET /obsidian-main/obsydian_livesync_version 304
+admin PUT /obsidian-main/_local/obsydian_livesync_milestone 202
+admin POST /obsidian-main/_changes?... 200
+```
+
+Current access model:
+
+- On the phone, leave Tailscale enabled.
+- Use the same service URLs:
+  - `https://obsidian.soyspray.vip`
+  - `https://argocd.soyspray.vip`
+- Tailscale handles the remote route to the new home LAN.
+- The compatibility `/32` route exists only so the existing tailnet split DNS
+  target `192.168.1.1` continues to work after the move.
+
+### Tailscale DNS permanent cleanup
+
+Date: 2026-04-27, after returning to the old flat.
+
+Goal:
+
+- Remove the old `192.168.1.1` compatibility path.
+- Keep remote cluster access working through Tailscale.
+
+Why this was needed:
+
+- The temporary fix worked, but it kept an old address alive only for DNS.
+- The cleaner design is for Tailscale DNS to send `soyspray.vip` lookups
+  directly to OpenWrt's Tailscale IP.
+- That avoids carrying an old-house route that is not part of the real new
+  network.
+
+Tailscale admin change:
+
+- Opened `https://login.tailscale.com/admin/dns`.
+- Edited the split DNS nameserver for `soyspray.vip`.
+- Changed the nameserver from:
+
+```text
+192.168.1.1
+```
+
+to:
+
+```text
+100.96.77.28
+```
+
+Client-side verification on the laptop:
+
+```text
+soyspray.vip split DNS -> 100.96.77.28
+```
+
+Direct DNS verification against OpenWrt over Tailscale:
+
+```text
+@100.96.77.28 obsidian.soyspray.vip -> 192.168.20.20
+```
+
+OpenWrt cleanup:
+
+```sh
+tailscale set --advertise-routes=192.168.20.0/24
+rm -f /etc/nftables.d/20-tailscale-legacy-dns.nft
+fw4 check
+/etc/init.d/firewall restart
+```
+
+Router verification after cleanup:
+
+```text
+AdvertiseRoutes:
+  192.168.20.0/24
+
+nft legacy search:
+  no tailscale_legacy_dns_dstnat chain
+  no "tailscale stale soyspray.vip DNS" rules
+
+router DNS over Tailscale:
+  obsidian.soyspray.vip -> 192.168.20.20
+```
+
+Laptop Tailscale DNS setting:
+
+- The laptop was at the old flat and had Tailscale route access, but normal
+  `*.soyspray.vip` lookups failed because local Tailscale DNS acceptance was
+  disabled.
+- `tailscale debug prefs` showed `CorpDNS: false`.
+- Re-enabled Tailscale DNS on the laptop:
+
+```sh
+sudo tailscale set --accept-dns=true
+```
+
+Laptop verification after re-enabling Tailscale DNS:
+
+```text
+TailscaleDNS: true
+soyspray.vip split DNS -> 100.96.77.28
+obsidian.soyspray.vip -> 192.168.20.20
+https://obsidian.soyspray.vip/ -> HTTP 200
+```
+
+Final current state:
+
+- Tailscale admin DNS sends `soyspray.vip` to `100.96.77.28`.
+- OpenWrt advertises only `192.168.20.0/24`.
+- The old `192.168.1.1/32` compatibility route is no longer advertised by
+  OpenWrt.
+- The OpenWrt nftables compatibility file has been removed.
+- Cluster service names should work from home Wi-Fi and remotely through
+  Tailscale:
+  - `https://obsidian.soyspray.vip`
+  - `https://argocd.soyspray.vip`
+  - `https://booklore.soyspray.vip`

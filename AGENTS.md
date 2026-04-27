@@ -16,13 +16,13 @@ and backup/retention checks.
 
 ## Node Access
 - Use `make master` (SSH) to access the single Kubernetes node.
-- The node IP is `192.168.1.10` and the SSH user is `ubuntu` (per `Makefile`).
+- The node IP is `192.168.20.10` and the SSH user is `ubuntu` (per `Makefile`).
 
 ## Networking Notes
-- Router (OpenWrt) is at `192.168.1.1`.
-- LAN subnet: `192.168.1.0/24`.
-- DNS override: `soyspray.vip` resolves to `192.168.1.20` via router dnsmasq.
-- Tailscale on the router advertises the LAN route `192.168.1.0/24` and forwards
+- Router (OpenWrt) is at `192.168.20.1`.
+- LAN subnet: `192.168.20.0/24`.
+- DNS override: `soyspray.vip` resolves to `192.168.20.20` via router dnsmasq.
+- Tailscale on the router advertises the LAN route `192.168.20.0/24` and forwards
   `tailscale -> lan`.
 
 ## Workflow

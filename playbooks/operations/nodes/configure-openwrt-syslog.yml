@@ -10,7 +10,7 @@
   hosts: kube_control_plane,kube_node
   become: true
   vars:
-    openwrt_ip: "192.168.1.1"
+    openwrt_ip: "192.168.20.1"
     syslog_port: "514"
   tasks:
     - name: Ensure rsyslog is installed

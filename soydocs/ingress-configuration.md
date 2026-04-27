@@ -14,12 +14,12 @@ This document describes the configuration of Ingress resources in the cluster an
 
 ### 1. DNS Configuration
 
-- DNS entries point to the Nginx Ingress Controller VIP (192.168.1.20)
+- DNS entries point to the Nginx Ingress Controller VIP (192.168.20.20)
 - Example DNS records:
 
   ```
-  argocd.soyspray.vip    -> 192.168.1.20
-  grafana.soyspray.vip   -> 192.168.1.20
+  argocd.soyspray.vip    -> 192.168.20.20
+  grafana.soyspray.vip   -> 192.168.20.20
   ```
 
 ### 2. TLS Certificate Management
@@ -111,13 +111,13 @@ nslookup argocd.soyspray.vip
 5. Verify HTTPS Access:
 
 ```bash
-curl -vk https://192.168.1.20 -H 'Host: argocd.soyspray.vip'
+curl -vk https://192.168.20.20 -H 'Host: argocd.soyspray.vip'
 ```
 
 6. Check TLS Certificate:
 
 ```bash
-openssl s_client -connect 192.168.1.20:443 -servername argocd.soyspray.vip
+openssl s_client -connect 192.168.20.20:443 -servername argocd.soyspray.vip
 ```
 
 ## Certificate Sync Process

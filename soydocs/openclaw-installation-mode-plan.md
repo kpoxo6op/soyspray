@@ -11,7 +11,7 @@ Install OpenClaw on the Ubuntu mini PC in a hardened mode for:
 
 ## Scope and guardrails
 
-- Host-level setup is done on the mini PC (`192.168.1.10`).
+- Host-level setup is done on the mini PC (`192.168.20.10`).
 - OpenClaw runs as dedicated user `openclaw`, not `root`.
 - Gateway UI stays on localhost and is accessed only via SSH tunnel.
 - OpenClaw Kubernetes access is provisioned using host admin kubeconfig, matching SSH admin context.

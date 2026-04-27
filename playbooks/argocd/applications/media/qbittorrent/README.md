@@ -1,6 +1,8 @@
 # qBittorrent (Raw K8s Manifests)
 
-Port forwarding was added in the router to the new qBittorrent port.
+Router port forwarding and the dedicated BitTorrent peer LoadBalancer are
+disabled after the house move because this upstream connection has no static
+public IP.
 
 admin / 123
 
@@ -10,7 +12,7 @@ including:
 1. Namespace `media`
 2. PVCs for config and downloads
 3. A Deployment with environment variables and resource limits
-4. A Service of type LoadBalancer with IP 192.168.1.30
+4. A LAN-only web UI Service of type LoadBalancer with IP 192.168.20.30
 
 The `media-downloads` claim is bound to a static local PersistentVolume at
 `/srv/media/downloads` on `node-0`. Prepare and mount the USB disk on the host
@@ -18,10 +20,10 @@ before syncing this app.
 
 ## Validation Steps
 
-1. Wait for the Service to assign the LoadBalancer IP **192.168.1.30**.
-2. Visit <http://192.168.1.30:8080> in the browser.
+1. Wait for the Service to assign the LoadBalancer IP **192.168.20.30**.
+2. Visit <http://192.168.20.30:8080> in the browser.
 3. Log into qBittorrent (default user/pass is usually admin/adminadmin or per image doc).
-4. Add a test torrent (e.g. a Linux ISO). Confirm it downloads.
+4. Torrent peer reachability is intentionally out of scope on the new network.
 
 ## Create a password hash
 
