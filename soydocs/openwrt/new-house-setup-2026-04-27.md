@@ -172,6 +172,39 @@ Verification after that:
   `192.168.20.1 dev enp0s31f6 table 52 src 192.168.20.124`.
 - `ping 192.168.20.1` from the laptop returned sub-millisecond LAN latency.
 
+### Laptop moved from Ethernet to OpenWrt Wi-Fi
+
+The laptop was moved from wired OpenWrt LAN to OpenWrt Wi-Fi SSID
+`123AAotea`.
+
+Before disconnecting Ethernet, Wi-Fi was verified independently:
+
+- NetworkManager showed `wlp2s0` connected to `123AAotea`.
+- Laptop Wi-Fi DHCP lease: `192.168.20.50/24`.
+- Wi-Fi-only ping to `192.168.20.1` succeeded.
+- Wi-Fi-only ping to `1.1.1.1` succeeded.
+- Wi-Fi-only HTTPS to `https://github.com` returned `HTTP/2 200`.
+
+Then Ethernet was disconnected from the laptop. Final verified laptop state:
+
+- `enp0s31f6` was `DOWN` / unavailable.
+- `wlp2s0` was connected to `123AAotea`.
+- Laptop address: `192.168.20.50/24`.
+- Default route: `default via 192.168.20.1 dev wlp2s0`.
+- Active NetworkManager connections: `123AAotea`, `tailscale0`, `lo`,
+  `docker0`.
+- Ping to router `192.168.20.1`: `0%` packet loss.
+- Ping to `1.1.1.1`: `0%` packet loss.
+- HTTPS to `https://github.com`: `HTTP/2 200`.
+
+OpenWrt Wi-Fi evidence:
+
+- DHCP lease table showed laptop Wi-Fi MAC `a8:6d:aa:07:93:1f` leased
+  `192.168.20.50` with hostname `mox`.
+- `iw dev phy0-ap0 station dump` showed the laptop associated on `123AAotea`.
+- Router WAN route stayed `default via 192.168.1.1 dev eth0`.
+- Router local DNS still resolved `soyspray.vip` to `192.168.20.20`.
+
 Remaining follow-up:
 
 - Update cluster inventory and MetalLB/static service IPs from `192.168.1.x` to
