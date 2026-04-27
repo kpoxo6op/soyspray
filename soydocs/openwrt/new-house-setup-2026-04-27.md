@@ -1226,6 +1226,43 @@ HTTP to immich.soyspray.vip over Tailscale reached ingress-nginx
 HTTP to obsidian.soyspray.vip over Tailscale reached ingress-nginx
 ```
 
+Plain-English flow:
+
+```text
+phone browser
+  asks Tailscale DNS for booklore.soyspray.vip
+  gets 100.96.77.28, the OpenWrt Tailscale address
+  connects to 100.96.77.28:443 over the Tailscale VPN
+OpenWrt
+  forwards that HTTPS connection to the cluster ingress VIP, 192.168.20.20:443
+ingress-nginx
+  uses the Host header, for example booklore.soyspray.vip, to choose the app
+```
+
+The hostname still matters. `booklore.soyspray.vip`, `grafana.soyspray.vip`,
+`longhorn.soyspray.vip`, and `argocd.soyspray.vip` all resolve to the same
+Tailscale IP, but ingress routes them to different apps by hostname. Do not
+route the apex domain `soyspray.vip` to an app.
+
+Mobile verification after restarting the Tailscale Android app:
+
+```text
+argocd.soyspray.vip   -> Argo CD login page loaded in Chrome
+booklore.soyspray.vip -> BookLore login page loaded in Chrome
+longhorn.soyspray.vip -> LongHorn dashboard loaded in Chrome
+grafana.soyspray.vip  -> Grafana home page loaded in Chrome
+```
+
+Argo CD note:
+
+- The live `argocd-cmd-params-cm` was missing `server.insecure: "true"`, even
+  though the repo has that setting in
+  `playbooks/argocd/config/argocd-cmd-params-cm.yaml`.
+- With HTTPS terminated at ingress and Argo CD not in insecure HTTP mode, Argo
+  returned a same-URL redirect loop at `https://argocd.soyspray.vip/`.
+- Restoring `server.insecure: "true"` and restarting `argocd-server` fixed
+  Argo CD behind ingress.
+
 Known caveat:
 
 - Android on the old-house Wi-Fi resolved the apex `soyspray.vip` through
@@ -1237,7 +1274,3 @@ Known caveat:
   the phone VPN DNS path. After the restart, `booklore.soyspray.vip` resolved
   to `100.96.77.28` and Chrome loaded BookLore at
   `https://booklore.soyspray.vip/login`.
-- `https://argocd.soyspray.vip/` currently reaches the cluster but Argo CD
-  returns a same-URL redirect loop. Other tested cluster services load normally,
-  so treat Argo's redirect behavior as an app/ingress follow-up rather than a
-  Tailscale routing failure.
