@@ -73,7 +73,7 @@ restore-success signal.
 - Use ingress-aware API checks with:
 
   ```bash
-  curl --resolve grafana.soyspray.vip:443:192.168.1.10 \
+  curl --resolve grafana.soyspray.vip:443:192.168.20.10 \
     https://grafana.soyspray.vip/...
   ```
 

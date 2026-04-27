@@ -210,6 +210,53 @@ Remaining follow-up:
 - Update cluster inventory and MetalLB/static service IPs from `192.168.1.x` to
   `192.168.20.x` before bringing cluster services back behind this router.
 
+### Cluster recovery started after node was plugged into OpenWrt
+
+The mini PC was plugged into the OpenWrt `1G` LAN port after the router move.
+
+Live checks:
+
+- OpenWrt DHCP lease table showed `node-0 -> 192.168.20.10`.
+- OpenWrt DNS resolved `node-0` to `192.168.20.10`.
+- Laptop could ping `192.168.20.10`.
+- SSH to `ubuntu@192.168.20.10` worked.
+- Node interface `eno1` had `192.168.20.10/24`.
+- Node default route was `default via 192.168.20.1 dev eno1`.
+- `containerd` was active.
+- `kubelet` was restarting/failing.
+
+Root cause found on the node:
+
+- Kubernetes generated config still referenced the old node IP
+  `192.168.1.10`.
+- Old references were present in kube-apiserver manifest, etcd server URL,
+  kubelet node IP, kubeadm config, kubeconfigs, and certificate SAN config.
+- Laptop `kubectl` also still pointed at `https://192.168.1.10:6443`.
+
+Approved recovery work:
+
+1. Update repo desired state from `192.168.1.x` to `192.168.20.x`.
+2. Disable torrent-specific external exposure because the new upstream has no
+   stable public IP.
+3. Push repo and submodule changes before deployment.
+4. Run validation and Ansible/Kubespray recovery from the updated inventory.
+5. Verify Kubernetes, Argo CD, ingress, and LAN/Tailscale access.
+
+Repo changes made for recovery:
+
+- `Makefile` node addresses changed to `192.168.20.10`.
+- `AGENTS.md` networking notes changed to the new LAN.
+- `kubespray/inventory/soycluster/hosts.yml` changed to
+  `192.168.20.10`.
+- MetalLB primary pool changed to `192.168.20.20-192.168.20.38`.
+- MetalLB torrent pool removed.
+- Argo CD LoadBalancer changed to `192.168.20.21`.
+- Application LoadBalancer IPs changed to matching `192.168.20.x` addresses.
+- qBittorrent peer LoadBalancer was removed from the active kustomization.
+- qBittorrent peer service manifest was deleted so it cannot accidentally
+  publish the old torrent peer endpoint.
+- Syslog playbook changed OpenWrt source IP to `192.168.20.1`.
+
 Current observed uplink from the powerline adapter on the laptop:
 
 - Laptop wired address: `192.168.1.124/24`

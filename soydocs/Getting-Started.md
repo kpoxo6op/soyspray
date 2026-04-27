@@ -20,7 +20,7 @@ ssh-keygen -lf ~/.ssh/id_rsa
 [SSH access](https://github.com/kubernetes-sigs/kubespray/blob/master/docs/getting_started/setting-up-your-first-cluster.md#access-the-kubernetes-cluster)
 
 ```sh
-IP_CONTROLLER_0=192.168.1.10
+IP_CONTROLLER_0=192.168.20.10
 mkdir -p ~/.kube
 ssh ubuntu@$IP_CONTROLLER_0
 
