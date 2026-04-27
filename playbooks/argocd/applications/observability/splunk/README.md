@@ -7,8 +7,11 @@ repo.
 
 ## Source Of Truth
 
-All Splunk credentials and operator settings live in `.env` in this directory.
-The same file is used for:
+All Splunk credentials and operator settings live in a local `.env` file in
+this directory. The repo includes `.env.example`; copy it to `.env` and replace
+the placeholder passwords before deploying or running operator commands.
+
+The local `.env` file is used for:
 
 - Kubernetes deployment configuration through Kustomize `secretGenerator`
 - Local operator commands
