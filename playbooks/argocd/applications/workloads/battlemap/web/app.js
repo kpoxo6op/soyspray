@@ -182,7 +182,6 @@
       });
       state.cy.on("tap", (event) => {
         if (event.target === state.cy) {
-          const pos = event.position;
           if (state.tool === "pan") return;
           if (state.suppressNextCanvasTap) {
             state.suppressNextCanvasTap = false;
@@ -192,6 +191,13 @@
             commitDraftNode();
             return;
           }
+          if (!state.connectionSourceId) clearSelection();
+        }
+      });
+      state.cy.on("dbltap", (event) => {
+        if (event.target === state.cy) {
+          const pos = event.position;
+          if (state.tool === "pan" || state.draftActive) return;
           const connectFrom = state.connectionSourceId || state.selectedNodeId;
           if (!state.connectionSourceId) clearSelection();
           startDraftNode(pos, connectFrom);
