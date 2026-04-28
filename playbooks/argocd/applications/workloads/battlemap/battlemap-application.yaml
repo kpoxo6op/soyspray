@@ -1,0 +1,23 @@
+# playbooks/argocd/applications/workloads/battlemap/battlemap-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: battlemap
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: "https://github.com/kpoxo6op/soyspray.git"
+    targetRevision: "battlemap"
+    path: playbooks/argocd/applications/workloads/battlemap
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: battlemap
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

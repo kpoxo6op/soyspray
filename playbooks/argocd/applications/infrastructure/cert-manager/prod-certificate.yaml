@@ -11,9 +11,9 @@ spec:
     annotations:
       reflector-test-ts: "1769845000"
       reflector.v1.k8s.emberstack.com/reflection-allowed: "true"
-      reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "argocd,longhorn-system,monitoring,immich,media,headlamp,home-automation,obsidian,jira"
+      reflector.v1.k8s.emberstack.com/reflection-allowed-namespaces: "argocd,longhorn-system,monitoring,immich,media,headlamp,home-automation,obsidian,jira,battlemap"
       reflector.v1.k8s.emberstack.com/reflection-auto-enabled: "true"
-      reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "argocd,longhorn-system,monitoring,immich,media,headlamp,home-automation,obsidian,jira"
+      reflector.v1.k8s.emberstack.com/reflection-auto-namespaces: "argocd,longhorn-system,monitoring,immich,media,headlamp,home-automation,obsidian,jira,battlemap"
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer

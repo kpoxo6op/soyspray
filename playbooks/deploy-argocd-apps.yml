@@ -33,6 +33,7 @@
 
       # Workloads
       - { name: Jira, role: apps/jira }
+      - { name: Battlemap, role: apps/battlemap }
 
       # Media
       - { name: Plex, role: apps/plex }

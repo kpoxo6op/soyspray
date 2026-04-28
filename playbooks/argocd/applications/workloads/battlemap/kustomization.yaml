@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: battlemap
+
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+configMapGenerator:
+  - name: battlemap-web
+    files:
+      - index.html=web/index.html
+      - styles.css=web/styles.css
+      - app.js=web/app.js
+      - data.json=web/data.json
+    options:
+      disableNameSuffixHash: true
+
+labels:
+  - pairs:
+      app.kubernetes.io/name: battlemap
+      app.kubernetes.io/part-of: mapflow-demo

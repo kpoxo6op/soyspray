@@ -1,0 +1,118 @@
+{
+  "project": {
+    "key": "SPICE",
+    "name": "SPICE Kafka Platform CFK Adoption",
+    "board": "SPICE Delivery Board"
+  },
+  "statuses": ["Backlog", "Selected", "In Progress", "Review", "Blocked", "Done"],
+  "tickets": [
+    {"key":"SPICE-101","title":"Define CFK adoption target architecture","status":"Done","type":"Epic","assignee":"Platform Lead","color":"blue","notes":"Baseline architecture for Confluent for Kubernetes on the platform cluster."},
+    {"key":"SPICE-102","title":"Inventory current Kafka workloads","status":"Done","type":"Task","assignee":"Nora","color":"green","notes":"List brokers, topics, connectors, clients, owners, and deployment patterns."},
+    {"key":"SPICE-103","title":"Document CFK operator prerequisites","status":"Done","type":"Task","assignee":"Sam","color":"green","notes":"Capture CRDs, storage classes, networking, DNS, TLS, and RBAC needs."},
+    {"key":"SPICE-104","title":"Select CFK version and support matrix","status":"Done","type":"Decision","assignee":"Priya","color":"yellow","notes":"Pin the target CFK and Confluent Platform versions for the demo."},
+    {"key":"SPICE-105","title":"Create Kubernetes namespaces for Kafka domains","status":"Done","type":"Task","assignee":"Mia","color":"green","notes":"Define namespaces for platform, dev, and shared observability."},
+    {"key":"SPICE-106","title":"Prepare storage class guidance for brokers","status":"Review","type":"Task","assignee":"Owen","color":"purple","notes":"Validate persistent volume settings for broker durability."},
+    {"key":"SPICE-107","title":"Model broker rack awareness","status":"Review","type":"Task","assignee":"Nora","color":"purple","notes":"Document rack labels and anti-affinity expectations."},
+    {"key":"SPICE-108","title":"Define Kafka listener strategy","status":"In Progress","type":"Task","assignee":"Sam","color":"blue","notes":"Internal, external, and inter-broker listener plan."},
+    {"key":"SPICE-109","title":"Create CFK install runbook","status":"In Progress","type":"Task","assignee":"Priya","color":"blue","notes":"Operator install, CRDs, Helm values, and smoke checks."},
+    {"key":"SPICE-110","title":"Bootstrap CFK operator in dev namespace","status":"In Progress","type":"Task","assignee":"Mia","color":"blue","notes":"Install CFK operator for first controlled demo environment."},
+    {"key":"SPICE-111","title":"Create Kafka CR for dev cluster","status":"In Progress","type":"Story","assignee":"Owen","color":"blue","notes":"Deploy the first Kafka custom resource under CFK control."},
+    {"key":"SPICE-112","title":"Configure ZooKeeper or KRaft mode decision","status":"Review","type":"Decision","assignee":"Platform Lead","color":"yellow","notes":"Confirm runtime mode and upgrade implications."},
+    {"key":"SPICE-113","title":"Define TLS certificate approach for Kafka listeners","status":"Blocked","type":"Task","assignee":"Nora","color":"red","notes":"Waiting on certificate ownership and secret propagation decision."},
+    {"key":"SPICE-114","title":"Map secret management for CFK resources","status":"Selected","type":"Task","assignee":"Sam","color":"gray","notes":"Document secret ownership for credentials, TLS, and license material."},
+    {"key":"SPICE-115","title":"Create KafkaUser examples","status":"Selected","type":"Task","assignee":"Priya","color":"gray","notes":"Example users for app teams and service accounts."},
+    {"key":"SPICE-116","title":"Create KafkaTopic examples","status":"Selected","type":"Task","assignee":"Mia","color":"gray","notes":"Topic manifests for onboarding and validation flows."},
+    {"key":"SPICE-117","title":"Define RBAC for app team namespaces","status":"In Progress","type":"Task","assignee":"Owen","color":"blue","notes":"Separate platform operator power from app team self-service."},
+    {"key":"SPICE-118","title":"Build platform observability dashboard","status":"In Progress","type":"Story","assignee":"Nora","color":"blue","notes":"Broker, controller, topic, and consumer lag dashboard."},
+    {"key":"SPICE-119","title":"Wire CFK metrics into Prometheus","status":"Review","type":"Task","assignee":"Sam","color":"purple","notes":"ServiceMonitors and scrape targets for operator and cluster metrics."},
+    {"key":"SPICE-120","title":"Create alert rules for Kafka health","status":"Selected","type":"Task","assignee":"Priya","color":"gray","notes":"ISR shrink, offline partitions, under replicated partitions, and disk alerts."},
+    {"key":"SPICE-121","title":"Define backup and restore expectations","status":"Backlog","type":"Task","assignee":"Mia","color":"gray","notes":"Document what is backed up and what is recreated declaratively."},
+    {"key":"SPICE-122","title":"Build test producer and consumer workload","status":"In Progress","type":"Story","assignee":"Owen","color":"blue","notes":"Smoke workload for end-to-end message flow."},
+    {"key":"SPICE-123","title":"Create schema registry CR","status":"Selected","type":"Story","assignee":"Nora","color":"gray","notes":"Deploy Schema Registry managed by CFK."},
+    {"key":"SPICE-124","title":"Create Kafka Connect CR","status":"Selected","type":"Story","assignee":"Sam","color":"gray","notes":"Deploy Kafka Connect and plugin strategy."},
+    {"key":"SPICE-125","title":"Create sample connector deployment","status":"Backlog","type":"Task","assignee":"Priya","color":"gray","notes":"Use a harmless source/sink connector for demo validation."},
+    {"key":"SPICE-126","title":"Model connector secret injection","status":"Backlog","type":"Task","assignee":"Mia","color":"gray","notes":"Show connector credentials without hardcoding secrets."},
+    {"key":"SPICE-127","title":"Define environment promotion workflow","status":"Backlog","type":"Task","assignee":"Owen","color":"gray","notes":"Promotion from dev to shared demo and then production-like namespaces."},
+    {"key":"SPICE-128","title":"Create GitOps layout for CFK manifests","status":"In Progress","type":"Story","assignee":"Nora","color":"blue","notes":"Folder boundaries, ownership, and review flow."},
+    {"key":"SPICE-129","title":"Add policy checks for KafkaTopic changes","status":"Backlog","type":"Task","assignee":"Sam","color":"gray","notes":"Guard partitions, replication factor, retention, and cleanup policy."},
+    {"key":"SPICE-130","title":"Define quota model for app teams","status":"Backlog","type":"Task","assignee":"Priya","color":"gray","notes":"Produce, consume, and storage quota shape."},
+    {"key":"SPICE-131","title":"Create migration plan from manual Kafka","status":"Selected","type":"Epic","assignee":"Platform Lead","color":"yellow","notes":"High-level migration from current platform to CFK-managed resources."},
+    {"key":"SPICE-132","title":"Map existing topics to CFK manifests","status":"Selected","type":"Task","assignee":"Mia","color":"gray","notes":"Convert current topic state into declarative resources."},
+    {"key":"SPICE-133","title":"Plan broker rolling restart validation","status":"Backlog","type":"Task","assignee":"Owen","color":"gray","notes":"Verify availability during CFK-controlled rolling operations."},
+    {"key":"SPICE-134","title":"Test broker scale up and scale down","status":"Backlog","type":"Task","assignee":"Nora","color":"gray","notes":"Capacity and rebalance behavior."},
+    {"key":"SPICE-135","title":"Validate client compatibility","status":"Review","type":"Task","assignee":"Sam","color":"purple","notes":"Kafka client versions and auth/TLS expectations."},
+    {"key":"SPICE-136","title":"Prepare developer onboarding guide","status":"In Progress","type":"Story","assignee":"Priya","color":"blue","notes":"How app teams request topics, users, and connector changes."},
+    {"key":"SPICE-137","title":"Create demo board and dependency map","status":"In Progress","type":"Task","assignee":"Mia","color":"blue","notes":"MapFlow board for visual planning and dependency conversation."},
+    {"key":"SPICE-138","title":"Run failure drill for broker pod deletion","status":"Backlog","type":"Task","assignee":"Owen","color":"gray","notes":"Confirm operator recovery and alert behavior."},
+    {"key":"SPICE-139","title":"Capture acceptance criteria for CFK MVP","status":"Selected","type":"Task","assignee":"Platform Lead","color":"yellow","notes":"Definition of done for demo and MVP readiness."},
+    {"key":"SPICE-140","title":"Publish CFK adoption demo summary","status":"Backlog","type":"Task","assignee":"Nora","color":"gray","notes":"Summarize the adoption plan, risks, and next steps."}
+  ],
+  "maps": [
+    {
+      "id": "cfk-adoption",
+      "title": "CFK Adoption Plan",
+      "updated": "Current",
+      "owner": "You",
+      "nodes": [
+        {"id":"SPICE-101","x":40,"y":-260},
+        {"id":"SPICE-103","x":-310,"y":-90},
+        {"id":"SPICE-104","x":310,"y":-90},
+        {"id":"SPICE-109","x":0,"y":90},
+        {"id":"SPICE-110","x":0,"y":260},
+        {"id":"SPICE-118","x":-330,"y":250},
+        {"id":"SPICE-123","x":320,"y":250},
+        {"id":"SPICE-137","x":0,"y":430}
+      ],
+      "edges": [
+        {"source":"SPICE-101","target":"SPICE-103"},
+        {"source":"SPICE-101","target":"SPICE-104"},
+        {"source":"SPICE-103","target":"SPICE-109"},
+        {"source":"SPICE-104","target":"SPICE-109"},
+        {"source":"SPICE-109","target":"SPICE-110"},
+        {"source":"SPICE-109","target":"SPICE-118"},
+        {"source":"SPICE-109","target":"SPICE-123"},
+        {"source":"SPICE-110","target":"SPICE-137"},
+        {"source":"SPICE-118","target":"SPICE-137"},
+        {"source":"SPICE-123","target":"SPICE-137"}
+      ]
+    },
+    {
+      "id": "platform-bootstrap",
+      "title": "Platform Bootstrap",
+      "updated": "2 hours ago",
+      "owner": "Alex Morgan",
+      "nodes": [
+        {"id":"SPICE-105","x":0,"y":-220},
+        {"id":"SPICE-106","x":-260,"y":-60},
+        {"id":"SPICE-107","x":260,"y":-60},
+        {"id":"SPICE-108","x":0,"y":120},
+        {"id":"SPICE-111","x":0,"y":300}
+      ],
+      "edges": [
+        {"source":"SPICE-105","target":"SPICE-106"},
+        {"source":"SPICE-105","target":"SPICE-107"},
+        {"source":"SPICE-106","target":"SPICE-108"},
+        {"source":"SPICE-107","target":"SPICE-108"},
+        {"source":"SPICE-108","target":"SPICE-111"}
+      ]
+    },
+    {
+      "id": "observability",
+      "title": "Observability Buildout",
+      "updated": "yesterday",
+      "owner": "Sam Lee",
+      "nodes": [
+        {"id":"SPICE-118","x":0,"y":-220},
+        {"id":"SPICE-119","x":-260,"y":-40},
+        {"id":"SPICE-120","x":260,"y":-40},
+        {"id":"SPICE-122","x":0,"y":150}
+      ],
+      "edges": [
+        {"source":"SPICE-118","target":"SPICE-119"},
+        {"source":"SPICE-118","target":"SPICE-120"},
+        {"source":"SPICE-119","target":"SPICE-122"},
+        {"source":"SPICE-120","target":"SPICE-122"}
+      ]
+    }
+  ]
+}
