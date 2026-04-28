@@ -6,6 +6,7 @@
     cy: null,
     selectedMapId: null,
     selectedNodeId: null,
+    selectedNodeIds: [],
     selectedEdgeId: null,
     connectionSourceId: null,
     draftActive: false,
@@ -125,7 +126,8 @@
         container: $("cy"),
         minZoom: 0.25,
         maxZoom: 2.5,
-        boxSelectionEnabled: false,
+        boxSelectionEnabled: true,
+        userPanningEnabled: false,
         style: [
           {
             selector: "node",
@@ -174,6 +176,7 @@
 
       state.cy.on("tap", "node", (event) => handleNodeTap(event.target));
       state.cy.on("tap", "edge", (event) => selectEdge(event.target));
+      state.cy.on("boxselect select unselect", "node", syncSelectedNodes);
       state.cy.on("dragfree", "node", persistPositions);
       state.cy.on("zoom pan", () => {
         updateZoomLabel();
@@ -207,8 +210,8 @@
 
     state.cy.elements().remove();
     state.cy.add(mapElements(map));
-    if (state.selectedNodeId) {
-      state.cy.getElementById(state.selectedNodeId).select();
+    if (state.selectedNodeIds.length) {
+      state.selectedNodeIds.forEach((id) => state.cy.getElementById(id).select());
       $("delete-node-tool").disabled = false;
     } else {
       $("delete-node-tool").disabled = true;
@@ -234,6 +237,7 @@
     const node = state.cy.getElementById(id);
     if (!node.length) return false;
     state.selectedNodeId = id;
+    state.selectedNodeIds = [id];
     state.selectedEdgeId = null;
     state.connectionSourceId = null;
     state.cy.elements().unselect();
@@ -248,6 +252,7 @@
   function selectEdge(edge) {
     stopConnectionMode();
     state.selectedNodeId = null;
+    state.selectedNodeIds = [];
     state.selectedEdgeId = edge.id();
     state.cy.elements().unselect();
     edge.select();
@@ -259,10 +264,27 @@
 
   function clearSelection() {
     state.selectedNodeId = null;
+    state.selectedNodeIds = [];
     state.selectedEdgeId = null;
     state.connectionSourceId = null;
     if (state.cy) state.cy.elements().unselect();
     $("delete-node-tool").disabled = true;
+    positionConnectAction();
+    updateModeBanner();
+  }
+
+  function syncSelectedNodes() {
+    if (!state.cy) return;
+    const ids = state.cy.nodes(":selected").map((node) => node.id());
+    state.selectedNodeIds = ids;
+    state.selectedNodeId = ids.length === 1 ? ids[0] : null;
+    if (ids.length) {
+      state.selectedEdgeId = null;
+      state.cy.edges().unselect();
+      $("delete-node-tool").disabled = false;
+    } else {
+      $("delete-node-tool").disabled = true;
+    }
     positionConnectAction();
     updateModeBanner();
   }
@@ -277,6 +299,9 @@
     } else if (state.connectionSourceId) {
       banner.hidden = false;
       banner.textContent = `Connecting from ${state.connectionSourceId}. Click a node, or click empty space to create and connect one.`;
+    } else if (state.selectedNodeIds.length > 1) {
+      banner.hidden = false;
+      banner.textContent = `${state.selectedNodeIds.length} nodes selected. Use Delete Node or press Delete to remove them.`;
     } else if (state.selectedNodeId) {
       banner.hidden = false;
       banner.textContent = `${state.selectedNodeId} selected. Use Delete Node or press Delete to remove it.`;
@@ -432,18 +457,20 @@
   }
 
   function deleteNode(id = state.selectedNodeId) {
-    if (!id) {
+    const ids = id ? [id] : state.selectedNodeIds;
+    if (!ids.length) {
       showToast("Select a node first");
       return false;
     }
     const map = currentMap();
-    map.nodes = map.nodes.filter((node) => node.id !== id);
-    map.edges = map.edges.filter((edge) => edge.source !== id && edge.target !== id);
+    map.nodes = map.nodes.filter((node) => !ids.includes(node.id));
+    map.edges = map.edges.filter((edge) => !ids.includes(edge.source) && !ids.includes(edge.target));
     state.selectedNodeId = null;
+    state.selectedNodeIds = [];
     state.connectionSourceId = null;
     saveLocal();
     renderMap({keepViewport: true});
-    showToast(`Deleted ${id}`);
+    showToast(ids.length === 1 ? `Deleted ${ids[0]}` : `Deleted ${ids.length} nodes`);
     return true;
   }
 
@@ -455,7 +482,10 @@
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
     });
-    if (state.cy) state.cy.userPanningEnabled(tool === "pan");
+    if (state.cy) {
+      state.cy.userPanningEnabled(tool === "pan");
+      state.cy.boxSelectionEnabled(tool !== "pan");
+    }
     showToast(`${tool[0].toUpperCase()}${tool.slice(1)} tool`);
   }
 
@@ -609,7 +639,7 @@
         event.preventDefault();
         deleteSelectedConnection();
       }
-      if ((event.key === "Delete" || event.key === "Backspace") && state.selectedNodeId) {
+      if ((event.key === "Delete" || event.key === "Backspace") && state.selectedNodeIds.length) {
         event.preventDefault();
         deleteNode();
       }
