@@ -63,9 +63,12 @@
 
   function mergeSeedMaps(savedMaps, seedMaps) {
     const normalizedSaved = normalizeMaps(savedMaps);
+    const seedIds = new Set(seedMaps.map((map) => map.id));
     const savedIds = new Set(normalizedSaved.map((map) => map.id));
     const missingSeeds = normalizeMaps(seedMaps).filter((map) => !savedIds.has(map.id));
-    return [...missingSeeds, ...normalizedSaved];
+    const refreshedSeeds = normalizeMaps(seedMaps).filter((map) => savedIds.has(map.id));
+    const userMaps = normalizedSaved.filter((map) => !seedIds.has(map.id));
+    return [...missingSeeds, ...refreshedSeeds, ...userMaps];
   }
 
   function loadLocal(seed) {
