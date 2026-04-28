@@ -92,6 +92,7 @@
       const key = ticket?.key || node.id;
       const color = ticket?.color || node.color || "gray";
       const colors = colorStyles[color] || colorStyles.gray;
+      const titleLines = title.replace(/\s+/g, " ").match(/.{1,26}(?:\s|$)|\S+/g) || [title];
       return {
         group: "nodes",
         data: {
@@ -102,7 +103,7 @@
           color,
           bg: node.draft ? "#ffffff" : colors.bg,
           border: node.draft ? "#0f62fe" : colors.border,
-          label: node.draft ? "New SPICE issue" : `${key}\n${title}`,
+          label: node.draft ? "New SPICE issue" : `${key}\n${titleLines.map((line) => line.trim()).join("\n")}`,
           draft: Boolean(node.draft)
         },
         position: {x: node.x, y: node.y}
@@ -140,19 +141,20 @@
             selector: "node",
             style: {
               "shape": "round-rectangle",
-              "width": 250,
-              "height": 88,
+              "width": 300,
+              "height": 118,
               "background-color": "data(bg)",
               "border-color": "data(border)",
               "border-width": 2,
               "label": "data(label)",
               "text-wrap": "wrap",
-              "text-max-width": 210,
-              "font-size": 16,
+              "text-max-width": 260,
+              "font-size": 14,
               "font-family": "Inter, sans-serif",
               "color": "#111827",
               "text-valign": "center",
               "text-halign": "center",
+              "line-height": 1.18,
               "overlay-padding": 8
             }
           },
