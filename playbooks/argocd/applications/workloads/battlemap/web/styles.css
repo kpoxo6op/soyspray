@@ -100,7 +100,9 @@ button {
 .brand-mark::after { left: 20px; top: 14px; }
 
 .map-title {
-  width: 260px;
+  flex: 1 1 360px;
+  min-width: 260px;
+  max-width: 520px;
   border: 0;
   background: transparent;
   font-size: 22px;
@@ -544,7 +546,7 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   }
 
   .brand strong { display: none; }
-  .map-title { width: 180px; font-size: 18px; }
+  .map-title { flex-basis: 220px; min-width: 180px; font-size: 18px; }
   .top-actions { gap: 6px; }
   .button { padding: 0 12px; }
 }
