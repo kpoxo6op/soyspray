@@ -646,7 +646,7 @@
     state.data = await (await fetch("/data.json")).json();
     loadLocal(state.data);
     $("issue-options").innerHTML = state.data.tickets.map((ticket) =>
-      `<option value="${ticket.key}">${ticket.title}</option><option value="${ticket.key.replace("SPICE-", "")}">${ticket.key} ${ticket.title}</option>`
+      `<option value="${ticket.key}" label="${ticket.title}"></option>`
     ).join("");
     wireEvents();
     renderMap();
