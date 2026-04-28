@@ -6,8 +6,12 @@
     cy: null,
     selectedMapId: null,
     selectedNodeId: null,
+    selectedEdgeId: null,
+    connectionSourceId: null,
     draftActive: false,
     draftPosition: null,
+    draftConnectFrom: null,
+    suppressNextCanvasTap: false,
     tool: "select"
   };
 
@@ -51,7 +55,8 @@
       title: map.title,
       updated: map.updated,
       owner: map.owner,
-      nodes: Array.isArray(map.nodes) ? map.nodes : []
+      nodes: Array.isArray(map.nodes) ? map.nodes : [],
+      edges: Array.isArray(map.edges) ? map.edges : []
     }));
   }
 
@@ -95,7 +100,19 @@
         position: {x: node.x, y: node.y}
       };
     });
-    return nodes;
+    const edges = map.edges.map((edge, index) => ({
+      group: "edges",
+      data: {
+        id: edgeId(edge, index),
+        source: edge.source,
+        target: edge.target
+      }
+    }));
+    return [...nodes, ...edges];
+  }
+
+  function edgeId(edge, index = 0) {
+    return edge.id || `edge-${edge.source}-${edge.target}-${index}`;
   }
 
   function renderMap(options = {}) {
@@ -136,19 +153,48 @@
               "border-color": "#0f62fe",
               "border-width": 4
             }
+          },
+          {
+            selector: "edge",
+            style: {
+              "width": 3,
+              "line-color": "#6b7280",
+              "curve-style": "straight"
+            }
+          },
+          {
+            selector: "edge:selected",
+            style: {
+              "line-color": "#0f62fe",
+              "width": 5
+            }
           }
         ]
       });
 
       state.cy.on("tap", "node", (event) => handleNodeTap(event.target));
+      state.cy.on("tap", "edge", (event) => selectEdge(event.target));
       state.cy.on("dragfree", "node", persistPositions);
-      state.cy.on("zoom pan", updateZoomLabel);
+      state.cy.on("zoom pan", () => {
+        updateZoomLabel();
+        positionConnectAction();
+        if (state.draftActive) positionComposer(state.draftPosition);
+      });
       state.cy.on("tap", (event) => {
         if (event.target === state.cy) {
           const pos = event.position;
           if (state.tool === "pan") return;
-          clearNodeSelection();
-          startDraftNode(pos);
+          if (state.suppressNextCanvasTap) {
+            state.suppressNextCanvasTap = false;
+            return;
+          }
+          if (state.draftActive) {
+            commitDraftNode();
+            return;
+          }
+          const connectFrom = state.connectionSourceId || state.selectedNodeId;
+          if (!state.connectionSourceId) clearSelection();
+          startDraftNode(pos, connectFrom);
         }
       });
     }
@@ -161,13 +207,20 @@
     } else {
       $("delete-node-tool").disabled = true;
     }
+    if (state.selectedEdgeId) state.cy.getElementById(state.selectedEdgeId).select();
     if (!options.keepViewport && state.cy.elements().length) state.cy.fit(undefined, 80);
     updateZoomLabel();
+    positionConnectAction();
     updateModeBanner();
   }
 
   function handleNodeTap(node) {
     if (state.draftActive) return;
+    if (state.connectionSourceId) {
+      connectIssues(state.connectionSourceId, node.id());
+      stopConnectionMode();
+      return;
+    }
     selectNode(node.id());
   }
 
@@ -175,18 +228,36 @@
     const node = state.cy.getElementById(id);
     if (!node.length) return false;
     state.selectedNodeId = id;
+    state.selectedEdgeId = null;
+    state.connectionSourceId = null;
     state.cy.elements().unselect();
     node.select();
     $("delete-node-tool").disabled = false;
+    positionConnectAction();
     updateModeBanner();
     showToast(`${id} selected`);
     return true;
   }
 
-  function clearNodeSelection() {
+  function selectEdge(edge) {
+    stopConnectionMode();
     state.selectedNodeId = null;
-    if (state.cy) state.cy.nodes().unselect();
+    state.selectedEdgeId = edge.id();
+    state.cy.elements().unselect();
+    edge.select();
     $("delete-node-tool").disabled = true;
+    positionConnectAction();
+    updateModeBanner();
+    showToast("Connection selected");
+  }
+
+  function clearSelection() {
+    state.selectedNodeId = null;
+    state.selectedEdgeId = null;
+    state.connectionSourceId = null;
+    if (state.cy) state.cy.elements().unselect();
+    $("delete-node-tool").disabled = true;
+    positionConnectAction();
     updateModeBanner();
   }
 
@@ -194,10 +265,18 @@
     const banner = $("mode-banner");
     if (state.draftActive) {
       banner.hidden = false;
-      banner.textContent = "Type a SPICE issue number or title. Press Escape to cancel.";
+      banner.textContent = state.draftConnectFrom
+        ? `Type a SPICE issue. Click away to add it and connect from ${state.draftConnectFrom}.`
+        : "Type a SPICE issue number or title. Click away to create it. Escape cancels.";
+    } else if (state.connectionSourceId) {
+      banner.hidden = false;
+      banner.textContent = `Connecting from ${state.connectionSourceId}. Click a node, or click empty space to create and connect one.`;
     } else if (state.selectedNodeId) {
       banner.hidden = false;
       banner.textContent = `${state.selectedNodeId} selected. Use Delete Node or press Delete to remove it.`;
+    } else if (state.selectedEdgeId) {
+      banner.hidden = false;
+      banner.textContent = "Connection selected. Press Delete to remove it.";
     } else {
       banner.hidden = true;
       banner.textContent = "";
@@ -214,13 +293,15 @@
       }
     });
     saveLocal();
+    positionConnectAction();
   }
 
-  function startDraftNode(position = {x: 0, y: 0}) {
+  function startDraftNode(position = {x: 0, y: 0}, connectFrom = null) {
     cancelDraftNode();
-    clearNodeSelection();
+    if (!connectFrom) clearSelection();
     state.draftActive = true;
     state.draftPosition = position;
+    state.draftConnectFrom = connectFrom;
     $("empty-state").hidden = true;
     positionComposer(position);
     $("issue-key").value = "";
@@ -244,6 +325,7 @@
     if (!state.draftActive) return;
     state.draftActive = false;
     state.draftPosition = null;
+    state.draftConnectFrom = null;
     $("node-composer").hidden = true;
     $("empty-state").hidden = Boolean(currentMap()?.nodes.length);
     updateModeBanner();
@@ -287,9 +369,15 @@
       y: Math.round(state.draftPosition.y),
       color: ticket.color
     });
+    const connectFrom = state.draftConnectFrom;
     state.draftActive = false;
     state.draftPosition = null;
+    state.draftConnectFrom = null;
+    state.connectionSourceId = null;
     $("node-composer").hidden = true;
+    if (connectFrom && connectFrom !== ticket.key) {
+      map.edges.push({id: `edge-${connectFrom}-${ticket.key}-${Date.now()}`, source: connectFrom, target: ticket.key});
+    }
     saveLocal();
     renderMap({keepViewport: true});
     selectNode(ticket.key);
@@ -304,6 +392,39 @@
     return commitDraftNode(key);
   }
 
+  function connectIssues(source, target) {
+    const map = currentMap();
+    if (!source || !target || source === target) return false;
+    const hasSource = map.nodes.some((node) => node.id === source);
+    const hasTarget = map.nodes.some((node) => node.id === target);
+    if (!hasSource || !hasTarget) return false;
+    const existing = map.edges.some((edge) =>
+      (edge.source === source && edge.target === target) || (edge.source === target && edge.target === source)
+    );
+    if (existing) {
+      showToast("Connection already exists");
+      return true;
+    }
+    map.edges.push({id: `edge-${source}-${target}-${Date.now()}`, source, target});
+    saveLocal();
+    renderMap({keepViewport: true});
+    selectEdge(state.cy.getElementById(map.edges[map.edges.length - 1].id));
+    showToast(`Connected ${source} to ${target}`);
+    return true;
+  }
+
+  function deleteSelectedConnection() {
+    if (!state.selectedEdgeId) return false;
+    const map = currentMap();
+    const id = state.selectedEdgeId;
+    map.edges = map.edges.filter((edge, index) => edgeId(edge, index) !== id);
+    state.selectedEdgeId = null;
+    saveLocal();
+    renderMap({keepViewport: true});
+    showToast("Connection deleted");
+    return true;
+  }
+
   function deleteNode(id = state.selectedNodeId) {
     if (!id) {
       showToast("Select a node first");
@@ -311,7 +432,9 @@
     }
     const map = currentMap();
     map.nodes = map.nodes.filter((node) => node.id !== id);
+    map.edges = map.edges.filter((edge) => edge.source !== id && edge.target !== id);
     state.selectedNodeId = null;
+    state.connectionSourceId = null;
     saveLocal();
     renderMap({keepViewport: true});
     showToast(`Deleted ${id}`);
@@ -320,7 +443,7 @@
 
   function setTool(tool) {
     state.tool = tool;
-    clearNodeSelection();
+    clearSelection();
     document.querySelectorAll("[data-tool]").forEach((button) => {
       const active = button.dataset.tool === tool;
       button.classList.toggle("active", active);
@@ -333,6 +456,42 @@
   function updateZoomLabel() {
     if (!state.cy) return;
     $("zoom-label").textContent = `${Math.round(state.cy.zoom() * 100)}%`;
+  }
+
+  function startConnectionMode() {
+    if (!state.selectedNodeId) return false;
+    state.connectionSourceId = state.selectedNodeId;
+    state.selectedEdgeId = null;
+    if (state.cy) state.cy.edges().unselect();
+    positionConnectAction();
+    updateModeBanner();
+    showToast(`Connect from ${state.connectionSourceId}`);
+    return true;
+  }
+
+  function stopConnectionMode() {
+    state.connectionSourceId = null;
+    positionConnectAction();
+    updateModeBanner();
+  }
+
+  function positionConnectAction() {
+    const button = $("connect-node-action");
+    if (!button || !state.cy || !state.selectedNodeId || state.draftActive) {
+      if (button) button.hidden = true;
+      return;
+    }
+    const node = state.cy.getElementById(state.selectedNodeId);
+    if (!node.length) {
+      button.hidden = true;
+      return;
+    }
+    const rendered = node.renderedPosition();
+    const canvasRect = $("cy").getBoundingClientRect();
+    button.style.left = `${Math.round(canvasRect.left + rendered.x + 104)}px`;
+    button.style.top = `${Math.round(canvasRect.top + rendered.y - 68)}px`;
+    button.classList.toggle("active", state.connectionSourceId === state.selectedNodeId);
+    button.hidden = false;
   }
 
   function renderOpenMapDialog() {
@@ -361,7 +520,7 @@
     if (!id) return;
     state.currentMapId = id;
     saveLocal();
-    clearNodeSelection();
+    clearSelection();
     cancelDraftNode();
     renderMap();
     $("open-map-dialog").close();
@@ -373,7 +532,8 @@
       title: title || $("new-map-title").value || "New CFK Map",
       updated: "Current",
       owner: "You",
-      nodes: []
+      nodes: [],
+      edges: []
     };
     state.maps.unshift(map);
     state.currentMapId = map.id;
@@ -405,6 +565,11 @@
     document.querySelectorAll("[data-tool]").forEach((button) => button.addEventListener("click", () => setTool(button.dataset.tool)));
     $("add-node-tool").addEventListener("click", () => startDraftNode({x: 0, y: 0}));
     $("delete-node-tool").addEventListener("click", () => deleteNode());
+    $("connect-node-action").addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      startConnectionMode();
+    });
     $("issue-key").addEventListener("input", updateIssuePreview);
     $("issue-key").addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
@@ -416,8 +581,18 @@
         cancelDraftNode();
       }
     });
+    $("issue-key").addEventListener("blur", () => {
+      if (state.draftActive && $("issue-key").value.trim() && commitDraftNode()) {
+        state.suppressNextCanvasTap = true;
+      }
+    });
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && state.draftActive) cancelDraftNode();
+      if (event.key === "Escape" && state.connectionSourceId) stopConnectionMode();
+      if ((event.key === "Delete" || event.key === "Backspace") && state.selectedEdgeId) {
+        event.preventDefault();
+        deleteSelectedConnection();
+      }
       if ((event.key === "Delete" || event.key === "Backspace") && state.selectedNodeId) {
         event.preventDefault();
         deleteNode();
@@ -436,7 +611,7 @@
     $("close-map").addEventListener("click", () => $("close-map-dialog").showModal());
     $("confirm-close").addEventListener("click", (event) => {
       event.preventDefault();
-      clearNodeSelection();
+      clearSelection();
       $("close-map-dialog").close();
       $("open-map-dialog").showModal();
       renderOpenMapDialog();
@@ -476,6 +651,9 @@
       commitDraftNode,
       cancelDraftNode,
       selectNode,
+      startConnectionMode,
+      connectIssues,
+      deleteSelectedConnection,
       deleteNode,
       exportCytoscapeJson,
       resetDemo: () => {

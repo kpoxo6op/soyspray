@@ -302,6 +302,54 @@ button {
   line-height: 1.25;
 }
 
+.connect-node-action {
+  position: fixed;
+  z-index: 9;
+  width: 42px;
+  height: 42px;
+  border: 1px solid var(--blue);
+  border-radius: 8px;
+  background: var(--blue);
+  color: white;
+  font-size: 0;
+  box-shadow: var(--shadow);
+}
+
+.connect-node-action::before,
+.connect-node-action::after {
+  content: "";
+  position: absolute;
+  background: white;
+}
+
+.connect-node-action::before {
+  left: 11px;
+  right: 11px;
+  top: 19px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.connect-node-action::after {
+  width: 8px;
+  height: 8px;
+  right: 9px;
+  top: 17px;
+  border-right: 4px solid white;
+  border-top: 4px solid white;
+  background: transparent;
+  transform: rotate(45deg);
+}
+
+.connect-node-action.active {
+  background: #111827;
+  border-color: #111827;
+}
+
+.connect-node-action[hidden] {
+  display: none;
+}
+
 .mode-banner {
   position: absolute;
   left: 50%;
