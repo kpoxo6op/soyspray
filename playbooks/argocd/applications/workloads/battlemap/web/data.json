@@ -132,47 +132,6 @@
         {"source":"SPICE-136","target":"SPICE-137"},
         {"source":"SPICE-137","target":"SPICE-140"}
       ]
-    },
-    {
-      "id": "cfk-adoption",
-      "title": "CFK Adoption Plan",
-      "updated": "Current",
-      "owner": "You",
-      "nodes": [
-        {"id":"SPICE-101","x":40,"y":-260},
-        {"id":"SPICE-103","x":-310,"y":-90},
-        {"id":"SPICE-104","x":310,"y":-90},
-        {"id":"SPICE-109","x":0,"y":90},
-        {"id":"SPICE-110","x":0,"y":260},
-        {"id":"SPICE-118","x":-330,"y":250},
-        {"id":"SPICE-123","x":320,"y":250},
-        {"id":"SPICE-137","x":0,"y":430}
-      ]
-    },
-    {
-      "id": "platform-bootstrap",
-      "title": "Platform Bootstrap",
-      "updated": "2 hours ago",
-      "owner": "Alex Morgan",
-      "nodes": [
-        {"id":"SPICE-105","x":0,"y":-220},
-        {"id":"SPICE-106","x":-260,"y":-60},
-        {"id":"SPICE-107","x":260,"y":-60},
-        {"id":"SPICE-108","x":0,"y":120},
-        {"id":"SPICE-111","x":0,"y":300}
-      ]
-    },
-    {
-      "id": "observability",
-      "title": "Observability Buildout",
-      "updated": "yesterday",
-      "owner": "Sam Lee",
-      "nodes": [
-        {"id":"SPICE-118","x":0,"y":-220},
-        {"id":"SPICE-119","x":-260,"y":-40},
-        {"id":"SPICE-120","x":260,"y":-40},
-        {"id":"SPICE-122","x":0,"y":150}
-      ]
     }
   ]
 }

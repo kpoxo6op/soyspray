@@ -63,7 +63,8 @@
 
   function mergeSeedMaps(savedMaps, seedMaps) {
     const normalizedSaved = normalizeMaps(savedMaps);
-    const seedIds = new Set(seedMaps.map((map) => map.id));
+    const retiredSeedIds = new Set(["cfk-adoption", "platform-bootstrap", "observability"]);
+    const seedIds = new Set([...seedMaps.map((map) => map.id), ...retiredSeedIds]);
     const savedIds = new Set(normalizedSaved.map((map) => map.id));
     const missingSeeds = normalizeMaps(seedMaps).filter((map) => !savedIds.has(map.id));
     const refreshedSeeds = normalizeMaps(seedMaps).filter((map) => savedIds.has(map.id));
@@ -81,7 +82,7 @@
     try {
       const parsed = JSON.parse(saved);
       state.maps = parsed.maps?.length ? mergeSeedMaps(parsed.maps, seed.maps) : normalizeMaps(structuredClone(seed.maps));
-      state.currentMapId = parsed.currentMapId || state.maps[0].id;
+      state.currentMapId = seed.maps[0].id;
     } catch {
       state.maps = normalizeMaps(structuredClone(seed.maps));
       state.currentMapId = state.maps[0].id;
