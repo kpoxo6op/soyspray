@@ -583,6 +583,89 @@
     return JSON.stringify(state.cy.json(), null, 2);
   }
 
+  function xmlEscape(value) {
+    return String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+  }
+
+  function fileSlug() {
+    return (currentMap().title || "mapflow-map")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "mapflow-map";
+  }
+
+  function downloadText(filename, mimeType, text) {
+    const blob = new Blob([text], {type: mimeType});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadDataUrl(filename, dataUrl) {
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = filename;
+    document.body.append(link);
+    link.click();
+    link.remove();
+  }
+
+  function exportDrawioXml() {
+    persistPositions();
+    const map = currentMap();
+    const nodeWidth = 300;
+    const nodeHeight = 118;
+    const cells = [
+      '<mxCell id="0"/>',
+      '<mxCell id="1" parent="0"/>'
+    ];
+    map.nodes.forEach((node) => {
+      const ticket = ticketByKey(node.id);
+      const label = ticket ? `${xmlEscape(ticket.key)}&lt;br&gt;${xmlEscape(ticket.title)}` : xmlEscape(node.id);
+      const colors = colorStyles[ticket?.color || node.color || "gray"] || colorStyles.gray;
+      const style = [
+        "rounded=1",
+        "whiteSpace=wrap",
+        "html=1",
+        `fillColor=${colors.bg}`,
+        `strokeColor=${colors.border}`,
+        "fontColor=#111827",
+        "fontSize=14"
+      ].join(";");
+      cells.push(`<mxCell id="node-${xmlEscape(node.id)}" value="${label}" style="${xmlEscape(style)}" vertex="1" parent="1"><mxGeometry x="${Math.round(node.x - nodeWidth / 2)}" y="${Math.round(node.y - nodeHeight / 2)}" width="${nodeWidth}" height="${nodeHeight}" as="geometry"/></mxCell>`);
+    });
+    map.edges.forEach((edge, index) => {
+      const id = edge.id || `edge-${edge.source}-${edge.target}-${index}`;
+      const style = "endArrow=none;html=1;rounded=0;strokeColor=#a8b3c5;strokeWidth=2";
+      cells.push(`<mxCell id="${xmlEscape(id)}" value="" style="${xmlEscape(style)}" edge="1" parent="1" source="node-${xmlEscape(edge.source)}" target="node-${xmlEscape(edge.target)}"><mxGeometry relative="1" as="geometry"/></mxCell>`);
+    });
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<mxfile host="MapFlow" modified="${new Date().toISOString()}" agent="MapFlow" version="24.0.0" type="device"><diagram id="${xmlEscape(map.id)}" name="${xmlEscape(map.title)}"><mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="0" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0"><root>${cells.join("")}</root></mxGraphModel></diagram></mxfile>\n`;
+  }
+
+  function exportPngDataUrl() {
+    return state.cy.png({full: true, scale: 2, bg: "#fbfdff"});
+  }
+
+  function exportDrawioDownload() {
+    downloadText(`${fileSlug()}.drawio`, "application/vnd.jgraph.mxfile+xml", exportDrawioXml());
+    showToast("draw.io export ready");
+  }
+
+  function exportPngDownload() {
+    downloadDataUrl(`${fileSlug()}.png`, exportPngDataUrl());
+    showToast("PNG export ready");
+  }
+
   function showCode() {
     $("map-code").value = exportCytoscapeJson();
     $("code-dialog").showModal();
@@ -661,6 +744,8 @@
       $("new-map-dialog").close();
     });
     $("save-map").addEventListener("click", showCode);
+    $("export-drawio").addEventListener("click", exportDrawioDownload);
+    $("export-png").addEventListener("click", exportPngDownload);
     $("map-title").addEventListener("change", () => {
       currentMap().title = $("map-title").value.trim() || "Untitled Map";
       saveLocal();
@@ -694,6 +779,8 @@
       deleteSelectedConnection,
       deleteNode,
       exportCytoscapeJson,
+      exportDrawioXml,
+      exportPngDataUrl,
       resetDemo: () => {
         localStorage.removeItem("mapflow-demo-state");
         location.reload();
