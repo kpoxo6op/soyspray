@@ -5,9 +5,8 @@
     currentMapId: null,
     cy: null,
     selectedMapId: null,
-    connectSourceId: null,
-    selectedEdgeId: null,
-    draftNodeId: null,
+    selectedNodeId: null,
+    draftActive: false,
     draftPosition: null,
     tool: "select"
   };
@@ -46,19 +45,29 @@
     }));
   }
 
+  function normalizeMaps(maps) {
+    return maps.map((map) => ({
+      id: map.id,
+      title: map.title,
+      updated: map.updated,
+      owner: map.owner,
+      nodes: Array.isArray(map.nodes) ? map.nodes : []
+    }));
+  }
+
   function loadLocal(seed) {
     const saved = localStorage.getItem("mapflow-demo-state");
     if (!saved) {
-      state.maps = structuredClone(seed.maps);
+      state.maps = normalizeMaps(structuredClone(seed.maps));
       state.currentMapId = state.maps[0].id;
       return;
     }
     try {
       const parsed = JSON.parse(saved);
-      state.maps = parsed.maps?.length ? parsed.maps : structuredClone(seed.maps);
+      state.maps = normalizeMaps(parsed.maps?.length ? parsed.maps : structuredClone(seed.maps));
       state.currentMapId = parsed.currentMapId || state.maps[0].id;
     } catch {
-      state.maps = structuredClone(seed.maps);
+      state.maps = normalizeMaps(structuredClone(seed.maps));
       state.currentMapId = state.maps[0].id;
     }
   }
@@ -86,19 +95,7 @@
         position: {x: node.x, y: node.y}
       };
     });
-    const edges = map.edges.map((edge, index) => ({
-      group: "edges",
-      data: {
-        id: edgeId(edge, index),
-        source: edge.source,
-        target: edge.target
-      }
-    }));
-    return [...nodes, ...edges];
-  }
-
-  function edgeId(edge, index = 0) {
-    return edge.id || `edge-${edge.source}-${edge.target}-${index}`;
+    return nodes;
   }
 
   function renderMap(options = {}) {
@@ -111,7 +108,6 @@
         container: $("cy"),
         minZoom: 0.25,
         maxZoom: 2.5,
-        wheelSensitivity: 0.15,
         boxSelectionEnabled: false,
         style: [
           {
@@ -135,43 +131,23 @@
             }
           },
           {
-            selector: "node.connection-source",
+            selector: "node:selected",
             style: {
               "border-color": "#0f62fe",
-              "border-width": 5
-            }
-          },
-          {
-            selector: "edge",
-            style: {
-              "width": 3,
-              "line-color": "#6b7280",
-              "curve-style": "straight"
-            }
-          },
-          {
-            selector: "edge:selected",
-            style: {
-              "line-color": "#0f62fe",
-              "width": 5
+              "border-width": 4
             }
           }
         ]
       });
 
       state.cy.on("tap", "node", (event) => handleNodeTap(event.target));
-      state.cy.on("tap", "edge", (event) => selectEdge(event.target));
       state.cy.on("dragfree", "node", persistPositions);
       state.cy.on("zoom pan", updateZoomLabel);
       state.cy.on("tap", (event) => {
         if (event.target === state.cy) {
           const pos = event.position;
           if (state.tool === "pan") return;
-          if (state.connectSourceId || state.selectedEdgeId) {
-            clearConnectionMode();
-            clearEdgeSelection();
-            return;
-          }
+          clearNodeSelection();
           startDraftNode(pos);
         }
       });
@@ -179,63 +155,49 @@
 
     state.cy.elements().remove();
     state.cy.add(mapElements(map));
-    if (state.connectSourceId) state.cy.getElementById(state.connectSourceId).addClass("connection-source");
+    if (state.selectedNodeId) {
+      state.cy.getElementById(state.selectedNodeId).select();
+      $("delete-node-tool").disabled = false;
+    } else {
+      $("delete-node-tool").disabled = true;
+    }
     if (!options.keepViewport && state.cy.elements().length) state.cy.fit(undefined, 80);
     updateZoomLabel();
     updateModeBanner();
   }
 
   function handleNodeTap(node) {
-    if (state.draftNodeId) return;
-    const id = node.id();
-    clearEdgeSelection();
-    if (!state.connectSourceId) {
-      state.connectSourceId = id;
-      node.addClass("connection-source");
-      updateModeBanner();
-      showToast(`Connection started from ${id}`);
-      return;
-    }
-    if (state.connectSourceId === id) {
-      clearConnectionMode();
-      return;
-    }
-    connectIssues(state.connectSourceId, id);
-    clearConnectionMode();
+    if (state.draftActive) return;
+    selectNode(node.id());
   }
 
-  function selectEdge(edge) {
-    clearConnectionMode();
-    state.selectedEdgeId = edge.id();
+  function selectNode(id) {
+    const node = state.cy.getElementById(id);
+    if (!node.length) return false;
+    state.selectedNodeId = id;
     state.cy.elements().unselect();
-    edge.select();
+    node.select();
+    $("delete-node-tool").disabled = false;
     updateModeBanner();
-    showToast("Connection selected. Press Delete to remove it.");
+    showToast(`${id} selected`);
+    return true;
   }
 
-  function clearEdgeSelection() {
-    state.selectedEdgeId = null;
-    if (state.cy) state.cy.edges().unselect();
-    updateModeBanner();
-  }
-
-  function clearConnectionMode() {
-    if (state.cy) state.cy.nodes().removeClass("connection-source");
-    state.connectSourceId = null;
+  function clearNodeSelection() {
+    state.selectedNodeId = null;
+    if (state.cy) state.cy.nodes().unselect();
+    $("delete-node-tool").disabled = true;
     updateModeBanner();
   }
 
   function updateModeBanner() {
     const banner = $("mode-banner");
-    if (state.draftNodeId) {
+    if (state.draftActive) {
       banner.hidden = false;
       banner.textContent = "Type a SPICE issue number or title. Press Escape to cancel.";
-    } else if (state.connectSourceId) {
+    } else if (state.selectedNodeId) {
       banner.hidden = false;
-      banner.textContent = `Connecting from ${state.connectSourceId}. Click another block, or click empty space to cancel.`;
-    } else if (state.selectedEdgeId) {
-      banner.hidden = false;
-      banner.textContent = "Connection selected. Press Delete to remove it.";
+      banner.textContent = `${state.selectedNodeId} selected. Use Delete Node or press Delete to remove it.`;
     } else {
       banner.hidden = true;
       banner.textContent = "";
@@ -256,17 +218,16 @@
 
   function startDraftNode(position = {x: 0, y: 0}) {
     cancelDraftNode();
-    const map = currentMap();
-    const id = `draft-${Date.now()}`;
-    state.draftNodeId = id;
+    clearNodeSelection();
+    state.draftActive = true;
     state.draftPosition = position;
-    map.nodes.push({id, x: Math.round(position.x), y: Math.round(position.y), draft: true, color: "gray"});
-    renderMap({keepViewport: true});
+    $("empty-state").hidden = true;
     positionComposer(position);
     $("issue-key").value = "";
     $("issue-preview").textContent = "Enter a ticket number or title. Escape cancels.";
     $("node-composer").hidden = false;
     $("issue-key").focus();
+    updateModeBanner();
   }
 
   function positionComposer(position) {
@@ -275,19 +236,17 @@
     const rendered = [position.x * zoom + pan.x, position.y * zoom + pan.y];
     const canvasRect = $("cy").getBoundingClientRect();
     const composer = $("node-composer");
-    composer.style.left = `${Math.min(Math.max(rendered[0] + canvasRect.left - 140, 118), window.innerWidth - 380)}px`;
-    composer.style.top = `${Math.min(Math.max(rendered[1] + canvasRect.top + 58, 92), window.innerHeight - 170)}px`;
+    composer.style.left = `${Math.min(Math.max(rendered[0] + canvasRect.left - 125, 118), window.innerWidth - 300)}px`;
+    composer.style.top = `${Math.min(Math.max(rendered[1] + canvasRect.top - 44, 92), window.innerHeight - 170)}px`;
   }
 
   function cancelDraftNode() {
-    if (!state.draftNodeId) return;
-    const map = currentMap();
-    map.nodes = map.nodes.filter((node) => node.id !== state.draftNodeId);
-    state.draftNodeId = null;
+    if (!state.draftActive) return;
+    state.draftActive = false;
     state.draftPosition = null;
     $("node-composer").hidden = true;
-    renderMap({keepViewport: true});
-    saveLocal();
+    $("empty-state").hidden = Boolean(currentMap()?.nodes.length);
+    updateModeBanner();
   }
 
   function normalizeIssueInput(input) {
@@ -312,7 +271,7 @@
   function commitDraftNode(input = $("issue-key").value) {
     const key = normalizeIssueInput(input);
     const ticket = ticketByKey(key);
-    if (!state.draftNodeId || !ticket) {
+    if (!state.draftActive || !ticket) {
       showToast("Choose a valid SPICE issue");
       return false;
     }
@@ -322,15 +281,18 @@
       showToast(`${ticket.key} is already on the map`);
       return false;
     }
-    const draft = map.nodes.find((node) => node.id === state.draftNodeId);
-    draft.id = ticket.key;
-    draft.draft = false;
-    draft.color = ticket.color;
-    state.draftNodeId = null;
+    map.nodes.push({
+      id: ticket.key,
+      x: Math.round(state.draftPosition.x),
+      y: Math.round(state.draftPosition.y),
+      color: ticket.color
+    });
+    state.draftActive = false;
     state.draftPosition = null;
     $("node-composer").hidden = true;
     saveLocal();
     renderMap({keepViewport: true});
+    selectNode(ticket.key);
     showToast(`Added ${ticket.key}`);
     return true;
   }
@@ -342,44 +304,23 @@
     return commitDraftNode(key);
   }
 
-  function connectIssues(source, target) {
-    const map = currentMap();
-    if (!map.nodes.some((node) => node.id === source) || !map.nodes.some((node) => node.id === target)) return false;
-    if (map.edges.some((edge) => edge.source === source && edge.target === target)) {
-      showToast("Connection already exists");
-      return true;
+  function deleteNode(id = state.selectedNodeId) {
+    if (!id) {
+      showToast("Select a node first");
+      return false;
     }
-    map.edges.push({id: `edge-${source}-${target}-${Date.now()}`, source, target});
-    saveLocal();
-    renderMap({keepViewport: true});
-    showToast(`Connected ${source} to ${target}`);
-    return true;
-  }
-
-  function deleteSelectedConnection() {
-    if (!state.selectedEdgeId) return false;
-    const map = currentMap();
-    map.edges = map.edges.filter((edge, index) => edgeId(edge, index) !== state.selectedEdgeId);
-    state.selectedEdgeId = null;
-    saveLocal();
-    renderMap({keepViewport: true});
-    showToast("Connection deleted");
-    return true;
-  }
-
-  function deleteNode(id) {
     const map = currentMap();
     map.nodes = map.nodes.filter((node) => node.id !== id);
-    map.edges = map.edges.filter((edge) => edge.source !== id && edge.target !== id);
+    state.selectedNodeId = null;
     saveLocal();
     renderMap({keepViewport: true});
     showToast(`Deleted ${id}`);
+    return true;
   }
 
   function setTool(tool) {
     state.tool = tool;
-    clearConnectionMode();
-    clearEdgeSelection();
+    clearNodeSelection();
     document.querySelectorAll("[data-tool]").forEach((button) => {
       const active = button.dataset.tool === tool;
       button.classList.toggle("active", active);
@@ -402,7 +343,7 @@
         <div class="map-thumb" aria-hidden="true"></div>
         <span>
           <h3>${map.title}</h3>
-          <p>${map.nodes.length} nodes · ${map.edges.length} connections · ${map.updated || "Current"}</p>
+          <p>${map.nodes.length} nodes · ${map.updated || "Current"}</p>
         </span>
         <span class="button secondary">Open</span>
       </button>
@@ -420,8 +361,7 @@
     if (!id) return;
     state.currentMapId = id;
     saveLocal();
-    clearConnectionMode();
-    clearEdgeSelection();
+    clearNodeSelection();
     cancelDraftNode();
     renderMap();
     $("open-map-dialog").close();
@@ -433,8 +373,7 @@
       title: title || $("new-map-title").value || "New CFK Map",
       updated: "Current",
       owner: "You",
-      nodes: [],
-      edges: []
+      nodes: []
     };
     state.maps.unshift(map);
     state.currentMapId = map.id;
@@ -465,6 +404,7 @@
   function wireEvents() {
     document.querySelectorAll("[data-tool]").forEach((button) => button.addEventListener("click", () => setTool(button.dataset.tool)));
     $("add-node-tool").addEventListener("click", () => startDraftNode({x: 0, y: 0}));
+    $("delete-node-tool").addEventListener("click", () => deleteNode());
     $("issue-key").addEventListener("input", updateIssuePreview);
     $("issue-key").addEventListener("keydown", (event) => {
       if (event.key === "Enter") {
@@ -477,10 +417,10 @@
       }
     });
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && state.draftNodeId) cancelDraftNode();
-      if ((event.key === "Delete" || event.key === "Backspace") && state.selectedEdgeId) {
+      if (event.key === "Escape" && state.draftActive) cancelDraftNode();
+      if ((event.key === "Delete" || event.key === "Backspace") && state.selectedNodeId) {
         event.preventDefault();
-        deleteSelectedConnection();
+        deleteNode();
       }
     });
     $("open-map").addEventListener("click", () => {
@@ -496,8 +436,7 @@
     $("close-map").addEventListener("click", () => $("close-map-dialog").showModal());
     $("confirm-close").addEventListener("click", (event) => {
       event.preventDefault();
-      clearConnectionMode();
-      clearEdgeSelection();
+      clearNodeSelection();
       $("close-map-dialog").close();
       $("open-map-dialog").showModal();
       renderOpenMapDialog();
@@ -536,9 +475,7 @@
       startDraftNode,
       commitDraftNode,
       cancelDraftNode,
-      connectIssues,
-      selectEdge: (id) => selectEdge(state.cy.getElementById(id)),
-      deleteSelectedConnection,
+      selectNode,
       deleteNode,
       exportCytoscapeJson,
       resetDemo: () => {

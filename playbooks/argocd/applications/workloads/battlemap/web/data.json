@@ -62,18 +62,6 @@
         {"id":"SPICE-118","x":-330,"y":250},
         {"id":"SPICE-123","x":320,"y":250},
         {"id":"SPICE-137","x":0,"y":430}
-      ],
-      "edges": [
-        {"source":"SPICE-101","target":"SPICE-103"},
-        {"source":"SPICE-101","target":"SPICE-104"},
-        {"source":"SPICE-103","target":"SPICE-109"},
-        {"source":"SPICE-104","target":"SPICE-109"},
-        {"source":"SPICE-109","target":"SPICE-110"},
-        {"source":"SPICE-109","target":"SPICE-118"},
-        {"source":"SPICE-109","target":"SPICE-123"},
-        {"source":"SPICE-110","target":"SPICE-137"},
-        {"source":"SPICE-118","target":"SPICE-137"},
-        {"source":"SPICE-123","target":"SPICE-137"}
       ]
     },
     {
@@ -87,13 +75,6 @@
         {"id":"SPICE-107","x":260,"y":-60},
         {"id":"SPICE-108","x":0,"y":120},
         {"id":"SPICE-111","x":0,"y":300}
-      ],
-      "edges": [
-        {"source":"SPICE-105","target":"SPICE-106"},
-        {"source":"SPICE-105","target":"SPICE-107"},
-        {"source":"SPICE-106","target":"SPICE-108"},
-        {"source":"SPICE-107","target":"SPICE-108"},
-        {"source":"SPICE-108","target":"SPICE-111"}
       ]
     },
     {
@@ -106,12 +87,6 @@
         {"id":"SPICE-119","x":-260,"y":-40},
         {"id":"SPICE-120","x":260,"y":-40},
         {"id":"SPICE-122","x":0,"y":150}
-      ],
-      "edges": [
-        {"source":"SPICE-118","target":"SPICE-119"},
-        {"source":"SPICE-118","target":"SPICE-120"},
-        {"source":"SPICE-119","target":"SPICE-122"},
-        {"source":"SPICE-120","target":"SPICE-122"}
       ]
     }
   ]

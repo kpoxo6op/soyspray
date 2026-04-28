@@ -190,6 +190,15 @@ button {
   color: var(--blue);
 }
 
+.tool:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.danger-tool span {
+  color: #d92d20;
+}
+
 .canvas-region {
   position: relative;
   min-width: 0;
@@ -260,11 +269,12 @@ button {
 .node-composer {
   position: fixed;
   z-index: 10;
-  width: 320px;
-  padding: 14px;
-  border: 1px solid var(--line);
+  width: 250px;
+  min-height: 88px;
+  padding: 10px 12px;
+  border: 2px solid var(--blue);
   border-radius: 8px;
-  background: var(--surface);
+  background: #ffffff;
   box-shadow: var(--shadow);
 }
 
@@ -273,13 +283,23 @@ button {
 }
 
 .node-composer label {
-  margin-top: 0;
+  margin: 0 0 6px;
+  color: var(--blue);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.node-composer input {
+  padding: 8px 10px;
+  border-color: #8ebcf2;
 }
 
 .node-composer p {
-  margin: 10px 0 0;
+  margin: 6px 0 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1.25;
 }
 
 .mode-banner {
