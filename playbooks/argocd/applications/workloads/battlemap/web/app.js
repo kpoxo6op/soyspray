@@ -561,7 +561,17 @@
     saveLocal();
   }
 
+  function handleDraftClickAway(event) {
+    if (!state.draftActive) return;
+    if ($("node-composer").contains(event.target)) return;
+    if (!$("issue-key").value.trim()) return;
+    if (commitDraftNode() && $("cy").contains(event.target)) {
+      state.suppressNextCanvasTap = true;
+    }
+  }
+
   function wireEvents() {
+    document.addEventListener("pointerdown", handleDraftClickAway, true);
     document.querySelectorAll("[data-tool]").forEach((button) => button.addEventListener("click", () => setTool(button.dataset.tool)));
     $("add-node-tool").addEventListener("click", () => startDraftNode({x: 0, y: 0}));
     $("delete-node-tool").addEventListener("click", () => deleteNode());
