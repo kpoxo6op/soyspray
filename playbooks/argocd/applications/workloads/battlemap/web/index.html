@@ -17,15 +17,12 @@
           </span>
           <strong>MapFlow</strong>
         </a>
-        <div class="map-title-wrap">
-          <input id="map-title" class="map-title" aria-label="Map title" value="CFK Adoption Plan">
-          <button id="rename-map" class="icon-button" title="Rename map" aria-label="Rename map">Edit</button>
-        </div>
+        <input id="map-title" class="map-title" aria-label="Map title" value="CFK Adoption Plan">
         <nav class="top-actions" aria-label="Map actions">
+          <button id="create-map-action" class="button secondary">Create Map</button>
           <button id="open-map" class="button secondary">Open Map</button>
-          <button id="save-map" class="button primary">Save</button>
+          <button id="save-map" class="button primary">Save Code</button>
           <button id="close-map" class="button secondary">Close Map</button>
-          <button id="more-menu" class="icon-button" aria-label="More actions" title="More actions">...</button>
         </nav>
       </header>
 
@@ -34,7 +31,6 @@
           <button class="tool active" data-tool="select" aria-pressed="true"><span>Pointer</span>Select</button>
           <button class="tool" data-tool="pan" aria-pressed="false"><span>Hand</span>Pan</button>
           <button id="add-node-tool" class="tool"><span>Plus</span>Add Node</button>
-          <button class="tool" data-tool="connect" aria-pressed="false"><span>Line</span>Connect</button>
           <button id="zoom-in" class="tool"><span>+</span>Zoom In</button>
           <button id="zoom-out" class="tool"><span>-</span>Zoom Out</button>
           <button id="fit-view" class="tool"><span>Box</span>Fit to View</button>
@@ -44,76 +40,23 @@
           <div id="cy" class="cy-canvas" tabindex="0" aria-label="Interactive map canvas"></div>
           <div id="empty-state" class="empty-state" hidden>
             <div class="empty-icon" aria-hidden="true">+</div>
-            <h1>Start mapping your work</h1>
-            <p>Add a Jira issue or create a custom planning node.</p>
-            <div>
-              <button id="empty-add-node" class="button secondary">Add first node</button>
-              <button id="empty-import-issue" class="button secondary">Import Jira issue</button>
-              <button id="empty-template" class="button secondary">Use template</button>
-            </div>
+            <h1>Click anywhere to add a SPICE issue</h1>
+            <p>The app is hardcoded to the SPICE board for this demo.</p>
           </div>
+          <form id="node-composer" class="node-composer" hidden>
+            <label for="issue-key">SPICE issue</label>
+            <input id="issue-key" autocomplete="off" placeholder="Type number or title, e.g. 140" list="issue-options">
+            <datalist id="issue-options"></datalist>
+            <p id="issue-preview">Enter a ticket number or title. Escape cancels.</p>
+          </form>
           <div class="zoom-panel" aria-label="Zoom controls">
             <span id="zoom-label">100%</span>
             <button id="zoom-panel-out" aria-label="Zoom out">-</button>
             <button id="zoom-panel-in" aria-label="Zoom in">+</button>
             <button id="zoom-panel-fit" aria-label="Fit to view">[]</button>
           </div>
+          <div id="mode-banner" class="mode-banner" hidden></div>
         </section>
-
-        <aside class="sidepanel" aria-label="Map details">
-          <section id="add-issue-panel">
-            <div class="panel-header">
-              <h2>Add Jira Issue</h2>
-              <button id="collapse-add-panel" class="icon-button" aria-label="Collapse add panel">‹</button>
-            </div>
-            <label for="issue-key">Enter Jira key</label>
-            <input id="issue-key" autocomplete="off" placeholder="SPICE-101" list="issue-options">
-            <datalist id="issue-options"></datalist>
-            <p class="hint">Static demo data simulates Jira. Type a SPICE key and add it to the map.</p>
-            <button id="add-issue" class="button primary wide">Add to board</button>
-          </section>
-
-          <section id="edit-panel" hidden>
-            <div class="panel-header">
-              <h2>Edit Node</h2>
-              <button id="close-edit-panel" class="icon-button" aria-label="Close edit panel">‹</button>
-            </div>
-            <label for="edit-key">Jira key</label>
-            <input id="edit-key">
-            <label for="edit-title">Title</label>
-            <input id="edit-title">
-            <label for="edit-status">Status</label>
-            <select id="edit-status"></select>
-            <label for="edit-color">Label / Color</label>
-            <select id="edit-color">
-              <option value="blue">Blue</option>
-              <option value="green">Green</option>
-              <option value="yellow">Yellow</option>
-              <option value="purple">Purple</option>
-              <option value="red">Red</option>
-              <option value="gray">Gray</option>
-            </select>
-            <label for="edit-notes">Notes</label>
-            <textarea id="edit-notes" rows="6"></textarea>
-            <button id="save-node" class="button primary wide">Save changes</button>
-            <button id="delete-node" class="button danger wide">Delete node</button>
-          </section>
-
-          <section class="recent-section">
-            <h2>Recently added</h2>
-            <ul id="recent-list" class="plain-list" aria-label="Recently added issues"></ul>
-          </section>
-
-          <section class="board-section">
-            <h2>SPICE Board</h2>
-            <div id="board-summary" class="board-summary"></div>
-          </section>
-
-          <section class="node-section">
-            <h2>Nodes on this map</h2>
-            <ul id="node-list" class="plain-list node-list" aria-label="Nodes on current map"></ul>
-          </section>
-        </aside>
       </main>
     </div>
 
@@ -126,7 +69,7 @@
         <input id="map-search" placeholder="Search maps..." aria-label="Search maps">
         <div id="map-list" class="map-list"></div>
         <div class="modal-actions">
-          <button id="cancel-open" class="button secondary" value="cancel">Cancel</button>
+          <button class="button secondary" value="cancel">Cancel</button>
           <button id="open-selected" class="button primary" value="default">Open Selected</button>
         </div>
       </form>
@@ -138,10 +81,7 @@
           <h2>Close Map</h2>
           <button class="icon-button" value="cancel" aria-label="Cancel close map">×</button>
         </div>
-        <p>Unsaved changes will be kept in this browser for the demo.</p>
-        <label class="checkbox-row">
-          <input id="dont-ask-close" type="checkbox"> Don't ask again
-        </label>
+        <p>The map is stored locally in the browser and can be reopened.</p>
         <div class="modal-actions">
           <button class="button secondary" value="cancel">Cancel</button>
           <button id="confirm-close" class="button primary" value="default">Close Map</button>
@@ -160,6 +100,20 @@
         <div class="modal-actions">
           <button class="button secondary" value="cancel">Cancel</button>
           <button id="create-map" class="button primary" value="default">Create Map</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="code-dialog" class="modal code-modal">
+      <form method="dialog">
+        <div class="modal-header">
+          <h2>Cytoscape JSON</h2>
+          <button class="icon-button" value="cancel" aria-label="Close code dialog">×</button>
+        </div>
+        <p class="hint">Saved map code uses Cytoscape.js JSON, the native JSON format of the open source Cytoscape graph library.</p>
+        <textarea id="map-code" rows="18" readonly></textarea>
+        <div class="modal-actions">
+          <button class="button primary" value="default">Done</button>
         </div>
       </form>
     </dialog>

@@ -4,12 +4,12 @@
     maps: [],
     currentMapId: null,
     cy: null,
-    selectedNodeId: null,
     selectedMapId: null,
     connectSourceId: null,
-    tool: "select",
-    dirty: false,
-    recent: []
+    selectedEdgeId: null,
+    draftNodeId: null,
+    draftPosition: null,
+    tool: "select"
   };
 
   const $ = (id) => document.getElementById(id);
@@ -42,10 +42,8 @@
   function saveLocal() {
     localStorage.setItem("mapflow-demo-state", JSON.stringify({
       maps: state.maps,
-      currentMapId: state.currentMapId,
-      recent: state.recent
+      currentMapId: state.currentMapId
     }));
-    state.dirty = false;
   }
 
   function loadLocal(seed) {
@@ -59,50 +57,51 @@
       const parsed = JSON.parse(saved);
       state.maps = parsed.maps?.length ? parsed.maps : structuredClone(seed.maps);
       state.currentMapId = parsed.currentMapId || state.maps[0].id;
-      state.recent = parsed.recent || [];
     } catch {
       state.maps = structuredClone(seed.maps);
       state.currentMapId = state.maps[0].id;
     }
   }
 
-  function markDirty() {
-    state.dirty = true;
-    saveLocal();
-  }
-
   function mapElements(map) {
     const nodes = map.nodes.map((node) => {
-      const ticket = ticketByKey(node.id) || {
-        key: node.id,
-        title: node.title || "Custom node",
-        status: node.status || "Backlog",
-        color: node.color || "gray",
-        notes: node.notes || ""
-      };
+      const ticket = ticketByKey(node.id);
+      const title = ticket?.title || "Choose SPICE issue";
+      const key = ticket?.key || node.id;
+      const color = ticket?.color || node.color || "gray";
+      const colors = colorStyles[color] || colorStyles.gray;
       return {
         group: "nodes",
         data: {
           id: node.id,
-          key: ticket.key,
-          title: ticket.title,
-          status: ticket.status,
-          color: ticket.color || node.color || "gray",
-          notes: ticket.notes || node.notes || "",
-          type: ticket.type || "Task",
-          assignee: ticket.assignee || "Unassigned"
+          key,
+          title,
+          status: ticket?.status || "Draft",
+          color,
+          bg: node.draft ? "#ffffff" : colors.bg,
+          border: node.draft ? "#0f62fe" : colors.border,
+          label: node.draft ? "New SPICE issue" : `${key}\n${title}`,
+          draft: Boolean(node.draft)
         },
         position: {x: node.x, y: node.y}
       };
     });
     const edges = map.edges.map((edge, index) => ({
       group: "edges",
-      data: {id: edge.id || `${edge.source}-${edge.target}-${index}`, source: edge.source, target: edge.target}
+      data: {
+        id: edgeId(edge, index),
+        source: edge.source,
+        target: edge.target
+      }
     }));
     return [...nodes, ...edges];
   }
 
-  function renderMap() {
+  function edgeId(edge, index = 0) {
+    return edge.id || `edge-${edge.source}-${edge.target}-${index}`;
+  }
+
+  function renderMap(options = {}) {
     const map = currentMap();
     $("map-title").value = map?.title || "Untitled Map";
     $("empty-state").hidden = Boolean(map && map.nodes.length);
@@ -136,96 +135,111 @@
             }
           },
           {
-            selector: "node:selected",
+            selector: "node.connection-source",
             style: {
               "border-color": "#0f62fe",
-              "border-width": 4
+              "border-width": 5
             }
           },
           {
             selector: "edge",
             style: {
-              "width": 2,
-              "line-color": "#7b8798",
-              "target-arrow-color": "#7b8798",
-              "target-arrow-shape": "triangle",
-              "curve-style": "taxi",
-              "taxi-direction": "downward",
-              "taxi-turn": 44
+              "width": 3,
+              "line-color": "#6b7280",
+              "curve-style": "straight"
+            }
+          },
+          {
+            selector: "edge:selected",
+            style: {
+              "line-color": "#0f62fe",
+              "width": 5
             }
           }
         ]
       });
 
       state.cy.on("tap", "node", (event) => handleNodeTap(event.target));
+      state.cy.on("tap", "edge", (event) => selectEdge(event.target));
       state.cy.on("dragfree", "node", persistPositions);
       state.cy.on("zoom pan", updateZoomLabel);
       state.cy.on("tap", (event) => {
-        if (event.target === state.cy && state.tool === "select") {
-          clearSelection();
+        if (event.target === state.cy) {
+          const pos = event.position;
+          if (state.tool === "pan") return;
+          if (state.connectSourceId || state.selectedEdgeId) {
+            clearConnectionMode();
+            clearEdgeSelection();
+            return;
+          }
+          startDraftNode(pos);
         }
       });
     }
 
-    const elements = mapElements(map).map((element) => {
-      if (element.group === "nodes") {
-        const colors = colorStyles[element.data.color] || colorStyles.gray;
-        element.data.bg = colors.bg;
-        element.data.border = colors.border;
-        element.data.label = `${element.data.key}\n${element.data.title}`;
-      }
-      return element;
-    });
-
     state.cy.elements().remove();
-    state.cy.add(elements);
-    if (elements.length) {
-      state.cy.fit(undefined, 80);
-    }
+    state.cy.add(mapElements(map));
+    if (state.connectSourceId) state.cy.getElementById(state.connectSourceId).addClass("connection-source");
+    if (!options.keepViewport && state.cy.elements().length) state.cy.fit(undefined, 80);
     updateZoomLabel();
-    renderSidebars();
+    updateModeBanner();
   }
 
   function handleNodeTap(node) {
+    if (state.draftNodeId) return;
     const id = node.id();
-    if (state.tool === "connect") {
-      if (!state.connectSourceId) {
-        state.connectSourceId = id;
-        showToast(`Connect from ${id}: choose target node`);
-        node.select();
-        return;
-      }
-      if (state.connectSourceId !== id) {
-        connectIssues(state.connectSourceId, id);
-      }
-      state.connectSourceId = null;
+    clearEdgeSelection();
+    if (!state.connectSourceId) {
+      state.connectSourceId = id;
+      node.addClass("connection-source");
+      updateModeBanner();
+      showToast(`Connection started from ${id}`);
       return;
     }
-    selectNode(id);
+    if (state.connectSourceId === id) {
+      clearConnectionMode();
+      return;
+    }
+    connectIssues(state.connectSourceId, id);
+    clearConnectionMode();
   }
 
-  function selectNode(id) {
-    state.selectedNodeId = id;
-    const node = state.cy.getElementById(id);
-    state.cy.nodes().unselect();
-    node.select();
-    const data = node.data();
-    $("add-issue-panel").hidden = true;
-    $("edit-panel").hidden = false;
-    $("edit-key").value = data.key;
-    $("edit-title").value = data.title;
-    $("edit-status").value = data.status;
-    $("edit-color").value = data.color;
-    $("edit-notes").value = data.notes || "";
-    renderSidebars();
+  function selectEdge(edge) {
+    clearConnectionMode();
+    state.selectedEdgeId = edge.id();
+    state.cy.elements().unselect();
+    edge.select();
+    updateModeBanner();
+    showToast("Connection selected. Press Delete to remove it.");
   }
 
-  function clearSelection() {
-    state.selectedNodeId = null;
-    $("edit-panel").hidden = true;
-    $("add-issue-panel").hidden = false;
-    if (state.cy) state.cy.nodes().unselect();
-    renderSidebars();
+  function clearEdgeSelection() {
+    state.selectedEdgeId = null;
+    if (state.cy) state.cy.edges().unselect();
+    updateModeBanner();
+  }
+
+  function clearConnectionMode() {
+    if (state.cy) state.cy.nodes().removeClass("connection-source");
+    state.connectSourceId = null;
+    updateModeBanner();
+  }
+
+  function updateModeBanner() {
+    const banner = $("mode-banner");
+    if (state.draftNodeId) {
+      banner.hidden = false;
+      banner.textContent = "Type a SPICE issue number or title. Press Escape to cancel.";
+    } else if (state.connectSourceId) {
+      banner.hidden = false;
+      banner.textContent = `Connecting from ${state.connectSourceId}. Click another block, or click empty space to cancel.`;
+    } else if (state.selectedEdgeId) {
+      banner.hidden = false;
+      banner.textContent = "Connection selected. Press Delete to remove it.";
+    } else {
+      banner.hidden = true;
+      banner.textContent = "";
+    }
   }
 
   function persistPositions() {
@@ -237,117 +251,135 @@
         item.y = Math.round(node.position("y"));
       }
     });
-    markDirty();
+    saveLocal();
   }
 
-  function addIssueToCurrentMap(key) {
-    const normalized = String(key || $("issue-key").value).trim().toUpperCase();
-    const ticket = ticketByKey(normalized);
-    if (!ticket) {
-      showToast(`${normalized || "Issue"} is not in static SPICE data`);
+  function startDraftNode(position = {x: 0, y: 0}) {
+    cancelDraftNode();
+    const map = currentMap();
+    const id = `draft-${Date.now()}`;
+    state.draftNodeId = id;
+    state.draftPosition = position;
+    map.nodes.push({id, x: Math.round(position.x), y: Math.round(position.y), draft: true, color: "gray"});
+    renderMap({keepViewport: true});
+    positionComposer(position);
+    $("issue-key").value = "";
+    $("issue-preview").textContent = "Enter a ticket number or title. Escape cancels.";
+    $("node-composer").hidden = false;
+    $("issue-key").focus();
+  }
+
+  function positionComposer(position) {
+    const zoom = state.cy.zoom();
+    const pan = state.cy.pan();
+    const rendered = [position.x * zoom + pan.x, position.y * zoom + pan.y];
+    const canvasRect = $("cy").getBoundingClientRect();
+    const composer = $("node-composer");
+    composer.style.left = `${Math.min(Math.max(rendered[0] + canvasRect.left - 140, 118), window.innerWidth - 380)}px`;
+    composer.style.top = `${Math.min(Math.max(rendered[1] + canvasRect.top + 58, 92), window.innerHeight - 170)}px`;
+  }
+
+  function cancelDraftNode() {
+    if (!state.draftNodeId) return;
+    const map = currentMap();
+    map.nodes = map.nodes.filter((node) => node.id !== state.draftNodeId);
+    state.draftNodeId = null;
+    state.draftPosition = null;
+    $("node-composer").hidden = true;
+    renderMap({keepViewport: true});
+    saveLocal();
+  }
+
+  function normalizeIssueInput(input) {
+    const raw = String(input || "").trim();
+    if (!raw) return "";
+    if (/^\d+$/.test(raw)) return `SPICE-${raw}`;
+    const keyMatch = raw.match(/SPICE-\d+/i);
+    if (keyMatch) return keyMatch[0].toUpperCase();
+    const lowered = raw.toLowerCase();
+    const ticket = state.data.tickets.find((item) =>
+      item.title.toLowerCase().includes(lowered) || `${item.key} ${item.title}`.toLowerCase().includes(lowered)
+    );
+    return ticket?.key || raw.toUpperCase();
+  }
+
+  function updateIssuePreview() {
+    const key = normalizeIssueInput($("issue-key").value);
+    const ticket = ticketByKey(key);
+    $("issue-preview").textContent = ticket ? `${ticket.key} - ${ticket.title}` : "No SPICE ticket match yet.";
+  }
+
+  function commitDraftNode(input = $("issue-key").value) {
+    const key = normalizeIssueInput(input);
+    const ticket = ticketByKey(key);
+    if (!state.draftNodeId || !ticket) {
+      showToast("Choose a valid SPICE issue");
       return false;
     }
     const map = currentMap();
     if (map.nodes.some((node) => node.id === ticket.key)) {
-      selectNode(ticket.key);
+      cancelDraftNode();
       showToast(`${ticket.key} is already on the map`);
-      return true;
+      return false;
     }
-    const count = map.nodes.length;
-    const node = {
-      id: ticket.key,
-      x: (count % 4) * 290 - 430,
-      y: Math.floor(count / 4) * 150 - 240
-    };
-    map.nodes.push(node);
-    state.recent = [ticket.key, ...state.recent.filter((item) => item !== ticket.key)].slice(0, 6);
-    $("issue-key").value = "";
-    markDirty();
-    renderMap();
-    selectNode(ticket.key);
+    const draft = map.nodes.find((node) => node.id === state.draftNodeId);
+    draft.id = ticket.key;
+    draft.draft = false;
+    draft.color = ticket.color;
+    state.draftNodeId = null;
+    state.draftPosition = null;
+    $("node-composer").hidden = true;
+    saveLocal();
+    renderMap({keepViewport: true});
     showToast(`Added ${ticket.key}`);
     return true;
   }
 
-  function addCustomNode() {
-    const map = currentMap();
-    const id = `NOTE-${Date.now().toString().slice(-5)}`;
-    const syntheticTicket = {
-      key: id,
-      title: "Planning note",
-      status: "Backlog",
-      type: "Note",
-      assignee: "You",
-      color: "gray",
-      notes: "Custom planning node"
-    };
-    state.data.tickets.push(syntheticTicket);
-    map.nodes.push({id, x: 0, y: 0});
-    markDirty();
-    renderMap();
-    selectNode(id);
+  function addIssueToCurrentMap(key, position) {
+    startDraftNode(position || {x: 0, y: 0});
+    $("issue-key").value = key;
+    updateIssuePreview();
+    return commitDraftNode(key);
   }
 
   function connectIssues(source, target) {
     const map = currentMap();
-    if (!map.nodes.some((node) => node.id === source) || !map.nodes.some((node) => node.id === target)) {
-      showToast("Both nodes must be on the map");
-      return false;
-    }
+    if (!map.nodes.some((node) => node.id === source) || !map.nodes.some((node) => node.id === target)) return false;
     if (map.edges.some((edge) => edge.source === source && edge.target === target)) {
       showToast("Connection already exists");
       return true;
     }
-    map.edges.push({source, target});
-    markDirty();
-    renderMap();
+    map.edges.push({id: `edge-${source}-${target}-${Date.now()}`, source, target});
+    saveLocal();
+    renderMap({keepViewport: true});
     showToast(`Connected ${source} to ${target}`);
     return true;
   }
 
-  function saveNodeEdits() {
-    if (!state.selectedNodeId) return;
-    const oldId = state.selectedNodeId;
-    const newKey = $("edit-key").value.trim().toUpperCase();
-    const ticket = ticketByKey(oldId);
-    if (ticket) {
-      ticket.key = newKey || oldId;
-      ticket.title = $("edit-title").value.trim() || ticket.title;
-      ticket.status = $("edit-status").value;
-      ticket.color = $("edit-color").value;
-      ticket.notes = $("edit-notes").value.trim();
-    }
+  function deleteSelectedConnection() {
+    if (!state.selectedEdgeId) return false;
     const map = currentMap();
-    const node = map.nodes.find((entry) => entry.id === oldId);
-    if (node && newKey && newKey !== oldId) {
-      node.id = newKey;
-      map.edges.forEach((edge) => {
-        if (edge.source === oldId) edge.source = newKey;
-        if (edge.target === oldId) edge.target = newKey;
-      });
-      state.selectedNodeId = newKey;
-    }
-    markDirty();
-    renderMap();
-    selectNode(state.selectedNodeId);
-    showToast("Node saved");
+    map.edges = map.edges.filter((edge, index) => edgeId(edge, index) !== state.selectedEdgeId);
+    state.selectedEdgeId = null;
+    saveLocal();
+    renderMap({keepViewport: true});
+    showToast("Connection deleted");
+    return true;
   }
 
-  function deleteSelectedNode() {
-    if (!state.selectedNodeId) return;
-    const id = state.selectedNodeId;
+  function deleteNode(id) {
     const map = currentMap();
     map.nodes = map.nodes.filter((node) => node.id !== id);
     map.edges = map.edges.filter((edge) => edge.source !== id && edge.target !== id);
-    clearSelection();
-    markDirty();
-    renderMap();
+    saveLocal();
+    renderMap({keepViewport: true});
     showToast(`Deleted ${id}`);
   }
 
   function setTool(tool) {
     state.tool = tool;
-    state.connectSourceId = null;
+    clearConnectionMode();
+    clearEdgeSelection();
     document.querySelectorAll("[data-tool]").forEach((button) => {
       const active = button.dataset.tool === tool;
       button.classList.toggle("active", active);
@@ -362,31 +394,6 @@
     $("zoom-label").textContent = `${Math.round(state.cy.zoom() * 100)}%`;
   }
 
-  function renderSidebars() {
-    const statusCounts = Object.fromEntries(state.data.statuses.map((status) => [status, 0]));
-    state.data.tickets.forEach((ticket) => {
-      statusCounts[ticket.status] = (statusCounts[ticket.status] || 0) + 1;
-    });
-    $("board-summary").innerHTML = Object.entries(statusCounts).map(([status, count]) =>
-      `<div class="board-pill"><strong>${count}</strong><span>${status}</span></div>`
-    ).join("");
-
-    $("recent-list").innerHTML = state.recent.length
-      ? state.recent.map((key) => `<li>${key} ${ticketByKey(key)?.title || ""}</li>`).join("")
-      : `<li>No recently added issues</li>`;
-
-    const map = currentMap();
-    $("node-list").innerHTML = map.nodes.length
-      ? map.nodes.map((node) => {
-        const ticket = ticketByKey(node.id);
-        return `<li><button data-node-id="${node.id}" aria-label="Select ${node.id}">${node.id}<br><small>${ticket?.title || "Custom node"}</small></button></li>`;
-      }).join("")
-      : `<li>No nodes yet</li>`;
-    $("node-list").querySelectorAll("button[data-node-id]").forEach((button) => {
-      button.addEventListener("click", () => selectNode(button.dataset.nodeId));
-    });
-  }
-
   function renderOpenMapDialog() {
     const query = $("map-search").value.trim().toLowerCase();
     const maps = state.maps.filter((map) => map.title.toLowerCase().includes(query));
@@ -395,7 +402,7 @@
         <div class="map-thumb" aria-hidden="true"></div>
         <span>
           <h3>${map.title}</h3>
-          <p>${map.updated || "Updated now"} · ${map.owner || "You"}</p>
+          <p>${map.nodes.length} nodes · ${map.edges.length} connections · ${map.updated || "Current"}</p>
         </span>
         <span class="button secondary">Open</span>
       </button>
@@ -413,7 +420,9 @@
     if (!id) return;
     state.currentMapId = id;
     saveLocal();
-    clearSelection();
+    clearConnectionMode();
+    clearEdgeSelection();
+    cancelDraftNode();
     renderMap();
     $("open-map-dialog").close();
   }
@@ -421,7 +430,7 @@
   function createMap(title) {
     const map = {
       id: `map-${Date.now()}`,
-      title: title || $("new-map-title").value || "New Map",
+      title: title || $("new-map-title").value || "New CFK Map",
       updated: "Current",
       owner: "You",
       nodes: [],
@@ -430,29 +439,50 @@
     state.maps.unshift(map);
     state.currentMapId = map.id;
     saveLocal();
-    clearSelection();
     renderMap();
     showToast("Map created");
     return map.id;
   }
 
+  function exportCytoscapeJson() {
+    persistPositions();
+    state.cy.data({
+      format: "cytoscape.js-json",
+      projectKey: state.data.project.key,
+      projectName: state.data.project.name,
+      mapId: currentMap().id,
+      mapTitle: currentMap().title
+    });
+    return JSON.stringify(state.cy.json(), null, 2);
+  }
+
+  function showCode() {
+    $("map-code").value = exportCytoscapeJson();
+    $("code-dialog").showModal();
+    saveLocal();
+  }
+
   function wireEvents() {
     document.querySelectorAll("[data-tool]").forEach((button) => button.addEventListener("click", () => setTool(button.dataset.tool)));
-    $("add-issue").addEventListener("click", () => addIssueToCurrentMap());
+    $("add-node-tool").addEventListener("click", () => startDraftNode({x: 0, y: 0}));
+    $("issue-key").addEventListener("input", updateIssuePreview);
     $("issue-key").addEventListener("keydown", (event) => {
-      if (event.key === "Enter") addIssueToCurrentMap();
+      if (event.key === "Enter") {
+        event.preventDefault();
+        commitDraftNode();
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        cancelDraftNode();
+      }
     });
-    $("save-node").addEventListener("click", saveNodeEdits);
-    $("delete-node").addEventListener("click", deleteSelectedNode);
-    $("close-edit-panel").addEventListener("click", clearSelection);
-    $("collapse-add-panel").addEventListener("click", () => $("add-issue-panel").hidden = true);
-    $("add-node-tool").addEventListener("click", addCustomNode);
-    $("empty-add-node").addEventListener("click", addCustomNode);
-    $("empty-import-issue").addEventListener("click", () => $("issue-key").focus());
-    $("empty-template").addEventListener("click", () => {
-      ["SPICE-101", "SPICE-109", "SPICE-110", "SPICE-118", "SPICE-137"].forEach(addIssueToCurrentMap);
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && state.draftNodeId) cancelDraftNode();
+      if ((event.key === "Delete" || event.key === "Backspace") && state.selectedEdgeId) {
+        event.preventDefault();
+        deleteSelectedConnection();
+      }
     });
-
     $("open-map").addEventListener("click", () => {
       state.selectedMapId = state.currentMapId;
       renderOpenMapDialog();
@@ -466,27 +496,22 @@
     $("close-map").addEventListener("click", () => $("close-map-dialog").showModal());
     $("confirm-close").addEventListener("click", (event) => {
       event.preventDefault();
-      clearSelection();
+      clearConnectionMode();
+      clearEdgeSelection();
       $("close-map-dialog").close();
       $("open-map-dialog").showModal();
       renderOpenMapDialog();
     });
-    $("more-menu").addEventListener("click", () => $("new-map-dialog").showModal());
+    $("create-map-action").addEventListener("click", () => $("new-map-dialog").showModal());
     $("create-map").addEventListener("click", (event) => {
       event.preventDefault();
       createMap();
       $("new-map-dialog").close();
     });
-    $("save-map").addEventListener("click", () => {
-      persistPositions();
-      saveLocal();
-      showToast("Map saved");
-    });
-    $("rename-map").addEventListener("click", () => $("map-title").focus());
+    $("save-map").addEventListener("click", showCode);
     $("map-title").addEventListener("change", () => {
       currentMap().title = $("map-title").value.trim() || "Untitled Map";
-      markDirty();
-      renderOpenMapDialog();
+      saveLocal();
     });
     ["zoom-in", "zoom-panel-in"].forEach((id) => $(id).addEventListener("click", () => state.cy.zoom({level: state.cy.zoom() + 0.15, renderedPosition: {x: state.cy.width()/2, y: state.cy.height()/2}})));
     ["zoom-out", "zoom-panel-out"].forEach((id) => $(id).addEventListener("click", () => state.cy.zoom({level: state.cy.zoom() - 0.15, renderedPosition: {x: state.cy.width()/2, y: state.cy.height()/2}})));
@@ -494,16 +519,11 @@
   }
 
   async function init() {
-    const response = await fetch("/data.json");
-    state.data = await response.json();
+    state.data = await (await fetch("/data.json")).json();
     loadLocal(state.data);
-    state.data.statuses.forEach((status) => {
-      const option = document.createElement("option");
-      option.value = status;
-      option.textContent = status;
-      $("edit-status").appendChild(option);
-    });
-    $("issue-options").innerHTML = state.data.tickets.map((ticket) => `<option value="${ticket.key}">${ticket.title}</option>`).join("");
+    $("issue-options").innerHTML = state.data.tickets.map((ticket) =>
+      `<option value="${ticket.key}">${ticket.title}</option><option value="${ticket.key.replace("SPICE-", "")}">${ticket.key} ${ticket.title}</option>`
+    ).join("");
     wireEvents();
     renderMap();
     saveLocal();
@@ -513,9 +533,14 @@
       createMap,
       openMap: openSelectedMap,
       addIssueToCurrentMap,
+      startDraftNode,
+      commitDraftNode,
+      cancelDraftNode,
       connectIssues,
-      selectNode,
-      exportState: () => JSON.parse(JSON.stringify({maps: state.maps, tickets: state.data.tickets})),
+      selectEdge: (id) => selectEdge(state.cy.getElementById(id)),
+      deleteSelectedConnection,
+      deleteNode,
+      exportCytoscapeJson,
       resetDemo: () => {
         localStorage.removeItem("mapflow-demo-state");
         location.reload();

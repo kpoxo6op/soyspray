@@ -99,15 +99,6 @@ button {
 .brand-mark::before { left: 7px; top: 16px; }
 .brand-mark::after { left: 20px; top: 14px; }
 
-.map-title-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 280px;
-  padding-left: 24px;
-  border-left: 1px solid var(--line);
-}
-
 .map-title {
   width: 260px;
   border: 0;
@@ -167,7 +158,7 @@ button {
 .workspace {
   min-height: 0;
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr) 360px;
+  grid-template-columns: 112px minmax(0, 1fr);
 }
 
 .toolrail {
@@ -266,11 +257,49 @@ button {
   background: transparent;
 }
 
-.sidepanel {
+.node-composer {
+  position: fixed;
+  z-index: 10;
+  width: 320px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   background: var(--surface);
-  border-left: 1px solid var(--line);
-  padding: 26px;
-  overflow: auto;
+  box-shadow: var(--shadow);
+}
+
+.node-composer[hidden] {
+  display: none;
+}
+
+.node-composer label {
+  margin-top: 0;
+}
+
+.node-composer p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.mode-banner {
+  position: absolute;
+  left: 50%;
+  top: 20px;
+  transform: translateX(-50%);
+  z-index: 8;
+  max-width: min(720px, calc(100% - 48px));
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+  color: #344054;
+  font-weight: 600;
+}
+
+.mode-banner[hidden] {
+  display: none;
 }
 
 .panel-header {
@@ -315,12 +344,6 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   margin: 10px 0 16px;
 }
 
-.recent-section, .board-section, .node-section {
-  margin-top: 28px;
-  padding-top: 22px;
-  border-top: 1px solid var(--line);
-}
-
 .plain-list {
   list-style: none;
   margin: 0;
@@ -341,21 +364,15 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
   padding: 10px 12px;
 }
 
-.board-summary {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+.code-modal {
+  width: min(920px, calc(100vw - 40px));
 }
 
-.board-pill {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px;
-  background: #fafcff;
+.code-modal textarea {
+  min-height: 420px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
 }
-
-.board-pill strong { display: block; font-size: 20px; }
-.board-pill span { color: var(--muted); font-size: 13px; }
 
 .modal {
   width: min(860px, calc(100vw - 40px));
@@ -453,19 +470,12 @@ input:focus, select:focus, textarea:focus, button:focus-visible {
     grid-template-columns: 84px minmax(0, 1fr);
   }
 
-  .sidepanel {
-    grid-column: 1 / -1;
-    border-left: 0;
-    border-top: 1px solid var(--line);
-  }
-
   .topbar {
     gap: 12px;
     padding: 0 12px;
   }
 
   .brand strong { display: none; }
-  .map-title-wrap { min-width: 0; padding-left: 12px; }
   .map-title { width: 180px; font-size: 18px; }
   .top-actions { gap: 6px; }
   .button { padding: 0 12px; }
