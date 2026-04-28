@@ -223,6 +223,10 @@ button {
   pointer-events: none;
 }
 
+.empty-state[hidden] {
+  display: none;
+}
+
 .empty-state .button { pointer-events: auto; }
 .empty-state h1 { font-size: 28px; margin: 16px 0 8px; }
 .empty-state p { color: var(--muted); margin: 0 0 24px; }
