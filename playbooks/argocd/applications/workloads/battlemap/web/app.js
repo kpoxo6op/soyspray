@@ -61,6 +61,13 @@
     }));
   }
 
+  function mergeSeedMaps(savedMaps, seedMaps) {
+    const normalizedSaved = normalizeMaps(savedMaps);
+    const savedIds = new Set(normalizedSaved.map((map) => map.id));
+    const missingSeeds = normalizeMaps(seedMaps).filter((map) => !savedIds.has(map.id));
+    return [...missingSeeds, ...normalizedSaved];
+  }
+
   function loadLocal(seed) {
     const saved = localStorage.getItem("mapflow-demo-state");
     if (!saved) {
@@ -70,7 +77,7 @@
     }
     try {
       const parsed = JSON.parse(saved);
-      state.maps = normalizeMaps(parsed.maps?.length ? parsed.maps : structuredClone(seed.maps));
+      state.maps = parsed.maps?.length ? mergeSeedMaps(parsed.maps, seed.maps) : normalizeMaps(structuredClone(seed.maps));
       state.currentMapId = parsed.currentMapId || state.maps[0].id;
     } catch {
       state.maps = normalizeMaps(structuredClone(seed.maps));
