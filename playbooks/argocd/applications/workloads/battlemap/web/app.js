@@ -195,6 +195,7 @@
       state.cy.on("zoom pan", () => {
         updateZoomLabel();
         positionConnectAction();
+        positionDeleteConnectionAction();
         if (state.draftActive) positionComposer(state.draftPosition);
       });
       state.cy.on("tap", (event) => {
@@ -234,6 +235,7 @@
     if (!options.keepViewport && state.cy.elements().length) state.cy.fit(undefined, 80);
     updateZoomLabel();
     positionConnectAction();
+    positionDeleteConnectionAction();
     updateModeBanner();
   }
 
@@ -272,6 +274,7 @@
     edge.select();
     $("delete-node-tool").disabled = true;
     positionConnectAction();
+    positionDeleteConnectionAction();
     updateModeBanner();
     showToast("Connection selected");
   }
@@ -284,6 +287,7 @@
     if (state.cy) state.cy.elements().unselect();
     $("delete-node-tool").disabled = true;
     positionConnectAction();
+    positionDeleteConnectionAction();
     updateModeBanner();
   }
 
@@ -300,6 +304,7 @@
       $("delete-node-tool").disabled = true;
     }
     positionConnectAction();
+    positionDeleteConnectionAction();
     updateModeBanner();
   }
 
@@ -466,6 +471,7 @@
     state.selectedEdgeId = null;
     saveLocal();
     renderMap({keepViewport: true});
+    positionDeleteConnectionAction();
     showToast("Connection deleted");
     return true;
   }
@@ -541,6 +547,25 @@
     button.style.left = `${Math.round(canvasRect.left + rendered.x + 104)}px`;
     button.style.top = `${Math.round(canvasRect.top + rendered.y - 68)}px`;
     button.classList.toggle("active", state.connectionSourceId === state.selectedNodeId);
+    button.hidden = false;
+  }
+
+  function positionDeleteConnectionAction() {
+    const button = $("delete-connection-action");
+    if (!button || !state.cy || !state.selectedEdgeId || state.draftActive) {
+      if (button) button.hidden = true;
+      return;
+    }
+    const edge = state.cy.getElementById(state.selectedEdgeId);
+    if (!edge.length) {
+      button.hidden = true;
+      return;
+    }
+    const source = edge.source().renderedPosition();
+    const target = edge.target().renderedPosition();
+    const canvasRect = $("cy").getBoundingClientRect();
+    button.style.left = `${Math.round(canvasRect.left + (source.x + target.x) / 2 - 18)}px`;
+    button.style.top = `${Math.round(canvasRect.top + (source.y + target.y) / 2 - 18)}px`;
     button.hidden = false;
   }
 
@@ -629,6 +654,11 @@
       event.preventDefault();
       event.stopPropagation();
       startConnectionMode();
+    });
+    $("delete-connection-action").addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      deleteSelectedConnection();
     });
     $("issue-key").addEventListener("input", updateIssuePreview);
     $("issue-key").addEventListener("keydown", (event) => {

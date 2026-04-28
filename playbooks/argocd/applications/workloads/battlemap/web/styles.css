@@ -352,6 +352,43 @@ button {
   display: none;
 }
 
+.delete-connection-action {
+  position: fixed;
+  z-index: 9;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d92d20;
+  border-radius: 8px;
+  background: #d92d20;
+  color: white;
+  font-size: 0;
+  box-shadow: var(--shadow);
+}
+
+.delete-connection-action::before,
+.delete-connection-action::after {
+  content: "";
+  position: absolute;
+  left: 9px;
+  top: 16px;
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: white;
+}
+
+.delete-connection-action::before {
+  transform: rotate(45deg);
+}
+
+.delete-connection-action::after {
+  transform: rotate(-45deg);
+}
+
+.delete-connection-action[hidden] {
+  display: none;
+}
+
 .mode-banner {
   position: absolute;
   left: 50%;
