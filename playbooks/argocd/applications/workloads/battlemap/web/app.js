@@ -171,8 +171,9 @@
           {
             selector: "edge",
             style: {
-              "width": 3,
-              "line-color": "#6b7280",
+              "width": 2,
+              "line-color": "#a8b3c5",
+              "opacity": 0.58,
               "curve-style": "straight"
             }
           },
@@ -180,7 +181,8 @@
             selector: "edge:selected",
             style: {
               "line-color": "#0f62fe",
-              "width": 5
+              "width": 5,
+              "opacity": 1
             }
           }
         ]

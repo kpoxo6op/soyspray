@@ -130,16 +130,7 @@
         {"source":"SPICE-133","target":"SPICE-134"},
         {"source":"SPICE-135","target":"SPICE-131"},
         {"source":"SPICE-136","target":"SPICE-137"},
-        {"source":"SPICE-137","target":"SPICE-140"},
-        {"source":"SPICE-138","target":"SPICE-120"},
-        {"source":"SPICE-139","target":"SPICE-136"},
-        {"source":"SPICE-110","target":"SPICE-118"},
-        {"source":"SPICE-111","target":"SPICE-123"},
-        {"source":"SPICE-111","target":"SPICE-124"},
-        {"source":"SPICE-116","target":"SPICE-132"},
-        {"source":"SPICE-129","target":"SPICE-116"},
-        {"source":"SPICE-130","target":"SPICE-115"},
-        {"source":"SPICE-136","target":"SPICE-115"}
+        {"source":"SPICE-137","target":"SPICE-140"}
       ]
     },
     {
