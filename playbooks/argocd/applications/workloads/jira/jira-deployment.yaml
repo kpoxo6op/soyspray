@@ -79,6 +79,11 @@ spec:
               value: postgres72
             - name: ATL_DB_SCHEMA_NAME
               value: public
+            - name: JIRA_SETUP_LICENSE
+              valueFrom:
+                secretKeyRef:
+                  name: jira-license-secret
+                  key: jira-license
           startupProbe:
             httpGet:
               path: /status
