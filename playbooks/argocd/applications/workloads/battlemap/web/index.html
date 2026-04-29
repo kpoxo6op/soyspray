@@ -18,6 +18,7 @@
           <strong>MapFlow</strong>
         </a>
         <input id="map-title" class="map-title" aria-label="Map title" value="CFK Adoption Plan">
+        <span id="data-source" class="data-source">Loading Jira</span>
         <nav class="top-actions" aria-label="Map actions">
           <button id="create-map-action" class="button secondary">Create Map</button>
           <button id="open-map" class="button secondary">Open Map</button>
@@ -44,7 +45,7 @@
           <div id="empty-state" class="empty-state" hidden>
             <div class="empty-icon" aria-hidden="true">+</div>
             <h1>Click anywhere to add a SPICE issue</h1>
-            <p>The app is hardcoded to the SPICE board for this demo.</p>
+            <p>The app reads the SPICE board from Jira when the trial instance is ready.</p>
           </div>
           <form id="node-composer" class="node-composer" hidden>
             <label for="issue-key">SPICE issue</label>

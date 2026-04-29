@@ -43,6 +43,51 @@ spec:
             - name: web
               mountPath: /usr/share/nginx/html
               readOnly: true
+        - name: jira-api
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - /app/api.py
+          env:
+            - name: JIRA_BASE_URL
+              value: http://jira.jira.svc.cluster.local:8080
+            - name: JIRA_PROJECT_KEY
+              value: SPICE
+            - name: JIRA_BOARD_NAME
+              value: SPICE Kafka Platform Board
+            - name: JIRA_USERNAME
+              value: demo
+            - name: JIRA_PASSWORD
+              value: demo-password
+            - name: MAPFLOW_SEED_PATH
+              value: /app/data.json
+          ports:
+            - containerPort: 8080
+              name: api
+          resources:
+            requests:
+              cpu: 20m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 192Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          volumeMounts:
+            - name: web
+              mountPath: /app
+              readOnly: true
       volumes:
         - name: web
           configMap:

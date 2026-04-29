@@ -65,4 +65,4 @@ spec:
       volumes:
         - name: data
           persistentVolumeClaim:
-            claimName: jira-postgres-data
+            claimName: jira-postgres-data-v2

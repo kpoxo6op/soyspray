@@ -66,6 +66,30 @@
     state.currentMapId = state.maps[0].id;
   }
 
+  async function loadData() {
+    const source = $("data-source");
+    try {
+      const response = await fetch("/api/jira/mapflow-data", {cache: "no-store"});
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || `Jira API returned HTTP ${response.status}`);
+      }
+      const data = await response.json();
+      source.textContent = `${data.project.key} live Jira`;
+      source.classList.add("live");
+      source.classList.remove("fallback");
+      return data;
+    } catch (error) {
+      const data = await (await fetch("/data.json")).json();
+      source.textContent = "Demo data";
+      source.title = error.message;
+      source.classList.add("fallback");
+      source.classList.remove("live");
+      showToast("Using demo data until Jira is ready");
+      return data;
+    }
+  }
+
   function mapElements(map) {
     const nodes = map.nodes.map((node) => {
       const ticket = ticketByKey(node.id);
@@ -756,7 +780,7 @@
   }
 
   async function init() {
-    state.data = await (await fetch("/data.json")).json();
+    state.data = await loadData();
     loadLocal(state.data);
     $("issue-options").innerHTML = state.data.tickets.map((ticket) =>
       `<option value="${ticket.key}" label="${ticket.title}"></option>`

@@ -1,0 +1,27 @@
+---
+- name: Apply Jira license secret
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    jira_license: "{{ lookup('ansible.builtin.env', 'JIRA_LICENSE') }}"
+  tasks:
+    - name: Require JIRA_LICENSE environment variable
+      ansible.builtin.assert:
+        that:
+          - jira_license | length > 0
+        fail_msg: "Set JIRA_LICENSE to the trial license key before running this playbook."
+
+    - name: Store Jira license outside Git
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: jira-license-secret
+            namespace: jira
+          type: Opaque
+          stringData:
+            jira-license: "{{ jira_license }}"

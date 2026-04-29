@@ -87,4 +87,4 @@ spec:
       volumes:
         - name: jira-home
           persistentVolumeClaim:
-            claimName: jira-home
+            claimName: jira-home-v2

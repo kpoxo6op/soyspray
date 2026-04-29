@@ -16,6 +16,7 @@ configMapGenerator:
       - styles.css=web/styles.css
       - app.js=web/app.js
       - data.json=web/data.json
+      - api.py=web/api.py
     options:
       disableNameSuffixHash: true
 

@@ -115,6 +115,29 @@ button {
   outline-offset: 2px;
 }
 
+.data-source {
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.data-source.live {
+  border-color: var(--green-line);
+  background: var(--green-bg);
+  color: #166534;
+}
+
+.data-source.fallback {
+  border-color: var(--yellow-line);
+  background: var(--yellow-bg);
+  color: #854d0e;
+}
+
 .top-actions {
   margin-left: auto;
   display: flex;

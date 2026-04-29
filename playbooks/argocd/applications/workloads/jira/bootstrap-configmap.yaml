@@ -31,7 +31,7 @@ data:
             req_headers.update(headers)
         if body is not None:
             data = json.dumps(body).encode()
-            req_headers["Content-Type"] = "application/json"
+            req_headers.setdefault("Content-Type", "application/json")
         if auth:
             req_headers["Authorization"] = auth_header
         req = urllib.request.Request(base_url + path, data=data, headers=req_headers, method=method)
@@ -100,6 +100,22 @@ data:
         if status >= 400:
             raise RuntimeError(f"PUT {path} failed: HTTP {status} {response}")
         return response
+
+    def ensure_license():
+        if not license_key:
+            print("No Jira license secret present; leaving the current Jira license unchanged.", flush=True)
+            return
+        status, body = request(
+            "POST",
+            "/rest/plugins/applications/1.0/installed/jira-software/license/",
+            body={"licenseKey": license_key},
+            auth=True,
+            headers={"Content-Type": "application/vnd.atl.plugins+json"},
+        )
+        if status in (200, 201, 204):
+            print("Jira Software license is set from jira-license-secret.", flush=True)
+            return
+        raise RuntimeError(f"setting Jira Software license failed: HTTP {status} {body}")
 
     def ensure_pat():
         status, body = request(
@@ -327,6 +343,7 @@ data:
         wait_for_jira()
         info = require_configured()
         print(f"Jira REST ready: {info.get('version')} at {info.get('baseUrl')}", flush=True)
+        ensure_license()
         ensure_project()
         create_issues()
         spread_statuses()

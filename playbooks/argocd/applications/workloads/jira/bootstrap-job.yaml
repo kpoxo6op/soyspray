@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: jira-bootstrap
+  name: jira-bootstrap-v2
   namespace: jira
   labels:
     app: jira-bootstrap
@@ -49,8 +49,9 @@ spec:
             - name: JIRA_LICENSE
               valueFrom:
                 secretKeyRef:
-                  name: jira-demo-secret
+                  name: jira-license-secret
                   key: jira-license
+                  optional: true
           volumeMounts:
             - name: scripts
               mountPath: /scripts

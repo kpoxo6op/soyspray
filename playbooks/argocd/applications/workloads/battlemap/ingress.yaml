@@ -16,6 +16,13 @@ spec:
     - host: battlemap.soyspray.vip
       http:
         paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: battlemap
+                port:
+                  number: 8080
           - path: /
             pathType: Prefix
             backend:
