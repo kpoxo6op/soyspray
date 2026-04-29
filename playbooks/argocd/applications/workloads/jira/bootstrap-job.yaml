@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: jira-bootstrap-v2
+  name: jira-bootstrap-v3
   namespace: jira
   labels:
     app: jira-bootstrap

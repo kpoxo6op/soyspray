@@ -115,6 +115,9 @@ data:
         if status in (200, 201, 204):
             print("Jira Software license is set from jira-license-secret.", flush=True)
             return
+        if status == 406:
+            print("Jira Software license already present; continuing.", flush=True)
+            return
         raise RuntimeError(f"setting Jira Software license failed: HTTP {status} {body}")
 
     def ensure_pat():
