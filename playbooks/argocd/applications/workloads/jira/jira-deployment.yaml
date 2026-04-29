@@ -85,15 +85,13 @@ spec:
                   name: jira-license-secret
                   key: jira-license
           startupProbe:
-            httpGet:
-              path: /status
+            tcpSocket:
               port: http
             failureThreshold: 90
             periodSeconds: 10
             timeoutSeconds: 5
           readinessProbe:
-            httpGet:
-              path: /status
+            tcpSocket:
               port: http
             initialDelaySeconds: 20
             periodSeconds: 15
