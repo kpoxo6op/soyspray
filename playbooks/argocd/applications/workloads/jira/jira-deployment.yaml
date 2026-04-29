@@ -19,6 +19,24 @@ spec:
         component: web
     spec:
       enableServiceLinks: false
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:15
+          imagePullPolicy: IfNotPresent
+          command:
+            - sh
+            - -c
+            - |
+              until pg_isready -h jira-postgres -p 5432 -U "$ATL_JDBC_USER" -d jira; do
+                echo "waiting for jira-postgres"
+                sleep 5
+              done
+          env:
+            - name: ATL_JDBC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: jira-demo-secret
+                  key: postgres-user
       containers:
         - name: jira
           image: atlassian/jira-software:10.3.15-ubuntu-jdk17
