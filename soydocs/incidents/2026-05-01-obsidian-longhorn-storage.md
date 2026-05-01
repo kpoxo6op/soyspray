@@ -17,6 +17,12 @@ CouchDB rescue deployment backed by the node root disk instead of Longhorn.
 This brought `https://obsidian.soyspray.vip` back online while preserving the
 original Longhorn PVC for later forensic recovery.
 
+The SSD is not proven completely dead: SMART still reports overall health
+`PASSED`. It should still be treated as cooked for operational purposes. The
+combination of `/storage` remounting read-only, `Current_Pending_Sector=14`,
+`Reallocated_Event_Count=30`, and repeated Longhorn block-device I/O errors
+means it is no longer safe storage for critical Longhorn volumes.
+
 ## User Impact
 
 - Obsidian sync from phone/laptop failed with HTTP 503.
@@ -239,6 +245,11 @@ The root cause was unreliable storage under Longhorn:
   `/var/lib/obsidian-rescue-couchdb-data`
 - The original Longhorn Obsidian volume remains preserved and detached:
   `pvc-87a2e7b1-6011-4580-8dce-e9433a6f0900`
+- Last known original Longhorn volume state after recovery was
+  detached/unknown.
+- The live Obsidian services and ingress still work because the rescue
+  deployment uses the existing service selector labels:
+  `app=couchdb,release=obsidian-livesync`.
 - The following Argo apps were intentionally left paused:
   - `longhorn`
   - `obsidian-livesync`
@@ -259,10 +270,18 @@ The root cause was unreliable storage under Longhorn:
 
 ### Storage
 
-- Treat the Samsung SSD backing `/storage` as suspect.
+- Treat the Samsung SSD backing `/storage` as failed/suspect, even though SMART
+  overall health says `PASSED`.
 - Replace or retire the disk before trusting Longhorn with critical data again.
+- Do not run new critical Longhorn volumes on this disk; a fresh rescue PVC
+  already failed during `mkfs.ext4` with `Input/output error`.
 - After disk replacement, run a full SMART long test and verify pending sectors
   do not remain.
+- Add alerting for:
+  - `Current_Pending_Sector > 0`
+  - reallocated-event/reallocated-sector counter increases
+  - kernel log evidence that `/storage` remounted read-only
+  - Longhorn volume filesystem creation or mount I/O errors
 - Consider moving Longhorn data to newer storage or adding a second node/disk so
   replica count 2+ is meaningful.
 
@@ -272,9 +291,14 @@ The root cause was unreliable storage under Longhorn:
   hostPath and back into a normal declarative workload.
 - Prefer a controlled backup/restore migration rather than reattaching the
   suspect original Obsidian Longhorn volume directly.
+- Before migrating back, verify that a new Longhorn test volume can be created,
+  formatted, mounted, written to, deleted, and recreated without kernel I/O
+  errors.
 - Keep the S3 backup restore procedure documented and tested.
 - Consider increasing Obsidian backup frequency while using a single-node
   storage setup, because the practical RPO was the last daily backup.
+- Keep the temporary rescue manifest/runbook available so future recovery can
+  go straight to an alternate storage path when Longhorn itself is suspect.
 
 ### Monitoring
 
@@ -284,6 +308,8 @@ The root cause was unreliable storage under Longhorn:
   - root disk/local path with backup, or
   - a more reliable storage class,
   so alert history is less likely to disappear during Longhorn incidents.
+- Do not rely on Prometheus alone for disk death signals when Prometheus is on
+  the same storage failure domain.
 - Add an alert that treats nonzero pending sectors as actionable even when SMART
   overall health is still "passed".
 - Add an explicit alert/runbook for `/storage` remounting read-only.
@@ -305,21 +331,29 @@ The root cause was unreliable storage under Longhorn:
 3. Check node storage before restarting workloads:
    `mount | grep /storage`, `dmesg -T`, and SMART pending/reallocation
    counters.
-4. If `/storage` is read-only, stop kubelet/containerd before filesystem
+4. If pending sectors, reallocation events, read-only remounts, or Longhorn
+   medium/I/O errors are present, assume the disk/storage path is unsafe until
+   proven otherwise.
+5. Stop write-heavy workloads and preserve the original PVC/volume before
+   experimenting with recovery.
+6. If `/storage` is read-only, stop kubelet/containerd before filesystem
    repair to release Longhorn processes.
-5. Repair `/storage` only after confirming the affected device.
-6. Restart Longhorn and CSI, then verify a harmless new test volume can format
+7. Repair `/storage` only after confirming the affected device.
+8. Restart Longhorn and CSI, then verify a harmless new test volume can format
    and mount before trusting Longhorn for rescue workloads.
-7. If new Longhorn writes fail, use root disk hostPath rescue for Obsidian,
+9. If new Longhorn writes fail, stop testing Longhorn-backed rescue PVCs and use
+   root disk hostPath or another known-good storage path for Obsidian,
    restore from S3, and leave the original PVC untouched.
-8. Pause Argo apps before live rescue changes, and record which apps were
+10. Pause Argo apps before live rescue changes, and record which apps were
    paused.
-9. Verify externally:
+11. Verify externally:
    - `https://obsidian.soyspray.vip/_up`
    - authenticated `obsidian-main` document count
    - Prometheus target health
    - Healthchecks.io deadman event history
-10. Write the repo-side fix and incident note before re-enabling Argo self-heal.
+12. Let the most current phone/laptop vault sync back to the rescue CouchDB
+   before deleting old server-side storage.
+13. Write the repo-side fix and incident note before re-enabling Argo self-heal.
 
 ## Lessons Learned
 
