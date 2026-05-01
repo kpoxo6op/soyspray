@@ -78,11 +78,20 @@ The Prometheus stack has a deadman's-switch route:
 - Alertmanager routes `Watchdog` to `watchdog-healthchecks`.
 - The receiver posts to Healthchecks.io:
   `https://hc-ping.com/ee92de78-bf59-4cb8-a41a-01382feb9a65`
-- The repo documentation says Healthchecks expects roughly a 2 minute period
-  plus about 1 minute grace.
+- Healthchecks.io check name: `Soyspray`.
+- Healthchecks.io description: `home cluster alert manager watchdog`.
+- Notification methods were enabled for email `kpoxo6op-mail` and Telegram
+  `kpoxo6op-telegram`.
+- Actual Healthchecks.io schedule at review time:
+  - Period: `1 day`
+  - Grace time: `1 hour`
 
-Assessment: the deadman should have fired, unless the Healthchecks.io check was
-disabled, paused, or notifications were muted externally.
+Assessment: the deadman did not fire for this incident because the
+Healthchecks.io schedule was configured as a daily check, not a short watchdog.
+With `1 day` period plus `1 hour` grace, Healthchecks would tolerate roughly 25
+hours without pings before alerting. That is far too loose for a home-cluster
+monitoring watchdog and explains why the Healthchecks page still showed `All
+good` for May 2026.
 
 Why:
 
@@ -91,22 +100,36 @@ Why:
   `2026-05-01 05:50:25 UTC`.
 - A later Prometheus range query for `ALERTS{alertname="Watchdog"}` only showed
   fresh samples from `2026-05-01 05:53:00 UTC` onward.
-- That means Alertmanager did not have a normal fresh Watchdog stream for much
-  longer than the documented Healthchecks period/grace window.
+- Healthchecks.io event history showed regular OK pings every 5 minutes after
+  recovery, for example:
+  - `2026-05-01 18:58 NZST` through `2026-05-01 21:23 NZST`
+  - HTTPS POST from `118.148.130.35`
+  - request body size `2001` bytes
+  - user agent `Alertmanager/0.28.1`
+- The post-recovery pings prove the Alertmanager-to-Healthchecks webhook path
+  works when Prometheus and Alertmanager are healthy.
+- They do not indicate a missed incident because the check's schedule was too
+  broad to consider a short outage late.
 
 What this does and does not prove:
 
-- It proves the in-cluster Watchdog source was interrupted long enough that the
-  external deadman should have gone missing.
-- It does not prove that a notification was delivered to a phone/email account,
-  because successful Healthchecks notifications are external state and are not
-  stored in Prometheus/Alertmanager logs.
-- Alertmanager's current log level does not log successful webhook sends, so the
-  cluster cannot directly prove "Healthchecks sent a notification".
+- It proves the live Watchdog route and webhook destination were configured.
+- It proves Healthchecks received regular OK pings after recovery.
+- It proves the Healthchecks schedule was not suitable for detecting this class
+  of Prometheus/Alertmanager outage.
+- It does not prove that Healthchecks failed. Healthchecks behaved consistently
+  with its configured daily schedule.
 
-Follow-up: check the Healthchecks.io event history for check
-`ee92de78-bf59-4cb8-a41a-01382feb9a65`. It should show a down event during the
-Prometheus outage and an up event after Watchdog pings resumed.
+Recommendation: change the Healthchecks.io schedule to a shorter watchdog
+window:
+
+- Period: `10 minutes`
+- Grace time: `10 minutes`
+
+This would alert after roughly 20 minutes without Watchdog pings. A more
+aggressive `5 minutes` period plus `5 minutes` grace is possible, but it is more
+likely to alert on brief network or restart noise. Start with `10m + 10m` and
+tighten later if it is quiet.
 
 ## Timeline
 
@@ -291,8 +314,9 @@ The root cause was unreliable storage under Longhorn:
 - Do not delete the original Obsidian PVC.
 - Do not wipe the Obsidian vault on phone or laptop.
 - Let the most up-to-date client sync to the restored server first.
-- Confirm Healthchecks.io event history for check
-  `ee92de78-bf59-4cb8-a41a-01382feb9a65`.
+- Change the Healthchecks.io `Soyspray` watchdog schedule for check
+  `ee92de78-bf59-4cb8-a41a-01382feb9a65` from `1 day` period plus `1 hour`
+  grace to `10 minutes` period plus `10 minutes` grace.
 - Keep `obsidian-livesync` Argo self-heal paused until the rescue state is made
   declarative or migrated back to a stable PVC.
 
@@ -371,6 +395,9 @@ Recommended target state:
 
 - Keep the deadman check external to the cluster.
 - Add a short runbook section explaining how to verify Healthchecks.io events.
+- Keep the Healthchecks.io period/grace aligned with the Alertmanager Watchdog
+  repeat cadence. Since Alertmanager sends Watchdog pings about every 5 minutes,
+  a `10m` period and `10m` grace is a reasonable starting point.
 - Consider moving Prometheus to either:
   - root disk/local path with backup, or
   - a more reliable storage class,
@@ -435,6 +462,9 @@ Recommended target state:
   I/O errors matter more.
 - Monitoring must have an external deadman because cluster-local monitoring can
   fail with the cluster.
+- A deadman only works if its external timeout matches the outage size we care
+  about. A `1 day` Healthchecks period plus `1 hour` grace is effectively a
+  daily heartbeat, not a Prometheus outage detector.
 - Recovery should first protect data, then restore service, then make the live
   state declarative. Trying to make everything clean immediately can increase
   data-loss risk.
