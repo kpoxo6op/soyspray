@@ -23,6 +23,23 @@ combination of `/storage` remounting read-only, `Current_Pending_Sector=14`,
 `Reallocated_Event_Count=30`, and repeated Longhorn block-device I/O errors
 means it is no longer safe storage for critical Longhorn volumes.
 
+The affected node disk matches the AliExpress SSD order record supplied during
+the incident:
+
+- AliExpress order ID: `8199850113352085`
+- Store: `Samsung Authorized Memory Store`
+- Ordered: `2025-04-12`
+- Item: `SAMSUNG SSD 870 EVO ... SATA3 2.5 inch`
+- Selected capacity: `500GB`
+- Node device: `/dev/sda`
+- Node model: `Samsung SSD 870 EVO 500GB`
+- Node serial: `S5Y4NFOR5613453`
+- Mounted filesystem: `/storage` on `/dev/sda1`
+
+The order page also showed order completion on `2025-04-25`, which means the
+disk was roughly one year old at the time of this incident. Shipping address,
+phone number, and payment details were intentionally not recorded here.
+
 ## User Impact
 
 - Obsidian sync from phone/laptop failed with HTTP 503.
