@@ -40,6 +40,17 @@ The order page also showed order completion on `2025-04-25`, which means the
 disk was roughly one year old at the time of this incident. Shipping address,
 phone number, and payment details were intentionally not recorded here.
 
+A replacement SSD was ordered from PB Tech during the incident so the failed or
+suspect `/storage` disk can be retired instead of reused:
+
+- PB Tech order number: `WO10167434`
+- Ordered: `2026-05-01 18:48 NZST`
+- Amount: `NZ$190.75`
+- Estimated shipping date: `2026-05-04`
+- Item selected during recovery: `PNY CS900 500GB 2.5" Internal SSD SATA`
+- Shipping address was confirmed in the order but is intentionally not recorded
+  here.
+
 ## User Impact
 
 - Obsidian sync from phone/laptop failed with HTTP 503.
@@ -290,6 +301,8 @@ The root cause was unreliable storage under Longhorn:
 - Treat the Samsung SSD backing `/storage` as failed/suspect, even though SMART
   overall health says `PASSED`.
 - Replace or retire the disk before trusting Longhorn with critical data again.
+- Replacement order placed with PB Tech: `WO10167434`, `NZ$190.75`, estimated
+  shipping `2026-05-04`.
 - Do not run new critical Longhorn volumes on this disk; a fresh rescue PVC
   already failed during `mkfs.ext4` with `Input/output error`.
 - After disk replacement, run a full SMART long test and verify pending sectors
@@ -301,6 +314,43 @@ The root cause was unreliable storage under Longhorn:
   - Longhorn volume filesystem creation or mount I/O errors
 - Consider moving Longhorn data to newer storage or adding a second node/disk so
   replica count 2+ is meaningful.
+
+### Preventing Single-SSD Outages
+
+Backups protected the data, but they did not prevent the outage. The outage
+happened because the active storage path had one physical SSD as a hard failure
+domain. To avoid this class of outage, the cluster needs active storage
+redundancy, not only restoreable backups.
+
+Recommended target state:
+
+- Stop treating a single `/storage` SSD as reliable infrastructure for critical
+  PVCs.
+- Use at least two independent storage devices before moving critical workloads
+  back onto Longhorn.
+- Prefer one of these designs:
+  - two Kubernetes nodes with Longhorn replicas on separate physical disks, or
+  - one node with mirrored local storage for `/storage` using ZFS mirror,
+    mdraid1, or another boring mirror layer before Longhorn writes to it.
+- Keep Longhorn replica count at `1` only while there is one real storage
+  failure domain. Replica count `2` on the same disk or same unsafe path gives a
+  false sense of safety.
+- For critical small databases such as Obsidian LiveSync, consider a simpler
+  known-good storage class backed by mirrored local storage instead of putting
+  the database directly on a fragile single-disk Longhorn path.
+- Keep S3/offsite backups, but document them as recovery/RPO protection, not
+  uptime protection.
+- Increase Obsidian backup frequency if the service remains on single-node
+  storage; hourly or every-few-hours backups are more appropriate than daily
+  backups for actively edited notes.
+- Run scheduled SMART long tests and alert on nonzero pending sectors,
+  reallocation counter increases, UDMA CRC errors, and filesystem remounts to
+  read-only.
+- Keep a spare known-good SATA SSD on hand. Waiting for shipping during an
+  incident extends the period where services are running in rescue mode.
+- Maintain and test a hostPath rescue manifest for small stateful services so a
+  future Longhorn failure can be bypassed quickly while preserving the original
+  PVC for forensic recovery.
 
 ### Obsidian
 
@@ -376,6 +426,11 @@ The root cause was unreliable storage under Longhorn:
 
 - A single-node Longhorn setup with replica count 1 is not high availability; it
   is mostly a Kubernetes-friendly volume manager over one local failure domain.
+- A single SSD under `/storage` is the outage boundary. If that SSD remounts
+  read-only or starts returning I/O errors, every critical PVC depending on it
+  can fail together.
+- Backups are necessary but they solve recovery, not availability. Preventing
+  this outage requires mirrored storage or a second node/disk failure domain.
 - SMART overall health is too coarse for operations. Pending sectors and kernel
   I/O errors matter more.
 - Monitoring must have an external deadman because cluster-local monitoring can
