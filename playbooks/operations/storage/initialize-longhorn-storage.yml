@@ -1,5 +1,5 @@
 # initialize-longhorn-storage.yml
-# use Samsung SSD as storage for Longhorn
+# use the dedicated SATA SSD as storage for Longhorn
 
 # before
 # ❯ ssh ubuntu@192.168.1.103 "lsblk -o NAME,SIZE,TYPE,MOUNTPOINT,MODEL,ROTA"
@@ -28,7 +28,7 @@
 - name: Common tasks for every playbook
   import_playbook: ../../../kubespray/playbooks/boilerplate.yml
 
-- name: Prepare Samsung SSD storage for Longhorn
+- name: Prepare SATA SSD storage for Longhorn
   hosts: all
   become: true
   gather_facts: true
@@ -38,6 +38,10 @@
     storage_partition: /dev/sda1
     storage_mount: /storage
     storage_fstype: ext4
+    storage_mount_opts: defaults,nofail,x-systemd.device-timeout=10s
+    expected_storage_models:
+      - Samsung SSD
+      - PNY 500GB SATA
 
   pre_tasks:
     - name: Install required packages
@@ -69,7 +73,7 @@
         - dm_crypt
 
   tasks:
-    - name: Verify Samsung SSD is present
+    - name: Verify storage SSD is present
       stat:
         path: "{{ storage_device }}"
       register: ssd_device
@@ -80,10 +84,12 @@
       register: device_model
       changed_when: false
 
-    - name: Verify this is Samsung SSD
+    - name: Verify this is an expected Longhorn storage SSD
       fail:
-        msg: "Device {{ storage_device }} is not Samsung SSD (found: {{ device_model.stdout }})"
-      when: "'Samsung' not in device_model.stdout"
+        msg: >-
+          Device {{ storage_device }} is not an expected Longhorn storage SSD
+          (found: {{ device_model.stdout }}; expected one of {{ expected_storage_models | join(', ') }})
+      when: expected_storage_models | select('in', device_model.stdout) | list | length == 0
 
     - name: Check for LVM volumes on device
       shell: |
@@ -92,7 +98,7 @@
       register: lvm_check
       ignore_errors: true
 
-    - name: Deactivate LVM volumes on Samsung SSD
+    - name: Deactivate LVM volumes on storage SSD
       shell: |
         # Deactivate any LVM logical volumes on this device
         for pv in $(pvs --noheadings -o pv_name {{ storage_device }}* 2>/dev/null | tr -d ' '); do
@@ -162,12 +168,12 @@
       ignore_errors: true
       changed_when: false
 
-    - name: Mount Samsung SSD to /storage
+    - name: Mount storage SSD to /storage
       mount:
         path: "{{ storage_mount }}"
         src: "{{ storage_partition }}"
         fstype: "{{ storage_fstype }}"
-        opts: defaults
+        opts: "{{ storage_mount_opts }}"
         state: mounted
       when: storage_mounted.rc != 0
 
@@ -176,7 +182,7 @@
         path: "{{ storage_mount }}"
         src: "{{ storage_partition }}"
         fstype: "{{ storage_fstype }}"
-        opts: defaults
+        opts: "{{ storage_mount_opts }}"
         dump: 0
         passno: 2
         state: present
@@ -197,7 +203,7 @@
     - name: Display storage configuration results
       debug:
         msg: |
-          ✅ Samsung SSD Longhorn storage configured successfully:
+          ✅ Longhorn storage SSD configured successfully:
           Device: {{ storage_device }} ({{ device_model.stdout }})
           Partition: {{ storage_partition }}
           Mount: {{ storage_mount }}
