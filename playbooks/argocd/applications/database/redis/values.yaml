@@ -24,15 +24,16 @@ image:
 master:
   persistence:
     enabled: true
-    storageClass: longhorn
     size: 8Gi
   resources:
     requests:
       memory: 128Mi
-      cpu: 50m
+      cpu: 100m
+      ephemeral-storage: 50Mi
     limits:
-      memory: 256Mi
+      memory: 192Mi
       cpu: 500m
+      ephemeral-storage: 2Gi
   extraEnvVars:
     - name: ALLOW_EMPTY_PASSWORD
       value: "yes"
