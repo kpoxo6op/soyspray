@@ -383,6 +383,56 @@ in place as a rollback copy. Do not delete it until the Longhorn-backed rescue
 PVC has been backed up and client sync has been confirmed from the phone and
 laptop.
 
+### Full PVC Recreate on Replacement SSD
+
+After Obsidian was protected, the remaining Longhorn-backed workload PVCs that
+still referenced the failed SSD were recreated on the replacement SSD. A
+pre-delete snapshot of Kubernetes and Longhorn state was saved on the laptop:
+
+```text
+/tmp/soyspray-longhorn-recovery-20260506T095237Z/
+```
+
+The recreate excluded the original Obsidian PVC, the new Obsidian rescue PVC,
+and the `media-downloads` local-media PV. Most apps recreated cleanly after
+their old PVCs and pods were removed. Three PVCs (`mosquitto-data`,
+`immich-library`, and `storage-loki-0`) initially stayed in `Terminating`
+because new pods started while the old PVC objects still existed, so the
+affected controllers were scaled down briefly and then allowed to recreate on
+fresh PVCs.
+
+Final Longhorn validation showed all active recreated workload volumes attached
+and healthy on the replacement SSD. The only remaining non-healthy Longhorn
+volume is the deliberately preserved original Obsidian volume:
+`pvc-87a2e7b1-6011-4580-8dce-e9433a6f0900`, detached/unknown.
+
+Immich was treated as test data and was not restored. Its media PVC and CNPG
+database PVC were recreated empty. The original CNPG cluster had become
+unrecoverable after its instance PVC was removed, so `immich-db-a` was deleted
+and recreated from the existing `immich-db-a-initdb` Argo app. The fresh
+database PVC is `pvc-e27714e7-d0eb-44a0-b90c-32a5d14bdda7`, and CNPG reported
+`Cluster in healthy state` with one ready instance after recreation.
+
+Immich backup availability was still verified before leaving the service in
+test-data mode:
+
+- Media backup cronjob: `immich-media-offsite-sync`
+- Last successful media sync: `2026-05-06T04:45:09Z`
+- Media S3 prefix: `s3://immich-offsite-archive-au2/immich/media/`
+- Media S3 listing summary: `607` objects, `239.1 MiB`
+- Database S3 prefix: `s3://immich-offsite-archive-au2/immich/db/`
+- Database S3 listing summary: `3141` objects, `54.6 GiB`
+- Previous CNPG scheduled backup timestamp before recreate:
+  `2026-05-06T04:47:18Z`
+
+Post-recreate validation:
+
+- `immich` Argo app: `Synced` and `Healthy`
+- `immich-offsite-backup` Argo app: `Synced` and `Healthy`
+- `https://immich.soyspray.vip` returned HTTP `200`
+- Main workload apps checked after the batch recreate were healthy; temporary
+  completed bootstrap/debug/backup jobs were the only non-running pods reported.
+
 ### Immediate
 
 - Do not delete the original Obsidian PVC.
