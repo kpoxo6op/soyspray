@@ -8,7 +8,7 @@ spec:
     retentionPolicy: "60d"
     barmanObjectStore:
       destinationPath: s3://immich-offsite-archive-au2/immich/db/
-      serverName: immich-db
+      serverName: immich-db-a-post-ssd-20260506
       s3Credentials:
         accessKeyId:
           name: immich-offsite-writer
@@ -19,4 +19,3 @@ spec:
         region:
           name: immich-offsite-writer
           key: AWS_REGION
-

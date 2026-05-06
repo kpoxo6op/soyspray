@@ -42,7 +42,7 @@ spec:
             - --smartctl.interval=5m
             - --smartctl.rescan=30m
             - --smartctl.device=/dev/disk/by-id/nvme-eui.00080d02005b0230
-            - --smartctl.device=/dev/disk/by-id/ata-Samsung_SSD_870_EVO_500GB_S5Y4NFOR5613453
+            - --smartctl.device=/dev/disk/by-id/ata-PNY_500GB_SATA_SSD_PNL03260552550304994
             - --smartctl.device=/dev/disk/by-id/wwn-0x5000000000000001;scsi
           ports:
             - name: metrics
@@ -55,7 +55,6 @@ spec:
               cpu: 10m
               memory: 32Mi
             limits:
-              cpu: 100m
               memory: 128Mi
           volumeMounts:
             - name: dev

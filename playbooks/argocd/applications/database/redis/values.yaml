@@ -21,18 +21,19 @@ image:
   repository: bitnamilegacy/redis
   tag: 8.2.1-debian-12-r0
 
-primary:
+master:
   persistence:
     enabled: true
-    storageClass: longhorn
-    size: 5Gi
+    size: 8Gi
   resources:
     requests:
       memory: 128Mi
-      cpu: 50m
+      cpu: 100m
+      ephemeral-storage: 50Mi
     limits:
-      memory: 256Mi
-      cpu: 200m
+      memory: 192Mi
+      cpu: 500m
+      ephemeral-storage: 2Gi
   extraEnvVars:
     - name: ALLOW_EMPTY_PASSWORD
       value: "yes"
