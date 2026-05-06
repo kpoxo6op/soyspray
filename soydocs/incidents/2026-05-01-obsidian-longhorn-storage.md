@@ -433,6 +433,38 @@ Post-recreate validation:
 - Main workload apps checked after the batch recreate were healthy; temporary
   completed bootstrap/debug/backup jobs were the only non-running pods reported.
 
+### 2026-05-07 Post-SSD Monitoring Cleanup
+
+After the replacement SSD workload recreate, Alertmanager paged Telegram for
+`CNPGBackupBarmanError`. The alert was caused by the freshly recreated
+`immich-db-a` cluster trying to archive WALs under the old Barman server name
+`immich-db`. Barman correctly rejected the destination with `Expected empty
+archive` because that S3 archive namespace already contained previous backup
+state.
+
+The live fix moved the recreated empty database onto a fresh Barman server
+namespace:
+
+```text
+immich-db-a-post-ssd-20260506
+```
+
+Post-fix CNPG logs showed WAL archive commands using the new namespace, and
+Alertmanager only showed the normal `Watchdog` alert.
+
+The same cleanup updated monitoring to match the replacement SSD:
+
+- `smartctl-exporter` now scrapes
+  `/dev/disk/by-id/ata-PNY_500GB_SATA_SSD_PNL03260552550304994`
+  instead of the removed Samsung SSD path.
+- The SMART exporter CPU limit was removed, leaving a memory limit and CPU
+  request, because the exporter was being throttled during device scans.
+- The CNPG stale-backup Prometheus alert now watches `cluster="immich-db-a"`.
+- Redis chart values were corrected from the ignored `primary:` key to the
+  chart's active `master:` key, while preserving the existing `8Gi` PVC size.
+  Redis CPU limit was raised to `500m` to clear the post-recreate
+  `CPUThrottlingHigh` info alert without recreating the StatefulSet.
+
 ### Immediate
 
 - Do not delete the original Obsidian PVC.
