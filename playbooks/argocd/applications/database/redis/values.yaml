@@ -21,7 +21,7 @@ image:
   repository: bitnamilegacy/redis
   tag: 8.2.1-debian-12-r0
 
-primary:
+master:
   persistence:
     enabled: true
     storageClass: longhorn
@@ -32,7 +32,7 @@ primary:
       cpu: 50m
     limits:
       memory: 256Mi
-      cpu: 200m
+      cpu: 500m
   extraEnvVars:
     - name: ALLOW_EMPTY_PASSWORD
       value: "yes"

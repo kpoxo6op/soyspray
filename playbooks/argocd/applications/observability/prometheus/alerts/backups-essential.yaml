@@ -2,7 +2,7 @@
 # Minimal backup alerts: 1) Media CronJob stale; 2) CNPG last available backup stale
 # No S3 requests; relies on kube-state-metrics and CNPG exporter; 36h thresholds
 # Assumes Prometheus Operator CRDs and monitoring namespace 'monitoring'
-# Requires CNPG PodMonitor enabled for immich-db (see notes)
+# Requires CNPG PodMonitor enabled for immich-db-a (see notes)
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
@@ -28,12 +28,11 @@ spec:
         - alert: CNPGBackupStale
           expr: |
             time() - max by (cluster) (
-              cnpg_collector_last_available_backup_timestamp{cluster="immich-db"}
+              cnpg_collector_last_available_backup_timestamp{cluster="immich-db-a"}
             ) > 36 * 60 * 60
           for: 15m
           labels:
             severity: critical
           annotations:
-            summary: "CNPG backup stale (cluster=immich-db)"
+            summary: "CNPG backup stale (cluster=immich-db-a)"
             description: "CNPG reports last available backup older than 36h."
-
