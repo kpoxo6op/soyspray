@@ -309,6 +309,80 @@ The root cause was unreliable storage under Longhorn:
 
 ## What To Do Next
 
+## 2026-05-06 Replacement SSD Follow-Up
+
+The replacement PNY SSD was installed and confirmed as the new `/dev/sda`:
+
+- Device model: `PNY 500GB SATA SSD`
+- Device serial: `PNL03260552550304994`
+- Partition: `/dev/sda1`
+- Filesystem label: `longhorn-storage`
+- Filesystem UUID: `836f915b-6d7d-4376-bfa7-3e56f7b57764`
+- Mounted at `/storage`
+- SMART overall health: `PASSED`
+- SMART warning counters checked during recovery:
+  - `Reallocated_Sector_Ct=0`
+  - `UDMA_CRC_Error_Count=0`
+  - no SMART errors logged
+
+Before reinstalling the new SSD, `/etc/fstab` was changed from a mandatory
+`/dev/sda1 /storage` mount to a non-blocking mount:
+
+```text
+/dev/sda1 /storage ext4 defaults,nofail,x-systemd.device-timeout=10s 0 2
+```
+
+This prevented a blank replacement SSD from blocking Ubuntu before SSH and
+kubelet could start. The previous fstab was saved on the node at:
+
+```text
+/etc/fstab.before-new-longhorn-ssd-2026-05-06
+```
+
+The Longhorn storage initialization playbook was updated to allow the PNY
+replacement model as an expected storage SSD and to preserve the non-blocking
+`/storage` mount options.
+
+Longhorn detected the new filesystem but kept the old disk UUID in the existing
+node disk record. The old record was preserved in:
+
+```text
+/tmp/node-0-longhorn-before-new-ssd.yaml
+```
+
+A fresh Longhorn disk entry was added for the replacement disk:
+
+- Longhorn disk entry: `replacement-pny-500gb`
+- Longhorn disk UUID: `942da1e5-f14f-42ed-86d6-8d690b040efc`
+- Path: `/storage`
+- State: ready and schedulable
+
+A throwaway Longhorn smoke PVC was created and mounted into a pod. The pod wrote
+and read `replacement-ssd-ok`, proving new Longhorn writes worked on the
+replacement SSD. The smoke namespace was then deleted.
+
+Obsidian was moved off the root-disk hostPath rescue and onto a fresh Longhorn
+PVC on the replacement SSD:
+
+- New PVC: `obsidian-livesync-couchdb-rescue-longhorn`
+- New Longhorn volume: `pvc-49aaa871-5b77-4c68-8cc7-1b3e76f3384d`
+- New Longhorn volume state after migration: `attached healthy`
+- Replica disk UUID: `942da1e5-f14f-42ed-86d6-8d690b040efc`
+- Existing original PVC was still preserved:
+  `database-storage-obsidian-livesync-couchdb-0`
+- Existing original Longhorn volume was still preserved:
+  `pvc-87a2e7b1-6011-4580-8dce-e9433a6f0900`
+
+The live external validation after migration:
+
+- `https://obsidian.soyspray.vip/_up` returned `{"status":"ok","seeds":{}}`
+- `obsidian-main` had `15230` documents
+
+The hostPath source data under `/var/lib/obsidian-rescue-couchdb-data` was left
+in place as a rollback copy. Do not delete it until the Longhorn-backed rescue
+PVC has been backed up and client sync has been confirmed from the phone and
+laptop.
+
 ### Immediate
 
 - Do not delete the original Obsidian PVC.
