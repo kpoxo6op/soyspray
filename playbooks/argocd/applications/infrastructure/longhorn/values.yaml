@@ -6,19 +6,8 @@ persistence:
   metricsPort: 9500
 
 defaultSettings:
-  defaultDataLocality: best-effort
-  defaultReplicaCount: "1"
-  defaultDataPath: "/storage"
-  deletingConfirmationFlag: true
-  orphanAutoDeletion: true
-  backupstorePollInterval: "300"
-  concurrentReplicaRebuildPerNodeLimit: "1"
-  snapshotMaxCount: "10"
-  autoCleanupSystemGeneratedSnapshot: true
-  autoCleanupRecurringJobBackupSnapshot: true
-  replicaAutoBalance: "disabled"
-  fastReplicaRebuildEnabled: "true"
-  snapshotDataIntegrity: disabled
+  priorityClass: null
+  disableRevisionCounter: null
 
 longhornUI:
   replicas: 1
