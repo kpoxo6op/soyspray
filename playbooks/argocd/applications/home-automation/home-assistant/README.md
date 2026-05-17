@@ -39,7 +39,9 @@ that depend on these entities, including the Tapo Relax light behavior.
 
 The Dreame L10s Ultra robot vacuum is visible on the LAN as
 `dreame_vacuum_r2228o` at `192.168.20.170`. Home Assistant does not ship a
-built-in Dreame Home integration, so the Deployment installs the pinned
-`Tasshack/dreame-vacuum` custom component into the HA config PVC on pod start.
-The actual Dreame account/device config entry is still HA runtime state in the
-PVC after login.
+built-in Dreamehome integration, so the Deployment installs the pinned
+`Tasshack/dreame-vacuum` beta custom component into the HA config PVC on pod
+start. The beta line is intentional because the stable `v1.x` flow only supports
+Xiaomi Home accounts, while this vacuum is paired to a Dreamehome account. The
+actual Dreame account/device config entry is still HA runtime state in the PVC
+after login.
