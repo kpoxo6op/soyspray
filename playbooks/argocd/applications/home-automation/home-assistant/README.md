@@ -19,3 +19,20 @@ Home Assistant connects to the MQTT broker to discover and control devices:
 - Publishes MQTT commands to control devices
 - Provides unified interface for all home automation devices
 
+## Runtime Device Entries
+
+Home Assistant stores UI-added integration config entries in the
+`home-assistant-config` PVC. These are persistent HA runtime state rather than
+Kubernetes manifests.
+
+Current TP-Link Smart Home entries added through Home Assistant:
+
+- Tapo L530 bulbs: `light.top`, `light.middle`, `light.bottom`
+- Tapo H100 hub at `192.168.20.154`, exposing:
+  - `binary_sensor.tapo_t100_motion`
+  - `binary_sensor.tapo_t100_cloud_connection`
+  - `sensor.tapo_t100_signal_level`
+  - `siren.tapo_h100`
+
+The bootstrap ConfigMap keeps HA's declarative automations, scripts, and scenes
+that depend on these entities, including the Tapo Relax light behavior.
