@@ -40,6 +40,30 @@ data:
             message: Front door has been open for 10 minutes
       mode: single
   scripts.yaml: |
-    {}
+    tapo_relax:
+      alias: Tapo Relax
+      description: Turn all Tapo L530 bulbs on using the built-in Relax theme.
+      mode: single
+      sequence:
+        - action: light.turn_on
+          target:
+            entity_id:
+              - light.top
+              - light.middle
+              - light.bottom
+          data:
+            effect: Relax
   scenes.yaml: |
-    []
+    - id: tapo_relax
+      name: Tapo Relax
+      icon: mdi:lightbulb-night
+      entities:
+        light.top:
+          state: "on"
+          effect: Relax
+        light.middle:
+          state: "on"
+          effect: Relax
+        light.bottom:
+          state: "on"
+          effect: Relax
