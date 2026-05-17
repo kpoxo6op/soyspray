@@ -36,6 +36,34 @@ spec:
               mountPath: /config
             - name: bootstrap
               mountPath: /bootstrap
+        - name: install-dreame-vacuum
+          image: alpine:3.20
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              apk add --no-cache ca-certificates unzip wget >/dev/null
+              version="v1.0.9"
+              expected_sha256="c04a9a75ca9e9640d88c93dfdd0a1b9af89cfb970b94bbcbcf461e31dc983854"
+              install_dir="/config/custom_components/dreame_vacuum"
+              version_file="${install_dir}/.soyspray-version"
+
+              if [ -f "${version_file}" ] && [ "$(cat "${version_file}")" = "${version}" ]; then
+                exit 0
+              fi
+
+              tmp_dir="$(mktemp -d)"
+              wget -q -O "${tmp_dir}/dreame_vacuum.zip" "https://github.com/Tasshack/dreame-vacuum/releases/download/${version}/dreame_vacuum.zip"
+              echo "${expected_sha256}  ${tmp_dir}/dreame_vacuum.zip" | sha256sum -c -
+              rm -rf "${install_dir}"
+              mkdir -p "${install_dir}"
+              unzip -q "${tmp_dir}/dreame_vacuum.zip" -d "${install_dir}"
+              echo "${version}" > "${version_file}"
+              rm -rf "${tmp_dir}"
+          volumeMounts:
+            - name: config
+              mountPath: /config
       containers:
         - name: home-assistant
           image: ghcr.io/home-assistant/home-assistant:2025.7.2
