@@ -77,7 +77,21 @@ data:
           entity_id: sun.sun
           state: below_horizon
       actions:
-        - action: script.tapo_relax
+        - repeat:
+            count: 2
+            sequence:
+              - action: light.turn_on
+                continue_on_error: true
+                target:
+                  entity_id:
+                    - light.top
+                    - light.middle
+                    - light.bottom
+                data:
+                  effect: Relax
+                  transition: 0
+              - delay:
+                  seconds: 2
         - wait_for_trigger:
             - trigger: state
               entity_id: binary_sensor.tapo_t100_motion
@@ -85,6 +99,7 @@ data:
               for:
                 minutes: 10
         - action: light.turn_off
+          continue_on_error: true
           target:
             entity_id: light.top
           data:
@@ -92,6 +107,7 @@ data:
         - delay:
             minutes: 3
         - action: light.turn_off
+          continue_on_error: true
           target:
             entity_id: light.middle
           data:
@@ -99,10 +115,22 @@ data:
         - delay:
             minutes: 3
         - action: light.turn_off
+          continue_on_error: true
           target:
             entity_id: light.bottom
           data:
             transition: 180
+        - delay:
+            minutes: 3
+        - action: light.turn_off
+          continue_on_error: true
+          target:
+            entity_id:
+              - light.top
+              - light.middle
+              - light.bottom
+          data:
+            transition: 0
       mode: restart
   scripts.yaml: |
     tapo_relax:
