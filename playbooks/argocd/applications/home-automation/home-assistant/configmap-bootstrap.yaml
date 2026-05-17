@@ -9,6 +9,14 @@ metadata:
     app: home-assistant
 data:
   configuration.yaml: |
+    homeassistant:
+      name: Home
+      latitude: -36.853282
+      longitude: 174.868779
+      elevation: 65
+      unit_system: metric
+      time_zone: Pacific/Auckland
+
     default_config:
 
     frontend:
@@ -58,6 +66,44 @@ data:
             effect: Relax
       mode: parallel
       max: 3
+    - id: tapo_motion_relax_lights_after_sunset
+      alias: Tapo motion turns on Relax lights after sunset
+      triggers:
+        - trigger: state
+          entity_id: binary_sensor.tapo_t100_motion
+          to: "on"
+      conditions:
+        - condition: state
+          entity_id: sun.sun
+          state: below_horizon
+      actions:
+        - action: script.tapo_relax
+        - wait_for_trigger:
+            - trigger: state
+              entity_id: binary_sensor.tapo_t100_motion
+              to: "off"
+              for:
+                minutes: 10
+        - action: light.turn_off
+          target:
+            entity_id: light.top
+          data:
+            transition: 180
+        - delay:
+            minutes: 3
+        - action: light.turn_off
+          target:
+            entity_id: light.middle
+          data:
+            transition: 180
+        - delay:
+            minutes: 3
+        - action: light.turn_off
+          target:
+            entity_id: light.bottom
+          data:
+            transition: 180
+      mode: restart
   scripts.yaml: |
     tapo_relax:
       alias: Tapo Relax
