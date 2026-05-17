@@ -36,3 +36,10 @@ Current TP-Link Smart Home entries added through Home Assistant:
 
 The bootstrap ConfigMap keeps HA's declarative automations, scripts, and scenes
 that depend on these entities, including the Tapo Relax light behavior.
+
+The Dreame L10s Ultra robot vacuum is visible on the LAN as
+`dreame_vacuum_r2228o` at `192.168.20.170`. Home Assistant does not ship a
+built-in Dreame Home integration, so the Deployment installs the pinned
+`Tasshack/dreame-vacuum` custom component into the HA config PVC on pod start.
+The actual Dreame account/device config entry is still HA runtime state in the
+PVC after login.
