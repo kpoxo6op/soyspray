@@ -44,8 +44,8 @@ spec:
             - |
               set -euo pipefail
               apk add --no-cache ca-certificates unzip wget >/dev/null
-              version="v1.0.9"
-              expected_sha256="c04a9a75ca9e9640d88c93dfdd0a1b9af89cfb970b94bbcbcf461e31dc983854"
+              version="v2.0.0b23"
+              expected_sha256="7cd8e3af9d90c3a4b018970b9a05faa48c4c43d40cb007b0e7b031e174db068e"
               install_dir="/config/custom_components/dreame_vacuum"
               version_file="${install_dir}/.soyspray-version"
 
