@@ -39,6 +39,25 @@ data:
             title: Door open
             message: Front door has been open for 10 minutes
       mode: single
+    - id: tapo_l530_relax_on
+      alias: Tapo bulbs use Relax when turned on
+      triggers:
+        - trigger: state
+          entity_id:
+            - light.top
+            - light.middle
+            - light.bottom
+          to: "on"
+      conditions:
+        - condition: template
+          value_template: "{{ trigger.to_state.attributes.effect != 'Relax' }}"
+      actions:
+        - action: light.turn_on
+          data:
+            entity_id: "{{ trigger.entity_id }}"
+            effect: Relax
+      mode: parallel
+      max: 3
   scripts.yaml: |
     tapo_relax:
       alias: Tapo Relax
