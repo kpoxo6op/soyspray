@@ -29,6 +29,8 @@ spec:
             - |
               test -f /config/configuration.yaml || cp /bootstrap/configuration.yaml /config/configuration.yaml
               test -f /config/automations.yaml || cp /bootstrap/automations.yaml /config/automations.yaml
+              test -f /config/scripts.yaml || cp /bootstrap/scripts.yaml /config/scripts.yaml
+              test -f /config/scenes.yaml || cp /bootstrap/scenes.yaml /config/scenes.yaml
           volumeMounts:
             - name: config
               mountPath: /config
@@ -61,4 +63,3 @@ spec:
         - name: bootstrap
           configMap:
             name: home-assistant-bootstrap
-

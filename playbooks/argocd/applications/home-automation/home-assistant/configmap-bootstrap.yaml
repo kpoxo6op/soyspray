@@ -39,3 +39,7 @@ data:
             title: Door open
             message: Front door has been open for 10 minutes
       mode: single
+  scripts.yaml: |
+    {}
+  scenes.yaml: |
+    []
