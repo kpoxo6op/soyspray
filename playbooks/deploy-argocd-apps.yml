@@ -8,6 +8,9 @@
     # Roles own their internal task tags (e.g. `prometheus-crds`). This playbook
     # always includes all roles so `--tags <tag>` works as expected.
     argocd_app_roles:
+      # Argo CD control-plane configuration
+      - { name: Argo CD Config, role: apps/argocd-config }
+
       # Observability
       - { name: Prometheus, role: apps/prometheus }
       - { name: Alloy Loki Manual, role: apps/alloy-loki-manual }
