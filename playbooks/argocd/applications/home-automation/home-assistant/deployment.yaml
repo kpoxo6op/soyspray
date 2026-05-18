@@ -16,6 +16,8 @@ spec:
       app: home-assistant
   template:
     metadata:
+      annotations:
+        soyspray.vip/bootstrap-config-revision: "2026-05-18-night-lights-v2"
       labels:
         app: home-assistant
         component: main
@@ -28,9 +30,9 @@ spec:
             - -c
             - |
               test -f /config/configuration.yaml || cp /bootstrap/configuration.yaml /config/configuration.yaml
-              test -f /config/automations.yaml || cp /bootstrap/automations.yaml /config/automations.yaml
-              test -f /config/scripts.yaml || cp /bootstrap/scripts.yaml /config/scripts.yaml
-              test -f /config/scenes.yaml || cp /bootstrap/scenes.yaml /config/scenes.yaml
+              cp /bootstrap/automations.yaml /config/automations.yaml
+              cp /bootstrap/scripts.yaml /config/scripts.yaml
+              cp /bootstrap/scenes.yaml /config/scenes.yaml
           volumeMounts:
             - name: config
               mountPath: /config
