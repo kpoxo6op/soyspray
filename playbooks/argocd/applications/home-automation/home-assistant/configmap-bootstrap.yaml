@@ -77,27 +77,106 @@ data:
           entity_id: sun.sun
           state: below_horizon
       actions:
-        - repeat:
-            count: 2
-            sequence:
-              - action: light.turn_on
-                continue_on_error: true
-                target:
-                  entity_id:
-                    - light.top
-                    - light.middle
-                    - light.bottom
-                data:
-                  effect: Relax
-                  transition: 0
-              - delay:
-                  seconds: 2
-        - wait_for_trigger:
-            - trigger: state
-              entity_id: binary_sensor.tapo_t100_motion
-              to: "off"
-              for:
-                minutes: 10
+        - action: light.turn_on
+          continue_on_error: true
+          target:
+            entity_id: light.top
+          data:
+            effect: Relax
+            brightness_pct: 1
+            transition: 0
+        - action: light.turn_on
+          continue_on_error: true
+          target:
+            entity_id: light.middle
+          data:
+            effect: Relax
+            brightness_pct: 1
+            transition: 0
+        - action: light.turn_on
+          continue_on_error: true
+          target:
+            entity_id: light.bottom
+          data:
+            effect: Relax
+            brightness_pct: 1
+            transition: 0
+      mode: restart
+    - id: tapo_motion_relax_lights_off_after_midnight
+      alias: Tapo motion clears Relax lights quickly after midnight
+      triggers:
+        - trigger: state
+          entity_id: binary_sensor.tapo_t100_motion
+          to: "off"
+          for:
+            minutes: 2
+      conditions:
+        - condition: time
+          after: "00:00:00"
+          before: "08:00:00"
+        - condition: state
+          entity_id: sun.sun
+          state: below_horizon
+        - condition: template
+          value_template: >-
+            {{ is_state('light.top', 'on')
+               or is_state('light.middle', 'on')
+               or is_state('light.bottom', 'on') }}
+      actions:
+        - action: light.turn_off
+          continue_on_error: true
+          target:
+            entity_id: light.top
+          data:
+            transition: 15
+        - action: light.turn_off
+          continue_on_error: true
+          target:
+            entity_id: light.middle
+          data:
+            transition: 15
+        - action: light.turn_off
+          continue_on_error: true
+          target:
+            entity_id: light.bottom
+          data:
+            transition: 15
+        - delay:
+            seconds: 20
+        - action: light.turn_off
+          continue_on_error: true
+          target:
+            entity_id: light.top
+          data:
+            transition: 0
+        - action: light.turn_off
+          continue_on_error: true
+          target:
+            entity_id: light.middle
+          data:
+            transition: 0
+        - action: light.turn_off
+          continue_on_error: true
+          target:
+            entity_id: light.bottom
+          data:
+            transition: 0
+      mode: restart
+    - id: tapo_motion_relax_lights_off_after_clear
+      alias: Tapo motion clears Relax lights after 10 minutes
+      triggers:
+        - trigger: state
+          entity_id: binary_sensor.tapo_t100_motion
+          to: "off"
+          for:
+            minutes: 10
+      conditions:
+        - condition: template
+          value_template: >-
+            {{ is_state('light.top', 'on')
+               or is_state('light.middle', 'on')
+               or is_state('light.bottom', 'on') }}
+      actions:
         - action: light.turn_off
           continue_on_error: true
           target:
