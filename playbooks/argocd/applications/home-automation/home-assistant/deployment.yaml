@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       annotations:
-        soyspray.vip/bootstrap-config-revision: "2026-05-18-night-lights-v2"
+        soyspray.vip/bootstrap-config-revision: "2026-05-18-night-lights-v3"
       labels:
         app: home-assistant
         component: main
