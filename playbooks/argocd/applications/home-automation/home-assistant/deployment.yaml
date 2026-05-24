@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       annotations:
-        soyspray.vip/bootstrap-config-revision: "2026-05-18-night-lights-v3"
+        soyspray.vip/bootstrap-config-revision: "2026-05-24-bedtime-motion-guard"
       labels:
         app: home-assistant
         component: main
@@ -29,7 +29,7 @@ spec:
             - sh
             - -c
             - |
-              test -f /config/configuration.yaml || cp /bootstrap/configuration.yaml /config/configuration.yaml
+              cp /bootstrap/configuration.yaml /config/configuration.yaml
               cp /bootstrap/automations.yaml /config/automations.yaml
               cp /bootstrap/scripts.yaml /config/scripts.yaml
               cp /bootstrap/scenes.yaml /config/scenes.yaml

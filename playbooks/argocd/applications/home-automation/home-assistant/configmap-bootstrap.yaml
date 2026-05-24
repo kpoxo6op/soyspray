@@ -29,6 +29,11 @@ data:
         - 172.16.0.0/12
         - 192.168.0.0/16
 
+    input_boolean:
+      tapo_bedtime_motion_guard:
+        name: Tapo bedtime motion guard
+        icon: mdi:weather-night
+
     automation: !include automations.yaml
     script: !include scripts.yaml
     scene: !include scenes.yaml
@@ -72,13 +77,27 @@ data:
         - trigger: state
           entity_id: binary_sensor.tapo_t100_motion
           to: "on"
+          id: motion_started
+        - trigger: state
+          entity_id: binary_sensor.tapo_t100_motion
+          to: "on"
+          for:
+            minutes: 2
+          id: bedtime_sustained_motion
       conditions:
         - condition: state
           entity_id: sun.sun
           state: below_horizon
+        - condition: template
+          value_template: >-
+            {% set guard_on = is_state('input_boolean.tapo_bedtime_motion_guard', 'on') %}
+            {{ (guard_on and trigger.id == 'bedtime_sustained_motion')
+               or (not guard_on and trigger.id == 'motion_started') }}
       actions:
         - variables:
-            tapo_motion_brightness_pct: "{{ 1 if now().hour < 8 else 100 }}"
+            tapo_motion_brightness_pct: >-
+              {{ 1 if is_state('input_boolean.tapo_bedtime_motion_guard', 'on')
+                 or now().hour < 8 else 100 }}
         - action: light.turn_on
           continue_on_error: true
           target:
@@ -104,6 +123,38 @@ data:
             brightness_pct: "{{ tapo_motion_brightness_pct }}"
             transition: 0
       mode: restart
+    - id: tapo_bedtime_motion_guard_on
+      alias: Tapo bedtime motion guard after manual lights off
+      triggers:
+        - trigger: state
+          entity_id:
+            - light.top
+            - light.middle
+            - light.bottom
+          to: "off"
+      conditions:
+        - condition: template
+          value_template: >-
+            {{ (now().hour >= 22 or now().hour < 8)
+               and trigger.to_state.context.parent_id is none
+               and is_state('light.top', 'off')
+               and is_state('light.middle', 'off')
+               and is_state('light.bottom', 'off') }}
+      actions:
+        - action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.tapo_bedtime_motion_guard
+      mode: restart
+    - id: tapo_bedtime_motion_guard_clear
+      alias: Tapo clears bedtime motion guard in the morning
+      triggers:
+        - trigger: time
+          at: "08:00:00"
+      actions:
+        - action: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.tapo_bedtime_motion_guard
+      mode: single
     - id: tapo_motion_relax_lights_off_after_midnight
       alias: Tapo motion clears Relax lights quickly after midnight
       triggers:
