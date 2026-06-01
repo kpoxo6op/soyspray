@@ -49,7 +49,7 @@ This UUID corresponds to the check configured in the Healthchecks.io dashboard:
 
 ![Healthchecks.io Dashboard Config](https://healthchecks.io/checks/ee92de78-bf59-4cb8-a41a-01382feb9a65/details)
 
-*Note: The Healthchecks.io check is configured with a Period of ~2 minutes and a Grace Time of ~1 minute to match the AlertManager `repeat_interval`.*
+*Note: The Healthchecks.io check is configured with a Period of ~2 minutes and a Grace Time of ~1 minute. The Watchdog Alertmanager route sets both `group_interval` and `repeat_interval` to 1 minute so this cadence is not stretched by the default alert grouping interval.*
 
 ## Monitored Components
 
