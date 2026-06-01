@@ -20,6 +20,11 @@ spec:
   destination:
     server: "https://kubernetes.default.svc"
     namespace: monitoring
+  ignoreDifferences:
+    - group: monitoring.coreos.com
+      kind: Prometheus
+      jsonPointers:
+        - /spec/enableOTLPReceiver
   syncPolicy:
       automated:
         prune: true
@@ -33,3 +38,4 @@ spec:
       syncOptions:
         - CreateNamespace=true
         - AllowClusterResourceInNamespacedApp=true
+        - RespectIgnoreDifferences=true
