@@ -1,0 +1,340 @@
+# prepare-longhorn-worker-ssd.yml
+#
+# One-shot worker storage preparation for freshly installed PNY SATA SSDs.
+# The target device must be passed as a stable /dev/disk/by-id path per host.
+
+- name: Common tasks for every playbook
+  import_playbook: ../../../kubespray/playbooks/boilerplate.yml
+
+- name: Prepare worker SSDs for Longhorn
+  hosts: node-1:node-2
+  become: true
+  gather_facts: true
+
+  vars:
+    longhorn_storage_device_by_host:
+      node-1: ""
+      node-2: ""
+    longhorn_storage_force_format: false
+    longhorn_storage_mount: /storage
+    longhorn_storage_fstype: ext4
+    longhorn_storage_mount_opts: defaults,noatime,nofail,x-systemd.device-timeout=10s
+    longhorn_storage_label_by_host:
+      node-1: longhorn-node1
+      node-2: longhorn-node2
+    longhorn_storage_expected_model_substrings:
+      - PNY
+      - 500GB
+    longhorn_storage_expected_transport: sata
+
+  pre_tasks:
+    - name: Resolve configured storage device for this host
+      ansible.builtin.set_fact:
+        longhorn_storage_device: "{{ longhorn_storage_device_by_host[inventory_hostname] | default('') }}"
+
+    - name: Refuse missing per-host storage device
+      ansible.builtin.fail:
+        msg: >-
+          No storage device configured for {{ inventory_hostname }}.
+          Pass longhorn_storage_device_by_host with stable /dev/disk/by-id paths
+          after the new SSDs are installed.
+      when: longhorn_storage_device | length == 0
+
+    - name: Refuse non-by-id storage device paths
+      ansible.builtin.fail:
+        msg: >-
+          Refusing {{ longhorn_storage_device }}. Use a stable
+          /dev/disk/by-id/... path, not /dev/sdX.
+      when: not longhorn_storage_device.startswith('/dev/disk/by-id/')
+
+    - name: Verify target device symlink exists
+      ansible.builtin.stat:
+        path: "{{ longhorn_storage_device }}"
+      register: longhorn_storage_device_stat
+
+    - name: Fail if target device does not exist
+      ansible.builtin.fail:
+        msg: "Target storage device {{ longhorn_storage_device }} does not exist on {{ inventory_hostname }}"
+      when: not longhorn_storage_device_stat.stat.exists
+
+    - name: Resolve target device path
+      ansible.builtin.command:
+        argv:
+          - readlink
+          - -f
+          - "{{ longhorn_storage_device }}"
+      register: longhorn_storage_real_device
+      changed_when: false
+
+    - name: Verify target path resolves to a disk
+      ansible.builtin.command:
+        argv:
+          - lsblk
+          - -ndo
+          - TYPE
+          - "{{ longhorn_storage_real_device.stdout }}"
+      register: longhorn_storage_device_type
+      changed_when: false
+
+    - name: Fail if target is not a whole disk
+      ansible.builtin.fail:
+        msg: >-
+          {{ longhorn_storage_device }} resolves to {{ longhorn_storage_real_device.stdout }},
+          which is type "{{ longhorn_storage_device_type.stdout | trim }}"; expected "disk".
+      when: (longhorn_storage_device_type.stdout | trim) != 'disk'
+
+    - name: Get target disk model
+      ansible.builtin.command:
+        argv:
+          - lsblk
+          - -ndo
+          - MODEL
+          - "{{ longhorn_storage_real_device.stdout }}"
+      register: longhorn_storage_model
+      changed_when: false
+
+    - name: Get target disk transport
+      ansible.builtin.command:
+        argv:
+          - lsblk
+          - -ndo
+          - TRAN
+          - "{{ longhorn_storage_real_device.stdout }}"
+      register: longhorn_storage_transport
+      changed_when: false
+
+    - name: Verify expected SSD identity
+      ansible.builtin.assert:
+        that:
+          - >-
+            (longhorn_storage_expected_model_substrings
+            | select('in', longhorn_storage_model.stdout | trim)
+            | list
+            | length) == (longhorn_storage_expected_model_substrings | length)
+          - >-
+            (longhorn_storage_expected_transport | length == 0)
+            or ((longhorn_storage_transport.stdout | trim) == longhorn_storage_expected_transport)
+        fail_msg: >-
+          Refusing to format {{ longhorn_storage_real_device.stdout }} on {{ inventory_hostname }}.
+          Expected model containing {{ longhorn_storage_expected_model_substrings | join(', ') }}
+          and transport "{{ longhorn_storage_expected_transport }}"; found model
+          "{{ longhorn_storage_model.stdout | trim }}" and transport
+          "{{ longhorn_storage_transport.stdout | trim }}".
+
+    - name: Read root filesystem source
+      ansible.builtin.command:
+        argv:
+          - findmnt
+          - -n
+          - -o
+          - SOURCE
+          - /
+      register: longhorn_storage_root_source
+      changed_when: false
+
+    - name: Refuse if target disk contains the root filesystem
+      ansible.builtin.fail:
+        msg: >-
+          Refusing {{ longhorn_storage_real_device.stdout }} because root is mounted
+          from {{ longhorn_storage_root_source.stdout | trim }}.
+      when: (longhorn_storage_root_source.stdout | trim).startswith(longhorn_storage_real_device.stdout | trim)
+
+    - name: Check if Longhorn path is already a mountpoint
+      ansible.builtin.command:
+        argv:
+          - mountpoint
+          - -q
+          - "{{ longhorn_storage_mount }}"
+      register: longhorn_storage_mountpoint_check
+      failed_when: false
+      changed_when: false
+
+    - name: Read existing Longhorn mount source
+      ansible.builtin.command:
+        argv:
+          - findmnt
+          - -n
+          - -o
+          - SOURCE
+          - --mountpoint
+          - "{{ longhorn_storage_mount }}"
+      register: longhorn_storage_existing_mount
+      changed_when: false
+      when: longhorn_storage_mountpoint_check.rc == 0
+
+    - name: Refuse to replace an existing Longhorn mount
+      ansible.builtin.fail:
+        msg: >-
+          {{ longhorn_storage_mount }} is already mounted from
+          {{ longhorn_storage_existing_mount.stdout | trim }} on {{ inventory_hostname }}.
+          Unmount or choose another mountpoint before formatting.
+      when: longhorn_storage_mountpoint_check.rc == 0
+
+    - name: Check whether target disk has mounted children
+      ansible.builtin.command:
+        argv:
+          - lsblk
+          - -nrpo
+          - MOUNTPOINTS
+          - "{{ longhorn_storage_real_device.stdout }}"
+      register: longhorn_storage_child_mounts
+      changed_when: false
+
+    - name: Refuse target disk with mounted children
+      ansible.builtin.fail:
+        msg: >-
+          Refusing {{ longhorn_storage_real_device.stdout }} because it has mounted paths:
+          {{ longhorn_storage_child_mounts.stdout_lines | reject('equalto', '') | list | join(', ') }}
+      when: (longhorn_storage_child_mounts.stdout_lines | reject('equalto', '') | list | length) > 0
+
+    - name: Refuse destructive run unless formatting is explicitly confirmed
+      ansible.builtin.fail:
+        msg: >-
+          This playbook repartitions and reformats {{ longhorn_storage_device }}
+          on {{ inventory_hostname }}. Re-run with
+          -e longhorn_storage_force_format=true after confirming the disk identity.
+      when: not (longhorn_storage_force_format | bool)
+
+    - name: Install Longhorn storage prerequisites
+      ansible.builtin.apt:
+        name:
+          - nfs-common
+          - open-iscsi
+          - cryptsetup
+          - dmsetup
+          - parted
+          - e2fsprogs
+          - util-linux
+        state: present
+        update_cache: true
+
+    - name: Ensure Longhorn kernel modules load on boot
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/longhorn.conf
+        content: |
+          iscsi_tcp
+          dm_crypt
+        mode: "0644"
+
+    - name: Load Longhorn kernel modules
+      community.general.modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - iscsi_tcp
+        - dm_crypt
+
+  tasks:
+    - name: Wipe existing signatures from target SSD
+      ansible.builtin.command:
+        argv:
+          - wipefs
+          - --all
+          - --force
+          - "{{ longhorn_storage_real_device.stdout }}"
+
+    - name: Create GPT partition table on target SSD
+      ansible.builtin.command:
+        argv:
+          - parted
+          - -s
+          - "{{ longhorn_storage_real_device.stdout }}"
+          - mklabel
+          - gpt
+
+    - name: Create Longhorn partition
+      community.general.parted:
+        device: "{{ longhorn_storage_real_device.stdout }}"
+        number: 1
+        state: present
+        part_start: 1MiB
+        part_end: 100%
+        fs_type: "{{ longhorn_storage_fstype }}"
+
+    - name: Wait for by-id partition symlink
+      ansible.builtin.wait_for:
+        path: "{{ longhorn_storage_device }}-part1"
+        timeout: 30
+
+    - name: Create filesystem on Longhorn partition
+      community.general.filesystem:
+        fstype: "{{ longhorn_storage_fstype }}"
+        dev: "{{ longhorn_storage_device }}-part1"
+        opts: "-L {{ longhorn_storage_label_by_host[inventory_hostname] }}"
+        force: true
+
+    - name: Read Longhorn partition UUID
+      ansible.builtin.command:
+        argv:
+          - blkid
+          - -s
+          - UUID
+          - -o
+          - value
+          - "{{ longhorn_storage_device }}-part1"
+      register: longhorn_storage_uuid
+      changed_when: false
+
+    - name: Ensure Longhorn mountpoint exists
+      ansible.builtin.file:
+        path: "{{ longhorn_storage_mount }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Mount Longhorn SSD by UUID
+      ansible.builtin.mount:
+        path: "{{ longhorn_storage_mount }}"
+        src: "UUID={{ longhorn_storage_uuid.stdout | trim }}"
+        fstype: "{{ longhorn_storage_fstype }}"
+        opts: "{{ longhorn_storage_mount_opts }}"
+        dump: 0
+        passno: 2
+        state: mounted
+
+    - name: Write storage preparation marker
+      ansible.builtin.copy:
+        dest: "{{ longhorn_storage_mount }}/.soyspray-longhorn-storage"
+        content: |
+          host={{ inventory_hostname }}
+          source={{ longhorn_storage_device }}
+          resolved={{ longhorn_storage_real_device.stdout }}
+          uuid={{ longhorn_storage_uuid.stdout | trim }}
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Show resulting Longhorn SSD layout
+      ansible.builtin.command:
+        argv:
+          - lsblk
+          - -o
+          - NAME,MODEL,SERIAL,SIZE,FSTYPE,MOUNTPOINTS,TRAN,ROTA
+          - "{{ longhorn_storage_real_device.stdout }}"
+      register: longhorn_storage_layout
+      changed_when: false
+
+    - name: Show mounted Longhorn storage capacity
+      ansible.builtin.command:
+        argv:
+          - df
+          - -hT
+          - "{{ longhorn_storage_mount }}"
+      register: longhorn_storage_df
+      changed_when: false
+
+    - name: Display Longhorn SSD preparation summary
+      ansible.builtin.debug:
+        msg: |
+          Longhorn worker SSD prepared successfully.
+          Host: {{ inventory_hostname }}
+          Device: {{ longhorn_storage_device }}
+          Resolved device: {{ longhorn_storage_real_device.stdout }}
+          Model: {{ longhorn_storage_model.stdout | trim }}
+          UUID: {{ longhorn_storage_uuid.stdout | trim }}
+          Mount: {{ longhorn_storage_mount }}
+
+          {{ longhorn_storage_layout.stdout }}
+
+          {{ longhorn_storage_df.stdout }}

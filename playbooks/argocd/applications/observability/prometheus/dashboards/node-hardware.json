@@ -700,13 +700,13 @@
       },
       "targets": [
         {
-          "expr": "sum by (device) (rate(node_disk_read_bytes_total{device=~\"nvme0n1|sda|sdj\"}[5m]))",
-          "legendFormat": "{{device}} read",
+          "expr": "sum by (instance, device) (rate(node_disk_read_bytes_total{device=~\"nvme0n1|sda|sdj\"}[5m]))",
+          "legendFormat": "{{instance}} {{device}} read",
           "refId": "A"
         },
         {
-          "expr": "sum by (device) (rate(node_disk_written_bytes_total{device=~\"nvme0n1|sda|sdj\"}[5m]))",
-          "legendFormat": "{{device}} write",
+          "expr": "sum by (instance, device) (rate(node_disk_written_bytes_total{device=~\"nvme0n1|sda|sdj\"}[5m]))",
+          "legendFormat": "{{instance}} {{device}} write",
           "refId": "B"
         }
       ],
@@ -780,12 +780,12 @@
       "targets": [
         {
           "expr": "100 * rate(node_disk_io_time_seconds_total{device=~\"nvme0n1|sda|sdj\"}[5m])",
-          "legendFormat": "{{device}} util",
+          "legendFormat": "{{instance}} {{device}} util",
           "refId": "A"
         },
         {
           "expr": "node_disk_io_now{device=~\"nvme0n1|sda|sdj\"}",
-          "legendFormat": "{{device}} queue",
+          "legendFormat": "{{instance}} {{device}} queue",
           "refId": "B"
         }
       ],
