@@ -206,3 +206,85 @@ again at about 21:01 local time, then came back with Ubuntu SSH:
 - A cloud-init override was added on the node:
   `/etc/cloud/cloud.cfg.d/99-soyspray-preserve-hostname.cfg` with
   `preserve_hostname: true`.
+
+## 2026-06-29 Kubespray Scale Completion
+
+Both new nodes were added to `kubespray/inventory/soycluster/hosts.yml` on the
+`upgrade/kubespray-latest` submodule branch and assigned to `kube_node`:
+
+| Node | IP | Role |
+| --- | --- | --- |
+| `node-1` | `192.168.20.11` | worker |
+| `node-2` | `192.168.20.12` | worker |
+
+The inventory parsed with:
+
+```sh
+ansible-inventory -i kubespray/inventory/soycluster/hosts.yml --graph
+```
+
+SSH and privilege escalation worked for all three hosts:
+
+```sh
+source soyspray-venv/bin/activate
+ansible -i kubespray/inventory/soycluster/hosts.yml all \
+  -m ping --become --become-user=root --user ubuntu
+```
+
+The Kubespray add-node flow was run from inside the Kubespray submodule so its
+own fact-cache settings were active:
+
+```sh
+cd kubespray
+source ../soyspray-venv/bin/activate
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook \
+  -i inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/facts.yml
+ANSIBLE_CONFIG=ansible.cfg ansible-playbook \
+  -i inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  scale.yml --limit=node-1,node-2
+```
+
+The first scale attempt reached `kubeadm join` but failed because Kubernetes
+bootstrap discovery still advertised the pre-move API endpoint
+`https://192.168.1.10:6443`. The live `kubeadm-config` ConfigMap and API server
+certificate were already correct for `192.168.20.10`, but the public
+`kube-public/cluster-info` ConfigMap still contained the old server URL.
+
+Before retrying, `cluster-info` was backed up to:
+
+```text
+/tmp/soyspray-cluster-info-before-20260629T094346Z.yaml
+```
+
+Then its kubeconfig `server` value was patched to:
+
+```text
+https://192.168.20.10:6443
+```
+
+After that, the rerun of `scale.yml --limit=node-1,node-2` completed
+successfully:
+
+```text
+node-1 : failed=0
+node-2 : failed=0
+```
+
+Final node state:
+
+```text
+node-0  Ready  control-plane,worker  192.168.20.10  Ubuntu 22.04.5 LTS
+node-1  Ready  <none>                192.168.20.11  Ubuntu 22.04.5 LTS
+node-2  Ready  <none>                192.168.20.12  Ubuntu 22.04.5 LTS
+```
+
+Confirmed on `node-1` and `node-2`:
+
+- Hostnames are `node-1` and `node-2`.
+- `kubelet` is active.
+- `containerd` is active.
+- Core node pods are running: `calico-node`, `kube-proxy`, `nginx-proxy`, and
+  `nodelocaldns`.
