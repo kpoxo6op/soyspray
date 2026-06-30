@@ -1,9 +1,12 @@
-# 2026-06-30 Worker SSD Prep
+# 2026-06-30 Worker SSD And RAM Prep
 
 ## Context
 
 Two PNY CS900 500GB SATA SSDs are expected for `node-1` and `node-2`.
 Prepare them as Longhorn data disks after they are physically installed.
+
+Two RAM kits are also ordered for `node-1` and `node-2` so the worker nodes can
+be brought closer to the `node-0` memory profile.
 
 ## Parked Handoff For Next Session
 
@@ -132,6 +135,47 @@ Live check on 2026-06-29 showed:
 The `node-hardware` dashboard source was adjusted so disk throughput/utilization
 series include `instance` as well as `device`. Without that, same-name devices
 such as `nvme0n1` on different nodes get aggregated into one line.
+
+## RAM Order And Install Prep
+
+Boris placed the worker RAM order on 2026-06-30:
+
+| Field | Value |
+| --- | --- |
+| AliExpress order | `8212777184122085` |
+| Status when recorded | Processing |
+| Store | StoreSkill Franchise Store |
+| Item | `2PCS PUSKILL Killblade DDR4 Notebook Ram 32GB 16GB 8GB 1.2V 3200MHz 2666MHz 2400MHz 260-PiN Sodimm Memory` |
+| Variant | `China Mainland`, `DDR4 16GB 2666x2pcs` |
+| Quantity | `2` kits |
+| Intended install | one `2x16GB` DDR4 SODIMM kit per worker node |
+| Subtotal | `NZ$446.62` |
+| Total paid | `NZ$513.61` |
+| Estimated delivery | 2026-07-16 |
+
+Do not assume the RAM has been installed just because the order exists. After
+physical install, verify both workers live:
+
+```sh
+for host in 192.168.20.11 192.168.20.12; do
+  ssh ubuntu@"$host" '
+    hostname
+    free -h
+    sudo dmidecode -t memory | grep -E "Locator:|Size:|Speed:|Part Number:" | sed "s/^/  /"
+  '
+done
+```
+
+Expected target state after install:
+
+- `node-1`: roughly 32 GiB RAM from two 16 GB DDR4 SODIMMs.
+- `node-2`: roughly 32 GiB RAM from two 16 GB DDR4 SODIMMs.
+- `node-0`: remains the larger baseline node with its existing 32 GB plus 4 GB
+  layout unless it is changed separately.
+
+If the RAM upgrade changes scheduling assumptions, capture the new live output
+in this note and then decide whether any workload placement, requests, or
+Kong/lab sizing docs need to be adjusted.
 
 ## Follow-Up Repo Changes After Install
 
