@@ -16,9 +16,7 @@ Node management and configuration playbooks.
 ### networking/
 Network setup and tooling playbooks.
 
-- install-tailscale.yml - Install direct Tailscale access on worker nodes without advertising LAN routes
-- configure-openwrt-tailnet-gateway.yml - Keep OpenWrt advertising only the soyspray LAN route and remove stale old-LAN redirects
-- verify-worker-tailnet.yml - End-to-end worker access checks over `.lan`, Tailscale DNS, SSH, Tailscale ping, and Kubernetes readiness
+- install-tailscale.yml - Install Tailscale VPN
 - remove-tailscale.yml - Remove Tailscale VPN
 - publish-headlamp-token.yml - Generate and publish Headlamp token
 
