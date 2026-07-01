@@ -9,8 +9,7 @@
   become: true
   vars:
     openclaw_tailscale_gpg_keyring: /usr/share/keyrings/tailscale-archive-keyring.gpg
-    openclaw_tailscale_version: ""
-    openclaw_tailscale_package: "{{ ('tailscale=' ~ openclaw_tailscale_version) if (openclaw_tailscale_version | length > 0) else 'tailscale' }}"
+    openclaw_tailscale_version: "1.86.2"
     openclaw_apt_release: "{{ ansible_distribution_release | default('jammy') }}"
     openclaw_tailscale_repo: "deb [signed-by={{ openclaw_tailscale_gpg_keyring }}] https://pkgs.tailscale.com/stable/ubuntu {{ openclaw_apt_release }} main"
 
@@ -161,7 +160,7 @@
 
         - name: Install tailscale package
           ansible.builtin.apt:
-            name: "{{ openclaw_tailscale_package }}"
+            name: "tailscale={{ openclaw_tailscale_version }}"
             state: present
             update_cache: true
 
