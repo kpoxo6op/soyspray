@@ -71,8 +71,21 @@ Longhorn reconciliation:
   `Schedulable=True`.
 - `storageReserved` is `147331952640` bytes on each worker, matching the
   reservation size used for the 500GB PNY disk on `node-0`.
-- Existing Longhorn volumes remained single-replica on `node-0`; no workload
-  volume replicas were moved during this step.
+
+Replica expansion:
+
+- Longhorn defaults were moved to three replicas for new default-class volumes.
+- All 20 active Longhorn workload volumes were patched to
+  `numberOfReplicas=3`.
+- Longhorn rebuilt the new replicas across `node-0`, `node-1`, and `node-2`.
+- Final check at `2026-07-01T15:15:21+12:00`: `20` active 3-replica volumes
+  were `healthy`, engine modes were `RW:60`, and failed replicas remained `0`.
+- One old preserved volume, `pvc-87a2e7b1-6011-4580-8dce-e9433a6f0900`,
+  remains `unknown` with `numberOfReplicas=1`; it was not part of the active
+  workload expansion.
+- Final Longhorn disk schedule was balanced at roughly `303Gi` scheduled on
+  each SSD-backed `/storage` disk, with all three disks reporting
+  `Ready=True` and `Schedulable=True`.
 
 ## Discover New SSD IDs
 
@@ -220,6 +233,5 @@ The SSD install and Longhorn disk reconciliation are complete. Remaining work:
   `playbooks/argocd/applications/observability/prometheus/smartctl-exporter-daemonset.yaml`
   if the exporter can tolerate per-node missing devices, or split the exporter
   into node-specific device args.
-- Decide when to rebuild existing one-replica Longhorn volumes onto two or
-  three replicas. The default StorageClass now creates new volumes with three
-  replicas, but existing volumes remain unchanged until handled deliberately.
+- Reconcile GitOps drift by merging the branch containing the Longhorn
+  three-replica defaults and then syncing the Longhorn Argo app back to `HEAD`.
