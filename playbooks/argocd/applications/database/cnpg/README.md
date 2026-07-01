@@ -4,7 +4,7 @@
 
 ## Architecture
 - **Base + Overlays**: Shared cluster config + single role overlays (initdb/prod/restore)
-- **ApplicationSets**: Generate 6 DB apps (A/B x 3 roles) + 2 alias apps via nameSuffix injection
+- **ApplicationSets**: Generate the active DB app + active alias app via nameSuffix injection
 - **Alias Service**: `immich-db-active` ExternalName switches A/B
 - **NameRefs**: Backups track generated cluster names
 - **DB Secret**: Managed by DB stack, independent of alias lifecycle
@@ -14,7 +14,7 @@
 - **A/B Restore**: See `docs/restore-exercise/README.md`
 - **Kustomize Validation**: See `docs/kustomize-validation/README.md`
 
-**Quick rules:** Edit only targetTime file; keep one prod cluster with backups; delete inactive PVCs before restore.
+**Quick rules:** Generate only the active role by default; edit only targetTime file for restores; keep one prod cluster with backups; delete inactive PVCs before restore.
 **Note:** ApplicationSets disable automation - sync apps explicitly to avoid ownership conflicts.
 Generated apps intentionally omit Argo resource finalizers and set
 `preserveResourcesOnDeletion: true`, so deleting a generated Application does
@@ -36,12 +36,25 @@ kubectl -n argocd get app \
 
 Do not delete or stop generating inactive apps until that check is clean.
 
+The default rendered set is:
+
+```text
+immich-db-a-initdb
+immich-db-active-a
+```
+
+To prepare a B-side restore, temporarily add the needed B-side role to
+`apps/applicationset-immich-db.yaml`, set the restore target time, then sync the
+generated restore app. To flip the alias, change
+`apps/applicationset-immich-alias.yaml` from `active: a` to `active: b` in the
+same reviewed change.
+
 ## Key Components
 - `base/`: Shared cluster-base for external CNPG references
 - `immich-db/base/`: DB secret and cluster config (vectors, monitoring, S3 backup)
 - `immich-db/overlays/{initdb,prod,restore}/`: Single-copy overlays per role
 - `immich-db-active/overlays/{active-a,active-b}/`: Alias switching
-- `apps/`: ApplicationSets inject -a/-b suffixes via kustomize.nameSuffix
+- `apps/`: ApplicationSets inject active -a/-b suffixes via kustomize.nameSuffix
 - `docs/`: Bootstrap/restore guides
 
 ## Quick Commands
@@ -55,6 +68,7 @@ kubectl -n postgresql get cluster,backup,scheduledbackup
 
 # A→B restore
 $EDITOR immich-db/overlays/restore/target-time.yaml
+# Add letter=b, role=restore to apps/applicationset-immich-db.yaml first.
 argocd app sync immich-db-b-restore immich-db-active-b
 kubectl -n immich rollout restart deployment/immich-server
 
