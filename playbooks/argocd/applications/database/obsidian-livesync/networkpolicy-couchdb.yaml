@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: obsidian-livesync-couchdb
+  labels:
+    app: couchdb
+    app.kubernetes.io/instance: obsidian-livesync
+    chart: couchdb-4.6.2
+    heritage: Helm
+    release: obsidian-livesync
+spec:
+  podSelector:
+    matchLabels:
+      app: couchdb
+      release: obsidian-livesync
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: 5984
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app: couchdb
+              release: obsidian-livesync
+      ports:
+        - port: 9100
+          protocol: TCP
+        - port: 4369
+          protocol: TCP
