@@ -8,7 +8,7 @@ Prepare them as Longhorn data disks after they are physically installed.
 Two RAM kits are also ordered for `node-1` and `node-2` so the worker nodes can
 be brought closer to the `node-0` memory profile.
 
-## Parked Handoff For Next Session
+## Parked Handoff Before Install
 
 Work is parked before the physical SSD installation boundary. In the next
 session, assume Boris may have installed the new SSDs in `node-1` and `node-2`,
@@ -38,6 +38,41 @@ Current live state checked on 2026-06-29:
 Longhorn has already created `/storage` disk entries for the new workers while
 `/storage` is still on the root filesystem. Do not schedule real data there
 until the new SSDs are mounted and Longhorn disk state has been reconciled.
+
+## Provisioning Result On 2026-07-01
+
+The worker SSDs were installed, prepared with
+`playbooks/operations/storage/prepare-longhorn-worker-ssd.yml`, and mounted at
+`/storage`.
+
+| Node | SSD by-id path | Filesystem UUID | Longhorn disk UUID |
+| --- | --- | --- | --- |
+| `node-1` | `/dev/disk/by-id/ata-PNY_500GB_SATA_SSD_PNL03260552550304519` | `47a1ece0-aca9-4f1d-8ac1-b3a1ee9c699a` | `96833268-f6cb-4dd8-b52c-27e0777b1a02` |
+| `node-2` | `/dev/disk/by-id/ata-PNY_500GB_SATA_SSD_PNL03260552550303454` | `49c092f4-dd55-41f5-99c6-854f8b44af4e` | `062dcb89-f3cf-4eb3-af9d-683c0372e83a` |
+
+Final host state:
+
+- `node-1`: `/dev/sda1` mounted at `/storage`, ext4, 458G size, 435G
+  available.
+- `node-2`: `/dev/sda1` mounted at `/storage`, ext4, 458G size, 435G
+  available.
+- Both mounts are persisted in `/etc/fstab` by filesystem UUID with
+  `defaults,noatime,nofail,x-systemd.device-timeout=10s`.
+- A write/sync/delete test succeeded on `/storage` on both workers.
+
+Longhorn reconciliation:
+
+- The old root-backed worker disk entries reported `DiskFilesystemChanged`
+  after the SSDs were mounted.
+- There were zero Longhorn replicas on `node-1` or `node-2`, so the stale empty
+  disk entries were disabled, removed, and re-added against the new SSD-backed
+  `/storage` filesystems.
+- `node-1` and `node-2` now report Longhorn disk `Ready=True` and
+  `Schedulable=True`.
+- `storageReserved` is `147331952640` bytes on each worker, matching the
+  reservation size used for the 500GB PNY disk on `node-0`.
+- Existing Longhorn volumes remained single-replica on `node-0`; no workload
+  volume replicas were moved during this step.
 
 ## Discover New SSD IDs
 
@@ -73,8 +108,8 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
   -e longhorn_storage_force_format=true \
   -e '{
     "longhorn_storage_device_by_host": {
-      "node-1": "/dev/disk/by-id/ata-PNY_500GB_SATA_SSD_REPLACE_NODE1_SERIAL",
-      "node-2": "/dev/disk/by-id/ata-PNY_500GB_SATA_SSD_REPLACE_NODE2_SERIAL"
+      "node-1": "/dev/disk/by-id/ata-PNY_500GB_SATA_SSD_PNL03260552550304519",
+      "node-2": "/dev/disk/by-id/ata-PNY_500GB_SATA_SSD_PNL03260552550303454"
     }
   }'
 ```
@@ -177,14 +212,14 @@ If the RAM upgrade changes scheduling assumptions, capture the new live output
 in this note and then decide whether any workload placement, requests, or
 Kong/lab sizing docs need to be adjusted.
 
-## Follow-Up Repo Changes After Install
+## Remaining Follow-Up
 
-Once the two new serials are known:
+The SSD install and Longhorn disk reconciliation are complete. Remaining work:
 
 - Add the new worker SSD by-id paths to
   `playbooks/argocd/applications/observability/prometheus/smartctl-exporter-daemonset.yaml`
   if the exporter can tolerate per-node missing devices, or split the exporter
   into node-specific device args.
-- Record the final by-id paths and UUIDs in this runbook.
-- Decide whether to keep Longhorn at one replica or move selected PVCs to two
-  or three replicas after the workers have real SSD-backed `/storage`.
+- Decide when to rebuild existing one-replica Longhorn volumes onto two or
+  three replicas. The default StorageClass now creates new volumes with three
+  replicas, but existing volumes remain unchanged until handled deliberately.

@@ -1,11 +1,13 @@
 persistence:
   defaultClass: true
-  defaultClassReplicaCount: "1"
+  defaultClassReplicaCount: "3"
   defaultDataLocality: best-effort
   migratable: true
   metricsPort: 9500
 
 defaultSettings:
+  defaultReplicaCount: "3"
+  concurrentReplicaRebuildPerNodeLimit: "4"
   priorityClass: null
   disableRevisionCounter: null
 
