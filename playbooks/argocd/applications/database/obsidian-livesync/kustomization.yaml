@@ -3,13 +3,10 @@ kind: Kustomization
 
 namespace: obsidian
 
-helmCharts:
-  - name: couchdb
-    version: 4.6.2
-    repo: https://apache.github.io/couchdb-helm
-    releaseName: obsidian-livesync
-    namespace: obsidian
-    valuesFile: values.yaml
-
 resources:
+  - configmap-couchdb.yaml
+  - deployment-couchdb-rescue.yaml
+  - networkpolicy-couchdb.yaml
+  - service-couchdb-headless.yaml
+  - service-couchdb.yaml
   - ingress.yaml

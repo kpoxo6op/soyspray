@@ -1,0 +1,114 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: obsidian-livesync-couchdb-hostpath-rescue
+  labels:
+    app: couchdb
+    codex-rescue: 2026-05-01-hostpath
+    release: obsidian-livesync
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: couchdb
+      codex-rescue: 2026-05-01-hostpath
+      release: obsidian-livesync
+  template:
+    metadata:
+      labels:
+        app: couchdb
+        codex-rescue: 2026-05-01-hostpath
+        release: obsidian-livesync
+    spec:
+      initContainers:
+        - name: init-data-dir
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - mkdir -p /data && chown -R 5984:5984 /data
+          env:
+            - name: ERL_FLAGS
+              value: " -name couchdb@127.0.0.1 "
+          volumeMounts:
+            - name: data
+              mountPath: /data
+        - name: init-copy
+          image: busybox:latest
+          command:
+            - sh
+            - -c
+            - cp /tmp/chart.ini /default.d; cp /tmp/seedlist.ini /default.d; ls -lrt /default.d
+          env:
+            - name: ERL_FLAGS
+              value: " -name couchdb@127.0.0.1 "
+          volumeMounts:
+            - name: config-storage
+              mountPath: /default.d
+            - name: config
+              mountPath: /tmp
+      containers:
+        - name: couchdb
+          image: couchdb:3.4.2
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: COUCHDB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: obsidian-livesync-couchdb
+                  key: adminUsername
+            - name: COUCHDB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: obsidian-livesync-couchdb
+                  key: adminPassword
+            - name: COUCHDB_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: obsidian-livesync-couchdb
+                  key: cookieAuthSecret
+            - name: COUCHDB_ERLANG_COOKIE
+              valueFrom:
+                secretKeyRef:
+                  name: obsidian-livesync-couchdb
+                  key: erlangCookie
+            - name: ERL_FLAGS
+              value: " -name couchdb@127.0.0.1 "
+          ports:
+            - name: couchdb
+              containerPort: 5984
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5984
+            failureThreshold: 6
+            periodSeconds: 10
+            timeoutSeconds: 1
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5984
+            failureThreshold: 6
+            periodSeconds: 10
+            timeoutSeconds: 1
+          volumeMounts:
+            - name: data
+              mountPath: /opt/couchdb/data
+            - name: config-storage
+              mountPath: /opt/couchdb/etc/default.d
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: obsidian-livesync-couchdb-rescue-longhorn
+        - name: config-storage
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: obsidian-livesync-couchdb
+            items:
+              - key: inifile
+                path: chart.ini
+              - key: seedlistinifile
+                path: seedlist.ini

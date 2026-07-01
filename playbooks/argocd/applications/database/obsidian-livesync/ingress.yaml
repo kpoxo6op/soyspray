@@ -3,6 +3,8 @@ kind: Ingress
 metadata:
   name: obsidian-livesync-ingress
   namespace: obsidian
+  labels:
+    app.kubernetes.io/instance: obsidian-livesync
   annotations:
     kubernetes.io/ingress.class: nginx
 spec:

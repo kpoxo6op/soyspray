@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: obsidian-livesync-couchdb
+  labels:
+    app: couchdb
+    app.kubernetes.io/instance: obsidian-livesync
+    chart: couchdb-4.6.2
+    heritage: Helm
+    release: obsidian-livesync
+data:
+  inifile: |
+    [chttpd]
+    bind_address = any
+    require_valid_user = false
+
+    [cors]
+    credentials = true
+    headers = accept, authorization, content-type, origin, referer
+    methods = GET, PUT, POST, HEAD, DELETE
+    origins = app://obsidian.md, capacitor://localhost, http://localhost
+
+    [couchdb]
+    uuid = 9e4bc1b8e83f4e0ebfb66ce6bcd3399d
+
+    [httpd]
+    enable_cors = true
+  seedlistinifile: |
+    [cluster]
+    seedlist = couchdb@127.0.0.1
