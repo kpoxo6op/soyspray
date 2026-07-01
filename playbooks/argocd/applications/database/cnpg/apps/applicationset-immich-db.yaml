@@ -1,4 +1,5 @@
-# Generates six DB apps (a/b x initdb/prod/restore) without automation.
+# Generates the active DB app only.
+# Edit this list deliberately for A/B restore or failover exercises.
 # These apps must not prune database resources when a generated app is removed.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -9,17 +10,10 @@ spec:
   syncPolicy:
     preserveResourcesOnDeletion: true
   generators:
-    - matrix:
-        generators:
-          - list:
-              elements:
-                - letter: a
-                - letter: b
-          - list:
-              elements:
-                - role: initdb
-                - role: prod
-                - role: restore
+    - list:
+        elements:
+          - letter: a
+            role: initdb
   template:
     metadata:
       name: immich-db-{{letter}}-{{role}}

@@ -1,4 +1,5 @@
-# Generates two alias apps (A and B) without automation so you flip explicitly.
+# Generates the active alias app only.
+# Edit this list deliberately when flipping Immich to the other database side.
 # These apps must not prune the shared alias Service when a generated app is removed.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -12,7 +13,6 @@ spec:
     - list:
         elements:
           - active: a
-          - active: b
   template:
     metadata:
       name: immich-db-active-{{active}}
