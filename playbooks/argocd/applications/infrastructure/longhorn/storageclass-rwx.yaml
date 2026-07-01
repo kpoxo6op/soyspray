@@ -6,6 +6,7 @@ metadata:
 provisioner: driver.longhorn.io
 parameters:
   share: "true"
+  numberOfReplicas: "3"
 reclaimPolicy: Delete
 volumeBindingMode: Immediate
 allowVolumeExpansion: true
