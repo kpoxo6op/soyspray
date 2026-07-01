@@ -19,7 +19,19 @@ spec:
       labels:
         app: mosquitto
         component: main
+        soyspray.vip/placement: longhorn-worker-preferred
     spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 80
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - node-1
+                      - node-2
       containers:
         - name: mosquitto
           image: eclipse-mosquitto:2.0.18
@@ -52,4 +64,3 @@ spec:
             claimName: mosquitto-data
         - name: log
           emptyDir: {}
-

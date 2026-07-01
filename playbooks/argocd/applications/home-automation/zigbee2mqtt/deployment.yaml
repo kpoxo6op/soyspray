@@ -20,6 +20,8 @@ spec:
         app: zigbee2mqtt
         component: main
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: node-0
       initContainers:
         - name: copy-config
           image: busybox:stable
@@ -70,4 +72,3 @@ spec:
         - name: zigbee2mqtt-config
           configMap:
             name: zigbee2mqtt-config
-

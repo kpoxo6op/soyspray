@@ -19,7 +19,26 @@ spec:
       labels:
         app: threadfin
         component: main
+        soyspray.vip/placement: longhorn-worker-preferred
     spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 80
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values:
+                      - node-1
+                      - node-2
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              soyspray.vip/placement: longhorn-worker-preferred
       # Init container to bootstrap configuration from ConfigMaps
       initContainers:
         - name: bootstrap-config
