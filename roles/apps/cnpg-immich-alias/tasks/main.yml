@@ -1,4 +1,98 @@
 ---
+- name: Read existing CNPG Immich Alias ApplicationSet
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: ApplicationSet
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    name: immich-db-alias
+  register: cnpg_immich_alias_existing_appset
+  tags: cnpg-immich-alias
+
+- name: Track existing CNPG Immich Alias generated Applications
+  ansible.builtin.set_fact:
+    cnpg_immich_alias_existing_apps: >-
+      {{
+        cnpg_immich_alias_existing_appset.resources[0].status.resources
+        if (
+          cnpg_immich_alias_existing_appset.resources | length > 0
+          and cnpg_immich_alias_existing_appset.resources[0].status is defined
+          and cnpg_immich_alias_existing_appset.resources[0].status.resources is defined
+        )
+        else []
+      }}
+  tags: cnpg-immich-alias
+
+- name: Make existing CNPG Immich Alias ApplicationSet removal safe
+  kubernetes.core.k8s:
+    state: patched
+    api_version: argoproj.io/v1alpha1
+    kind: ApplicationSet
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    name: immich-db-alias
+    merge_type:
+      - merge
+    definition:
+      spec:
+        syncPolicy:
+          preserveResourcesOnDeletion: true
+        template:
+          metadata:
+            finalizers: null
+  when:
+    - cnpg_immich_alias_existing_appset.resources | length > 0
+    - >-
+      not (
+        cnpg_immich_alias_existing_appset.resources[0]
+        .spec.syncPolicy.preserveResourcesOnDeletion | default(false) | bool
+      )
+      or (
+        cnpg_immich_alias_existing_appset.resources[0]
+        .spec.template.metadata.finalizers | default([]) | length > 0
+      )
+  tags: cnpg-immich-alias
+
+- name: Read existing CNPG Immich Alias Application details
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: "{{ app_resource.namespace | default('argocd') }}"
+    name: "{{ app_resource.name }}"
+  loop: "{{ cnpg_immich_alias_existing_apps }}"
+  loop_control:
+    loop_var: app_resource
+    label: "{{ app_resource.name }}"
+  when:
+    - app_resource.kind == "Application"
+    - app_resource.name is defined
+  register: cnpg_immich_alias_existing_app_details
+  tags: cnpg-immich-alias
+
+- name: Remove stale finalizers from existing CNPG Immich Alias Applications
+  kubernetes.core.k8s:
+    state: patched
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: "{{ app_lookup.resources[0].metadata.namespace | default('argocd') }}"
+    name: "{{ app_lookup.resources[0].metadata.name }}"
+    merge_type:
+      - merge
+    definition:
+      metadata:
+        finalizers: null
+  loop: "{{ cnpg_immich_alias_existing_app_details.results | default([]) }}"
+  loop_control:
+    loop_var: app_lookup
+    label: "{{ app_lookup.resources[0].metadata.name | default('missing') }}"
+  when:
+    - app_lookup.resources is defined
+    - app_lookup.resources | length > 0
+    - app_lookup.resources[0].metadata.finalizers | default([]) | length > 0
+  tags: cnpg-immich-alias
+
 - name: Apply CNPG Immich Alias ApplicationSet
   kubernetes.core.k8s:
     state: present
