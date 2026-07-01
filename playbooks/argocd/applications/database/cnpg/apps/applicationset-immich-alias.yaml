@@ -1,12 +1,13 @@
-# Generates two alias apps (A and B) without automation so you flip explicitly:
-#   argocd app delete immich-db-active-a && argocd app sync immich-db-active-b
-# Keeps zero-edit DR flips and avoids Argo ownership collisions on the Service.
+# Generates two alias apps (A and B) without automation so you flip explicitly.
+# These apps must not prune the shared alias Service when a generated app is removed.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: immich-db-alias
   namespace: argocd
 spec:
+  syncPolicy:
+    preserveResourcesOnDeletion: true
   generators:
     - list:
         elements:
@@ -15,8 +16,6 @@ spec:
   template:
     metadata:
       name: immich-db-active-{{active}}
-      finalizers:
-        - resources-finalizer.argocd.argoproj.io
     spec:
       project: default
       destination:
@@ -29,4 +28,3 @@ spec:
       syncPolicy:
         syncOptions:
           - CreateNamespace=true
-          - ServerSideApply=true
