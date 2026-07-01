@@ -1,0 +1,90 @@
+---
+# Keep the OpenWrt tailnet gateway in the expected soyspray shape.
+
+- name: Configure OpenWrt tailnet gateway
+  hosts: localhost
+  gather_facts: false
+  become: false
+  vars:
+    openwrt_host: 192.168.20.1
+    openwrt_user: root
+    openwrt_ssh_target: "{{ openwrt_user }}@{{ openwrt_host }}"
+    openwrt_tailscale_routes:
+      - 192.168.20.0/24
+  tasks:
+    - name: Read current OpenWrt Tailscale prefs
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -o
+          - BatchMode=yes
+          - "{{ openwrt_ssh_target }}"
+          - tailscale debug prefs
+      register: openwrt_tailscale_prefs_before
+      changed_when: false
+
+    - name: Parse current OpenWrt Tailscale prefs
+      ansible.builtin.set_fact:
+        openwrt_tailscale_prefs_before_json: "{{ openwrt_tailscale_prefs_before.stdout | from_json }}"
+
+    - name: Ensure OpenWrt advertises only the soyspray LAN
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -o
+          - BatchMode=yes
+          - "{{ openwrt_ssh_target }}"
+          - "tailscale set --advertise-routes={{ openwrt_tailscale_routes | join(',') }}"
+      when: (openwrt_tailscale_prefs_before_json.AdvertiseRoutes | default([], true)) != openwrt_tailscale_routes
+
+    - name: Remove known stale old-LAN WAN redirects
+      ansible.builtin.shell: |
+        ssh -o BatchMode=yes {{ openwrt_ssh_target | quote }} 'set -eu
+        changed=0
+        for name in qbittorrent-in qbittorrent-k8s; do
+          section="$(uci show firewall | sed -n "s/^\(firewall\.[^.]*\)\.name='''$name'''$/\1/p" | head -1)"
+          if [ -n "$section" ]; then
+            uci delete "$section"
+            changed=1
+          fi
+        done
+        if [ "$changed" -eq 1 ]; then
+          uci commit firewall
+          /etc/init.d/firewall reload >/dev/null
+        fi
+        echo "changed=$changed"'
+      register: openwrt_stale_redirect_cleanup
+      changed_when: "'changed=1' in openwrt_stale_redirect_cleanup.stdout"
+
+    - name: Read final OpenWrt Tailscale prefs
+      ansible.builtin.command:
+        argv:
+          - ssh
+          - -o
+          - BatchMode=yes
+          - "{{ openwrt_ssh_target }}"
+          - tailscale debug prefs
+      register: openwrt_tailscale_prefs_after
+      changed_when: false
+
+    - name: Parse final OpenWrt Tailscale prefs
+      ansible.builtin.set_fact:
+        openwrt_tailscale_prefs_after_json: "{{ openwrt_tailscale_prefs_after.stdout | from_json }}"
+
+    - name: Verify OpenWrt advertises the expected route set
+      ansible.builtin.assert:
+        that:
+          - (openwrt_tailscale_prefs_after_json.AdvertiseRoutes | default([], true)) == openwrt_tailscale_routes
+        fail_msg: "OpenWrt Tailscale advertised routes drifted from {{ openwrt_tailscale_routes }}"
+
+    - name: Verify OpenWrt firewall and dnsmasq tailnet guardrails
+      ansible.builtin.shell: |
+        ssh -o BatchMode=yes {{ openwrt_ssh_target | quote }} 'set -eu
+        uci show firewall | grep -q "firewall\\..*\\.name='\''tailscale'\''"
+        uci show firewall | grep -q "firewall\\..*\\.src='\''tailscale'\''"
+        uci show firewall | grep -q "firewall\\..*\\.dest='\''lan'\''"
+        test "$(uci -q get dhcp.@dnsmasq[0].nonwildcard)" = "0"
+        test "$(uci -q get dhcp.@dnsmasq[0].localservice)" = "0"
+        ! uci show firewall | grep -q "192\\.168\\.1\\."
+        echo ok'
+      changed_when: false

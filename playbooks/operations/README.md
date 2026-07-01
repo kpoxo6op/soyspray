@@ -16,7 +16,9 @@ Node management and configuration playbooks.
 ### networking/
 Network setup and tooling playbooks.
 
-- install-tailscale.yml - Install Tailscale VPN
+- install-tailscale.yml - Install direct Tailscale access on worker nodes without advertising LAN routes
+- configure-openwrt-tailnet-gateway.yml - Keep OpenWrt advertising only the soyspray LAN route and remove stale old-LAN redirects
+- verify-worker-tailnet.yml - End-to-end worker access checks over `.lan`, Tailscale DNS, SSH, Tailscale ping, and Kubernetes readiness
 - remove-tailscale.yml - Remove Tailscale VPN
 - publish-headlamp-token.yml - Generate and publish Headlamp token
 
@@ -24,6 +26,7 @@ Network setup and tooling playbooks.
 Storage initialization and management playbooks.
 
 - initialize-longhorn-storage.yml - Initialize Longhorn storage system
+- prepare-longhorn-worker-ssd.yml - repartition, format, and mount new worker SSDs at `/storage` by per-host `/dev/disk/by-id` paths
 - prepare-media-usb-disk.yml - repartition, format, mount, and prepare the USB media disk at `/srv/media`
 
 ### security/

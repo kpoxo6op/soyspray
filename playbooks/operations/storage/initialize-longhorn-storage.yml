@@ -39,11 +39,20 @@
     storage_mount: /storage
     storage_fstype: ext4
     storage_mount_opts: defaults,nofail,x-systemd.device-timeout=10s
+    storage_force_reformat: false
     expected_storage_models:
       - Samsung SSD
       - PNY 500GB SATA
 
   pre_tasks:
+    - name: Refuse destructive run unless reformat is explicitly confirmed
+      fail:
+        msg: >-
+          This playbook repartitions and reformats {{ storage_device }} on every
+          targeted host. Re-run with -e storage_force_reformat=true after
+          confirming host limits and disk identity.
+      when: not (storage_force_reformat | bool)
+
     - name: Install required packages
       apt:
         name:

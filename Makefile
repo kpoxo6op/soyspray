@@ -3,10 +3,13 @@ SHELL := /bin/bash
 MAKEFLAGS += --no-print-directory
 
 K8S_USER        := ubuntu
-WORKER_NODE1    := 192.168.20.10
-WORKER_NODE2    := 192.168.20.10
-WORKER_NODE3    := 192.168.20.10
-MASTER_NODE     := 192.168.20.10
+NODE0           := 192.168.20.10
+NODE1           := 192.168.20.11
+NODE2           := 192.168.20.12
+WORKER_NODE1    := $(NODE0)
+WORKER_NODE2    := $(NODE1)
+WORKER_NODE3    := $(NODE2)
+MASTER_NODE     := $(NODE0)
 
 # Adjust ArgoCD version if needed
 ARGOCD_VERSION  := v2.12.4
