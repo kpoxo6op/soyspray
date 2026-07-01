@@ -16,6 +16,25 @@
 
 **Quick rules:** Edit only targetTime file; keep one prod cluster with backups; delete inactive PVCs before restore.
 **Note:** ApplicationSets disable automation - sync apps explicitly to avoid ownership conflicts.
+Generated apps intentionally omit Argo resource finalizers and set
+`preserveResourcesOnDeletion: true`, so deleting a generated Application does
+not prune CNPG clusters, secrets, backups, or the active alias Service.
+
+## Argo Cleanup Safety
+
+Before reducing the generated app matrix, first sync these ApplicationSets and
+confirm the generated Applications no longer carry
+`resources-finalizer.argocd.argoproj.io`:
+
+```bash
+kubectl -n argocd get app \
+  immich-db-a-initdb immich-db-a-prod immich-db-a-restore \
+  immich-db-b-initdb immich-db-b-prod immich-db-b-restore \
+  immich-db-active-a immich-db-active-b \
+  -o json | jq -r '.items[] | [.metadata.name, (.metadata.finalizers // [])] | @tsv'
+```
+
+Do not delete or stop generating inactive apps until that check is clean.
 
 ## Key Components
 - `base/`: Shared cluster-base for external CNPG references

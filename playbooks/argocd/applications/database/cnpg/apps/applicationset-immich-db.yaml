@@ -1,11 +1,13 @@
 # Generates six DB apps (a/b x initdb/prod/restore) without automation.
-# You explicitly sync exactly one role per letter at any time per your runbooks.
+# These apps must not prune database resources when a generated app is removed.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: immich-db
   namespace: argocd
 spec:
+  syncPolicy:
+    preserveResourcesOnDeletion: true
   generators:
     - matrix:
         generators:
@@ -21,8 +23,6 @@ spec:
   template:
     metadata:
       name: immich-db-{{letter}}-{{role}}
-      finalizers:
-        - resources-finalizer.argocd.argoproj.io
     spec:
       project: default
       destination:
@@ -37,4 +37,3 @@ spec:
       syncPolicy:
         syncOptions:
           - CreateNamespace=true
-          - ServerSideApply=true
