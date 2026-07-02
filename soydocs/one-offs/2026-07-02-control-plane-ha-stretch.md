@@ -137,6 +137,11 @@ failed because stale local API proxy pods from the old worker shape still bound
 `nginx-proxy.yml` and `haproxy.yml` static pod manifests before writing the
 kube-vip manifest.
 
+The following rerun got past the proxy cleanup, then kubeadm failed because
+kube-vip had created an empty `/etc/kubernetes/admin.conf` file on the promoted
+workers. Kubespray already removed the directory case; the fork now also removes
+the empty file case before kubeadm writes the real control-plane kubeconfigs.
+
 ## Important Preflight Finding
 
 On 2026-07-02, live etcd still reported node-0's peer URL as
