@@ -142,6 +142,12 @@ kube-vip had created an empty `/etc/kubernetes/admin.conf` file on the promoted
 workers. Kubespray already removed the directory case; the fork now also removes
 the empty file case before kubeadm writes the real control-plane kubeconfigs.
 
+After the control-plane join succeeded, the live checker caught CoreDNS still at
+one replica. The inventory had `dns_min_replicas: 2`, but the existing
+`dns-autoscaler` ConfigMap still held the old `min: 1` policy. The fork now
+reconciles that ConfigMap from Kubespray so CoreDNS scaling follows inventory
+changes instead of stale live state.
+
 ## Important Preflight Finding
 
 On 2026-07-02, live etcd still reported node-0's peer URL as
