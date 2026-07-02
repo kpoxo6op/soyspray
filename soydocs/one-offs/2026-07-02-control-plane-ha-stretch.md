@@ -122,6 +122,15 @@ It also forces the kube-vip kubeconfig hostPath to be a file and removes the
 stale `admin.conf` directory case before running the secondary control-plane
 join.
 
+Because node-1 and node-2 are existing workers, `kubeadm join --control-plane`
+also sees an existing kubelet config and an already-used kubelet port. The fork
+adds these kubeadm preflight ignores only for worker-promotion joins:
+
+```text
+FileAvailable--etc-kubernetes-kubelet.conf
+Port-10250
+```
+
 ## Important Preflight Finding
 
 On 2026-07-02, live etcd still reported node-0's peer URL as
