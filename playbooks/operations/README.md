@@ -20,6 +20,11 @@ Network setup and tooling playbooks.
 - remove-tailscale.yml - Remove Tailscale VPN
 - publish-headlamp-token.yml - Generate and publish Headlamp token
 
+### kubernetes/
+Kubernetes control-plane and cluster membership operations.
+
+- repair-etcd-peer-url.yml - repair stale etcd member peer URLs so they match the current inventory addresses before an HA stretch
+
 ### storage/
 Storage initialization and management playbooks.
 
