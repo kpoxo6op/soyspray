@@ -109,3 +109,12 @@ https://192.168.20.10:2380
 https://192.168.20.11:2380
 https://192.168.20.12:2380
 ```
+
+Repair the stale membership record before adding more etcd members:
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/kubernetes/repair-etcd-peer-url.yml
+```

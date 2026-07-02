@@ -1,0 +1,97 @@
+---
+- name: Repair etcd peer URLs to match the current inventory addresses
+  hosts: etcd
+  gather_facts: false
+  become: true
+  serial: 1
+  vars:
+    etcdctl_bin: "{{ bin_dir | default('/usr/local/bin') }}/etcdctl"
+    etcd_cert_dir: /etc/ssl/etcd/ssl
+    etcd_env_path: /etc/etcd.env
+    etcd_local_endpoint: https://127.0.0.1:2379
+    etcd_expected_member_name: "{{ 'etcd' ~ ((groups['etcd'].index(inventory_hostname) + 1) | string) }}"
+    etcd_expected_access_ip: "{{ access_ip | default(ip) }}"
+    etcd_expected_client_url: "https://{{ etcd_expected_access_ip }}:2379"
+    etcd_expected_peer_url: "https://{{ etcd_expected_access_ip }}:2380"
+    etcdctl_common_args: >-
+      --endpoints={{ etcd_local_endpoint }}
+      --cacert={{ etcd_cert_dir }}/ca.pem
+      --cert={{ etcd_cert_dir }}/admin-{{ inventory_hostname }}.pem
+      --key={{ etcd_cert_dir }}/admin-{{ inventory_hostname }}-key.pem
+
+  tasks:
+    - name: Check etcd environment file
+      ansible.builtin.slurp:
+        src: "{{ etcd_env_path }}"
+      register: etcd_env_file
+
+    - name: Ensure local etcd service config already uses the expected addresses
+      ansible.builtin.assert:
+        that:
+          - "'ETCD_ADVERTISE_CLIENT_URLS=' ~ etcd_expected_client_url in (etcd_env_file.content | b64decode)"
+          - "'ETCD_INITIAL_ADVERTISE_PEER_URLS=' ~ etcd_expected_peer_url in (etcd_env_file.content | b64decode)"
+        fail_msg: >-
+          {{ inventory_hostname }} service config does not advertise
+          {{ etcd_expected_client_url }} and {{ etcd_expected_peer_url }}.
+          Run Kubespray config refresh before repairing membership.
+
+    - name: Read current etcd membership
+      ansible.builtin.command:
+        cmd: "{{ etcdctl_bin }} {{ etcdctl_common_args }} member list -w json"
+      register: etcd_member_list
+      changed_when: false
+
+    - name: Select this host's etcd member record
+      ansible.builtin.set_fact:
+        etcd_member_record: >-
+          {{
+            (etcd_member_list.stdout | from_json).members
+            | selectattr('name', 'equalto', etcd_expected_member_name)
+            | list
+            | first
+            | default({})
+          }}
+
+    - name: Ensure this host is present in etcd membership
+      ansible.builtin.assert:
+        that:
+          - etcd_member_record.ID is defined
+          - etcd_expected_client_url in etcd_member_record.clientURLs
+        fail_msg: >-
+          Could not find {{ etcd_expected_member_name }} with client URL
+          {{ etcd_expected_client_url }} in etcd membership.
+
+    - name: Repair stale etcd peer URL
+      ansible.builtin.command:
+        cmd: >-
+          {{ etcdctl_bin }} {{ etcdctl_common_args }}
+          member update {{ etcd_member_record.ID }}
+          --peer-urls={{ etcd_expected_peer_url }}
+      when: etcd_member_record.peerURLs != [etcd_expected_peer_url]
+      changed_when: true
+
+    - name: Read etcd membership after repair
+      ansible.builtin.command:
+        cmd: "{{ etcdctl_bin }} {{ etcdctl_common_args }} member list -w json"
+      register: etcd_member_list_after
+      changed_when: false
+
+    - name: Select this host's repaired etcd member record
+      ansible.builtin.set_fact:
+        etcd_member_record_after: >-
+          {{
+            (etcd_member_list_after.stdout | from_json).members
+            | selectattr('name', 'equalto', etcd_expected_member_name)
+            | list
+            | first
+            | default({})
+          }}
+
+    - name: Ensure etcd membership now uses the expected peer URL
+      ansible.builtin.assert:
+        that:
+          - etcd_member_record_after.peerURLs == [etcd_expected_peer_url]
+        fail_msg: >-
+          {{ etcd_expected_member_name }} peer URL is
+          {{ etcd_member_record_after.peerURLs | default('<missing>') }},
+          expected {{ etcd_expected_peer_url }}.
