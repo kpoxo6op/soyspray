@@ -100,6 +100,28 @@ The live check must prove:
 - Longhorn volumes are healthy with at least three replicas
 - Argo CD apps are Synced and Healthy
 
+## Promotion Rerun Note
+
+The first HA apply joined node-1 and node-2 to etcd, then stopped before the
+control-plane join. The root cause was Kubespray treating existing workers as
+already-initialized control-plane nodes because `/var/lib/kubelet/config.yaml`
+exists on workers. kube-vip also mounted a missing `admin.conf` path and left a
+directory where kubeadm later needs to write the real kubeconfig.
+
+The Kubespray fork now carries a promotion fix for this path:
+
+```text
+worker kubelet config exists
+  != control plane already exists
+
+control plane already exists
+  == kube-apiserver static pod manifest exists
+```
+
+It also forces the kube-vip kubeconfig hostPath to be a file and removes the
+stale `admin.conf` directory case before running the secondary control-plane
+join.
+
 ## Important Preflight Finding
 
 On 2026-07-02, live etcd still reported node-0's peer URL as
