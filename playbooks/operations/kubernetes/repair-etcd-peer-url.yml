@@ -61,11 +61,15 @@
           Could not find {{ etcd_expected_member_name }} with client URL
           {{ etcd_expected_client_url }} in etcd membership.
 
+    - name: Convert etcd member ID to hex for etcdctl
+      ansible.builtin.set_fact:
+        etcd_member_id_hex: "{{ '%x' | format(etcd_member_record.ID | int) }}"
+
     - name: Repair stale etcd peer URL
       ansible.builtin.command:
         cmd: >-
           {{ etcdctl_bin }} {{ etcdctl_common_args }}
-          member update {{ etcd_member_record.ID }}
+          member update {{ etcd_member_id_hex }}
           --peer-urls={{ etcd_expected_peer_url }}
       when: etcd_member_record.peerURLs != [etcd_expected_peer_url]
       changed_when: true
