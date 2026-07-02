@@ -36,6 +36,7 @@ spec:
                   readOnly: true
                 - name: library
                   mountPath: /library
+                  readOnly: true
               resources:
                 requests:
                   cpu: "100m"
@@ -45,6 +46,14 @@ spec:
           securityContext:
             runAsUser: 0
             runAsGroup: 0
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/instance: immich
+                      app.kubernetes.io/name: server
+                  topologyKey: kubernetes.io/hostname
           volumes:
             - name: scripts
               configMap:
@@ -53,4 +62,4 @@ spec:
             - name: library
               persistentVolumeClaim:
                 claimName: immich-library
-
+                readOnly: true
