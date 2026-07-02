@@ -78,6 +78,10 @@ After the HA config PR, the repo should pass target mode:
 scripts/check-ha-stretch.sh --expect-ha --repo-only --vip 192.168.20.13
 ```
 
+The target inventory puts `node-0`, `node-1`, and `node-2` in both
+`kube_control_plane` and `etcd`. The API VIP is `192.168.20.13` on `eno1` via
+kube-vip ARP mode, and CoreDNS is pinned to at least two replicas.
+
 After the Kubespray apply, the live cluster should pass target mode:
 
 ```bash
