@@ -18,11 +18,13 @@ Backups for Immich using CloudNativePG (database) and AWS CLI (media), managed b
 
 ### Media Backup (CronJob)
 
-- **Schedule**: `30 2 * * *` - 02:30 UTC (14:30 NZST)
+- **Schedule**: `45 4 * * *` - 04:45 UTC
 - **Method**: AWS CLI `s3 sync` with optimized multipart uploads
 - **Source**: Immich library PVC (`immich-library`)
 - **Destination**: `s3://$BUCKET_NAME/$MEDIA_PREFIX`
 - **Behavior**: Append-only incremental sync (no deletes, aligns with IAM policy)
+- **Placement**: Required pod affinity keeps the backup job on the same node
+  as the Immich server, because `immich-library` is `ReadWriteOnce`
 
 ## Prerequisites
 
@@ -109,6 +111,9 @@ The `/library` path in the backup script is where we mount the `immich-library` 
 - `/library` is configured in `cronjob-media-sync.yaml` as `volumeMounts.mountPath`
 - The PVC is defined as `volumes.persistentVolumeClaim.claimName: immich-library`
 - We chose `/library` for simplicity - it could be any path like `/backup` or `/data`
+- The backup job mounts `/library` read-only and must run on the same node as
+  the Immich server pod, otherwise the RWO Longhorn volume can stay attached
+  elsewhere and the job can sit in `ContainerCreating`
 
 ### Media Directory Structure
 
