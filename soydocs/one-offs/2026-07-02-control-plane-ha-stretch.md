@@ -131,6 +131,12 @@ FileAvailable--etc-kubernetes-kubelet.conf
 Port-10250
 ```
 
+The next rerun reached the intended worker-promotion ignores, then kubeadm
+failed because stale local API proxy pods from the old worker shape still bound
+`127.0.0.1:6443` on node-1 and node-2. The fork now removes old
+`nginx-proxy.yml` and `haproxy.yml` static pod manifests before writing the
+kube-vip manifest.
+
 ## Important Preflight Finding
 
 On 2026-07-02, live etcd still reported node-0's peer URL as
