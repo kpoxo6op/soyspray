@@ -1,0 +1,10 @@
+# Example-only MetalLB Helm values for a future install.
+# Goal 001 does not install MetalLB.
+controller:
+  enabled: true
+speaker:
+  enabled: true
+prometheus:
+  serviceMonitor:
+    enabled: false
+

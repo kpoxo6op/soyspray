@@ -1,0 +1,28 @@
+kong_gateway:
+  image_repository: kong
+  image_tag: "3.9.3"
+  mode: dbless
+  enterprise_enabled: false
+
+kong_ingress_controller:
+  image_repository: kong/kubernetes-ingress-controller
+  image_tag: "3.5.10"
+
+helm:
+  chart_name: kong/ingress
+  chart_version: "0.24.0"
+  dependency_chart_name: kong
+  dependency_chart_version: "3.2.0"
+  repository: https://charts.konghq.com
+
+gateway_api:
+  channel: standard
+  version: "v1.3.0"
+  controller_name: konghq.com/kic-gateway-controller
+
+deployment:
+  namespace: platform-kong
+  smoke_namespace: platform-kong-smoke
+  proxy_service_type: LoadBalancer
+  admin_api_external_exposure: false
+  cluster_apply_permitted_by_default: false

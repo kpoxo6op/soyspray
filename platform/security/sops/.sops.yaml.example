@@ -1,0 +1,7 @@
+# Example only. Copy to .sops.yaml only after choosing real public recipients.
+# Do not commit an age private key.
+creation_rules:
+  - path_regex: .*\\.enc\\.ya?ml$
+    encrypted_regex: "^(data|stringData)$"
+    age: REPLACE_WITH_AGE_PUBLIC_RECIPIENT
+

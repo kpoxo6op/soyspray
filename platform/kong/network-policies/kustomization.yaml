@@ -1,0 +1,8 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - kong-default-deny.yaml
+  - kong-allow-dns.yaml
+  - kong-allow-kube-api-placeholder.yaml
+  - kong-allow-proxy-ingress.yaml
+  - kong-allow-smoke-upstream.yaml

@@ -1,0 +1,13 @@
+apiVersion: json-schema.org/v7
+kind: Schema
+metadata:
+  name: kong-oss-baseline-values
+description: Static schema hints for the bank-lab Kong OSS baseline values.
+required:
+  - controller
+  - gateway
+properties:
+  controller:
+    type: object
+  gateway:
+    type: object

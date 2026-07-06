@@ -1,0 +1,8 @@
+# Example-only cert-manager Helm values for a future install.
+# Goal 001 does not install cert-manager.
+installCRDs: true
+prometheus:
+  enabled: false
+webhook:
+  timeoutSeconds: 10
+

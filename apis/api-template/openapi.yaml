@@ -1,0 +1,24 @@
+openapi: 3.0.3
+info:
+  title: Example Bank API
+  version: 0.0.0
+  description: Placeholder OpenAPI document for future Kong bank-lab APIs.
+paths:
+  /health:
+    get:
+      summary: Health check placeholder
+      operationId: getHealth
+      responses:
+        "200":
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - status
+                properties:
+                  status:
+                    type: string
+                    example: ok
+

@@ -1,6 +1,8 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 MAKEFLAGS += --no-print-directory
+PYTHON ?= $(if $(wildcard soyspray-venv/bin/python),soyspray-venv/bin/python,python3)
+PYTEST ?= $(PYTHON) -m pytest
 
 K8S_USER        := ubuntu
 NODE0           := 192.168.20.10
@@ -80,9 +82,150 @@ go: argo act ans
 alist:
 	@./scripts/argocd-list.sh "$(COLS)"
 
+validate:
+	@$(PYTHON) scripts/validate_repo.py
+
+validate-yaml:
+	@$(PYTHON) scripts/validate_yaml.py
+
+validate-kustomize:
+	@$(PYTHON) scripts/render_prereqs.py >/dev/null
+
+validate-prereqs:
+	@$(PYTHON) scripts/validate_prereqs.py
+
+validate-kong-baseline:
+	@$(PYTHON) scripts/validate_kong_baseline.py
+
+render-prereqs:
+	@$(PYTHON) scripts/render_prereqs.py
+
+render-kong-baseline:
+	@$(PYTHON) scripts/render_kong_baseline.py >/dev/null
+
+kong-static-test:
+	@$(PYTEST) tests/unit/test_goal_002_kong_structure.py tests/unit/test_goal_002_kong_versions.py tests/unit/test_goal_002_no_enterprise_features.py tests/unit/test_goal_002_admin_api_private.py
+
+kong-admin-exposure-test:
+	@$(PYTHON) scripts/validate_kong_baseline.py --admin-only
+
+runtime-preflight-local:
+	@$(PYTHON) scripts/validate_runtime_preflight.py
+
+kong-apply-plan:
+	@platform/kong/scripts/generate-kong-apply-plan.sh
+
+cluster-readonly-preflight:
+	@platform/kong/scripts/cluster-readonly-preflight.sh
+
+kong-readonly-preflight:
+	@platform/kong/scripts/kong-readonly-preflight.sh
+
+mutation-guard-test:
+	@set -euo pipefail; \
+	if platform/kong/scripts/require-cluster-mutation-permission.sh >/tmp/banklab-mutation-guard-test.out 2>&1; then \
+		echo "Mutation guard unexpectedly passed without permission."; \
+		cat /tmp/banklab-mutation-guard-test.out; \
+		exit 1; \
+	fi; \
+	if BANKLAB_ALLOW_CLUSTER_MUTATION=true platform/kong/scripts/require-cluster-mutation-permission.sh >/tmp/banklab-mutation-guard-test.out 2>&1; then \
+		echo "Mutation guard unexpectedly passed without target context."; \
+		cat /tmp/banklab-mutation-guard-test.out; \
+		exit 1; \
+	fi; \
+	echo "Mutation guard fails closed without explicit permission."
+
+validate-cluster-apply-gate:
+	@$(PYTHON) scripts/validate_cluster_apply_gate.py
+
+goal002-runtime-ready:
+	@platform/kong/scripts/verify-goal002-runtime-ready.sh
+
+test:
+	@$(PYTEST) tests/unit
+
+policy-test:
+	@$(PYTEST) tests/policy
+
+docs:
+	@$(PYTHON) -m mkdocs build --strict --site-dir .build/mkdocs
+
+evidence:
+	@$(PYTHON) scripts/generate_evidence_report.py
+
+evidence-goal-001:
+	@$(PYTHON) scripts/generate_evidence_report.py --goal goal-001-platform-prereqs
+
+evidence-goal-002:
+	@$(PYTHON) scripts/generate_evidence_report.py --goal goal-002-kong-oss-baseline
+
+evidence-gate-002-runtime-preflight:
+	@$(PYTHON) scripts/generate_evidence_report.py --goal gate-002-runtime-preflight
+
+evidence-gate-002-cluster-apply-and-smoke:
+	@$(PYTHON) scripts/generate_evidence_report.py --goal gate-002-cluster-apply-and-smoke
+
+cluster-smoke:
+	@$(PYTHON) scripts/cluster_smoke.py
+
+cluster-prereq-smoke:
+	@platform/bootstrap/check-cluster-prereqs.sh
+
+kong-cluster-smoke:
+	@$(PYTHON) scripts/check_kong_cluster.py
+
+kong-route-smoke:
+	@platform/kong/scripts/route-smoke.sh
+
+kong-install-dry-run:
+	@kubectl apply --dry-run=server -k platform/kong
+
+kong-apply:
+	@platform/kong/scripts/require-cluster-mutation-permission.sh
+	@kubectl apply -k platform/kong
+
+kong-rollback:
+	@platform/kong/scripts/require-cluster-mutation-permission.sh
+	@kubectl delete -k platform/kong --ignore-not-found=true
+
+clean:
+	@rm -rf .build .pytest_cache
+	@find . -path './.git' -prune -o -path './soyspray-venv' -prune -o -type d -name __pycache__ -prune -exec rm -rf {} +
 
 help:
 	@echo "Available commands:"
+	@echo "  make validate    - Run local repository foundation checks"
+	@echo "  make validate-yaml - Parse local YAML files"
+	@echo "  make validate-kustomize - Render prerequisite kustomizations locally"
+	@echo "  make validate-prereqs - Run local goal-001 prerequisite checks"
+	@echo "  make validate-kong-baseline - Run local goal-002 Kong checks"
+	@echo "  make runtime-preflight-local - Run local gate-002 runtime preflight checks"
+	@echo "  make render-prereqs - Print rendered prerequisite manifests"
+	@echo "  make render-kong-baseline - Render Kong baseline manifests locally"
+	@echo "  make kong-static-test - Run goal-002 unit tests"
+	@echo "  make kong-admin-exposure-test - Check Admin API exposure statically"
+	@echo "  make kong-apply-plan - Generate Kong runtime apply plan locally"
+	@echo "  make mutation-guard-test - Prove cluster mutation guardrails fail closed"
+	@echo "  make validate-cluster-apply-gate - Validate cluster-apply gate package locally"
+	@echo "  make goal002-runtime-ready - Verify runtime evidence is approved"
+	@echo "  make test        - Run local unit tests"
+	@echo "  make policy-test - Run local placeholder policy tests"
+	@echo "  make docs        - Build MkDocs documentation locally"
+	@echo "  make evidence    - Refresh goal-000 evidence report"
+	@echo "  make evidence-goal-001 - Refresh goal-001 evidence report"
+	@echo "  make evidence-goal-002 - Refresh goal-002 evidence report"
+	@echo "  make evidence-gate-002-runtime-preflight - Refresh runtime preflight evidence"
+	@echo "  make evidence-gate-002-cluster-apply-and-smoke - Refresh cluster apply gate evidence"
+	@echo "  make cluster-smoke - Run explicit cluster connectivity checks"
+	@echo "  make cluster-prereq-smoke - Check applied prerequisite resources"
+	@echo "  make cluster-readonly-preflight - Run optional read-only cluster preflight"
+	@echo "  make kong-readonly-preflight - Run optional read-only Kong preflight"
+	@echo "  make kong-cluster-smoke - Run read-only Kong cluster checks"
+	@echo "  make kong-route-smoke - Run Kong smoke route checks"
+	@echo "  make kong-install-dry-run - Dry-run Kong baseline apply"
+	@echo "  make kong-apply  - Apply Kong baseline with BANKLAB mutation guard variables"
+	@echo "  make kong-rollback - Roll back Kong baseline with BANKLAB mutation guard variables"
+	@echo "  make clean       - Remove generated local artifacts"
 	@echo "  make master      - SSH into master node ($(MASTER_NODE))"
 	@echo "  make worker1     - SSH into worker node 1 ($(WORKER_NODE1))"
 	@echo "  make worker2     - SSH into worker node 2 ($(WORKER_NODE2))"
@@ -94,4 +237,4 @@ help:
 	@echo "  make ans         - Show Ansible command starter"
 	@echo "  make go          - Run argo, act, and ans commands in sequence"
 	@echo "  make alist       - List ArgoCD apps with scripts/argocd-list.sh"
-.PHONY: master worker1 worker2 worker3 help venv act argo install go alist
+.PHONY: master worker1 worker2 worker3 help venv act argo install go alist validate validate-yaml validate-kustomize validate-prereqs validate-kong-baseline runtime-preflight-local render-prereqs render-kong-baseline kong-static-test kong-admin-exposure-test kong-apply-plan cluster-readonly-preflight kong-readonly-preflight mutation-guard-test validate-cluster-apply-gate goal002-runtime-ready test policy-test docs evidence evidence-goal-001 evidence-goal-002 evidence-gate-002-runtime-preflight evidence-gate-002-cluster-apply-and-smoke cluster-smoke cluster-prereq-smoke kong-cluster-smoke kong-route-smoke kong-install-dry-run kong-apply kong-rollback clean

@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: banklab-ca-example
+  labels:
+    banklab.konghq.com/platform-layer: prereq
+    banklab.konghq.com/owner: platform-security-team
+  annotations:
+    banklab.konghq.com/example-only: "true"
+    banklab.konghq.com/secret-note: "Secret is created later through SOPS/age, not in goal 001."
+spec:
+  ca:
+    secretName: REPLACE_WITH_BANKLAB_CA_SECRET
+

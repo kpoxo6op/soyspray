@@ -34,3 +34,14 @@ scripts/check-ha-stretch.sh --expect-current --repo-only
 scripts/check-ha-stretch.sh --expect-ha --repo-only --vip 192.168.20.13
 scripts/check-ha-stretch.sh --expect-ha --live --vip 192.168.20.13
 ```
+
+## Kong Bank-Lab Foundation Validation
+
+`validate_repo.py` checks the local repository structure required by
+`goal-000-repo-foundation`.
+
+`generate_evidence_report.py` runs the local goal-000 gates and refreshes
+`reports/goal-000-summary.md`.
+
+Both scripts are local-only. They do not require Kubernetes access and do not
+modify the live cluster.

@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  local-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dev dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Validate repository foundation
+        run: make validate
+
+      - name: Validate platform prerequisites
+        run: make validate-prereqs
+
+      - name: Validate Kong baseline
+        run: make validate-kong-baseline
+
+      - name: Validate runtime preflight gate
+        run: make runtime-preflight-local
+
+      - name: Validate cluster apply gate package
+        run: make validate-cluster-apply-gate
+
+      - name: Validate YAML
+        run: make validate-yaml
+
+      - name: Validate prerequisite kustomizations
+        run: make validate-kustomize
+
+      - name: Generate Kong runtime apply plan
+        run: make kong-apply-plan
+
+      - name: Check mutation guardrails
+        run: make mutation-guard-test
+
+      - name: Run unit tests
+        run: make test
+
+      - name: Run Kong static tests
+        run: make kong-static-test
+
+      - name: Check Kong Admin API exposure
+        run: make kong-admin-exposure-test
+
+      - name: Run policy placeholder tests
+        run: make policy-test
+
+      - name: Build documentation
+        run: make docs

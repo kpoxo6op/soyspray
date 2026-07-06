@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-gitops-to-managed-namespaces
+  namespace: platform-gitops
+  labels:
+    banklab.konghq.com/platform-layer: prereq
+    banklab.konghq.com/owner: platform-team
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              banklab.konghq.com/managed-by: gitops
+

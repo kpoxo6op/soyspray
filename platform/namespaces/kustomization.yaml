@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - platform-system.yaml
+  - platform-gitops.yaml
+  - platform-security.yaml
+  - platform-networking.yaml
+  - platform-observability.yaml
+  - platform-identity.yaml
+  - tenant-accounts.yaml
+  - tenant-payments.yaml
+  - tenant-cards.yaml
+  - tenant-customer-profile.yaml
+  - tenant-fraud.yaml
+  - tenant-open-banking.yaml
+  - synthetic-clients.yaml
+

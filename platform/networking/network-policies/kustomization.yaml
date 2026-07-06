@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - platform-default-deny.yaml
+  - tenants-default-deny.yaml
+  - allow-dns.yaml
+  - allow-gitops-to-managed-namespaces.yaml
+  - allow-observability-scrape-placeholder.yaml
+  - allow-ingress-controller-placeholder.yaml
+

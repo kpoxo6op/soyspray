@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: banklab-kong-smoke
+  namespace: platform-kong-smoke
+  labels:
+    app.kubernetes.io/name: banklab-kong-smoke
+    banklab.konghq.com/platform-layer: gateway
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: banklab-kong-smoke
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

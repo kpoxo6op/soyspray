@@ -1,0 +1,14 @@
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: banklab-example-l2
+  namespace: metallb-system
+  labels:
+    banklab.konghq.com/platform-layer: prereq
+    banklab.konghq.com/owner: platform-networking-team
+  annotations:
+    banklab.konghq.com/example-only: "true"
+spec:
+  ipAddressPools:
+    - banklab-example-pool
+

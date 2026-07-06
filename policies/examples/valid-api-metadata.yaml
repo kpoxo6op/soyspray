@@ -1,0 +1,10 @@
+api_name: accounts-api
+owning_team: accounts-team
+exposure: internal
+lifecycle_state: proposed
+data_classification: confidential
+support_contact: accounts-platform@example.invalid
+slo_target: "availability 99.0%, p95 latency 250ms"
+auth_profile: jwt
+rate_limit_profile: standard-internal
+

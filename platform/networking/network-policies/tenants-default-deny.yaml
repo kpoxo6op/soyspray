@@ -1,0 +1,42 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tenant-default-deny
+  namespace: tenant-accounts
+  labels:
+    banklab.konghq.com/platform-layer: prereq
+    banklab.konghq.com/owner: tenant-accounts-team
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tenant-default-deny
+  namespace: tenant-payments
+  labels:
+    banklab.konghq.com/platform-layer: prereq
+    banklab.konghq.com/owner: tenant-payments-team
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: tenant-default-deny
+  namespace: synthetic-clients
+  labels:
+    banklab.konghq.com/platform-layer: prereq
+    banklab.konghq.com/owner: synthetic-client-team
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+

@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banklab-root
+  namespace: argocd
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: prereq
+    banklab.konghq.com/owner: platform-team
+  annotations:
+    banklab.konghq.com/template: "true"
+    banklab.konghq.com/repo-url-note: "Replace REPLACE_WITH_REPO_URL before applying."
+spec:
+  project: platform-prereqs
+  source:
+    repoURL: REPLACE_WITH_REPO_URL
+    targetRevision: HEAD
+    path: platform/gitops/app-of-apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=false
+

@@ -1,0 +1,50 @@
+site_name: Soyspray Kong OSS Bank Lab
+site_description: Local documentation for the Kong OSS bank-lab platform foundation.
+docs_dir: docs
+site_dir: .build/mkdocs
+nav:
+  - Home: index.md
+  - Architecture:
+      - Overview: architecture/README.md
+      - Platform Principles: architecture/platform-principles.md
+      - OSS vs Enterprise: architecture/oss-vs-enterprise.md
+      - Operating Model: architecture/operating-model.md
+      - Testing Strategy: architecture/testing-strategy.md
+      - Platform Prerequisites: architecture/platform-prerequisites.md
+      - GitOps Bootstrap: architecture/gitops-bootstrap.md
+      - NetworkPolicy Baseline: architecture/network-policy-baseline.md
+      - Secrets Management: architecture/secrets-management.md
+      - Certificate Management: architecture/certificate-management.md
+      - Home-Lab Networking: architecture/home-lab-networking.md
+      - Kong OSS Baseline: architecture/kong-oss-baseline.md
+      - Gateway API Baseline: architecture/gateway-api-baseline.md
+      - Kong Admin API Exposure: architecture/kong-admin-api-exposure.md
+      - Kong Baseline Testing: architecture/kong-baseline-testing.md
+      - Kong Runtime Validation Gate: architecture/kong-runtime-validation-gate.md
+      - Cluster Mutation Guardrails: architecture/cluster-mutation-guardrails.md
+  - ADRs:
+      - Overview: adr/README.md
+      - ADR Template: adr/adr-template.md
+      - Platform Direction: adr/0001-platform-direction.md
+  - Onboarding:
+      - Overview: onboarding/README.md
+      - API Onboarding Template: onboarding/api-onboarding-template.md
+  - Runbooks:
+      - Overview: runbooks/README.md
+      - Runbook Template: runbooks/runbook-template.md
+      - Platform Prereqs Rollback: runbooks/platform-prereqs-rollback.md
+      - NetworkPolicy Recovery: runbooks/network-policy-recovery.md
+      - Kong Baseline Install: runbooks/kong-baseline-install.md
+      - Kong Baseline Rollback: runbooks/kong-baseline-rollback.md
+      - Kong Admin API Exposure Check: runbooks/kong-admin-api-exposure-check.md
+      - Kong Runtime Preflight: runbooks/kong-runtime-preflight.md
+      - Kong Runtime Apply Checklist: runbooks/kong-runtime-apply-checklist.md
+      - Kong Runtime Smoke Checklist: runbooks/kong-runtime-smoke-checklist.md
+      - Kong Runtime Rollback Checklist: runbooks/kong-runtime-rollback-checklist.md
+      - Kong Cluster Apply And Smoke: runbooks/kong-cluster-apply-and-smoke.md
+      - Kong Cluster Apply Failure: runbooks/kong-cluster-apply-failure.md
+      - Kong Runtime Verification Evidence: runbooks/kong-runtime-verification-evidence.md
+  - Decisions:
+      - Overview: decisions/README.md
+      - Goal 003 Blocked: decisions/goal-003-blocked-until-kong-runtime-validation.md
+      - Goal 002 Runtime Approval: decisions/goal-002-runtime-approval.md

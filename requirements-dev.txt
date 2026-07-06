@@ -1,0 +1,4 @@
+mkdocs==1.6.1
+pytest==8.4.1
+PyYAML==6.0.3
+

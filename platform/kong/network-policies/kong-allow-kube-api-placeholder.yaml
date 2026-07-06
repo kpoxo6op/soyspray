@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kong-allow-kube-api-placeholder
+  namespace: platform-kong
+  labels:
+    banklab.konghq.com/platform-layer: gateway
+    banklab.konghq.com/owner: platform-team
+  annotations:
+    banklab.konghq.com/replace-before-apply: "Verify the Kubernetes API service IP for this cluster."
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: app
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 10.233.0.1/32
+      ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,23 @@
+# Placeholder bank-like ownership model for the Kong OSS bank lab.
+
+* @platform-team
+
+/.github/ @platform-team
+/Makefile @platform-team
+/README.md @platform-team
+/ROADMAP.md @platform-team
+
+/docs/ @platform-team
+/docs/architecture/ @platform-team @security-team
+/docs/onboarding/ @api-governance-team
+/docs/runbooks/ @platform-team
+
+/platform/ @platform-team
+/platform/security/ @security-team
+/policies/ @security-team @api-governance-team
+
+/apis/ @api-governance-team
+/tenants/ @api-governance-team
+/tests/ @platform-team @security-team
+/reports/ @platform-team
+

@@ -1,0 +1,42 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: platform-default-deny
+  namespace: platform-system
+  labels:
+    banklab.konghq.com/platform-layer: prereq
+    banklab.konghq.com/owner: platform-team
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: platform-default-deny
+  namespace: platform-security
+  labels:
+    banklab.konghq.com/platform-layer: prereq
+    banklab.konghq.com/owner: security-team
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: platform-default-deny
+  namespace: platform-networking
+  labels:
+    banklab.konghq.com/platform-layer: prereq
+    banklab.konghq.com/owner: platform-networking-team
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+

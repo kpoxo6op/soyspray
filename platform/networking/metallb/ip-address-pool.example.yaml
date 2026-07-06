@@ -1,0 +1,15 @@
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: banklab-example-pool
+  namespace: metallb-system
+  labels:
+    banklab.konghq.com/platform-layer: prereq
+    banklab.konghq.com/owner: platform-networking-team
+  annotations:
+    banklab.konghq.com/example-only: "true"
+    banklab.konghq.com/replace-before-apply: REPLACE_WITH_LAB_LAN_LOADBALANCER_RANGE
+spec:
+  addresses:
+    - 192.168.255.240-192.168.255.250
+

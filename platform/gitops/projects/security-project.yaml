@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: security-prereqs
+  namespace: argocd
+  labels:
+    banklab.konghq.com/platform-layer: prereq
+    banklab.konghq.com/owner: security-team
+spec:
+  description: Security prerequisite resources for the Kong OSS bank lab.
+  sourceRepos:
+    - REPLACE_WITH_REPO_URL
+  destinations:
+    - namespace: platform-security
+      server: https://kubernetes.default.svc
+    - namespace: cert-manager
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: cert-manager.io
+      kind: ClusterIssuer
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+

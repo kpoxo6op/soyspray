@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: tenant-template
+  namespace: argocd
+  labels:
+    banklab.konghq.com/platform-layer: prereq
+    banklab.konghq.com/owner: api-governance-team
+  annotations:
+    banklab.konghq.com/template: "true"
+spec:
+  description: Template for future tenant-owned API applications.
+  sourceRepos:
+    - REPLACE_WITH_REPO_URL
+  destinations:
+    - namespace: tenant-*
+      server: https://kubernetes.default.svc
+    - namespace: synthetic-clients
+      server: https://kubernetes.default.svc
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: Service
+    - group: apps
+      kind: Deployment
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+
