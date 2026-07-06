@@ -28,6 +28,12 @@ jobs:
       - name: Validate Kong baseline
         run: make validate-kong-baseline
 
+      - name: Validate synthetic bank APIs
+        run: make validate-synthetic-apis
+
+      - name: Lint synthetic OpenAPI specs
+        run: make openapi-lint
+
       - name: Validate runtime preflight gate
         run: make runtime-preflight-local
 
@@ -43,6 +49,12 @@ jobs:
       - name: Generate Kong runtime apply plan
         run: make kong-apply-plan
 
+      - name: Render synthetic bank APIs
+        run: make render-synthetic-apis
+
+      - name: Generate synthetic API smoke plan
+        run: make synthetic-api-smoke-plan
+
       - name: Check mutation guardrails
         run: make mutation-guard-test
 
@@ -54,6 +66,12 @@ jobs:
 
       - name: Check Kong Admin API exposure
         run: make kong-admin-exposure-test
+
+      - name: Run synthetic API static tests
+        run: make synthetic-api-static-test
+
+      - name: Run synthetic API contract tests
+        run: make synthetic-api-contract-test
 
       - name: Run policy placeholder tests
         run: make policy-test

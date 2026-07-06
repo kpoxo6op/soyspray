@@ -1,0 +1,9 @@
+api: accounts
+host: api.internal.banklab.test
+path: /accounts/v1/health
+expected_status: 200
+expected_body: banklab-accounts-ok
+gateway: platform-kong/kong-internal
+tenant_namespace: tenant-accounts
+service: banklab-accounts-api
+client_persona: mobile-banking-app

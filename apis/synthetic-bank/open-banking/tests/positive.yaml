@@ -1,0 +1,9 @@
+api: open-banking
+host: api.external.banklab.test
+path: /open-banking/v1/health
+expected_status: 200
+expected_body: banklab-open-banking-ok
+gateway: platform-kong/kong-external
+tenant_namespace: tenant-open-banking
+service: banklab-open-banking-api
+client_persona: external-fintech-partner

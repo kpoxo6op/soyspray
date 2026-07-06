@@ -1,0 +1,90 @@
+openapi: 3.0.3
+info:
+  title: Synthetic Cards API
+  version: 0.1.0
+  description: Synthetic card-list and card-status API for internal digital channels.
+    Synthetic data only.
+servers:
+- url: https://api.internal.banklab.test
+  description: Kong Gateway hostname
+tags:
+- name: cards
+x-banklab-api-domain: cards
+x-banklab-owning-team: tenant-cards-team
+x-banklab-lifecycle: sandbox
+x-banklab-data-classification: synthetic
+x-banklab-auth-profile: none-temporary-goal003-sandbox
+paths:
+  /cards/v1/health:
+    get:
+      tags:
+      - cards
+      summary: Cards synthetic GET route
+      operationId: GetCardsHealth
+      responses:
+        '200':
+          description: Health marker
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: banklab-cards-ok
+        '404':
+          description: Not found
+  /cards/v1/cards:
+    get:
+      tags:
+      - cards
+      summary: Cards synthetic GET route
+      operationId: GetCardsCards
+      responses:
+        '200':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: cards
+                marker: banklab-cards-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
+  /cards/v1/cards/{cardId}:
+    get:
+      tags:
+      - cards
+      summary: Cards synthetic GET route
+      operationId: GetCardsCardid
+      responses:
+        '200':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: cards
+                marker: banklab-cards-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
+      parameters:
+      - name: cardId
+        in: path
+        required: true
+        schema:
+          type: string
+          example: synthetic-cardId-001

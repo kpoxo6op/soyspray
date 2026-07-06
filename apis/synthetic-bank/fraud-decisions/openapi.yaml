@@ -1,0 +1,124 @@
+openapi: 3.0.3
+info:
+  title: Synthetic Fraud Decisions API
+  version: 0.1.0
+  description: Synthetic fraud decision API for internal risk scoring and transaction
+    decision demos. Synthetic data only.
+servers:
+- url: https://api.internal.banklab.test
+  description: Kong Gateway hostname
+tags:
+- name: fraud-decisions
+x-banklab-api-domain: fraud-decisions
+x-banklab-owning-team: tenant-fraud-team
+x-banklab-lifecycle: sandbox
+x-banklab-data-classification: synthetic
+x-banklab-auth-profile: none-temporary-goal003-sandbox
+paths:
+  /fraud/v1/health:
+    get:
+      tags:
+      - fraud-decisions
+      summary: Fraud Decisions synthetic GET route
+      operationId: GetFraudDecisionsHealth
+      responses:
+        '200':
+          description: Health marker
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: banklab-fraud-decisions-ok
+        '404':
+          description: Not found
+  /fraud/v1/decisions:
+    get:
+      tags:
+      - fraud-decisions
+      summary: Fraud Decisions synthetic GET route
+      operationId: GetFraudDecisionsDecisions
+      responses:
+        '200':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: fraud-decisions
+                marker: banklab-fraud-decisions-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
+    post:
+      tags:
+      - fraud-decisions
+      summary: Fraud Decisions synthetic POST route
+      operationId: PostFraudDecisionsDecisions
+      responses:
+        '202':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: fraud-decisions
+                marker: banklab-fraud-decisions-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+            example:
+              synthetic: true
+              amount: '10.00'
+              currency: NZD
+  /fraud/v1/decisions/{decisionId}:
+    get:
+      tags:
+      - fraud-decisions
+      summary: Fraud Decisions synthetic GET route
+      operationId: GetFraudDecisionsDecisionid
+      responses:
+        '200':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: fraud-decisions
+                marker: banklab-fraud-decisions-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
+      parameters:
+      - name: decisionId
+        in: path
+        required: true
+        schema:
+          type: string
+          example: synthetic-decisionId-001

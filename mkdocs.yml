@@ -22,6 +22,18 @@ nav:
       - Kong Baseline Testing: architecture/kong-baseline-testing.md
       - Kong Runtime Validation Gate: architecture/kong-runtime-validation-gate.md
       - Cluster Mutation Guardrails: architecture/cluster-mutation-guardrails.md
+      - Synthetic Bank APIs: architecture/synthetic-bank-apis.md
+      - API Product Model: architecture/api-product-model.md
+      - Synthetic Client Model: architecture/synthetic-client-model.md
+      - Goal 003 Runtime Boundary: architecture/goal-003-runtime-boundary.md
+  - API Catalog:
+      - Overview: api-catalog/index.md
+      - Accounts: api-catalog/accounts.md
+      - Payments: api-catalog/payments.md
+      - Cards: api-catalog/cards.md
+      - Customer Profile: api-catalog/customer-profile.md
+      - Fraud Decisions: api-catalog/fraud-decisions.md
+      - Open Banking: api-catalog/open-banking.md
   - ADRs:
       - Overview: adr/README.md
       - ADR Template: adr/adr-template.md
@@ -44,6 +56,9 @@ nav:
       - Kong Cluster Apply And Smoke: runbooks/kong-cluster-apply-and-smoke.md
       - Kong Cluster Apply Failure: runbooks/kong-cluster-apply-failure.md
       - Kong Runtime Verification Evidence: runbooks/kong-runtime-verification-evidence.md
+      - Synthetic API Onboarding: runbooks/synthetic-api-onboarding.md
+      - Synthetic API Runtime Smoke: runbooks/synthetic-api-runtime-smoke.md
+      - Synthetic API Rollback: runbooks/synthetic-api-rollback.md
   - Decisions:
       - Overview: decisions/README.md
       - Goal 003 Blocked: decisions/goal-003-blocked-until-kong-runtime-validation.md

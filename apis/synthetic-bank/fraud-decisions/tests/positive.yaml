@@ -1,0 +1,9 @@
+api: fraud-decisions
+host: api.internal.banklab.test
+path: /fraud/v1/health
+expected_status: 200
+expected_body: banklab-fraud-decisions-ok
+gateway: platform-kong/kong-internal
+tenant_namespace: tenant-fraud
+service: banklab-fraud-decisions-api
+client_persona: fraud-platform

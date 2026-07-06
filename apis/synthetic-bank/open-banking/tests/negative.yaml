@@ -1,0 +1,10 @@
+api: open-banking
+cases:
+- name: wrong-host
+  host: api.internal.banklab.test
+  path: /open-banking/v1/health
+  expected_status: 404
+- name: unknown-path
+  host: api.external.banklab.test
+  path: /open-banking/v1/does-not-exist
+  expected_status: 404

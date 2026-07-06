@@ -1,0 +1,22 @@
+api_name: synthetic-payments-api
+api_domain: payments
+owning_team: tenant-payments-team
+tenant_namespace: tenant-payments
+exposure: internal
+lifecycle_state: sandbox
+data_classification: synthetic
+support_contact: tenant-payments-team@example.invalid
+slo_target: availability 99.0%, p95 latency 350ms
+openapi_path: apis/synthetic-bank/payments/openapi.yaml
+upstream_service: banklab-payments-api
+route_host: api.internal.banklab.test
+route_paths:
+- /payments/v1
+auth_profile: none-temporary-goal003-sandbox
+auth_state: temporary-no-auth
+authorization_profile: none-temporary-goal003-sandbox
+rate_limit_profile: deferred-goal004
+logging_profile: standard
+future_auth_goal: goal-004-auth-rate-limit-security
+rollback_owner: tenant-payments-team
+smoke_marker: banklab-payments-ok

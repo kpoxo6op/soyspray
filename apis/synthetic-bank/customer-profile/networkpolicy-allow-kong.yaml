@@ -1,0 +1,34 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kong-to-synthetic-api
+  namespace: tenant-customer-profile
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api
+    banklab.konghq.com/environment: lab
+    banklab.konghq.com/data-classification: synthetic
+    banklab.konghq.com/lifecycle: sandbox
+    banklab.konghq.com/auth-profile: none-temporary-goal003-sandbox
+    banklab.konghq.com/auth-state: temporary-no-auth
+    banklab.konghq.com/goal: goal-003
+    banklab.konghq.com/api-domain: customer-profile
+    banklab.konghq.com/owner: tenant-customer-profile-team
+    banklab.konghq.com/exposure: internal
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: banklab-customer-profile-api
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: platform-kong
+      podSelector:
+        matchLabels:
+          banklab.konghq.com/component: gateway
+    ports:
+    - protocol: TCP
+      port: 8080

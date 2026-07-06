@@ -1,0 +1,25 @@
+cases:
+- api: accounts
+  host: api.external.banklab.test
+  path: /accounts/v1/health
+  expected_status: 404
+- api: payments
+  host: api.external.banklab.test
+  path: /payments/v1/health
+  expected_status: 404
+- api: cards
+  host: api.external.banklab.test
+  path: /cards/v1/health
+  expected_status: 404
+- api: customer-profile
+  host: api.external.banklab.test
+  path: /customers/v1/health
+  expected_status: 404
+- api: fraud-decisions
+  host: api.external.banklab.test
+  path: /fraud/v1/health
+  expected_status: 404
+- api: open-banking
+  host: api.internal.banklab.test
+  path: /open-banking/v1/health
+  expected_status: 404

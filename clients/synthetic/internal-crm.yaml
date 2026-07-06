@@ -1,0 +1,15 @@
+client_name: internal-crm
+client_type: internal-service
+owning_team: customer-service-team
+intended_exposure: internal
+intended_apis:
+- customer-profile
+- accounts
+future_auth_profile: goal-004-auth-rate-limit-security
+future_authorization_profile: goal-004-auth-rate-limit-security
+future_rate_limit_profile: goal-004-auth-rate-limit-security
+support_contact: customer-service-team@example.invalid
+test_persona: CRM persona for servicing route checks.
+data_classification: synthetic
+credentials_created: false
+current_auth_state: temporary-no-auth

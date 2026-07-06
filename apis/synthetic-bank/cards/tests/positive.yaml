@@ -1,0 +1,9 @@
+api: cards
+host: api.internal.banklab.test
+path: /cards/v1/health
+expected_status: 200
+expected_body: banklab-cards-ok
+gateway: platform-kong/kong-internal
+tenant_namespace: tenant-cards
+service: banklab-cards-api
+client_persona: internet-banking-web

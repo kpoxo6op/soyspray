@@ -1,0 +1,90 @@
+openapi: 3.0.3
+info:
+  title: Synthetic Accounts API
+  version: 0.1.0
+  description: Synthetic account-list and account-detail API for internal banking
+    channels. Synthetic data only.
+servers:
+- url: https://api.internal.banklab.test
+  description: Kong Gateway hostname
+tags:
+- name: accounts
+x-banklab-api-domain: accounts
+x-banklab-owning-team: tenant-accounts-team
+x-banklab-lifecycle: sandbox
+x-banklab-data-classification: synthetic
+x-banklab-auth-profile: none-temporary-goal003-sandbox
+paths:
+  /accounts/v1/health:
+    get:
+      tags:
+      - accounts
+      summary: Accounts synthetic GET route
+      operationId: GetAccountsHealth
+      responses:
+        '200':
+          description: Health marker
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: banklab-accounts-ok
+        '404':
+          description: Not found
+  /accounts/v1/accounts:
+    get:
+      tags:
+      - accounts
+      summary: Accounts synthetic GET route
+      operationId: GetAccountsAccounts
+      responses:
+        '200':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: accounts
+                marker: banklab-accounts-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
+  /accounts/v1/accounts/{accountId}:
+    get:
+      tags:
+      - accounts
+      summary: Accounts synthetic GET route
+      operationId: GetAccountsAccountid
+      responses:
+        '200':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: accounts
+                marker: banklab-accounts-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
+      parameters:
+      - name: accountId
+        in: path
+        required: true
+        schema:
+          type: string
+          example: synthetic-accountId-001

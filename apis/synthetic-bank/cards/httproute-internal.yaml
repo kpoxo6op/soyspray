@@ -1,0 +1,32 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: banklab-cards
+  namespace: tenant-cards
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api
+    banklab.konghq.com/environment: lab
+    banklab.konghq.com/data-classification: synthetic
+    banklab.konghq.com/lifecycle: sandbox
+    banklab.konghq.com/auth-profile: none-temporary-goal003-sandbox
+    banklab.konghq.com/auth-state: temporary-no-auth
+    banklab.konghq.com/goal: goal-003
+    banklab.konghq.com/api-domain: cards
+    banklab.konghq.com/owner: tenant-cards-team
+    banklab.konghq.com/exposure: internal
+spec:
+  parentRefs:
+  - name: kong-internal
+    namespace: platform-kong
+    sectionName: http
+  hostnames:
+  - api.internal.banklab.test
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /cards/v1
+    backendRefs:
+    - name: banklab-cards-api
+      port: 80

@@ -1,0 +1,13 @@
+default_posture: internal-only
+external_allowed:
+- open-banking
+external_forbidden:
+- accounts
+- payments
+- cards
+- customer-profile
+- fraud-decisions
+admin_api_route_allowed: false
+wildcard_hosts_allowed: false
+catch_all_routes_allowed: false
+temporary_no_auth: temporary-no-auth

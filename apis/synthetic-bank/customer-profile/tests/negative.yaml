@@ -1,0 +1,10 @@
+api: customer-profile
+cases:
+- name: wrong-host
+  host: api.external.banklab.test
+  path: /customers/v1/health
+  expected_status: 404
+- name: unknown-path
+  host: api.internal.banklab.test
+  path: /customers/v1/does-not-exist
+  expected_status: 404

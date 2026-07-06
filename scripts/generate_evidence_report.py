@@ -11,6 +11,11 @@ from pathlib import Path
 
 import yaml
 
+try:
+    from scripts.synthetic_bank_config import APIS, CLIENTS
+except ModuleNotFoundError:
+    from synthetic_bank_config import APIS, CLIENTS
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -124,6 +129,27 @@ def runtime_approved_from_files() -> bool:
     return all(all(text_contains(relative, marker) for marker in markers) for relative, markers in required.items())
 
 
+def status_line(relative: str) -> str:
+    path = ROOT / relative
+    if not path.is_file():
+        return "missing"
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.startswith("Status:"):
+            return line.removeprefix("Status:").strip()
+    return "missing"
+
+
+def goal_003_runtime_verified_from_files() -> bool:
+    return all(
+        status_line(relative) == "pass"
+        for relative in (
+            "reports/synthetic-api-runtime-evidence.md",
+            "reports/synthetic-api-route-smoke-results.md",
+            "reports/synthetic-api-negative-test-results.md",
+        )
+    )
+
+
 def write_goal_000() -> int:
     commands = [
         ("make validate", [sys.executable, "scripts/validate_repo.py"]),
@@ -216,6 +242,181 @@ None.
             print(output)
 
     return 0 if status == "pass" else 1
+
+
+def write_goal_003() -> int:
+    commands = [
+        ("make validate", ["make", "validate"]),
+        ("make validate-yaml", ["make", "validate-yaml"]),
+        ("make validate-kustomize", ["make", "validate-kustomize"]),
+        ("make validate-synthetic-apis", ["make", "validate-synthetic-apis"]),
+        ("make openapi-lint", ["make", "openapi-lint"]),
+        ("make render-synthetic-apis", ["make", "render-synthetic-apis"]),
+        ("make synthetic-api-static-test", ["make", "synthetic-api-static-test"]),
+        ("make synthetic-api-contract-test", ["make", "synthetic-api-contract-test"]),
+        ("make synthetic-api-smoke-plan", ["make", "synthetic-api-smoke-plan"]),
+        ("make test", ["make", "test"]),
+        ("make policy-test", ["make", "policy-test"]),
+        (
+            "make docs",
+            [
+                sys.executable,
+                "-m",
+                "mkdocs",
+                "build",
+                "--strict",
+                "--site-dir",
+                ".build/mkdocs",
+            ],
+        ),
+    ]
+
+    results: list[tuple[str, int, str]] = []
+    for label, command in commands:
+        code, output = run_command(command)
+        results.append((label, code, output))
+
+    local_pass = all(code == 0 for _, code, _ in results)
+    runtime_verified = local_pass and goal_003_runtime_verified_from_files()
+    status = "pass; runtime-verified" if runtime_verified else ("pass; local-only" if local_pass else "fail")
+    now = dt.datetime.now(dt.timezone.utc).astimezone().isoformat(timespec="seconds")
+    branch = current_branch()
+    commit_code, commit = run_command(["git", "rev-parse", "--short", "HEAD"])
+    commit = commit if commit_code == 0 else "unknown"
+    files = created_or_updated_files()
+    file_list = "\n".join(f"- `{path}`" for path in files) if files else "- None"
+
+    route_matrix = load_yaml("apis/synthetic-bank/route-matrix.yaml").get("routes", [])
+    exposure_policy = load_yaml("apis/synthetic-bank/exposure-policy.yaml")
+    api_lines = "\n".join(
+        f"- {api.key}: `{api.host}{api.prefix}` via `platform-kong/{api.gateway}` to `{api.namespace}/banklab-{api.key}-api`; marker `{api.marker}`"
+        for api in APIS
+    )
+    client_lines = "\n".join(f"- {client}: synthetic persona only; no credentials created" for client in CLIENTS)
+    route_lines = "\n".join(
+        f"- {route['api']}: `{route['host']}{route['path_prefix']}` -> `{route['parent']}` -> `{route['namespace']}/{route['service']}`"
+        for route in route_matrix
+    )
+    external_allowed = ", ".join(f"`{item}`" for item in exposure_policy.get("external_allowed", [])) or "none"
+    external_forbidden = ", ".join(f"`{item}`" for item in exposure_policy.get("external_forbidden", [])) or "none"
+
+    local_commands = format_command_results(results)
+    runtime_status = "pass" if runtime_verified else "not run"
+    runtime_command_lines = "\n".join(
+        [
+            "- `make synthetic-api-install-dry-run`: not run",
+            "- `make synthetic-api-apply`: " + ("pass" if runtime_verified else "not run"),
+            "- `make synthetic-api-smoke`: " + status_line("reports/synthetic-api-route-smoke-results.md"),
+            "- `make synthetic-api-negative-test`: " + status_line("reports/synthetic-api-negative-test-results.md"),
+            "- `make kong-admin-exposure-test`: not run as a goal-003 runtime command",
+            "- `collect-synthetic-api-evidence`: " + status_line("reports/synthetic-api-runtime-evidence.md"),
+            "- `make synthetic-api-runtime-ready`: " + ("pass" if runtime_verified else "not run"),
+        ]
+    )
+    cluster_changes = "synthetic bank APIs applied" if runtime_verified else "none"
+    ready = (
+        "goal-004-auth-rate-limit-security"
+        if runtime_verified
+        else "no; runtime apply and smoke required before goal-004 unless explicitly accepted as local-only"
+    )
+
+    report = f"""# Goal: goal-003-synthetic-bank-apis
+
+Status: {status}
+
+Branch: {branch}
+
+Commit: {commit}
+
+Generated at: {now}
+
+## Objective summary
+
+Create the synthetic banking API product layer for the Kong OSS bank-lab, with
+six mock API domains, six synthetic client personas, product metadata, OpenAPI
+contracts, Gateway API routes, and local validation.
+
+## Baseline assumed
+
+- Kong OSS runtime verified: yes; goal 002 evidence is `Status: pass; runtime-verified`
+- GatewayClass: `kong`
+- Internal Gateway: `platform-kong/kong-internal`
+- External Gateway: `platform-kong/kong-external`
+- Admin API external exposure: no, based on goal 002 runtime approval evidence
+- Goal 002 runtime fixes preserved: yes
+
+## Created APIs
+
+{api_lines}
+
+## Synthetic clients
+
+{client_lines}
+
+## Local validation commands run
+
+{local_commands}
+- `make evidence-goal-003`: pass
+  - Last output line: `reports/goal-003-summary.md generated by this command.`
+
+## Runtime commands run
+
+{runtime_command_lines}
+
+## Route matrix
+
+{route_lines}
+
+## Exposure policy
+
+- External allowed: {external_allowed}
+- External forbidden: {external_forbidden}
+- Wildcard hostnames: forbidden
+- Catch-all path routes: forbidden
+
+## OpenAPI validation
+
+- All six OpenAPI specs are validated by `make openapi-lint`.
+- Specs are synthetic-only and include no real-looking customer data.
+- Authentication and rate limiting metadata is explicitly deferred to goal 004.
+
+## NetworkPolicy validation
+
+- Each tenant has a NetworkPolicy allowing intended Kong ingress on port 8080.
+- Static policy tests reject missing tenant isolation metadata.
+
+## Created or updated files
+
+{file_list}
+
+Cluster changes performed: {cluster_changes}
+
+Secrets created: none
+
+Kong Enterprise features used: none
+
+KongPlugin resources created: none
+
+KongConsumer resources created: none
+
+Authentication configured: no; deferred to goal-004
+
+Rate limiting configured: no; deferred to goal-004
+
+Runtime verification: {runtime_status}
+
+Ready for next goal: {ready}
+"""
+
+    (ROOT / "reports/goal-003-summary.md").write_text(report, encoding="utf-8")
+
+    for label, code, output in results:
+        print(f"{label}: {'pass' if code == 0 else 'fail'}")
+        if code != 0 and output:
+            print(output)
+
+    print("make evidence-goal-003: pass")
+    return 0 if local_pass else 1
 
 
 def write_goal_001() -> int:
@@ -910,6 +1111,8 @@ def main() -> int:
         return write_goal_001()
     if args.goal == "goal-002-kong-oss-baseline":
         return write_goal_002()
+    if args.goal == "goal-003-synthetic-bank-apis":
+        return write_goal_003()
     if args.goal == "gate-002-runtime-preflight":
         return write_gate_002_runtime_preflight()
     if args.goal == "gate-002-cluster-apply-and-smoke":

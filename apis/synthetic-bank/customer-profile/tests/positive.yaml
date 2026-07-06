@@ -1,0 +1,9 @@
+api: customer-profile
+host: api.internal.banklab.test
+path: /customers/v1/health
+expected_status: 200
+expected_body: banklab-customer-profile-ok
+gateway: platform-kong/kong-internal
+tenant_namespace: tenant-customer-profile
+service: banklab-customer-profile-api
+client_persona: internal-crm

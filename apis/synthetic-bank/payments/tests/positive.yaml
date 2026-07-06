@@ -1,0 +1,9 @@
+api: payments
+host: api.internal.banklab.test
+path: /payments/v1/health
+expected_status: 200
+expected_body: banklab-payments-ok
+gateway: platform-kong/kong-internal
+tenant_namespace: tenant-payments
+service: banklab-payments-api
+client_persona: payments-processor

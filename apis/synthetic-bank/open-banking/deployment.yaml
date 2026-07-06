@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: banklab-open-banking-api
+  namespace: tenant-open-banking
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api
+    banklab.konghq.com/environment: lab
+    banklab.konghq.com/data-classification: synthetic
+    banklab.konghq.com/lifecycle: sandbox
+    banklab.konghq.com/auth-profile: none-temporary-goal003-sandbox
+    banklab.konghq.com/auth-state: temporary-no-auth
+    banklab.konghq.com/goal: goal-003
+    banklab.konghq.com/api-domain: open-banking
+    banklab.konghq.com/owner: tenant-open-banking-team
+    banklab.konghq.com/exposure: external
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: banklab-open-banking-api
+  template:
+    metadata:
+      labels:
+        banklab.konghq.com/managed-by: gitops
+        banklab.konghq.com/platform-layer: synthetic-api
+        banklab.konghq.com/environment: lab
+        banklab.konghq.com/data-classification: synthetic
+        banklab.konghq.com/lifecycle: sandbox
+        banklab.konghq.com/auth-profile: none-temporary-goal003-sandbox
+        banklab.konghq.com/auth-state: temporary-no-auth
+        banklab.konghq.com/goal: goal-003
+        banklab.konghq.com/api-domain: open-banking
+        banklab.konghq.com/owner: tenant-open-banking-team
+        banklab.konghq.com/exposure: external
+        app.kubernetes.io/name: banklab-open-banking-api
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: nginx
+        image: nginxinc/nginx-unprivileged:1.27-alpine
+        ports:
+        - name: http
+          containerPort: 8080
+        volumeMounts:
+        - name: mock-responses
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+      volumes:
+      - name: mock-responses
+        configMap:
+          name: banklab-open-banking-mock-responses

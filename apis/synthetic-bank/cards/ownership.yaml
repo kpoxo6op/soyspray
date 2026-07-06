@@ -1,0 +1,22 @@
+api_name: synthetic-cards-api
+api_domain: cards
+owning_team: tenant-cards-team
+tenant_namespace: tenant-cards
+exposure: internal
+lifecycle_state: sandbox
+data_classification: synthetic
+support_contact: tenant-cards-team@example.invalid
+slo_target: availability 99.0%, p95 latency 350ms
+openapi_path: apis/synthetic-bank/cards/openapi.yaml
+upstream_service: banklab-cards-api
+route_host: api.internal.banklab.test
+route_paths:
+- /cards/v1
+auth_profile: none-temporary-goal003-sandbox
+auth_state: temporary-no-auth
+authorization_profile: none-temporary-goal003-sandbox
+rate_limit_profile: deferred-goal004
+logging_profile: standard
+future_auth_goal: goal-004-auth-rate-limit-security
+rollback_owner: tenant-cards-team
+smoke_marker: banklab-cards-ok

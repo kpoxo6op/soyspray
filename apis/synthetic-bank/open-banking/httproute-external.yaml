@@ -1,0 +1,32 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: banklab-open-banking
+  namespace: tenant-open-banking
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api
+    banklab.konghq.com/environment: lab
+    banklab.konghq.com/data-classification: synthetic
+    banklab.konghq.com/lifecycle: sandbox
+    banklab.konghq.com/auth-profile: none-temporary-goal003-sandbox
+    banklab.konghq.com/auth-state: temporary-no-auth
+    banklab.konghq.com/goal: goal-003
+    banklab.konghq.com/api-domain: open-banking
+    banklab.konghq.com/owner: tenant-open-banking-team
+    banklab.konghq.com/exposure: external
+spec:
+  parentRefs:
+  - name: kong-external
+    namespace: platform-kong
+    sectionName: http
+  hostnames:
+  - api.external.banklab.test
+  rules:
+  - matches:
+    - path:
+        type: PathPrefix
+        value: /open-banking/v1
+    backendRefs:
+    - name: banklab-open-banking-api
+      port: 80

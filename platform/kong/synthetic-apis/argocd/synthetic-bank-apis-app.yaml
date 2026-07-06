@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: synthetic-bank-apis
+  namespace: argocd
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api
+    banklab.konghq.com/environment: lab
+    banklab.konghq.com/data-classification: synthetic
+    banklab.konghq.com/lifecycle: sandbox
+    banklab.konghq.com/auth-profile: none-temporary-goal003-sandbox
+    banklab.konghq.com/goal: goal-003
+spec:
+  project: platform
+  source:
+    repoURL: REPLACE_WITH_REPO_URL
+    targetRevision: HEAD
+    path: apis/synthetic-bank
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform-kong
+  syncPolicy:
+    syncOptions:
+    - CreateNamespace=false
