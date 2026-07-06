@@ -8,9 +8,10 @@ Required approval before mutation:
 
 ```text
 I approve running gate-003-synthetic-api-runtime-apply-and-smoke cluster-mutating commands.
+
 Branch: kong-goals-foundation
-Commit:
-Target Kubernetes context:
+Commit: <current-HEAD-short-sha>
+Target Kubernetes context: kubernetes-admin@cluster.local
 Commands approved:
 - make synthetic-api-install-dry-run
 - make synthetic-api-apply
@@ -18,10 +19,39 @@ Commands approved:
 - make synthetic-api-negative-test
 - make kong-admin-exposure-test
 - platform/kong/synthetic-apis/scripts/collect-synthetic-api-evidence.sh
+- platform/kong/synthetic-apis/scripts/collect-synthetic-api-runtime-state.sh
 - make evidence-goal-003
+- make evidence-gate-003-synthetic-api-runtime
 - make goal003-runtime-ready
+
+Expected resources to change:
+- tenant-accounts synthetic API resources
+- tenant-payments synthetic API resources
+- tenant-cards synthetic API resources
+- tenant-customer-profile synthetic API resources
+- tenant-fraud synthetic API resources
+- tenant-open-banking synthetic API resources
+- synthetic API Deployments
+- synthetic API Services
+- synthetic API ConfigMaps
+- synthetic API HTTPRoutes
+- synthetic API NetworkPolicies
+
+Expected resources not to change:
+- Kong Gateway deployment
+- Kong Ingress Controller deployment
+- Kong GatewayClass except status reconciliation
+- Kong internal and external Gateways except status reconciliation
+- Kong Admin API service
+- Kong CRDs
+- Gateway API CRDs
+- unrelated namespaces
+- unrelated secrets
+- unrelated workloads
+
 Rollback command:
 - make synthetic-api-rollback
+
 Approval:
 - approved
 ```
