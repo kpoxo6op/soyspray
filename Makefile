@@ -108,6 +108,9 @@ render-kong-baseline:
 validate-synthetic-apis:
 	@$(PYTHON) scripts/validate_synthetic_bank_apis.py
 
+validate-synthetic-api-runtime-gate:
+	@$(PYTHON) scripts/validate_synthetic_api_runtime_gate.py
+
 openapi-lint:
 	@$(PYTHON) scripts/validate_openapi_specs.py
 
@@ -182,6 +185,9 @@ evidence-goal-002:
 evidence-goal-003:
 	@$(PYTHON) scripts/generate_evidence_report.py --goal goal-003-synthetic-bank-apis
 
+evidence-gate-003-synthetic-api-runtime:
+	@$(PYTHON) scripts/generate_evidence_report.py --goal gate-003-synthetic-api-runtime-apply-and-smoke
+
 evidence-gate-002-runtime-preflight:
 	@$(PYTHON) scripts/generate_evidence_report.py --goal gate-002-runtime-preflight
 
@@ -220,6 +226,9 @@ synthetic-api-rollback:
 synthetic-api-runtime-ready:
 	@platform/kong/synthetic-apis/scripts/verify-synthetic-api-runtime-ready.sh
 
+goal003-runtime-ready:
+	@platform/kong/synthetic-apis/scripts/verify-goal003-runtime-ready.sh
+
 kong-install-dry-run:
 	@kubectl apply --dry-run=server -f $(GATEWAY_API_CRDS)
 	@kubectl apply --dry-run=server -f platform/kong/namespace.yaml
@@ -256,6 +265,7 @@ help:
 	@echo "  make validate-prereqs - Run local goal-001 prerequisite checks"
 	@echo "  make validate-kong-baseline - Run local goal-002 Kong checks"
 	@echo "  make validate-synthetic-apis - Run local goal-003 synthetic API checks"
+	@echo "  make validate-synthetic-api-runtime-gate - Run local gate-003 runtime checks"
 	@echo "  make runtime-preflight-local - Run local gate-002 runtime preflight checks"
 	@echo "  make render-prereqs - Print rendered prerequisite manifests"
 	@echo "  make render-kong-baseline - Render Kong baseline manifests locally"
@@ -277,6 +287,7 @@ help:
 	@echo "  make evidence-goal-001 - Refresh goal-001 evidence report"
 	@echo "  make evidence-goal-002 - Refresh goal-002 evidence report"
 	@echo "  make evidence-goal-003 - Refresh goal-003 evidence report"
+	@echo "  make evidence-gate-003-synthetic-api-runtime - Refresh gate-003 runtime evidence"
 	@echo "  make evidence-gate-002-runtime-preflight - Refresh runtime preflight evidence"
 	@echo "  make evidence-gate-002-cluster-apply-and-smoke - Refresh cluster apply gate evidence"
 	@echo "  make cluster-smoke - Run explicit cluster connectivity checks"
@@ -294,6 +305,7 @@ help:
 	@echo "  make synthetic-api-negative-test - Run read-only goal-003 negative route checks"
 	@echo "  make synthetic-api-rollback - Roll back goal-003 synthetic APIs with mutation guard variables"
 	@echo "  make synthetic-api-runtime-ready - Verify runtime evidence is approved"
+	@echo "  make goal003-runtime-ready - Verify goal-003 runtime evidence is approved"
 	@echo "  make clean       - Remove generated local artifacts"
 	@echo "  make master      - SSH into master node ($(MASTER_NODE))"
 	@echo "  make worker1     - SSH into worker node 1 ($(WORKER_NODE1))"
@@ -306,4 +318,4 @@ help:
 	@echo "  make ans         - Show Ansible command starter"
 	@echo "  make go          - Run argo, act, and ans commands in sequence"
 	@echo "  make alist       - List ArgoCD apps with scripts/argocd-list.sh"
-.PHONY: master worker1 worker2 worker3 help venv act argo install go alist validate validate-yaml validate-kustomize validate-prereqs validate-kong-baseline validate-synthetic-apis openapi-lint runtime-preflight-local render-prereqs render-kong-baseline render-synthetic-apis kong-static-test kong-admin-exposure-test synthetic-api-static-test synthetic-api-contract-test synthetic-api-smoke-plan kong-apply-plan cluster-readonly-preflight kong-readonly-preflight mutation-guard-test validate-cluster-apply-gate goal002-runtime-ready synthetic-api-runtime-ready test policy-test docs evidence evidence-goal-001 evidence-goal-002 evidence-goal-003 evidence-gate-002-runtime-preflight evidence-gate-002-cluster-apply-and-smoke cluster-smoke cluster-prereq-smoke kong-cluster-smoke kong-route-smoke synthetic-api-install-dry-run synthetic-api-apply synthetic-api-smoke synthetic-api-negative-test synthetic-api-rollback kong-install-dry-run kong-apply kong-rollback clean
+.PHONY: master worker1 worker2 worker3 help venv act argo install go alist validate validate-yaml validate-kustomize validate-prereqs validate-kong-baseline validate-synthetic-apis validate-synthetic-api-runtime-gate openapi-lint runtime-preflight-local render-prereqs render-kong-baseline render-synthetic-apis kong-static-test kong-admin-exposure-test synthetic-api-static-test synthetic-api-contract-test synthetic-api-smoke-plan kong-apply-plan cluster-readonly-preflight kong-readonly-preflight mutation-guard-test validate-cluster-apply-gate goal002-runtime-ready synthetic-api-runtime-ready goal003-runtime-ready test policy-test docs evidence evidence-goal-001 evidence-goal-002 evidence-goal-003 evidence-gate-002-runtime-preflight evidence-gate-002-cluster-apply-and-smoke evidence-gate-003-synthetic-api-runtime cluster-smoke cluster-prereq-smoke kong-cluster-smoke kong-route-smoke synthetic-api-install-dry-run synthetic-api-apply synthetic-api-smoke synthetic-api-negative-test synthetic-api-rollback kong-install-dry-run kong-apply kong-rollback clean

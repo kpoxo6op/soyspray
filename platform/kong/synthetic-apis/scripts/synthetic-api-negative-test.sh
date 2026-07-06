@@ -3,6 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 report="${repo_root}/reports/synthetic-api-negative-test-results.md"
+platform_report="${repo_root}/platform/kong/synthetic-apis/RUNTIME-NEGATIVE-TEST-RESULTS.md"
 tmp_output="$(mktemp)"
 tmp_body="$(mktemp)"
 tmp_err="$(mktemp)"
@@ -15,7 +16,7 @@ write_report() {
     echo
     echo "Status: ${status}"
     echo
-    echo "Supported states: not run, pass, fail, blocked"
+    echo "Supported states: not run, pass, fail, blocked, partial"
     echo
     echo "Generated at: $(date -Iseconds)"
     echo
@@ -24,6 +25,7 @@ write_report() {
     echo "## Negative checks"
     cat "${tmp_output}"
   } >"${report}"
+  cp "${report}" "${platform_report}"
 }
 
 expect_status() {

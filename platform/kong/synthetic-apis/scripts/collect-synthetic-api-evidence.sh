@@ -22,7 +22,7 @@ write_report() {
     echo
     echo "Status: ${status}"
     echo
-    echo "Supported states: not run, pass, fail, blocked"
+    echo "Supported states: not run, pass, fail, blocked, partial"
     echo
     echo "Generated at: $(date -Iseconds)"
     echo

@@ -31,6 +31,9 @@ jobs:
       - name: Validate synthetic bank APIs
         run: make validate-synthetic-apis
 
+      - name: Validate synthetic API runtime gate
+        run: make validate-synthetic-api-runtime-gate
+
       - name: Lint synthetic OpenAPI specs
         run: make openapi-lint
 

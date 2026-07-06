@@ -69,6 +69,9 @@ test that proves the replacement works.
 - Every goal writes an evidence report under `reports/goal-NNN-summary.md`.
 - Do not blend future phases into the current goal.
 - Do not make cluster changes in `goal-000`.
+- After goals 004 and 005 are complete and approved, create the save point
+  described in `post-goal-005-savepoint.md` and continue goal 006 from fresh
+  Codex and ChatGPT Pro chats.
 
 ## Goal Sequence
 
@@ -108,3 +111,7 @@ The initial goal bodies saved from ChatGPT Pro are:
 - `goals/goal-002-kong-oss-baseline.md`
 
 Future goal bodies should continue the same naming pattern under `goals/`.
+
+## Fresh Context Save Point
+
+- `post-goal-005-savepoint.md`

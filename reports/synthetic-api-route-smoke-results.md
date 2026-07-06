@@ -2,4 +2,4 @@
 
 Status: not run
 
-Supported states: not run, pass, fail, blocked
+Supported states: not run, pass, fail, blocked, partial

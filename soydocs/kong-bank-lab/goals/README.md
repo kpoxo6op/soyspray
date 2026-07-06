@@ -22,4 +22,6 @@ Rules:
 - Include validation commands and evidence paths.
 - Include a hard stop at the end of the goal.
 - Do not let one goal implement the next goal's scope.
-
+- After goal 005 is complete and approved, follow
+  `../post-goal-005-savepoint.md` before starting goal 006 in fresh Codex and
+  ChatGPT Pro chats.

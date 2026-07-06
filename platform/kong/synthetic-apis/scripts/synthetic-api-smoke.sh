@@ -3,6 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 report="${repo_root}/reports/synthetic-api-route-smoke-results.md"
+platform_report="${repo_root}/platform/kong/synthetic-apis/RUNTIME-SMOKE-RESULTS.md"
 tmp_output="$(mktemp)"
 trap 'rm -f "${tmp_output}"' EXIT
 
@@ -13,7 +14,7 @@ write_report() {
     echo
     echo "Status: ${status}"
     echo
-    echo "Supported states: not run, pass, fail, blocked"
+    echo "Supported states: not run, pass, fail, blocked, partial"
     echo
     echo "Generated at: $(date -Iseconds)"
     echo
@@ -22,6 +23,7 @@ write_report() {
     echo "## Route checks"
     cat "${tmp_output}"
   } >"${report}"
+  cp "${report}" "${platform_report}"
 }
 
 check_route() {

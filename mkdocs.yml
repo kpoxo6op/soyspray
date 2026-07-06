@@ -59,7 +59,11 @@ nav:
       - Synthetic API Onboarding: runbooks/synthetic-api-onboarding.md
       - Synthetic API Runtime Smoke: runbooks/synthetic-api-runtime-smoke.md
       - Synthetic API Rollback: runbooks/synthetic-api-rollback.md
+      - Synthetic API Runtime Apply And Smoke: runbooks/synthetic-api-runtime-apply-and-smoke.md
+      - Synthetic API Runtime Failure: runbooks/synthetic-api-runtime-failure.md
+      - Synthetic API Runtime Verification Evidence: runbooks/synthetic-api-runtime-verification-evidence.md
   - Decisions:
       - Overview: decisions/README.md
       - Goal 003 Blocked: decisions/goal-003-blocked-until-kong-runtime-validation.md
       - Goal 002 Runtime Approval: decisions/goal-002-runtime-approval.md
+      - Goal 003 Runtime Approval: decisions/goal-003-runtime-approval.md
