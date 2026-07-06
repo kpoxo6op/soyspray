@@ -17,6 +17,7 @@ controller:
     gatewayDiscovery:
       enabled: true
       generateAdminApiService: true
+    installCRDs: true
     rbac:
       create: true
       enableClusterRoles: true

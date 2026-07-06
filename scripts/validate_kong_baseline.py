@@ -200,6 +200,7 @@ def check_values(errors: list[str]) -> None:
     require(gateway["replicaCount"] == 2, errors, "Kong Gateway must start with two replicas")
     require(controller["ingressController"]["image"]["tag"] == "3.5.10", errors, "KIC tag must be pinned to 3.5.10")
     require(controller["ingressController"]["gatewayDiscovery"]["enabled"] is True, errors, "KIC gateway discovery must be enabled")
+    require(controller["ingressController"]["installCRDs"] is True, errors, "KIC Kong CRDs must be installed so watched controllers can sync")
 
 
 def parse_minor(version: str) -> tuple[int, int]:

@@ -21,3 +21,8 @@ def test_static_validator_enforces_kic_gateway_api_compatibility():
     from scripts.validate_kong_baseline import validate
 
     assert validate() == []
+
+
+def test_kic_installs_required_kong_crds_for_controller_caches():
+    values = yaml.safe_load((ROOT / "platform/kong/helm/values-kong-oss-baseline.yaml").read_text())
+    assert values["controller"]["ingressController"]["installCRDs"] is True
