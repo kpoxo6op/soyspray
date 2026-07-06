@@ -33,6 +33,8 @@ def test_no_auth_or_rate_limit_plugins_in_goal_002():
     forbidden = ["key-auth", "jwt", "acl", "rate-limiting"]
     offenders = []
     for path in (ROOT / "platform/kong").rglob("*"):
+        if "gateway-api/crds" in path.as_posix():
+            continue
         if path.is_file() and path.suffix in {".yaml", ".yml"}:
             content = path.read_text().lower()
             for term in forbidden:

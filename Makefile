@@ -15,6 +15,8 @@ MASTER_NODE     := $(NODE0)
 
 # Adjust ArgoCD version if needed
 ARGOCD_VERSION  := v2.12.4
+GATEWAY_API_CRDS := platform/kong/gateway-api/crds/standard-install.yaml
+GATEWAY_API_REQUIRED_CRDS := gatewayclasses.gateway.networking.k8s.io gateways.gateway.networking.k8s.io httproutes.gateway.networking.k8s.io
 
 master:
 	ssh $(K8S_USER)@$(MASTER_NODE)
@@ -178,10 +180,23 @@ kong-route-smoke:
 	@platform/kong/scripts/route-smoke.sh
 
 kong-install-dry-run:
-	@$(PYTHON) scripts/render_kong_baseline.py | kubectl apply --dry-run=server -f -
+	@kubectl apply --dry-run=server -f $(GATEWAY_API_CRDS)
+	@kubectl apply --dry-run=server -f platform/kong/namespace.yaml
+	@kubectl apply --dry-run=server -f platform/kong/smoke/namespace.yaml
+	@if kubectl get crd $(GATEWAY_API_REQUIRED_CRDS) >/dev/null 2>&1 && \
+		kubectl get namespace platform-kong platform-kong-smoke >/dev/null 2>&1; then \
+		$(PYTHON) scripts/render_kong_baseline.py | kubectl apply --dry-run=server -f -; \
+	else \
+		$(PYTHON) scripts/render_kong_baseline.py | kubectl apply --dry-run=client -f - >/dev/null; \
+		echo "Full server dry-run requires Gateway API CRDs and target namespaces to already exist; client dry-run passed for rendered baseline."; \
+	fi
 
 kong-apply:
 	@platform/kong/scripts/require-cluster-mutation-permission.sh
+	@kubectl apply -f $(GATEWAY_API_CRDS)
+	@kubectl wait --for=condition=Established --timeout=90s crd/$(word 1,$(GATEWAY_API_REQUIRED_CRDS)) crd/$(word 2,$(GATEWAY_API_REQUIRED_CRDS)) crd/$(word 3,$(GATEWAY_API_REQUIRED_CRDS))
+	@kubectl apply -f platform/kong/namespace.yaml
+	@kubectl apply -f platform/kong/smoke/namespace.yaml
 	@$(PYTHON) scripts/render_kong_baseline.py | kubectl apply -f -
 
 kong-rollback:

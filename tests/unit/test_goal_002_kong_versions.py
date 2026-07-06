@@ -34,6 +34,8 @@ def test_helm_values_match_version_lock():
 def test_no_latest_tags_in_kong_yaml():
     offenders = []
     for path in (ROOT / "platform/kong").rglob("*.yaml"):
+        if "gateway-api/crds" in path.as_posix():
+            continue
         if ":latest" in path.read_text() or " latest" in path.read_text().lower():
             offenders.append(str(path.relative_to(ROOT)))
     assert offenders == []

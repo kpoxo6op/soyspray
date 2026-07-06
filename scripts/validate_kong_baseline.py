@@ -25,6 +25,7 @@ REQUIRED_FILES = [
     "platform/kong/helm/values-kong-oss-baseline.schema.yaml",
     "platform/kong/helm/render-kong-baseline.sh",
     "platform/kong/gateway-api/README.md",
+    "platform/kong/gateway-api/crds/standard-install.yaml",
     "platform/kong/gateway-api/kustomization.yaml",
     "platform/kong/gateway-api/gateway-api-crds.README.md",
     "platform/kong/gateway-api/gatewayclass-kong.yaml",
@@ -126,6 +127,7 @@ def kong_yaml_files() -> list[Path]:
         path
         for path in (ROOT / "platform/kong").rglob("*")
         if path.suffix in {".yaml", ".yml"}
+        and "gateway-api/crds" not in path.as_posix()
     ]
     files.append(ROOT / "platform/gitops/app-of-apps/kong-baseline-app.yaml")
     return sorted(set(files))

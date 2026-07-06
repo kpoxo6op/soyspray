@@ -18,6 +18,12 @@ cluster and it does not mutate the cluster.
 - Gateway API: `v1.3.0`
 - Helm chart: `kong/ingress 0.24.0`
 
+## Gateway API CRDs
+
+- `platform/kong/gateway-api/crds/standard-install.yaml`
+- Applied first by the guarded `make kong-apply` path.
+- Rollback does not remove Gateway API CRDs.
+
 ## Expected Namespaces
 
 - `platform-kong`
@@ -25,6 +31,7 @@ cluster and it does not mutate the cluster.
 
 ## Expected Gateway API Resources
 
+- `Gateway API standard CRDs from platform/kong/gateway-api/crds/standard-install.yaml`
 - `GatewayClass/kong`
 - `Gateway/platform-kong/kong-external`
 - `Gateway/platform-kong/kong-internal`
