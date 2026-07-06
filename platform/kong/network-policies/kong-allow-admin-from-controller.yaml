@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kong-allow-admin-from-controller
+  namespace: platform-kong
+  labels:
+    banklab.konghq.com/platform-layer: gateway
+    banklab.konghq.com/owner: platform-team
+spec:
+  podSelector:
+    matchLabels:
+      banklab.konghq.com/component: gateway
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              banklab.konghq.com/component: kic
+      ports:
+        - protocol: TCP
+          port: 8444

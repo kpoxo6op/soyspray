@@ -33,3 +33,24 @@ def test_proxy_service_is_load_balancer():
     values = load("platform/kong/helm/values-kong-oss-baseline.yaml")
     assert values["gateway"]["proxy"]["type"] == "LoadBalancer"
 
+
+def test_admin_api_network_path_is_controller_only():
+    ingress = load("platform/kong/network-policies/kong-allow-admin-from-controller.yaml")
+    rule = ingress["spec"]["ingress"][0]
+    assert ingress["spec"]["podSelector"]["matchLabels"] == {
+        "banklab.konghq.com/component": "gateway"
+    }
+    assert rule["from"][0]["podSelector"]["matchLabels"] == {
+        "banklab.konghq.com/component": "kic"
+    }
+    assert rule["ports"] == [{"protocol": "TCP", "port": 8444}]
+
+    egress = load("platform/kong/network-policies/kong-allow-controller-admin.yaml")
+    rule = egress["spec"]["egress"][0]
+    assert egress["spec"]["podSelector"]["matchLabels"] == {
+        "banklab.konghq.com/component": "kic"
+    }
+    assert rule["to"][0]["podSelector"]["matchLabels"] == {
+        "banklab.konghq.com/component": "gateway"
+    }
+    assert rule["ports"] == [{"protocol": "TCP", "port": 8444}]

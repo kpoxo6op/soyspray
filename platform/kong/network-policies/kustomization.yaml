@@ -5,5 +5,6 @@ resources:
   - kong-allow-dns.yaml
   - kong-allow-kube-api-placeholder.yaml
   - kong-allow-controller-admin.yaml
+  - kong-allow-admin-from-controller.yaml
   - kong-allow-proxy-ingress.yaml
   - kong-allow-smoke-upstream.yaml

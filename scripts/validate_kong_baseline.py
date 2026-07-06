@@ -37,6 +37,8 @@ REQUIRED_FILES = [
     "platform/kong/network-policies/kong-allow-dns.yaml",
     "platform/kong/network-policies/kong-allow-kube-api-placeholder.yaml",
     "platform/kong/network-policies/kong-allow-proxy-ingress.yaml",
+    "platform/kong/network-policies/kong-allow-controller-admin.yaml",
+    "platform/kong/network-policies/kong-allow-admin-from-controller.yaml",
     "platform/kong/network-policies/kong-allow-smoke-upstream.yaml",
     "platform/kong/smoke/README.md",
     "platform/kong/smoke/kustomization.yaml",
