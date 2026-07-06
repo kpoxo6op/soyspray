@@ -178,15 +178,15 @@ kong-route-smoke:
 	@platform/kong/scripts/route-smoke.sh
 
 kong-install-dry-run:
-	@kubectl apply --dry-run=server -k platform/kong
+	@$(PYTHON) scripts/render_kong_baseline.py | kubectl apply --dry-run=server -f -
 
 kong-apply:
 	@platform/kong/scripts/require-cluster-mutation-permission.sh
-	@kubectl apply -k platform/kong
+	@$(PYTHON) scripts/render_kong_baseline.py | kubectl apply -f -
 
 kong-rollback:
 	@platform/kong/scripts/require-cluster-mutation-permission.sh
-	@kubectl delete -k platform/kong --ignore-not-found=true
+	@$(PYTHON) scripts/render_kong_baseline.py | kubectl delete --ignore-not-found=true -f -
 
 clean:
 	@rm -rf .build .pytest_cache
