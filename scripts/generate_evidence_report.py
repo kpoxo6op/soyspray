@@ -99,6 +99,31 @@ def format_command_results(results: list[tuple[str, int, str]]) -> str:
     return "\n".join(lines)
 
 
+def text_contains(relative: str, marker: str) -> bool:
+    path = ROOT / relative
+    return path.is_file() and marker in path.read_text(encoding="utf-8")
+
+
+def runtime_approved_from_files() -> bool:
+    required = {
+        "docs/decisions/goal-002-runtime-approval.md": ("Status: approved",),
+        "reports/gate-002-cluster-apply-and-smoke-summary.md": (
+            "Status: pass; runtime-verified",
+            "Kong runtime applied: yes",
+            "Kong route smoke passed: yes",
+            "Admin API externally exposed: no",
+            "Runtime approval: approved",
+            "Ready for goal 003: yes",
+        ),
+        "reports/goal-002-summary.md": ("runtime-verified",),
+        "platform/kong/CLUSTER-APPLY-EXECUTION-LOG.md": ("Status: pass",),
+        "platform/kong/CLUSTER-SMOKE-RESULTS.md": ("Status: pass",),
+        "platform/kong/ROUTE-SMOKE-RESULTS.md": ("Status: pass",),
+        "platform/kong/ADMIN-API-EXPOSURE-RESULTS.md": ("Status: pass",),
+    }
+    return all(all(text_contains(relative, marker) for marker in markers) for relative, markers in required.items())
+
+
 def write_goal_000() -> int:
     commands = [
         ("make validate", [sys.executable, "scripts/validate_repo.py"]),
@@ -378,6 +403,15 @@ def write_goal_002() -> int:
         results.append((label, code, output))
 
     status = "pass" if all(code == 0 for _, code, _ in results) else "fail"
+    if status == "pass" and runtime_approved_from_files():
+        for label, code, output in results:
+            print(f"{label}: {'pass' if code == 0 else 'fail'}")
+            if code != 0 and output:
+                print(output)
+        print("make evidence-goal-002: pass")
+        print("reports/goal-002-summary.md already records runtime-verified evidence; preserving it.")
+        return 0
+
     now = dt.datetime.now(dt.timezone.utc).astimezone().isoformat(timespec="seconds")
     files = created_or_updated_files()
     versions = load_yaml("platform/kong/versions.yaml")
@@ -738,6 +772,15 @@ def write_gate_002_cluster_apply_and_smoke() -> int:
         results.append((label, code, output))
 
     local_status = all(code == 0 for _, code, _ in results)
+    if local_status and runtime_approved_from_files():
+        for label, code, output in results:
+            print(f"{label}: {'pass' if code == 0 else 'fail'}")
+            if code != 0 and output:
+                print(output)
+        print("make evidence-gate-002-cluster-apply-and-smoke: pass")
+        print("reports/gate-002-cluster-apply-and-smoke-summary.md already records runtime-verified evidence; preserving it.")
+        return 0
+
     status = "pending explicit cluster mutation permission" if local_status else "fail"
     now = dt.datetime.now(dt.timezone.utc).astimezone().isoformat(timespec="seconds")
     branch = current_branch()

@@ -32,6 +32,9 @@ fi
   echo "## Kong Services"
   kubectl -n platform-kong get service --ignore-not-found=true
   echo
+  echo "## Kong Secret Names"
+  kubectl -n platform-kong get secret --ignore-not-found=true
+  echo
   echo "## GatewayClass"
   kubectl get gatewayclass kong --ignore-not-found=true
   echo
@@ -51,7 +54,7 @@ fi
   kubectl -n platform-kong-smoke describe httproute 2>/dev/null || true
   echo
   echo "## KIC Logs"
-  kubectl -n platform-kong logs -l app.kubernetes.io/name=ingress-controller --tail=100 2>/dev/null || true
+  kubectl -n platform-kong logs -l app.kubernetes.io/name=controller --tail=120 2>/dev/null || true
 } >"${report}"
 
 echo "${report#${repo_root}/} generated."

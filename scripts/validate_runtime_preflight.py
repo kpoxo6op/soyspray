@@ -86,6 +86,30 @@ def require(condition: bool, errors: list[str], message: str) -> None:
         errors.append(message)
 
 
+def file_text(relative: str) -> str:
+    return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def runtime_approved_from_files() -> bool:
+    required = {
+        "docs/decisions/goal-002-runtime-approval.md": ("Status: approved",),
+        "reports/gate-002-cluster-apply-and-smoke-summary.md": (
+            "Status: pass; runtime-verified",
+            "Kong runtime applied: yes",
+            "Kong route smoke passed: yes",
+            "Admin API externally exposed: no",
+            "Runtime approval: approved",
+            "Ready for goal 003: yes",
+        ),
+        "reports/goal-002-summary.md": ("runtime-verified",),
+        "platform/kong/CLUSTER-APPLY-EXECUTION-LOG.md": ("Status: pass",),
+        "platform/kong/CLUSTER-SMOKE-RESULTS.md": ("Status: pass",),
+        "platform/kong/ROUTE-SMOKE-RESULTS.md": ("Status: pass",),
+        "platform/kong/ADMIN-API-EXPOSURE-RESULTS.md": ("Status: pass",),
+    }
+    return all(all(marker in file_text(relative) for marker in markers) for relative, markers in required.items())
+
+
 def check_required_files(errors: list[str]) -> None:
     for path in REQUIRED_FILES:
         full = ROOT / path
@@ -128,8 +152,14 @@ def check_readonly_scripts(errors: list[str]) -> None:
 
 
 def check_goal_002_state(errors: list[str]) -> None:
-    report = (ROOT / "reports/goal-002-summary.md").read_text(encoding="utf-8")
+    report = file_text("reports/goal-002-summary.md")
     lowered = report.lower()
+    if runtime_approved_from_files():
+        require("status: pass; runtime-verified" in lowered, errors, "goal 002 evidence must record runtime verification")
+        require("runtime-verified on kubernetes context" in lowered, errors, "goal 002 must record runtime cluster verification")
+        require("yes; ask chatgpt pro for `goal-003-synthetic-bank-apis`" in lowered, errors, "goal 002 must unblock goal 003 request after runtime approval")
+        return
+
     require("status: pass; local-only" in lowered, errors, "goal 002 evidence must remain pass; local-only")
     require("cluster changes performed" in lowered and "none" in lowered, errors, "goal 002 must record no cluster changes")
     require("cluster verification" in lowered and "not run" in lowered, errors, "goal 002 must record cluster verification not run")
@@ -148,10 +178,13 @@ def check_versions(errors: list[str]) -> None:
 
 
 def check_goal003_blocked(errors: list[str]) -> None:
-    decision = (ROOT / "docs/decisions/goal-003-blocked-until-kong-runtime-validation.md").read_text(encoding="utf-8").lower()
+    decision = file_text("docs/decisions/goal-003-blocked-until-kong-runtime-validation.md").lower()
     normalized = re.sub(r"\s+", " ", decision)
     require("blocked until goal-002 runtime validation passes" in normalized, errors, "goal 003 block decision must be explicit")
-    require(not (ROOT / "soydocs/kong-bank-lab/goals/goal-003-synthetic-bank-apis.md").exists(), errors, "goal 003 body must not be created in this gate")
+    if runtime_approved_from_files():
+        require("runtime condition is now satisfied" in normalized, errors, "goal 003 decision must record runtime unblock")
+    else:
+        require(not (ROOT / "soydocs/kong-bank-lab/goals/goal-003-synthetic-bank-apis.md").exists(), errors, "goal 003 body must not be created in this gate")
 
 
 def check_ci_cluster_free(errors: list[str]) -> None:

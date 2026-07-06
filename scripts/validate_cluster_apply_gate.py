@@ -83,6 +83,29 @@ def require(condition: bool, errors: list[str], message: str) -> None:
         errors.append(message)
 
 
+def file_text(relative: str) -> str:
+    return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def runtime_approved_from_files() -> bool:
+    required = {
+        "docs/decisions/goal-002-runtime-approval.md": ("Status: approved",),
+        "reports/gate-002-cluster-apply-and-smoke-summary.md": (
+            "Status: pass; runtime-verified",
+            "Kong runtime applied: yes",
+            "Kong route smoke passed: yes",
+            "Admin API externally exposed: no",
+            "Runtime approval: approved",
+            "Ready for goal 003: yes",
+        ),
+        "reports/goal-002-summary.md": ("runtime-verified",),
+    }
+    for relative in RESULT_FILES:
+        required[relative] = ("Status: pass",)
+
+    return all(all(marker in file_text(relative) for marker in markers) for relative, markers in required.items())
+
+
 def target_block(makefile: str, target: str) -> str:
     match = re.search(rf"^{re.escape(target)}:\n(?P<body>(?:\t.*\n|[ \t]*\n)*)", makefile, re.M)
     return match.group("body") if match else ""
@@ -128,10 +151,15 @@ def check_ci_cluster_free(errors: list[str]) -> None:
     require("kong-cluster-apply-and-smoke.sh" not in ci, errors, "CI must not run cluster apply script")
 
 
-def check_runtime_approval_pending(errors: list[str]) -> None:
-    decision = (ROOT / "docs/decisions/goal-002-runtime-approval.md").read_text(encoding="utf-8")
-    require("Status: pending" in decision, errors, "runtime approval decision must start pending")
-    summary = (ROOT / "reports/gate-002-cluster-apply-and-smoke-summary.md").read_text(encoding="utf-8")
+def check_runtime_approval_state(errors: list[str]) -> None:
+    decision = file_text("docs/decisions/goal-002-runtime-approval.md")
+    summary = file_text("reports/gate-002-cluster-apply-and-smoke-summary.md")
+
+    if "Status: approved" in decision:
+        require(runtime_approved_from_files(), errors, "runtime approval requires all runtime evidence files to show pass")
+        return
+
+    require("Status: pending" in decision, errors, "runtime approval decision must be pending or approved")
     for expected in (
         "Status: pending explicit cluster mutation permission",
         "Explicit mutation permission required: yes",
@@ -146,18 +174,25 @@ def check_runtime_approval_pending(errors: list[str]) -> None:
 
 
 def check_result_files(errors: list[str]) -> None:
+    approved = runtime_approved_from_files()
     for relative in RESULT_FILES:
-        content = (ROOT / relative).read_text(encoding="utf-8")
-        require("Status: not run" in content, errors, f"{relative} must start as not run")
+        content = file_text(relative)
+        expected_status = "Status: pass" if approved else "Status: not run"
+        require(expected_status in content, errors, f"{relative} must contain {expected_status}")
         for state in ("not run", "pass", "fail", "blocked"):
             require(state in content.lower() or relative.endswith("SUMMARY.md"), errors, f"{relative} should support state: {state}")
 
 
-def check_goal003_blocked(errors: list[str]) -> None:
-    require(not (ROOT / "soydocs/kong-bank-lab/goals/goal-003-synthetic-bank-apis.md").exists(), errors, "goal 003 body must not exist yet")
-    decision = (ROOT / "docs/decisions/goal-003-blocked-until-kong-runtime-validation.md").read_text(encoding="utf-8").lower()
+def check_goal003_state(errors: list[str]) -> None:
+    goal003_exists = (ROOT / "soydocs/kong-bank-lab/goals/goal-003-synthetic-bank-apis.md").exists()
+    if goal003_exists:
+        require(runtime_approved_from_files(), errors, "goal 003 body requires approved goal 002 runtime evidence")
+        return
+
+    decision = file_text("docs/decisions/goal-003-blocked-until-kong-runtime-validation.md").lower()
     normalized = re.sub(r"\s+", " ", decision)
-    require("blocked until goal-002 runtime validation passes" in normalized, errors, "goal 003 block decision must remain explicit")
+    if not runtime_approved_from_files():
+        require("blocked until goal-002 runtime validation passes" in normalized, errors, "goal 003 block decision must remain explicit")
 
 
 def has_secret_like_name(path: str) -> bool:
@@ -186,9 +221,9 @@ def validate() -> list[str]:
     check_required_files(errors)
     check_mutation_guard(errors)
     check_ci_cluster_free(errors)
-    check_runtime_approval_pending(errors)
+    check_runtime_approval_state(errors)
     check_result_files(errors)
-    check_goal003_blocked(errors)
+    check_goal003_state(errors)
     check_no_sensitive_files(errors)
     return errors
 

@@ -1,10 +1,10 @@
 # Kong Runtime Apply Plan
 
-Generated at: 2026-07-06T20:45:59+12:00
+Generated at: 2026-07-06T21:28:30+12:00
 
 Branch: kong-goals-foundation
 
-Commit: 15bff35
+Commit: 4cfa4fe
 
 This plan is generated from repository files only. It does not query the
 cluster and it does not mutate the cluster.
