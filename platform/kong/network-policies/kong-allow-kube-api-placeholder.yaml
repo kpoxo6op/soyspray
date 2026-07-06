@@ -7,7 +7,7 @@ metadata:
     banklab.konghq.com/platform-layer: gateway
     banklab.konghq.com/owner: platform-team
   annotations:
-    banklab.konghq.com/replace-before-apply: "Verify the Kubernetes API service IP for this cluster."
+    banklab.konghq.com/verified-for-cluster: "kubernetes service 10.233.0.1:443 with endpoints 192.168.20.10-12:6443"
 spec:
   podSelector:
     matchLabels:
@@ -21,3 +21,13 @@ spec:
       ports:
         - protocol: TCP
           port: 443
+    - to:
+        - ipBlock:
+            cidr: 192.168.20.10/32
+        - ipBlock:
+            cidr: 192.168.20.11/32
+        - ipBlock:
+            cidr: 192.168.20.12/32
+      ports:
+        - protocol: TCP
+          port: 6443

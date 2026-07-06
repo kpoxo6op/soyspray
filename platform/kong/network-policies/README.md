@@ -8,9 +8,11 @@ Policy intent:
 
 - Default deny ingress and egress for Kong pods.
 - Permit DNS egress.
+- Permit KIC to reach the Kubernetes API service and control-plane endpoints.
+- Permit KIC to reach Kong Gateway's private Admin API service.
 - Permit proxy ingress to Kong Gateway ports.
 - Permit Kong Gateway to reach the platform smoke backend.
-- Stage API server egress as an environment-specific rule.
 
-The API server egress policy includes a private CIDR placeholder. Check the
-actual Kubernetes service IP before applying in a real cluster.
+The API server egress policy is verified for this home cluster:
+`10.233.0.1:443` with control-plane endpoints
+`192.168.20.10-12:6443`.
