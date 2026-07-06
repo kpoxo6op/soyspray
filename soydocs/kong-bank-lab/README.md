@@ -16,6 +16,8 @@ tests, runbooks, and day-2 evidence.
 
 - `roadmap.md` is the master programme roadmap. It is not an active Codex goal.
 - `goals/` contains one Codex-ready goal body per implementation slice.
+- `current-state.md` records the latest Pro-approved programme state and the
+  next safe action for fresh Codex contexts.
 
 ## Execution Rule
 
@@ -42,4 +44,3 @@ Every goal should preserve this stop condition:
   replace Kong Enterprise RBAC/workspace governance.
 - Every deployed feature needs manifests, docs, a positive test, a negative
   test, rollback notes, and evidence.
-
