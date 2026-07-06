@@ -5,7 +5,7 @@ Updated: 2026-07-06
 ## Branch
 
 - Branch: `kong-goals-foundation`
-- Latest pushed checkpoint before this refresh: `4c915fe`
+- Latest pushed checkpoint before this handover: `fadc0d8`
 - Before approval, confirm the current commit with `git rev-parse --short HEAD`
   and put that value in the approval block.
 
@@ -111,3 +111,6 @@ platform/kong/synthetic-apis/scripts/synthetic-api-runtime-apply-and-smoke.sh
 
 The gate must produce runtime evidence and make `make goal003-runtime-ready`
 pass before goal 004 can start.
+
+See also `handover-2026-07-06.md` for the fresh-session restart summary and
+ChatGPT Pro prompt.

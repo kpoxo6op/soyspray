@@ -18,6 +18,8 @@ tests, runbooks, and day-2 evidence.
 - `goals/` contains one Codex-ready goal body per implementation slice.
 - `current-state.md` records the latest Pro-approved programme state and the
   next safe action for fresh Codex contexts.
+- `handover-2026-07-06.md` is the fresh-session handover for continuing from
+  the goal003 runtime gate on 2026-07-07.
 
 ## Execution Rule
 
