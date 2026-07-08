@@ -5,11 +5,13 @@ Updated: 2026-07-09
 ## Branch
 
 - Branch: `kong-goals-foundation`
-- Latest pushed checkpoint before this save point: `4ee4f77`
+- Latest pushed source checkpoint before runtime evidence: `49b80d6`
+- Latest pushed evidence checkpoint: this document's commit once committed and
+  pushed
 - Before approval, confirm the current commit with `git rev-parse --short HEAD`
   and put that value in the approval block.
 
-## Latest Runtime State
+## Previous Runtime State
 
 Goal006 was implemented from fresh ChatGPT Pro guidance, runtime-verified, and
 approved by ChatGPT Pro.
@@ -31,17 +33,40 @@ Evidence files:
 - `reports/goal-006-product-contract-rollback.md`
 - `docs/decisions/goal-006-runtime-approval.md`
 
-## Current Goal
+## Latest Runtime State
+
+Goal007 was implemented from ChatGPT Pro guidance and is runtime-verified
+locally, pending Pro approval.
+
+Accepted local/runtime state:
+
+- Goal: `goal-007-consumer-onboarding-entitlements`
+- Status: pending Pro approval; runtime-verified locally
+- Branch: `kong-goals-foundation`
+- Runtime source commit: `49b80d6`
+- Evidence commit ready to approve: this document's commit
+- Cluster context: `kubernetes-admin@cluster.local`
+- Runtime verification: pass
+- Ready for goal008: no; ask ChatGPT Pro after goal007 approval
+
+Evidence files:
+
+- `reports/goal-007-summary.md`
+- `reports/goal-007-consumer-onboarding-rollout.md`
+- `reports/goal-007-consumer-onboarding-rollback.md`
+- `docs/decisions/goal-007-runtime-approval.md`
+
+## Current Goal Source
 
 Goal007 was issued by ChatGPT Pro after goal006 approval.
 
 Current implementation state:
 
 - Goal: `goal-007-consumer-onboarding-entitlements`
-- Status: in progress
+- Status: runtime-verified locally; pending Pro approval
 - Branch: `kong-goals-foundation`
 - Cluster context: `kubernetes-admin@cluster.local`
-- Runtime verification: not run
+- Runtime verification: pass
 - Ready for goal008: no; ask ChatGPT Pro after goal007 runtime evidence is
   committed and pushed
 

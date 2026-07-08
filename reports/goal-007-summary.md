@@ -1,12 +1,12 @@
 # Goal: goal-007-consumer-onboarding-entitlements
 
-Status: pass; local-only
+Status: pass; runtime-verified
 
 Branch: kong-goals-foundation
 
-Commit: 4ee4f77
+Commit: 49b80d6
 
-Generated at: 2026-07-09T01:43:39+12:00
+Generated at: 2026-07-09T01:45:38+12:00
 
 Cluster context: kubernetes-admin@cluster.local
 
@@ -60,21 +60,21 @@ workflow for `branch-insights-app` accessing the existing
 - `make goal004-contract-test`: pass
   - Last output line: `============================== 3 passed in 0.18s ===============================`
 - `make goal005-static-test`: pass
-  - Last output line: `============================== 14 passed in 0.73s ==============================`
+  - Last output line: `============================== 14 passed in 0.74s ==============================`
 - `make goal005-contract-test`: pass
-  - Last output line: `============================== 6 passed in 0.05s ===============================`
+  - Last output line: `============================== 6 passed in 0.06s ===============================`
 - `make goal006-static-test`: pass
-  - Last output line: `============================== 8 passed in 0.34s ===============================`
+  - Last output line: `============================== 8 passed in 0.33s ===============================`
 - `make goal006-contract-test`: pass
-  - Last output line: `============================== 8 passed in 0.34s ===============================`
+  - Last output line: `============================== 8 passed in 0.36s ===============================`
 - `make goal007-static-test`: pass
   - Last output line: `============================== 8 passed in 0.04s ===============================`
 - `make goal007-contract-test`: pass
   - Last output line: `============================== 8 passed in 0.04s ===============================`
 - `make test`: pass
-  - Last output line: `============================= 103 passed in 2.03s ==============================`
+  - Last output line: `============================= 103 passed in 1.98s ==============================`
 - `make policy-test`: pass
-  - Last output line: `============================== 33 passed in 1.78s ==============================`
+  - Last output line: `============================== 33 passed in 1.79s ==============================`
 - `make docs`: pass
   - Last output line: `INFO    -  Documentation built in 0.25 seconds`
 - `make evidence-goal-007`: pass
@@ -82,9 +82,9 @@ workflow for `branch-insights-app` accessing the existing
 
 ## Runtime Test Results
 
-- `make goal007-consumer-onboarding-apply-and-smoke`: missing
-- `make goal007-consumer-onboarding-rollback-and-smoke`: missing
-- `make goal007-runtime-ready`: not run
+- `make goal007-consumer-onboarding-apply-and-smoke`: pass
+- `make goal007-consumer-onboarding-rollback-and-smoke`: pass
+- `make goal007-runtime-ready`: pending approval
 - `make goal004-security-smoke`: pass
 - `make goal004-security-negative-test`: pass
 - `make goal004-rate-limit-test`: pass
@@ -92,9 +92,9 @@ workflow for `branch-insights-app` accessing the existing
 
 ## Runtime Evidence Files
 
-- `reports/goal-007-consumer-onboarding-rollout.md`: missing
-- `reports/goal-007-consumer-onboarding-rollback.md`: missing
-- `docs/decisions/goal-007-runtime-approval.md`: not run
+- `reports/goal-007-consumer-onboarding-rollout.md`: pass
+- `reports/goal-007-consumer-onboarding-rollback.md`: pass
+- `docs/decisions/goal-007-runtime-approval.md`: pending approval
 
 ## Safety Statements
 
@@ -108,34 +108,24 @@ workflow for `branch-insights-app` accessing the existing
 
 ## Created Or Updated Files
 
-- `Makefile`
-- `docs/decisions/goal-006-runtime-approval.md`
 - `docs/decisions/goal-007-runtime-approval.md`
-- `docs/platform/api-product-onboarding.md`
-- `docs/platform/consumer-onboarding.md`
-- `docs/runbooks/goal-007-consumer-onboarding-rollback.md`
-- `kubernetes/goal-007-consumer-onboarding/consumer.yaml`
-- `kubernetes/goal-007-consumer-onboarding/kustomization.yaml`
-- `kubernetes/goal-007-consumer-onboarding/rollback/delete-consumer.yaml`
-- `kubernetes/goal-007-consumer-onboarding/rollback/kustomization.yaml`
-- `mkdocs.yml`
-- `platform/self-service/consumer-contracts/branch-insights-app-accounts.yaml`
-- `scripts/generate_evidence_report.py`
-- `scripts/goal007/consumer_onboarding_apply_smoke.sh`
-- `scripts/goal007/consumer_onboarding_rollback_smoke.sh`
-- `scripts/goal007/runtime_ready.sh`
-- `scripts/goal007_consumer_onboarding_config.py`
-- `scripts/render_goal007_consumer_onboarding.py`
-- `scripts/render_goal007_runtime_credentials.py`
-- `scripts/validate_goal007_consumer_onboarding.py`
-- `soydocs/kong-bank-lab/current-state.md`
-- `soydocs/kong-bank-lab/goals/goal-007-consumer-onboarding-entitlements.md`
-- `tests/goal007/test_consumer_onboarding.py`
+- `platform/kong/security-controls/RUNTIME-NEGATIVE-TEST-RESULTS.md`
+- `platform/kong/security-controls/RUNTIME-RATE-LIMIT-RESULTS.md`
+- `platform/kong/security-controls/RUNTIME-SMOKE-RESULTS.md`
+- `platform/kong/synthetic-apis/RUNTIME-NEGATIVE-TEST-RESULTS.md`
+- `platform/kong/synthetic-apis/RUNTIME-SMOKE-RESULTS.md`
+- `reports/goal-007-consumer-onboarding-rollback.md`
+- `reports/goal-007-consumer-onboarding-rollout.md`
+- `reports/goal004-rate-limit-results.md`
+- `reports/goal004-security-negative-test-results.md`
+- `reports/goal004-security-smoke-results.md`
+- `reports/synthetic-api-negative-test-results.md`
+- `reports/synthetic-api-route-smoke-results.md`
 
-Cluster changes performed: none in this evidence generation step
+Cluster changes performed: goal007 consumer onboarding rollout/rollback
 
-Runtime verification: not run
+Runtime verification: pass
 
-Ready for Pro approval: no
+Ready for Pro approval: yes
 
 Ready for goal008: no; ask ChatGPT Pro after goal007 approval
