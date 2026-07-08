@@ -1,6 +1,6 @@
 # Synthetic API Smoke Plan
 
-Generated at: 2026-07-08T21:01:20+12:00
+Generated at: 2026-07-08T21:38:01+12:00
 
 Status: pass; local-plan
 

@@ -1,17 +1,20 @@
 # Goal 003 Runtime Approval
 
-Status: pending
+Status: approved
 
-Goal 003 is approved as a local-only checkpoint, but runtime approval is still
-pending.
+Approved at: 2026-07-08T21:35:01+12:00
 
-This decision may only change to `Status: approved` after guarded runtime apply,
-route smoke, negative tests, Admin API safety checks, evidence collection, and
-`make goal003-runtime-ready` all pass.
+Branch: kong-goals-foundation
 
-Until then:
+Commit: 314de3e
 
-- Cluster changes performed: none for gate 003.
-- Runtime verification: not run.
-- Runtime approval: pending.
-- Ready for goal 004: no.
+Kubernetes context: kubernetes-admin@cluster.local
+
+Goal 003 runtime approval is granted after guarded runtime apply,
+route smoke, negative tests, Admin API safety checks, and evidence
+collection passed for the synthetic banking API layer.
+
+- Cluster changes performed: synthetic bank APIs applied.
+- Runtime verification: pass.
+- Runtime approval: approved.
+- Ready for goal 004: yes.

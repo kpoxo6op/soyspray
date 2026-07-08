@@ -1,20 +1,20 @@
 # Gate: gate-003-synthetic-api-runtime-apply-and-smoke
 
-Status: pending explicit cluster mutation permission
+Status: pass; runtime-verified
 
 Branch: kong-goals-foundation
 
-Commit: d9ea818
+Commit: 314de3e
 
-Generated at: 2026-07-08T21:01:23+12:00
+Generated at: 2026-07-08T21:38:04+12:00
 
 Gate classification: cluster-apply gate
 
 Explicit mutation permission required: yes
 
-Mutation permission granted: no
+Mutation permission granted: yes
 
-Target Kubernetes context: not provided
+Target Kubernetes context: kubernetes-admin@cluster.local
 
 Actual Kubernetes context: kubernetes-admin@cluster.local
 
@@ -30,7 +30,7 @@ Actual Kubernetes context: kubernetes-admin@cluster.local
 - `make validate`: pass
   - Last output line: `Repository foundation validation passed.`
 - `make validate-yaml`: pass
-  - Last output line: `YAML validation passed for 147 files.`
+  - Last output line: `YAML validation passed for 148 files.`
 - `make validate-kustomize`: pass
 - `make validate-synthetic-apis`: pass
   - Last output line: `Synthetic bank API validation passed.`
@@ -39,17 +39,17 @@ Actual Kubernetes context: kubernetes-admin@cluster.local
 - `make render-synthetic-api-tenant-namespaces`: pass
 - `make render-synthetic-apis`: pass
 - `make synthetic-api-static-test`: pass
-  - Last output line: `============================== 10 passed in 0.35s ==============================`
+  - Last output line: `============================== 11 passed in 0.35s ==============================`
 - `make synthetic-api-contract-test`: pass
-  - Last output line: `============================== 7 passed in 0.18s ===============================`
+  - Last output line: `============================== 8 passed in 0.15s ===============================`
 - `make synthetic-api-smoke-plan`: pass
   - Last output line: `reports/synthetic-api-smoke-plan.md generated.`
 - `make test`: pass
-  - Last output line: `============================== 61 passed in 0.77s ==============================`
+  - Last output line: `============================== 62 passed in 0.77s ==============================`
 - `make policy-test`: pass
-  - Last output line: `============================== 29 passed in 1.72s ==============================`
+  - Last output line: `============================== 30 passed in 1.56s ==============================`
 - `make docs`: pass
-  - Last output line: `INFO    -  Documentation built in 0.23 seconds`
+  - Last output line: `INFO    -  Documentation built in 0.22 seconds`
 - `make validate-synthetic-api-runtime-gate`: pass
   - Last output line: `Synthetic API runtime gate validation passed.`
 - `make evidence-gate-003-synthetic-api-runtime`: pass
@@ -57,46 +57,34 @@ Actual Kubernetes context: kubernetes-admin@cluster.local
 
 ## Dry-run
 
-- `make synthetic-api-tenant-namespaces-dry-run`: not run
-- `make synthetic-api-install-dry-run`: not run
+- `make synthetic-api-tenant-namespaces-dry-run`: pass
+- `make synthetic-api-install-dry-run`: pass
 
 ## Mutation
 
-- `make synthetic-api-tenant-namespaces-apply`: not run
-- `make synthetic-api-apply`: not run
+- `make synthetic-api-tenant-namespaces-apply`: pass
+- `make synthetic-api-apply`: pass
 
 ## Runtime smoke
 
-- `make synthetic-api-smoke`: not run
+- `make synthetic-api-smoke`: pass
 
 ## Runtime negative tests
 
-- `make synthetic-api-negative-test`: not run
+- `make synthetic-api-negative-test`: pass
 
 ## Admin API safety
 
-- `make kong-admin-exposure-test`: not run as a gate-003 runtime command
+- `make kong-admin-exposure-test`: pass
 
 ## Runtime evidence
 
-- accounts backend: not run
-- payments backend: not run
-- cards backend: not run
-- customer-profile backend: not run
-- fraud-decisions backend: not run
-- open-banking backend: not run
-- accounts route: not run
-- payments route: not run
-- cards route: not run
-- customer-profile route: not run
-- fraud-decisions route: not run
-- open-banking route: not run
-- unknown host: not run
-- unknown route: not run
-- external exposure policy: not run
-- Admin API exposure: not run
+- backend readiness evidence: pass
+- route smoke evidence: pass
+- negative route evidence: pass
+- Admin API exposure evidence: pass
 
-Cluster changes performed: none
+Cluster changes performed: synthetic bank APIs applied
 
 Secrets created: none
 
@@ -112,15 +100,12 @@ Authentication configured: no
 
 Rate limiting configured: no
 
-Runtime verification: not run
+Runtime verification: pass
 
-Runtime approval: pending
+Runtime approval: approved
 
-Ready for goal 004: no
+Ready for goal 004: yes
 
 ## Known limitations
 
-- Explicit cluster mutation permission has not been granted in this local gate package.
-- Tenant namespace prereq bootstrap has not run.
-- Runtime apply, smoke, negative tests, and runtime evidence collection have not run.
-- Goal 004 remains blocked until runtime approval is approved.
+- None for gate 003 runtime verification.

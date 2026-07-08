@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -327,13 +328,13 @@ def write_goal_003() -> int:
         [
             "- `make synthetic-api-tenant-namespaces-dry-run`: " + ("pass" if runtime_verified else "not run"),
             "- `make synthetic-api-tenant-namespaces-apply`: " + ("pass" if runtime_verified else "not run"),
-            "- `make synthetic-api-install-dry-run`: not run",
+            "- `make synthetic-api-install-dry-run`: " + ("pass" if runtime_verified else "not run"),
             "- `make synthetic-api-apply`: " + ("pass" if runtime_verified else "not run"),
             "- `make synthetic-api-smoke`: " + status_line("reports/synthetic-api-route-smoke-results.md"),
             "- `make synthetic-api-negative-test`: " + status_line("reports/synthetic-api-negative-test-results.md"),
-            "- `make kong-admin-exposure-test`: not run as a goal-003 runtime command",
+            "- `make kong-admin-exposure-test`: " + status_line("platform/kong/synthetic-apis/RUNTIME-ADMIN-API-SAFETY-RESULTS.md"),
             "- `collect-synthetic-api-evidence`: " + status_line("reports/synthetic-api-runtime-evidence.md"),
-            "- `make synthetic-api-runtime-ready`: " + ("pass" if runtime_verified else "not run"),
+            "- `make goal003-runtime-ready`: " + ("pass" if runtime_verified else "not run"),
         ]
     )
     cluster_changes = "synthetic bank APIs applied" if runtime_verified else "none"
@@ -483,7 +484,7 @@ def write_gate_003_synthetic_api_runtime() -> int:
     branch = current_branch()
     commit_code, commit = run_command(["git", "rev-parse", "--short", "HEAD"])
     commit = commit if commit_code == 0 else "unknown"
-    target_context = "not provided"
+    target_context = os.environ.get("BANKLAB_TARGET_CONTEXT", "not provided")
     actual_code, actual_context = run_command(["kubectl", "config", "current-context"])
     actual_context = actual_context if actual_code == 0 else ""
     mutation_granted = "yes" if runtime_approved else "no"
@@ -491,6 +492,19 @@ def write_gate_003_synthetic_api_runtime() -> int:
     runtime_verification = "pass" if runtime_approved else "not run"
     runtime_approval = "approved" if runtime_approved else "pending"
     ready_goal004 = "yes" if runtime_approved else "no"
+    runtime_command_status = "pass" if runtime_approved else "not run"
+    known_limitations = (
+        "- None for gate 003 runtime verification."
+        if runtime_approved
+        else "\n".join(
+            [
+                "- Explicit cluster mutation permission has not been granted in this local gate package.",
+                "- Tenant namespace prereq bootstrap has not run.",
+                "- Runtime apply, smoke, negative tests, and runtime evidence collection have not run.",
+                "- Goal 004 remains blocked until runtime approval is approved.",
+            ]
+        )
+    )
 
     report = f"""# Gate: gate-003-synthetic-api-runtime-apply-and-smoke
 
@@ -527,13 +541,13 @@ Actual Kubernetes context: {actual_context}
 
 ## Dry-run
 
-- `make synthetic-api-tenant-namespaces-dry-run`: not run
-- `make synthetic-api-install-dry-run`: not run
+- `make synthetic-api-tenant-namespaces-dry-run`: {runtime_command_status}
+- `make synthetic-api-install-dry-run`: {runtime_command_status}
 
 ## Mutation
 
-- `make synthetic-api-tenant-namespaces-apply`: not run
-- `make synthetic-api-apply`: not run
+- `make synthetic-api-tenant-namespaces-apply`: {runtime_command_status}
+- `make synthetic-api-apply`: {runtime_command_status}
 
 ## Runtime smoke
 
@@ -545,26 +559,14 @@ Actual Kubernetes context: {actual_context}
 
 ## Admin API safety
 
-- `make kong-admin-exposure-test`: not run as a gate-003 runtime command
+- `make kong-admin-exposure-test`: {status_line("platform/kong/synthetic-apis/RUNTIME-ADMIN-API-SAFETY-RESULTS.md")}
 
 ## Runtime evidence
 
-- accounts backend: not run
-- payments backend: not run
-- cards backend: not run
-- customer-profile backend: not run
-- fraud-decisions backend: not run
-- open-banking backend: not run
-- accounts route: not run
-- payments route: not run
-- cards route: not run
-- customer-profile route: not run
-- fraud-decisions route: not run
-- open-banking route: not run
-- unknown host: not run
-- unknown route: not run
-- external exposure policy: not run
-- Admin API exposure: not run
+- backend readiness evidence: {status_line("reports/synthetic-api-runtime-evidence.md")}
+- route smoke evidence: {status_line("reports/synthetic-api-route-smoke-results.md")}
+- negative route evidence: {status_line("reports/synthetic-api-negative-test-results.md")}
+- Admin API exposure evidence: {status_line("platform/kong/synthetic-apis/RUNTIME-ADMIN-API-SAFETY-RESULTS.md")}
 
 Cluster changes performed: {cluster_changes}
 
@@ -590,10 +592,7 @@ Ready for goal 004: {ready_goal004}
 
 ## Known limitations
 
-- Explicit cluster mutation permission has not been granted in this local gate package.
-- Tenant namespace prereq bootstrap has not run.
-- Runtime apply, smoke, negative tests, and runtime evidence collection have not run.
-- Goal 004 remains blocked until runtime approval is approved.
+{known_limitations}
 """
 
     (ROOT / "reports/gate-003-synthetic-api-runtime-apply-and-smoke-summary.md").write_text(report, encoding="utf-8")
