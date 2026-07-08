@@ -9,6 +9,7 @@ tmp_body="$(mktemp)"
 trap 'rm -f "${tmp_output}" "${tmp_body}"' EXIT
 curl_connect_timeout="${BANKLAB_SYNTHETIC_API_CURL_CONNECT_TIMEOUT:-3}"
 curl_max_time="${BANKLAB_SYNTHETIC_API_CURL_MAX_TIME:-10}"
+burst_count="${BANKLAB_GOAL004_RATE_LIMIT_BURST_COUNT:-20}"
 
 write_report() {
   local status="$1"
@@ -44,7 +45,7 @@ if ! proxy_ip="$(kubectl -n platform-kong get service banklab-kong-gateway-proxy
 fi
 
 statuses=()
-for _ in 1 2 3 4 5; do
+for _ in $(seq 1 "${burst_count}"); do
   status="$(
     curl --silent --show-error \
       --connect-timeout "${curl_connect_timeout}" \
