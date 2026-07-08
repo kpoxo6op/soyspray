@@ -51,6 +51,8 @@ spec:
           mountPath: /etc/nginx/conf.d/default.conf
           subPath: default.conf
           readOnly: true
+        - name: tmp
+          mountPath: /tmp
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -68,3 +70,5 @@ spec:
       - name: mock-responses
         configMap:
           name: banklab-accounts-mock-responses
+      - name: tmp
+        emptyDir: {}

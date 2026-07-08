@@ -168,10 +168,21 @@ def check_manifests(errors: list[str]) -> None:
                 require(labels.get(key) == value, errors, f"{path.relative_to(ROOT)} missing label {key}={value}")
             require(doc.get("metadata", {}).get("namespace") == api.namespace, errors, f"{path.relative_to(ROOT)} namespace mismatch")
             if kind == "Deployment":
+                pod_spec = doc["spec"]["template"]["spec"]
                 container = doc["spec"]["template"]["spec"]["containers"][0]
                 require(container["image"] == image, errors, f"{api.key} deployment image must match versions.yaml")
                 require(not container["image"].endswith(":latest"), errors, f"{api.key} uses latest image")
                 require(container.get("resources"), errors, f"{api.key} deployment missing resources")
+                security_context = container.get("securityContext", {})
+                require(security_context.get("readOnlyRootFilesystem") is True, errors, f"{api.key} deployment must use readOnlyRootFilesystem")
+                tmp_mount = next((mount for mount in container.get("volumeMounts", []) if mount.get("mountPath") == "/tmp"), None)
+                require(tmp_mount is not None, errors, f"{api.key} deployment must mount writable /tmp for nginx")
+                if tmp_mount is not None:
+                    require(tmp_mount.get("name") == "tmp", errors, f"{api.key} /tmp mount must use tmp volume")
+                    require(tmp_mount.get("readOnly") is not True, errors, f"{api.key} /tmp mount must be writable")
+                    volumes = {volume.get("name"): volume for volume in pod_spec.get("volumes", [])}
+                    tmp_volume = volumes.get(tmp_mount.get("name"))
+                    require(tmp_volume is not None and "emptyDir" in tmp_volume, errors, f"{api.key} /tmp mount must be backed by emptyDir")
             if kind == "HTTPRoute":
                 spec = doc["spec"]
                 require(spec["hostnames"] == [api.host], errors, f"{api.key} hostname mismatch")

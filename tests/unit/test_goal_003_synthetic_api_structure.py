@@ -53,6 +53,22 @@ def test_synthetic_api_tenant_namespaces_use_prereq_layer():
         assert labels["banklab.konghq.com/owner"] == api.owner
 
 
+def test_read_only_mock_backends_have_writable_tmp_volume():
+    for api in APIS:
+        deployment = load(ROOT / "apis/synthetic-bank" / api.key / "deployment.yaml")
+        pod_spec = deployment["spec"]["template"]["spec"]
+        container = pod_spec["containers"][0]
+        assert container["securityContext"]["readOnlyRootFilesystem"] is True
+
+        tmp_mount = next((mount for mount in container["volumeMounts"] if mount["mountPath"] == "/tmp"), None)
+        assert tmp_mount is not None
+        assert tmp_mount["name"] == "tmp"
+        assert tmp_mount.get("readOnly") is not True
+
+        volumes = {volume["name"]: volume for volume in pod_spec["volumes"]}
+        assert "emptyDir" in volumes["tmp"]
+
+
 def test_synthetic_api_static_validator_passes():
     from scripts.validate_synthetic_bank_apis import validate
 
