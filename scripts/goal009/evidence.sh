@@ -17,6 +17,38 @@ fi
 cd "${repo_root}"
 platform/kong/scripts/require-cluster-mutation-permission.sh
 
+load_secret_env() {
+  local env_name="$1"
+  local secret_name="$2"
+  local field_name="$3"
+  if [[ -n "${!env_name:-}" ]]; then
+    return 0
+  fi
+  local encoded
+  encoded="$(kubectl -n synthetic-clients get secret "${secret_name}" -o "jsonpath={.data.${field_name}}" 2>/dev/null || true)"
+  if [[ -z "${encoded}" ]]; then
+    echo "Missing ${env_name}, and Secret synthetic-clients/${secret_name} field ${field_name} was not readable." >&2
+    return 1
+  fi
+  local value
+  value="$(printf '%s' "${encoded}" | base64 -d 2>/dev/null || true)"
+  if [[ -z "${value}" ]]; then
+    echo "Secret synthetic-clients/${secret_name} field ${field_name} could not be decoded." >&2
+    return 1
+  fi
+  export "${env_name}=${value}"
+}
+
+load_runtime_credentials() {
+  load_secret_env BANKLAB_MOBILE_BANKING_APP_API_KEY banklab-mobile-banking-app-key-auth key
+  load_secret_env BANKLAB_PAYMENTS_PROCESSOR_API_KEY banklab-payments-processor-key-auth key
+  load_secret_env BANKLAB_INTERNET_BANKING_WEB_API_KEY banklab-internet-banking-web-key-auth key
+  load_secret_env BANKLAB_INTERNAL_CRM_API_KEY banklab-internal-crm-key-auth key
+  load_secret_env BANKLAB_FRAUD_PLATFORM_API_KEY banklab-fraud-platform-key-auth key
+  load_secret_env BANKLAB_EXTERNAL_FINTECH_PARTNER_JWT_KEY banklab-external-fintech-partner-jwt key
+  load_secret_env BANKLAB_EXTERNAL_FINTECH_PARTNER_JWT_SECRET banklab-external-fintech-partner-jwt secret
+}
+
 run_step() {
   local label="$1"
   shift
@@ -32,6 +64,8 @@ run_step() {
   fi
   echo >>"${tmp_output}"
 }
+
+load_runtime_credentials
 
 run_step "goal009 runtime readiness" make goal009-runtime-ready
 run_step "goal009 response headers apply and smoke" make goal009-security-headers-apply-and-smoke
