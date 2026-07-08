@@ -7,6 +7,7 @@ Updated: 2026-07-09
 - Branch: `kong-goals-foundation`
 - Latest pushed source checkpoint before runtime evidence: `49b80d6`
 - Latest pushed evidence checkpoint: `2527339`
+- Latest pushed source checkpoint before goal008 evidence: `cfcd2ec`
 - Before approval, confirm the current commit with `git rev-parse --short HEAD`
   and put that value in the approval block.
 
@@ -57,19 +58,22 @@ Evidence files:
 
 ## Latest Runtime State
 
-Goal008 is being implemented from ChatGPT Pro guidance. Pro's full response
-stalled while finalizing, but the visible guidance was consistent across fresh
-chats: keep goal008 small and implement an OSS/Kubernetes/GitOps platform
-governance control using policy-as-code for Kong resources and unsafe plugin
-configuration, with demo, evidence, and rollback.
+Goal008 was implemented from ChatGPT Pro guidance and is runtime-verified
+locally, pending Pro approval. Pro's full response stalled while finalizing,
+but the visible guidance was consistent across fresh chats: keep goal008 small
+and implement an OSS/Kubernetes/GitOps platform governance control using
+policy-as-code for Kong resources and unsafe plugin configuration, with demo,
+evidence, and rollback.
 
 Current implementation state:
 
 - Goal: `goal-008-kong-governance-policy-as-code`
-- Status: in progress
+- Status: pending Pro approval; runtime-verified locally
 - Branch: `kong-goals-foundation`
+- Runtime source commit: `cfcd2ec`
+- Evidence commit ready to approve: this document's commit
 - Cluster context: `kubernetes-admin@cluster.local`
-- Runtime verification: not run
+- Runtime verification: pass
 - Ready for goal009: no; ask ChatGPT Pro after goal008 runtime evidence is
   committed and pushed
 
