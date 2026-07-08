@@ -13,9 +13,15 @@ def test_static_renderer_emits_no_secret_resources():
 
 
 def test_runtime_credential_renderer_fails_closed_without_env():
+    env = os.environ.copy()
+    env.pop(jwt_key_env_var(), None)
+    env.pop(jwt_secret_env_var(), None)
+    for api in APIS:
+        env.pop(client_env_var(CLIENT_FOR_API[api.key]), None)
     result = subprocess.run(
         [sys.executable, str(ROOT / "scripts/render_goal004_runtime_credentials.py")],
         cwd=ROOT,
+        env=env,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
