@@ -7,8 +7,9 @@ Common failures:
 
 - Wrong Kubernetes context: stop, set `BANKLAB_TARGET_CONTEXT` correctly, rerun
   only after the current context matches.
-- Missing tenant namespace: check the goal 001 namespace baseline and fix the
-  declarative namespace or prerequisite apply path.
+- Missing tenant namespace: confirm the synthetic API Namespace manifest exists,
+  the dry-run/apply path sequences Namespace resources before namespaced
+  resources, and the fix is committed before rerunning the guarded gate.
 - HTTPRoute not accepted or Gateway parent not found: inspect
   `kubectl get httproute -A -o yaml`, Gateway status, namespace labels, and
   allowed routes; fix manifests in the repo.

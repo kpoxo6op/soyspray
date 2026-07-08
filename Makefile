@@ -207,7 +207,7 @@ kong-route-smoke:
 	@platform/kong/scripts/route-smoke.sh
 
 synthetic-api-install-dry-run:
-	@$(PYTHON) scripts/render_synthetic_apis.py | kubectl apply --dry-run=server -f -
+	@platform/kong/synthetic-apis/scripts/synthetic-api-install-dry-run.sh
 
 synthetic-api-apply:
 	@platform/kong/scripts/require-cluster-mutation-permission.sh

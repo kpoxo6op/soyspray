@@ -25,6 +25,7 @@ Commands approved:
 - make goal003-runtime-ready
 
 Expected resources to change:
+- synthetic API tenant Namespaces
 - tenant-accounts synthetic API resources
 - tenant-payments synthetic API resources
 - tenant-cards synthetic API resources
@@ -91,6 +92,11 @@ make evidence-goal-003
 make evidence-gate-003-synthetic-api-runtime
 make goal003-runtime-ready
 ```
+
+The dry-run path validates tenant Namespace manifests first. If the tenant
+Namespaces do not exist yet, the full rendered synthetic API bundle uses client
+dry-run for the namespaced resources because Kubernetes server-side dry-run does
+not persist Namespace objects for later objects in the same stream.
 
 Rollback path:
 

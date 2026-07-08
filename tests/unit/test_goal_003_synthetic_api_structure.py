@@ -15,6 +15,7 @@ def test_all_six_synthetic_apis_have_required_files():
         "openapi.yaml",
         "ownership.yaml",
         "kustomization.yaml",
+        "namespace.yaml",
         "configmap-mock-responses.yaml",
         "deployment.yaml",
         "service.yaml",
@@ -30,6 +31,15 @@ def test_all_six_synthetic_apis_have_required_files():
 
 def test_api_manifests_use_expected_namespaces_and_labels():
     for api in APIS:
+        namespace = load(ROOT / "apis/synthetic-bank" / api.key / "namespace.yaml")
+        assert namespace["kind"] == "Namespace"
+        assert namespace["metadata"]["name"] == api.namespace
+        namespace_labels = namespace["metadata"]["labels"]
+        assert namespace_labels["banklab.konghq.com/platform-layer"] == "synthetic-api"
+        assert namespace_labels["banklab.konghq.com/auth-profile"] == "none-temporary-goal003-sandbox"
+        assert namespace_labels["banklab.konghq.com/auth-state"] == "temporary-no-auth"
+        assert namespace_labels["banklab.konghq.com/goal"] == "goal-003"
+
         for name in ("deployment.yaml", "service.yaml", "networkpolicy-allow-kong.yaml"):
             doc = load(ROOT / "apis/synthetic-bank" / api.key / name)
             assert doc["metadata"]["namespace"] == api.namespace

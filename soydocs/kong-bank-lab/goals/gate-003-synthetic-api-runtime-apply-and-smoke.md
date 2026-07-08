@@ -184,10 +184,13 @@ Commands approved:
 - make synthetic-api-negative-test
 - make kong-admin-exposure-test
 - platform/kong/synthetic-apis/scripts/collect-synthetic-api-evidence.sh
+- platform/kong/synthetic-apis/scripts/collect-synthetic-api-runtime-state.sh
 - make evidence-goal-003
-- make synthetic-api-runtime-ready
+- make evidence-gate-003-synthetic-api-runtime
+- make goal003-runtime-ready
 
 Expected resources to change:
+- synthetic API tenant Namespaces
 - tenant-accounts synthetic API resources
 - tenant-payments synthetic API resources
 - tenant-cards synthetic API resources

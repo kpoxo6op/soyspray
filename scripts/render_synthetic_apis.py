@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 from typing import Any
@@ -43,12 +44,33 @@ def render_kustomization(directory: Path) -> list[str]:
     return rendered
 
 
+def filter_chunks(chunks: list[str], include_kind: set[str], exclude_kind: set[str]) -> list[str]:
+    filtered = []
+    for chunk in chunks:
+        doc = yaml.safe_load(chunk)
+        if not isinstance(doc, dict):
+            continue
+        kind = doc.get("kind")
+        if include_kind and kind not in include_kind:
+            continue
+        if exclude_kind and kind in exclude_kind:
+            continue
+        filtered.append(chunk)
+    return filtered
+
+
 def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--include-kind", action="append", default=[], help="only render resources with this kind")
+    parser.add_argument("--exclude-kind", action="append", default=[], help="exclude resources with this kind")
+    args = parser.parse_args()
+
     try:
         chunks = render_kustomization(ROOT / "apis/synthetic-bank")
     except (FileNotFoundError, ValueError, yaml.YAMLError) as exc:
         print(f"Synthetic API render failed: {exc}")
         return 1
+    chunks = filter_chunks(chunks, set(args.include_kind), set(args.exclude_kind))
     print("\n---\n".join(chunks))
     return 0
 

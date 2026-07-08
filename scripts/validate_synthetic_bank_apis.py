@@ -45,6 +45,7 @@ API_FILES = [
     "openapi.yaml",
     "ownership.yaml",
     "kustomization.yaml",
+    "namespace.yaml",
     "configmap-mock-responses.yaml",
     "deployment.yaml",
     "service.yaml",
@@ -152,6 +153,12 @@ def check_manifests(errors: list[str]) -> None:
             labels = doc.get("metadata", {}).get("labels", {})
             for key, value in BASE_LABELS.items():
                 require(labels.get(key) == value, errors, f"{path.relative_to(ROOT)} missing label {key}={value}")
+            if kind == "Namespace":
+                require(doc.get("metadata", {}).get("name") == api.namespace, errors, f"{path.relative_to(ROOT)} namespace name mismatch")
+                require(labels.get("banklab.konghq.com/api-domain") == api.key, errors, f"{path.relative_to(ROOT)} api-domain mismatch")
+                require(labels.get("banklab.konghq.com/owner") == api.owner, errors, f"{path.relative_to(ROOT)} owner mismatch")
+                require(labels.get("banklab.konghq.com/exposure") == api.exposure, errors, f"{path.relative_to(ROOT)} exposure mismatch")
+                continue
             require(doc.get("metadata", {}).get("namespace") == api.namespace, errors, f"{path.relative_to(ROOT)} namespace mismatch")
             if kind == "Deployment":
                 container = doc["spec"]["template"]["spec"]["containers"][0]

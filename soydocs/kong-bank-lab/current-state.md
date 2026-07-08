@@ -68,6 +68,7 @@ Commands approved:
 - make goal003-runtime-ready
 
 Expected resources to change:
+- synthetic API tenant Namespaces
 - tenant-accounts synthetic API resources
 - tenant-payments synthetic API resources
 - tenant-cards synthetic API resources
