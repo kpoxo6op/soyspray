@@ -29,8 +29,8 @@ make evidence-goal-004
 
 make goal004-runtime-credentials-dry-run
 make goal004-security-dry-run
-make goal004-runtime-credentials-apply
 make goal004-security-apply
+make goal004-runtime-credentials-apply
 make goal004-security-smoke
 make goal004-security-negative-test
 make goal004-rate-limit-test
