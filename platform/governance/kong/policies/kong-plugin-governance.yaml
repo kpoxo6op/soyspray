@@ -1,0 +1,33 @@
+policy_id: banklab-kong-plugin-governance
+goal_id: goal-008-kong-governance-policy-as-code
+title: Kong plugin governance policy
+runtime_kind: ValidatingAdmissionPolicy
+admission_policy_name: banklab-kong-plugin-governance
+admission_binding_name: banklab-kong-plugin-governance
+failure_policy: Fail
+validation_action: Deny
+match:
+  api_group: configuration.konghq.com
+  api_version: v1
+  resource: kongplugins
+  operations:
+    - CREATE
+    - UPDATE
+allowed_plugin_types:
+  - acl
+  - correlation-id
+  - jwt
+  - key-auth
+  - rate-limiting
+  - response-transformer
+denied_plugin_types:
+  - bot-detection
+  - exit-transformer
+  - file-log
+  - post-function
+  - pre-function
+  - request-transformer
+  - syslog
+safe_fixture: tests/fixtures/goal008/allowed-response-transformer.yaml
+unsafe_fixture: tests/fixtures/goal008/denied-request-transformer.yaml
+runbook: docs/runbooks/goal-008-governance-policy-rollback.md

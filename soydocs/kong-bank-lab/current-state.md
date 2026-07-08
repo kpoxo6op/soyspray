@@ -6,8 +6,7 @@ Updated: 2026-07-09
 
 - Branch: `kong-goals-foundation`
 - Latest pushed source checkpoint before runtime evidence: `49b80d6`
-- Latest pushed evidence checkpoint: this document's commit once committed and
-  pushed
+- Latest pushed evidence checkpoint: `2527339`
 - Before approval, confirm the current commit with `git rev-parse --short HEAD`
   and put that value in the approval block.
 
@@ -35,19 +34,19 @@ Evidence files:
 
 ## Latest Runtime State
 
-Goal007 was implemented from ChatGPT Pro guidance and is runtime-verified
-locally, pending Pro approval.
+Goal007 was implemented from ChatGPT Pro guidance, runtime-verified, and
+approved by ChatGPT Pro.
 
 Accepted local/runtime state:
 
 - Goal: `goal-007-consumer-onboarding-entitlements`
-- Status: pending Pro approval; runtime-verified locally
+- Status: approved; runtime-verified
 - Branch: `kong-goals-foundation`
 - Runtime source commit: `49b80d6`
-- Evidence commit ready to approve: this document's commit
+- Evidence commit approved by Pro: `2527339`
 - Cluster context: `kubernetes-admin@cluster.local`
 - Runtime verification: pass
-- Ready for goal008: no; ask ChatGPT Pro after goal007 approval
+- Ready for goal008: yes; Pro issued governance policy-as-code direction
 
 Evidence files:
 
@@ -56,6 +55,31 @@ Evidence files:
 - `reports/goal-007-consumer-onboarding-rollback.md`
 - `docs/decisions/goal-007-runtime-approval.md`
 
+## Latest Runtime State
+
+Goal008 is being implemented from ChatGPT Pro guidance. Pro's full response
+stalled while finalizing, but the visible guidance was consistent across fresh
+chats: keep goal008 small and implement an OSS/Kubernetes/GitOps platform
+governance control using policy-as-code for Kong resources and unsafe plugin
+configuration, with demo, evidence, and rollback.
+
+Current implementation state:
+
+- Goal: `goal-008-kong-governance-policy-as-code`
+- Status: in progress
+- Branch: `kong-goals-foundation`
+- Cluster context: `kubernetes-admin@cluster.local`
+- Runtime verification: not run
+- Ready for goal009: no; ask ChatGPT Pro after goal008 runtime evidence is
+  committed and pushed
+
+Goal008 scope:
+
+- Kubernetes-native `ValidatingAdmissionPolicy`
+- KongPlugin allowlist for the OSS plugins already used by the lab
+- Safe and unsafe server-dry-run fixtures
+- Guarded apply/smoke and rollback/smoke evidence
+
 ## Current Goal Source
 
 Goal007 was issued by ChatGPT Pro after goal006 approval.
@@ -63,12 +87,11 @@ Goal007 was issued by ChatGPT Pro after goal006 approval.
 Current implementation state:
 
 - Goal: `goal-007-consumer-onboarding-entitlements`
-- Status: runtime-verified locally; pending Pro approval
+- Status: approved; runtime-verified
 - Branch: `kong-goals-foundation`
 - Cluster context: `kubernetes-admin@cluster.local`
 - Runtime verification: pass
-- Ready for goal008: no; ask ChatGPT Pro after goal007 runtime evidence is
-  committed and pushed
+- Ready for goal008: yes
 
 Goal007 scope:
 
@@ -128,8 +151,8 @@ must create save points, then goal 006 starts in fresh chats.
 
 ## Current Gate
 
-Do not start goal008 until ChatGPT Pro approves
-`goal-007-consumer-onboarding-entitlements`.
+Do not start goal009 until ChatGPT Pro approves
+`goal-008-kong-governance-policy-as-code`.
 
 ## Historical Goal003 Blocker
 

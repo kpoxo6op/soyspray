@@ -1,6 +1,6 @@
 # Goal007 Runtime Approval
 
-Status: pending approval
+Status: approved
 
 Generated at: 2026-07-09T01:45:18+12:00
 
@@ -12,7 +12,11 @@ Kubernetes context: kubernetes-admin@cluster.local
 
 ## Summary
 
-Goal007 runtime acceptance passed locally and is ready for ChatGPT Pro review.
+Goal007 runtime acceptance passed locally and was approved by ChatGPT Pro.
+
+Approved evidence commit: `2527339`
+
+Runtime source commit: `49b80d6`
 
 ## Evidence links
 
@@ -33,4 +37,4 @@ Goal007 runtime acceptance passed locally and is ready for ChatGPT Pro review.
 
 ## Ready-for-approval statement
 
-Goal007 is ready for Pro approval after evidence is committed and pushed.
+Goal007 is approved as runtime-verified and ready for goal008.

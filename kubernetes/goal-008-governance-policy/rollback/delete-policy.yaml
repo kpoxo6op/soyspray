@@ -1,0 +1,19 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: banklab-kong-plugin-governance
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/goal: goal-008
+    platform.soyspray.io/control-plane: governance
+    platform.soyspray.io/policy-id: banklab-kong-plugin-governance
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: banklab-kong-plugin-governance
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/goal: goal-008
+    platform.soyspray.io/control-plane: governance
+    platform.soyspray.io/policy-id: banklab-kong-plugin-governance

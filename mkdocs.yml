@@ -40,6 +40,7 @@ nav:
       - API Product Onboarding: platform/api-product-onboarding.md
       - Self-Service Product Contracts: platform/self-service-product-contracts.md
       - Consumer Onboarding: platform/consumer-onboarding.md
+      - Kong Governance Policy: platform/kong-governance-policy.md
   - ADRs:
       - Overview: adr/README.md
       - ADR Template: adr/adr-template.md
@@ -73,6 +74,7 @@ nav:
       - Goal 005 Change Rollback: runbooks/goal-005-change-rollback.md
       - Goal 006 Product Contract Rollback: runbooks/goal-006-product-contract-rollback.md
       - Goal 007 Consumer Onboarding Rollback: runbooks/goal-007-consumer-onboarding-rollback.md
+      - Goal 008 Governance Policy Rollback: runbooks/goal-008-governance-policy-rollback.md
   - Decisions:
       - Overview: decisions/README.md
       - Goal 003 Blocked: decisions/goal-003-blocked-until-kong-runtime-validation.md
@@ -83,3 +85,4 @@ nav:
       - Goal 005 Runtime Approval: decisions/goal-005-runtime-approval.md
       - Goal 006 Runtime Approval: decisions/goal-006-runtime-approval.md
       - Goal 007 Runtime Approval: decisions/goal-007-runtime-approval.md
+      - Goal 008 Runtime Approval: decisions/goal-008-runtime-approval.md

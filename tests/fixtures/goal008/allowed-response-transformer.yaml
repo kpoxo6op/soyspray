@@ -1,0 +1,16 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: goal008-allowed-response-transformer
+  namespace: tenant-accounts
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/goal: goal-008
+    banklab.konghq.com/policy-fixture: safe
+  annotations:
+    kubernetes.io/ingress.class: kong
+plugin: response-transformer
+config:
+  add:
+    headers:
+      - X-Banklab-Governance: allowed
