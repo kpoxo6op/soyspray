@@ -242,7 +242,7 @@ def ownership_resources() -> list[dict[str, Any]]:
     products = products_by_id()
     tenants = {api_id: tenant.tenant_id for tenant in load_tenants() for api_id in tenant.owned_api_ids}
     docs: list[dict[str, Any]] = []
-    kong_kinds = {"HTTPRoute", "KongPlugin"}
+    kong_kinds = {"HTTPRoute"}
     for doc in goal004_docs:
         if doc.get("kind") not in kong_kinds:
             continue
