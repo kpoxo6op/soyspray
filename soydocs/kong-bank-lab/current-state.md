@@ -6,8 +6,9 @@ Updated: 2026-07-09
 
 - Repo: `/home/boris/code/soyspray`
 - Branch: `kong-goals-foundation`
-- Latest pushed runtime evidence commit: `25db428`
-- Latest branch HEAD may be newer because of post-goal008 handover docs.
+- Latest pushed runtime evidence commit before Goal009: `25db428`
+- Goal009 source commit pushed before runtime mutation: `c9676e3`
+- Latest branch HEAD may be newer because of goal009 evidence or handover docs.
 - Kubernetes context used for runtime checks: `kubernetes-admin@cluster.local`
 
 Fresh sessions must first verify:
@@ -110,9 +111,19 @@ Local proof:
 ### Goal009
 
 - Goal: `goal-009-kong-governed-response-headers`
-- Status: source implemented locally; runtime evidence not yet run
+- Status: runtime-verified locally; pending formal ChatGPT Pro approval
+- Runtime source commit: `c9676e3`
+- Runtime verification: pass
+- Cluster context: `kubernetes-admin@cluster.local`
 - Goal body saved at:
   - `soydocs/kong-bank-lab/goals/goal-009-kong-governed-response-headers.md`
+- Evidence:
+  - `reports/goal-009-summary.md`
+  - `reports/goal-009-runtime-readiness.md`
+  - `reports/goal-009-governed-response-headers-rollout.md`
+  - `reports/goal-009-governed-response-headers-runtime.md`
+  - `reports/goal-009-governed-response-headers-rollback.md`
+  - `docs/decisions/goal-009-runtime-approval.md`
 - Target route/service:
   - `tenant-accounts/HTTPRoute/banklab-accounts`
   - `tenant-accounts/Service/banklab-accounts-api`
@@ -123,7 +134,20 @@ Local proof:
 Goal009 adds only governed response headers and preserves existing Goal004
 auth, ACL, rate-limit, and correlation-id behavior.
 
-Local source proof before runtime mutation:
+Runtime proof:
+
+- readiness performed server-side dry-run without applying the plugin
+- rollout applied `response-transformer` and observed all required headers
+- accounts body marker, correlation ID, and rate-limit headers were preserved
+- missing API key stayed `401`
+- wrong ACL key stayed `403`
+- rollback removed the route annotation and deleted the Goal009 `KongPlugin`
+- post-rollback Goal004 positive, negative, Redis rate-limit, and Admin API
+  safety checks passed
+- current cluster has no `banklab-goal009-security-headers` plugin resource
+  and the accounts route annotation is back to the baseline Goal004 plugin set
+
+Local proof:
 
 - `make validate`: pass
 - `make validate-yaml`: pass
@@ -133,16 +157,12 @@ Local source proof before runtime mutation:
 - `make test`: 116 passed
 - `make policy-test`: 33 passed
 - `make docs`: pass
+- `make evidence-goal-009`: pass
 
 Next required order:
 
-1. Commit and push the Goal009 source changes.
-2. Run guarded runtime readiness:
-   `BANKLAB_ALLOW_CLUSTER_MUTATION=true BANKLAB_TARGET_CONTEXT=kubernetes-admin@cluster.local make goal009-runtime-ready`
-3. Run guarded runtime evidence:
-   `BANKLAB_ALLOW_CLUSTER_MUTATION=true BANKLAB_TARGET_CONTEXT=kubernetes-admin@cluster.local make evidence-goal-009`
-4. Commit and push runtime evidence.
-5. Ask ChatGPT Pro to approve Goal009 runtime evidence before starting Goal010.
+1. Commit and push runtime evidence.
+2. Ask ChatGPT Pro to approve Goal009 runtime evidence before starting Goal010.
 
 ## ChatGPT Pro State
 
@@ -161,9 +181,7 @@ Pro then provided the full Goal009 body, saved under
 
 ## Current Gate
 
-Do not run Goal009 runtime mutation until the source commit has been pushed.
-After runtime evidence is pushed, do not start Goal010 until ChatGPT Pro
-approves Goal009.
+Do not start Goal010 until ChatGPT Pro approves Goal009 runtime evidence.
 
 ## Runtime Safety
 

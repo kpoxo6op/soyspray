@@ -4,7 +4,7 @@ Status: pass
 
 Supported states: not run, pass, fail, blocked, partial
 
-Generated at: 2026-07-09T02:13:25+12:00
+Generated at: 2026-07-09T10:17:09+12:00
 
 Kubernetes context: kubernetes-admin@cluster.local
 
