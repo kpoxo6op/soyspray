@@ -1,12 +1,12 @@
 # Goal: goal-004-auth-rate-limit-security
 
-Status: pass; local-only
+Status: pass; runtime-verified
 
 Branch: kong-goals-foundation
 
-Commit: a8dd9fd
+Commit: 7ab2561
 
-Generated at: 2026-07-08T22:47:04+12:00
+Generated at: 2026-07-08T23:14:20+12:00
 
 ## Objective summary
 
@@ -38,13 +38,13 @@ limiting, and correlation IDs for the six runtime-verified synthetic bank APIs.
 - `make render-synthetic-apis`: pass
 - `make render-goal004-security`: pass
 - `make goal004-static-test`: pass
-  - Last output line: `============================== 7 passed in 0.31s ===============================`
+  - Last output line: `============================== 8 passed in 0.29s ===============================`
 - `make goal004-contract-test`: pass
   - Last output line: `============================== 3 passed in 0.18s ===============================`
 - `make goal004-smoke-plan`: pass
   - Last output line: `reports/goal004-security-smoke-plan.md generated.`
 - `make test`: pass
-  - Last output line: `============================== 66 passed in 0.85s ==============================`
+  - Last output line: `============================== 67 passed in 0.96s ==============================`
 - `make policy-test`: pass
   - Last output line: `============================== 33 passed in 1.76s ==============================`
 - `make docs`: pass
@@ -54,13 +54,13 @@ limiting, and correlation IDs for the six runtime-verified synthetic bank APIs.
 
 ## Runtime commands run
 
-- `make goal004-runtime-credentials-apply`: missing
-- `make goal004-security-apply`: missing
-- `make goal004-security-smoke`: missing
-- `make goal004-security-negative-test`: missing
-- `make goal004-rate-limit-test`: missing
-- `make kong-admin-exposure-test`: missing
-- `make goal004-runtime-ready`: not run
+- `make goal004-runtime-credentials-apply`: pass
+- `make goal004-security-apply`: pass
+- `make goal004-security-smoke`: pass
+- `make goal004-security-negative-test`: pass
+- `make goal004-rate-limit-test`: pass
+- `make kong-admin-exposure-test`: pass
+- `make goal004-runtime-ready`: pass
 
 ## Security controls
 
@@ -74,88 +74,40 @@ limiting, and correlation IDs for the six runtime-verified synthetic bank APIs.
 ## Evidence files
 
 - `reports/goal004-security-smoke-plan.md`: pass
-- `reports/goal004-security-runtime-state.md`: missing
-- `reports/goal004-security-smoke-results.md`: missing
-- `reports/goal004-security-negative-test-results.md`: missing
-- `reports/goal004-rate-limit-results.md`: missing
-- `platform/kong/security-controls/RUNTIME-APPLY-EXECUTION-LOG.md`: missing
-- `platform/kong/security-controls/RUNTIME-SMOKE-RESULTS.md`: missing
-- `platform/kong/security-controls/RUNTIME-NEGATIVE-TEST-RESULTS.md`: missing
-- `platform/kong/security-controls/RUNTIME-RATE-LIMIT-RESULTS.md`: missing
-- `platform/kong/security-controls/RUNTIME-ADMIN-API-SAFETY-RESULTS.md`: missing
-- `docs/decisions/goal-004-runtime-approval.md`: pending
+- `reports/goal004-security-runtime-state.md`: pass
+- `reports/goal004-security-smoke-results.md`: pass
+- `reports/goal004-security-negative-test-results.md`: pass
+- `reports/goal004-rate-limit-results.md`: pass
+- `platform/kong/security-controls/RUNTIME-APPLY-EXECUTION-LOG.md`: pass
+- `platform/kong/security-controls/RUNTIME-SMOKE-RESULTS.md`: pass
+- `platform/kong/security-controls/RUNTIME-NEGATIVE-TEST-RESULTS.md`: pass
+- `platform/kong/security-controls/RUNTIME-RATE-LIMIT-RESULTS.md`: pass
+- `platform/kong/security-controls/RUNTIME-ADMIN-API-SAFETY-RESULTS.md`: pass
+- `docs/decisions/goal-004-runtime-approval.md`: approved
 
 ## Created or updated files
 
-- `.github/workflows/ci.yml`
-- `.gitignore`
-- `Makefile`
-- `apis/synthetic-bank/accounts/httproute-internal.yaml`
-- `apis/synthetic-bank/accounts/openapi.yaml`
-- `apis/synthetic-bank/accounts/ownership.yaml`
-- `apis/synthetic-bank/api-catalog.yaml`
-- `apis/synthetic-bank/cards/httproute-internal.yaml`
-- `apis/synthetic-bank/cards/openapi.yaml`
-- `apis/synthetic-bank/cards/ownership.yaml`
-- `apis/synthetic-bank/customer-profile/httproute-internal.yaml`
-- `apis/synthetic-bank/customer-profile/openapi.yaml`
-- `apis/synthetic-bank/customer-profile/ownership.yaml`
-- `apis/synthetic-bank/exposure-policy.yaml`
-- `apis/synthetic-bank/fraud-decisions/httproute-internal.yaml`
-- `apis/synthetic-bank/fraud-decisions/openapi.yaml`
-- `apis/synthetic-bank/fraud-decisions/ownership.yaml`
-- `apis/synthetic-bank/open-banking/httproute-external.yaml`
-- `apis/synthetic-bank/open-banking/openapi.yaml`
-- `apis/synthetic-bank/open-banking/ownership.yaml`
-- `apis/synthetic-bank/payments/httproute-internal.yaml`
-- `apis/synthetic-bank/payments/openapi.yaml`
-- `apis/synthetic-bank/payments/ownership.yaml`
-- `apis/synthetic-bank/route-matrix.yaml`
-- `clients/synthetic/client-catalog.yaml`
-- `clients/synthetic/external-fintech-partner.yaml`
-- `clients/synthetic/fraud-platform.yaml`
-- `clients/synthetic/internal-crm.yaml`
-- `clients/synthetic/internet-banking-web.yaml`
-- `clients/synthetic/mobile-banking-app.yaml`
-- `clients/synthetic/payments-processor.yaml`
-- `docs/api-catalog/index.md`
 - `docs/decisions/goal-004-runtime-approval.md`
-- `docs/runbooks/synthetic-api-security-apply-and-smoke.md`
-- `mkdocs.yml`
-- `platform/kong/security-controls/README.md`
-- `platform/kong/security-controls/scripts/goal004-rate-limit-test.sh`
-- `platform/kong/security-controls/scripts/goal004-security-apply.sh`
-- `platform/kong/security-controls/scripts/goal004-security-rollback.sh`
-- `platform/kong/synthetic-apis/scripts/collect-synthetic-api-security-evidence.sh`
-- `platform/kong/synthetic-apis/scripts/synthetic-api-negative-test.sh`
-- `platform/kong/synthetic-apis/scripts/synthetic-api-security-apply-and-smoke.sh`
-- `platform/kong/synthetic-apis/scripts/synthetic-api-security-credentials-apply.sh`
-- `platform/kong/synthetic-apis/scripts/synthetic-api-smoke.sh`
-- `platform/kong/synthetic-apis/scripts/verify-goal004-runtime-ready.sh`
+- `platform/kong/security-controls/RUNTIME-ADMIN-API-SAFETY-RESULTS.md`
+- `platform/kong/security-controls/RUNTIME-APPLY-EXECUTION-LOG.md`
+- `platform/kong/security-controls/RUNTIME-NEGATIVE-TEST-RESULTS.md`
+- `platform/kong/security-controls/RUNTIME-RATE-LIMIT-RESULTS.md`
+- `platform/kong/security-controls/RUNTIME-SMOKE-RESULTS.md`
+- `platform/kong/synthetic-apis/RUNTIME-NEGATIVE-TEST-RESULTS.md`
+- `platform/kong/synthetic-apis/RUNTIME-SMOKE-RESULTS.md`
 - `reports/goal-004-summary.md`
+- `reports/goal004-rate-limit-results.md`
+- `reports/goal004-runtime-credentials-results.md`
+- `reports/goal004-security-negative-test-results.md`
+- `reports/goal004-security-runtime-state.md`
 - `reports/goal004-security-smoke-plan.md`
-- `scripts/generate_api_catalog.py`
-- `scripts/generate_evidence_report.py`
-- `scripts/generate_goal004_smoke_plan.py`
-- `scripts/goal004_security_config.py`
-- `scripts/render_goal004_runtime_credentials.py`
-- `scripts/render_goal004_security_controls.py`
-- `scripts/synthetic_bank_config.py`
-- `scripts/validate_goal004_security_controls.py`
-- `scripts/validate_openapi_specs.py`
-- `scripts/validate_repo.py`
-- `scripts/validate_synthetic_api_security.py`
-- `scripts/validate_synthetic_bank_apis.py`
-- `soydocs/kong-bank-lab/goals/goal-004-auth-rate-limit-security.md`
-- `tests/policy/test_goal_003_no_auth_until_goal004.py`
-- `tests/policy/test_goal_004_security_policy.py`
-- `tests/unit/test_goal_003_api_ownership_metadata.py`
-- `tests/unit/test_goal_003_openapi_specs.py`
-- `tests/unit/test_goal_003_route_matrix.py`
-- `tests/unit/test_goal_003_synthetic_clients.py`
-- `tests/unit/test_goal_004_synthetic_api_security.py`
+- `reports/goal004-security-smoke-results.md`
+- `reports/synthetic-api-negative-test-results.md`
+- `reports/synthetic-api-route-smoke-results.md`
+- `reports/synthetic-api-runtime-evidence.md`
+- `reports/synthetic-api-runtime-state.md`
 
-Cluster changes performed: none
+Cluster changes performed: goal004 security controls applied
 
 Runtime credential objects created: runtime-generated-not-committed
 
@@ -165,6 +117,6 @@ Authorization configured: acl
 
 Rate limiting configured: rate-limiting
 
-Runtime verification: not run
+Runtime verification: pass
 
-Ready for next goal: no; goal004 guarded runtime apply and smoke required
+Ready for next goal: goal-005-tenancy-rbac-change-control

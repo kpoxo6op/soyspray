@@ -1,16 +1,22 @@
 # Goal 004 Runtime Approval
 
-Status: pending
+Status: approved
 
-Goal004 runtime approval is pending guarded runtime execution.
+Approved at: 2026-07-08T23:14:14+12:00
 
-Runtime approval requires:
+Branch: kong-goals-foundation
 
-- runtime credentials applied from local environment variables
-- security controls applied
-- positive security smoke passed
-- negative security tests passed
-- Redis-backed rate-limit test returned 429
-- Admin API external exposure check passed
-- goal004 evidence generated
-- `make goal004-runtime-ready` passed
+Commit: 7ab2561
+
+Kubernetes context: kubernetes-admin@cluster.local
+
+Goal 004 runtime approval is granted after guarded runtime credentials,
+security-control apply, positive smoke, negative auth checks,
+Redis-backed rate-limit tests, Admin API safety checks, and evidence
+collection passed for the synthetic banking API layer.
+
+- Cluster changes performed: goal004 security controls applied.
+- Credential source: local environment variables; values not logged.
+- Runtime verification: pass.
+- Runtime approval: approved.
+- Ready for goal 005: yes.

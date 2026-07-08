@@ -2,7 +2,7 @@
 
 Status: pass
 
-Generated at: 2026-07-08T22:47:01+12:00
+Generated at: 2026-07-08T23:14:16+12:00
 
 ## Positive checks
 - `accounts`: `mobile-banking-app` API key returns 200 and marker `banklab-accounts-ok`; plugins `banklab-key-auth,banklab-acl,banklab-rate-limit,banklab-correlation-id`.

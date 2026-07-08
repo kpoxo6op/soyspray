@@ -1,19 +1,23 @@
-# Synthetic API Negative Test Results
+# Goal004 Security Negative Test Results
 
 Status: pass
 
 Supported states: not run, pass, fail, blocked, partial
 
-Generated at: 2026-07-08T21:35:00+12:00
+Generated at: 2026-07-08T23:14:07+12:00
 
 Kubernetes context: kubernetes-admin@cluster.local
 
+Credential source: local environment variables
+
 ## Negative checks
-unknown.internal.banklab.test/accounts/v1/health: pass; status=404
-api.internal.banklab.test/unknown/v1/health: pass; status=404
-api.external.banklab.test/accounts/v1/health: pass; status=404
-api.external.banklab.test/payments/v1/health: pass; status=404
-api.external.banklab.test/cards/v1/health: pass; status=404
-api.external.banklab.test/customers/v1/health: pass; status=404
-api.external.banklab.test/fraud/v1/health: pass; status=404
+missing API key returns 401: pass; status=401
+invalid API key returns 401: pass; status=401
+valid API key for wrong ACL group returns 403: pass; status=403
+missing JWT returns 401: pass; status=401
+invalid JWT signature returns 401: pass; status=401
+expired JWT returns 401: pass; status=401
+internal API unavailable through external hostname: pass; status=404
+unknown host remains 404: pass; status=404
+unknown path remains 404: pass; status=404
 admin API negative probe: pass
