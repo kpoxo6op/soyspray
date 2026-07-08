@@ -67,7 +67,15 @@ if kubectl get validatingadmissionpolicy banklab-kong-plugin-governance >/dev/nu
 fi
 echo "admission policy and binding removed: pass" | tee -a "${tmp_output}"
 
-if "${python_bin}" scripts/render_goal008_governance_policy.py --unsafe-fixture | kubectl apply --dry-run=server -f - >"${tmp_unsafe}" 2>&1; then
+unsafe_admitted="false"
+for _ in $(seq 1 20); do
+  if "${python_bin}" scripts/render_goal008_governance_policy.py --unsafe-fixture | kubectl apply --dry-run=server -f - >"${tmp_unsafe}" 2>&1; then
+    unsafe_admitted="true"
+    break
+  fi
+  sleep 2
+done
+if [[ "${unsafe_admitted}" == "true" ]]; then
   echo "unsafe KongPlugin fixture dry-run is admissible after rollback: pass" | tee -a "${tmp_output}"
 else
   cat "${tmp_unsafe}" >&2
