@@ -1,15 +1,33 @@
 # Kong Bank Lab Current State
 
-Updated: 2026-07-06
+Updated: 2026-07-09
 
 ## Branch
 
 - Branch: `kong-goals-foundation`
-- Latest pushed checkpoint before this handover: `fadc0d8`
+- Latest pushed checkpoint before this save point: `c032c61`
 - Before approval, confirm the current commit with `git rev-parse --short HEAD`
   and put that value in the approval block.
 
 ## Latest Pro Review
+
+ChatGPT Pro approved `goal-005-tenancy-rbac-change-control` at evidence commit
+`c032c61`.
+
+Accepted state:
+
+- Goal: `goal-005-tenancy-rbac-change-control`
+- Status: approved; runtime-verified
+- Branch: `kong-goals-foundation`
+- Evidence commit approved by Pro: `c032c61`
+- Cluster context: `kubernetes-admin@cluster.local`
+- Runtime verification: pass
+- Ready for goal006: no; create save point and stop first
+
+See `soydocs/kong-bank-lab/savepoint-2026-07-09-post-goal-005.md` for the
+fresh-context handoff.
+
+## Previous Pro Review
 
 ChatGPT Pro approved `gate-003-synthetic-api-runtime-apply-and-smoke` as a
 local-only runtime gate package.
@@ -32,7 +50,10 @@ must create save points, then goal 006 starts in fresh chats.
 
 ## Current Blocker
 
-Do not start `goal-004-auth-rate-limit-security` yet.
+Do not start `goal-006-keycloak-sso-platform-tools` in this conversation.
+Start a fresh Codex chat and a fresh Pro chat after the post-goal005 save point.
+
+## Historical Goal003 Blocker
 
 The next action is the guarded runtime apply and smoke gate for goal 003. It
 requires explicit user approval for cluster mutation and an explicit target
