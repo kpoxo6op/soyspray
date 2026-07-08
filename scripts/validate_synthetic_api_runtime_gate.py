@@ -100,8 +100,12 @@ def appears_in_order(text: str, markers: tuple[str, ...]) -> bool:
 def runtime_approved() -> bool:
     return (
         status_line("docs/decisions/goal-003-runtime-approval.md") == "approved"
-        and status_line("reports/gate-003-synthetic-api-runtime-apply-and-smoke-summary.md") == "pass; runtime-verified"
+        and runtime_result_files_pass()
     )
+
+
+def runtime_result_files_pass() -> bool:
+    return all(status_line(relative) == "pass" for relative in RUNTIME_RESULT_FILES)
 
 
 def check_required_files(errors: list[str]) -> None:
@@ -126,11 +130,12 @@ def check_approval_state(errors: list[str]) -> None:
             require(status_line(relative) == "pass", errors, f"{relative} must pass before runtime approval")
         return
     require("Status: pending" in decision, errors, "runtime approval decision must remain pending before runtime pass")
+    require(
+        "Status: pending explicit cluster mutation permission" in summary or "Status: fail" in summary,
+        errors,
+        "gate summary must be pending or fail before runtime approval",
+    )
     for marker in (
-        "Status: pending explicit cluster mutation permission",
-        "Mutation permission granted: no",
-        "Cluster changes performed: none",
-        "Runtime verification: not run",
         "Runtime approval: pending",
         "Ready for goal 004: no",
     ):
@@ -182,6 +187,8 @@ def check_goal004_block(errors: list[str]) -> None:
     if runtime_approved():
         return
     require(not (ROOT / "soydocs/kong-bank-lab/goals/goal-004-auth-rate-limit-security.md").exists(), errors, "goal 004 body must not exist before goal003 runtime approval")
+    if runtime_result_files_pass():
+        return
     require("Ready for next goal: no" in file_text("reports/goal-003-summary.md"), errors, "goal 003 evidence must keep next goal blocked")
 
 

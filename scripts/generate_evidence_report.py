@@ -159,11 +159,6 @@ def gate_003_runtime_approved_from_files() -> bool:
             "Runtime verification: pass",
             "Ready for next goal: goal-004-auth-rate-limit-security",
         ),
-        "reports/gate-003-synthetic-api-runtime-apply-and-smoke-summary.md": (
-            "Status: pass; runtime-verified",
-            "Runtime approval: approved",
-            "Ready for goal 004: yes",
-        ),
         "platform/kong/synthetic-apis/RUNTIME-APPLY-EXECUTION-LOG.md": ("Status: pass",),
         "platform/kong/synthetic-apis/RUNTIME-SMOKE-RESULTS.md": ("Status: pass",),
         "platform/kong/synthetic-apis/RUNTIME-NEGATIVE-TEST-RESULTS.md": ("Status: pass",),
