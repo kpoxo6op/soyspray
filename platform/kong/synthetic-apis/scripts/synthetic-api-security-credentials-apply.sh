@@ -39,7 +39,18 @@ write_report() {
 cd "${repo_root}"
 platform/kong/scripts/require-cluster-mutation-permission.sh
 
-if "${python_bin}" scripts/render_goal004_runtime_credentials.py | kubectl apply -f - | tee "${tmp_output}"; then
+if ! "${python_bin}" - <<'PY' | kubectl apply -f - | tee "${tmp_output}"; then
+from scripts.render_goal004_security_controls import namespace
+import sys
+import yaml
+
+yaml.safe_dump_all([namespace()], sys.stdout, sort_keys=False)
+PY
+  write_report "fail"
+  exit 1
+fi
+
+if "${python_bin}" scripts/render_goal004_runtime_credentials.py | kubectl apply -f - | tee -a "${tmp_output}"; then
   write_report "pass"
 else
   write_report "fail"
