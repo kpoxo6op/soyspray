@@ -56,6 +56,8 @@ Branch: kong-goals-foundation
 Commit: <current-HEAD-short-sha>
 Target Kubernetes context: kubernetes-admin@cluster.local
 Commands approved:
+- make synthetic-api-tenant-namespaces-dry-run
+- make synthetic-api-tenant-namespaces-apply
 - make synthetic-api-install-dry-run
 - make synthetic-api-apply
 - make synthetic-api-smoke
@@ -68,7 +70,12 @@ Commands approved:
 - make goal003-runtime-ready
 
 Expected resources to change:
-- synthetic API tenant Namespaces
+- tenant-accounts Namespace if absent
+- tenant-payments Namespace if absent
+- tenant-cards Namespace if absent
+- tenant-customer-profile Namespace if absent
+- tenant-fraud Namespace if absent
+- tenant-open-banking Namespace if absent
 - tenant-accounts synthetic API resources
 - tenant-payments synthetic API resources
 - tenant-cards synthetic API resources
@@ -89,12 +96,17 @@ Expected resources not to change:
 - Kong Admin API service
 - Kong CRDs
 - Gateway API CRDs
+- platform prereq namespaces other than the six listed tenant namespaces
 - unrelated namespaces
 - unrelated secrets
 - unrelated workloads
 
 Rollback command:
 - make synthetic-api-rollback
+
+Rollback note:
+- Rollback removes synthetic API resources.
+- Rollback intentionally leaves tenant Namespace prereqs in place.
 
 Approval:
 - approved

@@ -15,7 +15,6 @@ def test_all_six_synthetic_apis_have_required_files():
         "openapi.yaml",
         "ownership.yaml",
         "kustomization.yaml",
-        "namespace.yaml",
         "configmap-mock-responses.yaml",
         "deployment.yaml",
         "service.yaml",
@@ -31,15 +30,6 @@ def test_all_six_synthetic_apis_have_required_files():
 
 def test_api_manifests_use_expected_namespaces_and_labels():
     for api in APIS:
-        namespace = load(ROOT / "apis/synthetic-bank" / api.key / "namespace.yaml")
-        assert namespace["kind"] == "Namespace"
-        assert namespace["metadata"]["name"] == api.namespace
-        namespace_labels = namespace["metadata"]["labels"]
-        assert namespace_labels["banklab.konghq.com/platform-layer"] == "synthetic-api"
-        assert namespace_labels["banklab.konghq.com/auth-profile"] == "none-temporary-goal003-sandbox"
-        assert namespace_labels["banklab.konghq.com/auth-state"] == "temporary-no-auth"
-        assert namespace_labels["banklab.konghq.com/goal"] == "goal-003"
-
         for name in ("deployment.yaml", "service.yaml", "networkpolicy-allow-kong.yaml"):
             doc = load(ROOT / "apis/synthetic-bank" / api.key / name)
             assert doc["metadata"]["namespace"] == api.namespace
@@ -48,6 +38,19 @@ def test_api_manifests_use_expected_namespaces_and_labels():
             assert labels["banklab.konghq.com/auth-profile"] == "none-temporary-goal003-sandbox"
             assert labels["banklab.konghq.com/auth-state"] == "temporary-no-auth"
             assert labels["banklab.konghq.com/goal"] == "goal-003"
+
+
+def test_synthetic_api_tenant_namespaces_use_prereq_layer():
+    for api in APIS:
+        namespace = load(ROOT / "platform/namespaces" / f"{api.namespace}.yaml")
+        assert namespace["kind"] == "Namespace"
+        assert namespace["metadata"]["name"] == api.namespace
+        labels = namespace["metadata"]["labels"]
+        assert labels["banklab.konghq.com/managed-by"] == "gitops"
+        assert labels["banklab.konghq.com/platform-layer"] == "prereq"
+        assert labels["banklab.konghq.com/environment"] == "lab"
+        assert labels["banklab.konghq.com/data-classification"] == "synthetic"
+        assert labels["banklab.konghq.com/owner"] == api.owner
 
 
 def test_synthetic_api_static_validator_passes():

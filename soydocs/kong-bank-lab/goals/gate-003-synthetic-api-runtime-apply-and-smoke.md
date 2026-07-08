@@ -178,6 +178,8 @@ Branch: kong-goals-foundation
 Commit: 976f5f5
 Target Kubernetes context:
 Commands approved:
+- make synthetic-api-tenant-namespaces-dry-run
+- make synthetic-api-tenant-namespaces-apply
 - make synthetic-api-install-dry-run
 - make synthetic-api-apply
 - make synthetic-api-smoke
@@ -190,7 +192,12 @@ Commands approved:
 - make goal003-runtime-ready
 
 Expected resources to change:
-- synthetic API tenant Namespaces
+- tenant-accounts Namespace if absent
+- tenant-payments Namespace if absent
+- tenant-cards Namespace if absent
+- tenant-customer-profile Namespace if absent
+- tenant-fraud Namespace if absent
+- tenant-open-banking Namespace if absent
 - tenant-accounts synthetic API resources
 - tenant-payments synthetic API resources
 - tenant-cards synthetic API resources
@@ -216,6 +223,7 @@ Expected resources not to change:
 - existing Booklore resources
 - existing Immich resources
 - Kubespray configuration
+- platform prereq namespaces other than the six listed tenant namespaces
 - unrelated namespaces
 - unrelated secrets
 - unrelated Gateway/HTTPRoute resources
@@ -223,6 +231,10 @@ Expected resources not to change:
 
 Rollback command:
 - make synthetic-api-rollback
+
+Rollback note:
+- Rollback removes synthetic API resources.
+- Rollback intentionally leaves tenant Namespace prereqs in place.
 
 Approval:
 - approved
@@ -353,6 +365,7 @@ make validate-yaml
 make validate-kustomize
 make validate-synthetic-apis
 make openapi-lint
+make render-synthetic-api-tenant-namespaces
 make render-synthetic-apis
 make synthetic-api-static-test
 make synthetic-api-contract-test
@@ -362,14 +375,18 @@ make policy-test
 make docs
 Required command sequence after explicit permission:
 
+make synthetic-api-tenant-namespaces-dry-run
+make synthetic-api-tenant-namespaces-apply
 make synthetic-api-install-dry-run
 make synthetic-api-apply
 make synthetic-api-smoke
 make synthetic-api-negative-test
 make kong-admin-exposure-test
 platform/kong/synthetic-apis/scripts/collect-synthetic-api-evidence.sh
+platform/kong/synthetic-apis/scripts/collect-synthetic-api-runtime-state.sh
 make evidence-goal-003
-make synthetic-api-runtime-ready
+make evidence-gate-003-synthetic-api-runtime
+make goal003-runtime-ready
 Runtime failure runbook
 Create:
 
@@ -603,6 +620,8 @@ make validate-synthetic-api-runtime-gate
 CI must not run:
 
 make synthetic-api-install-dry-run
+make synthetic-api-tenant-namespaces-dry-run
+make synthetic-api-tenant-namespaces-apply
 make synthetic-api-apply
 make synthetic-api-smoke
 make synthetic-api-negative-test
@@ -623,6 +642,7 @@ make validate-yaml
 make validate-kustomize
 make validate-synthetic-apis
 make openapi-lint
+make render-synthetic-api-tenant-namespaces
 make render-synthetic-apis
 make synthetic-api-static-test
 make synthetic-api-contract-test
@@ -645,12 +665,16 @@ kubectl config current-context
 Expected result:
 
 actual context equals BANKLAB_TARGET_CONTEXT
+Namespace prereq bootstrap
+make synthetic-api-tenant-namespaces-dry-run
+make synthetic-api-tenant-namespaces-apply
+
 Dry-run
 make synthetic-api-install-dry-run
 Expected result:
 
-synthetic API manifests dry-run successfully
-no cluster mutation occurs except API-server dry-run validation if implemented that way
+tenant namespace prereqs are applied only after the guarded apply target
+synthetic API manifests dry-run successfully after tenant namespaces exist
 Apply
 make synthetic-api-apply
 Expected result:
@@ -739,6 +763,7 @@ Pre-mutation local validation:
 - make validate-kustomize:
 - make validate-synthetic-apis:
 - make openapi-lint:
+- make render-synthetic-api-tenant-namespaces:
 - make render-synthetic-apis:
 - make synthetic-api-static-test:
 - make synthetic-api-contract-test:
@@ -749,9 +774,11 @@ Pre-mutation local validation:
 - make validate-synthetic-api-runtime-gate:
 
 Dry-run:
+- make synthetic-api-tenant-namespaces-dry-run:
 - make synthetic-api-install-dry-run:
 
 Mutation:
+- make synthetic-api-tenant-namespaces-apply:
 - make synthetic-api-apply:
 
 Runtime smoke:

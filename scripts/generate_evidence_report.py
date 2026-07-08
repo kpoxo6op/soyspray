@@ -276,6 +276,7 @@ def write_goal_003() -> int:
         ("make validate-kustomize", ["make", "validate-kustomize"]),
         ("make validate-synthetic-apis", ["make", "validate-synthetic-apis"]),
         ("make openapi-lint", ["make", "openapi-lint"]),
+        ("make render-synthetic-api-tenant-namespaces", ["make", "render-synthetic-api-tenant-namespaces"]),
         ("make render-synthetic-apis", ["make", "render-synthetic-apis"]),
         ("make synthetic-api-static-test", ["make", "synthetic-api-static-test"]),
         ("make synthetic-api-contract-test", ["make", "synthetic-api-contract-test"]),
@@ -329,6 +330,8 @@ def write_goal_003() -> int:
     runtime_status = "pass" if runtime_verified else "not run"
     runtime_command_lines = "\n".join(
         [
+            "- `make synthetic-api-tenant-namespaces-dry-run`: " + ("pass" if runtime_verified else "not run"),
+            "- `make synthetic-api-tenant-namespaces-apply`: " + ("pass" if runtime_verified else "not run"),
             "- `make synthetic-api-install-dry-run`: not run",
             "- `make synthetic-api-apply`: " + ("pass" if runtime_verified else "not run"),
             "- `make synthetic-api-smoke`: " + status_line("reports/synthetic-api-route-smoke-results.md"),
@@ -451,6 +454,7 @@ def write_gate_003_synthetic_api_runtime() -> int:
         ("make validate-kustomize", ["make", "validate-kustomize"]),
         ("make validate-synthetic-apis", ["make", "validate-synthetic-apis"]),
         ("make openapi-lint", ["make", "openapi-lint"]),
+        ("make render-synthetic-api-tenant-namespaces", ["make", "render-synthetic-api-tenant-namespaces"]),
         ("make render-synthetic-apis", ["make", "render-synthetic-apis"]),
         ("make synthetic-api-static-test", ["make", "synthetic-api-static-test"]),
         ("make synthetic-api-contract-test", ["make", "synthetic-api-contract-test"]),
@@ -528,10 +532,12 @@ Actual Kubernetes context: {actual_context}
 
 ## Dry-run
 
+- `make synthetic-api-tenant-namespaces-dry-run`: not run
 - `make synthetic-api-install-dry-run`: not run
 
 ## Mutation
 
+- `make synthetic-api-tenant-namespaces-apply`: not run
 - `make synthetic-api-apply`: not run
 
 ## Runtime smoke
@@ -590,6 +596,7 @@ Ready for goal 004: {ready_goal004}
 ## Known limitations
 
 - Explicit cluster mutation permission has not been granted in this local gate package.
+- Tenant namespace prereq bootstrap has not run.
 - Runtime apply, smoke, negative tests, and runtime evidence collection have not run.
 - Goal 004 remains blocked until runtime approval is approved.
 """

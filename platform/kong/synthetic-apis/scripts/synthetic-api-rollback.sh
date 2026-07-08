@@ -8,5 +8,4 @@ if [[ ! -x "${python_bin}" ]]; then
   python_bin="python3"
 fi
 
-"${python_bin}" "${repo_root}/scripts/render_synthetic_apis.py" --exclude-kind Namespace | kubectl delete --ignore-not-found=true -f -
-"${python_bin}" "${repo_root}/scripts/render_synthetic_apis.py" --include-kind Namespace | kubectl delete --ignore-not-found=true -f -
+"${python_bin}" "${repo_root}/scripts/render_synthetic_apis.py" | kubectl delete --ignore-not-found=true -f -

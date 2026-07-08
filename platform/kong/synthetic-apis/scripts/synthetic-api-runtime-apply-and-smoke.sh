@@ -15,6 +15,7 @@ make validate-yaml
 make validate-kustomize
 make validate-synthetic-apis
 make openapi-lint
+make render-synthetic-api-tenant-namespaces
 make render-synthetic-apis
 make synthetic-api-static-test
 make synthetic-api-contract-test
@@ -24,6 +25,8 @@ make policy-test
 make docs
 make validate-synthetic-api-runtime-gate
 
+make synthetic-api-tenant-namespaces-dry-run
+make synthetic-api-tenant-namespaces-apply
 make synthetic-api-install-dry-run
 make synthetic-api-apply
 make synthetic-api-smoke

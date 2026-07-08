@@ -4,9 +4,9 @@ Status: pending explicit cluster mutation permission
 
 Branch: kong-goals-foundation
 
-Commit: 5aff8d9
+Commit: d9ea818
 
-Generated at: 2026-07-06T22:46:13+12:00
+Generated at: 2026-07-08T21:01:23+12:00
 
 Gate classification: cluster-apply gate
 
@@ -36,19 +36,20 @@ Actual Kubernetes context: kubernetes-admin@cluster.local
   - Last output line: `Synthetic bank API validation passed.`
 - `make openapi-lint`: pass
   - Last output line: `OpenAPI validation passed.`
+- `make render-synthetic-api-tenant-namespaces`: pass
 - `make render-synthetic-apis`: pass
 - `make synthetic-api-static-test`: pass
-  - Last output line: `============================== 9 passed in 0.36s ===============================`
+  - Last output line: `============================== 10 passed in 0.35s ==============================`
 - `make synthetic-api-contract-test`: pass
   - Last output line: `============================== 7 passed in 0.18s ===============================`
 - `make synthetic-api-smoke-plan`: pass
   - Last output line: `reports/synthetic-api-smoke-plan.md generated.`
 - `make test`: pass
-  - Last output line: `============================== 60 passed in 0.78s ==============================`
+  - Last output line: `============================== 61 passed in 0.77s ==============================`
 - `make policy-test`: pass
-  - Last output line: `============================== 29 passed in 1.81s ==============================`
+  - Last output line: `============================== 29 passed in 1.72s ==============================`
 - `make docs`: pass
-  - Last output line: `INFO    -  Documentation built in 0.26 seconds`
+  - Last output line: `INFO    -  Documentation built in 0.23 seconds`
 - `make validate-synthetic-api-runtime-gate`: pass
   - Last output line: `Synthetic API runtime gate validation passed.`
 - `make evidence-gate-003-synthetic-api-runtime`: pass
@@ -56,10 +57,12 @@ Actual Kubernetes context: kubernetes-admin@cluster.local
 
 ## Dry-run
 
+- `make synthetic-api-tenant-namespaces-dry-run`: not run
 - `make synthetic-api-install-dry-run`: not run
 
 ## Mutation
 
+- `make synthetic-api-tenant-namespaces-apply`: not run
 - `make synthetic-api-apply`: not run
 
 ## Runtime smoke
@@ -118,5 +121,6 @@ Ready for goal 004: no
 ## Known limitations
 
 - Explicit cluster mutation permission has not been granted in this local gate package.
+- Tenant namespace prereq bootstrap has not run.
 - Runtime apply, smoke, negative tests, and runtime evidence collection have not run.
 - Goal 004 remains blocked until runtime approval is approved.

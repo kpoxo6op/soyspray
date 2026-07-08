@@ -117,6 +117,9 @@ openapi-lint:
 render-synthetic-apis:
 	@$(PYTHON) scripts/render_synthetic_apis.py >/dev/null
 
+render-synthetic-api-tenant-namespaces:
+	@$(PYTHON) scripts/render_synthetic_api_tenant_namespaces.py >/dev/null
+
 synthetic-api-static-test:
 	@$(PYTEST) tests/unit/test_goal_003_synthetic_api_structure.py tests/unit/test_goal_003_route_matrix.py tests/unit/test_goal_003_runtime_boundary.py tests/policy/test_goal_003_exposure_policy.py tests/policy/test_goal_003_no_forbidden_kong_resources.py
 
@@ -207,7 +210,14 @@ kong-route-smoke:
 	@platform/kong/scripts/route-smoke.sh
 
 synthetic-api-install-dry-run:
-	@platform/kong/synthetic-apis/scripts/synthetic-api-install-dry-run.sh
+	@$(PYTHON) scripts/render_synthetic_apis.py | kubectl apply --dry-run=server -f -
+
+synthetic-api-tenant-namespaces-dry-run:
+	@$(PYTHON) scripts/render_synthetic_api_tenant_namespaces.py | kubectl apply --dry-run=server -f -
+
+synthetic-api-tenant-namespaces-apply:
+	@platform/kong/scripts/require-cluster-mutation-permission.sh
+	@$(PYTHON) scripts/render_synthetic_api_tenant_namespaces.py | kubectl apply -f -
 
 synthetic-api-apply:
 	@platform/kong/scripts/require-cluster-mutation-permission.sh
@@ -270,6 +280,7 @@ help:
 	@echo "  make render-prereqs - Print rendered prerequisite manifests"
 	@echo "  make render-kong-baseline - Render Kong baseline manifests locally"
 	@echo "  make render-synthetic-apis - Render goal-003 synthetic API manifests locally"
+	@echo "  make render-synthetic-api-tenant-namespaces - Render goal-003 tenant namespace prereqs locally"
 	@echo "  make openapi-lint - Validate goal-003 OpenAPI specs locally"
 	@echo "  make kong-static-test - Run goal-002 unit tests"
 	@echo "  make kong-admin-exposure-test - Check Admin API exposure statically"
@@ -299,6 +310,8 @@ help:
 	@echo "  make kong-install-dry-run - Dry-run Kong baseline apply"
 	@echo "  make kong-apply  - Apply Kong baseline with BANKLAB mutation guard variables"
 	@echo "  make kong-rollback - Roll back Kong baseline with BANKLAB mutation guard variables"
+	@echo "  make synthetic-api-tenant-namespaces-dry-run - Server dry-run goal-003 tenant namespace prereqs"
+	@echo "  make synthetic-api-tenant-namespaces-apply - Apply goal-003 tenant namespace prereqs with mutation guard variables"
 	@echo "  make synthetic-api-install-dry-run - Server dry-run goal-003 synthetic APIs"
 	@echo "  make synthetic-api-apply - Apply goal-003 synthetic APIs with mutation guard variables"
 	@echo "  make synthetic-api-smoke - Run read-only goal-003 route smoke checks"
@@ -318,4 +331,4 @@ help:
 	@echo "  make ans         - Show Ansible command starter"
 	@echo "  make go          - Run argo, act, and ans commands in sequence"
 	@echo "  make alist       - List ArgoCD apps with scripts/argocd-list.sh"
-.PHONY: master worker1 worker2 worker3 help venv act argo install go alist validate validate-yaml validate-kustomize validate-prereqs validate-kong-baseline validate-synthetic-apis validate-synthetic-api-runtime-gate openapi-lint runtime-preflight-local render-prereqs render-kong-baseline render-synthetic-apis kong-static-test kong-admin-exposure-test synthetic-api-static-test synthetic-api-contract-test synthetic-api-smoke-plan kong-apply-plan cluster-readonly-preflight kong-readonly-preflight mutation-guard-test validate-cluster-apply-gate goal002-runtime-ready synthetic-api-runtime-ready goal003-runtime-ready test policy-test docs evidence evidence-goal-001 evidence-goal-002 evidence-goal-003 evidence-gate-002-runtime-preflight evidence-gate-002-cluster-apply-and-smoke evidence-gate-003-synthetic-api-runtime cluster-smoke cluster-prereq-smoke kong-cluster-smoke kong-route-smoke synthetic-api-install-dry-run synthetic-api-apply synthetic-api-smoke synthetic-api-negative-test synthetic-api-rollback kong-install-dry-run kong-apply kong-rollback clean
+.PHONY: master worker1 worker2 worker3 help venv act argo install go alist validate validate-yaml validate-kustomize validate-prereqs validate-kong-baseline validate-synthetic-apis validate-synthetic-api-runtime-gate openapi-lint runtime-preflight-local render-prereqs render-kong-baseline render-synthetic-apis render-synthetic-api-tenant-namespaces kong-static-test kong-admin-exposure-test synthetic-api-static-test synthetic-api-contract-test synthetic-api-smoke-plan kong-apply-plan cluster-readonly-preflight kong-readonly-preflight mutation-guard-test validate-cluster-apply-gate goal002-runtime-ready synthetic-api-runtime-ready goal003-runtime-ready test policy-test docs evidence evidence-goal-001 evidence-goal-002 evidence-goal-003 evidence-gate-002-runtime-preflight evidence-gate-002-cluster-apply-and-smoke evidence-gate-003-synthetic-api-runtime cluster-smoke cluster-prereq-smoke kong-cluster-smoke kong-route-smoke synthetic-api-tenant-namespaces-dry-run synthetic-api-tenant-namespaces-apply synthetic-api-install-dry-run synthetic-api-apply synthetic-api-smoke synthetic-api-negative-test synthetic-api-rollback kong-install-dry-run kong-apply kong-rollback clean

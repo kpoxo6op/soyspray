@@ -6,9 +6,11 @@ Goal 003 may be marked runtime-verified only when evidence proves:
 - explicit mutation approval
 - target and actual Kubernetes context
 - goal 003 local validation result
+- tenant namespace prereq dry-run result
+- tenant namespace prereq apply result
 - server dry-run result
 - apply result
-- tenant namespace state
+- tenant namespace state from `platform/namespaces`
 - backend Deployment readiness
 - backend Service state
 - HTTPRoute accepted status and Gateway parent attachment

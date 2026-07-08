@@ -18,6 +18,7 @@ def test_gate_003_runtime_gate_files_exist():
         "platform/kong/synthetic-apis/scripts/synthetic-api-runtime-apply-and-smoke.sh",
         "platform/kong/synthetic-apis/scripts/collect-synthetic-api-runtime-state.sh",
         "platform/kong/synthetic-apis/scripts/verify-goal003-runtime-ready.sh",
+        "scripts/render_synthetic_api_tenant_namespaces.py",
         "scripts/validate_synthetic_api_runtime_gate.py",
         "reports/gate-003-synthetic-api-runtime-apply-and-smoke-summary.md",
     ]

@@ -35,6 +35,7 @@ REQUIRED_ROOT_FILES = [
     "docs/runbooks/synthetic-api-rollback.md",
     "platform/kong/synthetic-apis/kustomization.yaml",
     "platform/kong/synthetic-apis/argocd/synthetic-bank-apis-app.yaml",
+    "scripts/render_synthetic_api_tenant_namespaces.py",
     "reports/synthetic-api-runtime-evidence.md",
     "reports/synthetic-api-route-smoke-results.md",
     "reports/synthetic-api-negative-test-results.md",
@@ -45,7 +46,6 @@ API_FILES = [
     "openapi.yaml",
     "ownership.yaml",
     "kustomization.yaml",
-    "namespace.yaml",
     "configmap-mock-responses.yaml",
     "deployment.yaml",
     "service.yaml",
@@ -141,6 +141,19 @@ def check_manifests(errors: list[str]) -> None:
     image = load_yaml("apis/synthetic-bank/versions.yaml")["mock_backend"]["image"]
     require(":" in image and not image.endswith(":latest"), errors, "mock backend image must be pinned and not latest")
     for api in APIS:
+        namespace_path = ROOT / "platform/namespaces" / f"{api.namespace}.yaml"
+        require(namespace_path.is_file(), errors, f"missing tenant namespace prereq: {namespace_path.relative_to(ROOT)}")
+        if namespace_path.is_file():
+            namespace = load_yaml(namespace_path)
+            labels = namespace.get("metadata", {}).get("labels", {})
+            require(namespace.get("kind") == "Namespace", errors, f"{namespace_path.relative_to(ROOT)} must be a Namespace")
+            require(namespace.get("metadata", {}).get("name") == api.namespace, errors, f"{namespace_path.relative_to(ROOT)} namespace name mismatch")
+            require(labels.get("banklab.konghq.com/managed-by") == "gitops", errors, f"{namespace_path.relative_to(ROOT)} managed-by label mismatch")
+            require(labels.get("banklab.konghq.com/platform-layer") == "prereq", errors, f"{namespace_path.relative_to(ROOT)} platform-layer must remain prereq")
+            require(labels.get("banklab.konghq.com/environment") == "lab", errors, f"{namespace_path.relative_to(ROOT)} environment label mismatch")
+            require(labels.get("banklab.konghq.com/data-classification") == "synthetic", errors, f"{namespace_path.relative_to(ROOT)} data-classification label mismatch")
+            require(labels.get("banklab.konghq.com/owner") == api.owner, errors, f"{namespace_path.relative_to(ROOT)} owner label mismatch")
+
         base = ROOT / "apis/synthetic-bank" / api.key
         docs = []
         for path in base.glob("*.yaml"):
@@ -153,12 +166,6 @@ def check_manifests(errors: list[str]) -> None:
             labels = doc.get("metadata", {}).get("labels", {})
             for key, value in BASE_LABELS.items():
                 require(labels.get(key) == value, errors, f"{path.relative_to(ROOT)} missing label {key}={value}")
-            if kind == "Namespace":
-                require(doc.get("metadata", {}).get("name") == api.namespace, errors, f"{path.relative_to(ROOT)} namespace name mismatch")
-                require(labels.get("banklab.konghq.com/api-domain") == api.key, errors, f"{path.relative_to(ROOT)} api-domain mismatch")
-                require(labels.get("banklab.konghq.com/owner") == api.owner, errors, f"{path.relative_to(ROOT)} owner mismatch")
-                require(labels.get("banklab.konghq.com/exposure") == api.exposure, errors, f"{path.relative_to(ROOT)} exposure mismatch")
-                continue
             require(doc.get("metadata", {}).get("namespace") == api.namespace, errors, f"{path.relative_to(ROOT)} namespace mismatch")
             if kind == "Deployment":
                 container = doc["spec"]["template"]["spec"]["containers"][0]
@@ -182,12 +189,21 @@ def check_manifests(errors: list[str]) -> None:
 def check_runtime_boundaries(errors: list[str]) -> None:
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    for target in ("synthetic-api-apply", "synthetic-api-rollback"):
+    for target in ("synthetic-api-tenant-namespaces-apply", "synthetic-api-apply", "synthetic-api-rollback"):
         block = re.search(rf"^{target}:\n(?P<body>(?:\t.*\n|[ \t]*\n)*)", makefile, re.M)
         require(block is not None, errors, f"missing Makefile target: {target}")
         if block:
             require("require-cluster-mutation-permission.sh" in block.group("body"), errors, f"{target} must call mutation guard")
-    for forbidden in ("synthetic-api-install-dry-run", "synthetic-api-apply", "synthetic-api-smoke", "synthetic-api-negative-test", "synthetic-api-rollback", "synthetic-api-runtime-ready"):
+    for forbidden in (
+        "synthetic-api-install-dry-run",
+        "synthetic-api-tenant-namespaces-dry-run",
+        "synthetic-api-tenant-namespaces-apply",
+        "synthetic-api-apply",
+        "synthetic-api-smoke",
+        "synthetic-api-negative-test",
+        "synthetic-api-rollback",
+        "synthetic-api-runtime-ready",
+    ):
         require(not re.search(rf"run:\s+make\s+{forbidden}(?:\s|$)", ci), errors, f"CI must not run {forbidden}")
 
 

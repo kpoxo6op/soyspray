@@ -21,10 +21,10 @@ REQUIRED_FILES = [
     "platform/kong/synthetic-apis/RUNTIME-SMOKE-RESULTS.md",
     "platform/kong/synthetic-apis/RUNTIME-NEGATIVE-TEST-RESULTS.md",
     "platform/kong/synthetic-apis/RUNTIME-ADMIN-API-SAFETY-RESULTS.md",
-    "platform/kong/synthetic-apis/scripts/synthetic-api-install-dry-run.sh",
     "platform/kong/synthetic-apis/scripts/synthetic-api-runtime-apply-and-smoke.sh",
     "platform/kong/synthetic-apis/scripts/collect-synthetic-api-runtime-state.sh",
     "platform/kong/synthetic-apis/scripts/verify-goal003-runtime-ready.sh",
+    "scripts/render_synthetic_api_tenant_namespaces.py",
     "reports/gate-003-synthetic-api-runtime-apply-and-smoke-summary.md",
 ]
 
@@ -40,6 +40,8 @@ RUNTIME_RESULT_FILES = [
 
 FORBIDDEN_CI_TARGETS = [
     "synthetic-api-install-dry-run",
+    "synthetic-api-tenant-namespaces-dry-run",
+    "synthetic-api-tenant-namespaces-apply",
     "synthetic-api-apply",
     "synthetic-api-smoke",
     "synthetic-api-negative-test",
@@ -83,6 +85,16 @@ def require(condition: bool, errors: list[str], message: str) -> None:
 def target_block(makefile: str, target: str) -> str:
     match = re.search(rf"^{re.escape(target)}:\n(?P<body>(?:\t.*\n|[ \t]*\n)*)", makefile, re.M)
     return match.group("body") if match else ""
+
+
+def appears_in_order(text: str, markers: tuple[str, ...]) -> bool:
+    offset = 0
+    for marker in markers:
+        index = text.find(marker, offset)
+        if index == -1:
+            return False
+        offset = index + len(marker)
+    return True
 
 
 def runtime_approved() -> bool:
@@ -129,20 +141,32 @@ def check_makefile_and_scripts(errors: list[str]) -> None:
     makefile = file_text("Makefile")
     ci = file_text(".github/workflows/ci.yml")
     guard = "require-cluster-mutation-permission.sh"
-    for target in ("synthetic-api-apply", "synthetic-api-rollback"):
+    for target in ("synthetic-api-tenant-namespaces-apply", "synthetic-api-apply", "synthetic-api-rollback"):
         block = target_block(makefile, target)
         require(block, errors, f"missing Makefile target: {target}")
         require(guard in block, errors, f"{target} must call mutation guard")
-    for target in ("validate-synthetic-api-runtime-gate", "evidence-gate-003-synthetic-api-runtime", "goal003-runtime-ready"):
+    for target in (
+        "render-synthetic-api-tenant-namespaces",
+        "synthetic-api-tenant-namespaces-dry-run",
+        "validate-synthetic-api-runtime-gate",
+        "evidence-gate-003-synthetic-api-runtime",
+        "goal003-runtime-ready",
+    ):
         require(target_block(makefile, target), errors, f"missing Makefile target: {target}")
     runtime_script = file_text("platform/kong/synthetic-apis/scripts/synthetic-api-runtime-apply-and-smoke.sh")
-    dry_run_script = file_text("platform/kong/synthetic-apis/scripts/synthetic-api-install-dry-run.sh")
-    apply_script = file_text("platform/kong/synthetic-apis/scripts/synthetic-api-apply.sh")
     require(guard in runtime_script, errors, "runtime apply-and-smoke script must call mutation guard")
-    require("--include-kind Namespace" in dry_run_script, errors, "synthetic API dry-run must validate Namespace resources separately")
-    require("--dry-run=client" in dry_run_script, errors, "synthetic API dry-run must fall back to client dry-run before namespaces exist")
-    require("--include-kind Namespace" in apply_script, errors, "synthetic API apply must apply Namespace resources first")
-    require("--exclude-kind Namespace" in apply_script, errors, "synthetic API apply must apply namespaced resources after Namespaces")
+    require(
+        appears_in_order(
+            runtime_script,
+            (
+                "make synthetic-api-tenant-namespaces-dry-run",
+                "make synthetic-api-tenant-namespaces-apply",
+                "make synthetic-api-install-dry-run",
+            ),
+        ),
+        errors,
+        "runtime apply-and-smoke script must bootstrap tenant namespaces before synthetic API dry-run",
+    )
     require("make synthetic-api-apply" in runtime_script, errors, "runtime apply-and-smoke script must use Makefile apply target")
     require("make synthetic-api-smoke" in runtime_script, errors, "runtime apply-and-smoke script must use Makefile smoke target")
     require("make synthetic-api-negative-test" in runtime_script, errors, "runtime apply-and-smoke script must use Makefile negative target")

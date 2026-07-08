@@ -14,20 +14,19 @@ def test_gate_003_mutating_paths_are_guarded_and_not_in_ci():
     makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
     ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     runtime_script = (ROOT / "platform/kong/synthetic-apis/scripts/synthetic-api-runtime-apply-and-smoke.sh").read_text(encoding="utf-8")
-    apply_script = (ROOT / "platform/kong/synthetic-apis/scripts/synthetic-api-apply.sh").read_text(encoding="utf-8")
-    dry_run_script = (ROOT / "platform/kong/synthetic-apis/scripts/synthetic-api-install-dry-run.sh").read_text(encoding="utf-8")
 
+    assert "require-cluster-mutation-permission.sh" in target_block(makefile, "synthetic-api-tenant-namespaces-apply")
     assert "require-cluster-mutation-permission.sh" in target_block(makefile, "synthetic-api-apply")
     assert "require-cluster-mutation-permission.sh" in target_block(makefile, "synthetic-api-rollback")
     assert "require-cluster-mutation-permission.sh" in runtime_script
-    assert "--include-kind Namespace" in apply_script
-    assert "--exclude-kind Namespace" in apply_script
-    assert "--include-kind Namespace" in dry_run_script
-    assert "--dry-run=client" in dry_run_script
+    assert runtime_script.index("make synthetic-api-tenant-namespaces-dry-run") < runtime_script.index("make synthetic-api-tenant-namespaces-apply")
+    assert runtime_script.index("make synthetic-api-tenant-namespaces-apply") < runtime_script.index("make synthetic-api-install-dry-run")
     assert "make validate-synthetic-api-runtime-gate" in ci
 
     forbidden_targets = [
         "synthetic-api-install-dry-run",
+        "synthetic-api-tenant-namespaces-dry-run",
+        "synthetic-api-tenant-namespaces-apply",
         "synthetic-api-apply",
         "synthetic-api-smoke",
         "synthetic-api-negative-test",

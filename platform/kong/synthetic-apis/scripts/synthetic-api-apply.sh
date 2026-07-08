@@ -13,10 +13,7 @@ if [[ ! -x "${python_bin}" ]]; then
 fi
 
 status="pass"
-if ! {
-  "${python_bin}" "${repo_root}/scripts/render_synthetic_apis.py" --include-kind Namespace | kubectl apply -f -
-  "${python_bin}" "${repo_root}/scripts/render_synthetic_apis.py" --exclude-kind Namespace | kubectl apply -f -
-} >"${tmp_output}" 2>&1; then
+if ! "${python_bin}" "${repo_root}/scripts/render_synthetic_apis.py" | kubectl apply -f - >"${tmp_output}" 2>&1; then
   status="fail"
 fi
 
