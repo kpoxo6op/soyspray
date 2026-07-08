@@ -5,6 +5,14 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 report="${repo_root}/reports/goal004-runtime-credentials-results.md"
 tmp_output="$(mktemp)"
 trap 'rm -f "${tmp_output}"' EXIT
+python_bin="${BANKLAB_PYTHON:-}"
+if [[ -z "${python_bin}" ]]; then
+  if [[ -x "${repo_root}/soyspray-venv/bin/python" ]]; then
+    python_bin="${repo_root}/soyspray-venv/bin/python"
+  else
+    python_bin="python3"
+  fi
+fi
 
 write_report() {
   local status="$1"
@@ -31,7 +39,7 @@ write_report() {
 cd "${repo_root}"
 platform/kong/scripts/require-cluster-mutation-permission.sh
 
-if scripts/render_goal004_runtime_credentials.py | kubectl apply -f - | tee "${tmp_output}"; then
+if "${python_bin}" scripts/render_goal004_runtime_credentials.py | kubectl apply -f - | tee "${tmp_output}"; then
   write_report "pass"
 else
   write_report "fail"
