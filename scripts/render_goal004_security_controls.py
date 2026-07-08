@@ -17,6 +17,9 @@ try:
         AUTHORIZATION_PROFILE,
         CLIENT_FOR_API,
         CORRELATION_ID_HEADER,
+        KONG_CONTROLLER_WEBHOOK_PORT,
+        KUBE_API_SERVER_NODE_IPS,
+        NODE_LOCAL_DNS_IP,
         REDIS_SERVICE_HOST,
         REDIS_SERVICE_PORT,
         ROOT,
@@ -37,6 +40,9 @@ except ModuleNotFoundError:
         AUTHORIZATION_PROFILE,
         CLIENT_FOR_API,
         CORRELATION_ID_HEADER,
+        KONG_CONTROLLER_WEBHOOK_PORT,
+        KUBE_API_SERVER_NODE_IPS,
+        NODE_LOCAL_DNS_IP,
         REDIS_SERVICE_HOST,
         REDIS_SERVICE_PORT,
         ROOT,
@@ -166,6 +172,45 @@ def kong_redis_egress_policy() -> dict[str, Any]:
     }
 
 
+def kong_node_local_dns_egress_policy() -> dict[str, Any]:
+    return {
+        "apiVersion": "networking.k8s.io/v1",
+        "kind": "NetworkPolicy",
+        "metadata": {"name": "kong-allow-node-local-dns", "namespace": "platform-kong", "labels": labels()},
+        "spec": {
+            "podSelector": {"matchLabels": {"banklab.konghq.com/component": "gateway"}},
+            "policyTypes": ["Egress"],
+            "egress": [
+                {
+                    "to": [{"ipBlock": {"cidr": f"{NODE_LOCAL_DNS_IP}/32"}}],
+                    "ports": [
+                        {"protocol": "UDP", "port": 53},
+                        {"protocol": "TCP", "port": 53},
+                    ],
+                }
+            ],
+        },
+    }
+
+
+def kong_controller_webhook_ingress_policy() -> dict[str, Any]:
+    return {
+        "apiVersion": "networking.k8s.io/v1",
+        "kind": "NetworkPolicy",
+        "metadata": {"name": "kong-allow-controller-webhook-from-api-server", "namespace": "platform-kong", "labels": labels()},
+        "spec": {
+            "podSelector": {"matchLabels": {"banklab.konghq.com/component": "kic"}},
+            "policyTypes": ["Ingress"],
+            "ingress": [
+                {
+                    "from": [{"ipBlock": {"cidr": f"{ip}/32"}} for ip in KUBE_API_SERVER_NODE_IPS],
+                    "ports": [{"protocol": "TCP", "port": KONG_CONTROLLER_WEBHOOK_PORT}],
+                }
+            ],
+        },
+    }
+
+
 def plugin(name: str, namespace_name: str, api_key: str, plugin_name: str, config: dict[str, Any]) -> dict[str, Any]:
     return {
         "apiVersion": "configuration.konghq.com/v1",
@@ -285,6 +330,8 @@ def render() -> list[dict[str, Any]]:
         redis_service(),
         redis_ingress_policy(),
         kong_redis_egress_policy(),
+        kong_node_local_dns_egress_policy(),
+        kong_controller_webhook_ingress_policy(),
     ]
     for api in APIS:
         docs.extend(plugins_for_api(api))

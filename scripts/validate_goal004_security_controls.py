@@ -21,6 +21,9 @@ try:
         CLIENTS,
         CLIENT_API_ACCESS,
         CORRELATION_ID_HEADER,
+        KONG_CONTROLLER_WEBHOOK_PORT,
+        KUBE_API_SERVER_NODE_IPS,
+        NODE_LOCAL_DNS_IP,
         REDIS_SERVICE_HOST,
         REDIS_SERVICE_PORT,
         ROOT,
@@ -45,6 +48,9 @@ except ModuleNotFoundError:
         CLIENTS,
         CLIENT_API_ACCESS,
         CORRELATION_ID_HEADER,
+        KONG_CONTROLLER_WEBHOOK_PORT,
+        KUBE_API_SERVER_NODE_IPS,
+        NODE_LOCAL_DNS_IP,
         REDIS_SERVICE_HOST,
         REDIS_SERVICE_PORT,
         ROOT,
@@ -153,6 +159,24 @@ def check_rendered_controls(errors: list[str]) -> None:
     policies = {doc["metadata"]["name"]: doc for doc in docs_by_kind(docs, "NetworkPolicy")}
     require("banklab-rate-limit-redis-ingress" in policies, errors, "Redis ingress NetworkPolicy missing")
     require("kong-allow-rate-limit-redis" in policies, errors, "Kong Redis egress NetworkPolicy missing")
+    require("kong-allow-node-local-dns" in policies, errors, "Kong NodeLocalDNS egress NetworkPolicy missing")
+    require("kong-allow-controller-webhook-from-api-server" in policies, errors, "Kong controller webhook ingress NetworkPolicy missing")
+    node_dns = policies.get("kong-allow-node-local-dns", {})
+    node_dns_egress = node_dns.get("spec", {}).get("egress", [{}])[0]
+    require(
+        {"ipBlock": {"cidr": f"{NODE_LOCAL_DNS_IP}/32"}} in node_dns_egress.get("to", []),
+        errors,
+        "Kong NodeLocalDNS egress must target the node-local DNS IP",
+    )
+    webhook = policies.get("kong-allow-controller-webhook-from-api-server", {})
+    webhook_ingress = webhook.get("spec", {}).get("ingress", [{}])[0]
+    expected_api_servers = [{"ipBlock": {"cidr": f"{ip}/32"}} for ip in KUBE_API_SERVER_NODE_IPS]
+    require(webhook_ingress.get("from") == expected_api_servers, errors, "Kong webhook ingress API-server source mismatch")
+    require(
+        {"protocol": "TCP", "port": KONG_CONTROLLER_WEBHOOK_PORT} in webhook_ingress.get("ports", []),
+        errors,
+        "Kong webhook ingress port mismatch",
+    )
 
     plugins = docs_by_kind(docs, "KongPlugin")
     plugins_by_ns_name = {(doc["metadata"]["namespace"], doc["metadata"]["name"]): doc for doc in plugins}
