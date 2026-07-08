@@ -77,23 +77,32 @@ if ! proxy_ip="$(kubectl -n platform-kong get service banklab-kong-gateway-proxy
   exit 1
 fi
 
-status="$(
-  curl --silent --show-error \
-    --connect-timeout "${curl_connect_timeout}" \
-    --max-time "${curl_max_time}" \
-    --output "${tmp_body}" \
-    --dump-header "${tmp_headers}" \
-    --write-out '%{http_code}' \
-    --header "apikey: ${BANKLAB_MOBILE_BANKING_APP_API_KEY}" \
-    --resolve "api.internal.banklab.test:80:${proxy_ip}" \
-    "http://api.internal.banklab.test/accounts/v1/health"
-)"
+wait_for_temporary_header() {
+  local status
+  for _ in $(seq 1 15); do
+    status="$(
+      curl --silent --show-error \
+        --connect-timeout "${curl_connect_timeout}" \
+        --max-time "${curl_max_time}" \
+        --output "${tmp_body}" \
+        --dump-header "${tmp_headers}" \
+        --write-out '%{http_code}' \
+        --header "apikey: ${BANKLAB_MOBILE_BANKING_APP_API_KEY}" \
+        --resolve "api.internal.banklab.test:80:${proxy_ip}" \
+        "http://api.internal.banklab.test/accounts/v1/health"
+    )"
+    if [[ "${status}" == "200" ]] && grep -Eiq '^X-Goal005-Change-Id:[[:space:]]*goal-005-normal-change' "${tmp_headers}"; then
+      return 0
+    fi
+    sleep 2
+  done
+  fail "observed temporary header: fail; last_status=${status:-unknown}; body=$(cat "${tmp_body}")"
+}
 
-[[ "${status}" == "200" ]] || fail "HTTP smoke result: fail; expected 200, got ${status}; body=$(cat "${tmp_body}")"
+wait_for_temporary_header
 grep -Fq "banklab-accounts-ok" "${tmp_body}" || fail "goal004 marker preservation: fail"
 grep -Eiq '^X-Banklab-Correlation-ID:' "${tmp_headers}" || fail "goal004 correlation ID preservation: fail"
 grep -Eiq '^(x-)?ratelimit-limit|^ratelimit-limit:' "${tmp_headers}" || fail "rate-limit header preservation: fail"
-grep -Eiq '^X-Goal005-Change-Id:[[:space:]]*goal-005-normal-change' "${tmp_headers}" || fail "observed temporary header: fail"
 
 echo "HTTP smoke result: pass; status=200" | tee -a "${tmp_output}"
 echo "observed temporary header: pass; X-Goal005-Change-Id=goal-005-normal-change" | tee -a "${tmp_output}"
