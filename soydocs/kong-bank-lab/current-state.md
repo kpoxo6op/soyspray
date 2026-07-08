@@ -9,7 +9,37 @@ Updated: 2026-07-09
 - Before approval, confirm the current commit with `git rev-parse --short HEAD`
   and put that value in the approval block.
 
-## Latest Pro Review
+## Latest Runtime State
+
+Goal006 was implemented from fresh ChatGPT Pro guidance and is runtime-verified
+locally, pending Pro approval.
+
+Accepted local/runtime state:
+
+- Goal: `goal-006-self-service-api-product-contract`
+- Status: pending Pro approval; runtime-verified locally
+- Branch: `kong-goals-foundation`
+- Evidence commit ready to approve: this document's commit
+- Cluster context: `kubernetes-admin@cluster.local`
+- Runtime verification: pass
+- Ready for goal007: no; ask ChatGPT Pro after goal006 approval
+
+Evidence files:
+
+- `reports/goal-006-summary.md`
+- `reports/goal-006-product-contract-rollout.md`
+- `reports/goal-006-product-contract-rollback.md`
+- `docs/decisions/goal-006-runtime-approval.md`
+
+Fresh Pro guidance for goal006:
+
+- Small OSS/Kubernetes/GitOps increment.
+- One self-service API product.
+- One simulated owning team.
+- Use decK-style state, OSS plugins, existing mock API, and curl proof.
+- Avoid Enterprise-only and Konnect-only controls.
+
+## Previous Pro Review
 
 ChatGPT Pro approved `goal-005-tenancy-rbac-change-control` at evidence commit
 `c032c61`.
@@ -22,7 +52,7 @@ Accepted state:
 - Evidence commit approved by Pro: `c032c61`
 - Cluster context: `kubernetes-admin@cluster.local`
 - Runtime verification: pass
-- Ready for goal006: no; create save point and stop first
+- Ready for goal006: completed after fresh Codex and Pro chats
 
 See `soydocs/kong-bank-lab/savepoint-2026-07-09-post-goal-005.md` for the
 fresh-context handoff.
@@ -48,10 +78,10 @@ Pro also accepted `post-goal-005-savepoint.md` as the programme-control rule:
 after goals 004 and 005 are completed and approved, both Codex and ChatGPT Pro
 must create save points, then goal 006 starts in fresh chats.
 
-## Current Blocker
+## Current Gate
 
-Do not start `goal-006-keycloak-sso-platform-tools` in this conversation.
-Start a fresh Codex chat and a fresh Pro chat after the post-goal005 save point.
+Do not start goal007 until ChatGPT Pro approves
+`goal-006-self-service-api-product-contract`.
 
 ## Historical Goal003 Blocker
 
