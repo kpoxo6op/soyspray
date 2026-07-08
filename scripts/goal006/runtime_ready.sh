@@ -44,7 +44,15 @@ run_step() {
   local label="$1"
   shift
   echo "## ${label}" >>"${tmp_output}"
+  set +e
   "$@" >>"${tmp_output}" 2>&1
+  local code=$?
+  set -e
+  if [[ "${code}" -ne 0 ]]; then
+    echo "step failed: ${label}; exit=${code}" >>"${tmp_output}"
+    cat "${tmp_output}"
+    exit "${code}"
+  fi
   echo >>"${tmp_output}"
 }
 

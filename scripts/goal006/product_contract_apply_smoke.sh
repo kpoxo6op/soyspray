@@ -87,7 +87,9 @@ load_secret_env() {
 curl_accounts() {
   local expected="$1"
   shift
-  curl --silent --show-error \
+  local status
+  status="$(
+    curl --silent --show-error \
     --connect-timeout "${curl_connect_timeout}" \
     --max-time "${curl_max_time}" \
     --output "${tmp_body}" \
@@ -95,13 +97,12 @@ curl_accounts() {
     --write-out '%{http_code}' \
     --resolve "api.internal.banklab.test:80:${proxy_ip}" \
     "$@" \
-    "http://api.internal.banklab.test/accounts/v1/health" | {
-      read -r status
-      if [[ "${status}" != "${expected}" ]]; then
-        fail "accounts request expected ${expected}, got ${status}; body=$(cat "${tmp_body}")"
-      fi
-      printf '%s' "${status}"
-    }
+    "http://api.internal.banklab.test/accounts/v1/health"
+  )"
+  if [[ "${status}" != "${expected}" ]]; then
+    fail "accounts request expected ${expected}, got ${status}; body=$(cat "${tmp_body}")"
+  fi
+  printf '%s' "${status}"
 }
 
 cd "${repo_root}"
