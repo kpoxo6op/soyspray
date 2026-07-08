@@ -4,252 +4,135 @@ Updated: 2026-07-09
 
 ## Branch
 
+- Repo: `/home/boris/code/soyspray`
 - Branch: `kong-goals-foundation`
-- Latest pushed source checkpoint before runtime evidence: `49b80d6`
-- Latest pushed evidence checkpoint: `2527339`
-- Latest pushed source checkpoint before goal008 evidence: `cfcd2ec`
-- Before approval, confirm the current commit with `git rev-parse --short HEAD`
-  and put that value in the approval block.
+- Latest pushed commit: `25db428`
+- Kubernetes context used for runtime checks: `kubernetes-admin@cluster.local`
 
-## Previous Runtime State
+Fresh sessions must first verify:
 
-Goal006 was implemented from fresh ChatGPT Pro guidance, runtime-verified, and
-approved by ChatGPT Pro.
+```sh
+git status --short --branch
+git rev-parse --short HEAD
+kubectl config current-context
+```
 
-Accepted local/runtime state:
-
-- Goal: `goal-006-self-service-api-product-contract`
-- Status: approved; runtime-verified
-- Branch: `kong-goals-foundation`
-- Evidence commit approved by Pro: `4ee4f77`
-- Cluster context: `kubernetes-admin@cluster.local`
-- Runtime verification: pass
-- Ready for goal007: yes; Pro issued `goal-007-consumer-onboarding-entitlements`
-
-Evidence files:
-
-- `reports/goal-006-summary.md`
-- `reports/goal-006-product-contract-rollout.md`
-- `reports/goal-006-product-contract-rollback.md`
-- `docs/decisions/goal-006-runtime-approval.md`
-
-## Latest Runtime State
-
-Goal007 was implemented from ChatGPT Pro guidance, runtime-verified, and
-approved by ChatGPT Pro.
-
-Accepted local/runtime state:
-
-- Goal: `goal-007-consumer-onboarding-entitlements`
-- Status: approved; runtime-verified
-- Branch: `kong-goals-foundation`
-- Runtime source commit: `49b80d6`
-- Evidence commit approved by Pro: `2527339`
-- Cluster context: `kubernetes-admin@cluster.local`
-- Runtime verification: pass
-- Ready for goal008: yes; Pro issued governance policy-as-code direction
-
-Evidence files:
-
-- `reports/goal-007-summary.md`
-- `reports/goal-007-consumer-onboarding-rollout.md`
-- `reports/goal-007-consumer-onboarding-rollback.md`
-- `docs/decisions/goal-007-runtime-approval.md`
-
-## Latest Runtime State
-
-Goal008 was implemented from ChatGPT Pro guidance and is runtime-verified
-locally, pending Pro approval. Pro's full response stalled while finalizing,
-but the visible guidance was consistent across fresh chats: keep goal008 small
-and implement an OSS/Kubernetes/GitOps platform governance control using
-policy-as-code for Kong resources and unsafe plugin configuration, with demo,
-evidence, and rollback.
-
-Current implementation state:
-
-- Goal: `goal-008-kong-governance-policy-as-code`
-- Status: pending Pro approval; runtime-verified locally
-- Branch: `kong-goals-foundation`
-- Runtime source commit: `cfcd2ec`
-- Evidence commit ready to approve: this document's commit
-- Cluster context: `kubernetes-admin@cluster.local`
-- Runtime verification: pass
-- Ready for goal009: no; ask ChatGPT Pro after goal008 runtime evidence is
-  committed and pushed
-
-Goal008 scope:
-
-- Kubernetes-native `ValidatingAdmissionPolicy`
-- KongPlugin allowlist for the OSS plugins already used by the lab
-- Safe and unsafe server-dry-run fixtures
-- Guarded apply/smoke and rollback/smoke evidence
-
-## Current Goal Source
-
-Goal007 was issued by ChatGPT Pro after goal006 approval.
-
-Current implementation state:
-
-- Goal: `goal-007-consumer-onboarding-entitlements`
-- Status: approved; runtime-verified
-- Branch: `kong-goals-foundation`
-- Cluster context: `kubernetes-admin@cluster.local`
-- Runtime verification: pass
-- Ready for goal008: yes
-
-Goal007 scope:
-
-- Self-service consumer contract for `branch-insights-app`
-- Target product `accounts-self-service-health-v1`
-- Target API `accounts`
-- ACL group `banklab-accounts`
-- Runtime-only key-auth and ACL credential Secrets
-- Guarded apply/smoke and rollback/smoke evidence
-
-Fresh Pro guidance for goal006:
-
-- Small OSS/Kubernetes/GitOps increment.
-- One self-service API product.
-- One simulated owning team.
-- Use decK-style state, OSS plugins, existing mock API, and curl proof.
-- Avoid Enterprise-only and Konnect-only controls.
-
-## Previous Pro Review
-
-ChatGPT Pro approved `goal-005-tenancy-rbac-change-control` at evidence commit
-`c032c61`.
-
-Accepted state:
-
-- Goal: `goal-005-tenancy-rbac-change-control`
-- Status: approved; runtime-verified
-- Branch: `kong-goals-foundation`
-- Evidence commit approved by Pro: `c032c61`
-- Cluster context: `kubernetes-admin@cluster.local`
-- Runtime verification: pass
-- Ready for goal006: completed after fresh Codex and Pro chats
-
-See `soydocs/kong-bank-lab/savepoint-2026-07-09-post-goal-005.md` for the
-fresh-context handoff.
-
-## Previous Pro Review
-
-ChatGPT Pro approved `gate-003-synthetic-api-runtime-apply-and-smoke` as a
-local-only runtime gate package.
-
-Accepted state:
-
-- Gate: `gate-003-synthetic-api-runtime-apply-and-smoke`
-- Status: pending explicit cluster mutation permission
-- Branch: `kong-goals-foundation`
-- Commit when Pro approved the local-only package: `37a1b7d`
-- Cluster changes performed: none
-- Runtime verification: not run
-- Runtime approval: pending
-- Ready for goal004: no
-- `goal003-runtime-ready`: fails closed
-
-Pro also accepted `post-goal-005-savepoint.md` as the programme-control rule:
-after goals 004 and 005 are completed and approved, both Codex and ChatGPT Pro
-must create save points, then goal 006 starts in fresh chats.
-
-## Current Gate
-
-Do not start goal009 until ChatGPT Pro approves
-`goal-008-kong-governance-policy-as-code`.
-
-## Historical Goal003 Blocker
-
-The next action is the guarded runtime apply and smoke gate for goal 003. It
-requires explicit user approval for cluster mutation and an explicit target
-Kubernetes context.
-
-Current local Kubernetes context:
+Expected state at this handover:
 
 ```text
+## kong-goals-foundation...origin/kong-goals-foundation
+25db428
 kubernetes-admin@cluster.local
 ```
 
-## Required Approval
+## Completed And Approved
 
-Use this approval shape before running the cluster-mutating runtime gate. Fill
-`Commit:` from the current `git rev-parse --short HEAD` output.
+### Goal006
+
+- Goal: `goal-006-self-service-api-product-contract`
+- Status: approved by ChatGPT Pro; runtime-verified
+- Runtime source commit: `b16d82b`
+- Evidence commit approved by Pro: `4ee4f77`
+- Evidence:
+  - `reports/goal-006-summary.md`
+  - `reports/goal-006-product-contract-rollout.md`
+  - `reports/goal-006-product-contract-rollback.md`
+  - `docs/decisions/goal-006-runtime-approval.md`
+
+### Goal007
+
+- Goal: `goal-007-consumer-onboarding-entitlements`
+- Status: approved by ChatGPT Pro; runtime-verified
+- Runtime source commit: `49b80d6`
+- Evidence commit approved by Pro: `2527339`
+- Evidence:
+  - `reports/goal-007-summary.md`
+  - `reports/goal-007-consumer-onboarding-rollout.md`
+  - `reports/goal-007-consumer-onboarding-rollback.md`
+  - `docs/decisions/goal-007-runtime-approval.md`
+
+## Latest Runtime State
+
+### Goal008
+
+- Goal: `goal-008-kong-governance-policy-as-code`
+- Status: runtime-verified locally; pending formal ChatGPT Pro approval
+- Runtime source commit: `cfcd2ec`
+- Runtime evidence commit pushed: `25db428`
+- Runtime verification: pass
+- Cluster context: `kubernetes-admin@cluster.local`
+- Evidence:
+  - `reports/goal-008-summary.md`
+  - `reports/goal-008-governance-policy-rollout.md`
+  - `reports/goal-008-governance-policy-rollback.md`
+  - `docs/decisions/goal-008-runtime-approval.md`
+
+Goal008 implemented a Kubernetes-native `ValidatingAdmissionPolicy` and binding
+for KongPlugin allowlisting.
+
+Runtime proof:
+
+- policy and binding applied
+- safe `response-transformer` KongPlugin fixture accepted by server dry-run
+- unsafe `request-transformer` KongPlugin fixture denied by governance policy
+- goal004 smoke and negative tests passed while the policy was active
+- rollback removed the binding before the policy
+- unsafe fixture became server-dry-run admissible after rollback
+- goal004 smoke, Redis rate limit, and Kong Admin API safety passed after
+  rollback
+- current cluster has no `banklab-kong-plugin-governance` admission resources
+
+Local proof:
+
+- `make validate`: pass
+- `make validate-yaml`: pass
+- `make validate-kustomize`: pass
+- `make validate-synthetic-apis`: pass
+- `make validate-goal004-security`: pass
+- `make validate-goal005-tenancy`: pass
+- `make validate-goal006-product`: pass
+- `make validate-goal007-consumer`: pass
+- `make validate-goal008-governance`: pass
+- `make openapi-lint`: pass
+- render targets through goal008: pass
+- `make test`: 109 passed
+- `make policy-test`: 33 passed
+- `make docs`: pass
+- `make evidence-goal-008`: pass
+
+## ChatGPT Pro State
+
+Pro received the goal008 approval packet for evidence commit `25db428`.
+
+Visible Pro response:
 
 ```text
-I approve running gate-003-synthetic-api-runtime-apply-and-smoke cluster-mutating commands.
-
-Branch: kong-goals-foundation
-Commit: <current-HEAD-short-sha>
-Target Kubernetes context: kubernetes-admin@cluster.local
-Commands approved:
-- make synthetic-api-tenant-namespaces-dry-run
-- make synthetic-api-tenant-namespaces-apply
-- make synthetic-api-install-dry-run
-- make synthetic-api-apply
-- make synthetic-api-smoke
-- make synthetic-api-negative-test
-- make kong-admin-exposure-test
-- platform/kong/synthetic-apis/scripts/collect-synthetic-api-evidence.sh
-- platform/kong/synthetic-apis/scripts/collect-synthetic-api-runtime-state.sh
-- make evidence-goal-003
-- make evidence-gate-003-synthetic-api-runtime
-- make goal003-runtime-ready
-
-Expected resources to change:
-- tenant-accounts Namespace if absent
-- tenant-payments Namespace if absent
-- tenant-cards Namespace if absent
-- tenant-customer-profile Namespace if absent
-- tenant-fraud Namespace if absent
-- tenant-open-banking Namespace if absent
-- tenant-accounts synthetic API resources
-- tenant-payments synthetic API resources
-- tenant-cards synthetic API resources
-- tenant-customer-profile synthetic API resources
-- tenant-fraud synthetic API resources
-- tenant-open-banking synthetic API resources
-- synthetic API Deployments
-- synthetic API Services
-- synthetic API ConfigMaps
-- synthetic API HTTPRoutes
-- synthetic API NetworkPolicies
-
-Expected resources not to change:
-- Kong Gateway deployment
-- Kong Ingress Controller deployment
-- Kong GatewayClass except status reconciliation
-- Kong internal and external Gateways except status reconciliation
-- Kong Admin API service
-- Kong CRDs
-- Gateway API CRDs
-- platform prereq namespaces other than the six listed tenant namespaces
-- unrelated namespaces
-- unrelated secrets
-- unrelated workloads
-
-Rollback command:
-- make synthetic-api-rollback
-
-Rollback note:
-- Rollback removes synthetic API resources.
-- Rollback intentionally leaves tenant Namespace prereqs in place.
-
-Approval:
-- approved
+The pushed GitHub evidence at 25db428 is available and supports the programme
+decision, including runtime-verified status, deny-mode admission behavior, and
+rollback proof.
 ```
 
-## Next Local Command Shape
+Then the Pro answer became stuck at `Finalizing answer` before providing a clean
+formal approval or a full goal009 body.
 
-After explicit approval, run the guarded gate with:
+## Current Gate
+
+Do not start goal009 until ChatGPT Pro formally approves
+`goal-008-kong-governance-policy-as-code` and provides a usable goal009 body.
+
+If Pro is still laggy, start a fresh ChatGPT Pro project chat and paste the
+prompt from `soydocs/kong-bank-lab/handover-2026-07-09-post-goal-008.md`.
+
+## Runtime Safety
+
+No goal008 policy resources should be left applied after rollback. Verify with:
 
 ```sh
-export BANKLAB_ALLOW_CLUSTER_MUTATION=true
-export BANKLAB_TARGET_CONTEXT=kubernetes-admin@cluster.local
-platform/kong/synthetic-apis/scripts/synthetic-api-runtime-apply-and-smoke.sh
+kubectl get validatingadmissionpolicy,validatingadmissionpolicybinding | rg 'banklab-kong-plugin-governance' || true
 ```
 
-The gate must produce runtime evidence and make `make goal003-runtime-ready`
-pass before goal 004 can start.
+Expected output:
 
-See also `handover-2026-07-06.md` for the fresh-session restart summary and
-ChatGPT Pro prompt.
+```text
+No resources found
+```
