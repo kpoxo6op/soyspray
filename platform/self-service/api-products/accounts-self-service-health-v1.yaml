@@ -1,0 +1,45 @@
+product_id: accounts-self-service-health-v1
+display_name: Accounts Self-Service Health
+api_id: accounts
+tenant_id: retail-accounts
+owning_team: retail-accounts
+namespace: tenant-accounts
+logical_workspace: retail-banking
+exposure: internal
+data_classification: confidential
+host: api.internal.banklab.test
+path_prefix: /accounts/v1
+health_path: /accounts/v1/health
+consumer_client: mobile-banking-app
+contract_version: v1
+change_class: standard
+deck_state_file: platform/kong/deck/goal006/accounts-self-service-product.yaml
+kubernetes_renderer: scripts/render_goal006_product_contract.py
+runtime_marker:
+  header: X-Banklab-Product-Contract
+  value: accounts-self-service-health-v1
+oss_enforcement:
+  route: tenant-accounts/banklab-accounts
+  plugin: tenant-accounts/goal006-product-contract-header
+  plugin_type: response-transformer
+  required_existing_plugins:
+    - banklab-key-auth
+    - banklab-acl
+    - banklab-rate-limit
+    - banklab-correlation-id
+runtime_proofs:
+  positive:
+    command: make goal006-product-contract-apply-and-smoke
+    expected_status: 200
+    expected_body_marker: banklab-accounts-ok
+  negative:
+    - missing API key returns 401
+    - wrong ACL key returns 403
+  rollback:
+    command: make goal006-product-contract-rollback-and-smoke
+    expected_marker_header_absent: true
+approvers:
+  tenant_reviewer: retail-platform-reviewer
+  platform_reviewer: kong-platform
+runbook: docs/runbooks/goal-006-product-contract-rollback.md
+lifecycle_state: active

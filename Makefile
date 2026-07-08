@@ -87,6 +87,7 @@ alist:
 validate:
 	@$(PYTHON) scripts/validate_repo.py
 	@$(PYTHON) scripts/validate_goal005_tenancy_catalog.py
+	@$(PYTHON) scripts/validate_goal006_product_contract.py
 
 validate-yaml:
 	@$(PYTHON) scripts/validate_yaml.py
@@ -122,6 +123,9 @@ validate-goal005-tenancy:
 	@$(PYTHON) scripts/validate_goal005_tenancy_catalog.py
 	@$(PYTHON) scripts/validate_rendered_ownership.py
 
+validate-goal006-product:
+	@$(PYTHON) scripts/validate_goal006_product_contract.py
+
 openapi-lint:
 	@$(PYTHON) scripts/validate_openapi_specs.py
 
@@ -139,6 +143,9 @@ render-goal005-tenancy-rbac:
 
 render-goal005-change:
 	@$(PYTHON) scripts/render_goal005_change.py >/dev/null
+
+render-goal006-product-contract:
+	@$(PYTHON) scripts/render_goal006_product_contract.py >/dev/null
 
 synthetic-api-static-test:
 	@$(PYTEST) tests/unit/test_goal_003_synthetic_api_structure.py tests/unit/test_goal_003_route_matrix.py tests/unit/test_goal_003_runtime_boundary.py tests/policy/test_goal_003_exposure_policy.py tests/policy/test_goal_003_no_forbidden_kong_resources.py
@@ -160,6 +167,12 @@ goal005-static-test:
 
 goal005-contract-test:
 	@$(PYTEST) tests/goal005/test_change_control.py
+
+goal006-static-test:
+	@$(PYTEST) tests/goal006/test_product_contract.py
+
+goal006-contract-test:
+	@$(PYTEST) tests/goal006/test_product_contract.py
 
 synthetic-api-smoke-plan:
 	@$(PYTHON) scripts/generate_synthetic_api_smoke_plan.py
@@ -206,7 +219,7 @@ goal002-runtime-ready:
 	@platform/kong/scripts/verify-goal002-runtime-ready.sh
 
 test:
-	@$(PYTEST) tests/unit tests/goal005
+	@$(PYTEST) tests/unit tests/goal005 tests/goal006
 
 policy-test:
 	@$(PYTEST) tests/policy
@@ -231,6 +244,9 @@ evidence-goal-004:
 
 evidence-goal-005:
 	@$(PYTHON) scripts/generate_evidence_report.py --goal goal-005-tenancy-rbac-change-control
+
+evidence-goal-006:
+	@$(PYTHON) scripts/generate_evidence_report.py --goal goal-006-self-service-api-product-contract
 
 evidence-gate-003-synthetic-api-runtime:
 	@$(PYTHON) scripts/generate_evidence_report.py --goal gate-003-synthetic-api-runtime-apply-and-smoke
@@ -323,6 +339,15 @@ goal005-change-rollback-and-smoke:
 goal005-runtime-ready:
 	@scripts/goal005/runtime_ready.sh
 
+goal006-product-contract-apply-and-smoke:
+	@scripts/goal006/product_contract_apply_smoke.sh
+
+goal006-product-contract-rollback-and-smoke:
+	@scripts/goal006/product_contract_rollback_smoke.sh
+
+goal006-runtime-ready:
+	@scripts/goal006/runtime_ready.sh
+
 synthetic-api-rollback:
 	@platform/kong/scripts/require-cluster-mutation-permission.sh
 	@platform/kong/synthetic-apis/scripts/synthetic-api-rollback.sh
@@ -376,6 +401,7 @@ help:
 	@echo "  make validate-synthetic-api-security - Run local goal-004 security checks"
 	@echo "  make validate-goal004-security - Run local goal-004 security checks"
 	@echo "  make validate-goal005-tenancy - Run local goal-005 tenancy/catalog/RBAC checks"
+	@echo "  make validate-goal006-product - Run local goal-006 self-service product contract checks"
 	@echo "  make runtime-preflight-local - Run local gate-002 runtime preflight checks"
 	@echo "  make render-prereqs - Print rendered prerequisite manifests"
 	@echo "  make render-kong-baseline - Render Kong baseline manifests locally"
@@ -384,6 +410,7 @@ help:
 	@echo "  make render-goal004-security - Render goal-004 security controls locally"
 	@echo "  make render-goal005-tenancy-rbac - Render goal-005 tenancy/RBAC resources locally"
 	@echo "  make render-goal005-change - Render goal-005 sample change resources locally"
+	@echo "  make render-goal006-product-contract - Render goal-006 product contract resources locally"
 	@echo "  make openapi-lint - Validate goal-003 OpenAPI specs locally"
 	@echo "  make kong-static-test - Run goal-002 unit tests"
 	@echo "  make kong-admin-exposure-test - Check Admin API exposure statically"
@@ -394,6 +421,8 @@ help:
 	@echo "  make goal004-contract-test - Run goal-004 credential/security contract tests"
 	@echo "  make goal005-static-test - Run goal-005 catalog and rendered ownership tests"
 	@echo "  make goal005-contract-test - Run goal-005 change-control contract tests"
+	@echo "  make goal006-static-test - Run goal-006 product contract tests"
+	@echo "  make goal006-contract-test - Run goal-006 contract tests"
 	@echo "  make synthetic-api-smoke-plan - Generate goal-003 runtime smoke plan"
 	@echo "  make goal004-smoke-plan - Generate goal-004 smoke plan"
 	@echo "  make kong-apply-plan - Generate Kong runtime apply plan locally"
@@ -409,6 +438,7 @@ help:
 	@echo "  make evidence-goal-003 - Refresh goal-003 evidence report"
 	@echo "  make evidence-goal-004 - Refresh goal-004 evidence report"
 	@echo "  make evidence-goal-005 - Refresh goal-005 evidence report"
+	@echo "  make evidence-goal-006 - Refresh goal-006 evidence report"
 	@echo "  make evidence-gate-003-synthetic-api-runtime - Refresh gate-003 runtime evidence"
 	@echo "  make evidence-gate-002-runtime-preflight - Refresh runtime preflight evidence"
 	@echo "  make evidence-gate-002-cluster-apply-and-smoke - Refresh cluster apply gate evidence"
@@ -443,11 +473,15 @@ help:
 	@echo "  make goal005-change-apply-and-smoke - Apply and smoke the goal-005 sample normal change"
 	@echo "  make goal005-change-rollback-and-smoke - Roll back and smoke the goal-005 sample normal change"
 	@echo "  make goal005-runtime-ready - Run goal-005 runtime acceptance sequence"
+	@echo "  make goal006-product-contract-apply-and-smoke - Apply and smoke the goal-006 product contract"
+	@echo "  make goal006-product-contract-rollback-and-smoke - Roll back and smoke the goal-006 product contract"
+	@echo "  make goal006-runtime-ready - Run goal-006 runtime acceptance sequence"
 	@echo "  make synthetic-api-rollback - Roll back goal-003 synthetic APIs with mutation guard variables"
 	@echo "  make synthetic-api-runtime-ready - Verify runtime evidence is approved"
 	@echo "  make goal003-runtime-ready - Verify goal-003 runtime evidence is approved"
 	@echo "  make goal004-runtime-ready - Verify goal-004 runtime evidence is approved"
 	@echo "  make goal005-runtime-ready - Verify goal-005 runtime evidence is ready for approval"
+	@echo "  make goal006-runtime-ready - Verify goal-006 runtime evidence is ready for approval"
 	@echo "  make clean       - Remove generated local artifacts"
 	@echo "  make master      - SSH into master node ($(MASTER_NODE))"
 	@echo "  make worker1     - SSH into worker node 1 ($(WORKER_NODE1))"
@@ -460,4 +494,4 @@ help:
 	@echo "  make ans         - Show Ansible command starter"
 	@echo "  make go          - Run argo, act, and ans commands in sequence"
 	@echo "  make alist       - List ArgoCD apps with scripts/argocd-list.sh"
-.PHONY: master worker1 worker2 worker3 help venv act argo install go alist validate validate-yaml validate-kustomize validate-prereqs validate-kong-baseline validate-synthetic-apis validate-synthetic-api-runtime-gate validate-synthetic-api-security validate-goal004-security validate-goal005-tenancy openapi-lint runtime-preflight-local render-prereqs render-kong-baseline render-synthetic-apis render-synthetic-api-tenant-namespaces render-goal004-security render-goal005-tenancy-rbac render-goal005-change kong-static-test kong-admin-exposure-test synthetic-api-static-test synthetic-api-contract-test synthetic-api-security-static-test goal004-static-test goal004-contract-test goal005-static-test goal005-contract-test synthetic-api-smoke-plan goal004-smoke-plan kong-apply-plan cluster-readonly-preflight kong-readonly-preflight mutation-guard-test validate-cluster-apply-gate goal002-runtime-ready synthetic-api-runtime-ready goal003-runtime-ready goal004-runtime-ready goal005-runtime-ready test policy-test docs evidence evidence-goal-001 evidence-goal-002 evidence-goal-003 evidence-goal-004 evidence-goal-005 evidence-gate-002-runtime-preflight evidence-gate-002-cluster-apply-and-smoke evidence-gate-003-synthetic-api-runtime cluster-smoke cluster-prereq-smoke kong-cluster-smoke kong-route-smoke synthetic-api-tenant-namespaces-dry-run synthetic-api-tenant-namespaces-apply synthetic-api-security-credentials-dry-run synthetic-api-security-credentials-apply goal004-runtime-credentials-dry-run goal004-runtime-credentials-apply goal004-security-dry-run synthetic-api-install-dry-run synthetic-api-apply goal004-security-apply synthetic-api-security-apply-and-smoke goal004-security-smoke synthetic-api-smoke goal004-security-negative-test synthetic-api-negative-test goal004-rate-limit-test goal004-security-rollback goal005-tenancy-rbac-apply goal005-rbac-smoke goal005-change-apply-and-smoke goal005-change-rollback-and-smoke synthetic-api-rollback kong-install-dry-run kong-apply kong-rollback clean
+.PHONY: master worker1 worker2 worker3 help venv act argo install go alist validate validate-yaml validate-kustomize validate-prereqs validate-kong-baseline validate-synthetic-apis validate-synthetic-api-runtime-gate validate-synthetic-api-security validate-goal004-security validate-goal005-tenancy validate-goal006-product openapi-lint runtime-preflight-local render-prereqs render-kong-baseline render-synthetic-apis render-synthetic-api-tenant-namespaces render-goal004-security render-goal005-tenancy-rbac render-goal005-change render-goal006-product-contract kong-static-test kong-admin-exposure-test synthetic-api-static-test synthetic-api-contract-test synthetic-api-security-static-test goal004-static-test goal004-contract-test goal005-static-test goal005-contract-test goal006-static-test goal006-contract-test synthetic-api-smoke-plan goal004-smoke-plan kong-apply-plan cluster-readonly-preflight kong-readonly-preflight mutation-guard-test validate-cluster-apply-gate goal002-runtime-ready synthetic-api-runtime-ready goal003-runtime-ready goal004-runtime-ready goal005-runtime-ready goal006-runtime-ready test policy-test docs evidence evidence-goal-001 evidence-goal-002 evidence-goal-003 evidence-goal-004 evidence-goal-005 evidence-goal-006 evidence-gate-002-runtime-preflight evidence-gate-002-cluster-apply-and-smoke evidence-gate-003-synthetic-api-runtime cluster-smoke cluster-prereq-smoke kong-cluster-smoke kong-route-smoke synthetic-api-tenant-namespaces-dry-run synthetic-api-tenant-namespaces-apply synthetic-api-security-credentials-dry-run synthetic-api-security-credentials-apply goal004-runtime-credentials-dry-run goal004-runtime-credentials-apply goal004-security-dry-run synthetic-api-install-dry-run synthetic-api-apply goal004-security-apply synthetic-api-security-apply-and-smoke goal004-security-smoke synthetic-api-smoke goal004-security-negative-test synthetic-api-negative-test goal004-rate-limit-test goal004-security-rollback goal005-tenancy-rbac-apply goal005-rbac-smoke goal005-change-apply-and-smoke goal005-change-rollback-and-smoke goal006-product-contract-apply-and-smoke goal006-product-contract-rollback-and-smoke synthetic-api-rollback kong-install-dry-run kong-apply kong-rollback clean

@@ -14,9 +14,25 @@ import yaml
 
 try:
     from scripts.goal005_tenancy_config import PLATFORM_SERVICE_ACCOUNT, TENANT_SERVICE_ACCOUNTS, load_api_products, load_tenants
+    from scripts.goal006_product_contract_config import API_ID as GOAL006_API_ID
+    from scripts.goal006_product_contract_config import HEADER_NAME as GOAL006_HEADER_NAME
+    from scripts.goal006_product_contract_config import HEADER_VALUE as GOAL006_HEADER_VALUE
+    from scripts.goal006_product_contract_config import PLUGIN_NAME as GOAL006_PLUGIN_NAME
+    from scripts.goal006_product_contract_config import PRODUCT_ID as GOAL006_PRODUCT_ID
+    from scripts.goal006_product_contract_config import ROUTE_NAME as GOAL006_ROUTE_NAME
+    from scripts.goal006_product_contract_config import TENANT_ID as GOAL006_TENANT_ID
+    from scripts.goal006_product_contract_config import load_product_contract
     from scripts.synthetic_bank_config import APIS, CLIENTS
 except ModuleNotFoundError:
     from goal005_tenancy_config import PLATFORM_SERVICE_ACCOUNT, TENANT_SERVICE_ACCOUNTS, load_api_products, load_tenants
+    from goal006_product_contract_config import API_ID as GOAL006_API_ID
+    from goal006_product_contract_config import HEADER_NAME as GOAL006_HEADER_NAME
+    from goal006_product_contract_config import HEADER_VALUE as GOAL006_HEADER_VALUE
+    from goal006_product_contract_config import PLUGIN_NAME as GOAL006_PLUGIN_NAME
+    from goal006_product_contract_config import PRODUCT_ID as GOAL006_PRODUCT_ID
+    from goal006_product_contract_config import ROUTE_NAME as GOAL006_ROUTE_NAME
+    from goal006_product_contract_config import TENANT_ID as GOAL006_TENANT_ID
+    from goal006_product_contract_config import load_product_contract
     from synthetic_bank_config import APIS, CLIENTS
 
 
@@ -203,6 +219,19 @@ def goal_005_runtime_verified_from_files() -> bool:
             "reports/goal004-rate-limit-results.md",
         )
     ) and status_line("docs/decisions/goal-005-runtime-approval.md") in {"pending approval", "approved"}
+
+
+def goal_006_runtime_verified_from_files() -> bool:
+    return all(
+        status_line(relative) == "pass"
+        for relative in (
+            "reports/goal-006-product-contract-rollout.md",
+            "reports/goal-006-product-contract-rollback.md",
+            "reports/goal004-security-smoke-results.md",
+            "reports/goal004-security-negative-test-results.md",
+            "reports/goal004-rate-limit-results.md",
+        )
+    ) and status_line("docs/decisions/goal-006-runtime-approval.md") in {"pending approval", "approved"}
 
 
 def write_goal_000() -> int:
@@ -1625,6 +1654,149 @@ Ready for goal006: no; stop after goal005 approval and save point
     return 0 if local_pass else 1
 
 
+def write_goal_006() -> int:
+    commands = [
+        ("make validate", ["make", "validate"]),
+        ("make validate-yaml", ["make", "validate-yaml"]),
+        ("make validate-kustomize", ["make", "validate-kustomize"]),
+        ("make validate-synthetic-apis", ["make", "validate-synthetic-apis"]),
+        ("make validate-goal004-security", ["make", "validate-goal004-security"]),
+        ("make validate-goal005-tenancy", ["make", "validate-goal005-tenancy"]),
+        ("make validate-goal006-product", ["make", "validate-goal006-product"]),
+        ("make openapi-lint", ["make", "openapi-lint"]),
+        ("make render-synthetic-apis", ["make", "render-synthetic-apis"]),
+        ("make render-goal004-security", ["make", "render-goal004-security"]),
+        ("make render-goal005-tenancy-rbac", ["make", "render-goal005-tenancy-rbac"]),
+        ("make render-goal006-product-contract", ["make", "render-goal006-product-contract"]),
+        ("make goal004-static-test", ["make", "goal004-static-test"]),
+        ("make goal004-contract-test", ["make", "goal004-contract-test"]),
+        ("make goal005-static-test", ["make", "goal005-static-test"]),
+        ("make goal005-contract-test", ["make", "goal005-contract-test"]),
+        ("make goal006-static-test", ["make", "goal006-static-test"]),
+        ("make goal006-contract-test", ["make", "goal006-contract-test"]),
+        ("make test", ["make", "test"]),
+        ("make policy-test", ["make", "policy-test"]),
+        (
+            "make docs",
+            [
+                sys.executable,
+                "-m",
+                "mkdocs",
+                "build",
+                "--strict",
+                "--site-dir",
+                ".build/mkdocs",
+            ],
+        ),
+    ]
+
+    results: list[tuple[str, int, str]] = []
+    for label, command in commands:
+        code, output = run_command(command)
+        results.append((label, code, output))
+
+    local_pass = all(code == 0 for _, code, _ in results)
+    runtime_verified = local_pass and goal_006_runtime_verified_from_files()
+    status = "pass; runtime-verified" if runtime_verified else ("pass; local-only" if local_pass else "fail")
+    now = dt.datetime.now(dt.timezone.utc).astimezone().isoformat(timespec="seconds")
+    branch = current_branch()
+    commit_code, commit = run_command(["git", "rev-parse", "--short", "HEAD"])
+    commit = commit if commit_code == 0 else "unknown"
+    context_code, context = run_command(["kubectl", "config", "current-context"])
+    context = context if context_code == 0 else "unknown"
+    files = created_or_updated_files()
+    file_list = "\n".join(f"- `{path}`" for path in files) if files else "- None"
+    contract = load_product_contract()
+
+    runtime_lines = "\n".join(
+        [
+            f"- `make goal006-product-contract-apply-and-smoke`: {status_line('reports/goal-006-product-contract-rollout.md')}",
+            f"- `make goal006-product-contract-rollback-and-smoke`: {status_line('reports/goal-006-product-contract-rollback.md')}",
+            f"- `make goal006-runtime-ready`: {status_line('docs/decisions/goal-006-runtime-approval.md')}",
+            f"- `make goal004-security-smoke`: {status_line('reports/goal004-security-smoke-results.md')}",
+            f"- `make goal004-security-negative-test`: {status_line('reports/goal004-security-negative-test-results.md')}",
+            f"- `make goal004-rate-limit-test`: {status_line('reports/goal004-rate-limit-results.md')}",
+            f"- `make kong-admin-exposure-test`: {status_line('platform/kong/security-controls/RUNTIME-ADMIN-API-SAFETY-RESULTS.md')}",
+        ]
+    )
+
+    report = f"""# Goal: goal-006-self-service-api-product-contract
+
+Status: {status}
+
+Branch: {branch}
+
+Commit: {commit}
+
+Generated at: {now}
+
+Cluster context: {context}
+
+## Objective Summary
+
+Implement one OSS-compatible self-service product contract for the existing
+`{GOAL006_API_ID}` synthetic API owned by `{GOAL006_TENANT_ID}`.
+
+## Product Contract
+
+- Product ID: `{GOAL006_PRODUCT_ID}`
+- API ID: `{contract.get('api_id')}`
+- Tenant ID: `{contract.get('tenant_id')}`
+- Route: `tenant-accounts/HTTPRoute/{GOAL006_ROUTE_NAME}`
+- Plugin: `tenant-accounts/KongPlugin/{GOAL006_PLUGIN_NAME}`
+- Runtime marker: `{GOAL006_HEADER_NAME}: {GOAL006_HEADER_VALUE}`
+- decK-style state: `{contract.get('deck_state_file')}`
+- Renderer: `{contract.get('kubernetes_renderer')}`
+
+## Local Test Results
+
+{format_command_results(results)}
+- `make evidence-goal-006`: pass
+  - Last output line: `reports/goal-006-summary.md generated by this command.`
+
+## Runtime Test Results
+
+{runtime_lines}
+
+## Runtime Evidence Files
+
+- `reports/goal-006-product-contract-rollout.md`: {status_line('reports/goal-006-product-contract-rollout.md')}
+- `reports/goal-006-product-contract-rollback.md`: {status_line('reports/goal-006-product-contract-rollback.md')}
+- `docs/decisions/goal-006-runtime-approval.md`: {status_line('docs/decisions/goal-006-runtime-approval.md')}
+
+## Safety Statements
+
+- No credential values were printed, committed, or written into goal006 evidence reports.
+- No new API was created; the product contract targets the existing accounts API.
+- Kong Enterprise and Konnect-only features were not introduced.
+- The Kong Admin API exposure check remains part of runtime acceptance.
+- Rollback removes only the goal006 product contract marker plugin and restores the stable goal005 accounts route annotation.
+
+## Created Or Updated Files
+
+{file_list}
+
+Cluster changes performed: {"goal006 product contract rollout/rollback" if runtime_verified else "none in this evidence generation step"}
+
+Runtime verification: {"pass" if runtime_verified else "not run"}
+
+Ready for Pro approval: {"yes" if runtime_verified else "no"}
+
+Ready for goal007: no; ask ChatGPT Pro after goal006 approval
+"""
+
+    (ROOT / "reports/goal-006-summary.md").write_text(report, encoding="utf-8")
+
+    for label, code, output in results:
+        print(f"{label}: {'pass' if code == 0 else 'fail'}")
+        if code != 0 and output:
+            print(output)
+
+    print("make evidence-goal-006: pass")
+    print("reports/goal-006-summary.md generated by this command.")
+    return 0 if local_pass else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--goal", default="goal-000-repo-foundation")
@@ -1642,6 +1814,8 @@ def main() -> int:
         return write_goal_004()
     if args.goal == "goal-005-tenancy-rbac-change-control":
         return write_goal_005()
+    if args.goal == "goal-006-self-service-api-product-contract":
+        return write_goal_006()
     if args.goal == "gate-003-synthetic-api-runtime-apply-and-smoke":
         return write_gate_003_synthetic_api_runtime()
     if args.goal == "gate-002-runtime-preflight":

@@ -1,0 +1,25 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: goal006-product-contract-header
+  namespace: tenant-accounts
+  annotations:
+    kubernetes.io/ingress.class: kong
+    platform.soyspray.io/runbook: docs/runbooks/goal-006-product-contract-rollback.md
+    platform.soyspray.io/product-contract-file: platform/self-service/api-products/accounts-self-service-health-v1.yaml
+    platform.soyspray.io/deck-state-file: platform/kong/deck/goal006/accounts-self-service-product.yaml
+  labels:
+    platform.soyspray.io/tenant: retail-accounts
+    platform.soyspray.io/api-id: accounts
+    platform.soyspray.io/product-id: accounts-self-service-health-v1
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/goal: goal-006
+    platform.soyspray.io/change-class: standard
+    platform.soyspray.io/logical-workspace: retail-banking
+    platform.soyspray.io/exposure: internal
+    platform.soyspray.io/data-classification: confidential
+plugin: response-transformer
+config:
+  add:
+    headers:
+      - X-Banklab-Product-Contract:accounts-self-service-health-v1

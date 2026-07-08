@@ -1,0 +1,45 @@
+_format_version: "3.0"
+_info:
+  description: Goal006 decK-style contract for the existing accounts API product.
+  select_tags:
+    - goal-006
+    - self-service-product
+    - retail-accounts
+    - accounts
+    - accounts-self-service-health-v1
+services:
+  - name: banklab-accounts-api
+    host: banklab-accounts-api.tenant-accounts.svc.cluster.local
+    port: 80
+    protocol: http
+    tags:
+      - goal-006
+      - accounts-self-service-health-v1
+      - retail-accounts
+    routes:
+      - name: banklab-accounts
+        hosts:
+          - api.internal.banklab.test
+        paths:
+          - /accounts/v1
+        strip_path: false
+        tags:
+          - goal-006
+          - accounts-self-service-health-v1
+          - retail-accounts
+plugins:
+  - name: response-transformer
+    route: banklab-accounts
+    config:
+      add:
+        headers:
+          - X-Banklab-Product-Contract:accounts-self-service-health-v1
+    tags:
+      - goal-006
+      - accounts-self-service-health-v1
+      - retail-accounts
+x-banklab:
+  kubernetes_renderer: scripts/render_goal006_product_contract.py
+  contract_file: platform/self-service/api-products/accounts-self-service-health-v1.yaml
+  runtime_apply: make goal006-product-contract-apply-and-smoke
+  rollback: make goal006-product-contract-rollback-and-smoke

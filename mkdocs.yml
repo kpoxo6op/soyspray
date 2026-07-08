@@ -38,6 +38,7 @@ nav:
       - Tenancy Model: platform/tenancy-model.md
       - Change Control: platform/change-control.md
       - API Product Onboarding: platform/api-product-onboarding.md
+      - Self-Service Product Contracts: platform/self-service-product-contracts.md
   - ADRs:
       - Overview: adr/README.md
       - ADR Template: adr/adr-template.md
@@ -69,6 +70,7 @@ nav:
       - Synthetic API Security Apply And Smoke: runbooks/synthetic-api-security-apply-and-smoke.md
       - Goal 005 RBAC Failure: runbooks/goal-005-rbac-failure.md
       - Goal 005 Change Rollback: runbooks/goal-005-change-rollback.md
+      - Goal 006 Product Contract Rollback: runbooks/goal-006-product-contract-rollback.md
   - Decisions:
       - Overview: decisions/README.md
       - Goal 003 Blocked: decisions/goal-003-blocked-until-kong-runtime-validation.md
@@ -77,3 +79,4 @@ nav:
       - Goal 004 Runtime Approval: decisions/goal-004-runtime-approval.md
       - Goal 005 Tenancy RBAC Change Control: decisions/goal-005-tenancy-rbac-change-control.md
       - Goal 005 Runtime Approval: decisions/goal-005-runtime-approval.md
+      - Goal 006 Runtime Approval: decisions/goal-006-runtime-approval.md

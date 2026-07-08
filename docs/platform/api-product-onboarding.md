@@ -19,3 +19,8 @@ and the normal change-control path.
 
 Credentials remain platform-owned. Tenant teams do not get access to credential
 Secrets as part of onboarding.
+
+Goal006 adds a narrower self-service contract path for an existing API product:
+add a product contract file, add the matching decK-style state, render the
+namespaced Kong resources, and prove the route-scoped contract with curl before
+asking for platform approval.
