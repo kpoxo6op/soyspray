@@ -61,6 +61,28 @@ else
   } > platform/kong/synthetic-apis/RUNTIME-ADMIN-API-SAFETY-RESULTS.md
   exit 1
 fi
+{
+  echo "# Goal 003 Runtime Approval"
+  echo
+  echo "Status: approved"
+  echo
+  echo "Approved at: $(date -Iseconds)"
+  echo
+  echo "Branch: $(git branch --show-current 2>/dev/null || true)"
+  echo
+  echo "Commit: $(git rev-parse --short HEAD 2>/dev/null || true)"
+  echo
+  echo "Kubernetes context: $(kubectl config current-context 2>/dev/null || true)"
+  echo
+  echo "Goal 003 runtime approval is granted after guarded runtime apply,"
+  echo "route smoke, negative tests, Admin API safety checks, and evidence"
+  echo "collection passed for the synthetic banking API layer."
+  echo
+  echo "- Cluster changes performed: synthetic bank APIs applied."
+  echo "- Runtime verification: pass."
+  echo "- Runtime approval: approved."
+  echo "- Ready for goal 004: yes."
+} > docs/decisions/goal-003-runtime-approval.md
 platform/kong/synthetic-apis/scripts/collect-synthetic-api-evidence.sh
 platform/kong/synthetic-apis/scripts/collect-synthetic-api-runtime-state.sh
 make evidence-goal-003

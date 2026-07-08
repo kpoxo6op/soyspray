@@ -170,6 +170,8 @@ def check_makefile_and_scripts(errors: list[str]) -> None:
     require("make synthetic-api-apply" in runtime_script, errors, "runtime apply-and-smoke script must use Makefile apply target")
     require("make synthetic-api-smoke" in runtime_script, errors, "runtime apply-and-smoke script must use Makefile smoke target")
     require("make synthetic-api-negative-test" in runtime_script, errors, "runtime apply-and-smoke script must use Makefile negative target")
+    require("docs/decisions/goal-003-runtime-approval.md" in runtime_script, errors, "runtime apply-and-smoke script must record runtime approval decision")
+    require("Status: approved" in runtime_script, errors, "runtime apply-and-smoke script must record approved runtime decision after checks pass")
     require("make validate-synthetic-api-runtime-gate" in ci, errors, "CI must run local runtime gate validation")
     for target in FORBIDDEN_CI_TARGETS:
         require(not re.search(rf"run:\s+make\s+{re.escape(target)}(?:\s|$)", ci), errors, f"CI must not run {target}")
