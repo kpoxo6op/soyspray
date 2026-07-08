@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 YAML_ROOTS = [
     ".github",
     "apis",
+    "kubernetes",
     "platform",
     "policies",
     "tests",
@@ -54,4 +55,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

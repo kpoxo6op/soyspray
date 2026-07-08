@@ -1,0 +1,33 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: banklab-accounts
+  namespace: tenant-accounts
+  annotations:
+    konghq.com/plugins: banklab-key-auth,banklab-acl,banklab-rate-limit,banklab-correlation-id
+    platform.soyspray.io/runbook: docs/runbooks/synthetic-api-security-apply-and-smoke.md
+    platform.soyspray.io/docs-owner: retail-accounts
+  labels:
+    platform.soyspray.io/tenant: retail-accounts
+    platform.soyspray.io/api-id: accounts
+    platform.soyspray.io/logical-workspace: retail-banking
+    platform.soyspray.io/exposure: internal
+    platform.soyspray.io/data-classification: confidential
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/goal: goal-005
+    platform.soyspray.io/change-class: standard
+spec:
+  parentRefs:
+    - name: kong-internal
+      namespace: platform-kong
+      sectionName: http
+  hostnames:
+    - api.internal.banklab.test
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /accounts/v1
+      backendRefs:
+        - name: banklab-accounts-api
+          port: 80

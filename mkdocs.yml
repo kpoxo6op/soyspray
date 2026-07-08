@@ -34,6 +34,10 @@ nav:
       - Customer Profile: api-catalog/customer-profile.md
       - Fraud Decisions: api-catalog/fraud-decisions.md
       - Open Banking: api-catalog/open-banking.md
+  - Platform:
+      - Tenancy Model: platform/tenancy-model.md
+      - Change Control: platform/change-control.md
+      - API Product Onboarding: platform/api-product-onboarding.md
   - ADRs:
       - Overview: adr/README.md
       - ADR Template: adr/adr-template.md
@@ -63,9 +67,13 @@ nav:
       - Synthetic API Runtime Failure: runbooks/synthetic-api-runtime-failure.md
       - Synthetic API Runtime Verification Evidence: runbooks/synthetic-api-runtime-verification-evidence.md
       - Synthetic API Security Apply And Smoke: runbooks/synthetic-api-security-apply-and-smoke.md
+      - Goal 005 RBAC Failure: runbooks/goal-005-rbac-failure.md
+      - Goal 005 Change Rollback: runbooks/goal-005-change-rollback.md
   - Decisions:
       - Overview: decisions/README.md
       - Goal 003 Blocked: decisions/goal-003-blocked-until-kong-runtime-validation.md
       - Goal 002 Runtime Approval: decisions/goal-002-runtime-approval.md
       - Goal 003 Runtime Approval: decisions/goal-003-runtime-approval.md
       - Goal 004 Runtime Approval: decisions/goal-004-runtime-approval.md
+      - Goal 005 Tenancy RBAC Change Control: decisions/goal-005-tenancy-rbac-change-control.md
+      - Goal 005 Runtime Approval: decisions/goal-005-runtime-approval.md

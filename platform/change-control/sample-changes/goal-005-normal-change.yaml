@@ -1,0 +1,22 @@
+change_id: goal-005-normal-change
+tenant_id: retail-accounts
+api_id: accounts
+change_class: normal
+reason: Prove a governed tenant-owned Kong configuration change can be applied, observed, and rolled back.
+affected_resources:
+  - kind: KongPlugin
+    namespace: tenant-accounts
+    name: goal005-normal-change-header
+  - kind: HTTPRoute
+    namespace: tenant-accounts
+    name: banklab-accounts
+expected_runtime_evidence:
+  - valid request returns HTTP 200
+  - response contains X-Goal005-Change-Id: goal-005-normal-change
+  - original banklab-accounts-ok marker remains present
+  - X-Banklab-Correlation-ID remains present
+  - rate-limit headers remain present
+rollback_command: make goal005-change-rollback-and-smoke
+approvers:
+  tenant_reviewer: pending
+  platform_reviewer: pending

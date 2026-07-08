@@ -15,6 +15,9 @@ KUSTOMIZATION_PATHS = [
     "platform/networking/metallb",
     "platform/networking/network-policies",
     "platform/certificates/cert-manager",
+    "kubernetes/goal-005-tenancy-rbac",
+    "kubernetes/goal-005-change/normal-change",
+    "kubernetes/goal-005-change/rollback",
 ]
 
 
@@ -57,4 +60,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

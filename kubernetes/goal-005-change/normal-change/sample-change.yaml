@@ -1,0 +1,56 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: goal005-normal-change-header
+  namespace: tenant-accounts
+  annotations:
+    kubernetes.io/ingress.class: kong
+    platform.soyspray.io/runbook: docs/runbooks/goal-005-change-rollback.md
+  labels:
+    platform.soyspray.io/tenant: retail-accounts
+    platform.soyspray.io/api-id: accounts
+    platform.soyspray.io/logical-workspace: retail-banking
+    platform.soyspray.io/exposure: internal
+    platform.soyspray.io/data-classification: confidential
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/goal: goal-005
+    platform.soyspray.io/change-class: normal
+plugin: response-transformer
+config:
+  add:
+    headers:
+      - X-Goal005-Change-Id:goal-005-normal-change
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: banklab-accounts
+  namespace: tenant-accounts
+  annotations:
+    konghq.com/plugins: banklab-key-auth,banklab-acl,banklab-rate-limit,banklab-correlation-id,goal005-normal-change-header
+    platform.soyspray.io/runbook: docs/runbooks/synthetic-api-security-apply-and-smoke.md
+    platform.soyspray.io/docs-owner: retail-accounts
+  labels:
+    platform.soyspray.io/tenant: retail-accounts
+    platform.soyspray.io/api-id: accounts
+    platform.soyspray.io/logical-workspace: retail-banking
+    platform.soyspray.io/exposure: internal
+    platform.soyspray.io/data-classification: confidential
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/goal: goal-005
+    platform.soyspray.io/change-class: normal
+spec:
+  parentRefs:
+    - name: kong-internal
+      namespace: platform-kong
+      sectionName: http
+  hostnames:
+    - api.internal.banklab.test
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /accounts/v1
+      backendRefs:
+        - name: banklab-accounts-api
+          port: 80

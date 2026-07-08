@@ -1,0 +1,26 @@
+api_id: open-banking
+display_name: Open Banking Partner
+tenant_id: payments
+namespace: tenant-open-banking
+logical_workspace: payments-banking
+exposure: external
+data_classification: restricted
+authn_model: jwt
+authz_model: acl:banklab-open-banking
+kong_service_name: banklab-open-banking-api
+kong_route_names:
+  - banklab-open-banking
+required_plugins:
+  - jwt
+  - acl
+  - rate-limiting
+  - correlation-id
+optional_tenant_plugins:
+  - response-transformer
+credential_owner: platform
+slo:
+  availability: 99.0
+  latency_p95_ms: 350
+runbook: docs/runbooks/synthetic-api-security-apply-and-smoke.md
+docs_owner: payments
+lifecycle_state: active

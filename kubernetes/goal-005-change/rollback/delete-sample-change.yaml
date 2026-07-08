@@ -1,0 +1,12 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: goal005-normal-change-header
+  namespace: tenant-accounts
+  annotations:
+    platform.soyspray.io/delete-with: make goal005-change-rollback-and-smoke
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/goal: goal-005
+    platform.soyspray.io/change-class: rollback
+plugin: response-transformer

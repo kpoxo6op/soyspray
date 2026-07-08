@@ -1,0 +1,26 @@
+api_id: fraud-decisions
+display_name: Fraud Decisions
+tenant_id: risk-compliance
+namespace: tenant-fraud
+logical_workspace: risk-compliance
+exposure: internal
+data_classification: restricted
+authn_model: key-auth
+authz_model: acl:banklab-fraud-decisions
+kong_service_name: banklab-fraud-decisions-api
+kong_route_names:
+  - banklab-fraud-decisions
+required_plugins:
+  - key-auth
+  - acl
+  - rate-limiting
+  - correlation-id
+optional_tenant_plugins:
+  - response-transformer
+credential_owner: platform
+slo:
+  availability: 99.0
+  latency_p95_ms: 300
+runbook: docs/runbooks/synthetic-api-security-apply-and-smoke.md
+docs_owner: risk-compliance
+lifecycle_state: active

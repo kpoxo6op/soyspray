@@ -1,0 +1,26 @@
+api_id: payments
+display_name: Payments
+tenant_id: payments
+namespace: tenant-payments
+logical_workspace: payments-banking
+exposure: internal
+data_classification: restricted
+authn_model: key-auth
+authz_model: acl:banklab-payments
+kong_service_name: banklab-payments-api
+kong_route_names:
+  - banklab-payments
+required_plugins:
+  - key-auth
+  - acl
+  - rate-limiting
+  - correlation-id
+optional_tenant_plugins:
+  - response-transformer
+credential_owner: platform
+slo:
+  availability: 99.0
+  latency_p95_ms: 300
+runbook: docs/runbooks/synthetic-api-security-apply-and-smoke.md
+docs_owner: payments
+lifecycle_state: active

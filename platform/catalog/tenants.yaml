@@ -1,0 +1,86 @@
+tenants:
+  - tenant_id: retail-accounts
+    display_name: Retail Accounts
+    logical_workspace: retail-banking
+    namespace: tenant-accounts
+    api_namespaces:
+      - tenant-accounts
+      - tenant-cards
+      - tenant-customer-profile
+    owned_api_ids:
+      - accounts
+      - cards
+      - customer-profile
+    allowed_exposure:
+      - internal
+    allowed_plugins:
+      - key-auth
+      - acl
+      - rate-limiting
+      - correlation-id
+      - response-transformer
+    data_classifications_allowed:
+      - internal
+      - confidential
+    support_contact: retail-platform-support@example.invalid
+    reviewers:
+      - retail-platform-reviewer
+      - kong-platform
+    break_glass_contact: kong-platform-oncall@example.invalid
+    change_approval_group: retail-change-approvers
+  - tenant_id: payments
+    display_name: Payments
+    logical_workspace: payments-banking
+    namespace: tenant-payments
+    api_namespaces:
+      - tenant-payments
+      - tenant-open-banking
+    owned_api_ids:
+      - payments
+      - open-banking
+    allowed_exposure:
+      - internal
+      - external
+    allowed_plugins:
+      - key-auth
+      - jwt
+      - acl
+      - rate-limiting
+      - correlation-id
+      - response-transformer
+    data_classifications_allowed:
+      - internal
+      - confidential
+      - restricted
+    support_contact: payments-platform-support@example.invalid
+    reviewers:
+      - payments-platform-reviewer
+      - kong-platform
+    break_glass_contact: kong-platform-oncall@example.invalid
+    change_approval_group: payments-change-approvers
+  - tenant_id: risk-compliance
+    display_name: Risk and Compliance
+    logical_workspace: risk-compliance
+    namespace: tenant-fraud
+    api_namespaces:
+      - tenant-fraud
+    owned_api_ids:
+      - fraud-decisions
+    allowed_exposure:
+      - internal
+    allowed_plugins:
+      - key-auth
+      - acl
+      - rate-limiting
+      - correlation-id
+      - response-transformer
+    data_classifications_allowed:
+      - internal
+      - confidential
+      - restricted
+    support_contact: risk-platform-support@example.invalid
+    reviewers:
+      - risk-platform-reviewer
+      - kong-platform
+    break_glass_contact: kong-platform-oncall@example.invalid
+    change_approval_group: risk-change-approvers

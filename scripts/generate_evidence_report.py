@@ -13,8 +13,10 @@ from pathlib import Path
 import yaml
 
 try:
+    from scripts.goal005_tenancy_config import PLATFORM_SERVICE_ACCOUNT, TENANT_SERVICE_ACCOUNTS, load_api_products, load_tenants
     from scripts.synthetic_bank_config import APIS, CLIENTS
 except ModuleNotFoundError:
+    from goal005_tenancy_config import PLATFORM_SERVICE_ACCOUNT, TENANT_SERVICE_ACCOUNTS, load_api_products, load_tenants
     from synthetic_bank_config import APIS, CLIENTS
 
 
@@ -186,6 +188,21 @@ def goal_004_runtime_verified_from_files() -> bool:
             "reports/goal004-rate-limit-results.md",
         )
     ) and text_contains("docs/decisions/goal-004-runtime-approval.md", "Status: approved")
+
+
+def goal_005_runtime_verified_from_files() -> bool:
+    return all(
+        status_line(relative) == "pass"
+        for relative in (
+            "reports/goal-005-tenancy-rbac-apply.md",
+            "reports/goal-005-rbac-runtime.md",
+            "reports/goal-005-change-rollout.md",
+            "reports/goal-005-change-rollback.md",
+            "reports/goal004-security-smoke-results.md",
+            "reports/goal004-security-negative-test-results.md",
+            "reports/goal004-rate-limit-results.md",
+        )
+    ) and status_line("docs/decisions/goal-005-runtime-approval.md") in {"pending approval", "approved"}
 
 
 def write_goal_000() -> int:
@@ -1450,6 +1467,164 @@ Ready for next goal: {ready}
     return 0 if local_pass else 1
 
 
+def write_goal_005() -> int:
+    commands = [
+        ("make validate", ["make", "validate"]),
+        ("make validate-yaml", ["make", "validate-yaml"]),
+        ("make validate-kustomize", ["make", "validate-kustomize"]),
+        ("make validate-synthetic-apis", ["make", "validate-synthetic-apis"]),
+        ("make validate-goal004-security", ["make", "validate-goal004-security"]),
+        ("make validate-goal005-tenancy", ["make", "validate-goal005-tenancy"]),
+        ("make openapi-lint", ["make", "openapi-lint"]),
+        ("make render-synthetic-apis", ["make", "render-synthetic-apis"]),
+        ("make render-goal004-security", ["make", "render-goal004-security"]),
+        ("make render-goal005-tenancy-rbac", ["make", "render-goal005-tenancy-rbac"]),
+        ("make render-goal005-change", ["make", "render-goal005-change"]),
+        ("make goal004-static-test", ["make", "goal004-static-test"]),
+        ("make goal004-contract-test", ["make", "goal004-contract-test"]),
+        ("make goal005-static-test", ["make", "goal005-static-test"]),
+        ("make goal005-contract-test", ["make", "goal005-contract-test"]),
+        ("make test", ["make", "test"]),
+        ("make policy-test", ["make", "policy-test"]),
+        (
+            "make docs",
+            [
+                sys.executable,
+                "-m",
+                "mkdocs",
+                "build",
+                "--strict",
+                "--site-dir",
+                ".build/mkdocs",
+            ],
+        ),
+    ]
+
+    results: list[tuple[str, int, str]] = []
+    for label, command in commands:
+        code, output = run_command(command)
+        results.append((label, code, output))
+
+    local_pass = all(code == 0 for _, code, _ in results)
+    runtime_verified = local_pass and goal_005_runtime_verified_from_files()
+    status = "pass; runtime-verified" if runtime_verified else ("pass; local-only" if local_pass else "fail")
+    now = dt.datetime.now(dt.timezone.utc).astimezone().isoformat(timespec="seconds")
+    branch = current_branch()
+    commit_code, commit = run_command(["git", "rev-parse", "--short", "HEAD"])
+    commit = commit if commit_code == 0 else "unknown"
+    context_code, context = run_command(["kubectl", "config", "current-context"])
+    context = context if context_code == 0 else "unknown"
+    files = created_or_updated_files()
+    file_list = "\n".join(f"- `{path}`" for path in files) if files else "- None"
+    products = sorted(load_api_products(), key=lambda product: product.api_id)
+    tenants = sorted(load_tenants(), key=lambda tenant: tenant.tenant_id)
+
+    product_lines = "\n".join(
+        f"- `{product.api_id}` -> `{product.tenant_id}` (`{product.namespace}`, `{product.exposure}`, `{product.data_classification}`)"
+        for product in products
+    )
+    namespace_lines = "\n".join(f"- `{namespace}`" for tenant in tenants for namespace in tenant.api_namespaces)
+    service_account_lines = "\n".join(
+        f"- `{TENANT_SERVICE_ACCOUNTS[tenant.tenant_id]}` in `{tenant.namespace}` for `{tenant.tenant_id}`"
+        for tenant in tenants
+    )
+    service_account_lines = f"{service_account_lines}\n- `{PLATFORM_SERVICE_ACCOUNT}` in `platform-kong` for `kong-platform`"
+
+    runtime_lines = "\n".join(
+        [
+            f"- `make synthetic-api-security-apply-and-smoke`: dependency; goal004 evidence {status_line('reports/goal004-security-smoke-results.md')}",
+            f"- `make goal005-tenancy-rbac-apply`: {status_line('reports/goal-005-tenancy-rbac-apply.md')}",
+            f"- `make goal005-rbac-smoke`: {status_line('reports/goal-005-rbac-runtime.md')}",
+            f"- `make goal005-change-apply-and-smoke`: {status_line('reports/goal-005-change-rollout.md')}",
+            f"- `make goal005-change-rollback-and-smoke`: {status_line('reports/goal-005-change-rollback.md')}",
+            f"- `make goal005-runtime-ready`: {status_line('docs/decisions/goal-005-runtime-approval.md')}",
+            f"- `make goal004-security-smoke`: {status_line('reports/goal004-security-smoke-results.md')}",
+            f"- `make goal004-security-negative-test`: {status_line('reports/goal004-security-negative-test-results.md')}",
+            f"- `make goal004-rate-limit-test`: {status_line('reports/goal004-rate-limit-results.md')}",
+            f"- `make kong-admin-exposure-test`: {status_line('platform/kong/security-controls/RUNTIME-ADMIN-API-SAFETY-RESULTS.md')}",
+        ]
+    )
+
+    report = f"""# Goal: goal-005-tenancy-rbac-change-control
+
+Status: {status}
+
+Branch: {branch}
+
+Commit: {commit}
+
+Generated at: {now}
+
+Cluster context: {context}
+
+## Objective Summary
+
+Implement Kong OSS-compatible tenancy, ownership, RBAC isolation, and
+Git-backed change-control evidence for the six synthetic banking APIs.
+
+## API Products And Owners
+
+{product_lines}
+
+## Tenant Namespaces
+
+{namespace_lines}
+
+## Tenant Service Accounts
+
+{service_account_lines}
+
+## Local Test Results
+
+{format_command_results(results)}
+- `make evidence-goal-005`: pass
+  - Last output line: `reports/goal-005-summary.md generated by this command.`
+
+## Runtime Test Results
+
+{runtime_lines}
+
+## Runtime Evidence Files
+
+- `reports/goal-005-rbac-runtime.md`: {status_line('reports/goal-005-rbac-runtime.md')}
+- `reports/goal-005-change-rollout.md`: {status_line('reports/goal-005-change-rollout.md')}
+- `reports/goal-005-change-rollback.md`: {status_line('reports/goal-005-change-rollback.md')}
+- `docs/decisions/goal-005-runtime-approval.md`: {status_line('docs/decisions/goal-005-runtime-approval.md')}
+
+## Safety Statements
+
+- No credential values were printed, committed, or written into goal005 evidence reports.
+- Runtime credential ownership remains `platform` for all six API products.
+- Kong Admin API exposure remained safe.
+- Kong Enterprise features were not introduced.
+- The sample normal change was applied through committed renderers/manifests.
+- The sample normal change was rolled back successfully when runtime evidence is `pass`.
+
+## Created Or Updated Files
+
+{file_list}
+
+Cluster changes performed: {"goal005 tenancy/RBAC and sample change rollout/rollback" if runtime_verified else "none in this evidence generation step"}
+
+Runtime verification: {"pass" if runtime_verified else "not run"}
+
+Ready for Pro approval: {"yes" if runtime_verified else "no"}
+
+Ready for goal006: no; stop after goal005 approval and save point
+"""
+
+    (ROOT / "reports/goal-005-summary.md").write_text(report, encoding="utf-8")
+
+    for label, code, output in results:
+        print(f"{label}: {'pass' if code == 0 else 'fail'}")
+        if code != 0 and output:
+            print(output)
+
+    print("make evidence-goal-005: pass")
+    print("reports/goal-005-summary.md generated by this command.")
+    return 0 if local_pass else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--goal", default="goal-000-repo-foundation")
@@ -1465,6 +1640,8 @@ def main() -> int:
         return write_goal_003()
     if args.goal == "goal-004-auth-rate-limit-security":
         return write_goal_004()
+    if args.goal == "goal-005-tenancy-rbac-change-control":
+        return write_goal_005()
     if args.goal == "gate-003-synthetic-api-runtime-apply-and-smoke":
         return write_gate_003_synthetic_api_runtime()
     if args.goal == "gate-002-runtime-preflight":

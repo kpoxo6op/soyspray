@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: goal005-owner-metadata-contract
+  namespace: platform-kong
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/goal: goal-005
+    platform.soyspray.io/tenant: kong-platform
+data:
+  source: scripts/render_goal005_tenancy_rbac.py
+  labels: |
+    platform.soyspray.io/tenant
+    platform.soyspray.io/api-id
+    platform.soyspray.io/logical-workspace
+    platform.soyspray.io/exposure
+    platform.soyspray.io/data-classification
+    platform.soyspray.io/managed-by
+    platform.soyspray.io/change-class
+  annotations: |
+    platform.soyspray.io/runbook
+    platform.soyspray.io/docs-owner

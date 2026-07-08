@@ -1,0 +1,26 @@
+api_id: customer-profile
+display_name: Customer Profile
+tenant_id: retail-accounts
+namespace: tenant-customer-profile
+logical_workspace: retail-banking
+exposure: internal
+data_classification: confidential
+authn_model: key-auth
+authz_model: acl:banklab-customer-profile
+kong_service_name: banklab-customer-profile-api
+kong_route_names:
+  - banklab-customer-profile
+required_plugins:
+  - key-auth
+  - acl
+  - rate-limiting
+  - correlation-id
+optional_tenant_plugins:
+  - response-transformer
+credential_owner: platform
+slo:
+  availability: 99.0
+  latency_p95_ms: 300
+runbook: docs/runbooks/synthetic-api-security-apply-and-smoke.md
+docs_owner: retail-accounts
+lifecycle_state: active

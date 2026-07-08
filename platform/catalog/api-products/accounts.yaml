@@ -1,0 +1,26 @@
+api_id: accounts
+display_name: Accounts
+tenant_id: retail-accounts
+namespace: tenant-accounts
+logical_workspace: retail-banking
+exposure: internal
+data_classification: confidential
+authn_model: key-auth
+authz_model: acl:banklab-accounts
+kong_service_name: banklab-accounts-api
+kong_route_names:
+  - banklab-accounts
+required_plugins:
+  - key-auth
+  - acl
+  - rate-limiting
+  - correlation-id
+optional_tenant_plugins:
+  - response-transformer
+credential_owner: platform
+slo:
+  availability: 99.0
+  latency_p95_ms: 250
+runbook: docs/runbooks/synthetic-api-security-apply-and-smoke.md
+docs_owner: retail-accounts
+lifecycle_state: active

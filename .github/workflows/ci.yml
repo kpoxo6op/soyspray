@@ -37,6 +37,9 @@ jobs:
       - name: Validate synthetic API security
         run: make validate-synthetic-api-security
 
+      - name: Validate goal005 tenancy
+        run: make validate-goal005-tenancy
+
       - name: Lint synthetic OpenAPI specs
         run: make openapi-lint
 
@@ -57,6 +60,12 @@ jobs:
 
       - name: Render synthetic bank APIs
         run: make render-synthetic-apis
+
+      - name: Render goal005 tenancy RBAC
+        run: make render-goal005-tenancy-rbac
+
+      - name: Render goal005 sample change
+        run: make render-goal005-change
 
       - name: Generate synthetic API smoke plan
         run: make synthetic-api-smoke-plan
@@ -81,6 +90,12 @@ jobs:
 
       - name: Run synthetic API security tests
         run: make synthetic-api-security-static-test
+
+      - name: Run goal005 static tests
+        run: make goal005-static-test
+
+      - name: Run goal005 contract tests
+        run: make goal005-contract-test
 
       - name: Run policy placeholder tests
         run: make policy-test

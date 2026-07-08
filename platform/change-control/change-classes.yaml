@@ -1,0 +1,44 @@
+change_classes:
+  standard:
+    required_approver_type: catalog_preapproved
+    minimum_evidence:
+      - catalog validation
+      - rendered manifest validation
+    rollback_required: false
+    runtime_smoke_mandatory: false
+    security_review_mandatory: false
+    tenant_self_service_allowed: true
+  normal:
+    required_approver_type: tenant_reviewer_and_platform_reviewer
+    minimum_evidence:
+      - catalog validation
+      - rendered manifest validation
+      - runtime smoke
+      - rollback evidence
+    rollback_required: true
+    runtime_smoke_mandatory: true
+    security_review_mandatory: false
+    tenant_self_service_allowed: true
+  emergency:
+    required_approver_type: break_glass_contact
+    minimum_evidence:
+      - incident reference
+      - runtime smoke
+      - retrospective review
+      - rollback evidence
+    rollback_required: true
+    runtime_smoke_mandatory: true
+    security_review_mandatory: false
+    tenant_self_service_allowed: false
+  security:
+    required_approver_type: security_reviewer_and_platform_reviewer
+    minimum_evidence:
+      - threat or control reference
+      - rendered manifest validation
+      - runtime smoke
+      - security review record
+      - rollback evidence
+    rollback_required: true
+    runtime_smoke_mandatory: true
+    security_review_mandatory: true
+    tenant_self_service_allowed: false

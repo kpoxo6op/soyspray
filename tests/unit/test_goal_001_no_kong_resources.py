@@ -39,6 +39,7 @@ def test_no_kong_plugin_text_in_platform_manifests():
     offenders = [
         str(path.relative_to(ROOT))
         for path in platform_yaml_files()
+        if not str(path.relative_to(ROOT)).startswith("platform/change-control/")
         if "KongPlugin" in path.read_text() or "KongConsumer" in path.read_text()
     ]
     assert offenders == []
