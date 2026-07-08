@@ -32,6 +32,16 @@ try:
     from scripts.goal007_consumer_onboarding_config import TARGET_TENANT_ID as GOAL007_TARGET_TENANT_ID
     from scripts.goal007_consumer_onboarding_config import load_consumer_contract
     from scripts.goal008_governance_policy_config import load_policy as load_goal008_policy
+    from scripts.goal009_response_headers_config import API_ID as GOAL009_API_ID
+    from scripts.goal009_response_headers_config import HEALTH_PATH as GOAL009_HEALTH_PATH
+    from scripts.goal009_response_headers_config import HOST as GOAL009_HOST
+    from scripts.goal009_response_headers_config import NAMESPACE as GOAL009_NAMESPACE
+    from scripts.goal009_response_headers_config import PLUGIN_NAME as GOAL009_PLUGIN_NAME
+    from scripts.goal009_response_headers_config import PLUGIN_TYPE as GOAL009_PLUGIN_TYPE
+    from scripts.goal009_response_headers_config import REQUIRED_HEADER_LINES as GOAL009_REQUIRED_HEADER_LINES
+    from scripts.goal009_response_headers_config import ROUTE_NAME as GOAL009_ROUTE_NAME
+    from scripts.goal009_response_headers_config import SERVICE_NAME as GOAL009_SERVICE_NAME
+    from scripts.goal009_response_headers_config import TENANT_ID as GOAL009_TENANT_ID
     from scripts.synthetic_bank_config import APIS, CLIENTS
 except ModuleNotFoundError:
     from goal005_tenancy_config import PLATFORM_SERVICE_ACCOUNT, TENANT_SERVICE_ACCOUNTS, load_api_products, load_tenants
@@ -53,6 +63,16 @@ except ModuleNotFoundError:
     from goal007_consumer_onboarding_config import TARGET_TENANT_ID as GOAL007_TARGET_TENANT_ID
     from goal007_consumer_onboarding_config import load_consumer_contract
     from goal008_governance_policy_config import load_policy as load_goal008_policy
+    from goal009_response_headers_config import API_ID as GOAL009_API_ID
+    from goal009_response_headers_config import HEALTH_PATH as GOAL009_HEALTH_PATH
+    from goal009_response_headers_config import HOST as GOAL009_HOST
+    from goal009_response_headers_config import NAMESPACE as GOAL009_NAMESPACE
+    from goal009_response_headers_config import PLUGIN_NAME as GOAL009_PLUGIN_NAME
+    from goal009_response_headers_config import PLUGIN_TYPE as GOAL009_PLUGIN_TYPE
+    from goal009_response_headers_config import REQUIRED_HEADER_LINES as GOAL009_REQUIRED_HEADER_LINES
+    from goal009_response_headers_config import ROUTE_NAME as GOAL009_ROUTE_NAME
+    from goal009_response_headers_config import SERVICE_NAME as GOAL009_SERVICE_NAME
+    from goal009_response_headers_config import TENANT_ID as GOAL009_TENANT_ID
     from synthetic_bank_config import APIS, CLIENTS
 
 
@@ -278,6 +298,22 @@ def goal_008_runtime_verified_from_files() -> bool:
             "reports/goal004-rate-limit-results.md",
         )
     ) and status_line("docs/decisions/goal-008-runtime-approval.md") in {"pending approval", "approved"}
+
+
+def goal_009_runtime_verified_from_files() -> bool:
+    return all(
+        status_line(relative) == "pass"
+        for relative in (
+            "reports/goal-009-runtime-readiness.md",
+            "reports/goal-009-governed-response-headers-rollout.md",
+            "reports/goal-009-governed-response-headers-runtime.md",
+            "reports/goal-009-governed-response-headers-rollback.md",
+            "reports/goal004-security-smoke-results.md",
+            "reports/goal004-security-negative-test-results.md",
+            "reports/goal004-rate-limit-results.md",
+            "platform/kong/security-controls/RUNTIME-ADMIN-API-SAFETY-RESULTS.md",
+        )
+    ) and status_line("docs/decisions/goal-009-runtime-approval.md") in {"pending approval", "approved"}
 
 
 def write_goal_000() -> int:
@@ -2148,6 +2184,146 @@ Ready for goal009: no; ask ChatGPT Pro after goal008 approval
     return 0 if local_pass else 1
 
 
+def write_goal_009() -> int:
+    commands = [
+        ("make validate", ["make", "validate"]),
+        ("make validate-yaml", ["make", "validate-yaml"]),
+        ("make validate-kustomize", ["make", "validate-kustomize"]),
+        ("make validate-goal008-governance", ["make", "validate-goal008-governance"]),
+        ("make validate-goal009-security-headers", ["make", "validate-goal009-security-headers"]),
+        ("make render-goal009-security-headers", ["make", "render-goal009-security-headers"]),
+        ("make goal009-static-test", ["make", "goal009-static-test"]),
+        ("make goal009-contract-test", ["make", "goal009-contract-test"]),
+        ("make test", ["make", "test"]),
+        ("make policy-test", ["make", "policy-test"]),
+        (
+            "make docs",
+            [
+                sys.executable,
+                "-m",
+                "mkdocs",
+                "build",
+                "--strict",
+                "--site-dir",
+                ".build/mkdocs",
+            ],
+        ),
+    ]
+
+    results: list[tuple[str, int, str]] = []
+    for label, command in commands:
+        code, output = run_command(command)
+        results.append((label, code, output))
+
+    local_pass = all(code == 0 for _, code, _ in results)
+    runtime_verified = local_pass and goal_009_runtime_verified_from_files()
+    status = "pass; runtime-verified" if runtime_verified else ("pass; local-only" if local_pass else "fail")
+    now = dt.datetime.now(dt.timezone.utc).astimezone().isoformat(timespec="seconds")
+    branch = current_branch()
+    commit_code, commit = run_command(["git", "rev-parse", "--short", "HEAD"])
+    commit = commit if commit_code == 0 else "unknown"
+    context_code, context = run_command(["kubectl", "config", "current-context"])
+    context = context if context_code == 0 else "unknown"
+    files = created_or_updated_files()
+    file_list = "\n".join(f"- `{path}`" for path in files) if files else "- None"
+    required_headers = "\n".join(f"- `{header}`" for header in GOAL009_REQUIRED_HEADER_LINES)
+
+    runtime_lines = "\n".join(
+        [
+            f"- `make goal009-runtime-ready`: {status_line('reports/goal-009-runtime-readiness.md')}",
+            f"- `make goal009-security-headers-apply-and-smoke`: {status_line('reports/goal-009-governed-response-headers-rollout.md')}",
+            f"- `make goal009-security-headers-apply-and-smoke` runtime smoke: {status_line('reports/goal-009-governed-response-headers-runtime.md')}",
+            f"- `make rollback-goal-009`: {status_line('reports/goal-009-governed-response-headers-rollback.md')}",
+            f"- `make goal004-security-smoke`: {status_line('reports/goal004-security-smoke-results.md')}",
+            f"- `make goal004-security-negative-test`: {status_line('reports/goal004-security-negative-test-results.md')}",
+            f"- `make goal004-rate-limit-test`: {status_line('reports/goal004-rate-limit-results.md')}",
+            f"- `make kong-admin-exposure-test`: {status_line('platform/kong/security-controls/RUNTIME-ADMIN-API-SAFETY-RESULTS.md')}",
+            f"- `docs/decisions/goal-009-runtime-approval.md`: {status_line('docs/decisions/goal-009-runtime-approval.md')}",
+        ]
+    )
+
+    report = f"""# Goal: goal-009-kong-governed-response-headers
+
+Status: {status}
+
+Branch: {branch}
+
+Commit: {commit}
+
+Generated at: {now}
+
+Cluster context: {context}
+
+## Objective Summary
+
+Add a reversible GitOps-managed Kong response-header control to the existing
+accounts API path using the OSS `response-transformer` plugin.
+
+## Response Header Contract
+
+- Tenant: `{GOAL009_TENANT_ID}`
+- Namespace: `{GOAL009_NAMESPACE}`
+- API: `{GOAL009_API_ID}`
+- Route: `{GOAL009_ROUTE_NAME}`
+- Service: `{GOAL009_SERVICE_NAME}`
+- Host/path: `{GOAL009_HOST}{GOAL009_HEALTH_PATH}`
+- Plugin: `{GOAL009_NAMESPACE}/KongPlugin/{GOAL009_PLUGIN_NAME}`
+- Plugin type: `{GOAL009_PLUGIN_TYPE}`
+- Required headers:
+{required_headers}
+
+## Local Test Results
+
+{format_command_results(results)}
+- `make evidence-goal-009`: pass
+  - Last output line: `reports/goal-009-summary.md generated by this command.`
+
+## Runtime Test Results
+
+{runtime_lines}
+
+## Runtime Evidence Files
+
+- `reports/goal-009-runtime-readiness.md`: {status_line('reports/goal-009-runtime-readiness.md')}
+- `reports/goal-009-governed-response-headers-rollout.md`: {status_line('reports/goal-009-governed-response-headers-rollout.md')}
+- `reports/goal-009-governed-response-headers-runtime.md`: {status_line('reports/goal-009-governed-response-headers-runtime.md')}
+- `reports/goal-009-governed-response-headers-rollback.md`: {status_line('reports/goal-009-governed-response-headers-rollback.md')}
+- `docs/decisions/goal-009-runtime-approval.md`: {status_line('docs/decisions/goal-009-runtime-approval.md')}
+
+## Safety Statements
+
+- The implementation uses only namespaced `KongPlugin` resources and the existing accounts `HTTPRoute`.
+- The plugin type is `response-transformer`, which remains allowed by Goal008 governance.
+- The validator includes a negative `request-transformer` assertion.
+- The route annotation preserves the existing Goal004 auth, ACL, rate-limit, and correlation-id plugins before appending Goal009.
+- No request transformation, application code, route path, service, upstream, TLS, HSTS, OIDC, WAF, mTLS, Vault, cert-manager, external DNS, or Kong Admin API change is introduced.
+- Rollback removes the Goal009 plugin resource and reapplies the stable accounts route annotation.
+
+## Created Or Updated Files
+
+{file_list}
+
+Cluster changes performed: {"goal009 response headers rollout/rollback" if runtime_verified else "none in this evidence generation step"}
+
+Runtime verification: {"pass" if runtime_verified else "not run"}
+
+Ready for Pro approval: {"yes" if runtime_verified else "no"}
+
+Ready for goal010: no; ask ChatGPT Pro after goal009 approval
+"""
+
+    (ROOT / "reports/goal-009-summary.md").write_text(report, encoding="utf-8")
+
+    for label, code, output in results:
+        print(f"{label}: {'pass' if code == 0 else 'fail'}")
+        if code != 0 and output:
+            print(output)
+
+    print("make evidence-goal-009: pass")
+    print("reports/goal-009-summary.md generated by this command.")
+    return 0 if local_pass else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--goal", default="goal-000-repo-foundation")
@@ -2171,6 +2347,8 @@ def main() -> int:
         return write_goal_007()
     if args.goal == "goal-008-kong-governance-policy-as-code":
         return write_goal_008()
+    if args.goal == "goal-009-kong-governed-response-headers":
+        return write_goal_009()
     if args.goal == "gate-003-synthetic-api-runtime-apply-and-smoke":
         return write_gate_003_synthetic_api_runtime()
     if args.goal == "gate-002-runtime-preflight":

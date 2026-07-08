@@ -58,14 +58,12 @@ git merge-base --is-ancestor 25db428 HEAD
   - `reports/goal-007-consumer-onboarding-rollback.md`
   - `docs/decisions/goal-007-runtime-approval.md`
 
-## Latest Runtime State
-
 ### Goal008
 
 - Goal: `goal-008-kong-governance-policy-as-code`
-- Status: runtime-verified locally; pending formal ChatGPT Pro approval
+- Status: approved by ChatGPT Pro; runtime-verified
 - Runtime source commit: `cfcd2ec`
-- Runtime evidence commit pushed: `25db428`
+- Runtime evidence commit approved by Pro: `25db428`
 - Runtime verification: pass
 - Cluster context: `kubernetes-admin@cluster.local`
 - Evidence:
@@ -107,28 +105,65 @@ Local proof:
 - `make docs`: pass
 - `make evidence-goal-008`: pass
 
+## Latest Source State
+
+### Goal009
+
+- Goal: `goal-009-kong-governed-response-headers`
+- Status: source implemented locally; runtime evidence not yet run
+- Goal body saved at:
+  - `soydocs/kong-bank-lab/goals/goal-009-kong-governed-response-headers.md`
+- Target route/service:
+  - `tenant-accounts/HTTPRoute/banklab-accounts`
+  - `tenant-accounts/Service/banklab-accounts-api`
+- Plugin:
+  - `tenant-accounts/KongPlugin/banklab-goal009-security-headers`
+  - type: `response-transformer`
+
+Goal009 adds only governed response headers and preserves existing Goal004
+auth, ACL, rate-limit, and correlation-id behavior.
+
+Local source proof before runtime mutation:
+
+- `make validate`: pass
+- `make validate-yaml`: pass
+- `make validate-kustomize`: pass
+- `make validate-goal008-governance`: pass
+- `make validate-goal009-security-headers`: pass
+- `make test`: 116 passed
+- `make policy-test`: 33 passed
+- `make docs`: pass
+
+Next required order:
+
+1. Commit and push the Goal009 source changes.
+2. Run guarded runtime readiness:
+   `BANKLAB_ALLOW_CLUSTER_MUTATION=true BANKLAB_TARGET_CONTEXT=kubernetes-admin@cluster.local make goal009-runtime-ready`
+3. Run guarded runtime evidence:
+   `BANKLAB_ALLOW_CLUSTER_MUTATION=true BANKLAB_TARGET_CONTEXT=kubernetes-admin@cluster.local make evidence-goal-009`
+4. Commit and push runtime evidence.
+5. Ask ChatGPT Pro to approve Goal009 runtime evidence before starting Goal010.
+
 ## ChatGPT Pro State
 
-Pro received the goal008 approval packet for evidence commit `25db428`.
+ChatGPT Pro formally approved Goal008 from evidence commit `25db428` in the
+visible Kong project chat.
 
-Visible Pro response:
+Approval summary captured from Pro:
 
 ```text
-The pushed GitHub evidence at 25db428 is available and supports the programme
-decision, including runtime-verified status, deny-mode admission behavior, and
-rollback proof.
+Approved. goal-008-kong-governance-policy-as-code is approved as
+runtime-verified for branch kong-goals-foundation.
 ```
 
-Then the Pro answer became stuck at `Finalizing answer` before providing a clean
-formal approval or a full goal009 body.
+Pro then provided the full Goal009 body, saved under
+`soydocs/kong-bank-lab/goals/`.
 
 ## Current Gate
 
-Do not start goal009 until ChatGPT Pro formally approves
-`goal-008-kong-governance-policy-as-code` and provides a usable goal009 body.
-
-If Pro is still laggy, start a fresh ChatGPT Pro project chat and paste the
-prompt from `soydocs/kong-bank-lab/handover-2026-07-09-post-goal-008.md`.
+Do not run Goal009 runtime mutation until the source commit has been pushed.
+After runtime evidence is pushed, do not start Goal010 until ChatGPT Pro
+approves Goal009.
 
 ## Runtime Safety
 
