@@ -6,9 +6,9 @@ Updated: 2026-07-09
 
 - Repo: `/home/boris/code/soyspray`
 - Branch: `kong-goals-foundation`
-- Latest pushed runtime evidence commit before Goal009: `25db428`
+- Latest pushed runtime evidence commit: `7b274df`
 - Goal009 source commit pushed before runtime mutation: `c9676e3`
-- Latest branch HEAD may be newer because of goal009 evidence or handover docs.
+- Latest branch HEAD may be newer because of goal009 approval or handover docs.
 - Kubernetes context used for runtime checks: `kubernetes-admin@cluster.local`
 
 Fresh sessions must first verify:
@@ -111,8 +111,9 @@ Local proof:
 ### Goal009
 
 - Goal: `goal-009-kong-governed-response-headers`
-- Status: runtime-verified locally; pending formal ChatGPT Pro approval
+- Status: approved by ChatGPT Pro; runtime-verified
 - Runtime source commit: `c9676e3`
+- Runtime evidence commit approved by Pro: `7b274df`
 - Runtime verification: pass
 - Cluster context: `kubernetes-admin@cluster.local`
 - Goal body saved at:
@@ -161,8 +162,8 @@ Local proof:
 
 Next required order:
 
-1. Commit and push runtime evidence.
-2. Ask ChatGPT Pro to approve Goal009 runtime evidence before starting Goal010.
+1. Commit and push the Goal009 approval marker.
+2. Ask ChatGPT Pro for a Goal010 body before starting Goal010 implementation.
 
 ## ChatGPT Pro State
 
@@ -181,7 +182,7 @@ Pro then provided the full Goal009 body, saved under
 
 ## Current Gate
 
-Do not start Goal010 until ChatGPT Pro approves Goal009 runtime evidence.
+Do not start Goal010 until ChatGPT Pro provides a usable Goal010 body.
 
 ## Runtime Safety
 

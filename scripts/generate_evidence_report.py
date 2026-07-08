@@ -2227,6 +2227,8 @@ def write_goal_009() -> int:
     files = created_or_updated_files()
     file_list = "\n".join(f"- `{path}`" for path in files) if files else "- None"
     required_headers = "\n".join(f"- `{header}`" for header in GOAL009_REQUIRED_HEADER_LINES)
+    approval_status = status_line("docs/decisions/goal-009-runtime-approval.md")
+    pro_approved = approval_status == "approved"
 
     runtime_lines = "\n".join(
         [
@@ -2307,9 +2309,9 @@ Cluster changes performed: {"goal009 response headers rollout/rollback" if runti
 
 Runtime verification: {"pass" if runtime_verified else "not run"}
 
-Ready for Pro approval: {"yes" if runtime_verified else "no"}
+Pro approval: {"approved" if pro_approved else ("ready" if runtime_verified else "not ready")}
 
-Ready for goal010: no; ask ChatGPT Pro after goal009 approval
+Ready for goal010: no; ask ChatGPT Pro for a usable goal010 body
 """
 
     (ROOT / "reports/goal-009-summary.md").write_text(report, encoding="utf-8")

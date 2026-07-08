@@ -1,38 +1,30 @@
-# Goal009 Runtime Approval
+# Goal 009 Runtime Approval
 
-Status: pending approval
+Status: approved
 
-Generated at: 2026-07-09T10:17:10+12:00
-
+Goal: goal-009-kong-governed-response-headers
 Branch: kong-goals-foundation
-
-Commit: c9676e3
-
+Runtime source commit: c9676e3
+Evidence commit: 7b274df
 Kubernetes context: kubernetes-admin@cluster.local
 
-## Summary
+Decision: approved as runtime-verified.
 
-Goal009 runtime acceptance passed locally and is ready for ChatGPT Pro review.
+Approval basis:
+- Local validation gates passed.
+- Goal009-specific render, static, contract, and validation checks passed.
+- Full test suite passed with 116 tests.
+- Policy tests passed with 33 tests.
+- Runtime readiness passed and did not mutate the cluster.
+- Runtime rollout applied only tenant-accounts/KongPlugin/banklab-goal009-security-headers.
+- The applied plugin was response-transformer.
+- Required governed response headers were observed at runtime.
+- Existing account response body marker, correlation ID, and rate-limit headers were preserved.
+- Existing negative auth behavior was preserved.
+- Rollback removed the route annotation reference and deleted the Goal009 KongPlugin.
+- Post-rollback positive smoke, negative auth, Redis rate-limit, and Kong Admin API exposure safety checks passed.
+- Live cluster after rollback has no banklab-goal009-security-headers KongPlugin.
+- Live cluster after rollback has no banklab-goal009-security-headers annotation reference.
 
-## Evidence links
-
-- reports/goal-009-runtime-readiness.md
-- reports/goal-009-governed-response-headers-rollout.md
-- reports/goal-009-governed-response-headers-runtime.md
-- reports/goal-009-governed-response-headers-rollback.md
-- reports/goal004-security-smoke-results.md
-- reports/goal004-security-negative-test-results.md
-- reports/goal004-rate-limit-results.md
-
-## Known issues
-
-- None from the runtime acceptance sequence.
-
-## Rollback notes
-
-- Goal009 rollback reapplies the stable accounts route annotation and deletes only the governed response-header plugin.
-- The cluster is expected to end with no Goal009 plugin resource and no Goal009 route annotation.
-
-## Ready-for-approval statement
-
-Goal009 is ready for Pro approval after evidence is committed and pushed.
+Approved outcome:
+goal-009-kong-governed-response-headers is complete and runtime-verified.
