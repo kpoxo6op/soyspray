@@ -8,7 +8,9 @@ This is the restart point for fresh Codex and ChatGPT Pro sessions.
 
 - Repo: `/home/boris/code/soyspray`
 - Branch: `kong-goals-foundation`
-- Latest pushed commit: `25db428`
+- Latest pushed runtime evidence commit: `25db428`
+- Latest branch HEAD may be newer because this handover was committed after the
+  runtime evidence.
 - Kubernetes context used: `kubernetes-admin@cluster.local`
 - Working tree at handover time: clean
 
@@ -24,8 +26,14 @@ Expected:
 
 ```text
 ## kong-goals-foundation...origin/kong-goals-foundation
-25db428
+<current handover commit; must contain 25db428 as an ancestor>
 kubernetes-admin@cluster.local
+```
+
+Verify the runtime evidence commit is still in history:
+
+```sh
+git merge-base --is-ancestor 25db428 HEAD
 ```
 
 ## What Was Completed In The Previous Session
@@ -140,7 +148,8 @@ We are restarting the Kong bank-lab programme from a saved repo handover.
 
 Repo: /home/boris/code/soyspray
 Branch: kong-goals-foundation
-Latest pushed commit: 25db428
+Latest pushed runtime evidence commit: 25db428
+Latest branch HEAD may be newer because post-goal008 handover docs were committed after runtime evidence.
 Current handover file: soydocs/kong-bank-lab/handover-2026-07-09-post-goal-008.md
 Current state file: soydocs/kong-bank-lab/current-state.md
 Kubernetes context used for runtime evidence: kubernetes-admin@cluster.local
@@ -206,7 +215,8 @@ Continue the Kong bank-lab programme from repo handover.
 
 Repo: /home/boris/code/soyspray
 Branch: kong-goals-foundation
-Latest pushed commit should be 25db428.
+Latest pushed runtime evidence commit should be 25db428.
+Branch HEAD may be newer due post-goal008 handover docs; verify HEAD and confirm 25db428 is an ancestor.
 Target Kubernetes context: kubernetes-admin@cluster.local
 
 Read:
@@ -219,6 +229,7 @@ Read:
 First verify:
 - git status --short --branch
 - git rev-parse --short HEAD
+- git merge-base --is-ancestor 25db428 HEAD
 - kubectl config current-context
 
 Do not start goal009 until ChatGPT Pro formally approves goal008 and provides a usable goal009 body.

@@ -6,7 +6,8 @@ Updated: 2026-07-09
 
 - Repo: `/home/boris/code/soyspray`
 - Branch: `kong-goals-foundation`
-- Latest pushed commit: `25db428`
+- Latest pushed runtime evidence commit: `25db428`
+- Latest branch HEAD may be newer because of post-goal008 handover docs.
 - Kubernetes context used for runtime checks: `kubernetes-admin@cluster.local`
 
 Fresh sessions must first verify:
@@ -21,8 +22,14 @@ Expected state at this handover:
 
 ```text
 ## kong-goals-foundation...origin/kong-goals-foundation
-25db428
+<current handover commit; must contain 25db428 as an ancestor>
 kubernetes-admin@cluster.local
+```
+
+Verify the runtime evidence commit is still in history:
+
+```sh
+git merge-base --is-ancestor 25db428 HEAD
 ```
 
 ## Completed And Approved
