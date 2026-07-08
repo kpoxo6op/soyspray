@@ -6,6 +6,8 @@ report="${repo_root}/reports/synthetic-api-route-smoke-results.md"
 platform_report="${repo_root}/platform/kong/synthetic-apis/RUNTIME-SMOKE-RESULTS.md"
 tmp_output="$(mktemp)"
 trap 'rm -f "${tmp_output}"' EXIT
+curl_connect_timeout="${BANKLAB_SYNTHETIC_API_CURL_CONNECT_TIMEOUT:-3}"
+curl_max_time="${BANKLAB_SYNTHETIC_API_CURL_MAX_TIME:-10}"
 
 write_report() {
   local status="$1"
@@ -31,7 +33,7 @@ check_route() {
   local path="$2"
   local expected="$3"
   local body
-  body="$(curl --silent --show-error --fail --resolve "${host}:80:${proxy_ip}" "http://${host}${path}")"
+  body="$(curl --silent --show-error --fail --connect-timeout "${curl_connect_timeout}" --max-time "${curl_max_time}" --resolve "${host}:80:${proxy_ip}" "http://${host}${path}")"
   if [[ "${body}" != *"${expected}"* ]]; then
     echo "${host}${path}: fail; expected marker ${expected}; body=${body}" | tee -a "${tmp_output}" >&2
     return 1

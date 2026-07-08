@@ -45,7 +45,7 @@ def render_kustomization(directory: Path) -> list[str]:
 
 def main() -> int:
     try:
-        chunks = render_kustomization(ROOT / "apis/synthetic-bank")
+        chunks = render_kustomization(ROOT / "platform/kong/synthetic-apis")
     except (FileNotFoundError, ValueError, yaml.YAMLError) as exc:
         print(f"Synthetic API render failed: {exc}")
         return 1

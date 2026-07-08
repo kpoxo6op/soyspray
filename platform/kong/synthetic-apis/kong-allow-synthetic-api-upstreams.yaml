@@ -1,0 +1,68 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kong-allow-synthetic-api-upstreams
+  namespace: platform-kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api
+    banklab.konghq.com/environment: lab
+    banklab.konghq.com/data-classification: synthetic
+    banklab.konghq.com/lifecycle: sandbox
+    banklab.konghq.com/auth-profile: none-temporary-goal003-sandbox
+    banklab.konghq.com/auth-state: temporary-no-auth
+    banklab.konghq.com/goal: goal-003
+    banklab.konghq.com/owner: platform-team
+spec:
+  podSelector:
+    matchLabels:
+      banklab.konghq.com/component: gateway
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: tenant-accounts
+          podSelector:
+            matchLabels:
+              banklab.konghq.com/platform-layer: synthetic-api
+              banklab.konghq.com/goal: goal-003
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: tenant-payments
+          podSelector:
+            matchLabels:
+              banklab.konghq.com/platform-layer: synthetic-api
+              banklab.konghq.com/goal: goal-003
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: tenant-cards
+          podSelector:
+            matchLabels:
+              banklab.konghq.com/platform-layer: synthetic-api
+              banklab.konghq.com/goal: goal-003
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: tenant-customer-profile
+          podSelector:
+            matchLabels:
+              banklab.konghq.com/platform-layer: synthetic-api
+              banklab.konghq.com/goal: goal-003
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: tenant-fraud
+          podSelector:
+            matchLabels:
+              banklab.konghq.com/platform-layer: synthetic-api
+              banklab.konghq.com/goal: goal-003
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: tenant-open-banking
+          podSelector:
+            matchLabels:
+              banklab.konghq.com/platform-layer: synthetic-api
+              banklab.konghq.com/goal: goal-003
+      ports:
+        - protocol: TCP
+          port: 8080

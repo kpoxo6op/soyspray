@@ -34,6 +34,7 @@ REQUIRED_ROOT_FILES = [
     "docs/runbooks/synthetic-api-runtime-smoke.md",
     "docs/runbooks/synthetic-api-rollback.md",
     "platform/kong/synthetic-apis/kustomization.yaml",
+    "platform/kong/synthetic-apis/kong-allow-synthetic-api-upstreams.yaml",
     "platform/kong/synthetic-apis/argocd/synthetic-bank-apis-app.yaml",
     "scripts/render_synthetic_api_tenant_namespaces.py",
     "reports/synthetic-api-runtime-evidence.md",
@@ -139,6 +140,34 @@ def check_metadata(errors: list[str]) -> None:
 
 def check_manifests(errors: list[str]) -> None:
     image = load_yaml("apis/synthetic-bank/versions.yaml")["mock_backend"]["image"]
+    synthetic_layer_kustomization = load_yaml("platform/kong/synthetic-apis/kustomization.yaml")
+    require(
+        "kong-allow-synthetic-api-upstreams.yaml" in synthetic_layer_kustomization.get("resources", []),
+        errors,
+        "synthetic API layer must include Kong egress allow policy",
+    )
+    kong_egress = load_yaml("platform/kong/synthetic-apis/kong-allow-synthetic-api-upstreams.yaml")
+    require(kong_egress.get("kind") == "NetworkPolicy", errors, "Kong synthetic upstream allow policy must be a NetworkPolicy")
+    require(kong_egress.get("metadata", {}).get("namespace") == "platform-kong", errors, "Kong synthetic upstream allow policy must live in platform-kong")
+    require(
+        kong_egress.get("spec", {}).get("podSelector", {}).get("matchLabels", {}).get("banklab.konghq.com/component") == "gateway",
+        errors,
+        "Kong synthetic upstream allow policy must select gateway pods",
+    )
+    egress_rules = kong_egress.get("spec", {}).get("egress", [])
+    require(len(egress_rules) == 1, errors, "Kong synthetic upstream allow policy must have one bounded egress rule")
+    if egress_rules:
+        rule = egress_rules[0]
+        require(rule.get("ports") == [{"protocol": "TCP", "port": 8080}], errors, "Kong synthetic upstream allow policy must restrict TCP 8080")
+        allowed_namespaces = {
+            peer.get("namespaceSelector", {}).get("matchLabels", {}).get("kubernetes.io/metadata.name")
+            for peer in rule.get("to", [])
+        }
+        require(allowed_namespaces == {api.namespace for api in APIS}, errors, "Kong synthetic upstream allow policy namespace set mismatch")
+        for peer in rule.get("to", []):
+            labels = peer.get("podSelector", {}).get("matchLabels", {})
+            require(labels.get("banklab.konghq.com/platform-layer") == "synthetic-api", errors, "Kong synthetic upstream allow policy must target synthetic API pods")
+            require(labels.get("banklab.konghq.com/goal") == "goal-003", errors, "Kong synthetic upstream allow policy must target goal-003 pods")
     require(":" in image and not image.endswith(":latest"), errors, "mock backend image must be pinned and not latest")
     for api in APIS:
         namespace_path = ROOT / "platform/namespaces" / f"{api.namespace}.yaml"

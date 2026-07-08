@@ -8,6 +8,8 @@ tmp_output="$(mktemp)"
 tmp_body="$(mktemp)"
 tmp_err="$(mktemp)"
 trap 'rm -f "${tmp_output}" "${tmp_body}" "${tmp_err}"' EXIT
+curl_connect_timeout="${BANKLAB_SYNTHETIC_API_CURL_CONNECT_TIMEOUT:-3}"
+curl_max_time="${BANKLAB_SYNTHETIC_API_CURL_MAX_TIME:-10}"
 
 write_report() {
   local status="$1"
@@ -33,7 +35,7 @@ expect_status() {
   local path="$2"
   local expected="$3"
   local status
-  status="$(curl --silent --show-error --output "${tmp_body}" --write-out '%{http_code}' --resolve "${host}:80:${proxy_ip}" "http://${host}${path}")"
+  status="$(curl --silent --show-error --connect-timeout "${curl_connect_timeout}" --max-time "${curl_max_time}" --output "${tmp_body}" --write-out '%{http_code}' --resolve "${host}:80:${proxy_ip}" "http://${host}${path}")"
   if [[ "${status}" != "${expected}" ]]; then
     echo "${host}${path}: fail; expected ${expected}; got ${status}; body=$(cat "${tmp_body}")" | tee -a "${tmp_output}" >&2
     return 1
