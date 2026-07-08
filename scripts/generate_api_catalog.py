@@ -18,7 +18,7 @@ def main() -> int:
         rows.append(
             f"| {api.title} | `{api.key}` | {ownership['owning_team']} | `{ownership['tenant_namespace']}` | "
             f"{ownership['exposure']} | `{ownership['route_host']}` | `{ownership['route_paths'][0]}` | "
-            f"`{ownership['auth_profile']}` | `{ownership['future_auth_goal']}` |"
+            f"`{ownership['auth_profile']}` | `{ownership.get('implemented_auth_goal', ownership.get('future_auth_goal', ''))}` |"
         )
     content = f"""# Synthetic API Catalog
 

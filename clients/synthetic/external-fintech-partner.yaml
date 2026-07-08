@@ -4,11 +4,12 @@ owning_team: open-banking-team
 intended_exposure: external
 intended_apis:
 - open-banking
-future_auth_profile: goal-004-auth-rate-limit-security
-future_authorization_profile: goal-004-auth-rate-limit-security
-future_rate_limit_profile: goal-004-auth-rate-limit-security
+auth_profile: kong-oss-goal004-auth
+authorization_profile: acl-goal004-api-groups
+rate_limit_profile: goal004-client-per-consumer-local
+credential_secret_namespace: synthetic-clients
 support_contact: open-banking-team@example.invalid
 test_persona: External fintech partner persona for open-banking sandbox checks.
 data_classification: synthetic
-credentials_created: false
-current_auth_state: temporary-no-auth
+credentials_created: runtime-generated-not-committed
+current_auth_state: authenticated-required

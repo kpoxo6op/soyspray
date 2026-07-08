@@ -13,7 +13,7 @@ x-banklab-api-domain: open-banking
 x-banklab-owning-team: tenant-open-banking-team
 x-banklab-lifecycle: sandbox
 x-banklab-data-classification: synthetic
-x-banklab-auth-profile: none-temporary-goal003-sandbox
+x-banklab-auth-profile: kong-oss-goal004-auth
 paths:
   /open-banking/v1/health:
     get:

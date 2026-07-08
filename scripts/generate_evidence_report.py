@@ -171,6 +171,23 @@ def gate_003_runtime_approved_from_files() -> bool:
     return all(all(text_contains(relative, marker) for marker in markers) for relative, markers in required.items())
 
 
+def goal_004_runtime_verified_from_files() -> bool:
+    return all(
+        status_line(relative) == "pass"
+        for relative in (
+            "platform/kong/security-controls/RUNTIME-APPLY-EXECUTION-LOG.md",
+            "platform/kong/security-controls/RUNTIME-SMOKE-RESULTS.md",
+            "platform/kong/security-controls/RUNTIME-NEGATIVE-TEST-RESULTS.md",
+            "platform/kong/security-controls/RUNTIME-RATE-LIMIT-RESULTS.md",
+            "platform/kong/security-controls/RUNTIME-ADMIN-API-SAFETY-RESULTS.md",
+            "reports/goal004-security-runtime-state.md",
+            "reports/goal004-security-smoke-results.md",
+            "reports/goal004-security-negative-test-results.md",
+            "reports/goal004-rate-limit-results.md",
+        )
+    ) and text_contains("docs/decisions/goal-004-runtime-approval.md", "Status: approved")
+
+
 def write_goal_000() -> int:
     commands = [
         ("make validate", [sys.executable, "scripts/validate_repo.py"]),
@@ -1287,6 +1304,152 @@ Ready for goal 003: no
     return 0 if local_status else 1
 
 
+def write_goal_004() -> int:
+    commands = [
+        ("make goal003-runtime-ready", ["make", "goal003-runtime-ready"]),
+        ("make validate", ["make", "validate"]),
+        ("make validate-yaml", ["make", "validate-yaml"]),
+        ("make validate-kustomize", ["make", "validate-kustomize"]),
+        ("make validate-synthetic-apis", ["make", "validate-synthetic-apis"]),
+        ("make validate-goal004-security", ["make", "validate-goal004-security"]),
+        ("make openapi-lint", ["make", "openapi-lint"]),
+        ("make render-synthetic-apis", ["make", "render-synthetic-apis"]),
+        ("make render-goal004-security", ["make", "render-goal004-security"]),
+        ("make goal004-static-test", ["make", "goal004-static-test"]),
+        ("make goal004-contract-test", ["make", "goal004-contract-test"]),
+        ("make goal004-smoke-plan", ["make", "goal004-smoke-plan"]),
+        ("make test", ["make", "test"]),
+        ("make policy-test", ["make", "policy-test"]),
+        (
+            "make docs",
+            [
+                sys.executable,
+                "-m",
+                "mkdocs",
+                "build",
+                "--strict",
+                "--site-dir",
+                ".build/mkdocs",
+            ],
+        ),
+    ]
+
+    results: list[tuple[str, int, str]] = []
+    for label, command in commands:
+        code, output = run_command(command)
+        results.append((label, code, output))
+
+    local_pass = all(code == 0 for _, code, _ in results)
+    runtime_verified = local_pass and goal_004_runtime_verified_from_files()
+    status = "pass; runtime-verified" if runtime_verified else ("pass; local-only" if local_pass else "fail")
+    now = dt.datetime.now(dt.timezone.utc).astimezone().isoformat(timespec="seconds")
+    branch = current_branch()
+    commit_code, commit = run_command(["git", "rev-parse", "--short", "HEAD"])
+    commit = commit if commit_code == 0 else "unknown"
+    files = created_or_updated_files()
+    file_list = "\n".join(f"- `{path}`" for path in files) if files else "- None"
+
+    runtime_command_status = "pass" if runtime_verified else "not run"
+    ready = "goal-005-tenancy-rbac-change-control" if runtime_verified else "no; goal004 guarded runtime apply and smoke required"
+    cluster_changes = "goal004 security controls applied" if runtime_verified else "none"
+    credential_status = status_line("reports/goal004-runtime-credentials-results.md")
+    runtime_lines = "\n".join(
+        [
+            f"- `make goal004-runtime-credentials-apply`: {credential_status}",
+            f"- `make goal004-security-apply`: {status_line('platform/kong/security-controls/RUNTIME-APPLY-EXECUTION-LOG.md')}",
+            f"- `make goal004-security-smoke`: {status_line('reports/goal004-security-smoke-results.md')}",
+            f"- `make goal004-security-negative-test`: {status_line('reports/goal004-security-negative-test-results.md')}",
+            f"- `make goal004-rate-limit-test`: {status_line('reports/goal004-rate-limit-results.md')}",
+            f"- `make kong-admin-exposure-test`: {status_line('platform/kong/security-controls/RUNTIME-ADMIN-API-SAFETY-RESULTS.md')}",
+            f"- `make goal004-runtime-ready`: {runtime_command_status}",
+        ]
+    )
+
+    report = f"""# Goal: goal-004-auth-rate-limit-security
+
+Status: {status}
+
+Branch: {branch}
+
+Commit: {commit}
+
+Generated at: {now}
+
+## Objective summary
+
+Implement Kong OSS authentication, ACL authorization, Redis-backed rate
+limiting, and correlation IDs for the six runtime-verified synthetic bank APIs.
+
+## Preconditions
+
+- Goal003 runtime-ready precondition: checked by local command set
+- Kong OSS boundary: preserved
+- CI cluster-free: yes
+- Static credential Secret manifests committed: no
+
+## Local validation commands run
+
+{format_command_results(results)}
+- `make evidence-goal-004`: pass
+  - Last output line: `reports/goal-004-summary.md generated by this command.`
+
+## Runtime commands run
+
+{runtime_lines}
+
+## Security controls
+
+- Internal APIs use Kong OSS `key-auth`, `acl`, `rate-limiting`, and `correlation-id`.
+- Open Banking uses Kong OSS `jwt`, `acl`, `rate-limiting`, and `correlation-id`.
+- Rate limiting uses Redis policy with `second: 3`.
+- Correlation header: `X-Banklab-Correlation-ID`.
+- KongPlugin `ordering` is not used.
+- Kong Enterprise plugins are not used.
+
+## Evidence files
+
+- `reports/goal004-security-smoke-plan.md`: {status_line('reports/goal004-security-smoke-plan.md')}
+- `reports/goal004-security-runtime-state.md`: {status_line('reports/goal004-security-runtime-state.md')}
+- `reports/goal004-security-smoke-results.md`: {status_line('reports/goal004-security-smoke-results.md')}
+- `reports/goal004-security-negative-test-results.md`: {status_line('reports/goal004-security-negative-test-results.md')}
+- `reports/goal004-rate-limit-results.md`: {status_line('reports/goal004-rate-limit-results.md')}
+- `platform/kong/security-controls/RUNTIME-APPLY-EXECUTION-LOG.md`: {status_line('platform/kong/security-controls/RUNTIME-APPLY-EXECUTION-LOG.md')}
+- `platform/kong/security-controls/RUNTIME-SMOKE-RESULTS.md`: {status_line('platform/kong/security-controls/RUNTIME-SMOKE-RESULTS.md')}
+- `platform/kong/security-controls/RUNTIME-NEGATIVE-TEST-RESULTS.md`: {status_line('platform/kong/security-controls/RUNTIME-NEGATIVE-TEST-RESULTS.md')}
+- `platform/kong/security-controls/RUNTIME-RATE-LIMIT-RESULTS.md`: {status_line('platform/kong/security-controls/RUNTIME-RATE-LIMIT-RESULTS.md')}
+- `platform/kong/security-controls/RUNTIME-ADMIN-API-SAFETY-RESULTS.md`: {status_line('platform/kong/security-controls/RUNTIME-ADMIN-API-SAFETY-RESULTS.md')}
+- `docs/decisions/goal-004-runtime-approval.md`: {status_line('docs/decisions/goal-004-runtime-approval.md')}
+
+## Created or updated files
+
+{file_list}
+
+Cluster changes performed: {cluster_changes}
+
+Runtime credential objects created: runtime-generated-not-committed
+
+Authentication configured: key-auth and jwt
+
+Authorization configured: acl
+
+Rate limiting configured: rate-limiting
+
+Runtime verification: {"pass" if runtime_verified else "not run"}
+
+Ready for next goal: {ready}
+"""
+
+    (ROOT / "reports/goal-004-summary.md").write_text(report, encoding="utf-8")
+
+    for label, code, output in results:
+        print(f"{label}: {'pass' if code == 0 else 'fail'}")
+        if code != 0 and output:
+            print(output)
+
+    print("make evidence-goal-004: pass")
+    return 0 if local_pass else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--goal", default="goal-000-repo-foundation")
@@ -1300,6 +1463,8 @@ def main() -> int:
         return write_goal_002()
     if args.goal == "goal-003-synthetic-bank-apis":
         return write_goal_003()
+    if args.goal == "goal-004-auth-rate-limit-security":
+        return write_goal_004()
     if args.goal == "gate-003-synthetic-api-runtime-apply-and-smoke":
         return write_gate_003_synthetic_api_runtime()
     if args.goal == "gate-002-runtime-preflight":

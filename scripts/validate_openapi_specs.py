@@ -11,9 +11,9 @@ from typing import Any
 import yaml
 
 try:
-    from scripts.synthetic_bank_config import APIS, ROOT
+    from scripts.synthetic_bank_config import APIS, AUTH_PROFILE, ROOT
 except ModuleNotFoundError:
-    from synthetic_bank_config import APIS, ROOT
+    from synthetic_bank_config import APIS, AUTH_PROFILE, ROOT
 
 
 REAL_DATA_PATTERNS = (
@@ -50,7 +50,7 @@ def validate() -> list[str]:
         require(spec.get("x-banklab-api-domain") == api.key, errors, f"{api.key} domain extension mismatch")
         require(spec.get("x-banklab-lifecycle") == "sandbox", errors, f"{api.key} lifecycle extension mismatch")
         require(spec.get("x-banklab-data-classification") == "synthetic", errors, f"{api.key} classification extension mismatch")
-        require(spec.get("x-banklab-auth-profile") == "none-temporary-goal003-sandbox", errors, f"{api.key} auth extension mismatch")
+        require(spec.get("x-banklab-auth-profile") == AUTH_PROFILE, errors, f"{api.key} auth extension mismatch")
         paths = spec.get("paths", {})
         require(f"{api.prefix}/health" in paths, errors, f"{api.key} missing health path")
         for route, methods in paths.items():

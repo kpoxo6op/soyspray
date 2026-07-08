@@ -10,4 +10,7 @@ external_forbidden:
 admin_api_route_allowed: false
 wildcard_hosts_allowed: false
 catch_all_routes_allowed: false
-temporary_no_auth: temporary-no-auth
+authentication_required: authenticated-required
+authorization_required: acl-goal004-api-groups
+rate_limiting_required: goal004-redis-rate-limits
+credential_source: runtime-generated-not-committed

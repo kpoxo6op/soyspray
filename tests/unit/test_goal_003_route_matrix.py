@@ -1,6 +1,6 @@
 import yaml
 
-from scripts.synthetic_bank_config import APIS, ROOT
+from scripts.synthetic_bank_config import APIS, AUTH_PROFILE, AUTH_STATE, AUTHORIZATION_PROFILE, ROOT, RUNTIME_CREDENTIAL_SOURCE, api_access_group, api_rate_limit_profile
 
 
 def test_route_matrix_matches_required_gateways():
@@ -14,7 +14,11 @@ def test_route_matrix_matches_required_gateways():
         assert route["parent"] == f"platform-kong/{api.gateway}"
         assert route["namespace"] == api.namespace
         assert route["expected_marker"] == api.marker
-        assert route["auth_state"] == "temporary-no-auth"
+        assert route["auth_profile"] == AUTH_PROFILE
+        assert route["auth_state"] == AUTH_STATE
+        assert route["authorization_profile"] == AUTHORIZATION_PROFILE
+        assert route["access_group"] == api_access_group(api.key)
+        assert route["rate_limit_profile"] == api_rate_limit_profile(api.exposure)
 
 
 def test_only_open_banking_is_external():
@@ -24,4 +28,7 @@ def test_only_open_banking_is_external():
     assert policy["admin_api_route_allowed"] is False
     assert policy["wildcard_hosts_allowed"] is False
     assert policy["catch_all_routes_allowed"] is False
-    assert policy["temporary_no_auth"] == "temporary-no-auth"
+    assert policy["authentication_required"] == AUTH_STATE
+    assert policy["authorization_required"] == AUTHORIZATION_PROFILE
+    assert policy["rate_limiting_required"] == "goal004-redis-rate-limits"
+    assert policy["credential_source"] == RUNTIME_CREDENTIAL_SOURCE

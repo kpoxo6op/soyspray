@@ -12,11 +12,14 @@ upstream_service: banklab-open-banking-api
 route_host: api.external.banklab.test
 route_paths:
 - /open-banking/v1
-auth_profile: none-temporary-goal003-sandbox
-auth_state: temporary-no-auth
-authorization_profile: none-temporary-goal003-sandbox
-rate_limit_profile: deferred-goal004
+auth_profile: kong-oss-goal004-auth
+auth_state: authenticated-required
+auth_plugin: jwt
+authorization_profile: acl-goal004-api-groups
+access_group: banklab-open-banking
+rate_limit_profile: goal004-external-redis-3rps
+credential_source: runtime-generated-not-committed
 logging_profile: standard
-future_auth_goal: goal-004-auth-rate-limit-security
+implemented_auth_goal: goal-004-auth-rate-limit-security
 rollback_owner: tenant-open-banking-team
 smoke_marker: banklab-open-banking-ok

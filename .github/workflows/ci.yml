@@ -34,6 +34,9 @@ jobs:
       - name: Validate synthetic API runtime gate
         run: make validate-synthetic-api-runtime-gate
 
+      - name: Validate synthetic API security
+        run: make validate-synthetic-api-security
+
       - name: Lint synthetic OpenAPI specs
         run: make openapi-lint
 
@@ -75,6 +78,9 @@ jobs:
 
       - name: Run synthetic API contract tests
         run: make synthetic-api-contract-test
+
+      - name: Run synthetic API security tests
+        run: make synthetic-api-security-static-test
 
       - name: Run policy placeholder tests
         run: make policy-test

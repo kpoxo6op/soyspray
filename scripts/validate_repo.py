@@ -154,6 +154,8 @@ PLACEHOLDER_MARKERS = (
     "N/A",
     "NOT RUN",
     "NO",
+    "FALSE",
+    "TRUE",
     "PENDING",
     "{{",
     "$",

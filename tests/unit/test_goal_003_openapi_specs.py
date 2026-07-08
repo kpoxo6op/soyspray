@@ -1,5 +1,5 @@
 from scripts.validate_openapi_specs import validate
-from scripts.synthetic_bank_config import APIS, ROOT
+from scripts.synthetic_bank_config import APIS, AUTH_PROFILE, ROOT
 
 import yaml
 
@@ -14,5 +14,5 @@ def test_openapi_specs_include_required_banklab_extensions():
         assert spec["x-banklab-api-domain"] == api.key
         assert spec["x-banklab-lifecycle"] == "sandbox"
         assert spec["x-banklab-data-classification"] == "synthetic"
-        assert spec["x-banklab-auth-profile"] == "none-temporary-goal003-sandbox"
+        assert spec["x-banklab-auth-profile"] == AUTH_PROFILE
         assert f"{api.prefix}/health" in spec["paths"]

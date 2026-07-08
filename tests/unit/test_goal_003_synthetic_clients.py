@@ -1,6 +1,6 @@
 import yaml
 
-from scripts.synthetic_bank_config import CLIENTS, ROOT
+from scripts.synthetic_bank_config import AUTH_PROFILE, AUTH_STATE, AUTHORIZATION_PROFILE, CLIENTS, ROOT, RUNTIME_CREDENTIAL_SOURCE
 
 
 def test_all_synthetic_clients_exist_and_do_not_create_credentials():
@@ -9,7 +9,9 @@ def test_all_synthetic_clients_exist_and_do_not_create_credentials():
     assert set(clients) == set(CLIENTS)
     for name, client in clients.items():
         assert (ROOT / "clients/synthetic" / f"{name}.yaml").is_file()
-        assert client["credentials_created"] is False
-        assert client["current_auth_state"] == "temporary-no-auth"
+        assert client["credentials_created"] == RUNTIME_CREDENTIAL_SOURCE
+        assert client["current_auth_state"] == AUTH_STATE
+        assert client["auth_profile"] == AUTH_PROFILE
+        assert client["authorization_profile"] == AUTHORIZATION_PROFILE
+        assert client["credential_secret_namespace"] == "synthetic-clients"
         assert client["data_classification"] == "synthetic"
-        assert client["future_auth_profile"] == "goal-004-auth-rate-limit-security"

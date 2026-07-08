@@ -12,9 +12,41 @@ from typing import Any
 import yaml
 
 try:
-    from scripts.synthetic_bank_config import APIS, BASE_LABELS, CLIENTS, FORBIDDEN_KINDS, ROOT
+    from scripts.synthetic_bank_config import (
+        APIS,
+        AUTH_PROFILE,
+        AUTH_STATE,
+        AUTHORIZATION_PROFILE,
+        BASE_LABELS,
+        CLIENTS,
+        EXTERNAL_RATE_LIMIT_PROFILE,
+        FORBIDDEN_KINDS,
+        INTERNAL_RATE_LIMIT_PROFILE,
+        ROOT,
+        RUNTIME_CREDENTIAL_SOURCE,
+        api_access_group,
+        api_auth_plugin,
+        api_plugin_annotation,
+        api_rate_limit_profile,
+    )
 except ModuleNotFoundError:
-    from synthetic_bank_config import APIS, BASE_LABELS, CLIENTS, FORBIDDEN_KINDS, ROOT
+    from synthetic_bank_config import (
+        APIS,
+        AUTH_PROFILE,
+        AUTH_STATE,
+        AUTHORIZATION_PROFILE,
+        BASE_LABELS,
+        CLIENTS,
+        EXTERNAL_RATE_LIMIT_PROFILE,
+        FORBIDDEN_KINDS,
+        INTERNAL_RATE_LIMIT_PROFILE,
+        ROOT,
+        RUNTIME_CREDENTIAL_SOURCE,
+        api_access_group,
+        api_auth_plugin,
+        api_plugin_annotation,
+        api_rate_limit_profile,
+    )
 
 
 REQUIRED_ROOT_FILES = [
@@ -103,7 +135,10 @@ def check_metadata(errors: list[str]) -> None:
     exposure = load_yaml("apis/synthetic-bank/exposure-policy.yaml")
     catalog = load_yaml("apis/synthetic-bank/api-catalog.yaml")["apis"]
     require(exposure["external_allowed"] == ["open-banking"], errors, "only open-banking may be externally allowed")
-    require(exposure["temporary_no_auth"] == "temporary-no-auth", errors, "exposure policy must mark temporary-no-auth posture")
+    require(exposure["authentication_required"] == AUTH_STATE, errors, "exposure policy must require key auth")
+    require(exposure["authorization_required"] == AUTHORIZATION_PROFILE, errors, "exposure policy must require ACL authorization")
+    require(exposure["rate_limiting_required"] == "goal004-redis-rate-limits", errors, "exposure policy must require Redis rate limiting")
+    require(exposure["credential_source"] == RUNTIME_CREDENTIAL_SOURCE, errors, "exposure policy must keep credentials runtime-only")
     routes_by_api = {route["api"]: route for route in route_matrix}
     catalog_by_api = {entry["key"]: entry for entry in catalog}
     for api in APIS:
@@ -118,23 +153,35 @@ def check_metadata(errors: list[str]) -> None:
         require(ownership["exposure"] == api.exposure, errors, f"{api.key} exposure mismatch")
         require(ownership["lifecycle_state"] == "sandbox", errors, f"{api.key} lifecycle mismatch")
         require(ownership["data_classification"] == "synthetic", errors, f"{api.key} classification mismatch")
-        require(ownership["auth_profile"] == "none-temporary-goal003-sandbox", errors, f"{api.key} auth profile mismatch")
-        require(ownership["auth_state"] == "temporary-no-auth", errors, f"{api.key} auth state mismatch")
-        require(ownership["authorization_profile"] == "none-temporary-goal003-sandbox", errors, f"{api.key} authorization profile mismatch")
-        require(ownership["rate_limit_profile"] == "deferred-goal004", errors, f"{api.key} rate limit profile mismatch")
+        require(ownership["auth_profile"] == AUTH_PROFILE, errors, f"{api.key} auth profile mismatch")
+        require(ownership["auth_state"] == AUTH_STATE, errors, f"{api.key} auth state mismatch")
+        require(ownership["auth_plugin"] == api_auth_plugin(api.key), errors, f"{api.key} auth plugin mismatch")
+        require(ownership["authorization_profile"] == AUTHORIZATION_PROFILE, errors, f"{api.key} authorization profile mismatch")
+        require(ownership["access_group"] == api_access_group(api.key), errors, f"{api.key} access group mismatch")
+        require(ownership["rate_limit_profile"] == api_rate_limit_profile(api.exposure), errors, f"{api.key} rate limit profile mismatch")
+        require(ownership["credential_source"] == RUNTIME_CREDENTIAL_SOURCE, errors, f"{api.key} credential source mismatch")
         if route:
             require(route["host"] == api.host, errors, f"{api.key} host mismatch")
             require(route["path_prefix"] == api.prefix, errors, f"{api.key} path prefix mismatch")
             require(route["parent"] == f"platform-kong/{api.gateway}", errors, f"{api.key} parent mismatch")
             require(route["exposure"] == api.exposure, errors, f"{api.key} route exposure mismatch")
-            require(route["auth_state"] == "temporary-no-auth", errors, f"{api.key} route auth state mismatch")
+            require(route["auth_profile"] == AUTH_PROFILE, errors, f"{api.key} route auth profile mismatch")
+            require(route["auth_state"] == AUTH_STATE, errors, f"{api.key} route auth state mismatch")
+            require(route["auth_plugin"] == api_auth_plugin(api.key), errors, f"{api.key} route auth plugin mismatch")
+            require(route["authorization_profile"] == AUTHORIZATION_PROFILE, errors, f"{api.key} route authorization profile mismatch")
+            require(route["rate_limit_profile"] == api_rate_limit_profile(api.exposure), errors, f"{api.key} route rate limit profile mismatch")
         if catalog_entry:
-            require(catalog_entry["auth_state"] == "temporary-no-auth", errors, f"{api.key} catalog auth state mismatch")
+            require(catalog_entry["auth_profile"] == AUTH_PROFILE, errors, f"{api.key} catalog auth profile mismatch")
+            require(catalog_entry["auth_state"] == AUTH_STATE, errors, f"{api.key} catalog auth state mismatch")
+            require(catalog_entry["auth_plugin"] == api_auth_plugin(api.key), errors, f"{api.key} catalog auth plugin mismatch")
+            require(catalog_entry["authorization_profile"] == AUTHORIZATION_PROFILE, errors, f"{api.key} catalog authorization profile mismatch")
+            require(catalog_entry["rate_limit_profile"] == api_rate_limit_profile(api.exposure), errors, f"{api.key} catalog rate limit profile mismatch")
     clients = load_yaml("clients/synthetic/client-catalog.yaml")["clients"]
     require({client["client_name"] for client in clients} == set(CLIENTS), errors, "client catalog does not match required clients")
     for client in clients:
-        require(client["credentials_created"] is False, errors, f"{client['client_name']} must not create credentials")
-        require(client["current_auth_state"] == "temporary-no-auth", errors, f"{client['client_name']} auth state mismatch")
+        require(client["credentials_created"] == RUNTIME_CREDENTIAL_SOURCE, errors, f"{client['client_name']} credential source mismatch")
+        require(client["current_auth_state"] == AUTH_STATE, errors, f"{client['client_name']} auth state mismatch")
+        require(client["credential_secret_namespace"] == "synthetic-clients", errors, f"{client['client_name']} credential namespace mismatch")
         require(client["data_classification"] == "synthetic", errors, f"{client['client_name']} classification mismatch")
 
 
@@ -194,7 +241,17 @@ def check_manifests(errors: list[str]) -> None:
             require(kind not in FORBIDDEN_KINDS, errors, f"forbidden kind {kind} in {path.relative_to(ROOT)}")
             labels = doc.get("metadata", {}).get("labels", {})
             for key, value in BASE_LABELS.items():
+                if kind == "HTTPRoute" and key == "banklab.konghq.com/auth-profile":
+                    value = AUTH_PROFILE
+                if kind == "HTTPRoute" and key == "banklab.konghq.com/auth-state":
+                    value = AUTH_STATE
+                if kind == "HTTPRoute" and key == "banklab.konghq.com/goal":
+                    value = "goal-004"
                 require(labels.get(key) == value, errors, f"{path.relative_to(ROOT)} missing label {key}={value}")
+            if kind == "HTTPRoute":
+                require(doc.get("metadata", {}).get("annotations", {}).get("konghq.com/plugins") == api_plugin_annotation(api.key), errors, f"{api.key} HTTPRoute must attach goal004 plugins")
+                require(labels.get("banklab.konghq.com/authorization-profile") == AUTHORIZATION_PROFILE, errors, f"{api.key} HTTPRoute authorization profile mismatch")
+                require(labels.get("banklab.konghq.com/rate-limit-profile") == api_rate_limit_profile(api.exposure), errors, f"{api.key} HTTPRoute rate limit profile mismatch")
             require(doc.get("metadata", {}).get("namespace") == api.namespace, errors, f"{path.relative_to(ROOT)} namespace mismatch")
             if kind == "Deployment":
                 pod_spec = doc["spec"]["template"]["spec"]

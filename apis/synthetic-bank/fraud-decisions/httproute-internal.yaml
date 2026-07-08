@@ -3,15 +3,19 @@ kind: HTTPRoute
 metadata:
   name: banklab-fraud-decisions
   namespace: tenant-fraud
+  annotations:
+    konghq.com/plugins: banklab-key-auth,banklab-acl,banklab-rate-limit,banklab-correlation-id
   labels:
     banklab.konghq.com/managed-by: gitops
     banklab.konghq.com/platform-layer: synthetic-api
     banklab.konghq.com/environment: lab
     banklab.konghq.com/data-classification: synthetic
     banklab.konghq.com/lifecycle: sandbox
-    banklab.konghq.com/auth-profile: none-temporary-goal003-sandbox
-    banklab.konghq.com/auth-state: temporary-no-auth
-    banklab.konghq.com/goal: goal-003
+    banklab.konghq.com/auth-profile: kong-oss-goal004-auth
+    banklab.konghq.com/auth-state: authenticated-required
+    banklab.konghq.com/authorization-profile: acl-goal004-api-groups
+    banklab.konghq.com/rate-limit-profile: goal004-internal-redis-3rps
+    banklab.konghq.com/goal: goal-004
     banklab.konghq.com/api-domain: fraud-decisions
     banklab.konghq.com/owner: tenant-fraud-team
     banklab.konghq.com/exposure: internal

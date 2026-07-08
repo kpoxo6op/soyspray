@@ -42,6 +42,27 @@ CLIENTS = (
     "external-fintech-partner",
 )
 
+AUTH_PROFILE = "kong-oss-goal004-auth"
+AUTH_STATE = "authenticated-required"
+AUTHORIZATION_PROFILE = "acl-goal004-api-groups"
+INTERNAL_RATE_LIMIT_PROFILE = "goal004-internal-redis-3rps"
+EXTERNAL_RATE_LIMIT_PROFILE = "goal004-external-redis-3rps"
+INTERNAL_RATE_LIMIT_PER_SECOND = 3
+EXTERNAL_RATE_LIMIT_PER_SECOND = 3
+RUNTIME_CREDENTIAL_SOURCE = "runtime-generated-not-committed"
+REDIS_SERVICE_HOST = "banklab-rate-limit-redis.platform-kong.svc.cluster.local"
+REDIS_SERVICE_PORT = 6379
+CORRELATION_ID_HEADER = "X-Banklab-Correlation-ID"
+
+CLIENT_API_ACCESS = {
+    "mobile-banking-app": ("accounts",),
+    "internet-banking-web": ("cards",),
+    "internal-crm": ("customer-profile",),
+    "fraud-platform": ("fraud-decisions",),
+    "payments-processor": ("payments",),
+    "external-fintech-partner": ("open-banking",),
+}
+
 
 BASE_LABELS = {
     "banklab.konghq.com/managed-by": "gitops",
@@ -65,3 +86,37 @@ FORBIDDEN_KINDS = {
     "UDPIngress",
     "Secret",
 }
+
+
+def api_access_group(api_key: str) -> str:
+    return f"banklab-{api_key}"
+
+
+def api_rate_limit_profile(exposure: str) -> str:
+    return EXTERNAL_RATE_LIMIT_PROFILE if exposure == "external" else INTERNAL_RATE_LIMIT_PROFILE
+
+
+def api_rate_limit_per_second(exposure: str) -> int:
+    return EXTERNAL_RATE_LIMIT_PER_SECOND if exposure == "external" else INTERNAL_RATE_LIMIT_PER_SECOND
+
+
+def api_auth_plugin(api_key: str) -> str:
+    return "jwt" if api_key == "open-banking" else "key-auth"
+
+
+def api_plugin_annotation(api_key: str) -> str:
+    auth_plugin = "banklab-jwt" if api_auth_plugin(api_key) == "jwt" else "banklab-key-auth"
+    return f"{auth_plugin},banklab-acl,banklab-rate-limit,banklab-correlation-id"
+
+
+def client_env_var(client_name: str) -> str:
+    normalized = client_name.upper().replace("-", "_")
+    return f"BANKLAB_{normalized}_API_KEY"
+
+
+def jwt_key_env_var() -> str:
+    return "BANKLAB_EXTERNAL_FINTECH_PARTNER_JWT_KEY"
+
+
+def jwt_secret_env_var() -> str:
+    return "BANKLAB_EXTERNAL_FINTECH_PARTNER_JWT_SECRET"

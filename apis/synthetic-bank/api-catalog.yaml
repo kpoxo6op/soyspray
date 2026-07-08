@@ -9,7 +9,12 @@ apis:
   prefix: /accounts/v1
   gateway: kong-internal
   marker: banklab-accounts-ok
-  auth_state: temporary-no-auth
+  auth_profile: kong-oss-goal004-auth
+  auth_state: authenticated-required
+  auth_plugin: key-auth
+  authorization_profile: acl-goal004-api-groups
+  access_group: banklab-accounts
+  rate_limit_profile: goal004-internal-redis-3rps
 - key: payments
   title: Payments
   domain: payments
@@ -20,7 +25,12 @@ apis:
   prefix: /payments/v1
   gateway: kong-internal
   marker: banklab-payments-ok
-  auth_state: temporary-no-auth
+  auth_profile: kong-oss-goal004-auth
+  auth_state: authenticated-required
+  auth_plugin: key-auth
+  authorization_profile: acl-goal004-api-groups
+  access_group: banklab-payments
+  rate_limit_profile: goal004-internal-redis-3rps
 - key: cards
   title: Cards
   domain: cards
@@ -31,7 +41,12 @@ apis:
   prefix: /cards/v1
   gateway: kong-internal
   marker: banklab-cards-ok
-  auth_state: temporary-no-auth
+  auth_profile: kong-oss-goal004-auth
+  auth_state: authenticated-required
+  auth_plugin: key-auth
+  authorization_profile: acl-goal004-api-groups
+  access_group: banklab-cards
+  rate_limit_profile: goal004-internal-redis-3rps
 - key: customer-profile
   title: Customer Profile
   domain: customer-profile
@@ -42,7 +57,12 @@ apis:
   prefix: /customers/v1
   gateway: kong-internal
   marker: banklab-customer-profile-ok
-  auth_state: temporary-no-auth
+  auth_profile: kong-oss-goal004-auth
+  auth_state: authenticated-required
+  auth_plugin: key-auth
+  authorization_profile: acl-goal004-api-groups
+  access_group: banklab-customer-profile
+  rate_limit_profile: goal004-internal-redis-3rps
 - key: fraud-decisions
   title: Fraud Decisions
   domain: fraud-decisions
@@ -53,7 +73,12 @@ apis:
   prefix: /fraud/v1
   gateway: kong-internal
   marker: banklab-fraud-decisions-ok
-  auth_state: temporary-no-auth
+  auth_profile: kong-oss-goal004-auth
+  auth_state: authenticated-required
+  auth_plugin: key-auth
+  authorization_profile: acl-goal004-api-groups
+  access_group: banklab-fraud-decisions
+  rate_limit_profile: goal004-internal-redis-3rps
 - key: open-banking
   title: Open Banking Partner
   domain: open-banking
@@ -64,4 +89,9 @@ apis:
   prefix: /open-banking/v1
   gateway: kong-external
   marker: banklab-open-banking-ok
-  auth_state: temporary-no-auth
+  auth_profile: kong-oss-goal004-auth
+  auth_state: authenticated-required
+  auth_plugin: jwt
+  authorization_profile: acl-goal004-api-groups
+  access_group: banklab-open-banking
+  rate_limit_profile: goal004-external-redis-3rps
