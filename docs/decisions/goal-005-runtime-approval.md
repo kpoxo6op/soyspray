@@ -2,30 +2,36 @@
 
 Status: pending approval
 
+Generated at: 2026-07-09T00:29:19+12:00
+
+Branch: kong-goals-foundation
+
+Commit: dbf0756
+
+Kubernetes context: kubernetes-admin@cluster.local
+
 ## Summary
 
-Goal005 runtime evidence has not been approved yet.
+Goal005 runtime acceptance passed locally and is ready for ChatGPT Pro review.
 
-## Evidence Links
+## Evidence links
 
-- `reports/goal-005-summary.md`
-- `reports/goal-005-rbac-runtime.md`
-- `reports/goal-005-change-rollout.md`
-- `reports/goal-005-change-rollback.md`
+- reports/goal-005-rbac-runtime.md
+- reports/goal-005-change-rollout.md
+- reports/goal-005-change-rollback.md
+- reports/goal004-security-smoke-results.md
+- reports/goal004-security-negative-test-results.md
+- reports/goal004-rate-limit-results.md
 
-## Known Issues
+## Known issues
 
-- Runtime acceptance has not completed in this initial implementation state.
+- None from the runtime acceptance sequence.
 
-## Rollback Notes
+## Rollback notes
 
-- The sample change rollback removes only
-  `KongPlugin/tenant-accounts/goal005-normal-change-header` and reapplies the
-  stable accounts route annotation.
-- Stable goal005 tenancy/RBAC resources remain applied unless an RBAC smoke
-  check identifies an unsafe permission.
+- Sample change rollback removes only the goal005 response header plugin and reapplies the stable route annotation set.
+- Stable tenancy/RBAC resources remain applied.
 
-## Ready-For-Approval Statement
+## Ready-for-approval statement
 
-Not ready until all required local and runtime evidence passes, is committed,
-and the branch is pushed.
+Goal005 is ready for Pro approval after evidence is committed and pushed.

@@ -6,6 +6,6 @@ Supported states: not run, pass, fail, blocked, partial
 
 Command: make kong-admin-exposure-test
 
-Timestamp: 2026-07-08T23:14:08+12:00
+Timestamp: 2026-07-09T00:16:03+12:00
 
 Result summary: Admin API external exposure check passed.
