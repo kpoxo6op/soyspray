@@ -1,0 +1,51 @@
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: branch-insights-app
+  namespace: synthetic-clients
+  annotations:
+    kubernetes.io/ingress.class: kong
+    platform.soyspray.io/runbook: docs/runbooks/goal-007-consumer-onboarding-rollback.md
+    platform.soyspray.io/consumer-contract-file: platform/self-service/consumer-contracts/branch-insights-app-accounts.yaml
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/goal: goal-007
+    platform.soyspray.io/tenant: retail-accounts
+    platform.soyspray.io/api-id: accounts
+    platform.soyspray.io/product-id: accounts-self-service-health-v1
+    platform.soyspray.io/consumer-id: branch-insights-app
+    platform.soyspray.io/consumer-team: branch-insights
+username: branch-insights-app
+credentials:
+  - banklab-branch-insights-app-key-auth
+  - banklab-branch-insights-app-accounts-acl
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: banklab-branch-insights-app-key-auth
+  namespace: synthetic-clients
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/goal: goal-007
+    platform.soyspray.io/tenant: retail-accounts
+    platform.soyspray.io/api-id: accounts
+    platform.soyspray.io/product-id: accounts-self-service-health-v1
+    platform.soyspray.io/consumer-id: branch-insights-app
+    platform.soyspray.io/consumer-team: branch-insights
+type: Opaque
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: banklab-branch-insights-app-accounts-acl
+  namespace: synthetic-clients
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/goal: goal-007
+    platform.soyspray.io/tenant: retail-accounts
+    platform.soyspray.io/api-id: accounts
+    platform.soyspray.io/product-id: accounts-self-service-health-v1
+    platform.soyspray.io/consumer-id: branch-insights-app
+    platform.soyspray.io/consumer-team: branch-insights
+type: Opaque

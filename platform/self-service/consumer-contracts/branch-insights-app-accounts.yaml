@@ -1,0 +1,30 @@
+consumer_id: branch-insights-app
+display_name: Branch Insights App
+owning_team: branch-insights
+environment: lab
+contact: branch-insights-support@example.invalid
+target_product_id: accounts-self-service-health-v1
+target_api_id: accounts
+target_tenant_id: retail-accounts
+namespace: synthetic-clients
+allowed_acl_group: banklab-accounts
+credential_owner: platform
+credential_source: runtime-generated-not-committed
+credential_references:
+  key_auth_secret: banklab-branch-insights-app-key-auth
+  acl_secret: banklab-branch-insights-app-accounts-acl
+  key_env_var: BANKLAB_BRANCH_INSIGHTS_APP_API_KEY
+requested_by: branch-insights-product-owner
+approved_by:
+  tenant_reviewer: retail-platform-reviewer
+  platform_reviewer: kong-platform
+review_date: "2026-10-09"
+expires_on: "2027-01-09"
+runtime_proofs:
+  rollout_command: make goal007-consumer-onboarding-apply-and-smoke
+  rollback_command: make goal007-consumer-onboarding-rollback-and-smoke
+  expected_success_status: 200
+  missing_key_status: 401
+  wrong_acl_status: 403
+runbook: docs/runbooks/goal-007-consumer-onboarding-rollback.md
+lifecycle_state: active

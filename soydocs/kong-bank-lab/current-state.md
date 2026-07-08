@@ -5,24 +5,24 @@ Updated: 2026-07-09
 ## Branch
 
 - Branch: `kong-goals-foundation`
-- Latest pushed checkpoint before this save point: `c032c61`
+- Latest pushed checkpoint before this save point: `4ee4f77`
 - Before approval, confirm the current commit with `git rev-parse --short HEAD`
   and put that value in the approval block.
 
 ## Latest Runtime State
 
-Goal006 was implemented from fresh ChatGPT Pro guidance and is runtime-verified
-locally, pending Pro approval.
+Goal006 was implemented from fresh ChatGPT Pro guidance, runtime-verified, and
+approved by ChatGPT Pro.
 
 Accepted local/runtime state:
 
 - Goal: `goal-006-self-service-api-product-contract`
-- Status: pending Pro approval; runtime-verified locally
+- Status: approved; runtime-verified
 - Branch: `kong-goals-foundation`
-- Evidence commit ready to approve: this document's commit
+- Evidence commit approved by Pro: `4ee4f77`
 - Cluster context: `kubernetes-admin@cluster.local`
 - Runtime verification: pass
-- Ready for goal007: no; ask ChatGPT Pro after goal006 approval
+- Ready for goal007: yes; Pro issued `goal-007-consumer-onboarding-entitlements`
 
 Evidence files:
 
@@ -30,6 +30,29 @@ Evidence files:
 - `reports/goal-006-product-contract-rollout.md`
 - `reports/goal-006-product-contract-rollback.md`
 - `docs/decisions/goal-006-runtime-approval.md`
+
+## Current Goal
+
+Goal007 was issued by ChatGPT Pro after goal006 approval.
+
+Current implementation state:
+
+- Goal: `goal-007-consumer-onboarding-entitlements`
+- Status: in progress
+- Branch: `kong-goals-foundation`
+- Cluster context: `kubernetes-admin@cluster.local`
+- Runtime verification: not run
+- Ready for goal008: no; ask ChatGPT Pro after goal007 runtime evidence is
+  committed and pushed
+
+Goal007 scope:
+
+- Self-service consumer contract for `branch-insights-app`
+- Target product `accounts-self-service-health-v1`
+- Target API `accounts`
+- ACL group `banklab-accounts`
+- Runtime-only key-auth and ACL credential Secrets
+- Guarded apply/smoke and rollback/smoke evidence
 
 Fresh Pro guidance for goal006:
 
@@ -80,8 +103,8 @@ must create save points, then goal 006 starts in fresh chats.
 
 ## Current Gate
 
-Do not start goal007 until ChatGPT Pro approves
-`goal-006-self-service-api-product-contract`.
+Do not start goal008 until ChatGPT Pro approves
+`goal-007-consumer-onboarding-entitlements`.
 
 ## Historical Goal003 Blocker
 

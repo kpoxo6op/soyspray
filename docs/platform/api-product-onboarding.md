@@ -24,3 +24,8 @@ Goal006 adds a narrower self-service contract path for an existing API product:
 add a product contract file, add the matching decK-style state, render the
 namespaced Kong resources, and prove the route-scoped contract with curl before
 asking for platform approval.
+
+Goal007 adds the matching consumer side: add a consumer contract, render the
+runtime-only key-auth and ACL credential Secrets from the operator environment,
+apply the `KongConsumer`, then prove positive access, `401`, `403`, rate
+limiting, correlation IDs, Admin API safety, and clean rollback.
