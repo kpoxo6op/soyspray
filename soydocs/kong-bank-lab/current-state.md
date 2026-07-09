@@ -6,10 +6,11 @@ Updated: 2026-07-09
 
 - Repo: `/home/boris/code/soyspray`
 - Branch: `kong-goals-foundation`
-- Latest pushed runtime evidence commit: `7b274df`
+- Latest pushed runtime evidence commit: `5aa2814`
 - Goal009 source commit pushed before runtime mutation: `c9676e3`
 - Goal010 source commit pushed before runtime evidence: `9b35308`
-- Latest branch HEAD may be newer because of goal010 evidence or handover docs.
+- Goal010 runtime evidence commit approved by Pro: `5aa2814`
+- Latest branch HEAD may be newer because of approval markers or handover docs.
 - Kubernetes context used for runtime checks: `kubernetes-admin@cluster.local`
 
 Fresh sessions must first verify:
@@ -161,19 +162,15 @@ Local proof:
 - `make docs`: pass
 - `make evidence-goal-009`: pass
 
-Next required order:
-
-1. Save the Goal010 body.
-2. Implement the read-only Goal010 drift guard.
-3. Commit and push Goal010 source before runtime evidence.
-4. Run Goal010 with mutation disabled.
-5. Submit pushed Goal010 evidence to ChatGPT Pro for formal approval.
+Goal010 is now complete; submit a separate final whole-project approval packet
+before recording whole-project approval.
 
 ### Goal010
 
 - Goal: `goal-010-kong-runtime-drift-guard-final-readiness`
-- Status: runtime-verified locally; pending formal ChatGPT Pro approval
+- Status: approved by ChatGPT Pro; runtime-verified
 - Runtime source commit: `9b35308`
+- Runtime evidence commit approved by Pro: `5aa2814`
 - Runtime verification: pass
 - Cluster mutation mode: disabled
 - Cluster context: `kubernetes-admin@cluster.local`
@@ -231,10 +228,18 @@ runtime-verified for branch kong-goals-foundation.
 Pro then approved Goal009 from evidence commit `7b274df` and provided the full
 Goal010 body, saved under `soydocs/kong-bank-lab/goals/`.
 
+Pro approved Goal010 from evidence commit `5aa2814`:
+
+```text
+Approved.
+goal-010-kong-runtime-drift-guard-final-readiness is approved as runtime-verified for branch kong-goals-foundation.
+```
+
 ## Current Gate
 
-Do not submit whole-project final approval until ChatGPT Pro formally approves
-Goal010 evidence. Goal010 evidence is ready to commit, push, and submit.
+Goal010 is approved. Submit the separate final whole-project approval packet to
+ChatGPT Pro and do not mark the whole project approved until Pro explicitly
+approves that packet.
 
 ## Runtime Safety
 

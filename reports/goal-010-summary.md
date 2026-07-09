@@ -7,7 +7,9 @@ Goal: goal-010-kong-runtime-drift-guard-final-readiness
 Generated at: 2026-07-09T13:59:24+12:00
 Branch: kong-goals-foundation
 Runtime source commit: 9b35308
+Evidence commit: 5aa2814
 Kubernetes context: kubernetes-admin@cluster.local
+Formal approval: approved by ChatGPT Pro
 
 ## Evidence files
 - `reports/goal-010-runtime-readiness.md`: pass
@@ -16,7 +18,7 @@ Kubernetes context: kubernetes-admin@cluster.local
 - `reports/goal-010-behavior-regression.md`: pass
 - `reports/goal-010-no-mutation-proof.md`: pass
 - `reports/goal-010-readonly-rollback.md`: pass
-- `docs/decisions/goal-010-runtime-approval.md`: pending approval
+- `docs/decisions/goal-010-runtime-approval.md`: approved
 - `docs/decisions/kong-bank-lab-final-approval-candidate.md`: pending final approval
 
 ## Completion gate

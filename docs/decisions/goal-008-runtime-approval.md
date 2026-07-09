@@ -1,18 +1,20 @@
 # Goal008 Runtime Approval
 
-Status: pending approval
+Status: approved
 
 Generated at: 2026-07-09T02:13:26+12:00
 
 Branch: kong-goals-foundation
 
 Commit: cfcd2ec
+Runtime source commit: cfcd2ec
+Approved evidence commit: 25db428
 
 Kubernetes context: kubernetes-admin@cluster.local
 
 ## Summary
 
-Goal008 runtime acceptance passed locally and is ready for ChatGPT Pro review.
+Goal008 runtime acceptance passed locally and was approved by ChatGPT Pro.
 
 ## Evidence links
 
@@ -33,4 +35,10 @@ Goal008 runtime acceptance passed locally and is ready for ChatGPT Pro review.
 
 ## Ready-for-approval statement
 
-Goal008 is ready for Pro approval after evidence is committed and pushed.
+Goal008 is approved as runtime-verified.
+
+Approval statement captured from Pro:
+
+```text
+Approved. goal-008-kong-governance-policy-as-code is approved as runtime-verified for branch kong-goals-foundation.
+```
