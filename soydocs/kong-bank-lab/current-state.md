@@ -8,7 +8,8 @@ Updated: 2026-07-09
 - Branch: `kong-goals-foundation`
 - Latest pushed runtime evidence commit: `7b274df`
 - Goal009 source commit pushed before runtime mutation: `c9676e3`
-- Latest branch HEAD may be newer because of goal009 approval or handover docs.
+- Goal010 source commit pushed before runtime evidence: `9b35308`
+- Latest branch HEAD may be newer because of goal010 evidence or handover docs.
 - Kubernetes context used for runtime checks: `kubernetes-admin@cluster.local`
 
 Fresh sessions must first verify:
@@ -171,7 +172,11 @@ Next required order:
 ### Goal010
 
 - Goal: `goal-010-kong-runtime-drift-guard-final-readiness`
-- Status: proposed by ChatGPT Pro; source implementation in progress
+- Status: runtime-verified locally; pending formal ChatGPT Pro approval
+- Runtime source commit: `9b35308`
+- Runtime verification: pass
+- Cluster mutation mode: disabled
+- Cluster context: `kubernetes-admin@cluster.local`
 - Goal body saved at:
   - `soydocs/kong-bank-lab/goals/goal-010-kong-runtime-drift-guard-final-readiness.md`
 - Expected inventory:
@@ -181,11 +186,35 @@ Next required order:
   - `BANKLAB_ALLOW_CLUSTER_MUTATION=false`
 - Required runtime target:
   - `make evidence-goal-010`
+- Evidence:
+  - `reports/goal-010-summary.md`
+  - `reports/goal-010-runtime-readiness.md`
+  - `reports/goal-010-kong-runtime-inventory.md`
+  - `reports/goal-010-kong-drift-audit.md`
+  - `reports/goal-010-behavior-regression.md`
+  - `reports/goal-010-no-mutation-proof.md`
+  - `reports/goal-010-readonly-rollback.md`
+  - `docs/decisions/goal-010-runtime-approval.md`
+  - `docs/decisions/kong-bank-lab-final-approval-candidate.md`
 
 Goal010 must not apply, patch, delete, annotate, label, restart, scale, or
 otherwise mutate Kubernetes or Kong resources. It audits that the live runtime
 matches the approved post-Goal009 rollback baseline and prepares a pending
 whole-project approval candidate file.
+
+Runtime proof:
+
+- readiness passed with mutation mode disabled
+- expected inventory and live inventory compared
+- accounts route annotation remained
+  `banklab-key-auth,banklab-acl,banklab-rate-limit,banklab-correlation-id`
+- Goal009 response-header plugin and annotation were absent
+- Goal008 admission policy and binding were absent
+- Goal004 positive smoke, negative auth, Redis rate-limit, correlation ID, and
+  Kong Admin API exposure safety passed
+- no-mutation proof captured resource generations before and after the audit
+  and found them unchanged
+- read-only rollback verification passed
 
 ## ChatGPT Pro State
 
@@ -204,8 +233,8 @@ Goal010 body, saved under `soydocs/kong-bank-lab/goals/`.
 
 ## Current Gate
 
-Do not run Goal010 runtime evidence until the Goal010 source commit has been
-pushed. Goal010 runtime must use `BANKLAB_ALLOW_CLUSTER_MUTATION=false`.
+Do not submit whole-project final approval until ChatGPT Pro formally approves
+Goal010 evidence. Goal010 evidence is ready to commit, push, and submit.
 
 ## Runtime Safety
 
