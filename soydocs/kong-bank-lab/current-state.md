@@ -162,8 +162,30 @@ Local proof:
 
 Next required order:
 
-1. Commit and push the Goal009 approval marker.
-2. Ask ChatGPT Pro for a Goal010 body before starting Goal010 implementation.
+1. Save the Goal010 body.
+2. Implement the read-only Goal010 drift guard.
+3. Commit and push Goal010 source before runtime evidence.
+4. Run Goal010 with mutation disabled.
+5. Submit pushed Goal010 evidence to ChatGPT Pro for formal approval.
+
+### Goal010
+
+- Goal: `goal-010-kong-runtime-drift-guard-final-readiness`
+- Status: proposed by ChatGPT Pro; source implementation in progress
+- Goal body saved at:
+  - `soydocs/kong-bank-lab/goals/goal-010-kong-runtime-drift-guard-final-readiness.md`
+- Expected inventory:
+  - `soydocs/kong-bank-lab/goal-010-expected-runtime-inventory.yaml`
+- Runtime mode:
+  - read-only
+  - `BANKLAB_ALLOW_CLUSTER_MUTATION=false`
+- Required runtime target:
+  - `make evidence-goal-010`
+
+Goal010 must not apply, patch, delete, annotate, label, restart, scale, or
+otherwise mutate Kubernetes or Kong resources. It audits that the live runtime
+matches the approved post-Goal009 rollback baseline and prepares a pending
+whole-project approval candidate file.
 
 ## ChatGPT Pro State
 
@@ -177,12 +199,13 @@ Approved. goal-008-kong-governance-policy-as-code is approved as
 runtime-verified for branch kong-goals-foundation.
 ```
 
-Pro then provided the full Goal009 body, saved under
-`soydocs/kong-bank-lab/goals/`.
+Pro then approved Goal009 from evidence commit `7b274df` and provided the full
+Goal010 body, saved under `soydocs/kong-bank-lab/goals/`.
 
 ## Current Gate
 
-Do not start Goal010 until ChatGPT Pro provides a usable Goal010 body.
+Do not run Goal010 runtime evidence until the Goal010 source commit has been
+pushed. Goal010 runtime must use `BANKLAB_ALLOW_CLUSTER_MUTATION=false`.
 
 ## Runtime Safety
 

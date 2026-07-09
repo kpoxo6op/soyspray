@@ -1,0 +1,72 @@
+goal_id: goal-010-kong-runtime-drift-guard-final-readiness
+kubernetes_context: kubernetes-admin@cluster.local
+mutation_mode: disabled
+namespaces:
+  - platform-kong
+  - synthetic-clients
+  - tenant-accounts
+accounts_route:
+  api_version: gateway.networking.k8s.io/v1
+  kind: HTTPRoute
+  namespace: tenant-accounts
+  name: banklab-accounts
+  plugin_annotation: banklab-key-auth,banklab-acl,banklab-rate-limit,banklab-correlation-id
+  required_plugins:
+    - banklab-key-auth
+    - banklab-acl
+    - banklab-rate-limit
+    - banklab-correlation-id
+expected_kong_plugins:
+  - namespace: tenant-accounts
+    name: banklab-key-auth
+    plugin: key-auth
+  - namespace: tenant-accounts
+    name: banklab-acl
+    plugin: acl
+  - namespace: tenant-accounts
+    name: banklab-rate-limit
+    plugin: rate-limiting
+  - namespace: tenant-accounts
+    name: banklab-correlation-id
+    plugin: correlation-id
+approved_plugin_types:
+  - acl
+  - correlation-id
+  - jwt
+  - key-auth
+  - rate-limiting
+  - response-transformer
+denied_plugin_types:
+  - request-transformer
+  - pre-function
+  - post-function
+  - file-log
+  - syslog
+expected_absent:
+  kong_plugins:
+    - banklab-goal009-security-headers
+  annotation_references:
+    - banklab-goal009-security-headers
+  admission_resources:
+    - kind: ValidatingAdmissionPolicy
+      name: banklab-kong-plugin-governance
+    - kind: ValidatingAdmissionPolicyBinding
+      name: banklab-kong-plugin-governance
+  global_plugin_kinds:
+    - KongClusterPlugin
+reports:
+  expected_inventory_render: reports/goal-010-expected-runtime-inventory-rendered.yaml
+  summary: reports/goal-010-summary.md
+  readiness: reports/goal-010-runtime-readiness.md
+  inventory: reports/goal-010-kong-runtime-inventory.md
+  drift: reports/goal-010-kong-drift-audit.md
+  behavior: reports/goal-010-behavior-regression.md
+  no_mutation: reports/goal-010-no-mutation-proof.md
+  rollback: reports/goal-010-readonly-rollback.md
+  approval: docs/decisions/goal-010-runtime-approval.md
+  final_candidate: docs/decisions/kong-bank-lab-final-approval-candidate.md
+docs:
+  goal_body: soydocs/kong-bank-lab/goals/goal-010-kong-runtime-drift-guard-final-readiness.md
+  current_state: soydocs/kong-bank-lab/current-state.md
+  handover: soydocs/kong-bank-lab/handover-2026-07-09-post-goal-010.md
+  final_candidate: docs/decisions/kong-bank-lab-final-approval-candidate.md

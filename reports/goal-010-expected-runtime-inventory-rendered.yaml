@@ -1,0 +1,72 @@
+accounts_route:
+  api_version: gateway.networking.k8s.io/v1
+  kind: HTTPRoute
+  name: banklab-accounts
+  namespace: tenant-accounts
+  plugin_annotation: banklab-key-auth,banklab-acl,banklab-rate-limit,banklab-correlation-id
+  required_plugins:
+  - banklab-key-auth
+  - banklab-acl
+  - banklab-rate-limit
+  - banklab-correlation-id
+approved_plugin_types:
+- acl
+- correlation-id
+- jwt
+- key-auth
+- rate-limiting
+- response-transformer
+denied_plugin_types:
+- request-transformer
+- pre-function
+- post-function
+- file-log
+- syslog
+docs:
+  current_state: soydocs/kong-bank-lab/current-state.md
+  final_candidate: docs/decisions/kong-bank-lab-final-approval-candidate.md
+  goal_body: soydocs/kong-bank-lab/goals/goal-010-kong-runtime-drift-guard-final-readiness.md
+  handover: soydocs/kong-bank-lab/handover-2026-07-09-post-goal-010.md
+expected_absent:
+  admission_resources:
+  - kind: ValidatingAdmissionPolicy
+    name: banklab-kong-plugin-governance
+  - kind: ValidatingAdmissionPolicyBinding
+    name: banklab-kong-plugin-governance
+  annotation_references:
+  - banklab-goal009-security-headers
+  global_plugin_kinds:
+  - KongClusterPlugin
+  kong_plugins:
+  - banklab-goal009-security-headers
+expected_kong_plugins:
+- name: banklab-key-auth
+  namespace: tenant-accounts
+  plugin: key-auth
+- name: banklab-acl
+  namespace: tenant-accounts
+  plugin: acl
+- name: banklab-rate-limit
+  namespace: tenant-accounts
+  plugin: rate-limiting
+- name: banklab-correlation-id
+  namespace: tenant-accounts
+  plugin: correlation-id
+goal_id: goal-010-kong-runtime-drift-guard-final-readiness
+kubernetes_context: kubernetes-admin@cluster.local
+mutation_mode: disabled
+namespaces:
+- platform-kong
+- synthetic-clients
+- tenant-accounts
+reports:
+  approval: docs/decisions/goal-010-runtime-approval.md
+  behavior: reports/goal-010-behavior-regression.md
+  drift: reports/goal-010-kong-drift-audit.md
+  expected_inventory_render: reports/goal-010-expected-runtime-inventory-rendered.yaml
+  final_candidate: docs/decisions/kong-bank-lab-final-approval-candidate.md
+  inventory: reports/goal-010-kong-runtime-inventory.md
+  no_mutation: reports/goal-010-no-mutation-proof.md
+  readiness: reports/goal-010-runtime-readiness.md
+  rollback: reports/goal-010-readonly-rollback.md
+  summary: reports/goal-010-summary.md
