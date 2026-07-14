@@ -1,0 +1,21 @@
+---
+# Keep the lab parked unless an operator explicitly starts it.
+kong_bank_lab_enabled: false
+kong_bank_lab_target_revision: HEAD
+
+kong_bank_lab_runtime_application_manifests:
+  - banklab-kong-application.yaml
+  - banklab-kong-gateway-api-application.yaml
+  - banklab-kong-smoke-application.yaml
+  - synthetic-bank-apis-application.yaml
+  - banklab-kong-security-controls-application.yaml
+  - banklab-customer-traffic-application.yaml
+  - banklab-kong-operator-dashboard-application.yaml
+  - banklab-docs-application.yaml
+
+kong_bank_lab_key_credentials:
+  - {client: mobile-banking-app, api: accounts}
+  - {client: payments-processor, api: payments}
+  - {client: internet-banking-web, api: cards}
+  - {client: internal-crm, api: customer-profile}
+  - {client: fraud-platform, api: fraud-decisions}
