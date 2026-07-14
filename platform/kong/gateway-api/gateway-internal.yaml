@@ -1,0 +1,20 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: kong-internal
+  namespace: platform-kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: gateway
+    banklab.konghq.com/exposure: internal
+    banklab.konghq.com/owner: platform-team
+spec:
+  gatewayClassName: kong
+  listeners:
+    - name: http
+      hostname: "*.internal.banklab.test"
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All
