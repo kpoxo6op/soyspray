@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: banklab-kong-gateway-metrics
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: kong-bank-lab
+spec:
+  namespaceSelector:
+    matchNames:
+      - platform-kong
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: banklab-kong
+      app.kubernetes.io/name: gateway
+      banklab.konghq.com/component: gateway
+  podMetricsEndpoints:
+    - port: status
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
