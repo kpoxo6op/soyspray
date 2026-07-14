@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: banklab-docs
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/instance: banklab-docs
+configMapGenerator:
+  - name: banklab-docs-runtime
+    files:
+      - config/build.sh
+      - config/nginx.conf
+    options:
+      labels:
+        app.kubernetes.io/name: banklab-docs
+        app.kubernetes.io/part-of: kong-bank-lab

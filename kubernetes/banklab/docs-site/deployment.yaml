@@ -1,0 +1,194 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: banklab-docs
+  namespace: banklab-docs
+  labels:
+    app.kubernetes.io/name: banklab-docs
+    app.kubernetes.io/part-of: kong-bank-lab
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: operator-documentation
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: banklab-docs
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: banklab-docs
+        app.kubernetes.io/part-of: kong-bank-lab
+        banklab.konghq.com/platform-layer: operator-documentation
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: git-sync
+          image: registry.k8s.io/git-sync/git-sync:v4.5.0@sha256:0e64aedb0d0ae0a3bab880349a5109b2a31891d646dd61e433ca36ed220dff1f
+          imagePullPolicy: IfNotPresent
+          args:
+            - --repo=https://github.com/kpoxo6op/soyspray.git
+            - --ref=HEAD
+            - --root=/repo
+            - --link=current
+            - --depth=1
+            - --period=60s
+            - --max-failures=-1
+            - --group-write=true
+            - --stale-worktree-timeout=5m
+            - --http-bind=:2020
+          ports:
+            - name: git-health
+              containerPort: 2020
+          startupProbe:
+            httpGet:
+              path: /
+              port: git-health
+            periodSeconds: 2
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: /
+              port: git-health
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 10m
+              memory: 24Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            runAsUser: 65533
+            runAsGroup: 65533
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: repository
+              mountPath: /repo
+            - name: tmp
+              mountPath: /tmp
+        - name: builder
+          image: squidfunk/mkdocs-material:9.7.6@sha256:868ad4d39fb5865b72d00173ade00f4eae2b38dde7ff790a011cc44ce4a8ff8e
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - /config/build.sh
+          env:
+            - name: HOME
+              value: /tmp
+            - name: NO_MKDOCS_2_WARNING
+              value: "true"
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - test -f /site/current/index.html
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 20m
+              memory: 48Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: repository
+              mountPath: /repo
+              readOnly: true
+            - name: site
+              mountPath: /site
+            - name: runtime-config
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+        - name: web
+          image: nginxinc/nginx-unprivileged:1.30-alpine@sha256:ee7b7bc02a4af72c98d4365151f92d9b380c482c48d8c84bbbe44bd3192ba463
+          imagePullPolicy: IfNotPresent
+          command:
+            - nginx
+          args:
+            - -c
+            - /config/nginx.conf
+            - -g
+            - daemon off;
+          ports:
+            - name: http
+              containerPort: 8080
+          startupProbe:
+            httpGet:
+              path: /index.html
+              port: http
+            periodSeconds: 2
+            failureThreshold: 60
+          readinessProbe:
+            httpGet:
+              path: /index.html
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 48Mi
+          securityContext:
+            runAsUser: 101
+            runAsGroup: 101
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: site
+              mountPath: /site
+              readOnly: true
+            - name: runtime-config
+              mountPath: /config
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: repository
+          emptyDir: {}
+        - name: site
+          emptyDir: {}
+        - name: runtime-config
+          configMap:
+            name: banklab-docs-runtime
+            defaultMode: 0555
+        - name: tmp
+          emptyDir: {}

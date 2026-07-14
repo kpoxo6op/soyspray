@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: banklab-docs
+  namespace: banklab-docs
+  labels:
+    app.kubernetes.io/name: banklab-docs
+    app.kubernetes.io/part-of: kong-bank-lab
+spec:
+  selector:
+    app.kubernetes.io/name: banklab-docs
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
