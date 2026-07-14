@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banklab-kong-crds
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: kong-bank-lab
+spec:
+  project: banklab-kong
+  source:
+    repoURL: https://charts.konghq.com
+    chart: kong
+    targetRevision: 3.2.0
+    helm:
+      releaseName: banklab-kong-crds
+      valuesObject:
+        deployment:
+          kong:
+            enabled: false
+        ingressController:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform-kong
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: kong-bank-lab
+        banklab.konghq.com/managed-by: gitops
+        banklab.konghq.com/platform-layer: gateway
+        pod-security.kubernetes.io/audit: restricted
+        pod-security.kubernetes.io/audit-version: v1.35
+        pod-security.kubernetes.io/warn: restricted
+        pod-security.kubernetes.io/warn-version: v1.35
