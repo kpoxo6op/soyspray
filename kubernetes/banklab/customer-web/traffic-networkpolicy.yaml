@@ -1,0 +1,38 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: banklab-synthetic-traffic-network
+  namespace: synthetic-clients
+  labels:
+    app.kubernetes.io/part-of: kong-bank-lab
+    banklab.konghq.com/platform-layer: synthetic-client-traffic
+spec:
+  podSelector:
+    matchLabels:
+      banklab.konghq.com/platform-layer: synthetic-client-traffic
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 169.254.25.10/32
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: platform-kong
+          podSelector:
+            matchLabels:
+              banklab.konghq.com/component: gateway
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 8000

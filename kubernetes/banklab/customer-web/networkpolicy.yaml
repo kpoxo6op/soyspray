@@ -1,0 +1,51 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: banklab-customer-web-network
+  namespace: synthetic-clients
+  labels:
+    app.kubernetes.io/name: banklab-customer-web
+    app.kubernetes.io/part-of: kong-bank-lab
+    banklab.konghq.com/platform-layer: customer-experience
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: banklab-customer-web
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 169.254.25.10/32
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: platform-kong
+          podSelector:
+            matchLabels:
+              banklab.konghq.com/component: gateway
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 8000
