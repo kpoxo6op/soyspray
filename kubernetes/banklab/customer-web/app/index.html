@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Synthetic banking journey through the Kong Bank Lab">
+    <title>Harbour Bank | Kong Bank Lab</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand">Harbour Bank</div>
+        <div class="environment">Synthetic Kong lab</div>
+      </div>
+    </header>
+
+    <main>
+      <section class="account-header" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">Everyday banking</p>
+          <h1 id="page-title">Good morning, Alex</h1>
+          <p class="intro">Everyday account ending 0184</p>
+        </div>
+        <div class="balance">
+          <span>Available balance</span>
+          <strong>$4,286.40</strong>
+        </div>
+      </section>
+
+      <div class="section-head">
+        <div>
+          <h2>Your cards</h2>
+          <p>Loaded from the Cards API through Kong.</p>
+        </div>
+        <button class="refresh" id="refresh" type="button">Refresh cards</button>
+      </div>
+      <section id="cards" class="cards" aria-live="polite" aria-busy="true">
+        <div class="empty">Loading your cards...</div>
+      </section>
+      <p id="notice" class="notice" role="status" aria-live="polite"></p>
+
+      <details>
+        <summary>Gateway trace and control test</summary>
+        <p class="details-intro">
+          Inspect the response Kong returned, then send the same request without an app credential.
+        </p>
+        <div class="trace">
+          <div><span>Status</span><strong id="trace-status">-</strong></div>
+          <div><span>Correlation ID</span><strong id="trace-correlation">-</strong></div>
+          <div><span>Rate limit remaining</span><strong id="trace-rate">-</strong></div>
+          <div><span>Round trip</span><strong id="trace-time">-</strong></div>
+        </div>
+        <button class="blocked" id="blocked" type="button">Try without credentials</button>
+      </details>
+
+      <footer>Synthetic data only. This page is a private Kong OSS learning lab.</footer>
+    </main>
+  </body>
+</html>
