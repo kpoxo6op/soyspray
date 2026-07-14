@@ -1,0 +1,4 @@
+interface:
+  display_name: "Demo Lab Experience"
+  short_description: "Improve operator and demo user journeys"
+  default_prompt: "Review this lab from setup through visible demo and shutdown, then improve the weakest journeys."
