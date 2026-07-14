@@ -1,0 +1,83 @@
+openapi: 3.0.3
+info:
+  title: Synthetic Open Banking Partner API
+  version: 0.1.0
+  description: Synthetic external partner API for open-banking style onboarding and
+    exposure demos. Synthetic data only.
+servers:
+- url: https://api.external.banklab.test
+  description: Kong Gateway hostname
+tags:
+- name: open-banking
+x-banklab-api-domain: open-banking
+x-banklab-owning-team: tenant-open-banking-team
+x-banklab-lifecycle: sandbox
+x-banklab-data-classification: synthetic
+x-banklab-auth-profile: kong-oss-auth
+paths:
+  /open-banking/v1/health:
+    get:
+      tags:
+      - open-banking
+      summary: Open Banking Partner synthetic GET route
+      operationId: GetOpenBankingHealth
+      responses:
+        '200':
+          description: Health marker
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: banklab-open-banking-ok
+        '404':
+          description: Not found
+  /open-banking/v1/accounts:
+    get:
+      tags:
+      - open-banking
+      summary: Open Banking Partner synthetic GET route
+      operationId: GetOpenBankingAccounts
+      responses:
+        '200':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: open-banking
+                marker: banklab-open-banking-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
+  /open-banking/v1/payments:
+    get:
+      tags:
+      - open-banking
+      summary: Open Banking Partner synthetic GET route
+      operationId: GetOpenBankingPayments
+      responses:
+        '200':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: open-banking
+                marker: banklab-open-banking-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
