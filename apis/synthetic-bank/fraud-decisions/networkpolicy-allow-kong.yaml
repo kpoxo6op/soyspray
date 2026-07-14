@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-kong-to-synthetic-api
+  namespace: tenant-fraud
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api
+    banklab.konghq.com/api-domain: fraud-decisions
+    banklab.konghq.com/owner: tenant-fraud-team
+    banklab.konghq.com/exposure: internal
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: banklab-fraud-decisions-api
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: platform-kong
+      podSelector:
+        matchLabels:
+          banklab.konghq.com/component: gateway
+    ports:
+    - protocol: TCP
+      port: 8080
