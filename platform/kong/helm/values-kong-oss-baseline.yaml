@@ -1,0 +1,134 @@
+deployment:
+  test:
+    enabled: false
+
+controller:
+  enabled: true
+  proxy:
+    nameOverride: banklab-kong-gateway-proxy
+  deployment:
+    kong:
+      enabled: false
+  ingressController:
+    enabled: true
+    image:
+      repository: kong/kubernetes-ingress-controller
+      tag: "3.5.10"
+    gatewayDiscovery:
+      enabled: true
+      generateAdminApiService: true
+    # The dedicated banklab-kong-crds Argo Application is the single CRD owner.
+    installCRDs: false
+    rbac:
+      create: true
+      enableClusterRoles: true
+      gatewayAPI:
+        enabled: true
+    env:
+      kong_admin_tls_skip_verify: true
+    admissionWebhook:
+      filterSecrets: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+  podLabels:
+    banklab.konghq.com/component: kic
+    banklab.konghq.com/platform-layer: gateway
+
+gateway:
+  enabled: true
+  deployment:
+    kong:
+      enabled: true
+  image:
+    repository: kong
+    tag: "3.9.3"
+  replicaCount: 2
+  env:
+    role: traditional
+    database: "off"
+    log_level: notice
+  enterprise:
+    enabled: false
+    portal:
+      enabled: false
+    rbac:
+      enabled: false
+    smtp:
+      enabled: false
+  postgresql:
+    enabled: false
+  admin:
+    enabled: true
+    type: ClusterIP
+    clusterIP: None
+    http:
+      enabled: false
+    tls:
+      enabled: true
+    ingress:
+      enabled: false
+  manager:
+    enabled: false
+    ingress:
+      enabled: false
+  portal:
+    enabled: false
+    ingress:
+      enabled: false
+  portalapi:
+    enabled: false
+    ingress:
+      enabled: false
+  proxy:
+    enabled: true
+    type: LoadBalancer
+    labels:
+      enable-metrics: "true"
+      banklab.konghq.com/component: proxy
+    http:
+      enabled: true
+      servicePort: 80
+      containerPort: 8000
+    tls:
+      enabled: false
+  status:
+    enabled: true
+    http:
+      enabled: true
+      containerPort: 8100
+    tls:
+      enabled: false
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+  ingressController:
+    enabled: false
+  podLabels:
+    banklab.konghq.com/component: gateway
+    banklab.konghq.com/platform-layer: gateway
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: "50%"
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 80
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                banklab.konghq.com/component: gateway
+            topologyKey: kubernetes.io/hostname
