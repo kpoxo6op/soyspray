@@ -1,0 +1,90 @@
+openapi: 3.0.3
+info:
+  title: Synthetic Customer Profile API
+  version: 0.1.0
+  description: Synthetic customer profile API for internal CRM and servicing scenarios.
+    Synthetic data only.
+servers:
+- url: https://api.internal.banklab.test
+  description: Kong Gateway hostname
+tags:
+- name: customer-profile
+x-banklab-api-domain: customer-profile
+x-banklab-owning-team: tenant-customer-profile-team
+x-banklab-lifecycle: sandbox
+x-banklab-data-classification: synthetic
+x-banklab-auth-profile: kong-oss-auth
+paths:
+  /customers/v1/health:
+    get:
+      tags:
+      - customer-profile
+      summary: Customer Profile synthetic GET route
+      operationId: GetCustomerProfileHealth
+      responses:
+        '200':
+          description: Health marker
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: banklab-customer-profile-ok
+        '404':
+          description: Not found
+  /customers/v1/customers:
+    get:
+      tags:
+      - customer-profile
+      summary: Customer Profile synthetic GET route
+      operationId: GetCustomerProfileCustomers
+      responses:
+        '200':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: customer-profile
+                marker: banklab-customer-profile-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
+  /customers/v1/customers/{customerId}:
+    get:
+      tags:
+      - customer-profile
+      summary: Customer Profile synthetic GET route
+      operationId: GetCustomerProfileCustomerid
+      responses:
+        '200':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: customer-profile
+                marker: banklab-customer-profile-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
+      parameters:
+      - name: customerId
+        in: path
+        required: true
+        schema:
+          type: string
+          example: synthetic-customerId-001
