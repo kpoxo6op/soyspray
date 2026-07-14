@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banklab-kong
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: kong-bank-lab
+spec:
+  project: banklab-kong
+  sources:
+    - repoURL: https://charts.konghq.com
+      chart: ingress
+      targetRevision: 0.24.0
+      helm:
+        releaseName: banklab-kong
+        skipCrds: true
+        valueFiles:
+          - $values/platform/kong/helm/values-kong-oss-baseline.yaml
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform-kong
+  ignoreDifferences:
+    - kind: Secret
+      name: banklab-kong-controller-validation-webhook-ca-keypair
+      jsonPointers:
+        - /data
+    - kind: Secret
+      name: banklab-kong-controller-validation-webhook-keypair
+      jsonPointers:
+        - /data
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      name: banklab-kong-controller-platform-kong-validations
+      jqPathExpressions:
+        - .webhooks[]?.clientConfig.caBundle
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
