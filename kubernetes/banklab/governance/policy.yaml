@@ -1,0 +1,38 @@
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: banklab-kong-plugin-governance
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/control-plane: governance
+    platform.soyspray.io/policy-id: banklab-kong-plugin-governance
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups:
+          - configuration.konghq.com
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - kongplugins
+  validations:
+    - expression: object.plugin in ['acl', 'correlation-id', 'jwt', 'key-auth', 'rate-limiting', 'response-transformer']
+      message: KongPlugin plugin must be approved by the banklab Kong governance allowlist.
+      reason: Forbidden
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: banklab-kong-plugin-governance
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/control-plane: governance
+    platform.soyspray.io/policy-id: banklab-kong-plugin-governance
+spec:
+  policyName: banklab-kong-plugin-governance
+  validationActions:
+    - Deny
