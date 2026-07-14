@@ -26,7 +26,7 @@ and backup/retention checks.
   `tailscale -> lan`.
 
 ## Workflow
-- Never run impertive commands modifying the cluster. Make changes in code.
+- Never run imperative commands modifying the cluster. Make changes in code.
 - Never modify `main` directly. Always work in a branch (PR branch or local
   topic branch) and keep `main` untouched. Exception: markdown and comments.
 - For PR work: check out the PR branch, make changes there, push, then deploy.
@@ -40,6 +40,34 @@ and backup/retention checks.
 - When creating PRs, ensure any temporary Argo `targetRevision` changes are
   set back to `HEAD`.
 - Prefer explicit confirmations before destructive cluster actions.
+
+## Pull Request Standard
+- Organize commits for review before opening or substantially updating a PR.
+- Keep a normal commit to one leaf folder or 1-5 closely related files. Aim for
+  roughly 2-3 screens of ordinary changes when that is practical.
+- Use smaller one-file commits for lifecycle switches, security boundaries,
+  deployment controls, and other logic that deserves focused review.
+- Do not mix platform code, application code, documentation, tests, generated
+  artifacts, or vendored material when those concerns can be reviewed
+  independently.
+- Put an unavoidable large generated or vendored file in its own commit. State
+  what it is in the commit subject instead of hiding it inside a broad commit.
+- Rebase onto the current base branch before final review. When history must be
+  rewritten, preserve the delivered tree, run the full local gate, and use
+  `--force-with-lease` rather than an unrestricted force push.
+- Write the PR description in simple, neutral English. Lead with the outcome
+  and safety facts, then include a review map, exact operating commands,
+  verification evidence, and rollback instructions when relevant.
+- For a large PR, group commit ranges by area and place the complete commit list
+  in a collapsible section so the main description stays readable.
+- Add line-anchored PR comments where code is hard or non-obvious. Explain the
+  reason in simple English, not just what the line says.
+- After a force push, verify every inline comment against the new head. Replace
+  comments that are outdated or no longer line-anchored.
+- Keep the PR in draft until the description matches the current head and all
+  required local and GitHub checks pass.
+- Exclude one-off reports, temporary evidence, generated screenshots, secrets,
+  personal context, and irrelevant employer or client names from the PR.
 
 ## OpenClaw
 - Keep the browser on direct OpenClaw control only (no Chrome extension relay).
