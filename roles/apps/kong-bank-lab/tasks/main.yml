@@ -1,0 +1,14 @@
+---
+- name: Reconcile the Kong bank-lab Argo project
+  ansible.builtin.import_tasks: project.yml
+  tags: kong_bank_lab
+
+- name: Start the Kong bank-lab runtime
+  ansible.builtin.import_tasks: enabled.yml
+  when: kong_bank_lab_enabled | bool
+  tags: kong_bank_lab
+
+- name: Park the Kong bank-lab runtime
+  ansible.builtin.import_tasks: disabled.yml
+  when: not (kong_bank_lab_enabled | bool)
+  tags: kong_bank_lab
