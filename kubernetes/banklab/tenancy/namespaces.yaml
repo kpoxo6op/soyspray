@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-accounts
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/tenant: retail-accounts
+    platform.soyspray.io/api-id: accounts
+    platform.soyspray.io/logical-workspace: retail-banking
+    platform.soyspray.io/exposure: internal
+    platform.soyspray.io/data-classification: confidential
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-cards
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/tenant: retail-accounts
+    platform.soyspray.io/api-id: cards
+    platform.soyspray.io/logical-workspace: retail-banking
+    platform.soyspray.io/exposure: internal
+    platform.soyspray.io/data-classification: confidential
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-customer-profile
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/tenant: retail-accounts
+    platform.soyspray.io/api-id: customer-profile
+    platform.soyspray.io/logical-workspace: retail-banking
+    platform.soyspray.io/exposure: internal
+    platform.soyspray.io/data-classification: confidential
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-payments
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/tenant: payments
+    platform.soyspray.io/api-id: payments
+    platform.soyspray.io/logical-workspace: payments-banking
+    platform.soyspray.io/exposure: internal
+    platform.soyspray.io/data-classification: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-open-banking
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/tenant: payments
+    platform.soyspray.io/api-id: open-banking
+    platform.soyspray.io/logical-workspace: payments-banking
+    platform.soyspray.io/exposure: external
+    platform.soyspray.io/data-classification: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-fraud
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/tenant: risk-compliance
+    platform.soyspray.io/api-id: fraud-decisions
+    platform.soyspray.io/logical-workspace: risk-compliance
+    platform.soyspray.io/exposure: internal
+    platform.soyspray.io/data-classification: restricted
