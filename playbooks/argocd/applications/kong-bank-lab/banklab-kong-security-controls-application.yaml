@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banklab-kong-security-controls
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: kong-bank-lab
+spec:
+  project: banklab-kong
+  sources:
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: HEAD
+      path: platform/kong/network-policies
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: HEAD
+      path: kubernetes/banklab/security
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: HEAD
+      path: kubernetes/banklab/tenancy
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: HEAD
+      path: kubernetes/banklab/governance
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: platform-kong
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions:
+      - CreateNamespace=false
