@@ -85,6 +85,12 @@ def test_navigation_readme_links_resolve() -> None:
     assert not broken, "Broken navigation links:\n" + "\n".join(broken)
 
 
+def test_root_readme_is_application_neutral() -> None:
+    text = (ROOT / "README.md").read_text().lower()
+    forbidden = [term for term in ("kong", "banklab", "bank lab") if term in text]
+    assert not forbidden, f"Application-specific terms leaked into README.md: {forbidden}"
+
+
 def test_project_skills_validate() -> None:
     result = subprocess.run(
         [sys.executable, "scripts/validate_skills.py"],
