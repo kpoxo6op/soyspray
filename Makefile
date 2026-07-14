@@ -1,97 +1,126 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-MAKEFLAGS += --no-print-directory
+.SILENT:
 
-K8S_USER        := ubuntu
-NODE0           := 192.168.20.10
-NODE1           := 192.168.20.11
-NODE2           := 192.168.20.12
-WORKER_NODE1    := $(NODE0)
-WORKER_NODE2    := $(NODE1)
-WORKER_NODE3    := $(NODE2)
-MASTER_NODE     := $(NODE0)
+VENV := soyspray-venv
+PYTHON := $(if $(wildcard $(VENV)/bin/python),$(VENV)/bin/python,python3)
+PYTEST := $(PYTHON) -m pytest
+MKDOCS := NO_MKDOCS_2_WARNING=true $(PYTHON) -m mkdocs
+INVENTORY := kubespray/inventory/soycluster/hosts.yml
+ANSIBLE := source $(VENV)/bin/activate && ansible-playbook -i $(INVENTORY) --become --become-user=root --user ubuntu
+DOCS_ADDR ?= 127.0.0.1:8000
+KONG_REVISION ?= HEAD
 
-# Adjust ArgoCD version if needed
-ARGOCD_VERSION  := v2.12.4
+NODE0 := 192.168.20.10
+NODE1 := 192.168.20.11
+NODE2 := 192.168.20.12
 
-master:
-	ssh $(K8S_USER)@$(MASTER_NODE)
+KUSTOMIZATIONS := \
+	platform/kong/gateway-api \
+	platform/kong/network-policies \
+	platform/kong/smoke \
+	apis/synthetic-bank \
+	kubernetes/banklab/security \
+	kubernetes/banklab/tenancy \
+	kubernetes/banklab/governance \
+	kubernetes/banklab/customer-web \
+	kubernetes/banklab/docs-site \
+	playbooks/argocd/applications/kong-bank-lab/operator-dashboard
 
-worker1:
-	ssh $(K8S_USER)@$(WORKER_NODE1)
+.PHONY: help setup act check lint validate validate-skills test docs docs-serve render status smoke go deploy kong-on kong-off \
+	argo-login list-apps node0 node1 node2 master worker1 worker2 worker3 clean
 
-worker2:
-	ssh $(K8S_USER)@$(WORKER_NODE2)
+help: ## Show the operator commands
+	printf 'Soyspray operator commands\n\n'
+	awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-worker3:
-	ssh $(K8S_USER)@$(WORKER_NODE3)
+setup: ## Create the venv and install local tooling
+	test -d $(VENV) || python3 -m venv $(VENV)
+	$(VENV)/bin/python -m pip install -r requirements-dev.txt
 
-argo:
-	argocd login argocd.soyspray.vip --username admin --password password --grpc-web
+act: ## Open a shell in the project venv
+	bash -lc 'source $(VENV)/bin/activate && exec bash -i'
 
-VENV_NAME       := soyspray-venv
+check: lint validate test docs ## Run the complete local gate
+	printf '\nLocal gate passed.\n'
 
-venv:
-	@test -d $(VENV_NAME) || python3 -m venv $(VENV_NAME)
-	@$(VENV_NAME)/bin/python -m pip install --upgrade pip wheel
+lint: ## Check Python style and common defects
+	$(PYTHON) -m ruff check kubernetes/banklab/customer-web/app scripts tests
+	$(PYTHON) -m ruff format --check kubernetes/banklab/customer-web/app scripts tests
+	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
+		roles/apps/kong-bank-lab/tasks/*.yml roles/apps/kong-bank-lab/defaults/*.yml
 
-act:
-	@bash -lc 'source $(VENV_NAME)/bin/activate && exec bash -i'
+validate: validate-skills ## Validate YAML, OpenAPI, and rendered manifests
+	$(PYTHON) scripts/validate_yaml.py
+	$(PYTHON) scripts/validate_openapi_specs.py
+	for path in $(KUSTOMIZATIONS); do \
+		printf 'Rendered %s\n' "$$path"; \
+		kubectl kustomize "$$path" >/dev/null; \
+	done
 
-ans:
-	@echo "ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml --tags TAG"
+validate-skills: ## Validate reusable project-local Agent Skills
+	$(PYTHON) scripts/validate_skills.py
 
+test: ## Run the focused test suite
+	$(PYTEST) -q tests
 
-install:
-	@if [ ! -w /usr/local/bin ]; then \
-		echo "Error: This target requires sudo privileges. Please run 'sudo make install'"; \
-		exit 1; \
-	fi
+docs: ## Build the operator guide in strict mode
+	$(MKDOCS) build --strict --site-dir .build/mkdocs
 
-	@if ! dpkg -l | grep -q "^ii  python3-pip " || ! dpkg -l | grep -q "^ii  python3-venv "; then \
-		echo "Installing Python packages..."; \
-		sudo apt-get update && sudo apt-get install python3-pip python3-venv -y; \
-	else \
-		echo "Python packages already installed: python $$(python3 --version), pip $$(pip3 --version | cut -d' ' -f2)"; \
-	fi
+docs-serve: ## Preview docs with live reload
+	$(MKDOCS) serve --dev-addr $(DOCS_ADDR)
 
-	@if command -v kubectl >/dev/null 2>&1; then \
-		echo "kubectl already installed. Version info:"; \
-		kubectl version --client 2>&1 || true; \
-	else \
-		echo "Installing kubectl..."; \
-		curl -LO "https://dl.k8s.io/release/$$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"; \
-		sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl; \
-		rm -f kubectl; \
-	fi
+render: ## Render all bank-lab Kustomize packages
+	for path in $(KUSTOMIZATIONS); do \
+		printf '\n--- %s ---\n' "$$path"; \
+		kubectl kustomize "$$path"; \
+	done
 
-	@if command -v argocd >/dev/null 2>&1 && argocd version --client >/dev/null 2>&1; then \
-		echo "ArgoCD CLI already installed and working:"; \
-		argocd version --client | head -1; \
-	else \
-		echo "Installing ArgoCD CLI $(ARGOCD_VERSION)..."; \
-		sudo curl -L -o /usr/local/bin/argocd \
-			https://github.com/argoproj/argo-cd/releases/download/$(ARGOCD_VERSION)/argocd-linux-amd64; \
-		sudo chmod +x /usr/local/bin/argocd; \
-	fi
+status: ## Show cluster and bank-lab Argo health
+	$(PYTHON) scripts/banklab_status.py
 
-go: argo act ans
+smoke: ## Run read-only Kong and customer checks
+	$(PYTHON) scripts/banklab_smoke.py
 
-alist:
-	@./scripts/argocd-list.sh "$(COLS)"
+go: check ## Run the deployment preflight
+	branch="$$(git branch --show-current)"; \
+	test -n "$$branch" && test "$$branch" != main || { echo 'Deploy from a topic branch, not main.' >&2; exit 1; }
+	test -z "$$(git status --porcelain)" || { echo 'Commit the working tree before deployment.' >&2; exit 1; }
+	git merge-base --is-ancestor HEAD '@{upstream}' || { echo 'Push the current commit before deployment.' >&2; exit 1; }
+	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --syntax-check --tags kong_bank_lab
+	$(PYTHON) scripts/banklab_status.py || printf '\nBank-lab applications need reconciliation.\n'
+	printf '\nDeployment preflight passed.\n'
 
+deploy: go ## Apply bank-lab Argo definitions through Ansible
+	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags kong_bank_lab
 
-help:
-	@echo "Available commands:"
-	@echo "  make master      - SSH into master node ($(MASTER_NODE))"
-	@echo "  make worker1     - SSH into worker node 1 ($(WORKER_NODE1))"
-	@echo "  make worker2     - SSH into worker node 2 ($(WORKER_NODE2))"
-	@echo "  make worker3     - SSH into worker node 3 ($(WORKER_NODE3))"
-	@echo "  make venv        - Create Python virtual environment"
-	@echo "  make install     - Install tools (requires sudo: run 'sudo make install')"
-	@echo "  make argo        - Login to ArgoCD (argocd.soyspray.vip)"
-	@echo "  make act         - Start interactive shell with venv activated"
-	@echo "  make ans         - Show Ansible command starter"
-	@echo "  make go          - Run argo, act, and ans commands in sequence"
-	@echo "  make alist       - List ArgoCD apps with scripts/argocd-list.sh"
-.PHONY: master worker1 worker2 worker3 help venv act argo install go alist
+kong-on: go ## Start the Kong bank lab
+	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags kong_bank_lab \
+		-e kong_bank_lab_enabled=true -e kong_bank_lab_target_revision=$(KONG_REVISION)
+
+kong-off: go ## Stop the Kong bank lab
+	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags kong_bank_lab -e kong_bank_lab_enabled=false
+
+argo-login: ## Log in to the home Argo CD instance
+	argocd login argocd.soyspray.vip --username admin --grpc-web
+
+list-apps: ## List Argo CD applications
+	./scripts/argocd-list.sh "$(COLS)"
+
+node0: ## SSH to node-0
+	ssh ubuntu@$(NODE0)
+
+node1: ## SSH to node-1
+	ssh ubuntu@$(NODE1)
+
+node2: ## SSH to node-2
+	ssh ubuntu@$(NODE2)
+
+# Compatibility aliases for the older cluster workflow.
+master worker1: node0
+worker2: node1
+worker3: node2
+
+clean: ## Remove generated local output
+	rm -rf .build .pytest_cache
+	find apis kubernetes scripts tests -type d -name __pycache__ -prune -exec rm -rf {} +
