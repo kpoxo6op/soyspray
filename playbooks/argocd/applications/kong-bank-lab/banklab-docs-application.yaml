@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banklab-docs
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: kong-bank-lab
+spec:
+  project: banklab-kong
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: HEAD
+    path: kubernetes/banklab/docs-site
+    kustomize:
+      patches:
+        - target:
+            group: apps
+            version: v1
+            kind: Deployment
+            name: banklab-docs
+          patch: |-
+            - op: replace
+              path: /spec/template/spec/containers/0/args/1
+              value: --ref=HEAD
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: banklab-docs
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions:
+      - CreateNamespace=true
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: kong-bank-lab
+        banklab.konghq.com/managed-by: gitops
+        banklab.konghq.com/platform-layer: operator-documentation
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: v1.35
+        pod-security.kubernetes.io/warn: restricted
+        pod-security.kubernetes.io/warn-version: v1.35
