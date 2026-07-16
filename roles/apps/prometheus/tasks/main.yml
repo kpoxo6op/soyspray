@@ -57,6 +57,33 @@
     | list | length > 0
   tags: prometheus
 
+- name: Read Prometheus Argo application status
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: kube-prometheus-stack
+  register: prometheus_argo_application
+  tags: prometheus
+
+- name: Clear stalled Prometheus admission hook operation
+  kubernetes.core.k8s:
+    state: patched
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: kube-prometheus-stack
+    definition:
+      operation: null
+  when:
+    - prometheus_argo_application.resources | length > 0
+    - >-
+      'waiting for completion of hook /ServiceAccount/kube-prometheus-stack-admission'
+      in (prometheus_argo_application.resources[0].status.operationState.message | default(''))
+  tags: prometheus
+
 - name: Apply Prometheus
   kubernetes.core.k8s:
     state: present
