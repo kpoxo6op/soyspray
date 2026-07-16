@@ -20,6 +20,20 @@
     definition: "{{ lookup('file', playbook_dir + '/argocd/applications/observability/prometheus/prometheus-crds-application.yaml') }}"
   tags: [prometheus, prometheus-crds]
 
+- name: Expand existing Prometheus metrics volume
+  kubernetes.core.k8s:
+    state: patched
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: monitoring
+    kind: PersistentVolumeClaim
+    name: prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
+    definition:
+      spec:
+        resources:
+          requests:
+            storage: 20Gi
+  tags: prometheus
+
 - name: Apply Prometheus
   kubernetes.core.k8s:
     state: present
