@@ -34,6 +34,29 @@
             storage: 20Gi
   tags: prometheus
 
+- name: Read Prometheus metrics volume status
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: monitoring
+    kind: PersistentVolumeClaim
+    name: prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
+  register: prometheus_metrics_volume
+  tags: prometheus
+
+- name: Restart Prometheus to complete filesystem expansion
+  kubernetes.core.k8s:
+    state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: monitoring
+    kind: Pod
+    name: prometheus-kube-prometheus-stack-prometheus-0
+    wait: true
+  when: >-
+    prometheus_metrics_volume.resources[0].status.conditions | default([])
+    | selectattr('type', 'equalto', 'FileSystemResizePending')
+    | list | length > 0
+  tags: prometheus
+
 - name: Apply Prometheus
   kubernetes.core.k8s:
     state: present
