@@ -2,6 +2,11 @@
 # kubectl exec -n monitoring alertmanager-kube-prometheus-stack-alertmanager-0 -c alertmanager -- cat /etc/alertmanager/config/soy-telegram.tmpl
 namespaceOverride: monitoring
 
+prometheusOperator:
+  admissionWebhooks:
+    certManager:
+      enabled: true
+
 prometheus:
   service:
     type: LoadBalancer
