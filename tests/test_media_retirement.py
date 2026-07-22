@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import subprocess
 
-import yaml
 from conftest import ROOT
 
 REMOVED_MEDIA_APPS = (
@@ -44,34 +43,3 @@ def test_lazylibrarian_keeps_qbittorrent_download_path() -> None:
     ).read_text()
     assert "tor_downloader_qbittorrent = True" in config
     assert "qbittorrent_host = qbittorrent.media.svc.cluster.local" in config
-
-
-def test_cleanup_quiesces_applications_before_deleting_resources() -> None:
-    tasks = yaml.safe_load((ROOT / "roles/apps/retired-media-cleanup/tasks/main.yml").read_text())
-    task_names = [task["name"] for task in tasks]
-    assert task_names.index("Quiesce retired applications before removal") < task_names.index(
-        "Remove retired Argo applications and their managed resources"
-    )
-    assert task_names.index(
-        "Remove retired Argo applications and their managed resources"
-    ) < task_names.index("Remove resources orphaned by applications without finalizers")
-
-
-def test_cleanup_deletes_only_dedicated_retired_media_data() -> None:
-    defaults = yaml.safe_load(
-        (ROOT / "roles/apps/retired-media-cleanup/defaults/main.yml").read_text()
-    )
-    assert set(defaults["retired_media_applications"]) == set(REMOVED_MEDIA_APPS)
-    assert "PersistentVolumeClaim" in defaults["retired_media_resource_kinds"]
-    serialized = yaml.safe_dump(defaults)
-    assert "media-downloads" not in serialized
-    assert "qbittorrent" not in serialized
-    assert "lazylibrarian" not in serialized
-    assert "booklore" not in serialized
-    assert set(defaults["retired_media_secrets"]) == {
-        "jellyfin-secrets",
-        "plex-account-token",
-        "prowlarr-secrets",
-        "streamlink-channels-tls",
-        "streamlink-tls",
-    }

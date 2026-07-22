@@ -32,7 +32,6 @@
       - { name: Obsidian, role: apps/obsidian }
 
       # Media
-      - { name: Retired Media Cleanup, role: apps/retired-media-cleanup }
       - { name: qBittorrent, role: apps/qbittorrent }
       - { name: LazyLibrarian, role: apps/lazylibrarian }
       - { name: Booklore, role: apps/booklore }
