@@ -15,11 +15,18 @@ REMOVED_MEDIA_APPS = (
 )
 
 BOOK_WORKFLOW_APPS = ("qbittorrent", "lazylibrarian", "booklore")
+REMOVED_DEMO_APPS = ("battlemap", "jira")
 
 
 def test_retired_media_application_sources_are_absent() -> None:
     for app in REMOVED_MEDIA_APPS:
         assert not (ROOT / "playbooks/argocd/applications/media" / app).exists()
+        assert not (ROOT / "roles/apps" / app).exists()
+
+
+def test_retired_demo_application_sources_are_absent() -> None:
+    for app in REMOVED_DEMO_APPS:
+        assert not (ROOT / "playbooks/argocd/applications/workloads" / app).exists()
         assert not (ROOT / "roles/apps" / app).exists()
 
 
