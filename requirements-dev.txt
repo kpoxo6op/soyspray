@@ -1,0 +1,5 @@
+ansible-lint==26.6.0
+mkdocs-material==9.7.6
+pytest==8.4.1
+PyYAML==6.0.3
+ruff==0.15.21

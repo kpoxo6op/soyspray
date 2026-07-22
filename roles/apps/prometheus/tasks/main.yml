@@ -20,6 +20,70 @@
     definition: "{{ lookup('file', playbook_dir + '/argocd/applications/observability/prometheus/prometheus-crds-application.yaml') }}"
   tags: [prometheus, prometheus-crds]
 
+- name: Expand existing Prometheus metrics volume
+  kubernetes.core.k8s:
+    state: patched
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: monitoring
+    kind: PersistentVolumeClaim
+    name: prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
+    definition:
+      spec:
+        resources:
+          requests:
+            storage: 20Gi
+  tags: prometheus
+
+- name: Read Prometheus metrics volume status
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: monitoring
+    kind: PersistentVolumeClaim
+    name: prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
+  register: prometheus_metrics_volume
+  tags: prometheus
+
+- name: Restart Prometheus to complete filesystem expansion
+  kubernetes.core.k8s:
+    state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: monitoring
+    kind: Pod
+    name: prometheus-kube-prometheus-stack-prometheus-0
+    wait: true
+  when: >-
+    prometheus_metrics_volume.resources[0].status.conditions | default([])
+    | selectattr('type', 'equalto', 'FileSystemResizePending')
+    | list | length > 0
+  tags: prometheus
+
+- name: Read Prometheus Argo application status
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: kube-prometheus-stack
+  register: prometheus_argo_application
+  tags: prometheus
+
+- name: Clear stalled Prometheus admission hook operation
+  kubernetes.core.k8s:
+    state: patched
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: kube-prometheus-stack
+    definition:
+      operation: null
+  when:
+    - prometheus_argo_application.resources | length > 0
+    - >-
+      'waiting for completion of hook /ServiceAccount/kube-prometheus-stack-admission'
+      in (prometheus_argo_application.resources[0].status.operationState.message | default(''))
+  tags: prometheus
+
 - name: Apply Prometheus
   kubernetes.core.k8s:
     state: present

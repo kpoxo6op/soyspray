@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: banklab-customer-traffic
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: kong-bank-lab
+spec:
+  project: banklab-kong
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: HEAD
+    path: kubernetes/banklab/customer-web
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: synthetic-clients
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions:
+      - CreateNamespace=false

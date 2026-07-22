@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: banklab-docs
+  namespace: banklab-docs
+  labels:
+    app.kubernetes.io/name: banklab-docs
+    app.kubernetes.io/part-of: kong-bank-lab
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/hostname: banklab-docs.soyspray.vip
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - banklab-docs.soyspray.vip
+      secretName: banklab-docs-tls
+  rules:
+    - host: banklab-docs.soyspray.vip
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: banklab-docs
+                port:
+                  name: http

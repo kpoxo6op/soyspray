@@ -1,0 +1,124 @@
+openapi: 3.0.3
+info:
+  title: Synthetic Payments API
+  version: 0.1.0
+  description: Synthetic payment initiation and payment-status API for internal payment
+    flows. Synthetic data only.
+servers:
+- url: https://api.internal.banklab.test
+  description: Kong Gateway hostname
+tags:
+- name: payments
+x-banklab-api-domain: payments
+x-banklab-owning-team: tenant-payments-team
+x-banklab-lifecycle: sandbox
+x-banklab-data-classification: synthetic
+x-banklab-auth-profile: kong-oss-auth
+paths:
+  /payments/v1/health:
+    get:
+      tags:
+      - payments
+      summary: Payments synthetic GET route
+      operationId: GetPaymentsHealth
+      responses:
+        '200':
+          description: Health marker
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: banklab-payments-ok
+        '404':
+          description: Not found
+  /payments/v1/payment-requests:
+    get:
+      tags:
+      - payments
+      summary: Payments synthetic GET route
+      operationId: GetPaymentsPaymentRequests
+      responses:
+        '200':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: payments
+                marker: banklab-payments-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
+    post:
+      tags:
+      - payments
+      summary: Payments synthetic POST route
+      operationId: PostPaymentsPaymentRequests
+      responses:
+        '202':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: payments
+                marker: banklab-payments-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+            example:
+              synthetic: true
+              amount: '10.00'
+              currency: NZD
+  /payments/v1/payment-requests/{paymentRequestId}:
+    get:
+      tags:
+      - payments
+      summary: Payments synthetic GET route
+      operationId: GetPaymentsPaymentrequestid
+      responses:
+        '200':
+          description: Synthetic sandbox response
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                api: payments
+                marker: banklab-payments-ok
+                synthetic: true
+        '404':
+          description: Synthetic not found example
+          content:
+            application/json:
+              schema:
+                type: object
+              example:
+                error: synthetic-not-found
+      parameters:
+      - name: paymentRequestId
+        in: path
+        required: true
+        schema:
+          type: string
+          example: synthetic-paymentRequestId-001

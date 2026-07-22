@@ -1,0 +1,112 @@
+---
+- name: Apply Kong bank-lab applications
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/kong-bank-lab/' + application_manifest)
+         | replace('targetRevision: HEAD', 'targetRevision: ' + kong_bank_lab_target_revision)
+         | replace('--ref=HEAD', '--ref=' + kong_bank_lab_target_revision) }}
+  loop: "{{ kong_bank_lab_runtime_application_manifests }}"
+  loop_control:
+    loop_var: application_manifest
+    label: "{{ application_manifest }}"
+
+- name: Wait for the synthetic client namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: synthetic-clients
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: kong_bank_lab_client_namespace
+  until: kong_bank_lab_client_namespace.resources | length == 1
+  retries: 30
+  delay: 2
+
+- name: Check for existing Kong key credentials
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: "banklab-{{ kong_credential.client }}-key-auth"
+    namespace: synthetic-clients
+    kubeconfig: "{{ kubeconfig_path }}"
+  loop: "{{ kong_bank_lab_key_credentials }}"
+  loop_control:
+    loop_var: kong_credential
+  register: kong_bank_lab_key_secret_results
+  no_log: true
+
+- name: Create missing Kong key credentials
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "banklab-{{ kong_credential.client }}-key-auth"
+        namespace: synthetic-clients
+        labels:
+          konghq.com/credential: key-auth
+          banklab.konghq.com/credential-source: runtime-generated-not-committed
+      type: Opaque
+      stringData:
+        key: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+  loop: "{{ kong_bank_lab_key_credentials }}"
+  loop_control:
+    loop_var: kong_credential
+    index_var: kong_credential_index
+  when: kong_bank_lab_key_secret_results.results[kong_credential_index].resources | length == 0
+  no_log: true
+
+- name: Apply Kong ACL credentials
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "banklab-{{ kong_credential.client }}-{{ kong_credential.api }}-acl"
+        namespace: synthetic-clients
+        labels:
+          konghq.com/credential: acl
+          banklab.konghq.com/credential-source: runtime-generated-not-committed
+      type: Opaque
+      stringData:
+        group: "banklab-{{ kong_credential.api }}"
+  loop: "{{ kong_bank_lab_key_credentials + [{'client': 'external-fintech-partner', 'api': 'open-banking'}] }}"
+  loop_control:
+    loop_var: kong_credential
+  no_log: true
+
+- name: Check for the existing Kong JWT credential
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: banklab-external-fintech-partner-jwt
+    namespace: synthetic-clients
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: kong_bank_lab_jwt_secret
+  no_log: true
+
+- name: Create the missing Kong JWT credential
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: banklab-external-fintech-partner-jwt
+        namespace: synthetic-clients
+        labels:
+          konghq.com/credential: jwt
+          banklab.konghq.com/credential-source: runtime-generated-not-committed
+      type: Opaque
+      stringData:
+        key: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+        algorithm: HS256
+        secret: "{{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}"
+  when: kong_bank_lab_jwt_secret.resources | length == 0
+  no_log: true

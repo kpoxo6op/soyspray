@@ -1,35 +1,26 @@
 # Scripts
 
-This directory contains utility scripts for the project.
+This directory contains utility scripts for the cluster and the Kong bank lab.
 
-## Ansible Autocomplete (`ansible-completion.bash`)
+## Kong bank lab
 
-This script provides dynamic tab-completion for Ansible playbook tags.
+- `banklab_status.py` prints node and Argo application health.
+- `banklab_smoke.py` runs read-only route, authentication, exposure, and
+  customer-app checks.
+- `validate_skills.py` checks the reusable Agent Skills under `.agents/skills`.
+- `validate_openapi_specs.py` validates the six synthetic API contracts.
+- `validate_yaml.py` parses the YAML files used by the local quality gate.
 
-**How it works:**
-1. It triggers when typing `ansible-playbook ... --tags ` or `-t`.
-2. It finds the `.yml` playbook file in command arguments.
-3. It parses the file for `tags: [tag1, tag2]` lines.
-4. It suggests these tags when pressing `<TAB>`.
+The `Makefile` wraps these commands through `make status`, `make smoke`, and
+`make check`.
 
-**Installation:**
-The script is automatically sourced in `~/.bashrc` via the following line:
-```bash
-source ~/code/soyspray/scripts/ansible-completion.bash
-```
+## Cluster utilities
 
-If autocomplete isn't working, try running `source ~/.bashrc` or restarting the terminal.
+- `ansible-completion.bash` provides Ansible tag completion.
+- `argocd-list.sh` lists Argo CD applications for `make list-apps`.
+- `check-ha-stretch.sh` checks the one-node-loss stretch configuration.
 
-## ArgoCD List (`argocd-list.sh`)
-
-A helper script to list ArgoCD applications with formatted output.
-Used by the `make alist` command.
-
-## HA Stretch Check (`check-ha-stretch.sh`)
-
-Checks the repo and, optionally, the live cluster for the one-node-loss stretch.
-
-```bash
+```sh
 scripts/check-ha-stretch.sh --expect-current --repo-only
 scripts/check-ha-stretch.sh --expect-ha --repo-only --vip 192.168.20.13
 scripts/check-ha-stretch.sh --expect-ha --live --vip 192.168.20.13

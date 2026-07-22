@@ -1,0 +1,12 @@
+---
+- name: Apply Kong bank-lab project
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: "{{ lookup('file', playbook_dir + '/argocd/applications/kong-bank-lab/banklab-kong-project.yaml') }}"
+
+- name: Keep Kong CRDs available while the runtime is parked
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: "{{ lookup('file', playbook_dir + '/argocd/applications/kong-bank-lab/banklab-kong-crds-application.yaml') }}"

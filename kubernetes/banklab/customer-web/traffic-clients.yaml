@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: banklab-synthetic-traffic
+  namespace: synthetic-clients
+  labels:
+    app.kubernetes.io/name: banklab-synthetic-traffic
+    app.kubernetes.io/part-of: kong-bank-lab
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-client-traffic
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: banklab-synthetic-traffic
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: banklab-synthetic-traffic
+        app.kubernetes.io/part-of: kong-bank-lab
+        banklab.konghq.com/platform-layer: synthetic-client-traffic
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: traffic
+          image: python:3.13-alpine@sha256:399babc8b49529dabfd9c922f2b5eea81d611e4512e3ed250d75bd2e7683f4b0
+          imagePullPolicy: IfNotPresent
+          command: [python, /app/traffic.py]
+          env:
+            - name: TRAFFIC_INTERVAL_SECONDS
+              value: "0.25"
+            - name: ACCOUNTS_API_KEY
+              valueFrom: {secretKeyRef: {name: banklab-mobile-banking-app-key-auth, key: key}}
+            - name: PAYMENTS_API_KEY
+              valueFrom: {secretKeyRef: {name: banklab-payments-processor-key-auth, key: key}}
+            - name: CARDS_API_KEY
+              valueFrom: {secretKeyRef: {name: banklab-internet-banking-web-key-auth, key: key}}
+            - name: CUSTOMERS_API_KEY
+              valueFrom: {secretKeyRef: {name: banklab-internal-crm-key-auth, key: key}}
+            - name: FRAUD_API_KEY
+              valueFrom: {secretKeyRef: {name: banklab-fraud-platform-key-auth, key: key}}
+            - name: JWT_KEY
+              valueFrom: {secretKeyRef: {name: banklab-external-fintech-partner-jwt, key: key}}
+            - name: JWT_SECRET
+              valueFrom: {secretKeyRef: {name: banklab-external-fintech-partner-jwt, key: secret}}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 80m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: app-files
+              mountPath: /app
+              readOnly: true
+      volumes:
+        - name: app-files
+          configMap:
+            name: banklab-traffic-files

@@ -1,0 +1,33 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: synthetic-clients
+resources:
+  - deployment.yaml
+  - traffic-clients.yaml
+  - service.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+  - traffic-networkpolicy.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/instance: banklab-customer-traffic
+configMapGenerator:
+  - name: banklab-customer-web-app-files
+    files:
+      - app/server.py
+      - app/index.html
+      - app/app.js
+      - app/styles.css
+    options:
+      labels:
+        app.kubernetes.io/name: banklab-customer-web
+        app.kubernetes.io/part-of: kong-bank-lab
+        banklab.konghq.com/platform-layer: customer-experience
+  - name: banklab-traffic-files
+    files:
+      - app/traffic.py
+    options:
+      labels:
+        app.kubernetes.io/name: banklab-synthetic-traffic
+        app.kubernetes.io/part-of: kong-bank-lab
+        banklab.konghq.com/platform-layer: synthetic-client-traffic

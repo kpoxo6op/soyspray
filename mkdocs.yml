@@ -1,0 +1,82 @@
+site_name: Soyspray Kong Bank Lab
+site_description: Operator documentation for the Kong OSS banking lab on Soyspray.
+site_url: https://banklab-docs.soyspray.vip
+docs_dir: docs
+site_dir: .build/mkdocs
+exclude_docs: |
+  /README.md
+  /stylesheets/README.md
+
+theme:
+  name: material
+  language: en
+  icon:
+    logo: material/bank-outline
+  features:
+    - content.code.copy
+    - navigation.footer
+    - navigation.indexes
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - search.highlight
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: deep orange
+      toggle:
+        icon: material/weather-night
+        name: Use dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: deep orange
+      toggle:
+        icon: material/weather-sunny
+        name: Use light mode
+
+nav:
+  - Lab:
+      - Overview: index.md
+      - Get started: getting-started.md
+      - Architecture: architecture.md
+  - Platform:
+      - Operating model: platform.md
+      - API catalog: api-catalog.md
+      - Security: security.md
+      - Operations: operations.md
+  - Runbooks:
+      - Runbook index: runbooks/README.md
+      - Start or stop the lab: runbooks/power.md
+      - Deploy: runbooks/deploy.md
+      - Verify: runbooks/verify.md
+      - Onboard an API: runbooks/onboard-api.md
+      - Roll back: runbooks/rollback.md
+  - Repository map: repository-map.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - tables
+
+plugins:
+  - search
+
+extra_css:
+  - stylesheets/extra.css
+
+copyright: Soyspray home lab. All data and customers are synthetic.
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/kpoxo6op/soyspray
+      name: Soyspray on GitHub

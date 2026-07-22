@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: banklab-kong-smoke
+  namespace: platform-kong-smoke
+  labels:
+    app.kubernetes.io/name: banklab-kong-smoke
+    banklab.konghq.com/platform-layer: gateway
+    banklab.konghq.com/not-business-api: "true"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: banklab-kong-smoke
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: banklab-kong-smoke
+        banklab.konghq.com/platform-layer: gateway
+        banklab.konghq.com/not-business-api: "true"
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: http-echo
+          image: hashicorp/http-echo:1.0.0@sha256:fcb75f691c8b0414d670ae570240cbf95502cc18a9ba57e982ecac589760a186
+          args:
+            - -listen=:8080
+            - -text=banklab-kong-smoke-ok
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL

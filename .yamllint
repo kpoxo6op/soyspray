@@ -3,7 +3,15 @@ extends: default
 rules:
   line-length:
     max: 150
+  braces:
+    max-spaces-inside: 1
+  comments:
+    min-spaces-from-content: 1
+  comments-indentation: disable
   document-start: disable
+  octal-values:
+    forbid-explicit-octal: true
+    forbid-implicit-octal: true
   truthy:
     check-keys: false
   indentation:

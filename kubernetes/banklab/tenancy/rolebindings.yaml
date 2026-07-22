@@ -1,0 +1,118 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tenant-api-applier
+  namespace: tenant-accounts
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/tenant: retail-accounts
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tenant-api-applier
+subjects:
+  - kind: ServiceAccount
+    name: retail-accounts-api-applier
+    namespace: tenant-accounts
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tenant-api-applier
+  namespace: tenant-cards
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/tenant: retail-accounts
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tenant-api-applier
+subjects:
+  - kind: ServiceAccount
+    name: retail-accounts-api-applier
+    namespace: tenant-accounts
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tenant-api-applier
+  namespace: tenant-customer-profile
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/tenant: retail-accounts
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tenant-api-applier
+subjects:
+  - kind: ServiceAccount
+    name: retail-accounts-api-applier
+    namespace: tenant-accounts
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tenant-api-applier
+  namespace: tenant-payments
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/tenant: payments
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tenant-api-applier
+subjects:
+  - kind: ServiceAccount
+    name: payments-api-applier
+    namespace: tenant-payments
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tenant-api-applier
+  namespace: tenant-open-banking
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/tenant: payments
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tenant-api-applier
+subjects:
+  - kind: ServiceAccount
+    name: payments-api-applier
+    namespace: tenant-payments
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tenant-api-applier
+  namespace: tenant-fraud
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/tenant: risk-compliance
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tenant-api-applier
+subjects:
+  - kind: ServiceAccount
+    name: risk-compliance-api-applier
+    namespace: tenant-fraud
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-change-reader
+  namespace: platform-kong
+  labels:
+    platform.soyspray.io/managed-by: gitops
+    platform.soyspray.io/tenant: kong-platform
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: platform-change-reader
+subjects:
+  - kind: ServiceAccount
+    name: kong-platform-change-applier
+    namespace: platform-kong

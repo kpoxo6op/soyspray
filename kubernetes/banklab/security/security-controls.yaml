@@ -1,0 +1,765 @@
+# HTTPRoute objects stay with the synthetic-bank API app to avoid Argo ownership overlap.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: synthetic-clients
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-client-security
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: v1.35
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/warn-version: v1.35
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: banklab-rate-limit-redis
+  namespace: platform-kong
+  labels: &id001
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    app.kubernetes.io/name: banklab-rate-limit-redis
+    banklab.konghq.com/component: rate-limit-redis
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: banklab-rate-limit-redis
+  template:
+    metadata:
+      labels: *id001
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: redis
+        image: redis:7.4.2-alpine@sha256:02419de7eddf55aa5bcf49efb74e88fa8d931b4d77c07eff8a6b2144472b6952
+        args:
+        - redis-server
+        - --save
+        - ''
+        - --appendonly
+        - 'no'
+        ports:
+        - name: redis
+          containerPort: 6379
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          periodSeconds: 5
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: redis-tmp
+          mountPath: /data
+      volumes:
+      - name: redis-tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: banklab-rate-limit-redis
+  namespace: platform-kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: banklab-rate-limit-redis
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: redis
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: banklab-rate-limit-redis-ingress
+  namespace: platform-kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: banklab-rate-limit-redis
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          banklab.konghq.com/component: gateway
+    ports:
+    - protocol: TCP
+      port: 6379
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kong-allow-rate-limit-redis
+  namespace: platform-kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+spec:
+  podSelector:
+    matchLabels:
+      banklab.konghq.com/component: gateway
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: banklab-rate-limit-redis
+    ports:
+    - protocol: TCP
+      port: 6379
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kong-allow-node-local-dns
+  namespace: platform-kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+spec:
+  podSelector:
+    matchLabels:
+      banklab.konghq.com/component: gateway
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 169.254.25.10/32
+    ports:
+    - protocol: UDP
+      port: 53
+    - protocol: TCP
+      port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kong-allow-controller-webhook-from-api-server
+  namespace: platform-kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+spec:
+  podSelector:
+    matchLabels:
+      banklab.konghq.com/component: kic
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - ipBlock:
+        cidr: 192.168.20.10/32
+    - ipBlock:
+        cidr: 192.168.20.11/32
+    - ipBlock:
+        cidr: 192.168.20.12/32
+    ports:
+    - protocol: TCP
+      port: 8080
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-key-auth
+  namespace: tenant-accounts
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: accounts
+plugin: key-auth
+config:
+  key_names:
+  - apikey
+  key_in_header: true
+  key_in_query: false
+  key_in_body: false
+  hide_credentials: true
+  run_on_preflight: false
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-acl
+  namespace: tenant-accounts
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: accounts
+plugin: acl
+config:
+  allow:
+  - banklab-accounts
+  hide_groups_header: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-rate-limit
+  namespace: tenant-accounts
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: accounts
+plugin: rate-limiting
+config:
+  policy: redis
+  limit_by: consumer
+  second: 3
+  fault_tolerant: false
+  hide_client_headers: false
+  redis:
+    host: banklab-rate-limit-redis.platform-kong.svc.cluster.local
+    port: 6379
+    database: 0
+    timeout: 2000
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-correlation-id
+  namespace: tenant-accounts
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: accounts
+plugin: correlation-id
+config:
+  header_name: X-Banklab-Correlation-ID
+  generator: uuid
+  echo_downstream: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-key-auth
+  namespace: tenant-payments
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: payments
+plugin: key-auth
+config:
+  key_names:
+  - apikey
+  key_in_header: true
+  key_in_query: false
+  key_in_body: false
+  hide_credentials: true
+  run_on_preflight: false
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-acl
+  namespace: tenant-payments
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: payments
+plugin: acl
+config:
+  allow:
+  - banklab-payments
+  hide_groups_header: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-rate-limit
+  namespace: tenant-payments
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: payments
+plugin: rate-limiting
+config:
+  policy: redis
+  limit_by: consumer
+  second: 3
+  fault_tolerant: false
+  hide_client_headers: false
+  redis:
+    host: banklab-rate-limit-redis.platform-kong.svc.cluster.local
+    port: 6379
+    database: 0
+    timeout: 2000
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-correlation-id
+  namespace: tenant-payments
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: payments
+plugin: correlation-id
+config:
+  header_name: X-Banklab-Correlation-ID
+  generator: uuid
+  echo_downstream: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-key-auth
+  namespace: tenant-cards
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: cards
+plugin: key-auth
+config:
+  key_names:
+  - apikey
+  key_in_header: true
+  key_in_query: false
+  key_in_body: false
+  hide_credentials: true
+  run_on_preflight: false
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-acl
+  namespace: tenant-cards
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: cards
+plugin: acl
+config:
+  allow:
+  - banklab-cards
+  hide_groups_header: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-rate-limit
+  namespace: tenant-cards
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: cards
+plugin: rate-limiting
+config:
+  policy: redis
+  limit_by: consumer
+  second: 3
+  fault_tolerant: false
+  hide_client_headers: false
+  redis:
+    host: banklab-rate-limit-redis.platform-kong.svc.cluster.local
+    port: 6379
+    database: 0
+    timeout: 2000
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-correlation-id
+  namespace: tenant-cards
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: cards
+plugin: correlation-id
+config:
+  header_name: X-Banklab-Correlation-ID
+  generator: uuid
+  echo_downstream: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-key-auth
+  namespace: tenant-customer-profile
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: customer-profile
+plugin: key-auth
+config:
+  key_names:
+  - apikey
+  key_in_header: true
+  key_in_query: false
+  key_in_body: false
+  hide_credentials: true
+  run_on_preflight: false
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-acl
+  namespace: tenant-customer-profile
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: customer-profile
+plugin: acl
+config:
+  allow:
+  - banklab-customer-profile
+  hide_groups_header: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-rate-limit
+  namespace: tenant-customer-profile
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: customer-profile
+plugin: rate-limiting
+config:
+  policy: redis
+  limit_by: consumer
+  second: 3
+  fault_tolerant: false
+  hide_client_headers: false
+  redis:
+    host: banklab-rate-limit-redis.platform-kong.svc.cluster.local
+    port: 6379
+    database: 0
+    timeout: 2000
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-correlation-id
+  namespace: tenant-customer-profile
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: customer-profile
+plugin: correlation-id
+config:
+  header_name: X-Banklab-Correlation-ID
+  generator: uuid
+  echo_downstream: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-key-auth
+  namespace: tenant-fraud
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: fraud-decisions
+plugin: key-auth
+config:
+  key_names:
+  - apikey
+  key_in_header: true
+  key_in_query: false
+  key_in_body: false
+  hide_credentials: true
+  run_on_preflight: false
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-acl
+  namespace: tenant-fraud
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: fraud-decisions
+plugin: acl
+config:
+  allow:
+  - banklab-fraud-decisions
+  hide_groups_header: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-rate-limit
+  namespace: tenant-fraud
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: fraud-decisions
+plugin: rate-limiting
+config:
+  policy: redis
+  limit_by: consumer
+  second: 3
+  fault_tolerant: false
+  hide_client_headers: false
+  redis:
+    host: banklab-rate-limit-redis.platform-kong.svc.cluster.local
+    port: 6379
+    database: 0
+    timeout: 2000
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-correlation-id
+  namespace: tenant-fraud
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: fraud-decisions
+plugin: correlation-id
+config:
+  header_name: X-Banklab-Correlation-ID
+  generator: uuid
+  echo_downstream: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-jwt
+  namespace: tenant-open-banking
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: open-banking
+plugin: jwt
+config:
+  key_claim_name: iss
+  claims_to_verify:
+  - exp
+  secret_is_base64: false
+  run_on_preflight: false
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-acl
+  namespace: tenant-open-banking
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: open-banking
+plugin: acl
+config:
+  allow:
+  - banklab-open-banking
+  hide_groups_header: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-rate-limit
+  namespace: tenant-open-banking
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: open-banking
+plugin: rate-limiting
+config:
+  policy: redis
+  limit_by: consumer
+  second: 3
+  fault_tolerant: false
+  hide_client_headers: false
+  redis:
+    host: banklab-rate-limit-redis.platform-kong.svc.cluster.local
+    port: 6379
+    database: 0
+    timeout: 2000
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: banklab-correlation-id
+  namespace: tenant-open-banking
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/api-domain: open-banking
+plugin: correlation-id
+config:
+  header_name: X-Banklab-Correlation-ID
+  generator: uuid
+  echo_downstream: true
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: mobile-banking-app
+  namespace: synthetic-clients
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/credential-source: runtime-generated-not-committed
+username: mobile-banking-app
+credentials:
+- banklab-mobile-banking-app-key-auth
+- banklab-mobile-banking-app-accounts-acl
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: payments-processor
+  namespace: synthetic-clients
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/credential-source: runtime-generated-not-committed
+username: payments-processor
+credentials:
+- banklab-payments-processor-key-auth
+- banklab-payments-processor-payments-acl
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: internet-banking-web
+  namespace: synthetic-clients
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/credential-source: runtime-generated-not-committed
+username: internet-banking-web
+credentials:
+- banklab-internet-banking-web-key-auth
+- banklab-internet-banking-web-cards-acl
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: internal-crm
+  namespace: synthetic-clients
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/credential-source: runtime-generated-not-committed
+username: internal-crm
+credentials:
+- banklab-internal-crm-key-auth
+- banklab-internal-crm-customer-profile-acl
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: fraud-platform
+  namespace: synthetic-clients
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/credential-source: runtime-generated-not-committed
+username: fraud-platform
+credentials:
+- banklab-fraud-platform-key-auth
+- banklab-fraud-platform-fraud-decisions-acl
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: external-fintech-partner
+  namespace: synthetic-clients
+  annotations:
+    kubernetes.io/ingress.class: kong
+  labels:
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: synthetic-api-security
+    banklab.konghq.com/credential-source: runtime-generated-not-committed
+username: external-fintech-partner
+credentials:
+- banklab-external-fintech-partner-jwt
+- banklab-external-fintech-partner-open-banking-acl

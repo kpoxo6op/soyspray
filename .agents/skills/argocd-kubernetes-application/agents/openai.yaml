@@ -1,0 +1,4 @@
+interface:
+  display_name: "Argo CD Kubernetes Application"
+  short_description: "Review GitOps application architecture and manifests"
+  default_prompt: "Review this Argo CD and Kubernetes application as a complete operable system."

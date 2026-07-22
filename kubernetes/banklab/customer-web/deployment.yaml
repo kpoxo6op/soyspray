@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: banklab-customer-web
+  namespace: synthetic-clients
+  labels:
+    app.kubernetes.io/name: banklab-customer-web
+    app.kubernetes.io/part-of: kong-bank-lab
+    banklab.konghq.com/managed-by: gitops
+    banklab.konghq.com/platform-layer: customer-experience
+    banklab.konghq.com/environment: lab
+    banklab.konghq.com/data-classification: synthetic
+    banklab.konghq.com/lifecycle: sandbox
+    banklab.konghq.com/client: internet-banking-web
+    banklab.konghq.com/api-domain: cards
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: banklab-customer-web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: banklab-customer-web
+        app.kubernetes.io/part-of: kong-bank-lab
+        banklab.konghq.com/platform-layer: customer-experience
+        banklab.konghq.com/client: internet-banking-web
+        banklab.konghq.com/api-domain: cards
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: python:3.13-alpine@sha256:399babc8b49529dabfd9c922f2b5eea81d611e4512e3ed250d75bd2e7683f4b0
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - /app/server.py
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: APP_PORT
+              value: "8080"
+            - name: KONG_PROXY_URL
+              value: http://banklab-kong-gateway-proxy.platform-kong.svc.cluster.local
+            - name: KONG_HOST
+              value: api.internal.banklab.test
+            - name: CARDS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: banklab-internet-banking-web-key-auth
+                  key: key
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: app-files
+              mountPath: /app
+              readOnly: true
+      volumes:
+        - name: app-files
+          configMap:
+            name: banklab-customer-web-app-files

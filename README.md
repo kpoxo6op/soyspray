@@ -1,54 +1,45 @@
-# Soyspray 🌱💦
+# Soyspray
 
-Home Cluster created with Kubespray on Soyo miniPCs.
+Soyspray is a three-node Kubernetes home lab built with Kubespray. Ansible
+bootstraps the cluster and Argo CD owns its workloads.
 
-## Network Configuration
-
-The router DHCP range was updated to 192.168.50.50-192.168.50.199.
-
-Static IPs were assigned to the miniPCs by MAC address: 192.168.50.100,
-192.168.50.101, and 192.168.50.102.
-
-Static IP assignment only worked using the Asus router mobile app. The web GUI
-produced an "invalid MAC" error.
-
-## System Installation
-
-Ubuntu Server 24.04 was installed on the Soyo miniPCs using autoinstall.
-
-Ethernet drivers for the Motorcomm ethernet adapter were compiled during the
-autoinstall process.
-
-## Repo Setup
-
-This repository was created using guidance from Farhad's video, Kubespray's
-`integration.md`, and Kubespray Ansible installation docs.
-
-### Hosts YAML Generation
-
-To generate the `hosts.yaml` file, the following steps were used:
+## Start here
 
 ```sh
-# Copy sample inventory
-# Declare the IPs and hostnames for the nodes
-# Generate the hosts.yaml file
-# View the generated hosts.yaml
-cp -rfp inventory/sample inventory/soycluster
-declare -a IPS=(node-0,192.168.50.100 node-1,192.168.50.101 node-2,192.168.50.102)
-CONFIG_FILE=inventory/soycluster/hosts.yml python3 contrib/inventory_builder/inventory.py ${IPS[@]}
-cat inventory/soycluster/hosts.yml
+make setup
+make check
 ```
 
-A virtual environment (`soyspray-venv`) was used for dependency management and
-is included in `.gitignore` to keep environment-specific files out of the
-repository. Kubespray was integrated as a submodule in this repository.
+Use `make help` for the short command list. Cluster-changing work flows through
+Ansible and Argo CD rather than direct changes to live resources.
 
-```sh
-# Create virtual environment
-# Activate virtual environment
-# Install requirements from the kubespray submodule
-python3 -m venv soyspray-venv
-source soyspray-venv/bin/activate
-cd kubespray
-pip install -U -r requirements.txt
-```
+## Cluster services
+
+| Surface | Address |
+| --- | --- |
+| Grafana | <https://grafana.soyspray.vip> |
+| Argo CD | <https://argocd.soyspray.vip> |
+
+The hostnames resolve on the home LAN and through its advertised Tailscale
+route. Secrets and login details are not stored in this repository.
+
+## Repository map
+
+- [`kubespray/`](kubespray/) contains the pinned cluster provisioner.
+- [`playbooks/`](playbooks/README.md) contains deployment and operations entry
+  points.
+- [`roles/`](roles/) contains reusable Ansible roles.
+- [`scripts/`](scripts/README.md) contains validation and operator helpers.
+- [`soydocs/`](soydocs/README.md) contains cluster build notes and maintenance
+  records.
+
+## Change rules
+
+- Work on a branch and push it before deployment.
+- Change the cluster through Ansible and Argo CD, not ad hoc `kubectl` writes.
+- Run `make go` before deployment.
+- Add tests and a rollback path for behaviour changes.
+
+Reusable engineering workflows live under `.agents/skills`. They cover
+Ansible application roles, Argo/Kubernetes architecture, lab UX, browser
+testing, security, debugging, TDD, and completion verification.

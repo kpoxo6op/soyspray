@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: banklab-kong
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: kong-bank-lab
+spec:
+  description: Kong OSS runtime, banking APIs, clients, controls, observability, and docs.
+  sourceRepos:
+    - https://github.com/kpoxo6op/soyspray.git
+    - https://charts.konghq.com
+  destinations:
+    - {server: https://kubernetes.default.svc, namespace: platform-kong}
+    - {server: https://kubernetes.default.svc, namespace: platform-kong-smoke}
+    - {server: https://kubernetes.default.svc, namespace: synthetic-clients}
+    - {server: https://kubernetes.default.svc, namespace: tenant-accounts}
+    - {server: https://kubernetes.default.svc, namespace: tenant-cards}
+    - {server: https://kubernetes.default.svc, namespace: tenant-customer-profile}
+    - {server: https://kubernetes.default.svc, namespace: tenant-fraud}
+    - {server: https://kubernetes.default.svc, namespace: tenant-open-banking}
+    - {server: https://kubernetes.default.svc, namespace: tenant-payments}
+    - {server: https://kubernetes.default.svc, namespace: monitoring}
+    - {server: https://kubernetes.default.svc, namespace: banklab-docs}
+  namespaceResourceWhitelist:
+    - {group: "", kind: ConfigMap}
+    - {group: "", kind: Secret}
+    - {group: "", kind: Service}
+    - {group: "", kind: ServiceAccount}
+    - {group: apps, kind: Deployment}
+    - {group: configuration.konghq.com, kind: KongConsumer}
+    - {group: configuration.konghq.com, kind: KongPlugin}
+    - {group: gateway.networking.k8s.io, kind: Gateway}
+    - {group: gateway.networking.k8s.io, kind: HTTPRoute}
+    - {group: monitoring.coreos.com, kind: PodMonitor}
+    - {group: networking.k8s.io, kind: Ingress}
+    - {group: networking.k8s.io, kind: NetworkPolicy}
+    - {group: policy, kind: PodDisruptionBudget}
+    - {group: rbac.authorization.k8s.io, kind: Role}
+    - {group: rbac.authorization.k8s.io, kind: RoleBinding}
+  clusterResourceWhitelist:
+    - {group: "", kind: Namespace}
+    - {group: admissionregistration.k8s.io, kind: ValidatingAdmissionPolicy}
+    - {group: admissionregistration.k8s.io, kind: ValidatingAdmissionPolicyBinding}
+    - {group: admissionregistration.k8s.io, kind: ValidatingWebhookConfiguration}
+    - {group: apiextensions.k8s.io, kind: CustomResourceDefinition}
+    - {group: configuration.konghq.com, kind: KongClusterPlugin}
+    - {group: gateway.networking.k8s.io, kind: GatewayClass}
+    - {group: networking.k8s.io, kind: IngressClass}
+    - {group: rbac.authorization.k8s.io, kind: ClusterRole}
+    - {group: rbac.authorization.k8s.io, kind: ClusterRoleBinding}

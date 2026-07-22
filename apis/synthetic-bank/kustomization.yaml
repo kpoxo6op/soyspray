@@ -1,0 +1,104 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+- accounts
+- payments
+- cards
+- customer-profile
+- fraud-decisions
+- open-banking
+patches:
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    labelSelector: banklab.konghq.com/platform-layer=synthetic-api
+  patch: |-
+    - op: add
+      path: /spec/revisionHistoryLimit
+      value: 2
+    - op: add
+      path: /spec/template/spec/automountServiceAccountToken
+      value: false
+    - op: add
+      path: /spec/template/spec/containers/0/readinessProbe
+      value:
+        httpGet:
+          path: /healthz
+          port: http
+        periodSeconds: 5
+    - op: add
+      path: /spec/template/spec/containers/0/livenessProbe
+      value:
+        httpGet:
+          path: /healthz
+          port: http
+        initialDelaySeconds: 10
+        periodSeconds: 15
+configMapGenerator:
+- name: banklab-accounts-mock-responses
+  namespace: tenant-accounts
+  files:
+  - default.conf=accounts/default.conf
+  options:
+    labels:
+      banklab.konghq.com/api-domain: accounts
+      banklab.konghq.com/exposure: internal
+      banklab.konghq.com/managed-by: gitops
+      banklab.konghq.com/owner: tenant-accounts-team
+      banklab.konghq.com/platform-layer: synthetic-api
+- name: banklab-payments-mock-responses
+  namespace: tenant-payments
+  files:
+  - default.conf=payments/default.conf
+  options:
+    labels:
+      banklab.konghq.com/api-domain: payments
+      banklab.konghq.com/exposure: internal
+      banklab.konghq.com/managed-by: gitops
+      banklab.konghq.com/owner: tenant-payments-team
+      banklab.konghq.com/platform-layer: synthetic-api
+- name: banklab-cards-mock-responses
+  namespace: tenant-cards
+  files:
+  - default.conf=cards/default.conf
+  options:
+    labels:
+      banklab.konghq.com/api-domain: cards
+      banklab.konghq.com/exposure: internal
+      banklab.konghq.com/managed-by: gitops
+      banklab.konghq.com/owner: tenant-cards-team
+      banklab.konghq.com/platform-layer: synthetic-api
+- name: banklab-customer-profile-mock-responses
+  namespace: tenant-customer-profile
+  files:
+  - default.conf=customer-profile/default.conf
+  options:
+    labels:
+      banklab.konghq.com/api-domain: customer-profile
+      banklab.konghq.com/exposure: internal
+      banklab.konghq.com/managed-by: gitops
+      banklab.konghq.com/owner: tenant-customer-profile-team
+      banklab.konghq.com/platform-layer: synthetic-api
+- name: banklab-fraud-decisions-mock-responses
+  namespace: tenant-fraud
+  files:
+  - default.conf=fraud-decisions/default.conf
+  options:
+    labels:
+      banklab.konghq.com/api-domain: fraud-decisions
+      banklab.konghq.com/exposure: internal
+      banklab.konghq.com/managed-by: gitops
+      banklab.konghq.com/owner: tenant-fraud-team
+      banklab.konghq.com/platform-layer: synthetic-api
+- name: banklab-open-banking-mock-responses
+  namespace: tenant-open-banking
+  files:
+  - default.conf=open-banking/default.conf
+  options:
+    labels:
+      banklab.konghq.com/api-domain: open-banking
+      banklab.konghq.com/exposure: external
+      banklab.konghq.com/managed-by: gitops
+      banklab.konghq.com/owner: tenant-open-banking-team
+      banklab.konghq.com/platform-layer: synthetic-api

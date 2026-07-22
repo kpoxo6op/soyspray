@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kong-allow-smoke-upstream
+  namespace: platform-kong
+  labels:
+    banklab.konghq.com/platform-layer: gateway
+    banklab.konghq.com/owner: platform-team
+spec:
+  podSelector:
+    matchLabels:
+      banklab.konghq.com/component: gateway
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: platform-kong-smoke
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: banklab-kong-smoke
+      ports:
+        - protocol: TCP
+          port: 8080

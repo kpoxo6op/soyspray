@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ansible Application Role"
+  short_description: "Build and review idempotent application roles"
+  default_prompt: "Review or implement this Ansible application role using the repository GitOps workflow."
