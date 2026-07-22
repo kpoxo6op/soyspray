@@ -13,6 +13,7 @@
       - { name: Alloy Loki Manual, role: apps/alloy-loki-manual }
       - { name: Domain Health, role: apps/domain-health }
       - { name: Kong Bank Lab, role: apps/kong-bank-lab }
+      - { name: Retired Demo Cleanup, role: apps/demo-cleanup }
 
       # Infrastructure
       - { name: Longhorn, role: apps/longhorn }
