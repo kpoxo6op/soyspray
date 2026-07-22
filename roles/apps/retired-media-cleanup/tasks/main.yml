@@ -1,0 +1,83 @@
+---
+- name: Find retired Argo applications
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    namespace: argocd
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: retired_media_live_applications
+  tags: retired_media_cleanup
+
+- name: Quiesce retired applications before removal
+  kubernetes.core.k8s:
+    state: patched
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: "{{ retired_media_application }}"
+    namespace: argocd
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      operation: null
+      spec:
+        syncPolicy:
+          automated: null
+  loop: "{{ retired_media_applications }}"
+  loop_control:
+    loop_var: retired_media_application
+  when: >-
+    retired_media_application in
+    (retired_media_live_applications.resources | map(attribute='metadata.name') | list)
+  tags: retired_media_cleanup
+
+- name: Remove retired Argo applications and their managed resources
+  kubernetes.core.k8s:
+    state: absent
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: "{{ retired_media_application }}"
+    namespace: argocd
+    wait: true
+    wait_timeout: 300
+    kubeconfig: "{{ kubeconfig_path }}"
+  loop: "{{ retired_media_applications }}"
+  loop_control:
+    loop_var: retired_media_application
+  tags: retired_media_cleanup
+
+- name: Remove resources orphaned by applications without finalizers
+  kubernetes.core.k8s:
+    state: absent
+    api_version: >-
+      {{ 'networking.k8s.io/v1' if retired_media_resource_kind == 'Ingress' else
+         ('batch/v1' if retired_media_resource_kind in ['Job', 'CronJob'] else
+          ('apps/v1' if retired_media_resource_kind in ['Deployment', 'StatefulSet'] else 'v1')) }}
+    kind: "{{ retired_media_resource_kind }}"
+    namespace: media
+    label_selectors:
+      - "app.kubernetes.io/instance={{ retired_media_application }}"
+    delete_all: true
+    wait: true
+    wait_timeout: 300
+    kubeconfig: "{{ kubeconfig_path }}"
+  loop: "{{ retired_media_applications | product(retired_media_resource_kinds) | list }}"
+  loop_control:
+    loop_var: retired_media_resource
+    label: "{{ retired_media_resource.0 }} {{ retired_media_resource.1 }}"
+  vars:
+    retired_media_application: "{{ retired_media_resource.0 }}"
+    retired_media_resource_kind: "{{ retired_media_resource.1 }}"
+  tags: retired_media_cleanup
+
+- name: Remove retired application secrets
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: Secret
+    name: "{{ retired_media_secret }}"
+    namespace: media
+    kubeconfig: "{{ kubeconfig_path }}"
+  loop: "{{ retired_media_secrets }}"
+  loop_control:
+    loop_var: retired_media_secret
+  no_log: true
+  tags: retired_media_cleanup

@@ -1,0 +1,24 @@
+---
+retired_media_applications:
+  - jellyfin
+  - plex
+  - prowlarr
+  - radarr
+  - sonarr
+  - streamlink
+  - threadfin
+
+retired_media_resource_kinds:
+  - Deployment
+  - StatefulSet
+  - Job
+  - CronJob
+  - Service
+  - Ingress
+  - ConfigMap
+  - PersistentVolumeClaim
+
+retired_media_secrets:
+  - jellyfin-secrets
+  - plex-account-token
+  - prowlarr-secrets

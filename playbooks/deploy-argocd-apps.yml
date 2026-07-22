@@ -32,13 +32,10 @@
       - { name: Obsidian, role: apps/obsidian }
 
       # Media
-      - { name: Jellyfin, role: apps/jellyfin }
-      - { name: Prowlarr, role: apps/prowlarr }
+      - { name: Retired Media Cleanup, role: apps/retired-media-cleanup }
       - { name: qBittorrent, role: apps/qbittorrent }
       - { name: LazyLibrarian, role: apps/lazylibrarian }
       - { name: Booklore, role: apps/booklore }
-      - { name: Threadfin, role: apps/threadfin }
-      - { name: Streamlink, role: apps/streamlink }
       - { name: Immich, role: apps/immich }
 
       # Home Automation
