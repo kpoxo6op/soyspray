@@ -22,3 +22,5 @@ retired_media_secrets:
   - jellyfin-secrets
   - plex-account-token
   - prowlarr-secrets
+  - streamlink-channels-tls
+  - streamlink-tls

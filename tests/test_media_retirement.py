@@ -68,3 +68,10 @@ def test_cleanup_deletes_only_dedicated_retired_media_data() -> None:
     assert "qbittorrent" not in serialized
     assert "lazylibrarian" not in serialized
     assert "booklore" not in serialized
+    assert set(defaults["retired_media_secrets"]) == {
+        "jellyfin-secrets",
+        "plex-account-token",
+        "prowlarr-secrets",
+        "streamlink-channels-tls",
+        "streamlink-tls",
+    }
