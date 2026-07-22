@@ -8,11 +8,6 @@ This directory contains experimental work, proof-of-concepts, and temporary play
 
 ## Structure
 
-### plex/
-Experimental Plex installation playbooks.
-
-- install.yml - Experimental Plex installation
-- remove.yml - Experimental Plex removal
 - README.md - Experiment documentation
 - assets/ - Supporting files and images
 
@@ -22,5 +17,4 @@ Experimental Plex installation playbooks.
 - Include README.md explaining purpose and status
 - Keep experiments isolated from production playbooks
 - Move to appropriate location when ready for production
-
 

@@ -1,6 +1,6 @@
 # playbooks/yaml/argocd-apps/qbittorrent/configmap.yaml
 # Seeds qBittorrent WebUI credentials (admin / 123) via PBKDF2 hash.
-# Optimized for media stack integrations with Sonarr/LazyLibrarian.
+# Optimized for the retained LazyLibrarian book workflow.
 # 210.54.32.219 is the old home IP
 # 116.251.193.233 is our new home IP
 #------------------------------------------------------------------------------
@@ -68,4 +68,3 @@ data:
     WebUI\ServerDomains=*
     WebUI\Username=admin
     WebUI\Password_PBKDF2="@ByteArray(6GuqwbIxFz5yNRLYBYPQIQ==:WyiZHyQ5Hgwnc71PuKmt1NKVAUD9tstuLBcJrP82SkQfalql8giGHqbOc7lly/xbqXEKuvcvrc3Dbg62PNPZBA==)"
-
