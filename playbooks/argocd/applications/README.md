@@ -39,9 +39,8 @@ When working on feature branches, update the `targetRevision` field in `*-applic
 spec:
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
-    targetRevision: "cinema"  # Match the working branch
-    path: argocd/applications/media/radarr
+    targetRevision: "book-workflow"  # Match the working branch
+    path: playbooks/argocd/applications/media/booklore
 ```
 
 Update `targetRevision` to match the working branch or tag when making changes.
-
