@@ -43,6 +43,9 @@ server:
 
 worker:
   replicas: 1
+  env:
+    - name: AUTHENTIK_WORKER__THREADS
+      value: "1"
   podAnnotations:
     soyspray.vip/runtime-secret-revision: "2026-08-09-3"
   pdb:

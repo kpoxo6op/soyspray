@@ -50,6 +50,8 @@ def test_authentik_serializes_blueprint_work_on_one_worker() -> None:
     values = load_yaml("playbooks/argocd/applications/security/authentik/values.yaml")
 
     assert values["worker"]["replicas"] == 1
+    worker_env = {item["name"]: item["value"] for item in values["worker"]["env"]}
+    assert worker_env["AUTHENTIK_WORKER__THREADS"] == "1"
 
 
 def test_authentik_requests_a_tls_mirror_after_updating_the_allowlist() -> None:
