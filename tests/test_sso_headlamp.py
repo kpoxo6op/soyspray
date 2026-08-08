@@ -42,6 +42,7 @@ def test_kubernetes_oidc_flags_match_the_headlamp_provider() -> None:
     variables = load_yaml("playbooks/operations/security/kubernetes-authentik-oidc-vars.yml")
 
     assert variables == {
+        "upgrade_cluster_setup": True,
         "kube_oidc_auth": True,
         "kube_oidc_url": "https://auth.soyspray.vip/application/o/headlamp/",
         "kube_oidc_client_id": "headlamp",
