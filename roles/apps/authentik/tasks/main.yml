@@ -288,6 +288,24 @@
     loop_var: argocd_config_file
   tags: authentik
 
+- name: Restart Argo CD when the OIDC configuration changes
+  kubernetes.core.k8s:
+    state: patched
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: argocd-server
+        namespace: argocd
+      spec:
+        template:
+          metadata:
+            annotations:
+              soyspray.vip/oidc-config-hash: >-
+                {{ lookup('file', playbook_dir + '/argocd/config/argocd-cm.yaml') | hash('sha256') }}
+  tags: authentik
+
 - name: Point cert-manager config at the Authentik revision
   kubernetes.core.k8s:
     state: present

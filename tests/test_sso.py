@@ -76,6 +76,13 @@ def test_argocd_uses_authentik_oidc_and_keeps_local_admin() -> None:
     assert rbac["policy.default"] == "role:readonly"
 
 
+def test_argocd_restarts_when_the_oidc_config_changes() -> None:
+    tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+
+    assert "soyspray.vip/oidc-config-hash" in tasks
+    assert "argocd/config/argocd-cm.yaml') | hash('sha256')" in tasks
+
+
 def test_grafana_uses_authentik_and_disables_anonymous_access() -> None:
     values = load_yaml("playbooks/argocd/applications/observability/prometheus/values.yaml")
     grafana = values["grafana"]
