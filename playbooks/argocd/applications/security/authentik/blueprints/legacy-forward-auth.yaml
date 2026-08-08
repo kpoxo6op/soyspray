@@ -176,6 +176,9 @@ entries:
     attrs:
       name: authentik Embedded Outpost
       type: proxy
+      config:
+        authentik_host: https://auth.soyspray.vip
+        authentik_host_browser: https://auth.soyspray.vip
       providers:
         - !KeyOf longhorn-proxy-provider
         - !KeyOf prometheus-proxy-provider
