@@ -245,6 +245,15 @@
     loop_var: argocd_config_file
   tags: authentik
 
+- name: Point cert-manager config at the Authentik revision
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/infrastructure/cert-manager/cert-manager-application.yaml')
+         | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
+  tags: authentik
+
 - name: Allow the wildcard certificate in the Authentik namespace
   kubernetes.core.k8s:
     state: present
