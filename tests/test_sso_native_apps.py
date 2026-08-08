@@ -188,6 +188,13 @@ def test_immich_admin_password_reset_is_explicit_and_private() -> None:
         "Log in to Immich with the local administrator"
     )
 
+    login = next(
+        task
+        for task in configure["block"]
+        if task["name"] == "Log in to Immich with the local administrator"
+    )
+    assert login["ansible.builtin.uri"]["status_code"] == 201
+
 
 def test_authentik_role_mounts_and_runs_native_app_configuration() -> None:
     tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()

@@ -92,7 +92,7 @@
         body:
           email: "{{ authentik_immich_admin_email }}"
           password: "{{ authentik_immich_admin_password }}"
-        status_code: 200
+        status_code: 201
       register: authentik_immich_admin_login
       changed_when: false
 
