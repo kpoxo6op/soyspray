@@ -4,9 +4,7 @@ from conftest import ROOT, load_yaml
 
 
 def test_headlamp_uses_an_external_oidc_secret_and_group_rbac() -> None:
-    values = load_yaml(
-        "playbooks/argocd/applications/infrastructure/headlamp/values.yaml"
-    )
+    values = load_yaml("playbooks/argocd/applications/infrastructure/headlamp/values.yaml")
 
     assert values["config"]["oidc"]["secret"]["create"] is False
     assert values["config"]["oidc"]["externalSecret"] == {
@@ -21,9 +19,7 @@ def test_headlamp_uses_an_external_oidc_secret_and_group_rbac() -> None:
 
 
 def test_authentik_restarts_when_runtime_oidc_clients_change() -> None:
-    values = load_yaml(
-        "playbooks/argocd/applications/security/authentik/values.yaml"
-    )
+    values = load_yaml("playbooks/argocd/applications/security/authentik/values.yaml")
 
     expected = {"soyspray.vip/runtime-secret-revision": "2026-08-09-1"}
     assert values["server"]["podAnnotations"] == expected
@@ -32,8 +28,7 @@ def test_authentik_restarts_when_runtime_oidc_clients_change() -> None:
 
 def test_authentik_has_a_headlamp_oidc_client() -> None:
     blueprint = (
-        ROOT
-        / "playbooks/argocd/applications/security/authentik/blueprints/cluster-sso.yaml"
+        ROOT / "playbooks/argocd/applications/security/authentik/blueprints/cluster-sso.yaml"
     ).read_text()
 
     assert "id: headlamp-provider" in blueprint
@@ -44,9 +39,7 @@ def test_authentik_has_a_headlamp_oidc_client() -> None:
 
 
 def test_kubernetes_oidc_flags_match_the_headlamp_provider() -> None:
-    variables = load_yaml(
-        "playbooks/operations/security/kubernetes-authentik-oidc-vars.yml"
-    )
+    variables = load_yaml("playbooks/operations/security/kubernetes-authentik-oidc-vars.yml")
 
     assert variables == {
         "kube_oidc_auth": True,

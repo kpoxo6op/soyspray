@@ -40,9 +40,7 @@ def test_authentik_role_points_cert_manager_at_the_branch_before_certificate_cha
 
 
 def test_authentik_database_has_cpu_for_blueprint_reconciliation() -> None:
-    resources = load_all(
-        "playbooks/argocd/applications/security/authentik/database/cluster.yaml"
-    )
+    resources = load_all("playbooks/argocd/applications/security/authentik/database/cluster.yaml")
     cluster = next(item for item in resources if item["kind"] == "Cluster")
 
     assert cluster["spec"]["resources"]["limits"]["cpu"] == "1"
