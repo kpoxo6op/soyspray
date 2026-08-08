@@ -21,7 +21,7 @@ def test_headlamp_uses_an_external_oidc_secret_and_group_rbac() -> None:
 def test_authentik_restarts_when_runtime_oidc_clients_change() -> None:
     values = load_yaml("playbooks/argocd/applications/security/authentik/values.yaml")
 
-    expected = {"soyspray.vip/runtime-secret-revision": "2026-08-09-2"}
+    expected = {"soyspray.vip/runtime-secret-revision": "2026-08-09-3"}
     assert values["server"]["podAnnotations"] == expected
     assert values["worker"]["podAnnotations"] == expected
 
