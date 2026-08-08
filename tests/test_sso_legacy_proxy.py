@@ -217,6 +217,17 @@ def test_external_name_services_render_without_application_selectors() -> None:
         assert "selector" not in service["spec"]
 
 
+def test_zigbee2mqtt_keeps_its_live_immutable_selector() -> None:
+    deployment = load_yaml(
+        "playbooks/argocd/applications/home-automation/zigbee2mqtt/deployment.yaml"
+    )
+    selector = deployment["spec"]["selector"]["matchLabels"]
+    pod_labels = deployment["spec"]["template"]["metadata"]["labels"]
+
+    assert selector == {"app": "zigbee2mqtt", "managed-by": "argocd"}
+    assert selector.items() <= pod_labels.items()
+
+
 def test_prometheus_and_qbittorrent_have_no_direct_web_load_balancer_bypass() -> None:
     prometheus = load_yaml("playbooks/argocd/applications/observability/prometheus/values.yaml")[
         "prometheus"
