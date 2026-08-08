@@ -49,6 +49,7 @@ def test_kubernetes_oidc_flags_match_the_headlamp_provider() -> None:
         "kube_oidc_username_prefix": "oidc:",
         "kube_oidc_groups_claim": "groups",
         "kube_oidc_groups_prefix": "oidc:",
+        "dns_etchosts": "192.168.20.20 auth.soyspray.vip\n",
     }
 
 
