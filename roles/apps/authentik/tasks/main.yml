@@ -237,10 +237,12 @@
   kubernetes.core.k8s:
     state: present
     kubeconfig: "{{ kubeconfig_path }}"
-    definition: "{{ lookup('file', playbook_dir + '/argocd/config/' + item) }}"
+    definition: "{{ lookup('file', playbook_dir + '/argocd/config/' + argocd_config_file) }}"
   loop:
     - argocd-cm.yaml
     - argocd-rbac-cm.yaml
+  loop_control:
+    loop_var: argocd_config_file
   tags: authentik
 
 - name: Allow the wildcard certificate in the Authentik namespace
