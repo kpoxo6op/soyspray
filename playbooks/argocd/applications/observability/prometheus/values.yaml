@@ -115,9 +115,26 @@ grafana:
       memory: 192Mi
   grafana.ini:
     auth.anonymous:
-      enabled: true
+      enabled: false
       org_name: "Main Org."
       org_role: "Viewer"
+    auth.generic_oauth:
+      enabled: true
+      name: authentik
+      allow_sign_up: true
+      auto_login: true
+      client_id: "$__env{GRAFANA_OIDC_CLIENT_ID}"
+      client_secret: "$__env{GRAFANA_OIDC_CLIENT_SECRET}"
+      scopes: "openid profile email groups"
+      auth_url: https://auth.soyspray.vip/application/o/authorize/
+      token_url: https://auth.soyspray.vip/application/o/token/
+      api_url: https://auth.soyspray.vip/application/o/userinfo/
+      signout_redirect_url: https://auth.soyspray.vip/application/o/grafana/end-session/
+      role_attribute_path: "contains(groups, 'cluster-admins') && 'GrafanaAdmin' || 'Viewer'"
+      role_attribute_strict: true
+      allow_assign_grafana_admin: true
+    server:
+      root_url: https://grafana.soyspray.vip
     date_formats:
       default_timezone: "Pacific/Auckland"
   defaultDashboardsTimezone: "Pacific/Auckland"
@@ -149,7 +166,11 @@ grafana:
 
   service:
     type: ClusterIP
-  adminPassword: "admin"
+  envFromSecret: grafana-oidc
+  admin:
+    existingSecret: grafana-oidc
+    userKey: admin-user
+    passwordKey: admin-password
   image:
     tag: 11.3.0
 
