@@ -37,6 +37,53 @@
       delay: 5
       changed_when: false
 
+    - name: Reset the Immich administrator password
+      when:
+        - authentik_reset_immich_admin_password | default(false) | bool
+        - not ansible_check_mode
+      no_log: true
+      block:
+        - name: Select the ready Immich server pod
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Pod
+            namespace: immich
+            kubeconfig: "{{ kubeconfig_path }}"
+            label_selectors:
+              - app.kubernetes.io/instance=immich
+              - app.kubernetes.io/name=server
+            field_selectors:
+              - status.phase=Running
+          register: authentik_immich_server_pods
+          until: >-
+            (authentik_immich_server_pods.resources | length == 1)
+            and
+            (authentik_immich_server_pods.resources[0].status.conditions
+            | selectattr('type', 'equalto', 'Ready')
+            | selectattr('status', 'equalto', 'True')
+            | list | length == 1)
+          retries: 30
+          delay: 5
+          changed_when: false
+
+        - name: Reset the Immich administrator password in the server pod
+          kubernetes.core.k8s_exec:
+            kubeconfig: "{{ kubeconfig_path }}"
+            namespace: immich
+            pod: "{{ authentik_immich_server_pods.resources[0].metadata.name }}"
+            container: immich-server
+            command: >-
+              /bin/sh -c 'printf "%s\n" "$1" |
+              /usr/src/app/server/bin/immich-admin reset-admin-password'
+              immich-admin-reset
+              {{ authentik_immich_admin_password | quote }}
+          register: authentik_immich_admin_password_reset
+          failed_when: >-
+            authentik_immich_admin_password_reset.rc != 0
+            or 'The admin password has been updated.' not in
+            authentik_immich_admin_password_reset.stdout
+          changed_when: true
+
     - name: Log in to Immich with the local administrator
       ansible.builtin.uri:
         url: https://immich.soyspray.vip/api/auth/login

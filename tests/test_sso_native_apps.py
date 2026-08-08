@@ -145,6 +145,50 @@ def test_native_app_tasks_keep_local_accounts_and_link_existing_users() -> None:
     assert "ON_LOGIN_ADDITIVE" in tasks
 
 
+def test_immich_admin_password_reset_is_explicit_and_private() -> None:
+    document = yaml.safe_load(TASKS.read_text())
+    configure = document[0]
+    reset = next(
+        task
+        for task in configure["block"]
+        if task["name"] == "Reset the Immich administrator password"
+    )
+    query, execute = reset["block"]
+
+    assert reset["when"] == [
+        "authentik_reset_immich_admin_password | default(false) | bool",
+        "not ansible_check_mode",
+    ]
+    assert reset["no_log"] is True
+
+    info = query["kubernetes.core.k8s_info"]
+    assert info["kind"] == "Pod"
+    assert info["namespace"] == "immich"
+    assert info["label_selectors"] == [
+        "app.kubernetes.io/instance=immich",
+        "app.kubernetes.io/name=server",
+    ]
+    assert info["field_selectors"] == ["status.phase=Running"]
+    assert "resources | length == 1" in query["until"]
+    assert "'Ready'" in query["until"]
+    assert query["changed_when"] is False
+
+    run = execute["kubernetes.core.k8s_exec"]
+    assert run["container"] == "immich-server"
+    assert "authentik_immich_server_pods.resources[0].metadata.name" in run["pod"]
+    assert "/usr/src/app/server/bin/immich-admin reset-admin-password" in run["command"]
+    assert '"$1"' in run["command"]
+    assert "authentik_immich_admin_password | quote" in run["command"]
+    assert execute["changed_when"] is True
+    assert "rc != 0" in execute["failed_when"]
+    assert "The admin password has been updated." in execute["failed_when"]
+
+    names = [task["name"] for task in configure["block"]]
+    assert names.index("Reset the Immich administrator password") < names.index(
+        "Log in to Immich with the local administrator"
+    )
+
+
 def test_authentik_role_mounts_and_runs_native_app_configuration() -> None:
     tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
 
