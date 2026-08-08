@@ -86,6 +86,7 @@ configMapGenerator:
   #     disableNameSuffixHash: true
 
 resources:
+  - authentik-forward-auth.yaml
   - smartctl-exporter-daemonset.yaml
   - alerts/backups-essential.yaml
   - alerts/cert-expiry.yaml

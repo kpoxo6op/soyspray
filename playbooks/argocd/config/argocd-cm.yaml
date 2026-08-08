@@ -13,3 +13,19 @@ data:
   # https://www.reddit.com/r/kubernetes/comments/194wrup/psa_if_you_deploy_kubeprometheusstack_with_argocd/
   application.instanceLabelKey: argocd.argoproj.io/instance
   ui.theme: auto
+  url: https://argocd.soyspray.vip
+  admin.enabled: "true"
+  oidc.tls.insecure.skip.verify: "true"
+  oidc.config: |
+    name: authentik
+    issuer: https://auth.soyspray.vip/application/o/argocd/
+    clientID: soyspray-argocd
+    clientSecret: $oidc.authentik.clientSecret
+    requestedScopes:
+      - openid
+      - profile
+      - email
+      - groups
+    requestedIDTokenClaims:
+      groups:
+        essential: true

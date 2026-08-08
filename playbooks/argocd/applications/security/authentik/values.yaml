@@ -1,0 +1,66 @@
+authentik:
+  existingSecret:
+    secretName: authentik-runtime
+  error_reporting:
+    enabled: false
+
+postgresql:
+  enabled: false
+
+blueprints:
+  configMaps:
+    - authentik-blueprints
+
+server:
+  replicas: 2
+  podAnnotations:
+    soyspray.vip/runtime-secret-revision: "2026-08-09-3"
+  pdb:
+    enabled: true
+    minAvailable: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      selector:
+        release: kube-prometheus-stack
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - auth.soyspray.vip
+    tls:
+      - secretName: prod-cert-tls
+        hosts:
+          - auth.soyspray.vip
+
+worker:
+  replicas: 1
+  env:
+    - name: AUTHENTIK_WORKER__THREADS
+      value: "1"
+  podAnnotations:
+    soyspray.vip/runtime-secret-revision: "2026-08-09-3"
+  pdb:
+    enabled: true
+    minAvailable: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      selector:
+        release: kube-prometheus-stack

@@ -1,0 +1,407 @@
+---
+- name: Ensure the Authentik namespace exists
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: authentik
+  tags: authentik
+
+- name: Read the existing Authentik runtime secret
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: authentik-runtime
+    namespace: authentik
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: authentik_runtime_secret
+  no_log: true
+  tags: authentik
+
+- name: Resolve stable Authentik credentials
+  ansible.builtin.set_fact:
+    authentik_runtime_values:
+      AUTHENTIK_SECRET_KEY: >-
+        {{ (existing['AUTHENTIK_SECRET_KEY'] | b64decode)
+           if 'AUTHENTIK_SECRET_KEY' in existing
+           else lookup('password', '/dev/null length=60 chars=ascii_letters,digits') }}
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgresql-rw.authentik.svc.cluster.local
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__USER: authentik
+      AUTHENTIK_POSTGRESQL__PASSWORD: >-
+        {{ (existing['AUTHENTIK_POSTGRESQL__PASSWORD'] | b64decode)
+           if 'AUTHENTIK_POSTGRESQL__PASSWORD' in existing
+           else lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}
+      AUTHENTIK_BOOTSTRAP_EMAIL: kpoxo6op@gmail.com
+      AUTHENTIK_BOOTSTRAP_PASSWORD: >-
+        {{ (existing['AUTHENTIK_BOOTSTRAP_PASSWORD'] | b64decode)
+           if 'AUTHENTIK_BOOTSTRAP_PASSWORD' in existing
+           else lookup('env', 'SOYSPRAY_BREAK_GLASS_PASSWORD') }}
+      AUTHENTIK_BOOTSTRAP_TOKEN: >-
+        {{ (existing['AUTHENTIK_BOOTSTRAP_TOKEN'] | b64decode)
+           if 'AUTHENTIK_BOOTSTRAP_TOKEN' in existing
+           else lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}
+      SSO_PASSWORD: >-
+        {{ (existing['SSO_PASSWORD'] | b64decode)
+           if 'SSO_PASSWORD' in existing
+           else lookup('env', 'SOYSPRAY_SSO_PASSWORD') }}
+      ARGOCD_OIDC_CLIENT_ID: soyspray-argocd
+      ARGOCD_OIDC_CLIENT_SECRET: >-
+        {{ (existing['ARGOCD_OIDC_CLIENT_SECRET'] | b64decode)
+           if 'ARGOCD_OIDC_CLIENT_SECRET' in existing
+           else lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}
+      GRAFANA_OIDC_CLIENT_ID: soyspray-grafana
+      GRAFANA_OIDC_CLIENT_SECRET: >-
+        {{ (existing['GRAFANA_OIDC_CLIENT_SECRET'] | b64decode)
+           if 'GRAFANA_OIDC_CLIENT_SECRET' in existing
+           else lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}
+      HEADLAMP_OIDC_CLIENT_ID: headlamp
+      HEADLAMP_OIDC_CLIENT_SECRET: >-
+        {{ (existing['HEADLAMP_OIDC_CLIENT_SECRET'] | b64decode)
+           if 'HEADLAMP_OIDC_CLIENT_SECRET' in existing
+           else lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}
+      IMMICH_OIDC_CLIENT_SECRET: >-
+        {{ (existing['IMMICH_OIDC_CLIENT_SECRET'] | b64decode)
+           if 'IMMICH_OIDC_CLIENT_SECRET' in existing
+           else lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}
+      SOYSPRAY_BREAK_GLASS_PASSWORD: >-
+        {{ (existing['SOYSPRAY_BREAK_GLASS_PASSWORD'] | b64decode)
+           if 'SOYSPRAY_BREAK_GLASS_PASSWORD' in existing
+           else lookup('env', 'SOYSPRAY_BREAK_GLASS_PASSWORD') }}
+      ARGOCD_ADMIN_PASSWORD_HASH: >-
+        {{ (existing['ARGOCD_ADMIN_PASSWORD_HASH'] | b64decode)
+           if 'ARGOCD_ADMIN_PASSWORD_HASH' in existing
+           else lookup('env', 'SOYSPRAY_ARGOCD_ADMIN_PASSWORD_HASH') }}
+      ARGOCD_ADMIN_PASSWORD_MTIME: >-
+        {{ (existing['ARGOCD_ADMIN_PASSWORD_MTIME'] | b64decode)
+           if 'ARGOCD_ADMIN_PASSWORD_MTIME' in existing
+           else now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}
+  vars:
+    existing: >-
+      {{ authentik_runtime_secret.resources[0].data
+         if authentik_runtime_secret.resources | length > 0 else {} }}
+  no_log: true
+  tags: authentik
+
+- name: Validate operator-supplied login credentials
+  ansible.builtin.assert:
+    that:
+      - authentik_runtime_values['SSO_PASSWORD'] | length >= 20
+      - authentik_runtime_values['SOYSPRAY_BREAK_GLASS_PASSWORD'] | length >= 20
+      - authentik_runtime_values['ARGOCD_ADMIN_PASSWORD_HASH'] | length >= 20
+    fail_msg: >-
+      Set SOYSPRAY_SSO_PASSWORD, SOYSPRAY_BREAK_GLASS_PASSWORD, and
+      SOYSPRAY_ARGOCD_ADMIN_PASSWORD_HASH for the first deployment.
+  no_log: true
+  tags: authentik
+
+- name: Create the stable Authentik runtime secret
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: authentik-runtime
+        namespace: authentik
+        labels:
+          app.kubernetes.io/name: authentik
+          soyspray.vip/credential-source: runtime-generated-not-committed
+      type: Opaque
+      stringData: "{{ authentik_runtime_values }}"
+  no_log: true
+  tags: authentik
+
+- name: Create the Authentik PostgreSQL application secret
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: authentik-postgresql-app
+        namespace: authentik
+      type: kubernetes.io/basic-auth
+      stringData:
+        username: authentik
+        password: "{{ authentik_runtime_values['AUTHENTIK_POSTGRESQL__PASSWORD'] }}"
+  no_log: true
+  tags: authentik
+
+- name: Read the existing Authentik backup secret
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: authentik-offsite-writer
+    namespace: authentik
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: authentik_backup_secret
+  no_log: true
+  tags: authentik
+
+- name: Resolve the Authentik backup credentials
+  ansible.builtin.set_fact:
+    authentik_backup_values:
+      AWS_ACCESS_KEY_ID: >-
+        {{ (existing['AWS_ACCESS_KEY_ID'] | b64decode)
+           if 'AWS_ACCESS_KEY_ID' in existing
+           else lookup('env', 'OFFSITE_BACKUP_WRITER_AWS_ACCESS_KEY_ID') }}
+      AWS_SECRET_ACCESS_KEY: >-
+        {{ (existing['AWS_SECRET_ACCESS_KEY'] | b64decode)
+           if 'AWS_SECRET_ACCESS_KEY' in existing
+           else lookup('env', 'OFFSITE_BACKUP_WRITER_AWS_SECRET_ACCESS_KEY') }}
+      AWS_REGION: >-
+        {{ (existing['AWS_REGION'] | b64decode)
+           if 'AWS_REGION' in existing
+           else lookup('env', 'OFFSITE_BACKUP_AWS_REGION') }}
+  vars:
+    existing: >-
+      {{ authentik_backup_secret.resources[0].data
+         if authentik_backup_secret.resources | length > 0 else {} }}
+  no_log: true
+  tags: authentik
+
+- name: Validate Authentik backup credentials
+  ansible.builtin.assert:
+    that:
+      - authentik_backup_values['AWS_ACCESS_KEY_ID'] | length > 0
+      - authentik_backup_values['AWS_SECRET_ACCESS_KEY'] | length > 0
+      - authentik_backup_values['AWS_REGION'] | length > 0
+    fail_msg: Set the existing OFFSITE_BACKUP writer variables for the first deployment.
+  no_log: true
+  tags: authentik
+
+- name: Create the Authentik backup secret
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: authentik-offsite-writer
+        namespace: authentik
+      type: Opaque
+      stringData: "{{ authentik_backup_values }}"
+  no_log: true
+  tags: authentik
+
+- name: Create the Authentik blueprint ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: authentik-blueprints
+        namespace: authentik
+      data:
+        cluster-sso.yaml: >-
+          {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/cluster-sso.yaml') }}
+        native-apps.yaml: >-
+          {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/native-apps.yaml') }}
+        legacy-forward-auth.yaml: >-
+          {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/legacy-forward-auth.yaml') }}
+  tags: authentik
+
+- name: Create the Grafana SSO and break-glass secret
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: grafana-oidc
+        namespace: monitoring
+      type: Opaque
+      stringData:
+        GRAFANA_OIDC_CLIENT_ID: "{{ authentik_runtime_values['GRAFANA_OIDC_CLIENT_ID'] }}"
+        GRAFANA_OIDC_CLIENT_SECRET: "{{ authentik_runtime_values['GRAFANA_OIDC_CLIENT_SECRET'] }}"
+        admin-user: admin
+        admin-password: "{{ authentik_runtime_values['SOYSPRAY_BREAK_GLASS_PASSWORD'] }}"
+  no_log: true
+  tags: authentik
+
+- name: Ensure the Headlamp namespace exists
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: headlamp
+  tags: authentik
+
+- name: Create the Headlamp OIDC secret
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: headlamp-oidc
+        namespace: headlamp
+      type: Opaque
+      stringData:
+        OIDC_CLIENT_ID: "{{ authentik_runtime_values['HEADLAMP_OIDC_CLIENT_ID'] }}"
+        OIDC_CLIENT_SECRET: "{{ authentik_runtime_values['HEADLAMP_OIDC_CLIENT_SECRET'] }}"
+        OIDC_ISSUER_URL: https://auth.soyspray.vip/application/o/headlamp/
+        OIDC_SCOPES: profile,email,offline_access
+  no_log: true
+  tags: authentik
+
+- name: Configure the Argo CD SSO client and local recovery account
+  kubernetes.core.k8s:
+    state: patched
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argocd-secret
+        namespace: argocd
+      stringData:
+        oidc.authentik.clientSecret: "{{ authentik_runtime_values['ARGOCD_OIDC_CLIENT_SECRET'] }}"
+        admin.password: "{{ authentik_runtime_values['ARGOCD_ADMIN_PASSWORD_HASH'] }}"
+        admin.passwordMtime: "{{ authentik_runtime_values['ARGOCD_ADMIN_PASSWORD_MTIME'] }}"
+  no_log: true
+  tags: authentik
+
+- name: Apply the Argo CD OIDC configuration
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: "{{ lookup('file', playbook_dir + '/argocd/config/' + argocd_config_file) }}"
+  loop:
+    - argocd-cm.yaml
+    - argocd-rbac-cm.yaml
+  loop_control:
+    loop_var: argocd_config_file
+  tags: authentik
+
+- name: Restart Argo CD when the OIDC configuration changes
+  kubernetes.core.k8s:
+    state: patched
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: argocd-server
+        namespace: argocd
+      spec:
+        template:
+          metadata:
+            annotations:
+              soyspray.vip/oidc-config-hash: >-
+                {{ lookup('file', playbook_dir + '/argocd/config/argocd-cm.yaml') | hash('sha256') }}
+  tags: authentik
+
+- name: Point cert-manager config at the Authentik revision
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/infrastructure/cert-manager/cert-manager-application.yaml')
+         | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
+  tags: authentik
+
+- name: Allow the wildcard certificate in the Authentik namespace
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: "{{ lookup('file', playbook_dir + '/argocd/applications/infrastructure/cert-manager/prod-certificate.yaml') }}"
+  tags: authentik
+
+- name: Read the wildcard certificate for Authentik
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: prod-cert-tls
+    namespace: cert-manager
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: authentik_wildcard_certificate
+  no_log: true
+  tags: authentik
+
+- name: Request the Authentik wildcard certificate mirror
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: prod-cert-tls
+        namespace: authentik
+        annotations:
+          reflector.v1.k8s.emberstack.com/reflects: cert-manager/prod-cert-tls
+      type: kubernetes.io/tls
+      data: "{{ authentik_wildcard_certificate.resources[0].data }}"
+  no_log: true
+  tags: authentik
+
+- name: Apply the Authentik PostgreSQL application
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/database/authentik-postgresql-application.yaml')
+         | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
+  tags: authentik
+
+- name: Apply Authentik
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/authentik-application.yaml')
+         | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
+  tags: authentik
+
+- name: Configure native application SSO
+  ansible.builtin.include_tasks: native-apps.yml
+  tags: authentik
+
+- name: Apply Grafana SSO through the Prometheus application
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/observability/prometheus/prometheus-application.yaml')
+         | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
+  tags: authentik
+
+- name: Apply Headlamp SSO
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/infrastructure/headlamp/headlamp-application.yaml')
+         | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
+  tags: authentik
+
+- name: Apply legacy forward-auth applications
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/' + authentik_legacy_application)
+         | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
+  loop:
+    - infrastructure/longhorn/longhorn-application.yaml
+    - home-automation/zigbee2mqtt/zigbee2mqtt-application.yaml
+    - media/lazylibrarian/lazylibrarian-application.yaml
+    - media/qbittorrent/qbittorrent-application.yaml
+  loop_control:
+    loop_var: authentik_legacy_application
+  tags: authentik

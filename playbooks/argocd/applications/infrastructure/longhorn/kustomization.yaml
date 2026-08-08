@@ -12,6 +12,7 @@ helmCharts:
     valuesFile: values.yaml
 
 resources:
+  - authentik-forward-auth.yaml
   - setting-default-data-path.yaml
   - storageclass-rwx.yaml
 

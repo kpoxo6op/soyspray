@@ -1,0 +1,9 @@
+---
+upgrade_cluster_setup: true
+kube_oidc_auth: true
+kube_oidc_url: https://auth.soyspray.vip/application/o/headlamp/
+kube_oidc_client_id: headlamp
+kube_oidc_username_claim: preferred_username
+kube_oidc_username_prefix: 'oidc:'
+kube_oidc_groups_claim: groups
+kube_oidc_groups_prefix: 'oidc:'

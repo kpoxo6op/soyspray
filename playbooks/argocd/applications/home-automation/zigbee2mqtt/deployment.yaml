@@ -14,11 +14,13 @@ spec:
   selector:
     matchLabels:
       app: zigbee2mqtt
+      managed-by: argocd
   template:
     metadata:
       labels:
         app: zigbee2mqtt
         component: main
+        managed-by: argocd
     spec:
       nodeSelector:
         kubernetes.io/hostname: node-0
