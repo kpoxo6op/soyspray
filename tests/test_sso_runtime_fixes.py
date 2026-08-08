@@ -46,6 +46,12 @@ def test_authentik_database_has_cpu_for_blueprint_reconciliation() -> None:
     assert cluster["spec"]["resources"]["limits"]["cpu"] == "1"
 
 
+def test_authentik_serializes_blueprint_work_on_one_worker() -> None:
+    values = load_yaml("playbooks/argocd/applications/security/authentik/values.yaml")
+
+    assert values["worker"]["replicas"] == 1
+
+
 def test_authentik_requests_a_tls_mirror_after_updating_the_allowlist() -> None:
     tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
     allowlist_task = "Allow the wildcard certificate in the Authentik namespace"
