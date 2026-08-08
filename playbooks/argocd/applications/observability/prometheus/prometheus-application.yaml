@@ -14,9 +14,7 @@ spec:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
     targetRevision: "HEAD"
     path: playbooks/argocd/applications/observability/prometheus
-    kustomize:
-      helm:
-        skipCrds: true
+    kustomize: {}
   destination:
     server: "https://kubernetes.default.svc"
     namespace: monitoring
@@ -29,12 +27,12 @@ spec:
       automated:
         prune: true
         selfHeal: true
-        retry:
-          limit: 5
-          backoff:
-            duration: "10s"
-            factor: 2
-            maxDuration: "5m"
+      retry:
+        limit: 5
+        backoff:
+          duration: "10s"
+          factor: 2
+          maxDuration: "5m"
       syncOptions:
         - CreateNamespace=true
         - AllowClusterResourceInNamespacedApp=true
