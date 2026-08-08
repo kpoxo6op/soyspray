@@ -70,6 +70,7 @@ def test_argocd_uses_authentik_oidc_and_keeps_local_admin() -> None:
 
     assert "auth.soyspray.vip" in config["oidc.config"]
     assert "$oidc.authentik.clientSecret" in config["oidc.config"]
+    assert config["oidc.tls.insecure.skip.verify"] == "true"
     assert config.get("admin.enabled", "true") == "true"
     assert "cluster-admins" in rbac["policy.csv"]
     assert rbac["policy.default"] == "role:readonly"
