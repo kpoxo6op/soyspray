@@ -63,6 +63,10 @@
         {{ (existing['HEADLAMP_OIDC_CLIENT_SECRET'] | b64decode)
            if 'HEADLAMP_OIDC_CLIENT_SECRET' in existing
            else lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}
+      IMMICH_OIDC_CLIENT_SECRET: >-
+        {{ (existing['IMMICH_OIDC_CLIENT_SECRET'] | b64decode)
+           if 'IMMICH_OIDC_CLIENT_SECRET' in existing
+           else lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}
       SOYSPRAY_BREAK_GLASS_PASSWORD: >-
         {{ (existing['SOYSPRAY_BREAK_GLASS_PASSWORD'] | b64decode)
            if 'SOYSPRAY_BREAK_GLASS_PASSWORD' in existing
@@ -200,6 +204,8 @@
       data:
         cluster-sso.yaml: >-
           {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/cluster-sso.yaml') }}
+        native-apps.yaml: >-
+          {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/native-apps.yaml') }}
   tags: authentik
 
 - name: Create the Grafana SSO and break-glass secret
@@ -312,6 +318,10 @@
     definition: >-
       {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/authentik-application.yaml')
          | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
+  tags: authentik
+
+- name: Configure native application SSO
+  ansible.builtin.include_tasks: native-apps.yml
   tags: authentik
 
 - name: Apply Grafana SSO through the Prometheus application

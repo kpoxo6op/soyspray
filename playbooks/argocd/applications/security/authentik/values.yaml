@@ -14,7 +14,7 @@ blueprints:
 server:
   replicas: 2
   podAnnotations:
-    soyspray.vip/runtime-secret-revision: "2026-08-09-1"
+    soyspray.vip/runtime-secret-revision: "2026-08-09-2"
   pdb:
     enabled: true
     minAvailable: 1
@@ -44,7 +44,7 @@ server:
 worker:
   replicas: 2
   podAnnotations:
-    soyspray.vip/runtime-secret-revision: "2026-08-09-1"
+    soyspray.vip/runtime-secret-revision: "2026-08-09-2"
   pdb:
     enabled: true
     minAvailable: 1
