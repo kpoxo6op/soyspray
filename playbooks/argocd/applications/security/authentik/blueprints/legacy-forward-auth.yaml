@@ -176,6 +176,7 @@ entries:
     attrs:
       name: authentik Embedded Outpost
       type: proxy
+      # Browser redirects use the public host; embedded backchannel calls use a Unix socket.
       config:
         authentik_host: https://auth.soyspray.vip
       providers:
