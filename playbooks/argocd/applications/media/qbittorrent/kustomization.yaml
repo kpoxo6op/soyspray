@@ -4,6 +4,7 @@ kind: Kustomization
 namespace: media
 
 resources:
+  - authentik-forward-auth.yaml
   - storageclass-local-media.yaml
   - pv-downloads.yaml
   - pvc-downloads.yaml
@@ -14,5 +15,7 @@ resources:
   - configmap.yaml
   - bootstrap-job.yaml
 
-commonLabels:
-  app: qbittorrent
+labels:
+  - pairs:
+      app: qbittorrent
+    includeSelectors: false
