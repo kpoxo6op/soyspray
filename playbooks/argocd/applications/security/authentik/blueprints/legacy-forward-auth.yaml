@@ -177,8 +177,7 @@ entries:
       name: authentik Embedded Outpost
       type: proxy
       config:
-        authentik_host: http://localhost:9000
-        authentik_host_browser: https://auth.soyspray.vip
+        authentik_host: https://auth.soyspray.vip
       providers:
         - !KeyOf longhorn-proxy-provider
         - !KeyOf prometheus-proxy-provider

@@ -110,8 +110,7 @@ def test_blueprint_has_five_bound_single_application_proxy_providers() -> None:
     assert outposts[0]["identifiers"]["managed"] == "goauthentik.io/outposts/embedded"
     assert len(outposts[0]["attrs"]["providers"]) == 5
     assert outposts[0]["attrs"]["config"] == {
-        "authentik_host": "http://localhost:9000",
-        "authentik_host_browser": "https://auth.soyspray.vip",
+        "authentik_host": "https://auth.soyspray.vip",
     }
     assert "Soyspray cluster SSO" in dependencies
     assert "System - Proxy Provider - Scopes" in dependencies
