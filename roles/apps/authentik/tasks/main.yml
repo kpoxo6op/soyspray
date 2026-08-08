@@ -206,6 +206,8 @@
           {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/cluster-sso.yaml') }}
         native-apps.yaml: >-
           {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/native-apps.yaml') }}
+        legacy-forward-auth.yaml: >-
+          {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/legacy-forward-auth.yaml') }}
   tags: authentik
 
 - name: Create the Grafana SSO and break-glass secret
@@ -340,4 +342,20 @@
     definition: >-
       {{ lookup('file', playbook_dir + '/argocd/applications/infrastructure/headlamp/headlamp-application.yaml')
          | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
+  tags: authentik
+
+- name: Apply legacy forward-auth applications
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/' + authentik_legacy_application)
+         | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
+  loop:
+    - infrastructure/longhorn/longhorn-application.yaml
+    - home-automation/zigbee2mqtt/zigbee2mqtt-application.yaml
+    - media/lazylibrarian/lazylibrarian-application.yaml
+    - media/qbittorrent/qbittorrent-application.yaml
+  loop_control:
+    loop_var: authentik_legacy_application
   tags: authentik

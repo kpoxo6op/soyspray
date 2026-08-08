@@ -1,0 +1,174 @@
+# yaml-language-server: $schema=https://version-2026-5.goauthentik.io/blueprints/schema.json
+version: 1
+metadata:
+  name: Soyspray legacy web forward auth
+entries:
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        name: Default - Authentication flow
+
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        name: Default - Provider authorization flow (implicit consent)
+
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        name: Default - Provider invalidation flow
+
+  - model: authentik_providers_proxy.proxyprovider
+    id: longhorn-proxy-provider
+    identifiers:
+      name: Longhorn forward auth
+    attrs:
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-authentication-flow]]
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      external_host: https://longhorn.soyspray.vip
+      mode: forward_single
+
+  - model: authentik_core.application
+    id: longhorn-proxy-application
+    identifiers:
+      slug: longhorn
+    attrs:
+      name: Longhorn
+      provider: !KeyOf longhorn-proxy-provider
+      meta_launch_url: https://longhorn.soyspray.vip
+      policy_engine_mode: all
+
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf longhorn-proxy-application
+      order: 0
+    attrs:
+      group: !Find [authentik_core.group, [name, cluster-admins]]
+
+  - model: authentik_providers_proxy.proxyprovider
+    id: prometheus-proxy-provider
+    identifiers:
+      name: Prometheus forward auth
+    attrs:
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-authentication-flow]]
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      external_host: https://prometheus.soyspray.vip
+      mode: forward_single
+
+  - model: authentik_core.application
+    id: prometheus-proxy-application
+    identifiers:
+      slug: prometheus
+    attrs:
+      name: Prometheus
+      provider: !KeyOf prometheus-proxy-provider
+      meta_launch_url: https://prometheus.soyspray.vip
+      policy_engine_mode: all
+
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf prometheus-proxy-application
+      order: 0
+    attrs:
+      group: !Find [authentik_core.group, [name, cluster-admins]]
+
+  - model: authentik_providers_proxy.proxyprovider
+    id: zigbee2mqtt-proxy-provider
+    identifiers:
+      name: Zigbee2MQTT forward auth
+    attrs:
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-authentication-flow]]
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      external_host: https://zigbee2mqtt.soyspray.vip
+      mode: forward_single
+
+  - model: authentik_core.application
+    id: zigbee2mqtt-proxy-application
+    identifiers:
+      slug: zigbee2mqtt
+    attrs:
+      name: Zigbee2MQTT
+      provider: !KeyOf zigbee2mqtt-proxy-provider
+      meta_launch_url: https://zigbee2mqtt.soyspray.vip
+      policy_engine_mode: all
+
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf zigbee2mqtt-proxy-application
+      order: 0
+    attrs:
+      group: !Find [authentik_core.group, [name, cluster-admins]]
+
+  - model: authentik_providers_proxy.proxyprovider
+    id: lazylibrarian-proxy-provider
+    identifiers:
+      name: LazyLibrarian forward auth
+    attrs:
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-authentication-flow]]
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      external_host: https://lazylibrarian.soyspray.vip
+      mode: forward_single
+      skip_path_regex: ^/(api|opds|rss_feed)(/|$)|^/nzbfile\.nzb(/|$)
+
+  - model: authentik_core.application
+    id: lazylibrarian-proxy-application
+    identifiers:
+      slug: lazylibrarian
+    attrs:
+      name: LazyLibrarian
+      provider: !KeyOf lazylibrarian-proxy-provider
+      meta_launch_url: https://lazylibrarian.soyspray.vip
+      policy_engine_mode: all
+
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf lazylibrarian-proxy-application
+      order: 0
+    attrs:
+      group: !Find [authentik_core.group, [name, cluster-admins]]
+
+  - model: authentik_providers_proxy.proxyprovider
+    id: qbittorrent-proxy-provider
+    identifiers:
+      name: qBittorrent forward auth
+    attrs:
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-authentication-flow]]
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      external_host: https://torrent.soyspray.vip
+      mode: forward_single
+      skip_path_regex: ^/api/v2(/|$)
+
+  - model: authentik_core.application
+    id: qbittorrent-proxy-application
+    identifiers:
+      slug: qbittorrent
+    attrs:
+      name: qBittorrent
+      provider: !KeyOf qbittorrent-proxy-provider
+      meta_launch_url: https://torrent.soyspray.vip
+      policy_engine_mode: all
+
+  - model: authentik_policies.policybinding
+    identifiers:
+      target: !KeyOf qbittorrent-proxy-application
+      order: 0
+    attrs:
+      group: !Find [authentik_core.group, [name, cluster-admins]]
+
+  - model: authentik_outposts.outpost
+    identifiers:
+      managed: goauthentik.io/outposts/embedded
+    attrs:
+      name: authentik Embedded Outpost
+      type: proxy
+      providers:
+        - !KeyOf longhorn-proxy-provider
+        - !KeyOf prometheus-proxy-provider
+        - !KeyOf zigbee2mqtt-proxy-provider
+        - !KeyOf lazylibrarian-proxy-provider
+        - !KeyOf qbittorrent-proxy-provider
