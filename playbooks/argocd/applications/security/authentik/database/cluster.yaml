@@ -1,0 +1,51 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: authentik-postgresql
+  namespace: authentik
+spec:
+  instances: 2
+  imageName: ghcr.io/cloudnative-pg/postgresql:17.5
+  bootstrap:
+    initdb:
+      database: authentik
+      owner: authentik
+      secret:
+        name: authentik-postgresql-app
+  storage:
+    size: 5Gi
+    storageClass: longhorn
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  monitoring:
+    enablePodMonitor: true
+  backup:
+    retentionPolicy: "30d"
+    barmanObjectStore:
+      destinationPath: s3://immich-offsite-archive-au2/authentik/postgresql/
+      s3Credentials:
+        accessKeyId:
+          name: authentik-offsite-writer
+          key: AWS_ACCESS_KEY_ID
+        secretAccessKey:
+          name: authentik-offsite-writer
+          key: AWS_SECRET_ACCESS_KEY
+        region:
+          name: authentik-offsite-writer
+          key: AWS_REGION
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: authentik-postgresql-daily
+  namespace: authentik
+spec:
+  schedule: "0 30 3 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: authentik-postgresql
