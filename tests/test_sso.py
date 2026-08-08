@@ -92,3 +92,12 @@ def test_prometheus_application_returns_to_the_reviewed_head_revision() -> None:
     )
 
     assert app["spec"]["source"]["targetRevision"] == "HEAD"
+    assert app["spec"]["source"]["kustomize"] == {}
+    assert "retry" not in app["spec"]["syncPolicy"]["automated"]
+    assert app["spec"]["syncPolicy"]["retry"]["limit"] == 5
+
+
+def test_authentik_role_does_not_reuse_the_parent_loop_variable() -> None:
+    tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+
+    assert "loop_var: argocd_config_file" in tasks
