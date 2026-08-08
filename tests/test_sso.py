@@ -48,7 +48,9 @@ def test_authentik_blueprint_reads_credentials_from_environment() -> None:
     assert "!Env GRAFANA_OIDC_CLIENT_SECRET" in blueprint
     assert "client_secret:" not in blueprint.replace(
         "client_secret: !Env ARGOCD_OIDC_CLIENT_SECRET", ""
-    ).replace("client_secret: !Env GRAFANA_OIDC_CLIENT_SECRET", "")
+    ).replace("client_secret: !Env GRAFANA_OIDC_CLIENT_SECRET", "").replace(
+        "client_secret: !Env HEADLAMP_OIDC_CLIENT_SECRET", ""
+    )
 
 
 def test_authentik_role_preserves_generated_secrets() -> None:

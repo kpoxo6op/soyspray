@@ -58,6 +58,11 @@
         {{ (existing['GRAFANA_OIDC_CLIENT_SECRET'] | b64decode)
            if 'GRAFANA_OIDC_CLIENT_SECRET' in existing
            else lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}
+      HEADLAMP_OIDC_CLIENT_ID: headlamp
+      HEADLAMP_OIDC_CLIENT_SECRET: >-
+        {{ (existing['HEADLAMP_OIDC_CLIENT_SECRET'] | b64decode)
+           if 'HEADLAMP_OIDC_CLIENT_SECRET' in existing
+           else lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}
       SOYSPRAY_BREAK_GLASS_PASSWORD: >-
         {{ (existing['SOYSPRAY_BREAK_GLASS_PASSWORD'] | b64decode)
            if 'SOYSPRAY_BREAK_GLASS_PASSWORD' in existing
@@ -216,6 +221,36 @@
   no_log: true
   tags: authentik
 
+- name: Ensure the Headlamp namespace exists
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: headlamp
+  tags: authentik
+
+- name: Create the Headlamp OIDC secret
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: headlamp-oidc
+        namespace: headlamp
+      type: Opaque
+      stringData:
+        OIDC_CLIENT_ID: "{{ authentik_runtime_values['HEADLAMP_OIDC_CLIENT_ID'] }}"
+        OIDC_CLIENT_SECRET: "{{ authentik_runtime_values['HEADLAMP_OIDC_CLIENT_SECRET'] }}"
+        OIDC_ISSUER_URL: https://auth.soyspray.vip/application/o/headlamp/
+        OIDC_SCOPES: profile,email,offline_access
+  no_log: true
+  tags: authentik
+
 - name: Configure the Argo CD SSO client and local recovery account
   kubernetes.core.k8s:
     state: patched
@@ -285,5 +320,14 @@
     kubeconfig: "{{ kubeconfig_path }}"
     definition: >-
       {{ lookup('file', playbook_dir + '/argocd/applications/observability/prometheus/prometheus-application.yaml')
+         | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
+  tags: authentik
+
+- name: Apply Headlamp SSO
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/infrastructure/headlamp/headlamp-application.yaml')
          | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
   tags: authentik
