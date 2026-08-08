@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from conftest import ROOT, load_yaml
+from conftest import ROOT, load_all, load_yaml
 
 
 def test_cnpg_operator_can_read_authentik_instance_status() -> None:
@@ -37,3 +37,12 @@ def test_authentik_role_points_cert_manager_at_the_branch_before_certificate_cha
     assert "cert-manager/cert-manager-application.yaml" in tasks
     assert "authentik_target_revision" in tasks
     assert tasks.index(application_task) < tasks.index(certificate_task)
+
+
+def test_authentik_database_has_cpu_for_blueprint_reconciliation() -> None:
+    resources = load_all(
+        "playbooks/argocd/applications/security/authentik/database/cluster.yaml"
+    )
+    cluster = next(item for item in resources if item["kind"] == "Cluster")
+
+    assert cluster["spec"]["resources"]["limits"]["cpu"] == "1"
