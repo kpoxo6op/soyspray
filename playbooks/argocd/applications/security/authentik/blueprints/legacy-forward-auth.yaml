@@ -6,6 +6,16 @@ entries:
   - model: authentik_blueprints.metaapplyblueprint
     attrs:
       identifiers:
+        name: Soyspray cluster SSO
+
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
+        name: System - Proxy Provider - Scopes
+
+  - model: authentik_blueprints.metaapplyblueprint
+    attrs:
+      identifiers:
         name: Default - Authentication flow
 
   - model: authentik_blueprints.metaapplyblueprint

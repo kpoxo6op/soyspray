@@ -83,6 +83,11 @@ def _ingress_annotations(name: str) -> dict[str, str]:
 
 def test_blueprint_has_five_bound_single_application_proxy_providers() -> None:
     entries = _blueprint_entries()
+    dependencies = {
+        item["attrs"]["identifiers"]["name"]
+        for item in entries
+        if item["model"] == "authentik_blueprints.metaapplyblueprint"
+    }
     providers = [
         item for item in entries if item["model"] == "authentik_providers_proxy.proxyprovider"
     ]
@@ -104,6 +109,8 @@ def test_blueprint_has_five_bound_single_application_proxy_providers() -> None:
     assert len(outposts) == 1
     assert outposts[0]["identifiers"]["managed"] == "goauthentik.io/outposts/embedded"
     assert len(outposts[0]["attrs"]["providers"]) == 5
+    assert "Soyspray cluster SSO" in dependencies
+    assert "System - Proxy Provider - Scopes" in dependencies
 
 
 def test_blueprint_preserves_native_machine_api_paths() -> None:
