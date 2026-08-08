@@ -44,3 +44,17 @@ def test_authentik_database_has_cpu_for_blueprint_reconciliation() -> None:
     cluster = next(item for item in resources if item["kind"] == "Cluster")
 
     assert cluster["spec"]["resources"]["limits"]["cpu"] == "1"
+
+
+def test_authentik_requests_a_tls_mirror_after_updating_the_allowlist() -> None:
+    tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+    allowlist_task = "Allow the wildcard certificate in the Authentik namespace"
+    mirror_task = "Request the Authentik wildcard certificate mirror"
+
+    assert mirror_task in tasks
+    assert "Read the wildcard certificate for Authentik" in tasks
+    assert "register: authentik_wildcard_certificate" in tasks
+    assert "reflector.v1.k8s.emberstack.com/reflects" in tasks
+    assert "cert-manager/prod-cert-tls" in tasks
+    assert 'data: "{{ authentik_wildcard_certificate.resources[0].data }}"' in tasks
+    assert tasks.index(allowlist_task) < tasks.index(mirror_task)

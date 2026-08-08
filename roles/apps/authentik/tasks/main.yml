@@ -304,6 +304,34 @@
     definition: "{{ lookup('file', playbook_dir + '/argocd/applications/infrastructure/cert-manager/prod-certificate.yaml') }}"
   tags: authentik
 
+- name: Read the wildcard certificate for Authentik
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: prod-cert-tls
+    namespace: cert-manager
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: authentik_wildcard_certificate
+  no_log: true
+  tags: authentik
+
+- name: Request the Authentik wildcard certificate mirror
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: prod-cert-tls
+        namespace: authentik
+        annotations:
+          reflector.v1.k8s.emberstack.com/reflects: cert-manager/prod-cert-tls
+      type: kubernetes.io/tls
+      data: "{{ authentik_wildcard_certificate.resources[0].data }}"
+  no_log: true
+  tags: authentik
+
 - name: Apply the Authentik PostgreSQL application
   kubernetes.core.k8s:
     state: present
