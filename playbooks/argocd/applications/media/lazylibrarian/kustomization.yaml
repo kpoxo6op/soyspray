@@ -7,6 +7,7 @@ kind: Kustomization
 namespace: media
 
 resources:
+  - authentik-forward-auth.yaml
   - pvc-config.yaml
   - pvc-books.yaml
   - initial-config-configmap.yaml
