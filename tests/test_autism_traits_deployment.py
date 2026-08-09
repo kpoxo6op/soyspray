@@ -6,8 +6,17 @@ import subprocess
 import pytest
 import yaml
 from ansible.parsing.dataloader import DataLoader
-from ansible.template import Templar, trust_as_template
+from ansible.template import Templar
 from conftest import ROOT, load_yaml
+
+try:
+    from ansible.template import trust_as_template
+except ImportError:
+
+    def trust_as_template(value: str) -> str:
+        """Keep compatibility with Ansible versions that trust strings by default."""
+        return value
+
 
 PACKAGE = "kubernetes/autism-traits"
 APPLICATION = "playbooks/argocd/applications/web/autism-traits/autism-traits-application.yaml"
