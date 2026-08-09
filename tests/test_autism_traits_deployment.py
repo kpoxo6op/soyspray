@@ -203,6 +203,7 @@ def test_argocd_application_reconciles_head_in_the_default_project() -> None:
     }
     assert app["spec"]["syncPolicy"]["automated"] == {"prune": True, "selfHeal": True}
     assert "CreateNamespace=true" in app["spec"]["syncPolicy"]["syncOptions"]
+    assert "ServerSideApply=true" in app["spec"]["syncPolicy"]["syncOptions"]
     namespace_labels = app["spec"]["syncPolicy"]["managedNamespaceMetadata"]["labels"]
     assert namespace_labels["pod-security.kubernetes.io/enforce"] == "restricted"
     assert namespace_labels["pod-security.kubernetes.io/enforce-version"] == "v1.35"
