@@ -74,6 +74,9 @@ def test_dist_is_projected_from_bounded_configmaps() -> None:
     } == {path.removeprefix("images/") for path in EXPECTED_SITE_PATHS if path.endswith(".webp")}
     for item in site_configmaps:
         assert len(json.dumps(item, separators=(",", ":")).encode()) < 800 * 1024
+        assert item["metadata"]["annotations"]["argocd.argoproj.io/sync-options"] == (
+            "ServerSideApply=true"
+        )
 
     pod_spec = deployment["spec"]["template"]["spec"]
     site_volume = next(volume for volume in pod_spec["volumes"] if volume["name"] == "site")
@@ -203,7 +206,7 @@ def test_argocd_application_reconciles_head_in_the_default_project() -> None:
     }
     assert app["spec"]["syncPolicy"]["automated"] == {"prune": True, "selfHeal": True}
     assert "CreateNamespace=true" in app["spec"]["syncPolicy"]["syncOptions"]
-    assert "ServerSideApply=true" in app["spec"]["syncPolicy"]["syncOptions"]
+    assert "ServerSideApply=true" not in app["spec"]["syncPolicy"]["syncOptions"]
     namespace_labels = app["spec"]["syncPolicy"]["managedNamespaceMetadata"]["labels"]
     assert namespace_labels["pod-security.kubernetes.io/enforce"] == "restricted"
     assert namespace_labels["pod-security.kubernetes.io/enforce-version"] == "v1.35"
