@@ -2,7 +2,7 @@ import type { Language } from "./lib/state";
 
 export const uiCopy = {
   en: {
-    siteName: "Traits, in context",
+    siteName: "Detailed autism questionnaire",
     languageButton: "Русский",
     themeLabel: "Theme",
     themeAuto: "Auto",
@@ -11,6 +11,9 @@ export const uiCopy = {
     introTitle: "A quieter way to notice patterns",
     introBody:
       "This experience looks for patterns across communication, relationships, masking, repetition, routine, interests, sensory processing, daily capacity, and childhood history.",
+    versionOne: "v1 - mediocrity AI created because I did not ask to adhere to my vision.",
+    versionTwo:
+      "v2 - 328 detailed questions drawn from 30 captioned videos. Minimal AI rewriting. Simpler design.",
     seeSources: "See the sources",
     resume: "Resume assessment",
     sourcesTitle: "Thirty caption-backed perspectives",
@@ -86,7 +89,7 @@ export const uiCopy = {
     imageCredit: "Artwork",
   },
   ru: {
-    siteName: "Особенности в контексте",
+    siteName: "Подробный опрос об аутизме",
     languageButton: "English",
     themeLabel: "Тема",
     themeAuto: "Авто",
@@ -95,6 +98,10 @@ export const uiCopy = {
     introTitle: "Спокойный способ заметить закономерности",
     introBody:
       "Этот опрос помогает увидеть закономерности в общении, отношениях, маскинге, повторениях, распорядке, интересах, сенсорном восприятии, повседневных возможностях и детском опыте.",
+    versionOne:
+      "v1 — посредственный результат ИИ, потому что я не попросил ИИ следовать моему замыслу.",
+    versionTwo:
+      "v2 — 328 подробных вопросов по 30 видео с субтитрами. Минимум ИИ-редактирования. Более простой дизайн.",
     seeSources: "Посмотреть источники",
     resume: "Продолжить опрос",
     sourcesTitle: "Тридцать точек зрения на основе субтитров",

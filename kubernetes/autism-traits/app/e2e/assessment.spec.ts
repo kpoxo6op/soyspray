@@ -42,6 +42,10 @@ const continueThroughAnsweredSections = async (page: Page) => {
 };
 
 test("intro and source pages preserve the required content and language choice", async ({ page }) => {
+  const initialDocument = await page.request.get("/");
+  expect(initialDocument.ok()).toBe(true);
+  expect(await initialDocument.text()).toContain("<title>Detailed autism questionnaire</title>");
+
   await page.goto("/");
   await expect(
     page.getByText("I am already diagnosed with mild ASD and am taking this test for a video."),
@@ -55,9 +59,7 @@ test("intro and source pages preserve the required content and language choice",
     page.getByText("v1 - mediocrity AI created because I did not ask to adhere to my vision."),
   ).toBeVisible();
   await expect(
-    page.getByText(
-      "v2 - rich opinionated detailed sourced from real human. AI intervention minimized. Simpler styling",
-    ),
+    page.getByText("v2 - 328 detailed questions drawn from 30 captioned videos. Minimal AI rewriting. Simpler design."),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "See the sources" })).toBeVisible();
 
@@ -65,7 +67,17 @@ test("intro and source pages preserve the required content and language choice",
   await expect(page.locator("html")).toHaveAttribute("lang", "ru");
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("lang", "ru");
-  await expect(page).toHaveTitle("Особенности в контексте");
+  await expect(page).toHaveTitle("Подробный опрос об аутизме");
+  await expect(
+    page.getByText(
+      "v1 — посредственный результат ИИ, потому что я не попросил ИИ следовать моему замыслу.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "v2 — 328 подробных вопросов по 30 видео с субтитрами. Минимум ИИ-редактирования. Более простой дизайн.",
+    ),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "English" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Спокойный способ заметить закономерности" })).toBeVisible();
   await page.getByRole("link", { name: "Посмотреть источники" }).click();
@@ -74,7 +86,7 @@ test("intro and source pages preserve the required content and language choice",
   await expect(page.getByText("Содержание опроса доступно на английском и русском")).toBeVisible();
 
   await page.getByRole("button", { name: "English" }).click();
-  await expect(page).toHaveTitle("Traits, in context");
+  await expect(page).toHaveTitle("Detailed autism questionnaire");
   await expect(page.getByTestId("source-card")).toHaveCount(30);
   const representedLanguages = page.locator(".language-list");
   await expect(representedLanguages.getByText("Brazilian Portuguese", { exact: true })).toBeVisible();
@@ -96,8 +108,19 @@ test("mouse flow keeps the result hidden until explicit reveal and supports edit
 
   await expect(page.getByTestId("result")).toHaveCount(0);
   await expect(page.getByText("Ready to reveal")).toBeVisible();
+  await expect(page.locator(".completion-card")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(page.locator(".completion-card")).toHaveCSS("border-radius", "0px");
   await page.getByRole("button", { name: "Reveal my result" }).click();
   await expect(page.getByTestId("result")).toBeVisible();
+  for (const surface of [
+    ".result-hero",
+    ".strength-copy p",
+    ".domain-row",
+    ".context-grid > section",
+  ]) {
+    await expect(page.locator(surface).first()).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await expect(page.locator(surface).first()).toHaveCSS("border-radius", "0px");
+  }
 
   const track = await page.getByTestId("continuum").boundingBox();
   const marker = await page.getByTestId("continuum-marker").boundingBox();
@@ -203,6 +226,65 @@ test("explicit Light and Dark themes override the system and persist", async ({ 
   await page.reload();
   await expect(theme).toHaveValue("dark");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+});
+
+test("content stays flat while mobile answers retain bordered touch controls", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/#/sources");
+  for (const surface of [page.locator(".language-card"), page.getByTestId("source-card").first()]) {
+    const style = await surface.evaluate((element) => {
+      const computed = getComputedStyle(element);
+      return {
+        backgroundColor: computed.backgroundColor,
+        borderRadius: computed.borderRadius,
+      };
+    });
+    expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(style.borderRadius).toBe("0px");
+  }
+
+  await page.goto("/#/assessment/conversation");
+  const card = page.getByTestId("question-card").first();
+  const option = card.getByRole("radio", { name: "Often", exact: true });
+  const cardStyle = await card.evaluate((element) => {
+    const computed = getComputedStyle(element);
+    return {
+      backgroundColor: computed.backgroundColor,
+      borderRadius: computed.borderRadius,
+    };
+  });
+  expect(cardStyle.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+  expect(cardStyle.borderRadius).toBe("0px");
+
+  const optionStyle = async () =>
+    option.evaluate((element) => {
+      const computed = getComputedStyle(element);
+      return {
+        backgroundColor: computed.backgroundColor,
+        borderRadius: computed.borderRadius,
+        borderTopWidth: computed.borderTopWidth,
+      };
+    });
+
+  const resting = await optionStyle();
+  if (testInfo.project.name === "mobile") {
+    expect(Number.parseFloat(resting.borderRadius)).toBeGreaterThan(0);
+    expect(Number.parseFloat(resting.borderTopWidth)).toBeGreaterThan(0);
+  } else {
+    expect(resting.backgroundColor).toBe("rgba(0, 0, 0, 0)");
+    expect(resting.borderRadius).toBe("0px");
+    expect(resting.borderTopWidth).toBe("0px");
+    await page.getByRole("combobox", { name: "Theme" }).selectOption("dark");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+    await expect(option).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await option.hover();
+    await expect.poll(async () => (await optionStyle()).backgroundColor).not.toBe(resting.backgroundColor);
+  }
+
+  await option.click();
+  await expect(option).toBeChecked();
+  await expect.poll(async () => (await optionStyle()).backgroundColor).not.toBe(resting.backgroundColor);
 });
 
 test("phone-sized touch targets and responsive pages avoid horizontal overflow", async ({

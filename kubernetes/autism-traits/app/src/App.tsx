@@ -173,11 +173,8 @@ const IntroPage = ({ language, state }: SharedPageProps) => {
           <p className="lede">{copy.introBody}</p>
           <p className="medical-note">{appCopy[language].medicalNote}</p>
           <div className="version-history">
-            <p>v1 - mediocrity AI created because I did not ask to adhere to my vision.</p>
-            <p>
-              v2 - rich opinionated detailed sourced from real human. AI intervention minimized.
-              Simpler styling
-            </p>
+            <p>{copy.versionOne}</p>
+            <p>{copy.versionTwo}</p>
           </div>
           <div className="primary-actions">
             {hasProgress && (

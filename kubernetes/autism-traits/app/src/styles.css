@@ -220,8 +220,9 @@ h3 {
   width: min(100% - 2rem, 72rem);
   margin: 0 auto 1rem;
   padding: 1rem;
-  border: 1px solid var(--danger);
-  border-radius: 0.5rem;
+  border: 0;
+  border-left: 3px solid var(--danger);
+  border-radius: 0;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -311,7 +312,7 @@ h3 {
 .section-art img {
   width: 100%;
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  border-radius: 0;
   object-fit: cover;
 }
 
@@ -336,16 +337,17 @@ figcaption {
 .question-card,
 .completion-card,
 .context-grid > section {
-  border-color: var(--border);
-  border-radius: 0.5rem;
+  border: 0;
+  border-radius: 0;
   color: var(--text);
-  background: var(--surface);
+  background: transparent;
   box-shadow: none;
 }
 
 .language-card {
   margin-bottom: 2rem;
-  padding: clamp(1.25rem, 3vw, 1.75rem);
+  padding: 0 0 2rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .language-list {
@@ -358,11 +360,11 @@ figcaption {
 }
 
 .language-list li {
-  padding: 0.4rem 0.65rem;
-  border: 1px solid var(--border);
-  border-radius: 0.35rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
   color: var(--text);
-  background: var(--surface-muted);
+  background: transparent;
   font-size: 0.88rem;
 }
 
@@ -379,14 +381,15 @@ figcaption {
 .source-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.8rem;
+  gap: 2.5rem 2rem;
 }
 
 .source-card {
   position: relative;
   display: flex;
   min-width: 0;
-  padding: clamp(1.2rem, 3vw, 1.6rem);
+  padding: 1.25rem 0 0;
+  border-top: 1px solid var(--border);
   flex-direction: column;
 }
 
@@ -506,7 +509,7 @@ progress {
   height: 0.65rem;
   overflow: hidden;
   border: 0;
-  border-radius: 0.25rem;
+  border-radius: 0;
   appearance: none;
   background: var(--surface-muted);
 }
@@ -529,12 +532,13 @@ progress::-moz-progress-bar {
 
 .question-list {
   display: grid;
-  gap: 0.8rem;
+  gap: 0;
 }
 
 .question-card {
   display: grid;
-  padding: clamp(1.2rem, 3vw, 1.65rem);
+  padding: clamp(1.75rem, 4vw, 2.5rem) 0;
+  border-top: 1px solid var(--border);
   grid-template-columns: 2.5rem minmax(0, 1fr);
   column-gap: 0.65rem;
 }
@@ -554,16 +558,15 @@ progress::-moz-progress-bar {
 .question-card [role="radio"] {
   justify-content: center;
   padding-inline: 0.6rem;
-  border-color: var(--border);
-  border-radius: 0.35rem;
+  border: 0;
+  border-radius: 0;
   color: var(--text);
-  background: var(--surface-muted);
+  background: transparent;
   text-align: center;
 }
 
 .question-card [role="radio"]:hover,
 .question-card [role="radio"][data-state="checked"] {
-  border-color: var(--accent);
   background: var(--selected);
 }
 
@@ -596,7 +599,10 @@ progress::-moz-progress-bar {
 
 .completion-card {
   width: min(100%, 44rem);
-  padding: clamp(1.75rem, 6vw, 3.5rem);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   text-align: center;
 }
 
@@ -613,10 +619,11 @@ progress::-moz-progress-bar {
 }
 
 .result-hero {
-  padding: clamp(1.5rem, 5vw, 3rem);
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  background: var(--surface);
+  padding: 0 0 clamp(2rem, 5vw, 3rem);
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
   text-align: center;
 }
 
@@ -702,9 +709,9 @@ progress::-moz-progress-bar {
 
 .strength-copy p {
   margin: 0;
-  padding: 1rem;
+  padding: 0.5rem 0 0.5rem 1rem;
   border-left: 3px solid var(--accent);
-  background: var(--surface);
+  background: transparent;
   line-height: 1.55;
 }
 
@@ -715,13 +722,14 @@ progress::-moz-progress-bar {
 
 .domain-row {
   display: grid;
-  padding: 0.9rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
+  padding: 1rem 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
   grid-template-columns: minmax(13rem, 0.8fr) 1fr;
   align-items: center;
   gap: 1rem;
-  background: var(--surface);
+  background: transparent;
 }
 
 .domain-row > div {
@@ -754,7 +762,8 @@ progress::-moz-progress-bar {
 }
 
 .context-grid > section {
-  padding: 1.15rem;
+  padding: 1rem 0 0;
+  border-top: 1px solid var(--border);
 }
 
 .context-grid h2 {
@@ -840,6 +849,12 @@ progress::-moz-progress-bar {
   border-color: var(--danger);
 }
 
+@media (min-width: 801px) {
+  :root[data-theme="dark"] .question-card [role="radio"]:not(:hover):not([data-state="checked"]) {
+    background-color: transparent;
+  }
+}
+
 @media (max-width: 800px) {
   .intro-grid,
   .assessment-heading {
@@ -872,6 +887,9 @@ progress::-moz-progress-bar {
 
   .question-card [role="radio"] {
     justify-content: flex-start;
+    border: 1px solid var(--border);
+    border-radius: 0.35rem;
+    background: var(--surface-muted);
     text-align: left;
   }
 
