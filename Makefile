@@ -10,6 +10,9 @@ INVENTORY := kubespray/inventory/soycluster/hosts.yml
 ANSIBLE := source $(VENV)/bin/activate && ansible-playbook -i $(INVENTORY) --become --become-user=root --user ubuntu
 DOCS_ADDR ?= 127.0.0.1:8000
 KONG_REVISION ?= HEAD
+AUTISM_TRAITS_APP := kubernetes/autism-traits/app
+AUTISM_TRAITS_ENABLED ?= true
+AUTISM_TRAITS_REVISION ?= HEAD
 
 NODE0 := 192.168.20.10
 NODE1 := 192.168.20.11
@@ -25,10 +28,11 @@ KUSTOMIZATIONS := \
 	kubernetes/banklab/governance \
 	kubernetes/banklab/customer-web \
 	kubernetes/banklab/docs-site \
+	kubernetes/autism-traits \
 	playbooks/argocd/applications/kong-bank-lab/operator-dashboard
 
-.PHONY: help setup act check lint validate validate-skills test docs docs-serve render status smoke go deploy kong-on kong-off \
-	argo-login list-apps node0 node1 node2 master worker1 worker2 worker3 clean
+.PHONY: help setup act check autism-traits-check lint validate validate-skills test docs docs-serve render status smoke go \
+	deploy kong-on kong-off autism-traits argo-login list-apps node0 node1 node2 master worker1 worker2 worker3 clean
 
 help: ## Show the operator commands
 	printf 'Soyspray operator commands\n\n'
@@ -37,18 +41,23 @@ help: ## Show the operator commands
 setup: ## Create the venv and install local tooling
 	test -d $(VENV) || python3 -m venv $(VENV)
 	$(VENV)/bin/python -m pip install -r requirements-dev.txt
+	cd $(AUTISM_TRAITS_APP) && npm ci
 
 act: ## Open a shell in the project venv
 	bash -lc 'source $(VENV)/bin/activate && exec bash -i'
 
-check: lint validate test docs ## Run the complete local gate
+check: lint validate test docs autism-traits-check ## Run the complete local gate
 	printf '\nLocal gate passed.\n'
+
+autism-traits-check: ## Check and build the autism traits web application
+	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
 	$(PYTHON) -m ruff check kubernetes/banklab/customer-web/app scripts tests
 	$(PYTHON) -m ruff format --check kubernetes/banklab/customer-web/app scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		roles/apps/kong-bank-lab/tasks/*.yml roles/apps/kong-bank-lab/defaults/*.yml
+		roles/apps/kong-bank-lab/tasks/*.yml roles/apps/kong-bank-lab/defaults/*.yml \
+		roles/apps/autism-traits/tasks/*.yml roles/apps/autism-traits/defaults/*.yml
 
 validate: validate-skills ## Validate YAML, OpenAPI, and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py
@@ -70,7 +79,7 @@ docs: ## Build the operator guide in strict mode
 docs-serve: ## Preview docs with live reload
 	$(MKDOCS) serve --dev-addr $(DOCS_ADDR)
 
-render: ## Render all bank-lab Kustomize packages
+render: ## Render all managed Kustomize packages
 	for path in $(KUSTOMIZATIONS); do \
 		printf '\n--- %s ---\n' "$$path"; \
 		kubectl kustomize "$$path"; \
@@ -87,7 +96,7 @@ go: check ## Run the deployment preflight
 	test -n "$$branch" && test "$$branch" != main || { echo 'Deploy from a topic branch, not main.' >&2; exit 1; }
 	test -z "$$(git status --porcelain)" || { echo 'Commit the working tree before deployment.' >&2; exit 1; }
 	git merge-base --is-ancestor HEAD '@{upstream}' || { echo 'Push the current commit before deployment.' >&2; exit 1; }
-	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --syntax-check --tags kong_bank_lab
+	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --syntax-check --tags kong_bank_lab,autism_traits
 	$(PYTHON) scripts/banklab_status.py || printf '\nBank-lab applications need reconciliation.\n'
 	printf '\nDeployment preflight passed.\n'
 
@@ -100,6 +109,11 @@ kong-on: go ## Start the Kong bank lab
 
 kong-off: go ## Stop the Kong bank lab
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags kong_bank_lab -e kong_bank_lab_enabled=false
+
+autism-traits: go ## Reconcile or remove the autism traits site
+	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags autism_traits \
+		-e autism_traits_enabled=$(AUTISM_TRAITS_ENABLED) \
+		-e autism_traits_target_revision=$(AUTISM_TRAITS_REVISION)
 
 argo-login: ## Log in to the home Argo CD instance
 	argocd login argocd.soyspray.vip --username admin --grpc-web
