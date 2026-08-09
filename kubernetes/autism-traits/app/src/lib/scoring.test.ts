@@ -93,6 +93,22 @@ describe("custom trait-resonance scoring", () => {
   });
 
   test("keeps core domains stronger than general impact context", () => {
+    expect(Object.keys(DOMAIN_WEIGHTS)).toEqual([
+      "conversation",
+      "relationships",
+      "context-nonverbal",
+      "speech-language",
+      "masking",
+      "repetition",
+      "routine-interests",
+      "interests-thinking",
+      "sensory-body",
+      "daily-regulation",
+      "emotional-regulation",
+      "childhood",
+      "identity-style",
+      "context-impact",
+    ]);
     const total = Object.values(DOMAIN_WEIGHTS).reduce((sum, weight) => sum + weight, 0);
     expect(total).toBeCloseTo(1, 10);
     expect(DOMAIN_WEIGHTS["context-impact"]).toBeLessThan(

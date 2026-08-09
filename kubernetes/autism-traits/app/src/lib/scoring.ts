@@ -5,16 +5,20 @@ export type Answer = AnswerValue;
 export type Band = "almost-none" | "low" | "moderate" | "high" | "very-high";
 
 export const DOMAIN_WEIGHTS: Record<string, number> = {
-  conversation: 0.12,
-  "context-nonverbal": 0.14,
-  relationships: 0.1,
-  masking: 0.09,
-  repetition: 0.1,
-  "routine-interests": 0.13,
-  "sensory-body": 0.12,
-  "daily-regulation": 0.06,
-  childhood: 0.1,
-  "context-impact": 0.04,
+  conversation: 0.1,
+  relationships: 0.08,
+  "context-nonverbal": 0.09,
+  "speech-language": 0.07,
+  masking: 0.07,
+  repetition: 0.08,
+  "routine-interests": 0.09,
+  "interests-thinking": 0.09,
+  "sensory-body": 0.1,
+  "daily-regulation": 0.05,
+  "emotional-regulation": 0.05,
+  childhood: 0.07,
+  "identity-style": 0.03,
+  "context-impact": 0.03,
 };
 
 const isNumericAnswer = (answer: Answer | undefined): answer is 0 | 1 | 2 | 3 | 4 =>
