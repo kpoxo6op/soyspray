@@ -26,13 +26,17 @@ EXPECTED_SITE_PATHS = {
     "assets/app.css",
     "images/bamboo-window.webp",
     "images/calm-sea.webp",
+    "images/celestial-globe.webp",
     "images/hokusai-wave.webp",
     "images/irises.webp",
     "images/le-gray-wave.webp",
     "images/moonrise.webp",
     "images/old-trees.webp",
+    "images/ottoman-calligraphy.webp",
     "images/oxbow.webp",
+    "images/the-thinker.webp",
     "images/water-pitcher.webp",
+    "images/wari-tunic.webp",
     "images/wheat-field.webp",
 }
 

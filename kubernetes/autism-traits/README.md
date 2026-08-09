@@ -15,8 +15,8 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-Kustomize puts the bundle in content-hashed ConfigMaps. Four ConfigMaps hold
-the ten WebP images. Each rendered object stays below the repository's
+Kustomize puts the bundle in content-hashed ConfigMaps. Five ConfigMaps hold
+the fourteen WebP images. Each rendered object stays below the repository's
 800 KiB safety threshold. The pod projects all site files into read-only
 `/site` paths.
 

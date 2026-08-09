@@ -114,6 +114,13 @@ spec:
                   items:
                     - {key: le-gray-wave.webp, path: images/le-gray-wave.webp}
                     - {key: water-pitcher.webp, path: images/water-pitcher.webp}
+              - configMap:
+                  name: autism-traits-site-images-e
+                  items:
+                    - {key: celestial-globe.webp, path: images/celestial-globe.webp}
+                    - {key: ottoman-calligraphy.webp, path: images/ottoman-calligraphy.webp}
+                    - {key: the-thinker.webp, path: images/the-thinker.webp}
+                    - {key: wari-tunic.webp, path: images/wari-tunic.webp}
         - name: nginx-config
           configMap:
             name: autism-traits-nginx

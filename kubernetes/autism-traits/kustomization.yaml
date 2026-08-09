@@ -71,3 +71,15 @@ configMapGenerator:
       labels:
         app.kubernetes.io/name: autism-traits
         app.kubernetes.io/part-of: autism-traits
+  - name: autism-traits-site-images-e
+    files:
+      - celestial-globe.webp=app/dist/images/celestial-globe.webp
+      - ottoman-calligraphy.webp=app/dist/images/ottoman-calligraphy.webp
+      - the-thinker.webp=app/dist/images/the-thinker.webp
+      - wari-tunic.webp=app/dist/images/wari-tunic.webp
+    options:
+      annotations:
+        argocd.argoproj.io/sync-options: ServerSideApply=true
+      labels:
+        app.kubernetes.io/name: autism-traits
+        app.kubernetes.io/part-of: autism-traits
