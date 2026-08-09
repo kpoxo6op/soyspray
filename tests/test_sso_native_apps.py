@@ -80,6 +80,19 @@ def test_native_app_blueprint_uses_exact_oidc_clients() -> None:
         "https://booklore.soyspray.vip/api/v1/auth/oidc/backchannel-logout"
     )
 
+    home_assistant = providers["home-assistant-provider"]
+    assert home_assistant["client_type"] == "public"
+    assert home_assistant["client_id"] == "home-assistant"
+    assert "client_secret" not in home_assistant
+    assert home_assistant["grant_types"] == ["authorization_code", "refresh_token"]
+    assert home_assistant["redirect_uris"] == [
+        {
+            "matching_mode": "strict",
+            "url": "https://homeassistant.soyspray.vip/auth/oidc/callback",
+            "redirect_uri_type": "authorization",
+        }
+    ]
+
 
 def test_native_apps_are_limited_to_cluster_admins() -> None:
     entries = _blueprint_entries()
@@ -88,10 +101,15 @@ def test_native_apps_are_limited_to_cluster_admins() -> None:
     }
     bindings = [item for item in entries if item["model"] == "authentik_policies.policybinding"]
 
-    assert set(applications) == {"immich-application", "booklore-application"}
+    assert set(applications) == {
+        "immich-application",
+        "booklore-application",
+        "home-assistant-application",
+    }
     assert {item["identifiers"]["target"] for item in bindings} == {
         "immich-application",
         "booklore-application",
+        "home-assistant-application",
     }
     assert all(
         item["attrs"]["group"] == ["authentik_core.group", ["name", "cluster-admins"]]
