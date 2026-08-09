@@ -35,7 +35,7 @@ data:
       display_name: Authentik
       features:
         automatic_user_linking: true
-        default_redirect: true
+        default_redirect: false
         include_groups_scope: false
       roles:
         admin: cluster-admins

@@ -35,16 +35,19 @@ def test_home_assistant_uses_authentik_and_keeps_native_recovery() -> None:
     assert "include_groups_scope: false" in bootstrap
     assert "automatic_user_linking: true" in bootstrap
     assert "admin: cluster-admins" in bootstrap
-    assert "default_redirect: true" in bootstrap
+    assert "default_redirect: false" in bootstrap
     assert "auth_providers:" not in bootstrap
 
 
 def test_authentik_deploys_home_assistant_from_the_tested_revision() -> None:
-    tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+    defaults = load_yaml("roles/apps/homeassistant/defaults/main.yml")
+    tasks = (ROOT / "roles/apps/homeassistant/tasks/main.yml").read_text()
+    authentik_tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
 
-    assert "- name: Apply Home Assistant SSO" in tasks
+    assert defaults["homeassistant_target_revision"] == "HEAD"
     assert "home-assistant/homeassistant-application.yaml" in tasks
-    assert tasks.count("authentik_target_revision") >= 7
+    assert "homeassistant_target_revision" in tasks
+    assert "- name: Apply Home Assistant SSO" not in authentik_tasks
 
 
 def test_qbittorrent_accepts_authentik_basic_auth_and_keeps_native_api() -> None:

@@ -84,7 +84,7 @@ def test_native_app_blueprint_uses_exact_oidc_clients() -> None:
     assert home_assistant["client_type"] == "public"
     assert home_assistant["client_id"] == "home-assistant"
     assert "client_secret" not in home_assistant
-    assert home_assistant["grant_types"] == ["authorization_code", "refresh_token"]
+    assert home_assistant["grant_types"] == ["authorization_code"]
     assert home_assistant["redirect_uris"] == [
         {
             "matching_mode": "strict",

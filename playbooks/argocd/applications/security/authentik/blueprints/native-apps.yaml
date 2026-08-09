@@ -129,7 +129,7 @@ entries:
       invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
       client_type: public
       client_id: home-assistant
-      grant_types: [authorization_code, refresh_token]
+      grant_types: [authorization_code]
       redirect_uris:
         - matching_mode: strict
           url: https://homeassistant.soyspray.vip/auth/oidc/callback
