@@ -26,6 +26,13 @@ def test_authentik_restarts_when_runtime_oidc_clients_change() -> None:
     assert values["worker"]["podAnnotations"] == expected
 
 
+def test_authentik_worker_probe_allows_blueprint_apply_time() -> None:
+    values = load_yaml("playbooks/argocd/applications/security/authentik/values.yaml")
+
+    for probe_name in ("livenessProbe", "readinessProbe", "startupProbe"):
+        assert values["worker"][probe_name]["timeoutSeconds"] == 15
+
+
 def test_authentik_has_a_headlamp_oidc_client() -> None:
     blueprint = (
         ROOT / "playbooks/argocd/applications/security/authentik/blueprints/cluster-sso.yaml"
