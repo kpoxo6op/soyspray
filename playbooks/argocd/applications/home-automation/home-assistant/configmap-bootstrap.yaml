@@ -29,6 +29,17 @@ data:
         - 172.16.0.0/12
         - 192.168.0.0/16
 
+    auth_oidc:
+      client_id: home-assistant
+      discovery_url: https://auth.soyspray.vip/application/o/home-assistant/.well-known/openid-configuration
+      display_name: Authentik
+      features:
+        automatic_user_linking: false
+        default_redirect: false
+        include_groups_scope: false
+      roles:
+        admin: cluster-admins
+
     input_boolean:
       tapo_bedtime_motion_guard:
         name: Tapo bedtime motion guard

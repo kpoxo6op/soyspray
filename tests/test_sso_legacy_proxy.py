@@ -156,9 +156,12 @@ def test_each_web_ingress_uses_authentik_forward_auth() -> None:
             f"https://{settings['host']}/outpost.goauthentik.io/start?"
             "rd=$scheme://$http_host$escaped_request_uri"
         )
+        expected_headers = response_headers | (
+            {"Authorization"} if name == "qbittorrent" else set()
+        )
         assert (
             set(annotations["nginx.ingress.kubernetes.io/auth-response-headers"].split(","))
-            == response_headers
+            == expected_headers
         )
         assert annotations["nginx.ingress.kubernetes.io/auth-proxy-set-headers"] == (
             f"{settings['namespace']}/{settings['config_map']}"

@@ -67,6 +67,12 @@
         {{ (existing['IMMICH_OIDC_CLIENT_SECRET'] | b64decode)
            if 'IMMICH_OIDC_CLIENT_SECRET' in existing
            else lookup('password', '/dev/null length=64 chars=ascii_letters,digits') }}
+      QBITTORRENT_WEB_USERNAME: >-
+        {{ (existing['QBITTORRENT_WEB_USERNAME'] | b64decode)
+           if 'QBITTORRENT_WEB_USERNAME' in existing else 'admin' }}
+      QBITTORRENT_WEB_PASSWORD: >-
+        {{ (existing['QBITTORRENT_WEB_PASSWORD'] | b64decode)
+           if 'QBITTORRENT_WEB_PASSWORD' in existing else '123' }}
       SOYSPRAY_BREAK_GLASS_PASSWORD: >-
         {{ (existing['SOYSPRAY_BREAK_GLASS_PASSWORD'] | b64decode)
            if 'SOYSPRAY_BREAK_GLASS_PASSWORD' in existing

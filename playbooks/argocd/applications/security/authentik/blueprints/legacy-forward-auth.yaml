@@ -152,6 +152,10 @@ entries:
       external_host: https://torrent.soyspray.vip
       mode: forward_single
       skip_path_regex: ^/api/v2(/|$)
+      basic_auth_enabled: true
+      basic_auth_user_attribute: qbittorrent_username
+      basic_auth_password_attribute: qbittorrent_password
+      intercept_header_auth: false
 
   - model: authentik_core.application
     id: qbittorrent-proxy-application
