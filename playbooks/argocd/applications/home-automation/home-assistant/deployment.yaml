@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       annotations:
-        soyspray.vip/bootstrap-config-revision: "2026-05-24-bedtime-motion-guard"
+        soyspray.vip/bootstrap-config-revision: "2026-08-09-authentik-oidc"
       labels:
         app: home-assistant
         component: main
@@ -61,6 +61,34 @@ spec:
               rm -rf "${install_dir}"
               mkdir -p "${install_dir}"
               unzip -q "${tmp_dir}/dreame_vacuum.zip" -d "${install_dir}"
+              echo "${version}" > "${version_file}"
+              rm -rf "${tmp_dir}"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+        - name: install-oidc-auth
+          image: alpine:3.20
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              apk add --no-cache ca-certificates unzip wget >/dev/null
+              version="v1.1.1"
+              expected_sha256="9ce9e6153f80c781e360b93e097ff7d87d09235430fc48e7a67d97dda5fc3322"
+              install_dir="/config/custom_components/auth_oidc"
+              version_file="${install_dir}/.soyspray-version"
+
+              if [ -f "${version_file}" ] && [ "$(cat "${version_file}")" = "${version}" ]; then
+                exit 0
+              fi
+
+              tmp_dir="$(mktemp -d)"
+              wget -q -O "${tmp_dir}/hass-oidc-auth.zip" "https://github.com/christiaangoossens/hass-oidc-auth/releases/download/${version}/hass-oidc-auth.zip"
+              echo "${expected_sha256}  ${tmp_dir}/hass-oidc-auth.zip" | sha256sum -c -
+              rm -rf "${install_dir}"
+              mkdir -p "${install_dir}"
+              unzip -q "${tmp_dir}/hass-oidc-auth.zip" -d "${install_dir}"
               echo "${version}" > "${version_file}"
               rm -rf "${tmp_dir}"
           volumeMounts:
