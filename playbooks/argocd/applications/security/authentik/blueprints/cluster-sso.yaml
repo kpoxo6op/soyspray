@@ -27,6 +27,10 @@ entries:
     id: cluster-admins
     identifiers:
       name: cluster-admins
+    attrs:
+      attributes:
+        qbittorrent_username: !Env QBITTORRENT_WEB_USERNAME
+        qbittorrent_password: !Env QBITTORRENT_WEB_PASSWORD
 
   - model: authentik_core.user
     id: boris-user
