@@ -34,7 +34,7 @@ data:
       discovery_url: https://auth.soyspray.vip/application/o/home-assistant/.well-known/openid-configuration
       display_name: Authentik
       features:
-        automatic_user_linking: true
+        automatic_user_linking: false
         default_redirect: false
         include_groups_scope: false
       roles:

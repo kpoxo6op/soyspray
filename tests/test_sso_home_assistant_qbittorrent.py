@@ -33,7 +33,7 @@ def test_home_assistant_uses_authentik_and_keeps_native_recovery() -> None:
     )
     assert "display_name: Authentik" in bootstrap
     assert "include_groups_scope: false" in bootstrap
-    assert "automatic_user_linking: true" in bootstrap
+    assert "automatic_user_linking: false" in bootstrap
     assert "admin: cluster-admins" in bootstrap
     assert "default_redirect: false" in bootstrap
     assert "auth_providers:" not in bootstrap
