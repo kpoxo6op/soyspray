@@ -42,7 +42,7 @@
       },
       "id": 1,
       "options": {
-        "content": "# Authentik · identity control plane\nOne view of SSO request health, protected-app proxy traffic, worker queues, pod resources, and the two-node CloudNativePG PostgreSQL database. Green status cards show the expected live replicas. PostgreSQL panels depend on the metrics NetworkPolicy path. **Authentik 2026.5.6** · refresh 1m · all data stays inside the cluster.",
+        "content": "# Authentik · SSO\nLive sign-in, app, worker, PostgreSQL, and backup health · **2026.5.6**.",
         "mode": "markdown"
       },
       "pluginVersion": "11.3.0",

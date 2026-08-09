@@ -44,6 +44,9 @@ def test_authentik_dashboard_is_native_focused_and_well_laid_out() -> None:
     text_panels = [panel for panel in panels if panel["type"] == "text"]
     assert len(text_panels) == 1
     intro = text_panels[0]["options"]["content"]
+    intro_lines = intro.splitlines()
+    assert len(intro_lines[0]) <= 24
+    assert len(" ".join(intro_lines[1:])) <= 90
     assert "2026.5.6" in intro
     assert "PostgreSQL" in intro
     assert len(intro) < 650
