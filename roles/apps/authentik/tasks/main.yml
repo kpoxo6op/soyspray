@@ -396,15 +396,6 @@
          | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
   tags: authentik
 
-- name: Apply Home Assistant SSO
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_path }}"
-    definition: >-
-      {{ lookup('file', playbook_dir + '/argocd/applications/home-automation/home-assistant/homeassistant-application.yaml')
-         | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
-  tags: authentik
-
 - name: Apply legacy forward-auth applications
   kubernetes.core.k8s:
     state: present
