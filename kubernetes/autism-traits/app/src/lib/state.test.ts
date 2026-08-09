@@ -4,14 +4,16 @@ import {
   CURRENT_STATE_VERSION,
   initialState,
   reduceAssessmentState,
+  resolveTheme,
   restoreState,
   serializeState,
 } from "./state";
 
 describe("local assessment state", () => {
-  test("round-trips answers, language, and the last section", () => {
+  test("round-trips answers, language, theme, and the last section", () => {
     let state = initialState();
     state = reduceAssessmentState(state, { type: "set-language", language: "ru" });
+    state = reduceAssessmentState(state, { type: "set-theme", theme: "dark" });
     state = reduceAssessmentState(state, { type: "visit-section", sectionId: "masking" });
     state = reduceAssessmentState(state, { type: "answer", questionId: "q01", value: 3 });
 
@@ -26,9 +28,36 @@ describe("local assessment state", () => {
     expect(restoreState(JSON.stringify({ ...initialState(), language: "de" }))).toEqual(
       initialState(),
     );
+    expect(restoreState(JSON.stringify({ ...initialState(), theme: "sepia" }))).toEqual(
+      initialState(),
+    );
     expect(restoreState(JSON.stringify({ ...initialState(), answers: { q01: 8 } }))).toEqual(
       initialState(),
     );
+  });
+
+  test("migrates valid version-1 progress without a theme to Auto", () => {
+    const priorState = {
+      version: 1,
+      language: "ru",
+      answers: { q01: 3 },
+      revealed: true,
+      started: true,
+      lastSectionId: "masking",
+    } as const;
+
+    expect(restoreState(JSON.stringify(priorState))).toEqual({
+      ...priorState,
+      theme: "auto",
+    });
+  });
+
+  test("resolves Auto from the system while explicit themes override it", () => {
+    expect(initialState().theme).toBe("auto");
+    expect(resolveTheme("auto", false)).toBe("light");
+    expect(resolveTheme("auto", true)).toBe("dark");
+    expect(resolveTheme("light", true)).toBe("light");
+    expect(resolveTheme("dark", false)).toBe("dark");
   });
 
   test("hides a revealed result when an answer changes", () => {
@@ -38,15 +67,17 @@ describe("local assessment state", () => {
     expect(state.revealed).toBe(false);
   });
 
-  test("start over and retake clear answers but preserve language", () => {
+  test("start over and retake clear answers but preserve language and theme", () => {
     let state = reduceAssessmentState(initialState(), {
       type: "set-language",
       language: "ru",
     });
+    state = reduceAssessmentState(state, { type: "set-theme", theme: "dark" });
     state = reduceAssessmentState(state, { type: "answer", questionId: "q01", value: 4 });
 
     const reset = reduceAssessmentState(state, { type: "reset" });
     expect(reset.language).toBe("ru");
+    expect(reset.theme).toBe("dark");
     expect(reset.answers).toEqual({});
     expect(reset.started).toBe(false);
 
@@ -55,6 +86,7 @@ describe("local assessment state", () => {
       firstSectionId: "conversation",
     });
     expect(retake.language).toBe("ru");
+    expect(retake.theme).toBe("dark");
     expect(retake.answers).toEqual({});
     expect(retake.started).toBe(true);
     expect(retake.lastSectionId).toBe("conversation");

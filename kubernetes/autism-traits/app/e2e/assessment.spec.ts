@@ -19,14 +19,26 @@ const startAssessment = async (page: Page) => {
 };
 
 const completeAssessment = async (page: Page) => {
-  for (let section = 0; section < 10; section += 1) {
+  let visitedSections = 0;
+  while (!/#\/complete$/.test(page.url())) {
+    expect(visitedSections).toBeLessThan(100);
     await expect(page.getByTestId("result")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Continue" })).toBeDisabled();
     await answerSection(page);
     await expect(page.getByRole("button", { name: "Continue" })).toBeEnabled();
     await page.getByRole("button", { name: "Continue" }).click();
+    visitedSections += 1;
   }
   await expect(page).toHaveURL(/#\/complete$/);
+};
+
+const continueThroughAnsweredSections = async (page: Page) => {
+  let visitedSections = 0;
+  while (!/#\/complete$/.test(page.url())) {
+    expect(visitedSections).toBeLessThan(100);
+    await page.getByRole("button", { name: "Continue" }).click();
+    visitedSections += 1;
+  }
 };
 
 test("intro and source pages preserve the required content and language choice", async ({ page }) => {
@@ -37,6 +49,14 @@ test("intro and source pages preserve the required content and language choice",
   await expect(
     page.getByText(
       "This is not a diagnostic test. If it makes you curious, seek a professional assessment like I did.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText("v1 - mediocrity AI created because I did not ask to adhere to my vision."),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "v2 - rich opinionated detailed sourced from real human. AI intervention minimized. Simpler styling",
     ),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "See the sources" })).toBeVisible();
@@ -70,6 +90,7 @@ test("mouse flow keeps the result hidden until explicit reveal and supports edit
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop");
+  test.slow();
   await startAssessment(page);
   await completeAssessment(page);
 
@@ -90,9 +111,7 @@ test("mouse flow keeps the result hidden until explicit reveal and supports edit
   const first = page.getByTestId("question-card").first();
   await first.getByRole("radio", { name: "Sometimes", exact: true }).click();
   await expect(page.getByTestId("result")).toHaveCount(0);
-  for (let section = 0; section < 10; section += 1) {
-    await page.getByRole("button", { name: "Continue" }).click();
-  }
+  await continueThroughAnsweredSections(page);
   await expect(page.getByTestId("result")).toHaveCount(0);
   await page.getByRole("button", { name: "Reveal my result" }).click();
 
@@ -116,7 +135,7 @@ test("keyboard, browser Back, refresh, and local resume preserve answers", async
     await expect(firstOption).toBeChecked();
   }
   await page.keyboard.press("Alt+ArrowRight");
-  await expect(page).toHaveURL(/#\/assessment\/context-nonverbal$/);
+  await expect(page).toHaveURL(/#\/assessment\/relationships$/);
   await page.goBack();
   await expect(page).toHaveURL(/#\/assessment\/conversation$/);
   await expect(cards.first().getByRole("radio", { checked: true })).toHaveCount(1);
@@ -129,7 +148,7 @@ test("keyboard, browser Back, refresh, and local resume preserve answers", async
   await expect(page).toHaveURL(/#\/assessment\/conversation$/);
 });
 
-test("start over clears saved answers without changing the language", async ({ page }, testInfo) => {
+test("start over clears saved answers without changing language or theme", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop");
   await startAssessment(page);
   await page
@@ -137,10 +156,53 @@ test("start over clears saved answers without changing the language", async ({ p
     .first()
     .getByRole("radio", { name: "Sometimes", exact: true })
     .click();
-  await page.getByRole("button", { name: "Start over" }).click();
-  await page.getByRole("button", { name: "Confirm start over" }).click();
+  await page.getByRole("combobox", { name: "Theme" }).selectOption("dark");
+  await page.getByRole("button", { name: "Русский" }).click();
+  await page.getByRole("button", { name: "Начать заново" }).click();
+  await page.getByRole("button", { name: "Подтвердить начало заново" }).click();
   await expect(page).toHaveURL(/#\/intro$/);
-  await expect(page.getByRole("link", { name: "Resume assessment" })).toHaveCount(0);
+  await expect(page.locator("html")).toHaveAttribute("lang", "ru");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.getByRole("combobox", { name: "Тема" })).toHaveValue("dark");
+  await expect(page.getByRole("link", { name: "Продолжить опрос" })).toHaveCount(0);
+});
+
+test("Auto theme follows system changes and stays selected after reload", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+
+  const theme = page.getByRole("combobox", { name: "Theme" });
+  await expect(theme).toHaveValue("auto");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.reload();
+  await expect(theme).toHaveValue("auto");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});
+
+test("explicit Light and Dark themes override the system and persist", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+
+  const theme = page.getByRole("combobox", { name: "Theme" });
+  await theme.selectOption("light");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.reload();
+  await expect(theme).toHaveValue("light");
+
+  await theme.selectOption("dark");
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.reload();
+  await expect(theme).toHaveValue("dark");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
 test("phone-sized touch targets and responsive pages avoid horizontal overflow", async ({
@@ -165,6 +227,7 @@ test("phone-sized touch targets and responsive pages avoid horizontal overflow",
 
 test("key pages have no detectable WCAG A or AA violations", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop");
+  test.slow();
   await page.goto("/");
   expect((await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze()).violations).toEqual([]);
 

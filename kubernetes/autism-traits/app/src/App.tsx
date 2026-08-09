@@ -31,11 +31,13 @@ import {
 } from "@/lib/scoring";
 import {
   reduceAssessmentState,
+  resolveTheme,
   restoreState,
   serializeState,
   type AssessmentAction,
   type AssessmentState,
   type Language,
+  type ThemePreference,
 } from "@/lib/state";
 import { uiCopy } from "@/ui-copy";
 
@@ -115,6 +117,19 @@ const Header = ({ language, state, dispatch }: SharedPageProps) => {
           {copy.siteName}
         </a>
         <nav aria-label={language === "en" ? "Page controls" : "Управление страницей"}>
+          <label className="theme-control">
+            <span>{copy.themeLabel}</span>
+            <select
+              value={state.theme}
+              onChange={(event) =>
+                dispatch({ type: "set-theme", theme: event.target.value as ThemePreference })
+              }
+            >
+              <option value="auto">{copy.themeAuto}</option>
+              <option value="light">{copy.themeLight}</option>
+              <option value="dark">{copy.themeDark}</option>
+            </select>
+          </label>
           <Button variant="quiet" onClick={changeLanguage} aria-label={copy.languageButton}>
             {copy.languageButton}
           </Button>
@@ -153,11 +168,17 @@ const IntroPage = ({ language, state }: SharedPageProps) => {
     <main className="page page--intro" id="main-content">
       <div className="intro-grid page-enter">
         <div className="intro-copy">
-          <p className="eyebrow">{copy.introEyebrow}</p>
           <h1>{copy.introTitle}</h1>
           <p className="owner-intro">{appCopy[language].ownerIntro}</p>
           <p className="lede">{copy.introBody}</p>
           <p className="medical-note">{appCopy[language].medicalNote}</p>
+          <div className="version-history">
+            <p>v1 - mediocrity AI created because I did not ask to adhere to my vision.</p>
+            <p>
+              v2 - rich opinionated detailed sourced from real human. AI intervention minimized.
+              Simpler styling
+            </p>
+          </div>
           <div className="primary-actions">
             {hasProgress && (
               <a
@@ -193,7 +214,6 @@ const SourcesPage = ({ language }: SharedPageProps) => {
   return (
     <main className="page page-enter" id="main-content">
       <div className="page-heading">
-        <p className="eyebrow">{copy.sourcesEyebrow}</p>
         <h1>{copy.sourcesTitle}</h1>
         <p className="lede">{copy.sourcesBody}</p>
         <p>{copy.sourceBalance}</p>
@@ -344,7 +364,7 @@ const AssessmentPage = ({ language, state, dispatch, sectionId }: SharedPageProp
     <main className="page assessment-page page-enter" id="main-content">
       <div className="assessment-heading">
         <div>
-          <p className="eyebrow">
+          <p className="section-count">
             {copy.section} {sectionIndex + 1} / {sections.length}
           </p>
           <h1>{section.title[language]}</h1>
@@ -411,7 +431,6 @@ const CompletionPage = ({ language, state, dispatch }: SharedPageProps) => {
   return (
     <main className="page page--center page-enter" id="main-content">
       <Card className="completion-card">
-        <p className="eyebrow">{copy.completeEyebrow}</p>
         <h1>{copy.completeTitle}</h1>
         <p className="lede">{copy.completeBody}</p>
         <div className="primary-actions">
@@ -458,7 +477,6 @@ const ResultPage = ({ language, state, dispatch }: SharedPageProps) => {
   return (
     <main className="page result-page page-enter" data-testid="result" id="main-content">
       <section className="result-hero" aria-labelledby="result-title">
-        <p className="eyebrow">{copy.resultEyebrow}</p>
         <h1 id="result-title">{copy.scoreLabel}</h1>
         <p className="score" aria-label={`${copy.scoreLabel}: ${result.overall} ${copy.outOfHundred}`}>
           {result.overall}
@@ -672,8 +690,12 @@ export const App = () => {
     () => restoreState(window.localStorage.getItem(STORAGE_KEY)),
   );
   const [route, setRoute] = useState<Route>(() => parseRoute());
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() =>
+    window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
   const mainRef = useRef<HTMLDivElement>(null);
   const ready = useMemo(() => canReveal(state.answers, questions), [state.answers]);
+  const resolvedTheme = resolveTheme(state.theme, systemPrefersDark);
 
   useEffect(() => {
     if (!window.location.hash) navigate("/intro", true);
@@ -687,6 +709,18 @@ export const App = () => {
     document.documentElement.lang = state.language;
     document.title = uiCopy[state.language].siteName;
   }, [state]);
+
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-color-scheme: dark)");
+    const updateSystemTheme = (event: MediaQueryListEvent) => setSystemPrefersDark(event.matches);
+    query.addEventListener("change", updateSystemTheme);
+    return () => query.removeEventListener("change", updateSystemTheme);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolvedTheme;
+    document.documentElement.style.colorScheme = resolvedTheme;
+  }, [resolvedTheme]);
 
   useEffect(() => {
     mainRef.current?.focus();

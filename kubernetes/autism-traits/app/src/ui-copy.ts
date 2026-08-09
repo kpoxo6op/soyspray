@@ -4,13 +4,15 @@ export const uiCopy = {
   en: {
     siteName: "Traits, in context",
     languageButton: "Русский",
-    introEyebrow: "Adult self-reflection",
+    themeLabel: "Theme",
+    themeAuto: "Auto",
+    themeLight: "Light",
+    themeDark: "Dark",
     introTitle: "A quieter way to notice patterns",
     introBody:
       "This experience looks for patterns across communication, relationships, masking, repetition, routine, interests, sensory processing, daily capacity, and childhood history.",
     seeSources: "See the sources",
     resume: "Resume assessment",
-    sourcesEyebrow: "Where the content came from",
     sourcesTitle: "Thirty caption-backed perspectives",
     sourcesBody:
       "I asked Codex to collect, read, translate, deduplicate, and compile autistic traits from 30 quality-filtered videos.",
@@ -43,13 +45,11 @@ export const uiCopy = {
     confirmStartOver: "Confirm start over",
     cancel: "Cancel",
     startOverPrompt: "Clear all saved answers and return to the first page?",
-    completeEyebrow: "Assessment complete",
     completeTitle: "Ready to reveal",
     completeBody:
       "Your answers are complete. Nothing has been calculated or shown on screen until you choose the button below.",
     reviewBeforeReveal: "Review answers",
     reveal: "Reveal my result",
-    resultEyebrow: "Your reflection",
     scoreLabel: "Custom trait-resonance score",
     outOfHundred: "out of 100",
     continuumLabel: "Full trait-resonance continuum",
@@ -88,13 +88,15 @@ export const uiCopy = {
   ru: {
     siteName: "Особенности в контексте",
     languageButton: "English",
-    introEyebrow: "Саморефлексия для взрослых",
+    themeLabel: "Тема",
+    themeAuto: "Авто",
+    themeLight: "Светлая",
+    themeDark: "Тёмная",
     introTitle: "Спокойный способ заметить закономерности",
     introBody:
       "Этот опрос помогает увидеть закономерности в общении, отношениях, маскинге, повторениях, распорядке, интересах, сенсорном восприятии, повседневных возможностях и детском опыте.",
     seeSources: "Посмотреть источники",
     resume: "Продолжить опрос",
-    sourcesEyebrow: "Откуда взялось содержание",
     sourcesTitle: "Тридцать точек зрения на основе субтитров",
     sourcesBody:
       "Я попросил Codex собрать, прочитать, перевести, объединить и убрать повторы в описаниях аутистических особенностей из 30 видео, прошедших отбор по качеству.",
@@ -127,13 +129,11 @@ export const uiCopy = {
     confirmStartOver: "Подтвердить начало заново",
     cancel: "Отмена",
     startOverPrompt: "Удалить все сохранённые ответы и вернуться на первую страницу?",
-    completeEyebrow: "Опрос завершён",
     completeTitle: "Результат готов к показу",
     completeBody:
       "Все ответы заполнены. До нажатия кнопки ниже результат не вычисляется и не показывается на экране.",
     reviewBeforeReveal: "Проверить ответы",
     reveal: "Показать мой результат",
-    resultEyebrow: "Ваша саморефлексия",
     scoreLabel: "Пользовательская оценка близости особенностей",
     outOfHundred: "из 100",
     continuumLabel: "Полная шкала близости особенностей",
