@@ -1,10 +1,10 @@
 # playbooks/yaml/argocd-apps/qbittorrent/deployment.yaml
 #------------------------------------------------------------------------------
 # Minimal qBittorrent Deployment (raw Kubernetes)
-# * Pinned image: linuxserver/qbittorrent:libtorrentv1-release-5.0.5_v1.2.20-ls73
-#   - qBittorrent 5.0.5
+# * Pinned image: linuxserver/qbittorrent:libtorrentv1-5.2.3_v1.2.20-ls126
+#   - qBittorrent 5.2.3
 #   - libtorrent 1.2.20
-#   - linuxserver build ls73 (multi‑arch: amd64 & arm64)
+#   - linuxserver build ls126 (multi‑arch: amd64 & arm64)
 # * Volumes:
 #     • /config  -> pvc: qbittorrent-config (1 Gi, Longhorn)
 #     • /downloads -> pvc: media-downloads (1800 Gi, local PV on /srv/media/downloads)
@@ -52,7 +52,7 @@ spec:
       #
       containers:
         - name: qbittorrent
-          image: linuxserver/qbittorrent:libtorrentv1-release-5.0.5_v1.2.20-ls73
+          image: linuxserver/qbittorrent:libtorrentv1-5.2.3_v1.2.20-ls126
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
