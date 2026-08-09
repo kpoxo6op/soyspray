@@ -1,0 +1,63 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: autism-traits
+resources:
+  - namespace.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/instance: autism-traits
+configMapGenerator:
+  - name: autism-traits-nginx
+    files:
+      - nginx.conf=config/nginx.conf
+    options:
+      labels:
+        app.kubernetes.io/name: autism-traits
+        app.kubernetes.io/part-of: autism-traits
+  - name: autism-traits-site-core
+    files:
+      - index.html=app/dist/index.html
+      - app.js=app/dist/assets/app.js
+      - app.css=app/dist/assets/app.css
+    options:
+      labels:
+        app.kubernetes.io/name: autism-traits
+        app.kubernetes.io/part-of: autism-traits
+  - name: autism-traits-site-images-a
+    files:
+      - bamboo-window.webp=app/dist/images/bamboo-window.webp
+      - moonrise.webp=app/dist/images/moonrise.webp
+      - wheat-field.webp=app/dist/images/wheat-field.webp
+    options:
+      labels:
+        app.kubernetes.io/name: autism-traits
+        app.kubernetes.io/part-of: autism-traits
+  - name: autism-traits-site-images-b
+    files:
+      - hokusai-wave.webp=app/dist/images/hokusai-wave.webp
+      - irises.webp=app/dist/images/irises.webp
+    options:
+      labels:
+        app.kubernetes.io/name: autism-traits
+        app.kubernetes.io/part-of: autism-traits
+  - name: autism-traits-site-images-c
+    files:
+      - calm-sea.webp=app/dist/images/calm-sea.webp
+      - old-trees.webp=app/dist/images/old-trees.webp
+      - oxbow.webp=app/dist/images/oxbow.webp
+    options:
+      labels:
+        app.kubernetes.io/name: autism-traits
+        app.kubernetes.io/part-of: autism-traits
+  - name: autism-traits-site-images-d
+    files:
+      - le-gray-wave.webp=app/dist/images/le-gray-wave.webp
+      - water-pitcher.webp=app/dist/images/water-pitcher.webp
+    options:
+      labels:
+        app.kubernetes.io/name: autism-traits
+        app.kubernetes.io/part-of: autism-traits
