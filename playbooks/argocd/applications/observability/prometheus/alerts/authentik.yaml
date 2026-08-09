@@ -1,0 +1,156 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: authentik
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: authentik.product
+      rules:
+        - alert: AuthentikHighHTTP5xxRate
+          expr: |
+            (
+              sum(rate(django_http_responses_total_by_status_total{
+                namespace="authentik",
+                job="authentik-server-metrics",
+                status=~"5.."
+              }[5m]))
+              /
+              clamp_min(sum(rate(django_http_responses_total_by_status_total{
+                namespace="authentik",
+                job="authentik-server-metrics"
+              }[5m])), 0.001)
+            ) > 0.05
+            and
+            sum(rate(django_http_responses_total_by_status_total{
+              namespace="authentik",
+              job="authentik-server-metrics"
+            }[5m])) > 0.1
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: Authentik returns too many server errors
+            description: >-
+              Check the Authentik server logs and recent configuration changes;
+              more than 5% of HTTP responses were 5xx for ten minutes.
+
+        - alert: AuthentikTaskQueueBacklog
+          expr: |
+            max(sum by (queue_name) (authentik_tasks_queued{
+              namespace="authentik",
+              job="authentik-worker-metrics"
+            })) > 25
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: Authentik worker queue is not draining
+            description: >-
+              Check the Authentik worker logs and resource use; at least one
+              task queue has held more than 25 tasks for fifteen minutes.
+
+        - alert: AuthentikWorkerVersionMismatch
+          expr: |
+            max(authentik_tasks_workers{
+              namespace="authentik",
+              job="authentik-worker-metrics",
+              version_matched="False"
+            }) > 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Authentik server and worker versions do not match
+            description: >-
+              Check the Authentik rollout and image versions; a worker has
+              reported a version mismatch for ten minutes.
+
+        - alert: AuthentikEmbeddedOutpostDisconnected
+          expr: |
+            min(authentik_outpost_connection{
+              namespace="authentik",
+              job="authentik-server-metrics",
+              outpost_type="proxy"
+            }) < 1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Authentik embedded proxy outpost is disconnected
+            description: >-
+              Check the embedded outpost status and Authentik server logs;
+              protected applications can no longer complete forward auth.
+
+        - alert: AuthentikPostgreSQLBackupStale
+          expr: |
+            max(cnpg_collector_last_available_backup_timestamp{
+              namespace="authentik",
+              job="authentik/authentik-postgresql"
+            }) == 0
+            or
+            time() - max(cnpg_collector_last_available_backup_timestamp{
+              namespace="authentik",
+              job="authentik/authentik-postgresql"
+            }) > 93600
+          for: 30m
+          labels:
+            severity: critical
+          annotations:
+            summary: Authentik PostgreSQL has no recent base backup
+            description: >-
+              Check the CloudNativePG Backup resources, object-store access,
+              and operator logs; no usable base backup is newer than 26 hours.
+
+        - alert: AuthentikPostgreSQLReplicationLag
+          expr: |
+            max(cnpg_pg_replication_lag{
+              namespace="authentik",
+              job="authentik/authentik-postgresql"
+            }) > 60
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Authentik PostgreSQL replica is behind
+            description: >-
+              Check the CloudNativePG cluster, replica logs, and network;
+              replication lag has exceeded 60 seconds for ten minutes.
+
+        - alert: AuthentikPostgreSQLWALArchivingStalled
+          expr: |
+            sum(cnpg_collector_pg_wal_archive_status{
+              namespace="authentik",
+              job="authentik/authentik-postgresql",
+              value="ready"
+            }) > 0
+            and
+            max(cnpg_pg_stat_archiver_seconds_since_last_archival{
+              namespace="authentik",
+              job="authentik/authentik-postgresql"
+            }) > 900
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: Authentik PostgreSQL WAL archiving is stalled
+            description: >-
+              Check the PostgreSQL archiver, object-store credentials, and
+              network; ready WAL files have waited more than fifteen minutes.
+
+        - alert: AuthentikPostgreSQLArchiverFailures
+          expr: |
+            sum(increase(cnpg_pg_stat_archiver_failed_count{
+              namespace="authentik",
+              job="authentik/authentik-postgresql"
+            }[15m])) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: Authentik PostgreSQL WAL archiver is failing
+            description: >-
+              Check the PostgreSQL and CloudNativePG operator logs; at least
+              one WAL archive operation failed during the last fifteen minutes.
