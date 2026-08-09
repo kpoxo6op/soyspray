@@ -65,6 +65,15 @@ configMapGenerator:
       annotations:
         kustomize.toolkit.fluxcd.io/substitute: disabled
 
+  - name: grafana-dashboard-authentik
+    files:
+      - dashboards/authentik.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
   - name: grafana-dashboard-node-hardware
     files:
       - dashboards/node-hardware.json
@@ -91,4 +100,5 @@ resources:
   - alerts/backups-essential.yaml
   - alerts/cert-expiry.yaml
   - alerts/domain-health.yaml
+  - alerts/authentik.yaml
   - alerts/node-hardware.yaml

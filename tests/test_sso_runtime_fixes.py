@@ -25,6 +25,24 @@ def test_cnpg_operator_can_read_authentik_instance_status() -> None:
             ],
             "ports": [{"protocol": "TCP", "port": 8000}],
         },
+        {
+            "from": [
+                {
+                    "namespaceSelector": {
+                        "matchLabels": {
+                            "kubernetes.io/metadata.name": "monitoring",
+                        },
+                    },
+                    "podSelector": {
+                        "matchLabels": {
+                            "app.kubernetes.io/name": "prometheus",
+                            "prometheus": "kube-prometheus-stack-prometheus",
+                        },
+                    },
+                },
+            ],
+            "ports": [{"protocol": "TCP", "port": 9187}],
+        },
     ]
 
 
