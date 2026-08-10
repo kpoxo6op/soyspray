@@ -56,12 +56,16 @@ test("intro and source pages preserve the required content and language choice",
     ),
   ).toBeVisible();
   await expect(
-    page.getByText("v1 - mediocrity AI created because I did not ask to adhere to my vision."),
-  ).toBeVisible();
-  await expect(
     page.getByText("v2 - 328 detailed questions drawn from 30 captioned videos. Minimal AI rewriting. Simpler design."),
   ).toBeVisible();
   await expect(page.getByRole("link", { name: "See the sources" })).toBeVisible();
+  await page.getByRole("radio", { name: "v1 · 50 questions" }).click();
+  await expect(
+    page.getByText("v1 - mediocrity AI created because I did not ask to adhere to my vision."),
+  ).toBeVisible();
+  await expect(page.getByRole("radio", { name: "v1 · 50 questions" })).toBeChecked();
+  await page.getByRole("radio", { name: "v2 · 328 questions" }).click();
+  await expect(page.getByRole("button", { name: "Start v2" })).toBeVisible();
 
   await page.getByRole("button", { name: "Русский" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "ru");
@@ -70,12 +74,13 @@ test("intro and source pages preserve the required content and language choice",
   await expect(page).toHaveTitle("Подробный опрос об аутизме");
   await expect(
     page.getByText(
-      "v1 — посредственный результат ИИ, потому что я не попросил ИИ следовать моему замыслу.",
+      "v2 — 328 подробных вопросов по 30 видео с субтитрами. Минимум ИИ-редактирования. Более простой дизайн.",
     ),
   ).toBeVisible();
+  await page.getByRole("radio", { name: "v1 · 50 вопросов" }).click();
   await expect(
     page.getByText(
-      "v2 — 328 подробных вопросов по 30 видео с субтитрами. Минимум ИИ-редактирования. Более простой дизайн.",
+      "v1 — посредственный результат ИИ, потому что я не попросил ИИ следовать моему замыслу.",
     ),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "English" })).toBeVisible();
@@ -95,6 +100,33 @@ test("intro and source pages preserve the required content and language choice",
   await expect(page.getByTestId("source-card").first().getByRole("link")).toHaveAttribute(
     "href",
     /^https:\/\/www\.youtube\.com\/watch\?v=/,
+  );
+});
+
+test("v1 and v2 run as separate question sets", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop");
+  await page.goto("/");
+
+  await page.getByRole("radio", { name: "v1 · 50 questions" }).click();
+  await page.getByRole("button", { name: "Start v1" }).click();
+  await expect(page).toHaveURL(/#\/assessment\/conversation$/);
+  await expect(page.getByText("0 / 50 answered")).toBeVisible();
+  await expect(page.getByTestId("question-card")).toHaveCount(4);
+  await page
+    .getByTestId("question-card")
+    .first()
+    .getByRole("radio", { name: "Often", exact: true })
+    .click();
+  await completeAssessment(page);
+  await page.getByRole("button", { name: "Reveal my result" }).click();
+  await expect(page.getByTestId("result")).toBeVisible();
+
+  await page.getByRole("link", { name: "Detailed autism questionnaire" }).click();
+  await page.getByRole("radio", { name: "v2 · 328 questions" }).click();
+  await page.getByRole("button", { name: "Start v2" }).click();
+  await expect(page.getByText("0 / 328 answered")).toBeVisible();
+  await expect(page.getByTestId("question-card").first().getByRole("radio", { checked: true })).toHaveCount(
+    0,
   );
 });
 

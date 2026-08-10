@@ -12,6 +12,7 @@ import {
 describe("local assessment state", () => {
   test("round-trips answers, language, theme, and the last section", () => {
     let state = initialState();
+    expect(state.questionSet).toBe("v2");
     state = reduceAssessmentState(state, { type: "set-language", language: "ru" });
     state = reduceAssessmentState(state, { type: "set-theme", theme: "dark" });
     state = reduceAssessmentState(state, { type: "visit-section", sectionId: "masking" });
@@ -36,7 +37,7 @@ describe("local assessment state", () => {
     );
   });
 
-  test("migrates valid version-1 progress without a theme to Auto", () => {
+  test("migrates existing progress to the v2 set and Auto theme", () => {
     const priorState = {
       version: 1,
       language: "ru",
@@ -49,6 +50,7 @@ describe("local assessment state", () => {
     expect(restoreState(JSON.stringify(priorState))).toEqual({
       ...priorState,
       theme: "auto",
+      questionSet: "v2",
     });
   });
 
@@ -90,5 +92,33 @@ describe("local assessment state", () => {
     expect(retake.answers).toEqual({});
     expect(retake.started).toBe(true);
     expect(retake.lastSectionId).toBe("conversation");
+  });
+
+  test("switches question sets and clears answers from the other set", () => {
+    let state = reduceAssessmentState(initialState(), {
+      type: "answer",
+      questionId: "q01",
+      value: 4,
+    });
+    state = reduceAssessmentState(state, {
+      type: "select-question-set",
+      questionSet: "v1",
+      firstSectionId: "conversation",
+    });
+
+    expect(state.questionSet).toBe("v1");
+    expect(state.answers).toEqual({});
+    expect(state.started).toBe(true);
+    expect(state.lastSectionId).toBe("conversation");
+
+    state = reduceAssessmentState(state, { type: "answer", questionId: "q01", value: 2 });
+    state = reduceAssessmentState(state, {
+      type: "select-question-set",
+      questionSet: "v1",
+      firstSectionId: "conversation",
+    });
+    expect(state.answers).toEqual({ q01: 2 });
+
+    expect(reduceAssessmentState(state, { type: "reset" }).questionSet).toBe("v1");
   });
 });
