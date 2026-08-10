@@ -17,13 +17,14 @@ import {
   imageCredits,
   instrumentReviews,
   officialGuidance,
-  questions,
-  sections,
+  questions as v2Questions,
+  sections as v2Sections,
   sources,
   type Question,
 } from "@/data";
+import { v1Questions, v1Sections } from "@/data/v1";
 import {
-  DOMAIN_WEIGHTS,
+  DOMAIN_WEIGHTS_BY_SET,
   canReveal,
   markerPercent,
   scoreAssessment,
@@ -37,11 +38,17 @@ import {
   type AssessmentAction,
   type AssessmentState,
   type Language,
+  type QuestionSet,
   type ThemePreference,
 } from "@/lib/state";
 import { uiCopy } from "@/ui-copy";
 
 const STORAGE_KEY = "autism-traits-assessment:v1";
+
+const assessmentSets = {
+  v1: { questions: v1Questions, sections: v1Sections },
+  v2: { questions: v2Questions, sections: v2Sections },
+};
 
 type Route =
   | { page: "intro" }
@@ -82,12 +89,14 @@ const responseValue = (value: string): Answer => {
   return Number(value) as Answer;
 };
 
-const firstIncompleteSection = (answers: Record<string, Answer>) =>
-  sections.find((section) =>
+const firstIncompleteSection = (answers: Record<string, Answer>, questionSet: QuestionSet) => {
+  const { questions, sections } = assessmentSets[questionSet];
+  return sections.find((section) =>
     questions
       .filter((question) => question.sectionId === section.id)
       .some((question) => !isCompleteAnswer(question, answers[question.id])),
   )?.id;
+};
 
 type SharedPageProps = {
   language: Language;
@@ -158,11 +167,19 @@ const Header = ({ language, state, dispatch }: SharedPageProps) => {
   );
 };
 
-const IntroPage = ({ language, state }: SharedPageProps) => {
+const IntroPage = ({ language, state, dispatch }: SharedPageProps) => {
   const copy = uiCopy[language];
   const hero = imageCredits.find((image) => image.id === "oxbow")!;
-  const resumeSection = state.lastSectionId ?? sections[0].id;
+  const [selectedQuestionSet, setSelectedQuestionSet] = useState<QuestionSet>(state.questionSet);
+  const selectedAssessment = assessmentSets[selectedQuestionSet];
+  const currentAssessment = assessmentSets[state.questionSet];
+  const resumeSection = state.lastSectionId ?? currentAssessment.sections[0].id;
   const hasProgress = state.started && Object.keys(state.answers).length > 0;
+  const start = () => {
+    const firstSectionId = selectedAssessment.sections[0].id;
+    dispatch({ type: "select-question-set", questionSet: selectedQuestionSet, firstSectionId });
+    navigate(`/assessment/${firstSectionId}`);
+  };
 
   return (
     <main className="page page--intro" id="main-content">
@@ -172,10 +189,23 @@ const IntroPage = ({ language, state }: SharedPageProps) => {
           <p className="owner-intro">{appCopy[language].ownerIntro}</p>
           <p className="lede">{copy.introBody}</p>
           <p className="medical-note">{appCopy[language].medicalNote}</p>
-          <div className="version-history">
-            <p>{copy.versionOne}</p>
-            <p>{copy.versionTwo}</p>
-          </div>
+          <fieldset className="version-picker">
+            <legend>{copy.questionSetLabel}</legend>
+            <RadioGroup
+              aria-label={copy.questionSetLabel}
+              className="version-toggle"
+              value={selectedQuestionSet}
+              onValueChange={(value) => setSelectedQuestionSet(value as QuestionSet)}
+            >
+              <RadioOption value="v1" label={copy.versionOneChoice} />
+              <RadioOption value="v2" label={copy.versionTwoChoice} />
+            </RadioGroup>
+            <p>{selectedQuestionSet === "v1" ? copy.versionOne : copy.versionTwo}</p>
+            <Button className="version-start" onClick={start}>
+              {selectedQuestionSet === "v1" ? copy.startVersionOne : copy.startVersionTwo}
+              <ArrowRight aria-hidden="true" className="size-5" />
+            </Button>
+          </fieldset>
           <div className="primary-actions">
             {hasProgress && (
               <a
@@ -206,8 +236,9 @@ const IntroPage = ({ language, state }: SharedPageProps) => {
   );
 };
 
-const SourcesPage = ({ language }: SharedPageProps) => {
+const SourcesPage = ({ language, state }: SharedPageProps) => {
   const copy = uiCopy[language];
+  const { sections } = assessmentSets[state.questionSet];
   return (
     <main className="page page-enter" id="main-content">
       <div className="page-heading">
@@ -305,6 +336,7 @@ const QuestionCard = ({ question, number, language, answer, onAnswer }: Question
 
 const AssessmentPage = ({ language, state, dispatch, sectionId }: SharedPageProps & { sectionId: string }) => {
   const copy = uiCopy[language];
+  const { questions, sections } = assessmentSets[state.questionSet];
   const sectionIndex = sections.findIndex((section) => section.id === sectionId);
   const section = sections[sectionIndex] ?? sections[0];
   const sectionQuestions = questions.filter((question) => question.sectionId === section.id);
@@ -421,6 +453,7 @@ const AssessmentPage = ({ language, state, dispatch, sectionId }: SharedPageProp
 
 const CompletionPage = ({ language, state, dispatch }: SharedPageProps) => {
   const copy = uiCopy[language];
+  const { questions, sections } = assessmentSets[state.questionSet];
   const reveal = () => {
     dispatch({ type: "reveal" });
     navigate("/result");
@@ -448,8 +481,10 @@ const CompletionPage = ({ language, state, dispatch }: SharedPageProps) => {
 
 const ResultPage = ({ language, state, dispatch }: SharedPageProps) => {
   const copy = uiCopy[language];
+  const { questions, sections } = assessmentSets[state.questionSet];
+  const domainWeights = DOMAIN_WEIGHTS_BY_SET[state.questionSet];
   const [confirmingRetake, setConfirmingRetake] = useState(false);
-  const result = scoreAssessment(state.answers, questions, sections);
+  const result = scoreAssessment(state.answers, questions, sections, domainWeights);
   const sectionById = new Map(sections.map((section) => [section.id, section]));
   const domainById = new Map(result.domains.map((domain) => [domain.sectionId, domain]));
   const bandOrder = ["almost-none", "low", "moderate", "high", "very-high"] as const;
@@ -597,7 +632,7 @@ const ResultPage = ({ language, state, dispatch }: SharedPageProps) => {
             <ul>
               {sections.map((section) => (
                 <li key={section.id}>
-                  {section.title[language]}: {Math.round(DOMAIN_WEIGHTS[section.id] * 100)}%
+                  {section.title[language]}: {Math.round(domainWeights[section.id] * 100)}%
                 </li>
               ))}
             </ul>
@@ -691,7 +726,8 @@ export const App = () => {
     window.matchMedia("(prefers-color-scheme: dark)").matches,
   );
   const mainRef = useRef<HTMLDivElement>(null);
-  const ready = useMemo(() => canReveal(state.answers, questions), [state.answers]);
+  const { questions, sections } = assessmentSets[state.questionSet];
+  const ready = useMemo(() => canReveal(state.answers, questions), [questions, state.answers]);
   const resolvedTheme = resolveTheme(state.theme, systemPrefersDark);
 
   useEffect(() => {
@@ -728,12 +764,20 @@ export const App = () => {
       navigate(`/assessment/${sections[0].id}`, true);
     }
     if (route.page === "complete" && !ready) {
-      navigate(`/assessment/${firstIncompleteSection(state.answers) ?? sections[0].id}`, true);
+      navigate(
+        `/assessment/${firstIncompleteSection(state.answers, state.questionSet) ?? sections[0].id}`,
+        true,
+      );
     }
     if (route.page === "result" && (!ready || !state.revealed)) {
-      navigate(ready ? "/complete" : `/assessment/${firstIncompleteSection(state.answers) ?? sections[0].id}`, true);
+      navigate(
+        ready
+          ? "/complete"
+          : `/assessment/${firstIncompleteSection(state.answers, state.questionSet) ?? sections[0].id}`,
+        true,
+      );
     }
-  }, [ready, route, state.answers, state.revealed]);
+  }, [ready, route, sections, state.answers, state.questionSet, state.revealed]);
 
   const shared = { language: state.language, state, dispatch };
   let page;

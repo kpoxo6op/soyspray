@@ -1,5 +1,5 @@
 import type { Question, Section } from "../data";
-import type { AnswerValue } from "./state";
+import type { AnswerValue, QuestionSet } from "./state";
 
 export type Answer = AnswerValue;
 export type Band = "almost-none" | "low" | "moderate" | "high" | "very-high";
@@ -19,6 +19,24 @@ export const DOMAIN_WEIGHTS: Record<string, number> = {
   childhood: 0.07,
   "identity-style": 0.03,
   "context-impact": 0.03,
+};
+
+export const V1_DOMAIN_WEIGHTS: Record<string, number> = {
+  conversation: 0.12,
+  "context-nonverbal": 0.14,
+  relationships: 0.1,
+  masking: 0.09,
+  repetition: 0.1,
+  "routine-interests": 0.13,
+  "sensory-body": 0.12,
+  "daily-regulation": 0.06,
+  childhood: 0.1,
+  "context-impact": 0.04,
+};
+
+export const DOMAIN_WEIGHTS_BY_SET: Record<QuestionSet, Record<string, number>> = {
+  v1: V1_DOMAIN_WEIGHTS,
+  v2: DOMAIN_WEIGHTS,
 };
 
 const isNumericAnswer = (answer: Answer | undefined): answer is 0 | 1 | 2 | 3 | 4 =>
@@ -99,6 +117,7 @@ export const scoreAssessment = (
   answers: Record<string, Answer>,
   assessmentQuestions: Question[],
   assessmentSections: Section[],
+  domainWeights: Record<string, number> = DOMAIN_WEIGHTS,
 ): AssessmentResult => {
   if (!canReveal(answers, assessmentQuestions)) {
     throw new Error("The assessment does not have enough completed answers.");
@@ -117,7 +136,7 @@ export const scoreAssessment = (
   const overall = combineDomainScores(
     domains.map((domain) => ({
       ...domain,
-      weight: DOMAIN_WEIGHTS[domain.sectionId] ?? 0,
+      weight: domainWeights[domain.sectionId] ?? 0,
     })),
   );
   const comparable = domains.filter(

@@ -14,6 +14,11 @@ export const uiCopy = {
     versionOne: "v1 - mediocrity AI created because I did not ask to adhere to my vision.",
     versionTwo:
       "v2 - 328 detailed questions drawn from 30 captioned videos. Minimal AI rewriting. Simpler design.",
+    questionSetLabel: "Choose a question set",
+    versionOneChoice: "v1 · 50 questions",
+    versionTwoChoice: "v2 · 328 questions",
+    startVersionOne: "Start v1",
+    startVersionTwo: "Start v2",
     seeSources: "See the sources",
     resume: "Resume assessment",
     sourcesTitle: "Thirty caption-backed perspectives",
@@ -102,6 +107,11 @@ export const uiCopy = {
       "v1 — посредственный результат ИИ, потому что я не попросил ИИ следовать моему замыслу.",
     versionTwo:
       "v2 — 328 подробных вопросов по 30 видео с субтитрами. Минимум ИИ-редактирования. Более простой дизайн.",
+    questionSetLabel: "Выберите набор вопросов",
+    versionOneChoice: "v1 · 50 вопросов",
+    versionTwoChoice: "v2 · 328 вопросов",
+    startVersionOne: "Начать v1",
+    startVersionTwo: "Начать v2",
     seeSources: "Посмотреть источники",
     resume: "Продолжить опрос",
     sourcesTitle: "Тридцать точек зрения на основе субтитров",
