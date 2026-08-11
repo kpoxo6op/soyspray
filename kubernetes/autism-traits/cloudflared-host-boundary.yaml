@@ -25,6 +25,9 @@ spec:
           - 192.168.20.0/24
         notNets:
           - 10.233.23.96/32
+        notSelector: >-
+          projectcalico.org/namespace == 'autism-traits' &&
+          autism-traits-component == 'web'
 ---
 apiVersion: crd.projectcalico.org/v1
 kind: HostEndpoint
