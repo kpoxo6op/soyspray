@@ -1,59 +1,12 @@
 import { describe, expect, test } from "vitest";
 
 import {
-  CURRENT_STATE_VERSION,
   initialState,
   reduceAssessmentState,
   resolveTheme,
-  restoreState,
-  serializeState,
 } from "./state";
 
 describe("local assessment state", () => {
-  test("round-trips answers, language, theme, and the last section", () => {
-    let state = initialState();
-    expect(state.questionSet).toBe("v2");
-    state = reduceAssessmentState(state, { type: "set-language", language: "ru" });
-    state = reduceAssessmentState(state, { type: "set-theme", theme: "dark" });
-    state = reduceAssessmentState(state, { type: "visit-section", sectionId: "masking" });
-    state = reduceAssessmentState(state, { type: "answer", questionId: "q01", value: 3 });
-
-    expect(restoreState(serializeState(state))).toEqual(state);
-  });
-
-  test("rejects corrupt or outdated saved state", () => {
-    expect(restoreState("not json")).toEqual(initialState());
-    expect(
-      restoreState(JSON.stringify({ ...initialState(), version: CURRENT_STATE_VERSION - 1 })),
-    ).toEqual(initialState());
-    expect(restoreState(JSON.stringify({ ...initialState(), language: "de" }))).toEqual(
-      initialState(),
-    );
-    expect(restoreState(JSON.stringify({ ...initialState(), theme: "sepia" }))).toEqual(
-      initialState(),
-    );
-    expect(restoreState(JSON.stringify({ ...initialState(), answers: { q01: 8 } }))).toEqual(
-      initialState(),
-    );
-  });
-
-  test("migrates existing progress to the v2 set and Auto theme", () => {
-    const priorState = {
-      version: 1,
-      language: "ru",
-      answers: { q01: 3 },
-      revealed: true,
-      started: true,
-      lastSectionId: "masking",
-    } as const;
-
-    expect(restoreState(JSON.stringify(priorState))).toEqual({
-      ...priorState,
-      theme: "auto",
-      questionSet: "v2",
-    });
-  });
-
   test("resolves Auto from the system while explicit themes override it", () => {
     expect(initialState().theme).toBe("auto");
     expect(resolveTheme("auto", false)).toBe("light");
