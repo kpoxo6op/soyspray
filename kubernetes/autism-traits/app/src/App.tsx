@@ -49,6 +49,7 @@ const assessmentSets = {
 
 type Route =
   | { page: "intro" }
+  | { page: "versions" }
   | { page: "sources" }
   | { page: "assessment"; sectionId: string }
   | { page: "complete" }
@@ -56,6 +57,7 @@ type Route =
 
 const parseRoute = (): Route => {
   const path = window.location.hash.replace(/^#\/?/, "");
+  if (path === "versions") return { page: "versions" };
   if (path === "sources") return { page: "sources" };
   if (path === "complete") return { page: "complete" };
   if (path === "result") return { page: "result" };
@@ -198,11 +200,11 @@ const IntroPage = ({ language, state, dispatch }: SharedPageProps) => {
               <RadioOption value="v1" label={copy.versionOneChoice} />
               <RadioOption value="v2" label={copy.versionTwoChoice} />
             </RadioGroup>
-            <p>{selectedQuestionSet === "v1" ? copy.versionOne : copy.versionTwo}</p>
             <Button className="version-start" onClick={start}>
               {selectedQuestionSet === "v1" ? copy.startVersionOne : copy.startVersionTwo}
               <ArrowRight aria-hidden="true" className="size-5" />
             </Button>
+            <a href="#/versions">{copy.versionInfo}</a>
           </fieldset>
           <div className="primary-actions">
             {hasProgress && (
@@ -230,6 +232,26 @@ const IntroPage = ({ language, state, dispatch }: SharedPageProps) => {
           </figcaption>
         </figure>
       </div>
+    </main>
+  );
+};
+
+const VersionsPage = ({ language }: SharedPageProps) => {
+  const copy = uiCopy[language];
+  return (
+    <main className="page page-enter" id="main-content">
+      <div className="page-heading">
+        <h1>{copy.versionTitle}</h1>
+      </div>
+      <section>
+        <h2>{copy.versionOneChoice}</h2>
+        <p>{copy.versionOne}</p>
+      </section>
+      <section>
+        <h2>{copy.versionTwoChoice}</h2>
+        <p>{copy.versionTwo}</p>
+      </section>
+      <a href="#/intro">{copy.backToAssessment}</a>
     </main>
   );
 };
@@ -783,7 +805,8 @@ export const App = () => {
 
   const shared = { language: state.language, state, dispatch };
   let page;
-  if (route.page === "sources") page = <SourcesPage {...shared} />;
+  if (route.page === "versions") page = <VersionsPage {...shared} />;
+  else if (route.page === "sources") page = <SourcesPage {...shared} />;
   else if (route.page === "assessment") {
     page = <AssessmentPage {...shared} sectionId={route.sectionId} />;
   } else if (route.page === "complete" && ready) page = <CompletionPage {...shared} />;
