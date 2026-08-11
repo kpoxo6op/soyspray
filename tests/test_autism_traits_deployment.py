@@ -286,6 +286,10 @@ def test_cloudflared_closes_the_local_ipvs_service_path() -> None:
                         "192.168.20.0/24",
                     ],
                     "notNets": ["10.233.23.96/32"],
+                    "notSelector": (
+                        "projectcalico.org/namespace == 'autism-traits' && "
+                        "autism-traits-component == 'web'"
+                    ),
                 },
             }
         ],
