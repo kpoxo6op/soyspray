@@ -1,0 +1,12 @@
+---
+- name: Apply the autism traits Argo application
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/web/autism-traits/autism-traits-application.yaml')
+         | from_yaml
+         | combine(
+             {'spec': {'source': {'targetRevision': (autism_traits_target_revision | string)}}},
+             recursive=true
+           ) }}

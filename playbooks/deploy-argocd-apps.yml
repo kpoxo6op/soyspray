@@ -44,6 +44,9 @@
       - { name: Mosquitto, role: apps/mosquitto }
       - { name: Zigbee2MQTT, role: apps/zigbee2mqtt }
       - { name: Home Assistant, role: apps/homeassistant }
+
+      # Web applications
+      - { name: Autism Traits, role: apps/autism-traits }
   tasks:
     - name: "Include {{ item.name }}"
       ansible.builtin.include_role:

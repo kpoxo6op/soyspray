@@ -16,6 +16,7 @@ PACKAGES = (
     "kubernetes/banklab/governance",
     "kubernetes/banklab/customer-web",
     "kubernetes/banklab/docs-site",
+    "kubernetes/autism-traits",
     "playbooks/argocd/applications/kong-bank-lab/operator-dashboard",
 )
 
@@ -141,6 +142,7 @@ def test_docs_site_publishes_selected_git_revision_with_tls() -> None:
         "kubernetes/banklab/security",
         "kubernetes/banklab/customer-web",
         "kubernetes/banklab/docs-site",
+        "kubernetes/autism-traits",
     ),
 )
 def test_application_workloads_use_the_restricted_baseline(path: str) -> None:
@@ -175,6 +177,7 @@ def test_application_namespaces_enforce_restricted_pod_security() -> None:
         "kubernetes/banklab/security",
         "kubernetes/banklab/tenancy",
         "kubernetes/banklab/docs-site",
+        "kubernetes/autism-traits",
     )
     namespaces = {}
     for path in paths:

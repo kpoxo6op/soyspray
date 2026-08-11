@@ -10,6 +10,10 @@ soyspray-venv
 .build/
 .pytest_cache/
 .playwright-mcp/
+node_modules/
+output/playwright/
+playwright-report/
+test-results/
 __pycache__/
 site/
 *.key
