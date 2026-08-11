@@ -45,10 +45,12 @@ The package closes that path before IPVS. It keeps the web Service at the
 fixed ClusterIP `10.233.23.96`, creates one wildcard Calico HostEndpoint for
 each cluster node, and applies one pre-DNAT GlobalNetworkPolicy. The policy
 denies only traffic from the connector pods to the service CIDR, pod CIDR, and
-`192.168.20.0/24`; it excludes only the web Service IP. The HostEndpoints use
-Calico's `projectcalico-default-allow` profile so they do not default-deny
-unrelated node traffic. Pre-DNAT policy has no implicit deny, so all unmatched
-traffic continues to the existing host and workload controls.
+`192.168.20.0/24`; it excludes only the web Service IP and its labeled web pod.
+The pod exception preserves cross-node service traffic after IPVS changes the
+destination to the web pod IP. The HostEndpoints use Calico's
+`projectcalico-default-allow` profile so they do not default-deny unrelated node
+traffic. Pre-DNAT policy has no implicit deny, so all unmatched traffic
+continues to the existing host and workload controls.
 
 Together, these controls block the Kubernetes API, other namespaces, and the
 home LAN while preserving the exact origin route. Check the Cloudflare endpoint
