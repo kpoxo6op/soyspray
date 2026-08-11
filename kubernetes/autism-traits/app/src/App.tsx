@@ -244,11 +244,11 @@ const VersionsPage = ({ language }: SharedPageProps) => {
         <h1>{copy.versionTitle}</h1>
       </div>
       <section>
-        <h2>{copy.versionOneChoice}</h2>
+        <h2>{copy.versionOneTitle}</h2>
         <p>{copy.versionOne}</p>
       </section>
       <section>
-        <h2>{copy.versionTwoChoice}</h2>
+        <h2>{copy.versionTwoTitle}</h2>
         <p>{copy.versionTwo}</p>
       </section>
       <a href="#/intro">{copy.backToAssessment}</a>

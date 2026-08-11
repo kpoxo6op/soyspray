@@ -335,13 +335,15 @@ h3 {
   background: var(--selected);
 }
 
-.version-picker p {
-  min-height: 2.6rem;
-  margin: 0.75rem 0;
+.version-start {
+  width: min(100%, 28rem);
+  margin-top: 0.75rem;
 }
 
-.version-start {
-  min-width: 8.5rem;
+.version-picker > a {
+  display: block;
+  width: max-content;
+  margin-top: 0.75rem;
 }
 
 .primary-actions {

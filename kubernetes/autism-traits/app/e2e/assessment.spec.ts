@@ -60,16 +60,24 @@ test("intro and source pages preserve the required content without retaining pre
       "Your answers and score stay only in this browser tab. They are not transmitted or retained and disappear when you refresh or close the page. Cloudflare may process connection metadata to deliver the site.",
     ),
   ).toBeVisible();
-  await expect(page.getByRole("radio", { name: "Full · 328 questions" })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Full", exact: true })).toBeChecked();
   await expect(page.getByRole("link", { name: "See the sources" })).toBeVisible();
-  await page.getByRole("radio", { name: "Short · 50 questions" }).click();
-  await expect(page.getByRole("radio", { name: "Short · 50 questions" })).toBeChecked();
-  await page.getByRole("radio", { name: "Full · 328 questions" }).click();
+  await page.getByRole("radio", { name: "Short", exact: true }).click();
+  await expect(page.getByRole("radio", { name: "Short", exact: true })).toBeChecked();
+  await page.getByRole("radio", { name: "Full", exact: true }).click();
   await expect(page.getByRole("button", { name: "Start full" })).toBeVisible();
+
+  const selectorBox = await page.getByRole("radiogroup", { name: "Choose a length" }).boundingBox();
+  const startBox = await page.getByRole("button", { name: "Start full" }).boundingBox();
+  const versionLinkBox = await page.getByRole("link", { name: "Version info" }).boundingBox();
+  expect(startBox?.width).toBe(selectorBox?.width);
+  expect(versionLinkBox!.y).toBeGreaterThan(startBox!.y + startBox!.height);
 
   await page.getByRole("link", { name: "Version info" }).click();
   await expect(page).toHaveURL(/#\/versions$/);
   await expect(page.getByRole("heading", { name: "Version 2.1.0" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Short · 50 questions" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Full · 328 questions" })).toBeVisible();
   await expect(
     page.getByText("v1 - mediocrity AI created because I did not ask to adhere to my vision."),
   ).toBeVisible();
@@ -97,7 +105,7 @@ test("intro and source pages preserve the required content without retaining pre
     ),
   ).toBeVisible();
   await page.getByRole("link", { name: "Назад к опросу" }).click();
-  await expect(page.getByRole("radio", { name: "Полный · 328 вопросов" })).toBeChecked();
+  await expect(page.getByRole("radio", { name: "Полный", exact: true })).toBeChecked();
   await expect(page.getByRole("button", { name: "English" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Спокойный способ заметить закономерности" })).toBeVisible();
   await page.getByRole("link", { name: "Посмотреть источники" }).click();
@@ -122,7 +130,7 @@ test("short and full run as separate question sets", async ({ page }, testInfo) 
   test.skip(testInfo.project.name !== "desktop");
   await page.goto("/");
 
-  await page.getByRole("radio", { name: "Short · 50 questions" }).click();
+  await page.getByRole("radio", { name: "Short", exact: true }).click();
   await page.getByRole("button", { name: "Start short" }).click();
   await expect(page).toHaveURL(/#\/assessment\/conversation$/);
   await expect(page.getByText("0 / 50 answered")).toBeVisible();
@@ -137,7 +145,7 @@ test("short and full run as separate question sets", async ({ page }, testInfo) 
   await expect(page.getByTestId("result")).toBeVisible();
 
   await page.getByRole("link", { name: "Detailed autism questionnaire" }).click();
-  await page.getByRole("radio", { name: "Full · 328 questions" }).click();
+  await page.getByRole("radio", { name: "Full", exact: true }).click();
   await page.getByRole("button", { name: "Start full" }).click();
   await expect(page.getByText("0 / 328 answered")).toBeVisible();
   await expect(page.getByTestId("question-card").first().getByRole("radio", { checked: true })).toHaveCount(
