@@ -31,10 +31,9 @@ import {
   type Answer,
 } from "@/lib/scoring";
 import {
+  initialState,
   reduceAssessmentState,
   resolveTheme,
-  restoreState,
-  serializeState,
   type AssessmentAction,
   type AssessmentState,
   type Language,
@@ -42,8 +41,6 @@ import {
   type ThemePreference,
 } from "@/lib/state";
 import { uiCopy } from "@/ui-copy";
-
-const STORAGE_KEY = "autism-traits-assessment:v1";
 
 const assessmentSets = {
   v1: { questions: v1Questions, sections: v1Sections },
@@ -189,6 +186,7 @@ const IntroPage = ({ language, state, dispatch }: SharedPageProps) => {
           <p className="owner-intro">{appCopy[language].ownerIntro}</p>
           <p className="lede">{copy.introBody}</p>
           <p className="medical-note">{appCopy[language].medicalNote}</p>
+          <p className="privacy-note">{copy.privacyNote}</p>
           <fieldset className="version-picker">
             <legend>{copy.questionSetLabel}</legend>
             <RadioGroup
@@ -716,11 +714,7 @@ const ResultPage = ({ language, state, dispatch }: SharedPageProps) => {
 };
 
 export const App = () => {
-  const [state, dispatch] = useReducer(
-    reduceAssessmentState,
-    undefined,
-    () => restoreState(window.localStorage.getItem(STORAGE_KEY)),
-  );
+  const [state, dispatch] = useReducer(reduceAssessmentState, undefined, () => initialState());
   const [route, setRoute] = useState<Route>(() => parseRoute());
   const [systemPrefersDark, setSystemPrefersDark] = useState(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches,
@@ -738,10 +732,17 @@ export const App = () => {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, serializeState(state));
+    try {
+      window.localStorage.removeItem("autism-traits-assessment:v1");
+    } catch {
+      // Storage can be unavailable. The application does not depend on it.
+    }
+  }, []);
+
+  useEffect(() => {
     document.documentElement.lang = state.language;
     document.title = uiCopy[state.language].siteName;
-  }, [state]);
+  }, [state.language]);
 
   useEffect(() => {
     const query = window.matchMedia("(prefers-color-scheme: dark)");

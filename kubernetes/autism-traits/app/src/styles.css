@@ -276,6 +276,7 @@ h3 {
 }
 
 .medical-note,
+.privacy-note,
 .result-disclaimer {
   max-width: 66ch;
   margin: 1.35rem 0;
