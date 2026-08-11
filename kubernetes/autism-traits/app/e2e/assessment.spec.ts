@@ -73,6 +73,27 @@ test("intro and source pages preserve the required content without retaining pre
   expect(startBox?.width).toBe(selectorBox?.width);
   expect(versionLinkBox!.y).toBeGreaterThan(startBox!.y + startBox!.height);
 
+  const fullOption = page.getByRole("radio", { name: "Full", exact: true });
+  await expect(fullOption).toHaveCSS("background-color", "rgb(21, 91, 69)");
+  await expect(fullOption).toHaveCSS("color", "rgb(246, 246, 243)");
+  expect(await fullOption.evaluate((element) => getComputedStyle(element).transitionDuration)).not.toBe(
+    "0s",
+  );
+
+  const shortOption = page.getByRole("radio", { name: "Short", exact: true });
+  await shortOption.click();
+  await expect(shortOption).toBeChecked();
+  await expect(shortOption).toHaveCSS("background-color", "rgb(21, 91, 69)");
+  await expect(fullOption).not.toHaveCSS("background-color", "rgb(21, 91, 69)");
+  await fullOption.click();
+
+  await page.getByRole("combobox", { name: "Theme" }).selectOption("dark");
+  await shortOption.click();
+  await expect(shortOption).toHaveCSS("background-color", "rgb(145, 216, 188)");
+  await expect(shortOption).toHaveCSS("color", "rgb(23, 26, 24)");
+  await page.getByRole("combobox", { name: "Theme" }).selectOption("auto");
+  await fullOption.click();
+
   await page.getByRole("link", { name: "Version info" }).click();
   await expect(page).toHaveURL(/#\/versions$/);
   await expect(page.getByRole("heading", { name: "Version 2.1.0" })).toBeVisible();
