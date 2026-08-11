@@ -209,6 +209,18 @@ test("browser Back keeps answers in memory and refresh clears them", async ({ pa
   await expect(page.getByRole("link", { name: "Resume assessment" })).toHaveCount(0);
 });
 
+test("changing sections scrolls to the top", async ({ page }) => {
+  await startAssessment(page);
+  await answerSection(page);
+  await page.getByRole("button", { name: "Continue" }).scrollIntoViewIfNeeded();
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  await expect(page).toHaveURL(/#\/assessment\/relationships$/);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+});
+
 test("start over clears in-memory answers without changing language or theme", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop");
   await startAssessment(page);

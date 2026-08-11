@@ -757,6 +757,7 @@ export const App = () => {
   }, [resolvedTheme]);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     mainRef.current?.focus();
   }, [route]);
 
