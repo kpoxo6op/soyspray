@@ -3,7 +3,9 @@
 [`autism-traits-project.yaml`](autism-traits-project.yaml) limits this
 application to the `kpoxo6op/soyspray` repository, the `autism-traits`
 namespace, and the resource kinds in the static site and dedicated tunnel
-package.
+package. Its only cluster-scoped Calico permissions are `GlobalNetworkPolicy`
+and `HostEndpoint`, which close the connector's kube-proxy IPVS path to local
+host-network services.
 
 [`autism-traits-application.yaml`](autism-traits-application.yaml) reconciles
 the [package and operator runbook](../../../../../kubernetes/autism-traits/README.md).

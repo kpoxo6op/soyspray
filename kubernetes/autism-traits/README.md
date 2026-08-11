@@ -36,12 +36,26 @@ zero egress. The connector can reach only:
 - The web pod on TCP port 8443.
 - Cloudflare's published tunnel endpoints on TCP and UDP port 7844.
 
-Calico policies end with an explicit deny. They also block node-host traffic
-that standard Kubernetes NetworkPolicy does not cover. This blocks the
-Kubernetes API, other namespaces, and `192.168.20.0/24`. Check the endpoint
-list against the [Cloudflare tunnel firewall requirements](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/tunnel-with-firewall/)
-before a connector upgrade. See also the [Cloudflare Kubernetes guide](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/deployment-guides/kubernetes/)
-and [Kubernetes NetworkPolicy behavior](https://kubernetes.io/docs/concepts/services-networking/network-policies/).
+The namespaced Calico policies end with an explicit deny. This cluster also
+uses kube-proxy IPVS. An IPVS Service request can skip the workload egress
+chain when it selects a node-local host-network endpoint. The Kubernetes API
+and several monitoring Services have such endpoints.
+
+The package closes that path before IPVS. It keeps the web Service at the
+fixed ClusterIP `10.233.23.96`, creates one wildcard Calico HostEndpoint for
+each cluster node, and applies one pre-DNAT GlobalNetworkPolicy. The policy
+denies only traffic from the connector pods to the service CIDR, pod CIDR, and
+`192.168.20.0/24`; it excludes only the web Service IP. The HostEndpoints use
+Calico's `projectcalico-default-allow` profile so they do not default-deny
+unrelated node traffic. Pre-DNAT policy has no implicit deny, so all unmatched
+traffic continues to the existing host and workload controls.
+
+Together, these controls block the Kubernetes API, other namespaces, and the
+home LAN while preserving the exact origin route. Check the Cloudflare endpoint
+list against the [tunnel firewall requirements](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/configure-tunnels/tunnel-with-firewall/)
+before a connector upgrade. See also the [Cloudflare Kubernetes guide](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/deployment-guides/kubernetes/),
+[Kubernetes NetworkPolicy behavior](https://kubernetes.io/docs/concepts/services-networking/network-policies/),
+and [Calico pre-DNAT policy](https://docs.tigera.io/calico/latest/reference/host-endpoints/pre-dnat).
 
 ## Build and verify locally
 
@@ -188,18 +202,31 @@ kubectl get pods -n kube-system -l k8s-app=calico-node \
   -o jsonpath='{range .items[*]}{.spec.containers[0].image}{"\n"}{end}'
 kubectl -n autism-traits get networkpolicy
 kubectl -n autism-traits get networkpolicy.crd.projectcalico.org -o yaml
+kubectl get globalnetworkpolicy.crd.projectcalico.org \
+  autism-traits-cloudflared-host-boundary -o yaml
+kubectl get hostendpoint.crd.projectcalico.org \
+  -l autism-traits-host-boundary=true -o wide
 kubectl -n autism-traits get pods -o wide
 kubectl -n autism-traits logs deployment/autism-traits-cloudflared --since=10m
 for NODE_IP in 192.168.20.10 192.168.20.11 192.168.20.12; do
   ssh "ubuntu@${NODE_IP}" \
-    "sudo iptables-save | grep -E 'autism-traits-(cloudflared-boundary|web-zero-egress)' || true"
+    "sudo iptables-save | grep -E 'autism-traits-(cloudflared-boundary|web-zero-egress|cloudflared-host-boundary)' || true"
 done
 ```
 
 Both connector replicas must be Ready on separate nodes. Healthy connector
-logs must not show DNS, policy, origin TLS, or registration errors. The two
-Calico policies must be present. Nodes that host the web or connector pods must
-show their policy chains, including the final DROP rules.
+logs must not show DNS, policy, origin TLS, or registration errors. The
+namespaced policies, pre-DNAT policy, and three HostEndpoints must be present.
+Nodes that host the web or connector pods must show the allow-list and final
+DROP rules. All nodes must show the pre-DNAT host-boundary rule.
+
+Test from both existing connector network namespaces. Get each pod's node,
+container ID, and host PID from `kubectl`, `crictl inspect`, and `nsenter`.
+The origin Service must return 200 with verified TLS. Repeated requests to
+`10.233.0.1:443`, another namespace Service, and `192.168.20.1` must time out.
+Repeat the API request at least six times because IPVS can select any of the
+three API endpoints. Do not create a debug pod or weaken the running connector
+to perform this check.
 
 Finally, test from a device that is off the home LAN and Tailscale. The autism
 hostname must load. Every other hostname returned by this private command must
@@ -235,8 +262,9 @@ make autism-traits AUTISM_TRAITS_ENABLED=false
 ```
 
 The disable path quiesces Argo CD, removes the tunnel token, removes the
-Application and its resources, and then removes the AppProject. It leaves the
-remote Cloudflare tunnel object for controlled inspection or deletion.
+Application and its resources, including the pre-DNAT policy and HostEndpoints,
+and then removes the AppProject. It leaves the remote Cloudflare tunnel object
+for controlled inspection or deletion.
 
 For a code rollback, first remove the Cloudflare Public Hostname route. Then
 reconcile a reviewed commit that already contains the DNS-detachment change:
