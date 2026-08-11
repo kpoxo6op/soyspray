@@ -324,6 +324,10 @@ h3 {
   color: var(--muted);
   background: transparent;
   text-align: center;
+  transition:
+    color 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease;
 }
 
 .version-toggle [role="radio"] > span:first-child {
@@ -331,17 +335,31 @@ h3 {
 }
 
 .version-toggle [role="radio"][data-state="checked"] {
-  color: var(--text);
-  background: var(--selected);
+  color: var(--background);
+  background: var(--accent);
+  font-weight: 650;
+  animation: version-selected 180ms ease-out;
 }
 
-.version-picker p {
-  min-height: 2.6rem;
-  margin: 0.75rem 0;
+@keyframes version-selected {
+  from {
+    transform: scale(0.96);
+  }
+
+  to {
+    transform: scale(1);
+  }
 }
 
 .version-start {
-  min-width: 8.5rem;
+  width: min(100%, 28rem);
+  margin-top: 0.75rem;
+}
+
+.version-picker > a {
+  display: block;
+  width: max-content;
+  margin-top: 0.75rem;
 }
 
 .primary-actions {
@@ -879,6 +897,11 @@ progress::-moz-progress-bar {
 :root[data-theme="dark"] .text-emerald-950,
 :root[data-theme="dark"] .text-stone-800 {
   color: var(--text);
+}
+
+:root[data-theme="dark"] .version-toggle [role="radio"][data-state="checked"] {
+  color: var(--background);
+  background-color: var(--accent);
 }
 
 :root[data-theme="dark"] .border-stone-300,
