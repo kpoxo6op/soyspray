@@ -6,6 +6,12 @@ metadata:
     app.kubernetes.io/name: autism-traits
     app.kubernetes.io/part-of: autism-traits
 spec:
+  clusterIP: 10.233.23.96
+  clusterIPs:
+    - 10.233.23.96
+  ipFamilies:
+    - IPv4
+  ipFamilyPolicy: SingleStack
   selector:
     app.kubernetes.io/name: autism-traits
   ports:

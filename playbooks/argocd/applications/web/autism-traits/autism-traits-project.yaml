@@ -12,6 +12,8 @@ spec:
       namespace: autism-traits
   clusterResourceWhitelist:
     - {group: "", kind: Namespace}
+    - {group: crd.projectcalico.org, kind: GlobalNetworkPolicy}
+    - {group: crd.projectcalico.org, kind: HostEndpoint}
   namespaceResourceWhitelist:
     - {group: "", kind: ConfigMap}
     - {group: "", kind: Service}

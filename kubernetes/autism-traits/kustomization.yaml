@@ -9,6 +9,9 @@ resources:
   - ingress.yaml
   - networkpolicy.yaml
   - cloudflared-calico-networkpolicy.yaml
+  - cloudflared-host-boundary.yaml
+transformers:
+  - cluster-scope-transformer.yaml
 labels:
   - pairs:
       app.kubernetes.io/instance: autism-traits
