@@ -25,6 +25,8 @@ port forward. Do not add another hostname to this tunnel.
 The connector uses `originServerName=autism.soyspray.vip` and
 `noTLSVerify=false`. Nginx serves the existing cert-manager certificate on
 8443. Thus, `cloudflared` verifies the origin certificate and hostname.
+An exact-host Cloudflare response-header rule removes `NEL` and `Report-To`,
+so the browser is not enrolled in Cloudflare Network Error Logging.
 
 Namespace-wide Kubernetes NetworkPolicy defaults to deny. The web pod accepts
 private HTTP only from `ingress-nginx` and HTTPS only from `cloudflared`. It has
@@ -146,6 +148,17 @@ Now add one Public Hostname route to `autism-traits-public`:
 Cloudflare creates the proxied tunnel CNAME. Do not create it before the stale
 records are removed. Do not configure a wildcard or a private network route.
 
+Cloudflare can add browser Network Error Logging headers to proxied responses.
+Create one Response Header Transform Rule named
+`autism-traits response privacy` with this exact expression:
+
+```text
+(http.host eq "autism.soyspray.vip")
+```
+
+Remove the `NEL` and `Report-To` response headers in that rule. Do not apply the
+rule to the complete zone or another hostname.
+
 ## Cutover verification
 
 Check the Cloudflare DNS record through the API. It must be one proxied CNAME
@@ -166,7 +179,7 @@ The A and AAAA answers must be public Cloudflare addresses. They must not be
 must be empty. GET and HEAD must work. POST and every other method must return
 405. Browser developer tools must show no answer submission, analytics,
 telemetry, or third-party script request. The CSP must retain
-`connect-src 'none'`.
+`connect-src 'none'`. The response must not contain `NEL` or `Report-To`.
 
 Confirm the deployed boundary and CNI:
 
@@ -210,8 +223,9 @@ make autism-traits AUTISM_TRAITS_REVISION=HEAD
 
 To remove public exposure but keep the private site, delete only the
 `autism.soyspray.vip` Public Hostname route from `autism-traits-public`. Confirm
-that its tunnel CNAME is gone. Do not restore the old ExternalDNS annotation or
-the private-address public A record.
+that its tunnel CNAME is gone. Remove the `autism-traits response privacy`
+header rule when this hostname is no longer public. Do not restore the old
+ExternalDNS annotation or the private-address public A record.
 
 To park the complete application, including both connector replicas and the
 connector Secret, use the existing lifecycle switch:
