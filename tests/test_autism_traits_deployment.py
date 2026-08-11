@@ -232,6 +232,66 @@ def test_cloudflared_is_a_separate_hardened_connector() -> None:
     assert connector["livenessProbe"]["httpGet"] == {"path": "/ready", "port": "metrics"}
 
 
+def test_cloudflared_closes_the_local_ipvs_service_path() -> None:
+    resources = render_package()
+    service = resource(resources, "Service", "autism-traits")
+    host_policy = resource(
+        resources,
+        "GlobalNetworkPolicy",
+        "autism-traits-cloudflared-host-boundary",
+        "crd.projectcalico.org/v1",
+    )
+    host_endpoints = {
+        item["metadata"]["name"]: item
+        for item in resources
+        if item.get("apiVersion") == "crd.projectcalico.org/v1"
+        and item.get("kind") == "HostEndpoint"
+    }
+
+    assert service["spec"]["clusterIP"] == "10.233.23.96"
+    assert service["spec"]["clusterIPs"] == ["10.233.23.96"]
+    assert host_endpoints.keys() == {
+        "autism-traits-node-0-host-boundary",
+        "autism-traits-node-1-host-boundary",
+        "autism-traits-node-2-host-boundary",
+    }
+    for index, endpoint in enumerate(host_endpoints.values()):
+        assert endpoint["metadata"].get("namespace") is None
+        assert endpoint["metadata"]["labels"]["autism-traits-host-boundary"] == "true"
+        assert endpoint["spec"] == {
+            "node": f"node-{index}",
+            "interfaceName": "*",
+            "expectedIPs": [f"192.168.20.{10 + index}"],
+            "profiles": ["projectcalico-default-allow"],
+        }
+
+    assert host_policy["metadata"].get("namespace") is None
+    assert host_policy["spec"] == {
+        "order": 10,
+        "selector": "autism-traits-host-boundary == 'true'",
+        "preDNAT": True,
+        "applyOnForward": True,
+        "types": ["Ingress"],
+        "ingress": [
+            {
+                "action": "Deny",
+                "source": {
+                    "namespaceSelector": "projectcalico.org/name == 'autism-traits'",
+                    "selector": "autism-traits-component == 'cloudflared'",
+                },
+                "destination": {
+                    "nets": [
+                        "10.233.0.0/18",
+                        "10.233.64.0/18",
+                        "192.168.20.0/24",
+                    ],
+                    "notNets": ["10.233.23.96/32"],
+                },
+            }
+        ],
+    }
+
+
 def test_private_ingress_keeps_tls_but_does_not_own_public_dns() -> None:
     ingress = resource(render_package(), "Ingress")
     annotations = ingress["metadata"]["annotations"]
@@ -426,7 +486,11 @@ def test_argocd_application_uses_a_restricted_project() -> None:
     assert project["spec"]["destinations"] == [
         {"server": "https://kubernetes.default.svc", "namespace": "autism-traits"}
     ]
-    assert project["spec"]["clusterResourceWhitelist"] == [{"group": "", "kind": "Namespace"}]
+    assert project["spec"]["clusterResourceWhitelist"] == [
+        {"group": "", "kind": "Namespace"},
+        {"group": "crd.projectcalico.org", "kind": "GlobalNetworkPolicy"},
+        {"group": "crd.projectcalico.org", "kind": "HostEndpoint"},
+    ]
     assert project["spec"]["namespaceResourceWhitelist"] == [
         {"group": "", "kind": "ConfigMap"},
         {"group": "", "kind": "Service"},
@@ -470,6 +534,9 @@ def test_tunnel_runbook_has_bounded_cutover_verification_and_rollback() -> None:
         "AUTISM_TRAITS_CLOUDFLARED_TOKEN",
         "TCP and UDP port 7844",
         "169.254.25.10",
+        "kube-proxy IPVS",
+        "pre-DNAT GlobalNetworkPolicy",
+        "projectcalico-default-allow",
         "make autism-traits AUTISM_TRAITS_ENABLED=false",
         "off the home LAN and Tailscale",
     ):
