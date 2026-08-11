@@ -23,6 +23,15 @@
           automated: null
   when: autism_traits_live_application.resources | length == 1
 
+- name: Remove the autism traits Cloudflare Tunnel token
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: Secret
+    name: autism-traits-cloudflared-token
+    namespace: autism-traits
+    kubeconfig: "{{ kubeconfig_path }}"
+
 - name: Remove the autism traits Argo application
   kubernetes.core.k8s:
     state: absent
@@ -32,4 +41,13 @@
     namespace: argocd
     wait: true
     wait_timeout: 300
+    kubeconfig: "{{ kubeconfig_path }}"
+
+- name: Remove the autism traits Argo project
+  kubernetes.core.k8s:
+    state: absent
+    api_version: argoproj.io/v1alpha1
+    kind: AppProject
+    name: autism-traits
+    namespace: argocd
     kubeconfig: "{{ kubeconfig_path }}"
