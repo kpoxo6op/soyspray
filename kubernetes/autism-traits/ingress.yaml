@@ -7,7 +7,6 @@ metadata:
     app.kubernetes.io/part-of: autism-traits
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    external-dns.alpha.kubernetes.io/hostname: autism.soyspray.vip
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
   ingressClassName: nginx
