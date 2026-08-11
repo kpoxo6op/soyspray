@@ -174,15 +174,19 @@ Confirm the deployed boundary and CNI:
 kubectl get pods -n kube-system -l k8s-app=calico-node \
   -o jsonpath='{range .items[*]}{.spec.containers[0].image}{"\n"}{end}'
 kubectl -n autism-traits get networkpolicy
-kubectl -n autism-traits get networkpolicy.crd.projectcalico.org
-kubectl -n autism-traits get workloadendpoints.crd.projectcalico.org
+kubectl -n autism-traits get networkpolicy.crd.projectcalico.org -o yaml
 kubectl -n autism-traits get pods -o wide
 kubectl -n autism-traits logs deployment/autism-traits-cloudflared --since=10m
+for NODE_IP in 192.168.20.10 192.168.20.11 192.168.20.12; do
+  ssh "ubuntu@${NODE_IP}" \
+    "sudo iptables-save | grep -E 'autism-traits-(cloudflared-boundary|web-zero-egress)' || true"
+done
 ```
 
 Both connector replicas must be Ready on separate nodes. Healthy connector
 logs must not show DNS, policy, origin TLS, or registration errors. The two
-Calico policies must select the web and connector workload endpoints.
+Calico policies must be present. Nodes that host the web or connector pods must
+show their policy chains, including the final DROP rules.
 
 Finally, test from a device that is off the home LAN and Tailscale. The autism
 hostname must load. Every other hostname returned by this private command must
