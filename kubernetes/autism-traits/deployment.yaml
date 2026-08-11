@@ -21,9 +21,13 @@ spec:
       labels:
         app.kubernetes.io/name: autism-traits
         app.kubernetes.io/part-of: autism-traits
+        autism-traits-component: web
     spec:
       automountServiceAccountToken: false
+      enableServiceLinks: false
       securityContext:
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
@@ -41,6 +45,8 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+            - name: https
+              containerPort: 8443
           startupProbe:
             httpGet:
               path: /index.html
@@ -78,6 +84,9 @@ spec:
               readOnly: true
             - name: nginx-config
               mountPath: /config
+              readOnly: true
+            - name: tls
+              mountPath: /tls
               readOnly: true
             - name: tmp
               mountPath: /tmp
@@ -125,5 +134,9 @@ spec:
           configMap:
             name: autism-traits-nginx
             defaultMode: 0444
+        - name: tls
+          secret:
+            secretName: autism-traits-tls
+            defaultMode: 0440
         - name: tmp
           emptyDir: {}

@@ -11,6 +11,8 @@ export const uiCopy = {
     introTitle: "A quieter way to notice patterns",
     introBody:
       "This experience looks for patterns across communication, relationships, masking, repetition, routine, interests, sensory processing, daily capacity, and childhood history.",
+    privacyNote:
+      "Your answers and score stay only in this browser tab. They are not transmitted or retained and disappear when you refresh or close the page. Cloudflare may process connection metadata to deliver the site.",
     versionOne: "v1 - mediocrity AI created because I did not ask to adhere to my vision.",
     versionTwo:
       "v2 - 328 detailed questions drawn from 30 captioned videos. Minimal AI rewriting. Simpler design.",
@@ -52,7 +54,7 @@ export const uiCopy = {
     startOver: "Start over",
     confirmStartOver: "Confirm start over",
     cancel: "Cancel",
-    startOverPrompt: "Clear all saved answers and return to the first page?",
+    startOverPrompt: "Clear all answers and return to the first page?",
     completeTitle: "Ready to reveal",
     completeBody:
       "Your answers are complete. Nothing has been calculated or shown on screen until you choose the button below.",
@@ -103,6 +105,8 @@ export const uiCopy = {
     introTitle: "Спокойный способ заметить закономерности",
     introBody:
       "Этот опрос помогает увидеть закономерности в общении, отношениях, маскинге, повторениях, распорядке, интересах, сенсорном восприятии, повседневных возможностях и детском опыте.",
+    privacyNote:
+      "Ваши ответы и результат остаются только в памяти этой вкладки браузера. Они не передаются и не сохраняются и исчезают после обновления или закрытия страницы. Cloudflare может обрабатывать метаданные соединения для доставки сайта.",
     versionOne:
       "v1 — посредственный результат ИИ, потому что я не попросил ИИ следовать моему замыслу.",
     versionTwo:
@@ -145,7 +149,7 @@ export const uiCopy = {
     startOver: "Начать заново",
     confirmStartOver: "Подтвердить начало заново",
     cancel: "Отмена",
-    startOverPrompt: "Удалить все сохранённые ответы и вернуться на первую страницу?",
+    startOverPrompt: "Удалить все ответы и вернуться на первую страницу?",
     completeTitle: "Результат готов к показу",
     completeBody:
       "Все ответы заполнены. До нажатия кнопки ниже результат не вычисляется и не показывается на экране.",

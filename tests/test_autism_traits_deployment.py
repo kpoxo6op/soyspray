@@ -20,6 +20,29 @@ except ImportError:
 
 PACKAGE = "kubernetes/autism-traits"
 APPLICATION = "playbooks/argocd/applications/web/autism-traits/autism-traits-application.yaml"
+PROJECT = "playbooks/argocd/applications/web/autism-traits/autism-traits-project.yaml"
+CLOUDFLARE_TUNNEL_ENDPOINTS = {
+    "198.41.192.7/32",
+    "198.41.192.27/32",
+    "198.41.192.37/32",
+    "198.41.192.47/32",
+    "198.41.192.57/32",
+    "198.41.192.67/32",
+    "198.41.192.77/32",
+    "198.41.192.107/32",
+    "198.41.192.167/32",
+    "198.41.192.227/32",
+    "198.41.200.13/32",
+    "198.41.200.23/32",
+    "198.41.200.33/32",
+    "198.41.200.43/32",
+    "198.41.200.53/32",
+    "198.41.200.63/32",
+    "198.41.200.73/32",
+    "198.41.200.113/32",
+    "198.41.200.193/32",
+    "198.41.200.233/32",
+}
 EXPECTED_SITE_PATHS = {
     "index.html",
     "assets/app.js",
@@ -52,13 +75,21 @@ def render_package() -> list[dict]:
     return [item for item in yaml.safe_load_all(result.stdout) if item]
 
 
-def resource(resources: list[dict], kind: str) -> dict:
-    return next(item for item in resources if item["kind"] == kind)
+def resource(
+    resources: list[dict], kind: str, name: str | None = None, api_version: str | None = None
+) -> dict:
+    return next(
+        item
+        for item in resources
+        if item["kind"] == kind
+        and (name is None or item["metadata"]["name"] == name)
+        and (api_version is None or item["apiVersion"] == api_version)
+    )
 
 
 def test_dist_is_projected_from_bounded_configmaps() -> None:
     resources = render_package()
-    deployment = resource(resources, "Deployment")
+    deployment = resource(resources, "Deployment", "autism-traits")
     configmaps = [item for item in resources if item["kind"] == "ConfigMap"]
     site_configmaps = [
         item for item in configmaps if item["metadata"]["name"].startswith("autism-traits-site-")
@@ -102,7 +133,7 @@ def test_dist_is_projected_from_bounded_configmaps() -> None:
 
 def test_workload_is_restricted_and_observable() -> None:
     resources = render_package()
-    deployment = resource(resources, "Deployment")
+    deployment = resource(resources, "Deployment", "autism-traits")
     service = resource(resources, "Service")
     namespace = resource(resources, "Namespace")
     pod_spec = deployment["spec"]["template"]["spec"]
@@ -116,7 +147,9 @@ def test_workload_is_restricted_and_observable() -> None:
     assert labels["pod-security.kubernetes.io/warn-version"] == "v1.35"
 
     assert pod_spec["automountServiceAccountToken"] is False
+    assert pod_spec["enableServiceLinks"] is False
     assert pod_spec["securityContext"]["runAsNonRoot"] is True
+    assert pod_spec["securityContext"]["fsGroup"] == 101
     assert pod_spec["securityContext"]["seccompProfile"] == {"type": "RuntimeDefault"}
     assert web["image"].startswith("nginxinc/nginx-unprivileged:")
     assert "@sha256:" in web["image"]
@@ -133,28 +166,170 @@ def test_workload_is_restricted_and_observable() -> None:
     assert web["startupProbe"]["httpGet"] == {"path": "/index.html", "port": "http"}
     assert web["readinessProbe"]["httpGet"] == {"path": "/index.html", "port": "http"}
     assert web["livenessProbe"]["httpGet"] == {"path": "/healthz", "port": "http"}
-    assert service["spec"]["ports"] == [{"name": "http", "port": 80, "targetPort": "http"}]
+    assert service["spec"]["ports"] == [
+        {"name": "http", "port": 80, "targetPort": "http"},
+        {"name": "https", "port": 443, "targetPort": "https"},
+    ]
+    assert {port["name"] for port in web["ports"]} == {"http", "https"}
+    tls_mount = next(mount for mount in web["volumeMounts"] if mount["name"] == "tls")
+    assert tls_mount == {"name": "tls", "mountPath": "/tls", "readOnly": True}
+    tls_volume = next(volume for volume in pod_spec["volumes"] if volume["name"] == "tls")
+    assert tls_volume == {
+        "name": "tls",
+        "secret": {"secretName": "autism-traits-tls", "defaultMode": 0o440},
+    }
 
 
-def test_ingress_has_dedicated_tls_and_external_dns() -> None:
+def test_cloudflared_is_a_separate_hardened_connector() -> None:
+    deployment = resource(render_package(), "Deployment", "autism-traits-cloudflared")
+    pod_spec = deployment["spec"]["template"]["spec"]
+    connector = pod_spec["containers"][0]
+
+    assert deployment["spec"]["replicas"] == 2
+    assert deployment["spec"]["selector"]["matchLabels"] == {
+        "app.kubernetes.io/name": "autism-traits-cloudflared"
+    }
+    assert pod_spec["automountServiceAccountToken"] is False
+    assert pod_spec["enableServiceLinks"] is False
+    assert pod_spec.get("hostNetwork") is not True
+    assert pod_spec["securityContext"] == {
+        "runAsNonRoot": True,
+        "seccompProfile": {"type": "RuntimeDefault"},
+    }
+    assert connector["image"] == (
+        "cloudflare/cloudflared:2026.7.3@"
+        "sha256:e39ee8da81ad5e05d77f38d2f51c60ca51bf2a8450ac3abab50c17fdb91d91bf"
+    )
+    assert connector["imagePullPolicy"] == "IfNotPresent"
+    assert connector["securityContext"] == {
+        "allowPrivilegeEscalation": False,
+        "capabilities": {"drop": ["ALL"]},
+        "readOnlyRootFilesystem": True,
+        "runAsGroup": 65532,
+        "runAsUser": 65532,
+    }
+    assert connector["resources"]["requests"]
+    assert connector["resources"]["limits"]
+    assert connector["env"] == [
+        {
+            "name": "TUNNEL_TOKEN",
+            "valueFrom": {
+                "secretKeyRef": {"name": "autism-traits-cloudflared-token", "key": "token"}
+            },
+        }
+    ]
+    args = connector["args"]
+    assert args == [
+        "tunnel",
+        "--no-autoupdate",
+        "--loglevel",
+        "error",
+        "--metrics",
+        "0.0.0.0:2000",
+        "run",
+    ]
+    assert connector["readinessProbe"]["httpGet"] == {"path": "/ready", "port": "metrics"}
+    assert connector["livenessProbe"]["httpGet"] == {"path": "/ready", "port": "metrics"}
+
+
+def test_cloudflared_closes_the_local_ipvs_service_path() -> None:
+    resources = render_package()
+    service = resource(resources, "Service", "autism-traits")
+    host_policy = resource(
+        resources,
+        "GlobalNetworkPolicy",
+        "autism-traits-cloudflared-host-boundary",
+        "crd.projectcalico.org/v1",
+    )
+    host_endpoints = {
+        item["metadata"]["name"]: item
+        for item in resources
+        if item.get("apiVersion") == "crd.projectcalico.org/v1"
+        and item.get("kind") == "HostEndpoint"
+    }
+
+    assert service["spec"]["clusterIP"] == "10.233.23.96"
+    assert service["spec"]["clusterIPs"] == ["10.233.23.96"]
+    assert host_endpoints.keys() == {
+        "autism-traits-node-0-host-boundary",
+        "autism-traits-node-1-host-boundary",
+        "autism-traits-node-2-host-boundary",
+    }
+    for index, endpoint in enumerate(host_endpoints.values()):
+        assert endpoint["metadata"].get("namespace") is None
+        assert endpoint["metadata"]["labels"]["autism-traits-host-boundary"] == "true"
+        assert endpoint["spec"] == {
+            "node": f"node-{index}",
+            "interfaceName": "*",
+            "expectedIPs": [f"192.168.20.{10 + index}"],
+            "profiles": ["projectcalico-default-allow"],
+        }
+
+    assert host_policy["metadata"].get("namespace") is None
+    assert host_policy["spec"] == {
+        "order": 10,
+        "selector": "autism-traits-host-boundary == 'true'",
+        "preDNAT": True,
+        "applyOnForward": True,
+        "types": ["Ingress"],
+        "ingress": [
+            {
+                "action": "Deny",
+                "source": {
+                    "namespaceSelector": "projectcalico.org/name == 'autism-traits'",
+                    "selector": "autism-traits-component == 'cloudflared'",
+                },
+                "destination": {
+                    "nets": [
+                        "10.233.0.0/18",
+                        "10.233.64.0/18",
+                        "192.168.20.0/24",
+                    ],
+                    "notNets": ["10.233.23.96/32"],
+                    "notSelector": (
+                        "projectcalico.org/namespace == 'autism-traits' && "
+                        "autism-traits-component == 'web'"
+                    ),
+                },
+            }
+        ],
+    }
+
+
+def test_private_ingress_keeps_tls_but_does_not_own_public_dns() -> None:
     ingress = resource(render_package(), "Ingress")
     annotations = ingress["metadata"]["annotations"]
 
     assert ingress["spec"]["ingressClassName"] == "nginx"
     assert annotations["cert-manager.io/cluster-issuer"] == "letsencrypt-prod"
-    assert annotations["external-dns.alpha.kubernetes.io/hostname"] == "autism.soyspray.vip"
+    assert "external-dns.alpha.kubernetes.io/hostname" not in annotations
     assert ingress["spec"]["tls"] == [
         {"hosts": ["autism.soyspray.vip"], "secretName": "autism-traits-tls"}
     ]
     assert ingress["spec"]["rules"][0]["host"] == "autism.soyspray.vip"
 
 
-def test_network_policy_allows_only_ingress_nginx_and_no_egress() -> None:
-    policy = resource(render_package(), "NetworkPolicy")["spec"]
+def test_namespace_and_web_have_default_deny_boundaries() -> None:
+    resources = render_package()
+    default_deny = resource(
+        resources, "NetworkPolicy", "autism-traits-default-deny", "networking.k8s.io/v1"
+    )["spec"]
+    web_policy = resource(resources, "NetworkPolicy", "autism-traits-web", "networking.k8s.io/v1")[
+        "spec"
+    ]
 
-    assert policy["policyTypes"] == ["Ingress", "Egress"]
-    assert policy["egress"] == []
-    assert policy["ingress"] == [
+    assert default_deny == {
+        "podSelector": {},
+        "policyTypes": ["Ingress", "Egress"],
+    }
+    assert web_policy["podSelector"] == {"matchLabels": {"autism-traits-component": "web"}}
+    assert web_policy["policyTypes"] == ["Ingress", "Egress"]
+    assert web_policy["egress"] == []
+    assert web_policy["ingress"] == [
+        {
+            "from": [{"podSelector": {"matchLabels": {"autism-traits-component": "cloudflared"}}}],
+            "ports": [{"protocol": "TCP", "port": 8443}],
+        },
         {
             "from": [
                 {
@@ -165,8 +340,93 @@ def test_network_policy_allows_only_ingress_nginx_and_no_egress() -> None:
                 }
             ],
             "ports": [{"protocol": "TCP", "port": 8080}],
-        }
+        },
     ]
+
+
+def test_cloudflared_egress_is_only_dns_web_and_exact_cloudflare_endpoints() -> None:
+    resources = render_package()
+    policy = resource(
+        resources, "NetworkPolicy", "autism-traits-cloudflared", "networking.k8s.io/v1"
+    )["spec"]
+
+    assert policy["podSelector"] == {"matchLabels": {"autism-traits-component": "cloudflared"}}
+    assert policy["policyTypes"] == ["Egress"]
+    assert policy.get("ingress") is None
+    assert policy["egress"][0] == {
+        "to": [{"ipBlock": {"cidr": "169.254.25.10/32"}}],
+        "ports": [
+            {"protocol": "UDP", "port": 53},
+            {"protocol": "TCP", "port": 53},
+        ],
+    }
+    assert policy["egress"][1] == {
+        "to": [{"podSelector": {"matchLabels": {"autism-traits-component": "web"}}}],
+        "ports": [{"protocol": "TCP", "port": 8443}],
+    }
+    endpoint_rule = policy["egress"][2]
+    assert {item["ipBlock"]["cidr"] for item in endpoint_rule["to"]} == (
+        CLOUDFLARE_TUNNEL_ENDPOINTS
+    )
+    assert endpoint_rule["ports"] == [
+        {"protocol": "TCP", "port": 7844},
+        {"protocol": "UDP", "port": 7844},
+    ]
+    rendered = json.dumps(policy)
+    for forbidden in ("0.0.0.0/0", "10.233.0.0", "192.168.20.0"):
+        assert forbidden not in rendered
+
+
+def test_calico_policy_closes_the_node_and_api_exception() -> None:
+    policy = resource(
+        render_package(),
+        "NetworkPolicy",
+        "autism-traits-cloudflared-boundary",
+        "crd.projectcalico.org/v1",
+    )["spec"]
+
+    assert policy["order"] == 10
+    assert policy["selector"] == "autism-traits-component == 'cloudflared'"
+    assert policy["types"] == ["Egress"]
+    assert policy["egress"][-1] == {"action": "Deny"}
+    assert any(
+        rule.get("action") == "Allow"
+        and rule.get("destination", {}).get("nets") == ["169.254.25.10/32"]
+        and rule.get("destination", {}).get("ports") == [53]
+        for rule in policy["egress"]
+    )
+    assert any(
+        rule.get("action") == "Allow"
+        and rule.get("destination", {}).get("selector") == "autism-traits-component == 'web'"
+        and rule.get("destination", {}).get("ports") == [8443]
+        for rule in policy["egress"]
+    )
+    endpoint_nets = {
+        cidr
+        for rule in policy["egress"]
+        for cidr in rule.get("destination", {}).get("nets", [])
+        if rule.get("destination", {}).get("ports") == [7844]
+    }
+    assert endpoint_nets == CLOUDFLARE_TUNNEL_ENDPOINTS
+    rendered = json.dumps(policy)
+    for forbidden in ("0.0.0.0/0", "10.233.0.1", "192.168.20.0/24"):
+        assert forbidden not in rendered
+
+
+def test_calico_policy_makes_web_egress_genuinely_zero() -> None:
+    policy = resource(
+        render_package(),
+        "NetworkPolicy",
+        "autism-traits-web-zero-egress",
+        "crd.projectcalico.org/v1",
+    )["spec"]
+
+    assert policy == {
+        "order": 10,
+        "selector": "autism-traits-component == 'web'",
+        "types": ["Egress"],
+        "egress": [{"action": "Deny"}],
+    }
 
 
 def test_nginx_uses_a_strict_local_only_csp_and_security_headers() -> None:
@@ -181,6 +441,15 @@ def test_nginx_uses_a_strict_local_only_csp_and_security_headers() -> None:
     assert "'unsafe-inline'" not in config
     assert "'unsafe-eval'" not in config
     assert "https:" not in config
+    assert "listen 8443 ssl;" in config
+    assert "ssl_certificate /tls/tls.crt;" in config
+    assert "ssl_certificate_key /tls/tls.key;" in config
+    assert "noTLSVerify" not in config
+    assert "access_log off;" in config
+    assert "access_log /dev/stdout" not in config
+    assert "error_log /dev/stderr emerg;" in config
+    assert "if ($request_method !~ ^(GET|HEAD)$)" in config
+    assert "return 405;" in config
     for header in (
         "Cross-Origin-Opener-Policy",
         "Cross-Origin-Resource-Policy",
@@ -192,13 +461,14 @@ def test_nginx_uses_a_strict_local_only_csp_and_security_headers() -> None:
         assert f"add_header {header} " in config
 
 
-def test_argocd_application_reconciles_head_in_the_default_project() -> None:
+def test_argocd_application_uses_a_restricted_project() -> None:
     app = load_yaml(APPLICATION)
+    project = load_yaml(PROJECT)
 
     assert app["metadata"]["name"] == "autism-traits"
     assert app["metadata"]["namespace"] == "argocd"
     assert app["metadata"]["finalizers"] == ["resources-finalizer.argocd.argoproj.io"]
-    assert app["spec"]["project"] == "default"
+    assert app["spec"]["project"] == "autism-traits"
     assert app["spec"]["source"] == {
         "repoURL": "https://github.com/kpoxo6op/soyspray.git",
         "targetRevision": "HEAD",
@@ -215,6 +485,73 @@ def test_argocd_application_reconciles_head_in_the_default_project() -> None:
     assert namespace_labels["pod-security.kubernetes.io/enforce"] == "restricted"
     assert namespace_labels["pod-security.kubernetes.io/enforce-version"] == "v1.35"
 
+    assert project["metadata"] == {"name": "autism-traits", "namespace": "argocd"}
+    assert project["spec"]["sourceRepos"] == ["https://github.com/kpoxo6op/soyspray.git"]
+    assert project["spec"]["destinations"] == [
+        {"server": "https://kubernetes.default.svc", "namespace": "autism-traits"}
+    ]
+    assert project["spec"]["clusterResourceWhitelist"] == [
+        {"group": "", "kind": "Namespace"},
+        {"group": "crd.projectcalico.org", "kind": "GlobalNetworkPolicy"},
+        {"group": "crd.projectcalico.org", "kind": "HostEndpoint"},
+    ]
+    assert project["spec"]["namespaceResourceWhitelist"] == [
+        {"group": "", "kind": "ConfigMap"},
+        {"group": "", "kind": "Service"},
+        {"group": "apps", "kind": "Deployment"},
+        {"group": "networking.k8s.io", "kind": "Ingress"},
+        {"group": "networking.k8s.io", "kind": "NetworkPolicy"},
+        {"group": "crd.projectcalico.org", "kind": "NetworkPolicy"},
+    ]
+    assert "*" not in json.dumps(project)
+
+
+def test_application_has_no_browser_storage_or_data_transmission() -> None:
+    source = "\n".join(
+        path.read_text() for path in (ROOT / PACKAGE / "app/src").rglob("*") if path.is_file()
+    )
+
+    assert "localStorage.getItem" not in source
+    assert "localStorage.setItem" not in source
+    assert 'localStorage.removeItem("autism-traits-assessment:v1")' in source
+    assert "sessionStorage" not in source
+    assert "fetch(" not in source
+    assert "XMLHttpRequest" not in source
+    assert "navigator.sendBeacon" not in source
+    assert "connect-src 'none'" in (ROOT / PACKAGE / "config/nginx.conf").read_text()
+    assert "not transmitted or retained" in source
+    assert "Cloudflare may process connection metadata" in source
+
+
+def test_tunnel_runbook_has_bounded_cutover_verification_and_rollback() -> None:
+    readme = (ROOT / PACKAGE / "README.md").read_text()
+
+    for required in (
+        "autism-traits-public",
+        "https://autism-traits.autism-traits.svc.cluster.local:443",
+        "originServerName=autism.soyspray.vip",
+        "noTLSVerify=false",
+        "autism-traits response privacy",
+        '(http.host eq "autism.soyspray.vip")',
+        "`NEL` and `Report-To`",
+        "external-dns-autism.soyspray.vip",
+        "AUTISM_TRAITS_CLOUDFLARED_TOKEN",
+        "TCP and UDP port 7844",
+        "169.254.25.10",
+        "kube-proxy IPVS",
+        "pre-DNAT GlobalNetworkPolicy",
+        "projectcalico-default-allow",
+        "make autism-traits AUTISM_TRAITS_ENABLED=false",
+        "off the home LAN and Tailscale",
+    ):
+        assert required in readme
+    assert "A, CNAME, and ownership TXT" in readme
+    assert "wildcard" in readme.lower()
+    assert "private network route" in readme.lower()
+    assert "ingress-nginx" in readme
+    assert "192.168.20.0/24" in readme
+    assert "rollback" in readme.lower()
+
 
 def test_role_defaults_enable_the_site_and_propagate_revision() -> None:
     defaults = load_yaml("roles/apps/autism-traits/defaults/main.yml")
@@ -226,12 +563,22 @@ def test_role_defaults_enable_the_site_and_propagate_revision() -> None:
     }
     assert "state: present" in enabled
     assert "autism_traits_target_revision" in enabled
+    assert "name: app-secret" in enabled
+    assert "AUTISM_TRAITS_CLOUDFLARED_TOKEN" in enabled
+    assert "autism-traits-cloudflared-token" in enabled
+    assert "autism-traits-project.yaml" in enabled
+    assert enabled.index("autism-traits-project.yaml") < enabled.index(
+        "autism-traits-application.yaml"
+    )
 
 
 @pytest.mark.parametrize("revision", ("feat/autism-assessment", "true", "null", "2026"))
 def test_role_renders_every_valid_revision_as_a_string(revision: str) -> None:
     enabled = load_yaml("roles/apps/autism-traits/tasks/enabled.yml")
-    expression = enabled[0]["kubernetes.core.k8s"]["definition"]
+    application_task = next(
+        task for task in enabled if "autism-traits-application.yaml" in json.dumps(task)
+    )
+    expression = application_task["kubernetes.core.k8s"]["definition"]
     templar = Templar(
         loader=DataLoader(),
         variables={
@@ -262,6 +609,15 @@ def test_role_quiesces_the_live_application_before_disabling_it() -> None:
     assert "name: autism-traits" in disabled
     assert "namespace: argocd" in disabled
     assert "wait: true" in disabled
+    assert "kind: Secret" in disabled
+    assert "name: autism-traits-cloudflared-token" in disabled
+    assert "kind: AppProject" in disabled
+    assert disabled.index("Remove the autism traits Cloudflare Tunnel token") < disabled.index(
+        "Remove the autism traits Argo application"
+    )
+    assert disabled.index("Remove the autism traits Argo project") > disabled.index(
+        "Remove the autism traits Argo application"
+    )
 
 
 def test_operator_and_ci_paths_include_the_site_without_weakening_python_checks() -> None:

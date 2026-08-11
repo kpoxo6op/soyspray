@@ -8,7 +8,7 @@ metadata:
   labels:
     app.kubernetes.io/part-of: autism-traits
 spec:
-  project: default
+  project: autism-traits
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
     targetRevision: HEAD

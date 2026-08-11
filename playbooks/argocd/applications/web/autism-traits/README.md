@@ -1,8 +1,14 @@
 # Autism traits Argo CD application
 
-[`autism-traits-application.yaml`](autism-traits-application.yaml) reconciles
-the [static site package](../../../../../kubernetes/autism-traits/README.md)
-in the `default` AppProject.
+[`autism-traits-project.yaml`](autism-traits-project.yaml) limits this
+application to the `kpoxo6op/soyspray` repository, the `autism-traits`
+namespace, and the resource kinds in the static site and dedicated tunnel
+package. Its only cluster-scoped Calico permissions are `GlobalNetworkPolicy`
+and `HostEndpoint`, which close the connector's kube-proxy IPVS path to local
+host-network services.
 
-The Ansible role can replace `targetRevision: HEAD` with a topic branch during
-a reviewed deployment.
+[`autism-traits-application.yaml`](autism-traits-application.yaml) reconciles
+the [package and operator runbook](../../../../../kubernetes/autism-traits/README.md).
+The Ansible role bootstraps the dedicated connector token before it applies the
+project and Application. It can replace `targetRevision: HEAD` with a pushed
+topic branch during a reviewed deployment.

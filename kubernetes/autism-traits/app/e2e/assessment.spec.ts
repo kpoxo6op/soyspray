@@ -41,7 +41,7 @@ const continueThroughAnsweredSections = async (page: Page) => {
   }
 };
 
-test("intro and source pages preserve the required content and language choice", async ({ page }) => {
+test("intro and source pages preserve the required content without retaining preferences", async ({ page }) => {
   const initialDocument = await page.request.get("/");
   expect(initialDocument.ok()).toBe(true);
   expect(await initialDocument.text()).toContain("<title>Detailed autism questionnaire</title>");
@@ -53,6 +53,11 @@ test("intro and source pages preserve the required content and language choice",
   await expect(
     page.getByText(
       "This is not a diagnostic test. If it makes you curious, seek a professional assessment like I did.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Your answers and score stay only in this browser tab. They are not transmitted or retained and disappear when you refresh or close the page. Cloudflare may process connection metadata to deliver the site.",
     ),
   ).toBeVisible();
   await expect(
@@ -70,6 +75,9 @@ test("intro and source pages preserve the required content and language choice",
   await page.getByRole("button", { name: "Русский" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "ru");
   await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page).toHaveTitle("Detailed autism questionnaire");
+  await page.getByRole("button", { name: "Русский" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "ru");
   await expect(page).toHaveTitle("Подробный опрос об аутизме");
   await expect(
@@ -178,7 +186,7 @@ test("mouse flow keeps the result hidden until explicit reveal and supports edit
   );
 });
 
-test("keyboard, browser Back, refresh, and local resume preserve answers", async ({ page }, testInfo) => {
+test("browser Back keeps answers in memory and refresh clears them", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop");
   await startAssessment(page);
 
@@ -196,14 +204,12 @@ test("keyboard, browser Back, refresh, and local resume preserve answers", async
   await expect(cards.first().getByRole("radio", { checked: true })).toHaveCount(1);
 
   await page.reload();
-  await expect(cards.first().getByRole("radio", { checked: true })).toHaveCount(1);
+  await expect(cards.first().getByRole("radio", { checked: true })).toHaveCount(0);
   await page.goto("/#/intro");
-  await expect(page.getByRole("link", { name: "Resume assessment" })).toBeVisible();
-  await page.getByRole("link", { name: "Resume assessment" }).click();
-  await expect(page).toHaveURL(/#\/assessment\/conversation$/);
+  await expect(page.getByRole("link", { name: "Resume assessment" })).toHaveCount(0);
 });
 
-test("start over clears saved answers without changing language or theme", async ({ page }, testInfo) => {
+test("start over clears in-memory answers without changing language or theme", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop");
   await startAssessment(page);
   await page
@@ -238,7 +244,7 @@ test("Auto theme follows system changes and stays selected after reload", async 
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 });
 
-test("explicit Light and Dark themes override the system and persist", async ({ page }, testInfo) => {
+test("explicit Light and Dark themes override the system only until refresh", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop");
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/");
@@ -250,14 +256,33 @@ test("explicit Light and Dark themes override the system and persist", async ({ 
   await page.emulateMedia({ colorScheme: "dark" });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.reload();
-  await expect(theme).toHaveValue("light");
+  await expect(theme).toHaveValue("auto");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
-  await theme.selectOption("dark");
   await page.emulateMedia({ colorScheme: "light" });
+  await theme.selectOption("dark");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.reload();
-  await expect(theme).toHaveValue("dark");
-  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(theme).toHaveValue("auto");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});
+
+test("legacy assessment storage is deleted and never restored", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop");
+  await page.goto("/");
+  await page.evaluate(() => {
+    window.localStorage.setItem(
+      "autism-traits-assessment:v1",
+      JSON.stringify({ language: "ru", answers: { q01: 4 }, started: true }),
+    );
+  });
+  await page.reload();
+
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await expect(page.getByRole("link", { name: "Resume assessment" })).toHaveCount(0);
+  expect(
+    await page.evaluate(() => window.localStorage.getItem("autism-traits-assessment:v1")),
+  ).toBeNull();
 });
 
 test("content stays flat while mobile answers retain bordered touch controls", async ({
