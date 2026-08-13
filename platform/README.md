@@ -56,6 +56,9 @@ The command creates or updates each monitor, one shared status page, the page
 resources, and the DNS-only CNAME. It does not delete unlisted monitors or DNS
 records.
 
+See [`../soydocs/public-status-page.md`](../soydocs/public-status-page.md) for
+future diagnosis, extension, move maintenance, fallback, and rollback.
+
 The OpenWrt split-DNS wildcard must not send the status hostname to the home
 cluster. Keep this more-specific dnsmasq forwarding rule on the router:
 
