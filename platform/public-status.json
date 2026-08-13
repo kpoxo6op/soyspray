@@ -10,8 +10,7 @@
     "theme": "system",
     "layout": "vertical",
     "automatic_reports": true,
-    "published": true,
-    "subscribable": true
+    "published": true
   },
   "dns": {
     "zone": "soyspray.vip",

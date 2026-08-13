@@ -114,6 +114,7 @@ def test_reconcile_creates_extendable_status_page_without_duplicates() -> None:
     page = better_stack.pages[0]
     assert page["attributes"]["automatic_reports"] is True
     assert page["attributes"]["custom_domain"] == "status.soyspray.vip"
+    assert "subscribable" not in page["attributes"]
     assert len(better_stack.resources[page["id"]]) == 2
     autism_monitor = better_stack.monitors[0]["attributes"]
     assert autism_monitor["url"] == "https://autism.soyspray.vip/"
