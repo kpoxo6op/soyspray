@@ -31,8 +31,9 @@ KUSTOMIZATIONS := \
 	kubernetes/autism-traits \
 	playbooks/argocd/applications/kong-bank-lab/operator-dashboard
 
-.PHONY: help setup act check autism-traits-check lint validate validate-skills test docs docs-serve render status smoke go \
-	deploy kong-on kong-off autism-traits argo-login list-apps node0 node1 node2 master worker1 worker2 worker3 clean
+.PHONY: help setup act check autism-traits-check lint validate validate-skills status-page-check test docs docs-serve \
+	render status smoke go deploy kong-on kong-off autism-traits status-page status-page-fallback argo-login list-apps node0 node1 node2 \
+	master worker1 worker2 worker3 clean
 
 help: ## Show the operator commands
 	printf 'Soyspray operator commands\n\n'
@@ -59,7 +60,7 @@ lint: ## Check Python style and common defects
 		roles/apps/kong-bank-lab/tasks/*.yml roles/apps/kong-bank-lab/defaults/*.yml \
 		roles/apps/autism-traits/tasks/*.yml roles/apps/autism-traits/defaults/*.yml
 
-validate: validate-skills ## Validate YAML, OpenAPI, and rendered manifests
+validate: validate-skills status-page-check ## Validate YAML, OpenAPI, and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py
 	$(PYTHON) scripts/validate_openapi_specs.py
 	for path in $(KUSTOMIZATIONS); do \
@@ -69,6 +70,9 @@ validate: validate-skills ## Validate YAML, OpenAPI, and rendered manifests
 
 validate-skills: ## Validate reusable project-local Agent Skills
 	$(PYTHON) scripts/validate_skills.py
+
+status-page-check:
+	$(PYTHON) scripts/configure_status_page.py --check
 
 test: ## Run the focused test suite
 	$(PYTEST) -q tests
@@ -114,6 +118,12 @@ autism-traits: go ## Reconcile or remove the autism traits site
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags autism_traits \
 		-e autism_traits_enabled=$(AUTISM_TRAITS_ENABLED) \
 		-e autism_traits_target_revision=$(AUTISM_TRAITS_REVISION)
+
+status-page: go
+	$(PYTHON) scripts/configure_status_page.py
+
+status-page-fallback: status-page-check
+	$(PYTHON) scripts/configure_status_page.py --fallback
 
 argo-login: ## Log in to the home Argo CD instance
 	argocd login argocd.soyspray.vip --username admin --grpc-web
