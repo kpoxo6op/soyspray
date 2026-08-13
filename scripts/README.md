@@ -7,6 +7,8 @@ This directory contains utility scripts for the cluster and the Kong bank lab.
 - `banklab_status.py` prints node and Argo application health.
 - `banklab_smoke.py` runs read-only route, authentication, exposure, and
   customer-app checks.
+- `configure_status_page.py` reconciles the external public status page and
+  its DNS-only CNAME.
 - `validate_skills.py` checks the reusable Agent Skills under `.agents/skills`.
 - `validate_openapi_specs.py` validates the six synthetic API contracts.
 - `validate_yaml.py` parses the YAML files used by the local quality gate.
