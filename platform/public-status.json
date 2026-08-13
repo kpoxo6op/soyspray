@@ -1,0 +1,29 @@
+{
+  "status_page": {
+    "company_name": "Soyspray service status",
+    "company_url": "https://autism.soyspray.vip/",
+    "subdomain": "soyspray-status",
+    "custom_domain": "status.soyspray.vip",
+    "timezone": "Auckland",
+    "history": 90,
+    "design": "v2",
+    "theme": "system",
+    "layout": "vertical",
+    "automatic_reports": true,
+    "published": true,
+    "subscribable": true
+  },
+  "dns": {
+    "zone": "soyspray.vip",
+    "name": "status.soyspray.vip",
+    "target": "statuspage.betteruptime.com"
+  },
+  "services": [
+    {
+      "name": "Autism questionnaire",
+      "url": "https://autism.soyspray.vip/",
+      "keyword": "Detailed autism questionnaire",
+      "explanation": "External check of the public autism questionnaire."
+    }
+  ]
+}
