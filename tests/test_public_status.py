@@ -131,3 +131,21 @@ def test_reconcile_creates_extendable_status_page_without_duplicates() -> None:
             "comment": "Managed by scripts/configure_status_page.py",
         }
     ]
+
+
+def test_fallback_switch_is_idempotent_and_removes_the_custom_domain() -> None:
+    status = load_module(
+        "configure_status_page_fallback", ROOT / "scripts/configure_status_page.py"
+    )
+    config = json.loads((ROOT / "platform/public-status.json").read_text())
+    better_stack = FakeBetterStack()
+    cloudflare = FakeCloudflare()
+    status.reconcile(config, better_stack, cloudflare)
+    mutation_count = len(better_stack.mutations)
+
+    first = status.activate_fallback(config, better_stack)
+    second = status.activate_fallback(config, better_stack)
+
+    assert first == second == {"fallback_url": "https://soyspray-status.betteruptime.com"}
+    assert better_stack.pages[0]["attributes"]["custom_domain"] == ""
+    assert len(better_stack.mutations) == mutation_count + 1

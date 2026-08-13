@@ -133,6 +133,21 @@ def ensure_page(api, page_config: dict) -> dict:
     return page
 
 
+def activate_fallback(config: dict, api) -> dict[str, str]:
+    validate_config(config)
+    subdomain = config["status_page"]["subdomain"]
+    pages = api.request("GET", "/status-pages").get("data", [])
+    page = one(
+        [item for item in pages if attributes(item).get("subdomain") == subdomain],
+        f"status page for {subdomain}",
+    )
+    if page is None:
+        raise RuntimeError(f"Better Stack status page not found: {subdomain}")
+    if attributes(page).get("custom_domain"):
+        api.request("PATCH", f"/status-pages/{page['id']}", {"custom_domain": ""})
+    return {"fallback_url": f"https://{subdomain}.betteruptime.com"}
+
+
 def ensure_resource(api, page_id: str, monitor_id: str, service: dict, position: int) -> None:
     path = f"/status-pages/{page_id}/resources"
     desired = {
@@ -209,6 +224,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--check", action="store_true", help="validate configuration only")
+    parser.add_argument(
+        "--fallback",
+        action="store_true",
+        help="activate the Better Stack hostname by removing the custom domain",
+    )
     args = parser.parse_args()
     config = json.loads(args.config.read_text(encoding="utf-8"))
     validate_config(config)
@@ -217,9 +237,17 @@ def main() -> int:
         return 0
 
     better_token = os.environ.get("BETTER_STACK_API_TOKEN")
+    if not better_token:
+        print("Set BETTER_STACK_API_TOKEN.", file=sys.stderr)
+        return 2
+    if args.fallback:
+        result = activate_fallback(config, JsonClient(BETTER_STACK_API, better_token))
+        print(json.dumps(result, indent=2))
+        return 0
+
     cloudflare_token = os.environ.get("CLOUDFLARE_API_TOKEN")
-    if not better_token or not cloudflare_token:
-        print("Set BETTER_STACK_API_TOKEN and CLOUDFLARE_API_TOKEN.", file=sys.stderr)
+    if not cloudflare_token:
+        print("Set CLOUDFLARE_API_TOKEN.", file=sys.stderr)
         return 2
     result = reconcile(
         config,

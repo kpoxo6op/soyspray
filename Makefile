@@ -32,7 +32,7 @@ KUSTOMIZATIONS := \
 	playbooks/argocd/applications/kong-bank-lab/operator-dashboard
 
 .PHONY: help setup act check autism-traits-check lint validate validate-skills status-page-check test docs docs-serve \
-	render status smoke go deploy kong-on kong-off autism-traits status-page argo-login list-apps node0 node1 node2 \
+	render status smoke go deploy kong-on kong-off autism-traits status-page status-page-fallback argo-login list-apps node0 node1 node2 \
 	master worker1 worker2 worker3 clean
 
 help: ## Show the operator commands
@@ -121,6 +121,9 @@ autism-traits: go ## Reconcile or remove the autism traits site
 
 status-page: go
 	$(PYTHON) scripts/configure_status_page.py
+
+status-page-fallback: status-page-check
+	$(PYTHON) scripts/configure_status_page.py --fallback
 
 argo-login: ## Log in to the home Argo CD instance
 	argocd login argocd.soyspray.vip --username admin --grpc-web
