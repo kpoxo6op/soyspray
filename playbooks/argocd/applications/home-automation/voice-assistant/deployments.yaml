@@ -222,3 +222,146 @@ spec:
         - name: tmp
           emptyDir:
             sizeLimit: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openwakeword-gi
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: openwakeword-gi
+  template:
+    metadata:
+      labels:
+        app: openwakeword-gi
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: patch-gi-only
+          image: rhasspy/wyoming-openwakeword:2.1.0@sha256:52cb1168731a1849fc28cf339c935fde58746bbabc94226668a40ef6ddf5d42b
+          imagePullPolicy: IfNotPresent
+          command:
+            - /usr/src/.venv/bin/python3
+            - /patch-source/patch.py
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: patch-source
+              mountPath: /patch-source
+              readOnly: true
+            - name: patched-package
+              mountPath: /patched
+      containers:
+        - name: openwakeword
+          image: rhasspy/wyoming-openwakeword:2.1.0@sha256:52cb1168731a1849fc28cf339c935fde58746bbabc94226668a40ef6ddf5d42b
+          imagePullPolicy: IfNotPresent
+          workingDir: /tmp
+          command:
+            - /usr/src/.venv/bin/python3
+            - -P
+            - -m
+            - wyoming_openwakeword
+          args:
+            - --uri
+            - tcp://0.0.0.0:10400
+            - --custom-model-dir
+            - /models
+            - --threshold
+            - "0.65"
+            - --trigger-level
+            - "2"
+          env:
+            - name: PYTHONPATH
+              value: /patched
+          ports:
+            - name: wyoming
+              containerPort: 10400
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            exec:
+              command:
+                - /usr/src/.venv/bin/python3
+                - -c
+                - >-
+                  import hashlib, pathlib, numpy as np, socket;
+                  from pyopen_wakeword import OpenWakeWord;
+                  import wyoming_openwakeword.handler as handler;
+                  assert str(pathlib.Path(handler.__file__).resolve()).startswith('/patched/');
+                  handler_source=pathlib.Path(handler.__file__).read_text();
+                  assert 'OKAY_NABU' not in handler_source and 'Model(ww_name)' not in handler_source;
+                  assert hashlib.sha256(pathlib.Path('/models/gi.tflite').read_bytes()).hexdigest()
+                  == 'a2cec1420fa23762e3cd2722892b83490966cd54a0d745f622894302084a8ecb';
+                  model=OpenWakeWord.from_model('/models/gi.tflite');
+                  next(model.process_streaming(np.zeros((1, 1, model.input_windows,
+                  model.embeddings.shape[1]), dtype=np.float32)));
+                  socket.create_connection(('127.0.0.1', 10400), 2).close()
+            periodSeconds: 5
+            timeoutSeconds: 20
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 10400
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 10400
+            periodSeconds: 30
+            failureThreshold: 3
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: patched-package
+              mountPath: /patched
+              readOnly: true
+      volumes:
+        - name: models
+          configMap:
+            name: openwakeword-gi-model-v1
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: patch-source
+          configMap:
+            name: openwakeword-gi-patch
+            defaultMode: 0555
+        - name: patched-package
+          emptyDir:
+            sizeLimit: 4Mi

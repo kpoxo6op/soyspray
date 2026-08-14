@@ -25,3 +25,17 @@ spec:
       port: 10200
       protocol: TCP
       targetPort: 10200
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: openwakeword-gi
+spec:
+  type: ClusterIP
+  selector:
+    app: openwakeword-gi
+  ports:
+    - name: wyoming
+      port: 10400
+      protocol: TCP
+      targetPort: 10400

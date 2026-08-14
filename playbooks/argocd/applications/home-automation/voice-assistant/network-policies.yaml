@@ -50,6 +50,27 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
+  name: openwakeword-gi
+spec:
+  podSelector:
+    matchLabels:
+      app: openwakeword-gi
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: home-assistant
+      ports:
+        - port: 10400
+          protocol: TCP
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
   name: voice-model-bootstrap
   annotations:
     argocd.argoproj.io/sync-wave: "-2"

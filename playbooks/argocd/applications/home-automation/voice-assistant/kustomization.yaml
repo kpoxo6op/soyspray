@@ -10,6 +10,11 @@ resources:
   - storage.yaml
   - network-policies.yaml
 
+configMapGenerator:
+  - name: openwakeword-gi-patch
+    files:
+      - patch.py=gi_only_openwakeword.py
+
 labels:
   - pairs:
       app.kubernetes.io/part-of: home-assistant-voice
