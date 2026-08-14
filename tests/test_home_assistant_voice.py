@@ -271,6 +271,10 @@ def test_runbook_records_every_non_git_home_assistant_step() -> None:
         "Revoke the old token only after",
         "Push this unchanged rotation branch",
         "before the annotation change",
+        "internal_url",
+        "192.168.20.33:8123",
+        "home-assistant-voice-0a9b95",
+        "port `6053`",
     ):
         assert required in runbook
 
@@ -294,3 +298,26 @@ def test_wyoming_smoke_checks_tts_audio_and_speech_transcript() -> None:
         "turn on the top",
     ):
         assert required in smoke
+
+
+def test_home_assistant_voice_uses_the_lan_service_url() -> None:
+    home_assistant = "playbooks/argocd/applications/home-automation/home-assistant"
+    bootstrap = load_yaml(f"{home_assistant}/configmap-bootstrap.yaml")["data"][
+        "configuration.yaml"
+    ]
+    service = load_yaml(f"{home_assistant}/service.yaml")["spec"]
+
+    assert (
+        f"internal_url: http://{service['loadBalancerIP']}:{service['ports'][0]['port']}"
+        in bootstrap
+    )
+
+
+def test_home_assistant_rolls_out_the_voice_lan_url() -> None:
+    deployment = load_yaml(
+        "playbooks/argocd/applications/home-automation/home-assistant/deployment.yaml"
+    )
+
+    assert deployment["spec"]["template"]["metadata"]["annotations"] == {
+        "soyspray.vip/bootstrap-config-revision": "2026-08-14-voice-lan-url"
+    }
