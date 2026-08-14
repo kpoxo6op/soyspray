@@ -93,8 +93,10 @@ kubectl wait -n home-automation --for=condition=available \
   deployment/speech-to-phrase deployment/piper-en --timeout=15m
 kubectl exec -n home-automation deployment/speech-to-phrase -- \
   test -f /data/train/en_US-rhasspy/training_info.json
-kubectl get deploy,pod,job,svc,pvc,networkpolicy -n home-automation \
+kubectl get deploy,job,svc,pvc,networkpolicy -n home-automation \
   -l app.kubernetes.io/part-of=home-assistant-voice
+kubectl get pod -n home-automation \
+  -l 'app in (speech-to-phrase,piper-en)'
 ```
 
 The Speech-to-Phrase readiness probe checks both the Wyoming socket and
