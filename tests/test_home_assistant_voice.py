@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import importlib.util
+import re
 import subprocess
+from hashlib import sha256
 
 import yaml
 from conftest import ROOT, load_yaml
@@ -15,6 +18,11 @@ PIPER_IMAGE = (
     "rhasspy/wyoming-piper:2.3.1@"
     "sha256:69b7f797ae3a8c3c0202cbf97152fb795d78c2355de2a31655c20671247360d8"
 )
+OPENWAKEWORD_IMAGE = (
+    "rhasspy/wyoming-openwakeword:2.1.0@"
+    "sha256:52cb1168731a1849fc28cf339c935fde58746bbabc94226668a40ef6ddf5d42b"
+)
+STOP_MODEL_SHA256 = "b5a18c4ad681a89950dfade31011e1631bdcb333e93c84519a1a63ff4f071146"
 BOOTSTRAP_IMAGE = (
     "curlimages/curl:8.14.1@sha256:9a1ed35addb45476afa911696297f8e115993df459278ed036182dd2cd22b67b"
 )
@@ -50,9 +58,17 @@ def test_voice_stack_is_an_independent_gitops_package() -> None:
         for kind in ("Deployment", "Job", "Service", "PersistentVolumeClaim")
     }
 
-    assert names_by_kind["Deployment"] == {"speech-to-phrase", "piper-en"}
+    assert names_by_kind["Deployment"] == {
+        "speech-to-phrase",
+        "piper-en",
+        "openwakeword-gi",
+    }
     assert names_by_kind["Job"] == {"voice-model-bootstrap-v1"}
-    assert names_by_kind["Service"] == {"speech-to-phrase", "piper-en"}
+    assert names_by_kind["Service"] == {
+        "speech-to-phrase",
+        "piper-en",
+        "openwakeword-gi",
+    }
     assert names_by_kind["PersistentVolumeClaim"] == {
         "speech-to-phrase-data-v1",
         "piper-en-data-v1",
@@ -153,7 +169,12 @@ def test_voice_workloads_are_local_persistent_and_restricted() -> None:
     policies = {
         item["metadata"]["name"]: item for item in resources if item["kind"] == "NetworkPolicy"
     }
-    assert set(policies) == {"speech-to-phrase", "piper-en", "voice-model-bootstrap"}
+    assert set(policies) == {
+        "speech-to-phrase",
+        "piper-en",
+        "openwakeword-gi",
+        "voice-model-bootstrap",
+    }
     for policy in (policies["speech-to-phrase"], policies["piper-en"]):
         assert policy["spec"]["policyTypes"] == ["Ingress", "Egress"]
         assert policy["spec"]["ingress"][0]["from"] == [
@@ -174,6 +195,281 @@ def test_voice_workloads_are_local_persistent_and_restricted() -> None:
         for rule in bootstrap["spec"]["egress"]
         for port in rule.get("ports", [])
     )
+
+
+def test_gi_wake_word_is_local_pinned_and_wan_denied() -> None:
+    resources = render_voice_stack()
+    deployment = resource(resources, "Deployment", "openwakeword-gi")
+    service = resource(resources, "Service", "openwakeword-gi")
+    policy = resource(resources, "NetworkPolicy", "openwakeword-gi")
+    pod = deployment["spec"]["template"]["spec"]
+    container = pod["containers"][0]
+
+    assert pod["automountServiceAccountToken"] is False
+    assert pod["securityContext"] == {
+        "runAsNonRoot": True,
+        "runAsUser": 1000,
+        "runAsGroup": 1000,
+        "fsGroup": 1000,
+        "seccompProfile": {"type": "RuntimeDefault"},
+    }
+    assert container["image"] == OPENWAKEWORD_IMAGE
+    assert container["command"] == [
+        "/usr/src/.venv/bin/python3",
+        "-P",
+        "-m",
+        "wyoming_openwakeword",
+    ]
+    assert container["args"] == [
+        "--uri",
+        "tcp://0.0.0.0:10400",
+        "--custom-model-dir",
+        "/models",
+        "--threshold",
+        "0.65",
+        "--trigger-level",
+        "2",
+    ]
+    assert container["securityContext"] == {
+        "allowPrivilegeEscalation": False,
+        "readOnlyRootFilesystem": True,
+        "capabilities": {"drop": ["ALL"]},
+    }
+    assert container["startupProbe"].get("exec")
+    startup_probe_command = container["startupProbe"]["exec"]["command"][2]
+    assert "hashlib.sha256" in startup_probe_command
+    assert "handler.__file__" in startup_probe_command
+    assert "startswith('/patched/')" in startup_probe_command
+    assert "'OKAY_NABU' not in handler_source" in startup_probe_command
+    assert "MODEL_SHA256_PENDING" not in startup_probe_command
+    assert "OpenWakeWord.from_model('/models/gi.tflite')" in startup_probe_command
+    assert "model.process_streaming" in startup_probe_command
+    assert "np.zeros" in startup_probe_command
+    assert container["startupProbe"]["timeoutSeconds"] == 20
+    assert container["readinessProbe"]["tcpSocket"]["port"] == 10400
+    assert {item["name"]: item["value"] for item in container["env"]} == {"PYTHONPATH": "/patched"}
+    assert container["livenessProbe"] == {
+        "tcpSocket": {"port": 10400},
+        "periodSeconds": 30,
+        "failureThreshold": 3,
+    }
+    assert service["spec"] == {
+        "type": "ClusterIP",
+        "selector": {"app": "openwakeword-gi"},
+        "ports": [{"name": "wyoming", "port": 10400, "protocol": "TCP", "targetPort": 10400}],
+    }
+    assert policy["spec"]["ingress"] == [
+        {
+            "from": [{"podSelector": {"matchLabels": {"app": "home-assistant"}}}],
+            "ports": [{"port": 10400, "protocol": "TCP"}],
+        }
+    ]
+    assert policy["spec"]["egress"] == []
+
+    kustomization = load_yaml(f"{PACKAGE}/kustomization.yaml")
+    assert kustomization["configMapGenerator"] == [
+        {
+            "name": "openwakeword-gi-patch",
+            "files": ["patch.py=gi_only_openwakeword.py"],
+        }
+    ]
+    model_volume = next(volume for volume in pod["volumes"] if volume["name"] == "models")
+    assert model_volume["configMap"]["name"] == "openwakeword-gi-model-v1"
+    init = pod["initContainers"][0]
+    assert init["name"] == "patch-gi-only"
+    assert init["image"] == OPENWAKEWORD_IMAGE
+    assert init["command"] == [
+        "/usr/src/.venv/bin/python3",
+        "/patch-source/patch.py",
+    ]
+    patch_maps = [
+        item
+        for item in resources
+        if item["kind"] == "ConfigMap"
+        and item["metadata"]["name"].startswith("openwakeword-gi-patch-")
+    ]
+    assert len(patch_maps) == 1
+    assert set(patch_maps[0]["data"]) == {"patch.py"}
+
+
+def test_openwakeword_patch_is_fail_closed_and_gi_only() -> None:
+    patch_path = ROOT / PACKAGE / "gi_only_openwakeword.py"
+    spec = importlib.util.spec_from_file_location("gi_only_openwakeword", patch_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    source = """from pyopen_wakeword import Model, OpenWakeWord, OpenWakeWordFeatures
+
+DEFAULT_MODEL = Model.OKAY_NABU
+
+            if detect.names:
+                for ww_name in detect.names:
+                    if ww_name in self.state.custom_models:
+                        ww_names.add(ww_name)
+                    else:
+                        try:
+                            model = Model(ww_name)
+                            ww_names.add(ww_name)
+                        except ValueError:
+                            continue
+
+            if not ww_names:
+                ww_names.add(DEFAULT_MODEL.value)
+
+                model_path = self.state.custom_models.get(ww_name)
+                if model_path is not None:
+                    oww_model = OpenWakeWord.from_model(model_path)
+                else:
+                    try:
+                        model = Model(ww_name)
+                        oww_model = OpenWakeWord.from_builtin(model)
+                    except ValueError:
+                        pass
+
+        models: List[WakeModel] = []
+        for model in Model:
+            phrase = _get_phrase(model.value)
+            models.append(
+                WakeModel(
+                    name=model.value,
+                    description=phrase,
+                    phrase=phrase,
+                    attribution=Attribution(
+                        name="dscripka",
+                        url="https://github.com/dscripka/openWakeWord",
+                    ),
+                    installed=True,
+                    languages=["en"],
+                    version="v0.1",
+                )
+            )
+
+        for custom_model in self.state.custom_models:
+"""
+    patched = module.patch_handler(source, sha256(source.encode()).hexdigest())
+
+    assert "OKAY_NABU" not in patched
+    assert "Model(ww_name)" not in patched
+    assert "for model in Model:" not in patched
+    assert "if ww_name in self.state.custom_models" in patched
+    assert "for custom_model in self.state.custom_models" in patched
+
+
+def test_gi_voice_pe_firmware_renderer_disables_nabu() -> None:
+    from scripts.render_gi_voice_pe import (
+        MICRO_WAKE_WORD_MODELS_COMMIT,
+        VOICE_PE_COMMIT,
+        patch_voice_pe_config,
+    )
+
+    upstream = """
+file: https://github.com/esphome/home-assistant-voice-pe/raw/dev/sounds/wake.flac
+external_components:
+  - source:
+      ref: dev
+button_logic:
+                      - if:
+                          condition:
+                            voice_assistant.is_running:
+                          then:
+                            - voice_assistant.stop:
+                          else:
+                                        - if:
+                                            condition:
+                                              and:
+                                                - switch.is_off: master_mute_switch
+                                                - not:
+                                                    voice_assistant.is_running
+                                            then:
+                                              - script.execute:
+                                                  id: play_sound
+                                                  priority: true
+                                                  sound_file: !lambda return id(center_button_press_sound);
+                                              - delay: 300ms
+                                              - voice_assistant.start:
+script:
+                then:
+                  - micro_wake_word.disable_model: stop
+
+i2s_audio:
+micro_wake_word:
+  models:
+    - model: https://github.com/kahrendt/microWakeWord/releases/download/okay_nabu_20241226.3/okay_nabu.json
+      id: okay_nabu
+    - model: hey_jarvis
+      id: hey_jarvis
+    - model: hey_mycroft
+      id: hey_mycroft
+    - model: https://github.com/kahrendt/microWakeWord/releases/download/stop/stop.json
+      id: stop
+  vad:
+  on_wake_word_detected:
+                - if:
+                    condition:
+                      voice_assistant.is_running:
+                    then:
+                      voice_assistant.stop:
+                    # Stop any other media player announcement
+                    else:
+select:
+  - platform: template
+    name: "Wake word sensitivity"
+    lambda: |-
+      id(okay_nabu).set_probability_cutoff(217);
+voice_assistant:
+  micro_wake_word: mww
+  use_wake_word: false
+  on_client_connected:
+    - micro_wake_word.start:
+  on_error:
+    - if:
+        condition:
+          - lambda: return code == "cloud-auth-failed";
+        then:
+          - script.execute:
+              id: play_sound
+              priority: true
+              sound_file: !lambda return id(error_cloud_expired);
+  # When the voice assistant starts: Play a wake up sound, duck audio.
+  on_start:
+    - mixer_speaker.apply_ducking:
+        id: media_mixing_input
+        decibel_reduction: 20
+        duration: 0.0s
+  on_end:
+    - wait_until:
+        not:
+          voice_assistant.is_running:
+"""
+    rendered = patch_voice_pe_config(upstream)
+
+    assert f"/raw/{VOICE_PE_COMMIT}/sounds/wake.flac" in rendered
+    assert f"ref: {VOICE_PE_COMMIT}" in rendered
+    assert rendered.count(MICRO_WAKE_WORD_MODELS_COMMIT) == 1
+    assert "okay_nabu" not in rendered
+    assert "hey_jarvis" not in rendered
+    assert "hey_mycroft" not in rendered
+    assert "Wake word sensitivity" not in rendered
+    assert f"model: {(ROOT / '.build/voice-pe/models/stop.json').resolve()}" in rendered
+    assert "use_wake_word: true" in rendered
+    assert "micro_wake_word: mww" not in rendered
+    assert "micro_wake_word.start:" in rendered
+    assert "voice_assistant.start_continuous:" in rendered
+    assert "restart_streaming_wake_word" in rendered
+    assert "delay: 500ms" in rendered
+    assert "# Duck audio only after Home Assistant detects GI." in rendered
+    assert "then:\n                      script.execute: restart_streaming_wake_word" in rendered
+    assert (
+        "on_end:\n    - wait_until:\n        condition:\n          lambda: return !id(va).is_running();"
+        in rendered
+    )
+    assert 'code == "wake-provider-missing"' in rendered
+    assert 'code == "wake-engine-missing"' in rendered
+    assert rendered.endswith("improv_serial:\n")
+
+    stop_model = ROOT / PACKAGE / "firmware/stop.tflite"
+    assert sha256(stop_model.read_bytes()).hexdigest() == STOP_MODEL_SHA256
 
 
 def test_model_bootstrap_is_immutable_and_verified() -> None:
@@ -214,16 +510,32 @@ def test_ansible_bootstraps_the_runtime_secret_and_argocd_application() -> None:
     assert defaults["voice_assistant_target_revision"] == "HEAD"
     assert defaults["voice_assistant_enabled"] is True
     assert "VOICE_ASSISTANT_HA_TOKEN" in defaults["voice_assistant_ha_token"]
+    assert "VOICE_ASSISTANT_GI_MODEL_PATH" in defaults["voice_assistant_gi_model_path"]
+    assert defaults["voice_assistant_gi_model_configmap_name"] == "openwakeword-gi-model-v1"
+    assert re.fullmatch(r"[0-9a-f]{64}", defaults["voice_assistant_gi_model_sha256"])
+    assert defaults["voice_assistant_gi_model_retired_configmaps"] == []
     assert "enabled.yml" in tasks
     assert "disabled.yml" in tasks
     assert "kubernetes.core.k8s_info" in enabled_tasks
     assert "voice-assistant-ha-token" in enabled_tasks
+    assert "voice_assistant_gi_model_path" in enabled_tasks
+    assert "ansible.builtin.slurp" in enabled_tasks
+    assert "binaryData" in enabled_tasks
+    assert "immutable: true" in enabled_tasks
+    assert "voice.soyspray.vip/model-sha256" in enabled_tasks
+    assert "base64.b64decode" in enabled_tasks
+    assert "voice_assistant_gi_model_live_checksum.stdout" in enabled_tasks
+    assert "voice_assistant_gi_model_retired_configmaps" in enabled_tasks
+    assert enabled_tasks.index("Protect the current private GI model") < enabled_tasks.index(
+        "Apply the Home Assistant voice application"
+    )
     assert "no_log: true" in enabled_tasks
     assert "voice_assistant_target_revision" in enabled_tasks
     assert "voice-assistant-application.yaml" in enabled_tasks
     assert "Remove automated sync" in disabled_tasks
     assert "state: absent" in disabled_tasks
     assert "voice-assistant" in disabled_tasks
+    assert "voice_assistant_gi_model_configmap_name" in disabled_tasks
     assert any(
         item["role"] == "apps/voice-assistant" for item in playbook[0]["vars"]["argocd_app_roles"]
     )
@@ -238,15 +550,28 @@ def test_ansible_bootstraps_the_runtime_secret_and_argocd_application() -> None:
     assert "--tags voice_assistant" in makefile
     assert "voice_assistant_target_revision=$(VOICE_ASSISTANT_REVISION)" in makefile
     assert "voice_assistant_enabled=$(VOICE_ASSISTANT_ENABLED)" in makefile
+    for target in (
+        "voice-pe-render:",
+        "voice-pe-check:",
+        "voice-pe-compile:",
+        "voice-pe-upload:",
+    ):
+        assert target in makefile
+    assert "esphome==2025.5.1" in makefile
+    assert "scripts/render_gi_voice_pe.py" in makefile
+    assert "voice-pe-upload: voice-pe-compile" in makefile
+    assert "\t$(MAKE) go\n" in makefile
 
 
 def test_runbook_records_every_non_git_home_assistant_step() -> None:
     runbook = (ROOT / PACKAGE / "README.md").read_text()
+    model_record = (ROOT / PACKAGE / "models/README.md").read_text()
 
     for required in (
         "VOICE_ASSISTANT_HA_TOKEN",
         "speech-to-phrase.home-automation.svc.cluster.local",
         "piper-en.home-automation.svc.cluster.local",
+        "openwakeword-gi.home-automation.svc.cluster.local",
         "GI",
         "Okay Nabu",
         "light.top",
@@ -266,6 +591,8 @@ def test_runbook_records_every_non_git_home_assistant_step() -> None:
         "training_info.json",
         "Wyoming transcription",
         "scripts/ha_voice_smoke.py",
+        "scripts/ha_gi_wake_smoke.py",
+        "scripts/ha_piper_wav.py",
         "kubectl exec -i",
         "voice.soyspray.vip/token-revision",
         "Revoke the old token only after",
@@ -275,11 +602,15 @@ def test_runbook_records_every_non_git_home_assistant_step() -> None:
         "192.168.20.33:8123",
         "home-assistant-voice-0a9b95",
         "port `6053`",
+        "Streaming wake word",
+        "non-commercial personal use only",
     ):
         assert required in runbook
 
-    assert "Gee Ai" in runbook
+    assert "Gee Eye" in runbook
     assert ".storage" in runbook
+    assert "docs/soyspray/home-assistant-voice/gi-v1.tflite" in model_record
+    assert "MODEL_SHA256_PENDING" not in model_record
 
 
 def test_wyoming_smoke_checks_tts_audio_and_speech_transcript() -> None:
@@ -296,6 +627,31 @@ def test_wyoming_smoke_checks_tts_audio_and_speech_transcript() -> None:
         "piper-en.home-automation.svc.cluster.local",
         "speech-to-phrase.home-automation.svc.cluster.local",
         "turn on the top",
+    ):
+        assert required in smoke
+
+
+def test_gi_wake_smoke_checks_synthesized_audio_detection() -> None:
+    smoke_path = ROOT / "scripts/ha_gi_wake_smoke.py"
+    smoke = smoke_path.read_text()
+    compile(smoke, smoke_path, "exec")
+
+    for required in (
+        "AsyncTcpClient",
+        "Synthesize",
+        "AudioChunk",
+        "Detect",
+        "Detection",
+        "NotDetected",
+        "Describe",
+        "Info",
+        "piper-en.home-automation.svc.cluster.local",
+        "openwakeword-gi.home-automation.svc.cluster.local",
+        "gee eye",
+        "okay nabu",
+        'FALLBACK_REQUESTS = ([], ["okay_nabu"])',
+        'MODEL = "gi"',
+        "Detect(names=names)",
     ):
         assert required in smoke
 
