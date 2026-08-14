@@ -15,6 +15,9 @@ AUTISM_TRAITS_ENABLED ?= true
 AUTISM_TRAITS_REVISION ?= HEAD
 VOICE_ASSISTANT_REVISION ?= HEAD
 VOICE_ASSISTANT_ENABLED ?= true
+VOICE_PE_HOST ?= home-assistant-voice-0a9b95.local
+VOICE_PE_CONFIG := .build/voice-pe/gi-voice-pe.yaml
+ESPHOME := uvx --from esphome==2025.5.1 esphome
 
 NODE0 := 192.168.20.10
 NODE1 := 192.168.20.11
@@ -35,7 +38,7 @@ KUSTOMIZATIONS := \
 	playbooks/argocd/applications/kong-bank-lab/operator-dashboard
 
 .PHONY: help setup act check autism-traits-check lint validate validate-skills status-page-check test docs docs-serve \
-	render status smoke go deploy kong-on kong-off autism-traits voice-assistant status-page status-page-fallback argo-login list-apps node0 node1 node2 \
+	render status smoke go deploy kong-on kong-off autism-traits voice-assistant voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login list-apps node0 node1 node2 \
 	master worker1 worker2 worker3 clean
 
 help: ## Show the operator commands
@@ -127,6 +130,19 @@ voice-assistant: go
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags voice_assistant \
 		-e voice_assistant_target_revision=$(VOICE_ASSISTANT_REVISION) \
 		-e voice_assistant_enabled=$(VOICE_ASSISTANT_ENABLED)
+
+voice-pe-render: ## Render the pinned GI Voice PE firmware configuration
+	$(PYTHON) scripts/render_gi_voice_pe.py --output $(VOICE_PE_CONFIG)
+
+voice-pe-check: voice-pe-render ## Validate the GI Voice PE firmware configuration
+	$(ESPHOME) config $(VOICE_PE_CONFIG) >/dev/null
+
+voice-pe-compile: voice-pe-check ## Compile the GI Voice PE firmware
+	$(ESPHOME) compile $(VOICE_PE_CONFIG)
+
+voice-pe-upload: voice-pe-compile ## Upload GI firmware to the adopted Voice PE
+	$(MAKE) go
+	$(ESPHOME) upload $(VOICE_PE_CONFIG) --device $(VOICE_PE_HOST)
 
 status-page: go
 	$(PYTHON) scripts/configure_status_page.py
