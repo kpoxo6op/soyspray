@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: speech-to-phrase
+spec:
+  type: ClusterIP
+  selector:
+    app: speech-to-phrase
+  ports:
+    - name: wyoming
+      port: 10300
+      protocol: TCP
+      targetPort: 10300
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: piper-en
+spec:
+  type: ClusterIP
+  selector:
+    app: piper-en
+  ports:
+    - name: wyoming
+      port: 10200
+      protocol: TCP
+      targetPort: 10200
