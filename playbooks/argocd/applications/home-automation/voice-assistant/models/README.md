@@ -111,6 +111,33 @@ functionally reproducible, but it is not expected to produce identical model
 bytes. The private `gi.tflite` file and its Git-pinned checksum are the
 deployment source of truth.
 
+## Version 3 candidate
+
+Version 2 used only 1,000 training examples and is not reliable across six
+short human samples. The finite Wyoming file test detected none. A quiet
+speaker-to-Voice-PE test detected two of six isolated attempts at the same
+playback level. Keep the original recording and these six attempts as
+regression evidence. Do not use them for training or checkpoint selection.
+
+The candidate configuration is `gi-v3-training.yaml`. It uses 20,000 synthetic
+positive clips, 2,000 synthetic validation clips, and 50,000 training steps.
+Keep the version 2 background sources, feature arrays, Piper voice, and pinned
+source revisions unchanged for the first candidate. Use a free Colab GPU. Do
+not select a paid runtime without separate approval.
+
+Do not upload the human recordings to Colab. Build the first candidate only
+from the recorded public synthetic inputs. Keep all human recordings private
+and held out. Seal the held-out set before candidate
+scoring. It must contain at least five target utterances plus confusing speech,
+room noise, television, and music negatives. Put only aggregate counts and
+checksums in Git.
+
+Convert the frozen ONNX candidate outside the training environment with the
+pinned version 3 conversion lock and `-kat x -ewo -efot -ens 32`. Promote
+version 3 only if it passes all held-out positives, rejects all held-out
+negatives, passes the Wyoming positive and negative smoke tests, and activates
+reliably through the real Voice PE. Keep version 2 available for rollback.
+
 ## Promotion checks
 
 The private model is promoted only when all of these checks pass:

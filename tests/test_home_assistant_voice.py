@@ -624,6 +624,32 @@ def test_runbook_records_every_non_git_home_assistant_step() -> None:
     assert "MODEL_SHA256_PENDING" not in model_record
 
 
+def test_gi_v3_candidate_uses_a_large_private_safe_training_plan() -> None:
+    config = load_yaml(f"{PACKAGE}/models/gi-v3-training.yaml")
+    model_record = (ROOT / PACKAGE / "models/README.md").read_text()
+    normalized_record = " ".join(model_record.split())
+
+    assert config["model_name"] == "gi"
+    assert config["target_phrase"] == ["gee eye"]
+    assert config["custom_negative_phrases"] == ["okay nabu", "nabu"]
+    assert config["n_samples"] == 20_000
+    assert config["n_samples_val"] == 2_000
+    assert config["steps"] == 50_000
+    assert config["max_negative_weight"] == 1_500
+    assert config["output_dir"] == "./gi-v3-work"
+
+    for required in (
+        "gi-v3-training.yaml",
+        "20,000 synthetic positive clips",
+        "2,000 synthetic validation clips",
+        "50,000 training steps",
+        "free Colab GPU",
+        "regression evidence",
+        "Do not upload the human recordings",
+    ):
+        assert required in normalized_record
+
+
 def test_wyoming_smoke_checks_tts_audio_and_speech_transcript() -> None:
     smoke_path = ROOT / "scripts/ha_voice_smoke.py"
     smoke = smoke_path.read_text()
