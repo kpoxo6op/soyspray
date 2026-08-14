@@ -645,8 +645,9 @@ def test_gi_v3_candidate_uses_a_large_private_safe_training_plan() -> None:
         "50,000 training steps",
         "free Colab GPU",
         "gi-v3-training-colab.ipynb",
-        "train_gi_v3_colab.py",
-        "/content/drive/MyDrive/soyspray/home-assistant-voice/gi-v3",
+        "gi_v3_browser_checkpoints.py",
+        "/content/gi-v3-transfer",
+        "gi-v3-manual-checkpoints/5212621514e91fde371b455603f090aad7cea629",
         "regression evidence",
         "Do not upload the human recordings",
     ):
