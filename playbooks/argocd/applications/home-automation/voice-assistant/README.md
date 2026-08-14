@@ -1,9 +1,9 @@
 # Home Assistant local voice starter
 
 This package runs local English speech processing for Home Assistant Assist.
-Argo CD owns Speech-to-Phrase, Piper, their services, network policies, model
-bootstrap Job, and model storage. The services have no Ingress or
-LoadBalancer.
+Argo CD owns Speech-to-Phrase, Piper, the `GI` openWakeWord service, their
+services, network policies, model bootstrap Job, and model storage. The
+services have no Ingress or LoadBalancer.
 
 The starter controls the existing `light.top`, `light.middle`, and
 `light.bottom` entities. Home Assistant already marks these entities for
@@ -11,11 +11,13 @@ Assist exposure. They initially have no Area assignment.
 
 ## Git and runtime ownership
 
-Git stores all Kubernetes resources, immutable model inputs, and this
-procedure. Ansible stores one runtime-only Home Assistant token in the
-`voice-assistant-ha-token` Kubernetes Secret. The token is never committed. It
-is mounted as a file. The Speech-to-Phrase process does not receive it through
-a container environment variable or kernel command line.
+Git stores all Kubernetes resources, model checksums, training records, and
+this procedure. Ansible stores one runtime-only Home Assistant token in the
+`voice-assistant-ha-token` Kubernetes Secret and the private GI model in the
+immutable `openwakeword-gi-model-v1` ConfigMap. Neither value is committed to
+this public repository. The token is mounted as a file. The Speech-to-Phrase
+process does not receive it through a container environment variable or kernel
+command line.
 
 Home Assistant stores the Wyoming integration entries, Assist pipeline,
 ESPHome adoption, entity aliases, Assist exposure, and Area assignments in its
@@ -40,15 +42,32 @@ has no egress. This separation makes runtime restarts independent of WAN
 access. A first sync with empty PVCs also proves this path: Argo CD waits for
 the bootstrap Job, then starts both WAN-blocked runtime Deployments.
 
-For a model update, pin the new upstream revision and checksums. Create new
-versioned PVC names, point the new Job and Deployments at those PVCs, and
-increment the Job name. Keep the old PVC manifests for one validation and
-rollback commit. Remove them in a later cleanup commit. Do not use a mutable
-`main` model URL.
+The private `gi.tflite` file is checksum-pinned in Git. Ansible verifies it and
+creates an immutable, versioned ConfigMap before Argo CD can start the
+openWakeWord pod. The pod repeats the checksum and real-inference checks at
+startup. It has no WAN or DNS egress.
+
+For a Speech-to-Phrase or Piper model update, pin the new upstream revision and
+checksums. Create new versioned PVC names, point the new Job and Deployments at
+those PVCs, and increment the Job name. Keep the old PVC manifests for one
+validation and rollback commit. Remove them in a later cleanup commit. Do not
+use a mutable `main` model URL.
 
 If a model PVC is lost while the completed Job still exists, change the Job
 run suffix in Git and commit the change. Argo CD will then run a new controlled
 bootstrap. Do not delete the live Job as an undocumented repair.
+
+## GI model provenance
+
+The training configuration and record are in `models/`. The record pins the
+public openWakeWord notebook, source revisions, training phrase, parameters,
+compatibility changes, and private model checksum. The binary stays in private
+pCloud storage because this GitHub repository is public and the mixed training
+datasets permit non-commercial personal use only.
+
+The model label comes from the filename `gi.tflite`. The synthesized training
+phrase is `gee eye`; do not train the three-sound text `Gee Ai`. Re-run the
+model smoke test after any model or threshold change.
 
 ## Initial deployment
 
@@ -74,14 +93,17 @@ compromised.
 ```bash
 read -rsp 'Home Assistant voice token: ' VOICE_ASSISTANT_HA_TOKEN
 export VOICE_ASSISTANT_HA_TOKEN
+PCLOUD_DRIVE="${HOME}/pCloudDrive"
+export VOICE_ASSISTANT_GI_MODEL_PATH="${PCLOUD_DRIVE}/docs/soyspray/home-assistant-voice/gi-v1.tflite"
 source soyspray-venv/bin/activate
 make voice-assistant VOICE_ASSISTANT_REVISION="$(git branch --show-current)"
-unset VOICE_ASSISTANT_HA_TOKEN
+unset VOICE_ASSISTANT_HA_TOKEN VOICE_ASSISTANT_GI_MODEL_PATH PCLOUD_DRIVE
 ```
 
 Later reconciliations preserve the existing Secret when
-`VOICE_ASSISTANT_HA_TOKEN` is empty. Set the variable again only as part of the
-rotation procedure below.
+`VOICE_ASSISTANT_HA_TOKEN` is empty and preserve the immutable GI ConfigMap when
+`VOICE_ASSISTANT_GI_MODEL_PATH` is empty. Set either variable again only for
+its documented rotation procedure.
 
 If the `GI Speech` password is unavailable, an owner can reset it under
 **Settings > People > Users**. A password reset does not replace the live
@@ -94,13 +116,14 @@ kubectl get application -n argocd voice-assistant
 kubectl wait -n home-automation --for=condition=complete \
   job/voice-model-bootstrap-v1 --timeout=30m
 kubectl wait -n home-automation --for=condition=available \
-  deployment/speech-to-phrase deployment/piper-en --timeout=15m
+  deployment/speech-to-phrase deployment/piper-en \
+  deployment/openwakeword-gi --timeout=15m
 kubectl exec -n home-automation deployment/speech-to-phrase -- \
   test -f /data/train/en_US-rhasspy/training_info.json
-kubectl get deploy,job,svc,pvc,networkpolicy -n home-automation \
+kubectl get deploy,job,svc,pvc,configmap,networkpolicy -n home-automation \
   -l app.kubernetes.io/part-of=home-assistant-voice
 kubectl get pod -n home-automation \
-  -l 'app in (speech-to-phrase,piper-en)'
+  -l 'app in (speech-to-phrase,piper-en,openwakeword-gi)'
 ```
 
 The Speech-to-Phrase readiness probe checks both the Wyoming socket and
@@ -129,6 +152,31 @@ pod with the old Secret value.
 9. Revoke the old token only after the annotation change, new pod, and smoke
    check succeed.
 
+### GI model rotation
+
+The private model ConfigMap is immutable. Use a new versioned name for every
+model. The two-phase order prevents Argo CD from starting a pod before Ansible
+has stored the new private binary.
+
+1. Train and validate the replacement model. Save its canonical copy in the
+   documented private pCloud directory.
+2. Create a rotation branch from the live Application revision.
+3. Update only `voice_assistant_gi_model_configmap_name`,
+   `voice_assistant_gi_model_sha256`, and the model training record. Do not
+   change the Deployment volume yet.
+4. Commit and push that first change.
+5. Set `VOICE_ASSISTANT_GI_MODEL_PATH` to the replacement private file and run
+   the deployment command. Ansible verifies the bytes and creates the new
+   immutable ConfigMap. The old Deployment continues to use the old version.
+6. Change the Deployment volume and startup-probe checksum to the new version.
+7. Commit and push the second change. Argo CD now rolls the pod onto the model
+   that already exists.
+8. Run the GI positive, negative, fallback, human voice, and light checks.
+9. After rollback is no longer required, add the old name to
+   `voice_assistant_gi_model_retired_configmaps`, commit and push, then run the
+   deployment command. Remove the retired name from the list in a later
+   cleanup commit. Do not delete it manually during the rollout.
+
 ## Home Assistant runtime setup
 
 Perform these steps after both voice Deployments are ready.
@@ -143,25 +191,28 @@ audio. Do not use a Kubernetes pod address for `internal_url`.
 3. Add host `speech-to-phrase.home-automation.svc.cluster.local`, port `10300`.
 4. Add another **Wyoming Protocol** entry.
 5. Add host `piper-en.home-automation.svc.cluster.local`, port `10200`.
-6. Open **Settings > Voice assistants**.
-7. Add an assistant named `GI`.
-8. Pronounce the name `Gee Ai`.
-9. Select language `English` and conversation agent `Home Assistant`.
-10. Select Speech-to-Phrase for speech-to-text.
-11. Select Piper with voice `en_US-lessac-medium` for text-to-speech.
-12. Keep `light.top`, `light.middle`, and `light.bottom` enabled for Assist exposure.
-13. Assign the three lights to their physical Area.
-14. On a phone with Bluetooth, open **Settings > Devices & services** in the
+6. Add a third **Wyoming Protocol** entry.
+7. Add host `openwakeword-gi.home-automation.svc.cluster.local`, port `10400`.
+8. Open **Settings > Voice assistants**.
+9. Add an assistant named `GI`.
+10. Say the name as the two letter names: `Gee Eye`.
+11. Select language `English` and conversation agent `Home Assistant`.
+12. Select Speech-to-Phrase for speech-to-text.
+13. Select Piper with voice `en_US-lessac-medium` for text-to-speech.
+14. Select `gi` as the **Streaming wake word**.
+15. Keep `light.top`, `light.middle`, and `light.bottom` enabled for Assist exposure.
+16. Assign the three lights to their physical Area.
+17. On a phone with Bluetooth, open **Settings > Devices & services** in the
     Home Assistant app.
-15. Add the discovered `ha-voice-pe-0a9b95` **Improv via BLE** entry and
+18. Add the discovered `ha-voice-pe-0a9b95` **Improv via BLE** entry and
     provision it on the home Wi-Fi.
-16. When prompted, press the large round button on top of the Voice PE once.
-17. If automatic ESPHome discovery does not appear, add **ESPHome** manually
+19. When prompted, press the large round button on top of the Voice PE once.
+20. If automatic ESPHome discovery does not appear, add **ESPHome** manually
     with host `home-assistant-voice-0a9b95` and port `6053`. OpenWrt DNS tracks
     this DHCP hostname, so do not store its temporary lease address.
-18. Rename the device and satellite to `GI`.
-19. Assign `GI` to the Area where it is installed.
-20. Select the `GI` Assist pipeline for the satellite.
+21. Rename the device and satellite to `GI`.
+22. Assign `GI` to the Area where it is installed.
+23. Select the `GI` Assist pipeline for the satellite.
 
 The setup photo identifies the unit as Home Assistant Voice Preview Edition,
 model `NC-VK-9727`. Before a voice test, move its physical microphone switch
@@ -169,15 +220,68 @@ so that red is not visible.
 
 ## Name and wake word
 
-`GI` is the reproducible Home Assistant assistant, device, and satellite name.
-The supported starter wake phrase remains `Okay Nabu`. Voice Preview Edition
-also includes `Hey Jarvis` and `Hey Mycroft`.
+`GI` is the Home Assistant assistant, device, satellite, pipeline, and wake
+model name. The exact two-sound pronunciation and training text is `gee eye`.
 
-`Gee Ai` is not a bundled on-device wake word. A reliable custom wake word
-needs a tested microWakeWord model and custom ESPHome firmware. Do not replace
-the supported firmware with an unmeasured model. When a model passes false-wake
-and missed-wake tests, commit its model manifest, checksum, firmware package,
-and recovery procedure before selecting it.
+`GI` is detected by the local openWakeWord pod. The custom Voice PE firmware
+streams microphone audio to Home Assistant while it waits. It contains no
+`Okay Nabu`, `Hey Jarvis`, or `Hey Mycroft` activation model. It keeps only the
+internal `Stop` microWakeWord model for long replies and timers.
+
+Passive streaming sends 16 kHz, 16-bit mono audio across the home LAN. This is
+about 32 KB/s before protocol overhead. The openWakeWord service has no WAN
+egress and is available only to the Home Assistant pod.
+
+The phrase has only two syllables. This increases the risk of false wakes. The
+starter uses threshold `0.65` and trigger level `2`. Measure household speech,
+TV, and music before lowering either value.
+
+Render, validate, and compile the pinned Voice PE `25.5.2` source with ESPHome
+`2025.5.1`:
+
+```bash
+make voice-pe-check
+make voice-pe-compile
+```
+
+The live ESPHome entry for this unit has no API password or encryption key.
+The renderer therefore preserves its plain `api:` mode. It preserves the
+device name, MAC-based identity, saved Wi-Fi credentials, native OTA, and
+serial Improv recovery. Do not factory-reset the device.
+
+This compatibility mode is not a secure final state. A device on the home LAN
+can connect to the unencrypted ESPHome API or use passwordless OTA. It can
+control the Voice PE, observe its API traffic, or replace its firmware. The
+Kubernetes network policies do not protect these LAN ports.
+
+Migrate to authenticated firmware in a separate tested change:
+
+1. Generate a 32-byte base64 ESPHome API encryption key and a strong OTA
+   password. Store the canonical copies in the password manager, outside Git.
+2. Extend the pinned renderer so `api.encryption.key` and the native
+   `ota.password` use `!secret` values. Create an expendable compile copy at
+   `.build/voice-pe/secrets.yaml` from the password-manager values. `make clean`
+   deletes this file.
+3. Commit and push only the renderer and runbook changes.
+4. Compile and upload once with both secrets present.
+5. Reconfigure the existing Home Assistant ESPHome entry with the same API
+   key when it requests authentication.
+6. Rebuild, upload, reconnect, and run the complete wake and light checks.
+   Keep both canonical secrets for future API recovery and OTA updates.
+
+Do not add only one key. An API-only change leaves OTA open. An OTA-only change
+leaves microphone and control traffic unauthenticated.
+
+After the openWakeWord service is ready and `gi` is selected as the streaming
+wake word, upload through native OTA:
+
+```bash
+make voice-pe-upload
+```
+
+Override `VOICE_PE_HOST` only if local name resolution does not find
+`home-assistant-voice-0a9b95.local`. The center button cancels and re-arms
+streaming wake detection. It is not push-to-talk in this firmware.
 
 ## Wyoming transcription and light checks
 
@@ -190,16 +294,39 @@ kubectl exec -i -n home-automation deployment/home-assistant \
   -c home-assistant -- python3 -I - < scripts/ha_voice_smoke.py
 ```
 
+Then synthesize the exact wake phrase and require the `gi` model to detect it:
+
+```bash
+kubectl exec -i -n home-automation deployment/home-assistant \
+  -c home-assistant -- python3 -I - < scripts/ha_gi_wake_smoke.py
+```
+
+For the physical Voice PE check, make the laptop speaker say one complete
+command with the same pinned Piper service. The helper writes only WAV bytes
+to standard output:
+
+```bash
+PHRASE='gee eye, turn on top'
+kubectl exec -i -n home-automation deployment/home-assistant \
+  -c home-assistant -- env PHRASE="${PHRASE}" python3 -I - \
+  < scripts/ha_piper_wav.py | pw-play -
+```
+
+Repeat with `turn off top`, then with `middle` and `bottom`. Run the same
+command with `okay nabu, turn on top` and confirm that no pipeline starts and
+the light remains off.
+
 Then use the Voice Preview Edition for the complete wake-word, intent, light,
 and reply check. For each command, open the Assist pipeline debug view and
 confirm that the trace uses Speech-to-Phrase, contains the expected transcript,
 calls the expected light service, and completes Piper output.
 
-- `Okay Nabu, turn on top.`
-- `Okay Nabu, turn off top.`
+- `GI, turn on top.`
+- `GI, turn off top.`
 - Repeat the checks for `middle` and `bottom`.
-- After Area assignment, test `Okay Nabu, turn on the lights.`
+- After Area assignment, test `GI, turn on the lights.`
 - Confirm that only the lights in the satellite Area change.
+- Confirm that `Okay Nabu, turn on top` does not activate the satellite.
 
 Manual light controls and existing automations must continue to work during a
 voice-service outage.
@@ -213,6 +340,13 @@ merge, run the Ansible command again with
 To roll back a bad release, revert its Git commit and let Argo CD sync. Do not
 delete the Home Assistant PVC or edit `.storage`.
 
+For Voice PE firmware rollback, use the official Home Assistant Voice PE USB-C
+installer. Native OTA does not erase Wi-Fi state, but a factory reset does.
+If normal USB-C reinstall is unavailable, use the documented bootloader-mode
+reinstall. After stock firmware returns, select a bundled wake word in the
+satellite and remove the `gi` streaming wake choice. Do not use the 22-second
+factory reset as firmware rollback.
+
 To retire the complete voice stack, run:
 
 ```bash
@@ -221,7 +355,7 @@ make voice-assistant VOICE_ASSISTANT_ENABLED=false
 ```
 
 This disables Argo CD automation, removes the `voice-assistant` Application,
-prunes the two voice model PVCs, and removes the token Secret. It does not
-remove the Home Assistant PVC or the light entities. Remove the Wyoming
-entries and `GI` pipeline through the Home Assistant UI only if they are no
-longer required.
+prunes the two voice model PVCs, and removes the token Secret and current
+private GI model ConfigMap. It does not remove the Home Assistant PVC or the
+light entities. Remove the Wyoming entries and `GI` pipeline through the Home
+Assistant UI only if they are no longer required.
