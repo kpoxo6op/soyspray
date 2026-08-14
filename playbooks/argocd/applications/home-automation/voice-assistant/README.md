@@ -133,6 +133,11 @@ pod with the old Secret value.
 
 Perform these steps after both voice Deployments are ready.
 
+The Home Assistant bootstrap configuration owns
+`internal_url: http://192.168.20.33:8123`. This matches the Home Assistant
+LoadBalancer service. A Voice PE on the LAN can use this address to fetch
+audio. Do not use a Kubernetes pod address for `internal_url`.
+
 1. Open **Settings > Devices & services**.
 2. Add the **Wyoming Protocol** integration.
 3. Add host `speech-to-phrase.home-automation.svc.cluster.local`, port `10300`.
@@ -146,16 +151,21 @@ Perform these steps after both voice Deployments are ready.
 11. Select Piper with voice `en_US-lessac-medium` for text-to-speech.
 12. Keep `light.top`, `light.middle`, and `light.bottom` enabled for Assist exposure.
 13. Assign the three lights to their physical Area.
-14. Open `https://go.nabucasa.com/ha-voice-pe/setup` on a phone with Bluetooth.
-15. Provision the Home Assistant Voice Preview Edition on the home Wi-Fi.
-16. Add its discovered ESPHome entry to Home Assistant.
-17. Rename the device and satellite to `GI`.
-18. Assign `GI` to the Area where it is installed.
-19. Select the `GI` Assist pipeline for the satellite.
+14. On a phone with Bluetooth, open **Settings > Devices & services** in the
+    Home Assistant app.
+15. Add the discovered `ha-voice-pe-0a9b95` **Improv via BLE** entry and
+    provision it on the home Wi-Fi.
+16. When prompted, press the large round button on top of the Voice PE once.
+17. If automatic ESPHome discovery does not appear, add **ESPHome** manually
+    with host `home-assistant-voice-0a9b95` and port `6053`. OpenWrt DNS tracks
+    this DHCP hostname, so do not store its temporary lease address.
+18. Rename the device and satellite to `GI`.
+19. Assign `GI` to the Area where it is installed.
+20. Select the `GI` Assist pipeline for the satellite.
 
 The setup photo identifies the unit as Home Assistant Voice Preview Edition,
-model `NC-VK-9727`. Its physical microphone switch is in the red, muted
-position. Move the switch away from red before the voice test.
+model `NC-VK-9727`. Before a voice test, move its physical microphone switch
+so that red is not visible.
 
 ## Name and wake word
 
