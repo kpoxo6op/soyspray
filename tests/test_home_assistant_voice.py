@@ -31,6 +31,10 @@ SPEECH_MODEL_SHA256 = "3dbf8c16b2d08767eba4866a444f075d0a5b1304c73ca366d2c60346b
 PIPER_MODEL_REVISION = "ea046e8458f6acd997706d6e6066a022b42f6fb1"
 PIPER_MODEL_SHA256 = "5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f"
 PIPER_CONFIG_SHA256 = "efe19c417bed055f2d69908248c6ba650fa135bc868b0e6abb3da181dab690a0"
+GI_MODEL_CONFIGMAP = "openwakeword-gi-model-v2"
+GI_MODEL_SHA256 = "4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739"
+DEPLOYED_GI_MODEL_CONFIGMAP = "openwakeword-gi-model-v1"
+DEPLOYED_GI_MODEL_SHA256 = "a2cec1420fa23762e3cd2722892b83490966cd54a0d745f622894302084a8ecb"
 
 
 def render_voice_stack() -> list[dict]:
@@ -242,6 +246,7 @@ def test_gi_wake_word_is_local_pinned_and_wan_denied() -> None:
     assert "startswith('/patched/')" in startup_probe_command
     assert "'OKAY_NABU' not in handler_source" in startup_probe_command
     assert "MODEL_SHA256_PENDING" not in startup_probe_command
+    assert DEPLOYED_GI_MODEL_SHA256 in startup_probe_command
     assert "OpenWakeWord.from_model('/models/gi.tflite')" in startup_probe_command
     assert "model.process_streaming" in startup_probe_command
     assert "np.zeros" in startup_probe_command
@@ -274,7 +279,7 @@ def test_gi_wake_word_is_local_pinned_and_wan_denied() -> None:
         }
     ]
     model_volume = next(volume for volume in pod["volumes"] if volume["name"] == "models")
-    assert model_volume["configMap"]["name"] == "openwakeword-gi-model-v1"
+    assert model_volume["configMap"]["name"] == DEPLOYED_GI_MODEL_CONFIGMAP
     init = pod["initContainers"][0]
     assert init["name"] == "patch-gi-only"
     assert init["image"] == OPENWAKEWORD_IMAGE
@@ -511,7 +516,8 @@ def test_ansible_bootstraps_the_runtime_secret_and_argocd_application() -> None:
     assert defaults["voice_assistant_enabled"] is True
     assert "VOICE_ASSISTANT_HA_TOKEN" in defaults["voice_assistant_ha_token"]
     assert "VOICE_ASSISTANT_GI_MODEL_PATH" in defaults["voice_assistant_gi_model_path"]
-    assert defaults["voice_assistant_gi_model_configmap_name"] == "openwakeword-gi-model-v1"
+    assert defaults["voice_assistant_gi_model_configmap_name"] == GI_MODEL_CONFIGMAP
+    assert defaults["voice_assistant_gi_model_sha256"] == GI_MODEL_SHA256
     assert re.fullmatch(r"[0-9a-f]{64}", defaults["voice_assistant_gi_model_sha256"])
     assert defaults["voice_assistant_gi_model_retired_configmaps"] == []
     assert "enabled.yml" in tasks
@@ -609,7 +615,11 @@ def test_runbook_records_every_non_git_home_assistant_step() -> None:
 
     assert "Gee Eye" in runbook
     assert ".storage" in runbook
-    assert "docs/soyspray/home-assistant-voice/gi-v1.tflite" in model_record
+    assert "docs/soyspray/home-assistant-voice/gi-v2.tflite" in model_record
+    assert GI_MODEL_SHA256 in model_record
+    assert "onnx2tf -i gi-v2.onnx" in model_record
+    assert "-kat x -ewo -efot -ens 32" in model_record
+    assert "onnx____Flatten_0" not in model_record
     assert "MODEL_SHA256_PENDING" not in model_record
 
 

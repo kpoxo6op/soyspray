@@ -17,8 +17,8 @@ committed to this public repository.
 | AudioSet dataset | `https://huggingface.co/datasets/agkphysics/AudioSet` | `0c609e8302cf139307f639c57652032af0a88041` |
 | openWakeWord feature dataset | `https://huggingface.co/datasets/davidscripka/openwakeword_features` | `985bf1b47e7f19c07741af82bfe32d5a9dc56096` |
 | MIT environmental impulse responses | `https://huggingface.co/datasets/davidscripka/MIT_environmental_impulse_responses` | `b824a1ef2821f112fda0b9cb26e4278c62b425bb` |
-| Private artifact bundle | pCloud `docs/soyspray/home-assistant-voice/gi-v1-private-artifacts.zip` | `1d01ad1df115eedf371f8bf91b2ae6328f59c2fc7f4efb99642683133232cfeb` |
-| Private `gi.tflite`, 207,328 bytes | pCloud `docs/soyspray/home-assistant-voice/gi-v1.tflite` | `a2cec1420fa23762e3cd2722892b83490966cd54a0d745f622894302084a8ecb` |
+| Private version 2 artifact bundle | pCloud `docs/soyspray/home-assistant-voice/gi-v2-private-artifacts.zip` | `82c084267f6d21a227d984503c240c0d04327f38ab62ef47facb5c95ea116ca2` |
+| Private version 2 `gi.tflite`, 207,084 bytes | pCloud `docs/soyspray/home-assistant-voice/gi-v2.tflite` | `4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739` |
 
 The notebook export is available at:
 
@@ -27,13 +27,13 @@ https://drive.google.com/uc?export=download&id=1q1oe2zOyZp7UsB3jJiQ1IFn8z5YfjwEb
 ```
 
 The laptop retrieves the private deployment artifact from the mounted pCloud
-drive. This path is canonical for model version 1:
+drive. This path is canonical for model version 2:
 
 ```bash
 PCLOUD_DRIVE="${HOME}/pCloudDrive"
-export VOICE_ASSISTANT_GI_MODEL_PATH="${PCLOUD_DRIVE}/docs/soyspray/home-assistant-voice/gi-v1.tflite"
+export VOICE_ASSISTANT_GI_MODEL_PATH="${PCLOUD_DRIVE}/docs/soyspray/home-assistant-voice/gi-v2.tflite"
 test -f "${VOICE_ASSISTANT_GI_MODEL_PATH}"
-echo 'a2cec1420fa23762e3cd2722892b83490966cd54a0d745f622894302084a8ecb  '"${VOICE_ASSISTANT_GI_MODEL_PATH}" \
+echo '4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739  '"${VOICE_ASSISTANT_GI_MODEL_PATH}" \
   | sha256sum --check --strict
 ```
 
@@ -44,9 +44,9 @@ and SHA-256. Verify the bundle before recovery or retraining:
 
 ```bash
 PCLOUD_DRIVE="${HOME}/pCloudDrive"
-echo '1d01ad1df115eedf371f8bf91b2ae6328f59c2fc7f4efb99642683133232cfeb  '"${PCLOUD_DRIVE}/docs/soyspray/home-assistant-voice/gi-v1-private-artifacts.zip" \
+echo '82c084267f6d21a227d984503c240c0d04327f38ab62ef47facb5c95ea116ca2  '"${PCLOUD_DRIVE}/docs/soyspray/home-assistant-voice/gi-v2-private-artifacts.zip" \
   | sha256sum --check --strict
-unzip -t "${PCLOUD_DRIVE}/docs/soyspray/home-assistant-voice/gi-v1-private-artifacts.zip"
+unzip -t "${PCLOUD_DRIVE}/docs/soyspray/home-assistant-voice/gi-v2-private-artifacts.zip"
 ```
 
 Before the Piper compatibility patch loads its pickle-bearing checkpoint, run:
@@ -88,9 +88,19 @@ The recorded run made these fail-closed compatibility changes:
    `--train_model`.
 8. The pinned training script defines `--convert_to_tflite` with the string
    default `"False"`, which is truthy. It exports the ONNX model, then its old
-   converter exits non-zero. Convert the exported model explicitly with
-   `onnx2tf -i my_custom_model/gi.onnx -o my_custom_model -kat
-   onnx____Flatten_0`, and promote `gi_float32.tflite` as `gi.tflite`.
+   converter exits non-zero. The ONNX input is named `x` and has shape
+   `1x16x96`. Preserve that non-image input and fail the conversion when the
+   32 seeded ONNX/TFLite comparisons exceed the converter thresholds:
+
+   ```bash
+   onnx2tf -i gi-v2.onnx -o gi-v2-conversion -kat x -ewo -efot -ens 32
+   ```
+
+   Promote `gi-v2-conversion/gi-v2_float32.tflite` as `gi-v2.tflite`.
+   Version 1 used a nonexistent input name with `-kat`. onnx2tf ignored it and
+   transposed the input to `1x96x16`. The startup probe rejected that model
+   before the Wyoming service became ready. Keep version 1 only as an audit
+   artifact; do not deploy it.
 
 The notebook warns that its mixed training inputs have different licenses and
 usage restrictions. Treat this model as non-commercial personal-use material.
@@ -107,6 +117,8 @@ The private model is promoted only when all of these checks pass:
 
 - The pinned openWakeWord runtime can load it and execute one zero-feature
   inference window.
+- The conversion compares 32 seeded ONNX and TFLite outputs. The recorded
+  maximum absolute error is `3.5762786865234375e-07`.
 - Piper synthesis of `gee eye` returns a `gi` Wyoming detection.
 - Synthesized `okay nabu`, `hey jarvis`, `hey mycroft`, a normal light command,
   `gee`, and `eye` all return `NotDetected`.

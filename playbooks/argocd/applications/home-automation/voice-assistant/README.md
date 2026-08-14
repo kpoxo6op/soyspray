@@ -14,7 +14,7 @@ Assist exposure. They initially have no Area assignment.
 Git stores all Kubernetes resources, model checksums, training records, and
 this procedure. Ansible stores one runtime-only Home Assistant token in the
 `voice-assistant-ha-token` Kubernetes Secret and the private GI model in the
-immutable `openwakeword-gi-model-v1` ConfigMap. Neither value is committed to
+immutable `openwakeword-gi-model-v2` ConfigMap. Neither value is committed to
 this public repository. The token is mounted as a file. The Speech-to-Phrase
 process does not receive it through a container environment variable or kernel
 command line.
@@ -94,7 +94,7 @@ compromised.
 read -rsp 'Home Assistant voice token: ' VOICE_ASSISTANT_HA_TOKEN
 export VOICE_ASSISTANT_HA_TOKEN
 PCLOUD_DRIVE="${HOME}/pCloudDrive"
-export VOICE_ASSISTANT_GI_MODEL_PATH="${PCLOUD_DRIVE}/docs/soyspray/home-assistant-voice/gi-v1.tflite"
+export VOICE_ASSISTANT_GI_MODEL_PATH="${PCLOUD_DRIVE}/docs/soyspray/home-assistant-voice/gi-v2.tflite"
 source soyspray-venv/bin/activate
 make voice-assistant VOICE_ASSISTANT_REVISION="$(git branch --show-current)"
 unset VOICE_ASSISTANT_HA_TOKEN VOICE_ASSISTANT_GI_MODEL_PATH PCLOUD_DRIVE
