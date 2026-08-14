@@ -19,6 +19,7 @@ NEGATIVE_PHRASES = (
     "eye",
 )
 FALLBACK_REQUESTS = ([], ["okay_nabu"])
+TRAILING_SILENCE_SECONDS = 1
 TIMEOUT = 180
 PIPER = ("piper-en.home-automation.svc.cluster.local", 10200)
 WAKE = ("openwakeword-gi.home-automation.svc.cluster.local", 10400)
@@ -76,9 +77,27 @@ async def describe_models() -> set[str]:
 
 async def detect(audio_events: list, names: list[str]):
     """Send one audio stream to the GI detector and return its result."""
+    audio_format = None
     async with AsyncTcpClient(*WAKE) as wake:
         await wake.write_event(Detect(names=names).event())
         for event in audio_events:
+            if AudioStart.is_type(event.type):
+                audio_format = AudioStart.from_event(event)
+            elif AudioStop.is_type(event.type):
+                if audio_format is None:
+                    raise RuntimeError("Piper stopped without an audio format")
+                await wake.write_event(
+                    AudioChunk(
+                        rate=audio_format.rate,
+                        width=audio_format.width,
+                        channels=audio_format.channels,
+                        audio=b"\0"
+                        * audio_format.rate
+                        * audio_format.width
+                        * audio_format.channels
+                        * TRAILING_SILENCE_SECONDS,
+                    ).event()
+                )
             await wake.write_event(event)
         event = await receive(wake)
     return event

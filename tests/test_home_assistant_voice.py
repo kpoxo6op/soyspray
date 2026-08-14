@@ -662,6 +662,8 @@ def test_gi_wake_smoke_checks_synthesized_audio_detection() -> None:
         "okay nabu",
         'FALLBACK_REQUESTS = ([], ["okay_nabu"])',
         'MODEL = "gi"',
+        "TRAILING_SILENCE_SECONDS = 1",
+        "AudioStart.from_event(event)",
         "Detect(names=names)",
     ):
         assert required in smoke
