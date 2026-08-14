@@ -3,3 +3,8 @@ voice_assistant_enabled: true
 voice_assistant_target_revision: HEAD
 voice_assistant_ha_token: >-
   {{ lookup('ansible.builtin.env', 'VOICE_ASSISTANT_HA_TOKEN') | default('', true) }}
+voice_assistant_gi_model_path: >-
+  {{ lookup('ansible.builtin.env', 'VOICE_ASSISTANT_GI_MODEL_PATH') | default('', true) }}
+voice_assistant_gi_model_configmap_name: openwakeword-gi-model-v1
+voice_assistant_gi_model_sha256: a2cec1420fa23762e3cd2722892b83490966cd54a0d745f622894302084a8ecb
+voice_assistant_gi_model_retired_configmaps: []

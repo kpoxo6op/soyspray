@@ -42,3 +42,12 @@
     name: voice-assistant-ha-token
     namespace: home-automation
     kubeconfig: "{{ kubeconfig_path }}"
+
+- name: Remove the private GI model ConfigMap
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: ConfigMap
+    name: "{{ voice_assistant_gi_model_configmap_name }}"
+    namespace: home-automation
+    kubeconfig: "{{ kubeconfig_path }}"
