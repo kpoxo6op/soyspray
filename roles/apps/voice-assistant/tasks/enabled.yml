@@ -1,0 +1,46 @@
+---
+- name: Read the existing Home Assistant voice token
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: Secret
+    name: voice-assistant-ha-token
+    namespace: home-automation
+  register: voice_assistant_token_secret
+  no_log: true
+
+- name: Require a token for the first voice deployment
+  ansible.builtin.assert:
+    that:
+      - >-
+        (voice_assistant_token_secret.resources | length > 0)
+        or (voice_assistant_ha_token | length > 0)
+    fail_msg: >-
+      Set VOICE_ASSISTANT_HA_TOKEN for the first deployment. Later runs preserve
+      the existing Kubernetes Secret when the variable is empty.
+  no_log: true
+
+- name: Store the Home Assistant voice token
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: voice-assistant-ha-token
+        namespace: home-automation
+      type: Opaque
+      stringData:
+        token: "{{ voice_assistant_ha_token }}"
+  when: voice_assistant_ha_token | length > 0
+  no_log: true
+
+- name: Apply the Home Assistant voice application
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/home-automation/voice-assistant/voice-assistant-application.yaml')
+         | replace('targetRevision: HEAD', 'targetRevision: ' + voice_assistant_target_revision) }}

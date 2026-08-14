@@ -1,0 +1,5 @@
+---
+voice_assistant_enabled: true
+voice_assistant_target_revision: HEAD
+voice_assistant_ha_token: >-
+  {{ lookup('ansible.builtin.env', 'VOICE_ASSISTANT_HA_TOKEN') | default('', true) }}
