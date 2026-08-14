@@ -1253,7 +1253,7 @@ def test_rir_verification_checks_lfs_and_clean_worktree(
     source = tmp_path / "rir"
     wavs = source / "16khz"
     wavs.mkdir(parents=True)
-    for index in range(271):
+    for index in range(270):
         (wavs / f"{index}.wav").write_bytes(b"RIFF")
     commands = []
     monkeypatch.setattr(
@@ -1273,6 +1273,10 @@ def test_rir_verification_checks_lfs_and_clean_worktree(
 
     assert (["git", "lfs", "fsck"], source) in commands
     assert (["git", "diff", "--exit-code"], source) in commands
+
+    (wavs / "269.wav").unlink()
+    with pytest.raises(RuntimeError, match="Expected 270 pinned RIR WAV files, found 269"):
+        driver.verify_rir_checkout(source)
 
 
 def test_patched_source_checkout_rejects_untracked_or_unknown_changes(tmp_path: Path) -> None:

@@ -754,8 +754,8 @@ def verify_rir_checkout(repository: Path) -> None:
         raise RuntimeError(f"RIR working tree is dirty: {status}")
     run(["git", "diff", "--exit-code"], cwd=repository)
     count = len(list((repository / "16khz").glob("*.wav")))
-    if count != 271:
-        raise RuntimeError(f"Expected 271 pinned RIR WAV files, found {count}")
+    if count != 270:
+        raise RuntimeError(f"Expected 270 pinned RIR WAV files, found {count}")
 
 
 def verify_audioset_extract(output: Path) -> None:
