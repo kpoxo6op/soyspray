@@ -247,10 +247,12 @@ def test_training_compatibility_requirements_match_the_validated_lock() -> None:
         "protobuf==7.35.1",
         "scikit-learn==1.6.1",
         "speexdsp-ns==0.1.2",
+        "backports-strenum==1.2.8",
     }.issubset(driver.TRAIN_REQUIREMENTS)
     assert driver.CONVERSION_REQUIREMENTS == (
         "onnx2tf==2.6.8",
         "ai-edge-litert==2.1.2",
+        "backports-strenum==1.2.8",
         "numpy==2.2.6",
         "onnx==1.20.1",
         "onnxruntime==1.26.0",
@@ -283,7 +285,11 @@ def test_checked_in_hash_locks_are_immutable_and_complete() -> None:
         assert " @ " not in text
     training = driver.TRAINING_LOCK.read_text()
     assert "webrtcvad-wheels==2.0.14" in training
+    assert "backports-strenum==1.2.8" in training
+    assert "backports-strenum==1.3.1" not in training
     conversion = driver.CONVERSION_LOCK.read_text()
+    assert "backports-strenum==1.2.8" in conversion
+    assert "backports-strenum==1.3.1" not in conversion
     assert "tensorflow==2.21.0" in conversion
     assert "tf-keras==2.21.0" in conversion
     assert "keras==3.15.0" in conversion

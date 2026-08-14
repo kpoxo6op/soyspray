@@ -18,8 +18,8 @@ DRIVER = Path(__file__).resolve()
 ROOT = DRIVER.parents[1]
 TRAINING_LOCK = ROOT / "scripts/gi-v3-training.lock"
 CONVERSION_LOCK = ROOT / "scripts/gi-v3-conversion.lock"
-TRAINING_LOCK_SHA256 = "579f06f6ad5b398fb65a6217070a3e860cb7d483f5e4f62f4273211cdbe54ba3"
-CONVERSION_LOCK_SHA256 = "09a54fc0a2a681f70afae40dfbeb7e32fdc2158c808a0f376446719ffc1d75fc"
+TRAINING_LOCK_SHA256 = "7ac50c40e00272209872af31da70f8ea7819d0b35296d6dbd7638c409ecce12d"
+CONVERSION_LOCK_SHA256 = "0b0a21a97d9c15dd5af9b27cf9bda9ce26ec3591a5cfa5954d533d8c80e83dd2"
 LOCK_PROVENANCE = {
     "training": {
         "file": TRAINING_LOCK.name,
@@ -243,6 +243,7 @@ TRAIN_REQUIREMENTS = (
     "webrtcvad-wheels==2.0.14",
     "onnx==1.19.1",
     "ai-edge-litert==2.1.2",
+    "backports-strenum==1.2.8",
     "librosa==0.10.2.post1",
     "soundfile==0.14.0",
     "scipy==1.16.3",
@@ -259,6 +260,7 @@ TRAIN_REQUIREMENTS = (
 CONVERSION_REQUIREMENTS = (
     "onnx2tf==2.6.8",
     "ai-edge-litert==2.1.2",
+    "backports-strenum==1.2.8",
     "numpy==2.2.6",
     "onnx==1.20.1",
     "onnxruntime==1.26.0",
