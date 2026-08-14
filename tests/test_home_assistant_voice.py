@@ -33,8 +33,8 @@ PIPER_MODEL_SHA256 = "5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eea
 PIPER_CONFIG_SHA256 = "efe19c417bed055f2d69908248c6ba650fa135bc868b0e6abb3da181dab690a0"
 GI_MODEL_CONFIGMAP = "openwakeword-gi-model-v2"
 GI_MODEL_SHA256 = "4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739"
-DEPLOYED_GI_MODEL_CONFIGMAP = "openwakeword-gi-model-v1"
-DEPLOYED_GI_MODEL_SHA256 = "a2cec1420fa23762e3cd2722892b83490966cd54a0d745f622894302084a8ecb"
+DEPLOYED_GI_MODEL_CONFIGMAP = GI_MODEL_CONFIGMAP
+DEPLOYED_GI_MODEL_SHA256 = GI_MODEL_SHA256
 
 
 def render_voice_stack() -> list[dict]:
@@ -248,6 +248,7 @@ def test_gi_wake_word_is_local_pinned_and_wan_denied() -> None:
     assert "MODEL_SHA256_PENDING" not in startup_probe_command
     assert DEPLOYED_GI_MODEL_SHA256 in startup_probe_command
     assert "OpenWakeWord.from_model('/models/gi.tflite')" in startup_probe_command
+    assert "model.input_windows == 16" in startup_probe_command
     assert "model.process_streaming" in startup_probe_command
     assert "np.zeros" in startup_probe_command
     assert container["startupProbe"]["timeoutSeconds"] == 20
