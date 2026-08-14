@@ -131,16 +131,16 @@ voice-assistant: go
 		-e voice_assistant_target_revision=$(VOICE_ASSISTANT_REVISION) \
 		-e voice_assistant_enabled=$(VOICE_ASSISTANT_ENABLED)
 
-voice-pe-render: ## Render the pinned GI Voice PE firmware configuration
+voice-pe-render:
 	$(PYTHON) scripts/render_gi_voice_pe.py --output $(VOICE_PE_CONFIG)
 
-voice-pe-check: voice-pe-render ## Validate the GI Voice PE firmware configuration
+voice-pe-check: voice-pe-render
 	$(ESPHOME) config $(VOICE_PE_CONFIG) >/dev/null
 
-voice-pe-compile: voice-pe-check ## Compile the GI Voice PE firmware
+voice-pe-compile: voice-pe-check
 	$(ESPHOME) compile $(VOICE_PE_CONFIG)
 
-voice-pe-upload: voice-pe-compile ## Upload GI firmware to the adopted Voice PE
+voice-pe-upload: voice-pe-compile
 	$(MAKE) go
 	$(ESPHOME) upload $(VOICE_PE_CONFIG) --device $(VOICE_PE_HOST)
 
