@@ -647,7 +647,7 @@ def test_gi_v3_candidate_uses_a_large_private_safe_training_plan() -> None:
         "gi-v3-training-colab.ipynb",
         "gi_v3_browser_checkpoints.py",
         "/content/gi-v3-transfer",
-        "gi-v3-manual-checkpoints/a80d13505684a9c80d3a2f9efae8fe6e3ff30ced",
+        "gi-v3-manual-checkpoints/3c479998ca8647368ec1d6e3cca5a21b0ae4ad4e",
         "regression evidence",
         "Do not upload the human recordings",
     ):

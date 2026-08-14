@@ -19,7 +19,7 @@ CONFIG = (
     / "gi-v3-training.yaml"
 )
 NOTEBOOK = CONFIG.with_name("gi-v3-training-colab.ipynb")
-PINNED_BROWSER_REVISION = "a80d13505684a9c80d3a2f9efae8fe6e3ff30ced"
+PINNED_BROWSER_REVISION = "3c479998ca8647368ec1d6e3cca5a21b0ae4ad4e"
 
 
 def load_driver():
