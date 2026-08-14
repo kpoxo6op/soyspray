@@ -18,6 +18,8 @@ CONFIG = (
     / "playbooks/argocd/applications/home-automation/voice-assistant/models"
     / "gi-v3-training.yaml"
 )
+NOTEBOOK = CONFIG.with_name("gi-v3-training-colab.ipynb")
+PINNED_DRIVER_REVISION = "c149a23c5297ce240486cf91b3a3adeefa6b38bd"
 
 
 def load_driver():
@@ -30,6 +32,35 @@ def load_driver():
 
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def test_colab_notebook_is_a_two_cell_pinned_free_gpu_launcher() -> None:
+    notebook = json.loads(NOTEBOOK.read_text())
+    cells = notebook["cells"]
+
+    assert notebook["nbformat"] == 4
+    assert notebook["metadata"]["accelerator"] == "GPU"
+    assert len(cells) == 2
+    assert [cell["cell_type"] for cell in cells] == ["code", "code"]
+    assert all(cell["execution_count"] is None and cell["outputs"] == [] for cell in cells)
+
+    mount = "".join(cells[0]["source"])
+    launch = "".join(cells[1]["source"])
+    compile(mount, str(NOTEBOOK), "exec")
+    compile(launch, str(NOTEBOOK), "exec")
+    assert 'drive.mount("/content/drive", force_remount=False)' in mount
+    assert f'SOYSPRAY_REVISION = "{PINNED_DRIVER_REVISION}"' in launch
+    assert "https://github.com/kpoxo6op/soyspray.git" in launch
+    assert '"--branch", "codex/ha-voice-lights"' in launch
+    assert '"checkout", "--detach", SOYSPRAY_REVISION' in launch
+    assert '"scripts/train_gi_v3_colab.py"' in launch
+    assert '"/content/drive/MyDrive/soyspray/home-assistant-voice/gi-v3"' in launch
+    assert "actual != SOYSPRAY_REVISION" in launch
+
+    rendered = json.dumps(notebook).casefold()
+    assert "telegram" not in rendered
+    assert "human audio" not in rendered
+    assert "paid runtime" not in rendered
 
 
 def test_sources_and_large_inputs_are_immutable() -> None:
