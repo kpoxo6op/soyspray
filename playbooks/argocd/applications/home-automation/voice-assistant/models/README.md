@@ -125,12 +125,60 @@ Keep the version 2 background sources, feature arrays, Piper voice, and pinned
 source revisions unchanged for the first candidate. Use a free Colab GPU. Do
 not select a paid runtime without separate approval.
 
-Open `gi-v3-training-colab.ipynb` in Colab and run both cells. The notebook
-checks out the exact reviewed Git revision and runs `scripts/train_gi_v3_colab.py`.
-The first cell mounts private Google Drive storage. The driver writes restart
-checkpoints and the final private artifact bundle under
-`/content/drive/MyDrive/soyspray/home-assistant-voice/gi-v3`. The driver stops if
-the runtime does not have the required free CUDA GPU or exact Python version.
+Open `gi-v3-training-colab.ipynb` in Colab. The notebook checks out the exact
+reviewed Git revision and runs `scripts/gi_v3_browser_checkpoints.py`. Google
+Drive mount failed in the current Colab runtime. The alternative Drive API
+login requested unrelated Google Cloud administration scopes, so this workflow
+does not use it.
+
+Run one durable boundary at a time. Set `TARGET` in the first cell to
+`generate`, `augment`, `train`, and then `finish`. Run both cells for the first
+boundary. For later boundaries in the same runtime, change `TARGET`, run the
+first cell, and then run the second cell. The helper uses these fixed local
+paths:
+
+```text
+/content/gi-v3
+/content/gi-v3-checkpoints
+/content/gi-v3-import
+/content/gi-v3-transfer
+```
+
+After each boundary, use the Colab Files pane to download the files printed by
+the helper from `/content/gi-v3-transfer`. Download one file at a time and wait
+for Chrome to finish it. Archives are split into 64 MiB parts because Colab
+buffers browser transfers in memory. Do not download the unsplit archive.
+
+Store each complete transfer set in a separate stage directory below this
+private pCloud path:
+
+```text
+/home/boris/pCloudDrive/docs/soyspray/home-assistant-voice/gi-v3-manual-checkpoints/5212621514e91fde371b455603f090aad7cea629
+```
+
+Verify the transfer before starting the next boundary. For example:
+
+```bash
+GI_V3_STORE=/home/boris/pCloudDrive/docs/soyspray/home-assistant-voice/gi-v3-manual-checkpoints/5212621514e91fde371b455603f090aad7cea629/generate
+GI_V3_ARCHIVE=gi-v3-generated-clips.tar
+cd "${GI_V3_STORE}"
+sha256sum --check --strict "${GI_V3_ARCHIVE}.transfer.sha256"
+test "$(cat "${GI_V3_ARCHIVE}".part-* | wc -c)" -eq "$(jq -r .bytes "${GI_V3_ARCHIVE}.json")"
+test "$(cat "${GI_V3_ARCHIVE}".part-* | sha256sum | cut -d' ' -f1)" = "$(jq -r .sha256 "${GI_V3_ARCHIVE}.json")"
+```
+
+Keep the browser download until the pCloud copy passes these checks and pCloud
+shows that synchronization is complete. Do not start `augment` until
+`generate` is durable. Apply the same rule before `train`, `finish`, and model
+promotion.
+
+To resume in a fresh runtime, set the next `TARGET` and run the notebook once
+to create `/content/gi-v3-import`; it will stop before preparation. Upload all
+earlier stage manifests, sidecars, and parts to that directory, one file at a
+time, and rerun the second cell. The helper rejects missing, corrupt,
+nonconsecutive, unknown, or wrong-revision files before training starts. This
+browser copy is the only manual step. Its exact validation and recovery logic
+is in Git.
 
 Do not upload the human recordings to Colab. Build the first candidate only
 from the recorded public synthetic inputs. Keep all human recordings private

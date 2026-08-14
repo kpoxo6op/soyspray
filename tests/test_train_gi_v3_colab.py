@@ -19,7 +19,7 @@ CONFIG = (
     / "gi-v3-training.yaml"
 )
 NOTEBOOK = CONFIG.with_name("gi-v3-training-colab.ipynb")
-PINNED_DRIVER_REVISION = "c149a23c5297ce240486cf91b3a3adeefa6b38bd"
+PINNED_BROWSER_REVISION = "5212621514e91fde371b455603f090aad7cea629"
 
 
 def load_driver():
@@ -34,7 +34,7 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def test_colab_notebook_is_a_two_cell_pinned_free_gpu_launcher() -> None:
+def test_colab_notebook_is_a_two_cell_pinned_browser_checkpoint_launcher() -> None:
     notebook = json.loads(NOTEBOOK.read_text())
     cells = notebook["cells"]
 
@@ -44,20 +44,23 @@ def test_colab_notebook_is_a_two_cell_pinned_free_gpu_launcher() -> None:
     assert [cell["cell_type"] for cell in cells] == ["code", "code"]
     assert all(cell["execution_count"] is None and cell["outputs"] == [] for cell in cells)
 
-    mount = "".join(cells[0]["source"])
+    setup = "".join(cells[0]["source"])
     launch = "".join(cells[1]["source"])
-    compile(mount, str(NOTEBOOK), "exec")
+    compile(setup, str(NOTEBOOK), "exec")
     compile(launch, str(NOTEBOOK), "exec")
-    assert 'drive.mount("/content/drive", force_remount=False)' in mount
-    assert f'SOYSPRAY_REVISION = "{PINNED_DRIVER_REVISION}"' in launch
+    assert 'TARGET = "generate"' in setup
+    assert "generate, augment, train, or finish" in setup
+    assert f'SOYSPRAY_REVISION = "{PINNED_BROWSER_REVISION}"' in launch
     assert "https://github.com/kpoxo6op/soyspray.git" in launch
-    assert '"--branch", "codex/ha-voice-lights"' in launch
+    assert '"fetch", "--depth", "1", "origin", SOYSPRAY_REVISION' in launch
     assert '"checkout", "--detach", SOYSPRAY_REVISION' in launch
-    assert '"scripts/train_gi_v3_colab.py"' in launch
-    assert '"/content/drive/MyDrive/soyspray/home-assistant-voice/gi-v3"' in launch
+    assert '"scripts/gi_v3_browser_checkpoints.py"' in launch
+    assert '"run", "--target", TARGET' in launch
     assert "actual != SOYSPRAY_REVISION" in launch
 
     rendered = json.dumps(notebook).casefold()
+    assert "drive.mount" not in rendered
+    assert "authenticate_user" not in rendered
     assert "telegram" not in rendered
     assert "human audio" not in rendered
     assert "paid runtime" not in rendered
