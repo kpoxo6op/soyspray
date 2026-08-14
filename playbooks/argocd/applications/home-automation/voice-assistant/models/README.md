@@ -125,6 +125,13 @@ Keep the version 2 background sources, feature arrays, Piper voice, and pinned
 source revisions unchanged for the first candidate. Use a free Colab GPU. Do
 not select a paid runtime without separate approval.
 
+Open `gi-v3-training-colab.ipynb` in Colab and run both cells. The notebook
+checks out the exact reviewed Git revision and runs `scripts/train_gi_v3_colab.py`.
+The first cell mounts private Google Drive storage. The driver writes restart
+checkpoints and the final private artifact bundle under
+`/content/drive/MyDrive/soyspray/home-assistant-voice/gi-v3`. The driver stops if
+the runtime does not have the required free CUDA GPU or exact Python version.
+
 Do not upload the human recordings to Colab. Build the first candidate only
 from the recorded public synthetic inputs. Keep all human recordings private
 and held out. Seal the held-out set before candidate
