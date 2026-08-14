@@ -192,7 +192,9 @@ audio. Do not use a Kubernetes pod address for `internal_url`.
 4. Add another **Wyoming Protocol** entry.
 5. Add host `piper-en.home-automation.svc.cluster.local`, port `10200`.
 6. Add a third **Wyoming Protocol** entry.
-7. Add host `openwakeword-gi.home-automation.svc.cluster.local`, port `10400`.
+7. Add host `openwakeword-gi`, port `10400`. Home Assistant runs in the same
+   namespace, so this short service name and
+   `openwakeword-gi.home-automation.svc.cluster.local` are equivalent.
 8. Open **Settings > Voice assistants**.
 9. Add an assistant named `GI`.
 10. Say the name as the two letter names: `Gee Eye`.
@@ -213,6 +215,40 @@ audio. Do not use a Kubernetes pod address for `internal_url`.
 21. Rename the device and satellite to `GI`.
 22. Assign `GI` to the Area where it is installed.
 23. Select the `GI` Assist pipeline for the satellite.
+
+Home Assistant stores Assist pipelines as runtime data. The UI is the normal
+configuration path. If Home Assistant `2026.5.4` shows an empty streaming wake
+word picker even though `wake_word.openwakeword` exists, use its supported
+WebSocket API from the signed-in administrator browser console. This copies
+every required field and changes only the two wake-word fields:
+
+```javascript
+const hass = document.querySelector("home-assistant").hass;
+const listed = await hass.callWS({ type: "assist_pipeline/pipeline/list" });
+const matches = listed.pipelines.filter((item) => item.name === "GI");
+if (matches.length !== 1) throw new Error(`Expected one GI pipeline, got ${matches.length}`);
+const pipeline = matches[0];
+await hass.callWS({
+  type: "assist_pipeline/pipeline/update",
+  pipeline_id: pipeline.id,
+  conversation_engine: pipeline.conversation_engine,
+  conversation_language: pipeline.conversation_language,
+  language: pipeline.language,
+  name: pipeline.name,
+  stt_engine: pipeline.stt_engine,
+  stt_language: pipeline.stt_language,
+  tts_engine: pipeline.tts_engine,
+  tts_language: pipeline.tts_language,
+  tts_voice: pipeline.tts_voice,
+  wake_word_entity: "wake_word.openwakeword",
+  wake_word_id: "gi",
+  prefer_local_intents: pipeline.prefer_local_intents,
+});
+```
+
+List the pipelines again and require the `GI` result to contain
+`wake_word_entity: wake_word.openwakeword` and `wake_word_id: gi`. Do not edit
+Home Assistant `.storage` files.
 
 The setup photo identifies the unit as Home Assistant Voice Preview Edition,
 model `NC-VK-9727`. Before a voice test, move its physical microphone switch
@@ -300,6 +336,10 @@ Then synthesize the exact wake phrase and require the `gi` model to detect it:
 kubectl exec -i -n home-automation deployment/home-assistant \
   -c home-assistant -- python3 -I - < scripts/ha_gi_wake_smoke.py
 ```
+
+The helper inserts one second of trailing silence before `AudioStop`. The real
+Voice PE sends a continuous microphone stream. A short Piper clip without this
+tail can end before the 16-window model emits its final scores.
 
 For the physical Voice PE check, make the laptop speaker say one complete
 command with the same pinned Piper service. The helper writes only WAV bytes
