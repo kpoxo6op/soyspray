@@ -83,6 +83,10 @@ Later reconciliations preserve the existing Secret when
 `VOICE_ASSISTANT_HA_TOKEN` is empty. Set the variable again only as part of the
 rotation procedure below.
 
+If the `GI Speech` password is unavailable, an owner can reset it under
+**Settings > People > Users**. A password reset does not replace the live
+long-lived token. Use the new password only to sign in for token rotation.
+
 Verify the GitOps resources and model bootstrap:
 
 ```bash
