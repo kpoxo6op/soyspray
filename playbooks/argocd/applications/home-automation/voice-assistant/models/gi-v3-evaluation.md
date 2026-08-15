@@ -126,7 +126,7 @@ before human scoring.
    negatives. Measure no more than `0.2` generic false positives per hour.
 3. Require ONNX/TFLite maximum absolute error at most `0.0001` and cosine
    similarity at least `0.99999`.
-4. After the candidate is frozen, require two consecutive scores above `0.65`
+4. After the candidate is frozen, require two cumulative scores above `0.65`
    for all six private bursts. Require six events in the full recording and
    zero events in the sealed private negative set.
 5. Pass the Wyoming positive and negative smoke tests. Then pass the real
