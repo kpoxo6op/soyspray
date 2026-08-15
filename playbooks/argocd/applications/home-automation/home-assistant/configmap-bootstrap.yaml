@@ -85,6 +85,7 @@ data:
       max: 3
     - id: tapo_motion_relax_lights_after_sunset
       alias: Tapo motion turns on Relax lights after sunset
+      initial_state: false
       triggers:
         - trigger: state
           entity_id: binary_sensor.tapo_t100_motion
@@ -169,6 +170,7 @@ data:
       mode: single
     - id: tapo_motion_relax_lights_off_after_midnight
       alias: Tapo motion clears Relax lights quickly after midnight
+      initial_state: false
       triggers:
         - trigger: state
           entity_id: binary_sensor.tapo_t100_motion
@@ -229,6 +231,7 @@ data:
       mode: restart
     - id: tapo_motion_relax_lights_off_after_clear
       alias: Tapo motion clears Relax lights after 10 minutes
+      initial_state: false
       triggers:
         - trigger: state
           entity_id: binary_sensor.tapo_t100_motion

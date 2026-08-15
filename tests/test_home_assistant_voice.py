@@ -727,5 +727,28 @@ def test_home_assistant_rolls_out_the_voice_lan_url() -> None:
     )
 
     assert deployment["spec"]["template"]["metadata"]["annotations"] == {
-        "soyspray.vip/bootstrap-config-revision": "2026-08-14-voice-lan-url"
+        "soyspray.vip/bootstrap-config-revision": "2026-08-15-voice-only-lights"
     }
+
+
+def test_home_assistant_disables_only_motion_driven_light_automations() -> None:
+    bootstrap = load_yaml(
+        "playbooks/argocd/applications/home-automation/home-assistant/configmap-bootstrap.yaml"
+    )
+    automations = yaml.safe_load(bootstrap["data"]["automations.yaml"])
+    by_id = {automation["id"]: automation for automation in automations}
+
+    for automation_id in (
+        "tapo_motion_relax_lights_after_sunset",
+        "tapo_motion_relax_lights_off_after_midnight",
+        "tapo_motion_relax_lights_off_after_clear",
+    ):
+        assert by_id[automation_id]["initial_state"] is False
+
+    for automation_id in (
+        "door_open_10min",
+        "tapo_l530_relax_on",
+        "tapo_bedtime_motion_guard_on",
+        "tapo_bedtime_motion_guard_clear",
+    ):
+        assert by_id[automation_id].get("initial_state", True) is True
