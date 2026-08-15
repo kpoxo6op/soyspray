@@ -153,13 +153,13 @@ Store each complete transfer set in a separate stage directory below this
 private pCloud path:
 
 ```text
-/home/boris/pCloudDrive/docs/soyspray/home-assistant-voice/gi-v3-manual-checkpoints/3c479998ca8647368ec1d6e3cca5a21b0ae4ad4e
+/home/boris/pCloudDrive/docs/soyspray/home-assistant-voice/gi-v3-manual-checkpoints/472ad212c80bc75665a8df0faed26bdd270548b1
 ```
 
 Verify the transfer before starting the next boundary. For example:
 
 ```bash
-GI_V3_STORE=/home/boris/pCloudDrive/docs/soyspray/home-assistant-voice/gi-v3-manual-checkpoints/3c479998ca8647368ec1d6e3cca5a21b0ae4ad4e/generate
+GI_V3_STORE=/home/boris/pCloudDrive/docs/soyspray/home-assistant-voice/gi-v3-manual-checkpoints/472ad212c80bc75665a8df0faed26bdd270548b1/generate
 GI_V3_ARCHIVE=gi-v3-generated-clips.tar
 cd "${GI_V3_STORE}"
 sha256sum --check --strict "${GI_V3_ARCHIVE}.transfer.sha256"
