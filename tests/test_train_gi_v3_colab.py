@@ -34,6 +34,191 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def write_training_metrics(
+    driver,
+    workspace: Path,
+    *,
+    accuracy: float = 0.75,
+    recall: float = 0.75,
+    false_positives_per_hour: float = 0.1,
+) -> Path:
+    onnx = workspace / "gi-v3-work/gi.onnx"
+    onnx.parent.mkdir(parents=True, exist_ok=True)
+    onnx.write_bytes(b"onnx")
+    path = workspace / "gi-v3-work/gi-v3-training-metrics.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "model_name": "gi",
+                "config_sha256": driver.CONFIG_SHA256,
+                "false_positive_validation_hours": 11.3,
+                "targets": {
+                    "minimum_accuracy": 0.5,
+                    "minimum_recall": 0.25,
+                    "maximum_false_positives_per_hour": 0.2,
+                },
+                "history": {
+                    "loss": [0.5],
+                    "recall": [0.5],
+                    "val_accuracy": [accuracy],
+                    "val_recall": [recall],
+                    "val_n_fp": [1.0],
+                    "val_fp_per_hr": [false_positives_per_hour],
+                },
+                "checkpoint_scores": [
+                    {
+                        "training_step_ndx": 1,
+                        "val_n_fp": 1.0,
+                        "val_recall": recall,
+                        "val_accuracy": accuracy,
+                        "val_fp_per_hr": false_positives_per_hour,
+                    }
+                ],
+                "final": {
+                    "accuracy": accuracy,
+                    "recall": recall,
+                    "false_positives_per_hour": false_positives_per_hour,
+                },
+                "model_files": {"gi.onnx": driver.sha256(onnx)},
+            },
+            sort_keys=True,
+        )
+        + "\n"
+    )
+    return path
+
+
+def test_training_target_gate_rejects_the_historical_v3_candidate(tmp_path: Path) -> None:
+    driver = load_driver()
+    write_training_metrics(
+        driver,
+        tmp_path,
+        recall=0.5215,
+        false_positives_per_hour=2.8319,
+    )
+
+    with pytest.raises(RuntimeError, match=r"2\.8319.*0\.2"):
+        driver._require_training_targets(tmp_path)
+
+
+def test_training_metrics_reject_a_non_file_onnx_data_path(tmp_path: Path) -> None:
+    driver = load_driver()
+    write_training_metrics(driver, tmp_path)
+    (tmp_path / "gi-v3-work/gi.onnx.data").mkdir()
+
+    with pytest.raises(RuntimeError, match="external data"):
+        driver._load_training_metrics(tmp_path)
+
+
+@pytest.mark.parametrize("case", ("missing", "malformed", "symlink"))
+def test_training_metrics_require_a_safe_json_report(tmp_path: Path, case: str) -> None:
+    driver = load_driver()
+    path = write_training_metrics(driver, tmp_path)
+    if case == "missing":
+        path.unlink()
+    elif case == "malformed":
+        path.write_text("{")
+    else:
+        outside = tmp_path / "outside.json"
+        outside.write_bytes(path.read_bytes())
+        path.unlink()
+        path.symlink_to(outside)
+
+    with pytest.raises(RuntimeError):
+        driver._load_training_metrics(tmp_path)
+
+
+def test_training_metrics_bind_optional_onnx_external_data(tmp_path: Path) -> None:
+    driver = load_driver()
+    path = write_training_metrics(driver, tmp_path)
+    external = tmp_path / "gi-v3-work/gi.onnx.data"
+    external.write_bytes(b"external weights")
+    record = json.loads(path.read_text())
+    record["model_files"]["gi.onnx.data"] = driver.sha256(external)
+    path.write_text(json.dumps(record))
+
+    assert driver._load_training_metrics(tmp_path)["model_files"] == record["model_files"]
+
+
+@pytest.mark.parametrize(
+    "case",
+    (
+        "missing_history",
+        "nonfinite_final",
+        "boolean_final",
+        "boolean_schema",
+        "negative_final",
+        "unequal_validation_history",
+        "wrong_model_hash",
+        "unexpected_model_path",
+        "wrong_target",
+        "wrong_config",
+    ),
+)
+def test_training_metrics_fail_closed_on_invalid_content(tmp_path: Path, case: str) -> None:
+    driver = load_driver()
+    path = write_training_metrics(driver, tmp_path)
+    record = json.loads(path.read_text())
+    if case == "missing_history":
+        del record["history"]["val_recall"]
+    elif case == "nonfinite_final":
+        record["final"]["recall"] = float("nan")
+    elif case == "boolean_final":
+        record["final"]["accuracy"] = True
+    elif case == "boolean_schema":
+        record["schema_version"] = True
+    elif case == "negative_final":
+        record["final"]["false_positives_per_hour"] = -0.1
+    elif case == "unequal_validation_history":
+        record["history"]["val_n_fp"].append(2.0)
+    elif case == "wrong_model_hash":
+        record["model_files"]["gi.onnx"] = "0" * 64
+    elif case == "unexpected_model_path":
+        record["model_files"]["../gi.onnx"] = record["model_files"].pop("gi.onnx")
+    elif case == "wrong_target":
+        record["targets"]["maximum_false_positives_per_hour"] = 3.0
+    elif case == "wrong_config":
+        record["config_sha256"] = "0" * 64
+    path.write_text(json.dumps(record, allow_nan=True))
+
+    with pytest.raises(RuntimeError):
+        driver._load_training_metrics(tmp_path)
+
+
+def test_training_target_gate_accepts_exact_boundaries(tmp_path: Path) -> None:
+    driver = load_driver()
+    write_training_metrics(
+        driver,
+        tmp_path,
+        accuracy=0.5,
+        recall=0.25,
+        false_positives_per_hour=0.2,
+    )
+
+    record = driver._require_training_targets(tmp_path)
+
+    assert record["final"] == {
+        "accuracy": 0.5,
+        "recall": 0.25,
+        "false_positives_per_hour": 0.2,
+    }
+
+
+def test_training_targets_match_the_pinned_v3_config() -> None:
+    driver = load_driver()
+    config = CONFIG.read_text()
+
+    assert driver.TRAINING_TARGETS == {
+        "minimum_accuracy": 0.5,
+        "minimum_recall": 0.25,
+        "maximum_false_positives_per_hour": 0.2,
+    }
+    assert "target_accuracy: 0.5" in config
+    assert "target_recall: 0.25" in config
+    assert "target_false_positives_per_hour: 0.2" in config
+
+
 def test_atomic_text_recovers_a_partial_and_rejects_a_symlink(tmp_path: Path) -> None:
     driver = load_driver()
     destination = tmp_path / "record.json"
@@ -699,6 +884,8 @@ def test_train_patch_is_exact_and_fixes_both_upstream_bugs(
 ) -> None:
     driver = load_driver()
     source = (
+        "import copy\r\n"
+        "import os\r\n"
         "before\r\n"
         + 'default="False",\r\n' * 5
         + '            adversarial_texts = config["custom_negative_phrases"]\r\n' * 2
@@ -708,43 +895,25 @@ def test_train_patch_is_exact_and_fixes_both_upstream_bugs(
         + "                             output_dir=positive_test_output_dir, auto_reduce_batch_size=True)\r\n"
         + "                             output_dir=negative_test_output_dir, auto_reduce_batch_size=True)\r\n"
         + '                    self.best_val_accuracy = self.history["val_accuracy"][-1]\r\n'
+        + "        return combined_model\r\n"
+        + '        oww.export_model(model=best_model, model_name=config["model_name"], output_dir=config["output_dir"])\r\n'
         + "after\r\n"
     ).encode()
     normalized = source.decode().replace("\r\n", "\n")
-    patched = (
-        normalized.replace('default="False",', "default=False,")
-        .replace(
-            '            adversarial_texts = config["custom_negative_phrases"]',
-            '            adversarial_texts = list(config["custom_negative_phrases"])',
-        )
-        .replace(
-            '        if n_current_samples <= 0.95*config["n_samples"]:',
-            '        if n_current_samples < config["n_samples"]:',
-        )
-        .replace(
-            '        if n_current_samples <= 0.95*config["n_samples_val"]:',
-            '        if n_current_samples < config["n_samples_val"]:',
-        )
-        .replace(
-            '                          os.path.join(output_dir, model_name + ".onnx"), opset_version=13)',
-            '                          os.path.join(output_dir, model_name + ".onnx"), opset_version=13, input_names=["x"])',
-        )
-        .replace(
-            "                             output_dir=positive_test_output_dir, auto_reduce_batch_size=True)",
-            "                             output_dir=positive_test_output_dir, auto_reduce_batch_size=True,\n"
-            '                             file_names=[uuid.uuid4().hex + ".wav" for i in range(config["n_samples_val"])])',
-        )
-        .replace(
-            "                             output_dir=negative_test_output_dir, auto_reduce_batch_size=True)",
-            "                             output_dir=negative_test_output_dir, auto_reduce_batch_size=True,\n"
-            '                             file_names=[uuid.uuid4().hex + ".wav" for i in range(config["n_samples_val"])])',
-        )
-        .replace(
-            '                    self.best_val_accuracy = self.history["val_accuracy"][-1]\n',
-            '                    self.best_val_accuracy = self.history["val_accuracy"][-1]\n'
-            '                    self.best_val_fp = min(self.best_val_fp, self.history["val_fp_per_hr"][-1])\n',
-        )
-    )
+    replacements = []
+    real_patch = driver._patch
+
+    def capture_replacements(path, source_sha256, patched_sha256, supplied):
+        replacements.extend(supplied)
+
+    monkeypatch.setattr(driver, "_patch", capture_replacements)
+    driver.patch_train(tmp_path / "unused")
+    patched = normalized
+    for old, new, count in replacements:
+        assert patched.count(old) == count
+        patched = patched.replace(old, new)
+
+    monkeypatch.setattr(driver, "_patch", real_patch)
     monkeypatch.setattr(driver, "TRAIN_SOURCE_SHA256", digest(source))
     monkeypatch.setattr(driver, "TRAIN_PATCHED_SHA256", digest(patched.encode()))
     path = tmp_path / "train.py"
@@ -772,8 +941,27 @@ def test_train_patch_hash_includes_all_restart_and_validation_fixes() -> None:
     driver = load_driver()
 
     assert driver.TRAIN_PATCHED_SHA256 == (
-        "5894e748b57dfa587cfd7517a7ee4bfccda87f8dea2e2546fea1b37b6fcc22bc"
+        "f934871475e16c8e74cd01f902391be1500b44ff6a95700dc74da95a99eec3fb"
     )
+
+
+def test_train_patch_persists_complete_metrics_for_the_exported_model() -> None:
+    driver = load_driver()
+    source = inspect.getsource(driver.patch_train)
+
+    for required in (
+        "final_model_metrics",
+        '"history": oww.history',
+        '"checkpoint_scores": oww.best_model_scores',
+        '"model_files": model_files',
+        'onnx_path + ".data"',
+        '"config_sha256": config_sha256',
+        '"false_positive_validation_hours": 11.3',
+        '"targets":',
+        "allow_nan=False",
+        "os.replace(report_part, report_path)",
+    ):
+        assert required in source
 
 
 def test_patch_rejects_an_unknown_source(tmp_path: Path) -> None:
@@ -1128,6 +1316,21 @@ def test_parity_verifier_checks_the_pinned_streaming_runtime_boundary() -> None:
     assert '"streaming_first_output_window": 16' in source
 
 
+def test_candidate_verification_checks_training_targets_before_parity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    driver = load_driver()
+    write_training_metrics(driver, tmp_path, false_positives_per_hour=2.8319)
+    monkeypatch.setattr(
+        driver,
+        "run",
+        lambda *args, **kwargs: pytest.fail("parity must not run for a rejected candidate"),
+    )
+
+    with pytest.raises(RuntimeError, match=r"2\.8319.*0\.2"):
+        driver.verify_candidate(tmp_path)
+
+
 def test_manifest_and_lock_plan_keeps_final_artifacts_in_checkpoint_dir(
     tmp_path: Path,
 ) -> None:
@@ -1207,6 +1410,29 @@ def test_onnx_stage_validation_uses_training_venv(
     }
 
     assert calls[0][0][0] == str(tmp_path / ".venv-train/bin/python")
+
+
+def test_train_stage_preserves_rejected_metrics_but_rejects_an_invalid_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    driver = load_driver()
+    report = write_training_metrics(
+        driver,
+        tmp_path,
+        recall=0.5215,
+        false_positives_per_hour=2.8319,
+    )
+    monkeypatch.setattr(
+        driver,
+        "_onnx_metadata",
+        lambda workspace, path: {"name": "x", "shape": [1, 16, 96]},
+    )
+
+    driver.validate_stage_outputs(tmp_path, "train")
+
+    report.write_text("{}")
+    with pytest.raises(RuntimeError, match="schema"):
+        driver.validate_stage_outputs(tmp_path, "train")
 
 
 def test_convert_prepares_venv_and_prepends_its_bin_to_path(
@@ -1384,23 +1610,32 @@ def test_final_manifest_requires_verified_stage_checkpoint_records(tmp_path: Pat
 def test_train_checkpoint_includes_external_onnx_data(tmp_path: Path) -> None:
     driver = load_driver()
     onnx = tmp_path / "gi-v3-work/gi.onnx"
+    metrics = tmp_path / "gi-v3-work/gi-v3-training-metrics.json"
     external = tmp_path / "gi-v3-work/gi.onnx.data"
     onnx.parent.mkdir(parents=True)
     onnx.write_bytes(b"onnx")
+    metrics.write_text("{}")
     external.write_bytes(b"weights")
 
     assert driver._stage_archive_outputs(tmp_path, "train") == (
         Path("gi-v3-work/gi.onnx"),
+        Path("gi-v3-work/gi-v3-training-metrics.json"),
         Path("gi-v3-work/gi.onnx.data"),
     )
     external.unlink()
-    assert driver._stage_archive_outputs(tmp_path, "train") == (Path("gi-v3-work/gi.onnx"),)
+    assert driver._stage_archive_outputs(tmp_path, "train") == (
+        Path("gi-v3-work/gi.onnx"),
+        Path("gi-v3-work/gi-v3-training-metrics.json"),
+    )
 
 
 def test_final_bundle_includes_all_three_verified_patched_sources(tmp_path: Path) -> None:
     driver = load_driver()
     artifacts = driver._bundle_artifacts(tmp_path / "work", tmp_path / "checkpoints")
 
+    assert artifacts["reports/gi-v3-training-metrics.json"] == (
+        tmp_path / "work/gi-v3-work/gi-v3-training-metrics.json"
+    )
     assert (
         artifacts["patched-sources/openwakeword-train.py"]
         .as_posix()
@@ -1430,6 +1665,80 @@ def test_final_bundle_includes_all_three_verified_patched_sources(tmp_path: Path
         .as_posix()
         .endswith("openwakeword/setup.py")
     )
+
+
+def test_bundle_checks_training_targets_before_writing_any_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    driver = load_driver()
+    workspace = tmp_path / "work"
+    checkpoint_dir = tmp_path / "checkpoints"
+    write_training_metrics(driver, workspace, false_positives_per_hour=2.8319)
+    monkeypatch.setattr(
+        driver,
+        "_write_freeze",
+        lambda *args: pytest.fail("bundle must not write for a rejected candidate"),
+    )
+
+    with pytest.raises(RuntimeError, match=r"2\.8319.*0\.2"):
+        driver.bundle(workspace, checkpoint_dir)
+
+    assert not (checkpoint_dir / "gi-v3-manifest.json").exists()
+    assert not driver._checkpoint_path(checkpoint_dir, "final-bundle").exists()
+
+
+def test_bundle_manifest_records_the_verified_training_evaluation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    driver = load_driver()
+    workspace = tmp_path / "work"
+    checkpoint_dir = tmp_path / "checkpoints"
+    artifacts = {}
+    pinned = {
+        "gi-v3-training.yaml": "CONFIG_SHA256",
+        "patched-sources/openwakeword-train.py": "TRAIN_PATCHED_SHA256",
+        "patched-sources/openwakeword-setup.py": "OWW_SETUP_PATCHED_SHA256",
+        "patched-sources/piper-generate_samples.py": "PIPER_PATCHED_SHA256",
+        "patched-sources/torch-audiomentations-io.py": "AUDIO_IO_PATCHED_SHA256",
+        "locks/gi-v3-training.lock": "TRAINING_LOCK_SHA256",
+        "locks/gi-v3-conversion.lock": "CONVERSION_LOCK_SHA256",
+    }
+    for name, constant in pinned.items():
+        path = tmp_path / "artifacts" / name.replace("/", "-")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(name.encode())
+        artifacts[name] = path
+        monkeypatch.setattr(driver, constant, driver.sha256(path))
+    report = write_training_metrics(driver, workspace)
+    artifacts.update(
+        {
+            "reports/gi-v3-training-metrics.json": report,
+            "models/gi.onnx": workspace / "gi-v3-work/gi.onnx",
+            "workflow/train_gi_v3_colab.py": driver.DRIVER,
+        }
+    )
+    monkeypatch.setattr(driver, "_write_freeze", lambda *args: None)
+    monkeypatch.setattr(driver, "_bundle_artifacts", lambda *args: artifacts)
+    monkeypatch.setattr(
+        driver,
+        "_stage_checkpoint_records",
+        lambda checkpoint_dir: {"generate": {}, "augment": {}, "train": {}},
+    )
+
+    driver.bundle(workspace, checkpoint_dir)
+
+    manifest_path = checkpoint_dir / "gi-v3-manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    assert manifest["training_evaluation"] == {
+        "report": "reports/gi-v3-training-metrics.json",
+        "targets": driver.TRAINING_TARGETS,
+        "final": {"accuracy": 0.75, "recall": 0.75, "false_positives_per_hour": 0.1},
+        "passed": True,
+    }
+    with driver.tarfile.open(driver._checkpoint_path(checkpoint_dir, "final-bundle")) as archive:
+        bundled = archive.extractfile("gi-v3-manifest.json")
+        assert bundled is not None
+        assert json.load(bundled)["training_evaluation"] == manifest["training_evaluation"]
 
 
 def test_audioset_extract_manifest_verifies_every_wav(tmp_path: Path) -> None:

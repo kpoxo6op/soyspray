@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -38,6 +39,12 @@ DEFAULT_CONFIG = (
     / "gi-v3-training.yaml"
 )
 CONFIG_SHA256 = "411d067731a7bbb6e1e1c61c36e9387f3e5f59fefa65abfe8a97b224ee28ec04"
+TRAINING_METRICS = Path("gi-v3-work/gi-v3-training-metrics.json")
+TRAINING_TARGETS = {
+    "minimum_accuracy": 0.5,
+    "minimum_recall": 0.25,
+    "maximum_false_positives_per_hour": 0.2,
+}
 
 REVISIONS = {
     "openwakeword": "368c03716d1e92591906a84949bc477f3a834455",
@@ -48,7 +55,7 @@ REVISIONS = {
 }
 
 TRAIN_SOURCE_SHA256 = "8d559e4c1bc9b5523bae50e7ec8f642756a63a7bb5f323620d069a2d03db2972"
-TRAIN_PATCHED_SHA256 = "5894e748b57dfa587cfd7517a7ee4bfccda87f8dea2e2546fea1b37b6fcc22bc"
+TRAIN_PATCHED_SHA256 = "f934871475e16c8e74cd01f902391be1500b44ff6a95700dc74da95a99eec3fb"
 PIPER_SOURCE_SHA256 = "c16312476b7abc60597d03508568253ed2f225e4b915e0e8569569dd2d956cc2"
 PIPER_PATCHED_SHA256 = "cfdc3df17e8aef0688eb3d8ee685573d0fb32f0bc83f85299b5fc6721918a1d6"
 AUDIO_IO_SOURCE_SHA256 = "f5cb444766189d29ebbb02f446df7a37b9a7e40aed73c8dafdaaae23652bd6d1"
@@ -487,11 +494,65 @@ def _patch(
 
 def patch_train(path: Path) -> None:
     accuracy = '                    self.best_val_accuracy = self.history["val_accuracy"][-1]\n'
+    final_metrics = """        self.final_model_metrics = {
+            "accuracy": float(np.asarray(combined_model_accuracy).item()),
+            "recall": float(np.asarray(combined_model_recall).item()),
+            "false_positives_per_hour": float(np.asarray(combined_model_fp_per_hr).item()),
+        }
+
+        return combined_model
+"""
+    metrics_report = """        onnx_path = os.path.join(config["output_dir"], config["model_name"] + ".onnx")
+        oww.export_model(model=best_model, model_name=config["model_name"], output_dir=config["output_dir"])
+        model_files = {}
+        for model_path in (onnx_path, onnx_path + ".data"):
+            if os.path.isfile(model_path):
+                with open(model_path, "rb") as model_file:
+                    model_files[os.path.basename(model_path)] = hashlib.file_digest(model_file, "sha256").hexdigest()
+        with open(args.training_config, "rb") as config_file:
+            config_sha256 = hashlib.file_digest(config_file, "sha256").hexdigest()
+
+        def json_default(value):
+            if isinstance(value, np.ndarray):
+                return value.tolist()
+            if isinstance(value, np.generic):
+                return value.item()
+            raise TypeError(f"Cannot serialize {type(value).__name__}")
+
+        report = {
+            "schema_version": 1,
+            "model_name": config["model_name"],
+            "config_sha256": config_sha256,
+            "false_positive_validation_hours": 11.3,
+            "targets": {
+                "minimum_accuracy": config["target_accuracy"],
+                "minimum_recall": config["target_recall"],
+                "maximum_false_positives_per_hour": config["target_false_positives_per_hour"],
+            },
+            "history": oww.history,
+            "checkpoint_scores": oww.best_model_scores,
+            "final": oww.final_model_metrics,
+            "model_files": model_files,
+        }
+        report_path = os.path.join(config["output_dir"], "gi-v3-training-metrics.json")
+        report_part = report_path + ".part"
+        if os.path.lexists(report_part):
+            os.unlink(report_part)
+        with open(report_part, "x", encoding="utf-8") as report_file:
+            json.dump(report, report_file, allow_nan=False, indent=2, sort_keys=True, default=json_default)
+            report_file.write("\\n")
+        os.replace(report_part, report_path)
+"""
     _patch(
         path,
         TRAIN_SOURCE_SHA256,
         TRAIN_PATCHED_SHA256,
         (
+            (
+                "import copy\nimport os\n",
+                "import copy\nimport hashlib\nimport json\nimport os\n",
+                1,
+            ),
             ('default="False",', "default=False,", 5),
             (
                 '            adversarial_texts = config["custom_negative_phrases"]',
@@ -529,6 +590,12 @@ def patch_train(path: Path) -> None:
                 accuracy,
                 accuracy
                 + '                    self.best_val_fp = min(self.best_val_fp, self.history["val_fp_per_hr"][-1])\n',
+                1,
+            ),
+            ("        return combined_model\n", final_metrics, 1),
+            (
+                '        oww.export_model(model=best_model, model_name=config["model_name"], output_dir=config["output_dir"])\n',
+                metrics_report,
                 1,
             ),
         ),
@@ -1334,7 +1401,10 @@ STAGE_OUTPUTS = {
         Path("gi-v3-work/gi/negative_features_train.npy"),
         Path("gi-v3-work/gi/negative_features_test.npy"),
     ),
-    "train": (Path("gi-v3-work/gi.onnx"),),
+    "train": (
+        Path("gi-v3-work/gi.onnx"),
+        TRAINING_METRICS,
+    ),
 }
 
 GENERATED_COUNTS = {
@@ -1404,6 +1474,156 @@ def _onnx_metadata(workspace: Path, path: Path) -> dict[str, object]:
     return json.loads(result.stdout)
 
 
+def _finite_number(
+    value: object,
+    name: str,
+    *,
+    minimum: float | None = None,
+    maximum: float | None = None,
+) -> float:
+    if type(value) not in (int, float) or not math.isfinite(value):
+        raise RuntimeError(f"Invalid training metric {name}: {value!r}")
+    number = float(value)
+    if minimum is not None and number < minimum:
+        raise RuntimeError(f"Training metric {name} is below {minimum}: {number}")
+    if maximum is not None and number > maximum:
+        raise RuntimeError(f"Training metric {name} exceeds {maximum}: {number}")
+    return number
+
+
+def _load_training_metrics(workspace: Path) -> dict[str, object]:
+    path = workspace / TRAINING_METRICS
+    if path.is_symlink() or not path.is_file():
+        raise RuntimeError(f"Missing or unsafe training metrics: {path}")
+    try:
+        record = json.loads(path.read_text())
+    except (json.JSONDecodeError, OSError) as error:
+        raise RuntimeError(f"Invalid training metrics JSON: {path}") from error
+    expected_keys = {
+        "schema_version",
+        "model_name",
+        "config_sha256",
+        "false_positive_validation_hours",
+        "targets",
+        "history",
+        "checkpoint_scores",
+        "final",
+        "model_files",
+    }
+    if not isinstance(record, dict) or set(record) != expected_keys:
+        raise RuntimeError("Training metrics have an unexpected schema")
+    if (
+        type(record["schema_version"]) is not int
+        or record["schema_version"] != 1
+        or record["model_name"] != "gi"
+        or record["config_sha256"] != CONFIG_SHA256
+        or record["targets"] != TRAINING_TARGETS
+        or _finite_number(
+            record["false_positive_validation_hours"], "false_positive_validation_hours"
+        )
+        != 11.3
+    ):
+        raise RuntimeError("Training metrics have unexpected provenance or targets")
+
+    history = record["history"]
+    history_keys = {
+        "loss",
+        "recall",
+        "val_accuracy",
+        "val_recall",
+        "val_n_fp",
+        "val_fp_per_hr",
+    }
+    if not isinstance(history, dict) or set(history) != history_keys:
+        raise RuntimeError("Training metrics have incomplete history")
+    for name, values in history.items():
+        if not isinstance(values, list) or not values:
+            raise RuntimeError(f"Training history {name} is empty or invalid")
+        for index, value in enumerate(values):
+            _finite_number(
+                value,
+                f"history.{name}[{index}]",
+                minimum=0,
+                maximum=1 if name in {"recall", "val_accuracy", "val_recall"} else None,
+            )
+    validation_lengths = {
+        len(history[name]) for name in ("val_accuracy", "val_recall", "val_n_fp", "val_fp_per_hr")
+    }
+    if len(validation_lengths) != 1:
+        raise RuntimeError("Training validation history lengths differ")
+
+    checkpoint_scores = record["checkpoint_scores"]
+    score_keys = {
+        "training_step_ndx",
+        "val_n_fp",
+        "val_recall",
+        "val_accuracy",
+        "val_fp_per_hr",
+    }
+    if not isinstance(checkpoint_scores, list):
+        raise RuntimeError("Training checkpoint scores are invalid")
+    for index, score in enumerate(checkpoint_scores):
+        if not isinstance(score, dict) or set(score) != score_keys:
+            raise RuntimeError(f"Training checkpoint score {index} has an unexpected schema")
+        step = score["training_step_ndx"]
+        if type(step) is not int or step < 0:
+            raise RuntimeError(f"Invalid training checkpoint step: {step!r}")
+        for name in score_keys - {"training_step_ndx"}:
+            _finite_number(
+                score[name],
+                f"checkpoint_scores[{index}].{name}",
+                minimum=0,
+                maximum=1 if name in {"val_recall", "val_accuracy"} else None,
+            )
+
+    final = record["final"]
+    final_keys = {"accuracy", "recall", "false_positives_per_hour"}
+    if not isinstance(final, dict) or set(final) != final_keys:
+        raise RuntimeError("Final training metrics have an unexpected schema")
+    for name, value in final.items():
+        _finite_number(
+            value,
+            f"final.{name}",
+            minimum=0,
+            maximum=1 if name in {"accuracy", "recall"} else None,
+        )
+
+    onnx = workspace / "gi-v3-work/gi.onnx"
+    if onnx.is_symlink() or not onnx.is_file():
+        raise RuntimeError(f"Missing or unsafe trained ONNX model: {onnx}")
+    model_files = {"gi.onnx": sha256(onnx)}
+    external = workspace / "gi-v3-work/gi.onnx.data"
+    if external.is_symlink() or (external.exists() and not external.is_file()):
+        raise RuntimeError(f"Unsafe trained ONNX external data: {external}")
+    if external.is_file():
+        model_files["gi.onnx.data"] = sha256(external)
+    if record["model_files"] != model_files:
+        raise RuntimeError("Training metrics do not match the trained ONNX model files")
+    return record
+
+
+def _require_training_targets(workspace: Path) -> dict[str, object]:
+    record = _load_training_metrics(workspace)
+    final = record["final"]
+    assert isinstance(final, dict)
+    failures = []
+    if final["accuracy"] < TRAINING_TARGETS["minimum_accuracy"]:
+        failures.append(
+            f"accuracy {final['accuracy']} is below {TRAINING_TARGETS['minimum_accuracy']}"
+        )
+    if final["recall"] < TRAINING_TARGETS["minimum_recall"]:
+        failures.append(f"recall {final['recall']} is below {TRAINING_TARGETS['minimum_recall']}")
+    if final["false_positives_per_hour"] > TRAINING_TARGETS["maximum_false_positives_per_hour"]:
+        failures.append(
+            "false positives per hour "
+            f"{final['false_positives_per_hour']} exceeds "
+            f"{TRAINING_TARGETS['maximum_false_positives_per_hour']}"
+        )
+    if failures:
+        raise RuntimeError("GI v3 training targets not met: " + "; ".join(failures))
+    return record
+
+
 def validate_stage_outputs(workspace: Path, stage: str) -> None:
     if stage == "generate":
         for relative, expected in GENERATED_COUNTS.items():
@@ -1425,6 +1645,7 @@ def validate_stage_outputs(workspace: Path, stage: str) -> None:
         actual = _onnx_metadata(workspace, relative)
         if actual != {"name": "x", "shape": [1, 16, 96]}:
             raise RuntimeError(f"Wrong trained ONNX input: {actual}")
+        _load_training_metrics(workspace)
     else:
         raise ValueError(f"Unknown training stage: {stage}")
 
@@ -1543,6 +1764,7 @@ def convert(workspace: Path, checkpoint_dir: Path) -> None:
 
 
 def verify_candidate(workspace: Path) -> None:
+    _require_training_targets(workspace)
     run(
         [
             str(_python(workspace / ".venv-convert")),
@@ -1560,6 +1782,7 @@ def _bundle_artifacts(workspace: Path, checkpoint_dir: Path) -> dict[str, Path]:
         "gi-v3-training.yaml": workspace / "gi-v3-training.yaml",
         "models/gi.onnx": workspace / "gi-v3-work/gi.onnx",
         "models/gi-v3.tflite": workspace / "gi-v3-work/gi-v3.tflite",
+        "reports/gi-v3-training-metrics.json": workspace / TRAINING_METRICS,
         "reports/gi-v3-parity.json": workspace / "gi-v3-work/gi-v3-parity.json",
         "conversion/gi_float32.tflite": workspace / "gi-v3-conversion/gi_float32.tflite",
         "conversion/gi_accuracy_report.json": (
@@ -1617,6 +1840,7 @@ def _stage_checkpoint_records(checkpoint_dir: Path) -> dict[str, dict[str, objec
 
 
 def bundle(workspace: Path, checkpoint_dir: Path) -> None:
+    training_metrics = _require_training_targets(workspace)
     training_lock = checkpoint_dir / "gi-v3-training-freeze.txt"
     conversion_lock = checkpoint_dir / "gi-v3-conversion-freeze.txt"
     _write_freeze(_python(workspace / ".venv-train"), training_lock)
@@ -1654,6 +1878,12 @@ def bundle(workspace: Path, checkpoint_dir: Path) -> None:
             "torch_audiomentations/utils/io.py": AUDIO_IO_PATCHED_SHA256,
         },
         "environment_records": _environment_provenance(),
+        "training_evaluation": {
+            "report": "reports/gi-v3-training-metrics.json",
+            "targets": TRAINING_TARGETS,
+            "final": training_metrics["final"],
+            "passed": True,
+        },
         "stage_checkpoints": stage_checkpoints,
         "artifacts": {
             name: {"bytes": path.stat().st_size, "sha256": sha256(path)}
