@@ -17,6 +17,21 @@ from typing import NamedTuple, Sequence
 
 DRIVER = Path(__file__).resolve()
 ROOT = DRIVER.parents[1]
+CANDIDATE = "gi-v3"
+MODEL_NAME = "gi"
+CONFIG_BASENAME = f"{CANDIDATE}-training.yaml"
+WORK_DIR = Path(f"{CANDIDATE}-work")
+MODEL_DIR = WORK_DIR / MODEL_NAME
+CONVERSION_DIR = Path(f"{CANDIDATE}-conversion")
+ONNX_PATH = WORK_DIR / f"{MODEL_NAME}.onnx"
+ONNX_DATA_PATH = Path(f"{ONNX_PATH}.data")
+TFLITE_PATH = WORK_DIR / f"{CANDIDATE}.tflite"
+TRAINING_METRICS = WORK_DIR / f"{CANDIDATE}-training-metrics.json"
+PARITY_PATH = WORK_DIR / f"{CANDIDATE}-parity.json"
+MANIFEST_BASENAME = f"{CANDIDATE}-manifest.json"
+TRAINING_FREEZE_BASENAME = f"{CANDIDATE}-training-freeze.txt"
+CONVERSION_FREEZE_BASENAME = f"{CANDIDATE}-conversion-freeze.txt"
+DEFAULT_WORKSPACE = Path("/content") / CANDIDATE
 TRAINING_LOCK = ROOT / "scripts/gi-v3-training.lock"
 CONVERSION_LOCK = ROOT / "scripts/gi-v3-conversion.lock"
 TRAINING_LOCK_SHA256 = "7ac50c40e00272209872af31da70f8ea7819d0b35296d6dbd7638c409ecce12d"
@@ -34,16 +49,19 @@ LOCK_PROVENANCE = {
     },
 }
 DEFAULT_CONFIG = (
-    ROOT
-    / "playbooks/argocd/applications/home-automation/voice-assistant/models"
-    / "gi-v3-training.yaml"
+    ROOT / "playbooks/argocd/applications/home-automation/voice-assistant/models" / CONFIG_BASENAME
 )
 CONFIG_SHA256 = "411d067731a7bbb6e1e1c61c36e9387f3e5f59fefa65abfe8a97b224ee28ec04"
-TRAINING_METRICS = Path("gi-v3-work/gi-v3-training-metrics.json")
 TRAINING_TARGETS = {
     "minimum_accuracy": 0.5,
     "minimum_recall": 0.25,
     "maximum_false_positives_per_hour": 0.2,
+}
+VERIFICATION_LIMITS = {
+    "input_shape": [1, 16, 96],
+    "seeded_samples": 32,
+    "max_absolute_error": 1e-5,
+    "minimum_cosine_similarity": 0.99999,
 }
 
 REVISIONS = {
@@ -543,6 +561,7 @@ def patch_train(path: Path) -> None:
             report_file.write("\\n")
         os.replace(report_part, report_path)
 """
+    metrics_report = metrics_report.replace("gi-v3-training-metrics.json", TRAINING_METRICS.name)
     _patch(
         path,
         TRAIN_SOURCE_SHA256,
@@ -626,6 +645,14 @@ def patch_piper(path: Path) -> None:
     )
 
 
+def patch_piper_checkout(source: Path) -> None:
+    patch_piper(source / "generate_samples.py")
+
+
+def _piper_allowed_files() -> dict[Path, str]:
+    return {Path("generate_samples.py"): PIPER_PATCHED_SHA256}
+
+
 def patch_audio_io(path: Path) -> None:
     metadata = """        info = torchaudio.info(file_path)
         # Deal with backwards-incompatible signature change.
@@ -689,9 +716,9 @@ def run(command: Sequence[str], cwd: Path | None = None, env: dict[str, str] | N
 
 def require_host_runtime() -> None:
     if sys.version_info[:3] != (3, 12, 13):
-        raise RuntimeError(f"GI v3 requires Python 3.12.13, not {sys.version.split()[0]}")
+        raise RuntimeError(f"{CANDIDATE} requires Python 3.12.13, not {sys.version.split()[0]}")
     if shutil.which("nvidia-smi") is None:
-        raise RuntimeError("GI v3 requires a CUDA GPU; select a free Colab GPU runtime")
+        raise RuntimeError(f"{CANDIDATE} requires a CUDA GPU; select a free Colab GPU runtime")
     run(["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"])
 
 
@@ -716,7 +743,7 @@ def require_free_disk(workspace: Path) -> None:
     available = shutil.disk_usage(probe).free
     if available < minimum:
         raise RuntimeError(
-            f"GI v3 needs at least 35 GiB free in the workspace filesystem; found {available / 1024**3:.1f} GiB"
+            f"{CANDIDATE} needs at least 35 GiB free in the workspace filesystem; found {available / 1024**3:.1f} GiB"
         )
 
 
@@ -1093,18 +1120,28 @@ def _probe_piper_import(python: Path, generator: Path) -> None:
 
 
 def _checkpoint_path(checkpoint_dir: Path, name: str) -> Path:
-    return checkpoint_dir / f"gi-v3-{name}.tar"
+    return checkpoint_dir / f"{CANDIDATE}-{name}.tar"
+
+
+def _generate_operation(workspace: Path, staged_config: Path) -> list[str]:
+    return [
+        str(_python(workspace / ".venv-train")),
+        str(workspace / "openwakeword/openwakeword/train.py"),
+        "--training_config",
+        str(staged_config),
+        "--generate_clips",
+    ]
 
 
 def build_plan(workspace: Path, checkpoint_dir: Path, config: Path) -> dict[str, object]:
     workspace, checkpoint_dir, config = map(Path, (workspace, checkpoint_dir, config))
     train_python = _python(workspace / ".venv-train")
     train_script = workspace / "openwakeword/openwakeword/train.py"
-    staged_config = workspace / "gi-v3-training.yaml"
+    staged_config = workspace / CONFIG_BASENAME
     base = [str(train_python), str(train_script), "--training_config", str(staged_config)]
     driver = [
         sys.executable,
-        str(Path(__file__).resolve()),
+        str(DRIVER),
         "--workspace",
         str(workspace),
         "--checkpoint-dir",
@@ -1119,9 +1156,9 @@ def build_plan(workspace: Path, checkpoint_dir: Path, config: Path) -> dict[str,
     conversion = [
         str(workspace / ".venv-convert/bin/onnx2tf"),
         "-i",
-        str(workspace / "gi-v3-work/gi.onnx"),
+        str(workspace / ONNX_PATH),
         "-o",
-        str(workspace / "gi-v3-conversion"),
+        str(workspace / CONVERSION_DIR),
         "-kat",
         "x",
         "-ewo",
@@ -1148,7 +1185,7 @@ def build_plan(workspace: Path, checkpoint_dir: Path, config: Path) -> dict[str,
             {
                 "name": "generate",
                 "command": command("generate"),
-                "operation": base + ["--generate_clips"],
+                "operation": _generate_operation(workspace, staged_config),
                 "checkpoint": str(_checkpoint_path(checkpoint_dir, "generated-clips")),
             },
             {
@@ -1168,21 +1205,16 @@ def build_plan(workspace: Path, checkpoint_dir: Path, config: Path) -> dict[str,
             {
                 "name": "verify",
                 "command": command("verify"),
-                "limits": {
-                    "input_shape": [1, 16, 96],
-                    "seeded_samples": 32,
-                    "max_absolute_error": 1e-5,
-                    "minimum_cosine_similarity": 0.99999,
-                },
+                "limits": VERIFICATION_LIMITS,
             },
             {
                 "name": "bundle",
                 "command": command("bundle"),
-                "manifest": str(checkpoint_dir / "gi-v3-manifest.json"),
+                "manifest": str(checkpoint_dir / MANIFEST_BASENAME),
                 "training_lock": str(TRAINING_LOCK),
                 "conversion_lock": str(CONVERSION_LOCK),
-                "training_audit": str(checkpoint_dir / "gi-v3-training-freeze.txt"),
-                "conversion_audit": str(checkpoint_dir / "gi-v3-conversion-freeze.txt"),
+                "training_audit": str(checkpoint_dir / TRAINING_FREEZE_BASENAME),
+                "conversion_audit": str(checkpoint_dir / CONVERSION_FREEZE_BASENAME),
                 "checkpoint": str(_checkpoint_path(checkpoint_dir, "final-bundle")),
             },
         ],
@@ -1191,7 +1223,7 @@ def build_plan(workspace: Path, checkpoint_dir: Path, config: Path) -> dict[str,
 
 def _copy_config(source: Path, destination: Path) -> None:
     if sha256(source) != CONFIG_SHA256:
-        raise RuntimeError(f"Unexpected GI v3 config SHA-256: {sha256(source)}")
+        raise RuntimeError(f"Unexpected {CANDIDATE} config SHA-256: {sha256(source)}")
     destination.parent.mkdir(parents=True, exist_ok=True)
     if destination.is_symlink() or (destination.exists() and not destination.is_file()):
         raise RuntimeError(f"Refusing unsafe staged config path: {destination}")
@@ -1214,7 +1246,7 @@ def prepare(workspace: Path, checkpoint_dir: Path, config: Path) -> None:
     workspace.mkdir(parents=True, exist_ok=True)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     downloads_dir = workspace / "downloads"
-    _copy_config(config, workspace / "gi-v3-training.yaml")
+    _copy_config(config, workspace / CONFIG_BASENAME)
     _discard_download_parts((downloads_dir / DOWNLOADS["pip"].filename,))
 
     train_venv = workspace / ".venv-train"
@@ -1230,7 +1262,7 @@ def prepare(workspace: Path, checkpoint_dir: Path, config: Path) -> None:
     clone_pinned("https://github.com/rhasspy/piper-sample-generator.git", REVISIONS["piper"], piper)
     patch_train(openwakeword / "openwakeword/train.py")
     patch_openwakeword_setup(openwakeword / "setup.py")
-    patch_piper(piper / "generate_samples.py")
+    patch_piper_checkout(piper)
     checkpoint = piper / "models" / DOWNLOADS["piper_checkpoint"].filename
     resources = openwakeword / "openwakeword/resources/models"
     _discard_download_parts(
@@ -1252,7 +1284,7 @@ def prepare(workspace: Path, checkpoint_dir: Path, config: Path) -> None:
     )
     verify_patched_checkout(
         piper,
-        {Path("generate_samples.py"): PIPER_PATCHED_SHA256},
+        _piper_allowed_files(),
         REVISIONS["piper"],
     )
     _install_openwakeword_editable(train_python, openwakeword)
@@ -1305,7 +1337,7 @@ def prepare(workspace: Path, checkpoint_dir: Path, config: Path) -> None:
     audioset_output = workspace / "audioset_16k"
     _prepare_audioset_extract(train_python, audioset, audioset_output)
 
-    _write_freeze(train_python, checkpoint_dir / "gi-v3-training-freeze.txt")
+    _write_freeze(train_python, checkpoint_dir / TRAINING_FREEZE_BASENAME)
 
 
 def prepare_conversion(workspace: Path, checkpoint_dir: Path) -> None:
@@ -1316,15 +1348,19 @@ def prepare_conversion(workspace: Path, checkpoint_dir: Path) -> None:
     _install_conversion_dependencies(conversion_python, workspace / "downloads")
     _pip(conversion_python, "check")
     _probe_conversion_stack(conversion_python)
-    _write_freeze(conversion_python, checkpoint_dir / "gi-v3-conversion-freeze.txt")
+    _write_freeze(conversion_python, checkpoint_dir / CONVERSION_FREEZE_BASENAME)
 
 
 def _checkpoint_manifest(path: Path) -> Path:
     return path.with_suffix(path.suffix + ".json")
 
 
+def _extra_checkpoint_provenance() -> dict[str, object]:
+    return {}
+
+
 def _checkpoint_provenance(stage: str) -> dict[str, object]:
-    return {
+    record = {
         "stage": stage,
         "driver_sha256": sha256(DRIVER),
         "config_sha256": CONFIG_SHA256,
@@ -1337,6 +1373,10 @@ def _checkpoint_provenance(stage: str) -> dict[str, object]:
             "torch_audiomentations/utils/io.py": AUDIO_IO_PATCHED_SHA256,
         },
     }
+    extra = _extra_checkpoint_provenance()
+    if set(record) & set(extra):
+        raise RuntimeError("Extra checkpoint provenance overlaps the base schema")
+    return {**record, **extra}
 
 
 def _checkpoint_valid(path: Path, stage: str | None = None) -> bool:
@@ -1390,50 +1430,49 @@ def _archive_checkpoint(
 
 STAGE_OUTPUTS = {
     "generate": (
-        Path("gi-v3-work/gi/positive_train"),
-        Path("gi-v3-work/gi/positive_test"),
-        Path("gi-v3-work/gi/negative_train"),
-        Path("gi-v3-work/gi/negative_test"),
+        MODEL_DIR / "positive_train",
+        MODEL_DIR / "positive_test",
+        MODEL_DIR / "negative_train",
+        MODEL_DIR / "negative_test",
     ),
     "augment": (
-        Path("gi-v3-work/gi/positive_features_train.npy"),
-        Path("gi-v3-work/gi/positive_features_test.npy"),
-        Path("gi-v3-work/gi/negative_features_train.npy"),
-        Path("gi-v3-work/gi/negative_features_test.npy"),
+        MODEL_DIR / "positive_features_train.npy",
+        MODEL_DIR / "positive_features_test.npy",
+        MODEL_DIR / "negative_features_train.npy",
+        MODEL_DIR / "negative_features_test.npy",
     ),
     "train": (
-        Path("gi-v3-work/gi.onnx"),
+        ONNX_PATH,
         TRAINING_METRICS,
     ),
 }
 
 GENERATED_COUNTS = {
-    Path("gi-v3-work/gi/positive_train"): 20_000,
-    Path("gi-v3-work/gi/positive_test"): 2_000,
-    Path("gi-v3-work/gi/negative_train"): 20_000,
-    Path("gi-v3-work/gi/negative_test"): 2_000,
+    MODEL_DIR / "positive_train": 20_000,
+    MODEL_DIR / "positive_test": 2_000,
+    MODEL_DIR / "negative_train": 20_000,
+    MODEL_DIR / "negative_test": 2_000,
 }
 
 FEATURE_SHAPES = {
-    Path("gi-v3-work/gi/positive_features_train.npy"): (20_000, 16, 96),
-    Path("gi-v3-work/gi/positive_features_test.npy"): (2_000, 16, 96),
-    Path("gi-v3-work/gi/negative_features_train.npy"): (20_000, 16, 96),
-    Path("gi-v3-work/gi/negative_features_test.npy"): (2_000, 16, 96),
+    MODEL_DIR / "positive_features_train.npy": (20_000, 16, 96),
+    MODEL_DIR / "positive_features_test.npy": (2_000, 16, 96),
+    MODEL_DIR / "negative_features_train.npy": (20_000, 16, 96),
+    MODEL_DIR / "negative_features_test.npy": (2_000, 16, 96),
 }
 
 
 def _stage_archive_outputs(workspace: Path, stage: str) -> tuple[Path, ...]:
     outputs = STAGE_OUTPUTS[stage]
-    external = Path("gi-v3-work/gi.onnx.data")
-    if stage == "train" and (workspace / external).is_file():
-        return outputs + (external,)
+    if stage == "train" and (workspace / ONNX_DATA_PATH).is_file():
+        return outputs + (ONNX_DATA_PATH,)
     return outputs
 
 
 def _clear_stage_outputs(workspace: Path, stage: str) -> None:
     outputs = set(STAGE_OUTPUTS[stage])
     if stage == "train":
-        outputs.add(Path("gi-v3-work/gi.onnx.data"))
+        outputs.add(ONNX_DATA_PATH)
     for relative in outputs:
         path = workspace / relative
         if path.is_dir():
@@ -1515,7 +1554,7 @@ def _load_training_metrics(workspace: Path) -> dict[str, object]:
     if (
         type(record["schema_version"]) is not int
         or record["schema_version"] != 1
-        or record["model_name"] != "gi"
+        or record["model_name"] != MODEL_NAME
         or record["config_sha256"] != CONFIG_SHA256
         or record["targets"] != TRAINING_TARGETS
         or _finite_number(
@@ -1588,11 +1627,11 @@ def _load_training_metrics(workspace: Path) -> dict[str, object]:
             maximum=1 if name in {"accuracy", "recall"} else None,
         )
 
-    onnx = workspace / "gi-v3-work/gi.onnx"
+    onnx = workspace / ONNX_PATH
     if onnx.is_symlink() or not onnx.is_file():
         raise RuntimeError(f"Missing or unsafe trained ONNX model: {onnx}")
     model_files = {"gi.onnx": sha256(onnx)}
-    external = workspace / "gi-v3-work/gi.onnx.data"
+    external = workspace / ONNX_DATA_PATH
     if external.is_symlink() or (external.exists() and not external.is_file()):
         raise RuntimeError(f"Unsafe trained ONNX external data: {external}")
     if external.is_file():
@@ -1620,18 +1659,22 @@ def _require_training_targets(workspace: Path) -> dict[str, object]:
             f"{TRAINING_TARGETS['maximum_false_positives_per_hour']}"
         )
     if failures:
-        raise RuntimeError("GI v3 training targets not met: " + "; ".join(failures))
+        raise RuntimeError(f"{CANDIDATE} training targets not met: " + "; ".join(failures))
     return record
+
+
+def _validate_generated_outputs(workspace: Path) -> None:
+    for relative, expected in GENERATED_COUNTS.items():
+        actual = len(list((workspace / relative).glob("*.wav")))
+        if actual != expected:
+            raise RuntimeError(
+                f"Wrong generated WAV count for {relative}: {actual}, expected {expected}"
+            )
 
 
 def validate_stage_outputs(workspace: Path, stage: str) -> None:
     if stage == "generate":
-        for relative, expected in GENERATED_COUNTS.items():
-            actual = len(list((workspace / relative).glob("*.wav")))
-            if actual != expected:
-                raise RuntimeError(
-                    f"Wrong generated WAV count for {relative}: {actual}, expected {expected}"
-                )
+        _validate_generated_outputs(workspace)
     elif stage == "augment":
         metadata = _npy_metadata(workspace, tuple(FEATURE_SHAPES))
         for relative, expected in FEATURE_SHAPES.items():
@@ -1651,7 +1694,7 @@ def validate_stage_outputs(workspace: Path, stage: str) -> None:
 
 
 def _verify_stage_inputs(workspace: Path, stage: str) -> None:
-    _copy_config(workspace / "gi-v3-training.yaml", workspace / "gi-v3-training.yaml")
+    _copy_config(workspace / CONFIG_BASENAME, workspace / CONFIG_BASENAME)
     verify_patched_checkout(
         workspace / "openwakeword",
         _openwakeword_allowed_files(),
@@ -1659,7 +1702,7 @@ def _verify_stage_inputs(workspace: Path, stage: str) -> None:
     )
     verify_patched_checkout(
         workspace / "piper-sample-generator",
-        {Path("generate_samples.py"): PIPER_PATCHED_SHA256},
+        _piper_allowed_files(),
         REVISIONS["piper"],
     )
     audio_io = (
@@ -1703,32 +1746,29 @@ def run_training_stage(workspace: Path, checkpoint_dir: Path, stage: str) -> Non
         validate_stage_outputs(workspace, stage)
         return
     _verify_stage_inputs(workspace, stage)
-    flags = {
-        "generate": ["--generate_clips"],
-        "augment": ["--augment_clips", "--overwrite"],
-        "train": ["--train_model"],
-    }
-    run(
-        [
+    if stage == "generate":
+        operation = _generate_operation(workspace, workspace / CONFIG_BASENAME)
+    else:
+        flags = {"augment": ["--augment_clips", "--overwrite"], "train": ["--train_model"]}
+        operation = [
             str(_python(workspace / ".venv-train")),
             str(workspace / "openwakeword/openwakeword/train.py"),
             "--training_config",
-            str(workspace / "gi-v3-training.yaml"),
+            str(workspace / CONFIG_BASENAME),
             *flags[stage],
-        ],
-        cwd=workspace,
-    )
+        ]
+    run(operation, cwd=workspace)
     validate_stage_outputs(workspace, stage)
     _archive_checkpoint(checkpoint, workspace, _stage_archive_outputs(workspace, stage), stage)
 
 
 def convert(workspace: Path, checkpoint_dir: Path) -> None:
-    onnx = workspace / "gi-v3-work/gi.onnx"
+    onnx = workspace / ONNX_PATH
     if not onnx.is_file():
         raise RuntimeError(f"Missing trained ONNX model: {onnx}")
     validate_stage_outputs(workspace, "train")
     prepare_conversion(workspace, checkpoint_dir)
-    conversion = workspace / "gi-v3-conversion"
+    conversion = workspace / CONVERSION_DIR
     if conversion.exists():
         shutil.rmtree(conversion)
     environment = os.environ.copy()
@@ -1754,13 +1794,13 @@ def convert(workspace: Path, checkpoint_dir: Path) -> None:
         cwd=workspace,
         env=environment,
     )
-    generated = conversion / "gi_float32.tflite"
+    generated = conversion / f"{MODEL_NAME}_float32.tflite"
     if not generated.is_file():
         raise RuntimeError(f"onnx2tf did not create {generated}")
     for name in CONVERSION_REPORTS:
         if not (conversion / name).is_file():
             raise RuntimeError(f"onnx2tf did not create promotion report: {conversion / name}")
-    shutil.copyfile(generated, workspace / "gi-v3-work/gi-v3.tflite")
+    shutil.copyfile(generated, workspace / TFLITE_PATH)
 
 
 def verify_candidate(workspace: Path) -> None:
@@ -1770,32 +1810,46 @@ def verify_candidate(workspace: Path) -> None:
             str(_python(workspace / ".venv-convert")),
             "-c",
             PARITY_VERIFIER,
-            str(workspace / "gi-v3-work/gi.onnx"),
-            str(workspace / "gi-v3-work/gi-v3.tflite"),
-            str(workspace / "gi-v3-work/gi-v3-parity.json"),
+            str(workspace / ONNX_PATH),
+            str(workspace / TFLITE_PATH),
+            str(workspace / PARITY_PATH),
         ]
     )
 
 
+def _extra_bundle_artifacts(workspace: Path, checkpoint_dir: Path) -> dict[str, Path]:
+    return {}
+
+
+def _extra_expected_hashes() -> dict[str, str]:
+    return {}
+
+
+def _extra_manifest_fields(workspace: Path, checkpoint_dir: Path) -> dict[str, object]:
+    return {}
+
+
 def _bundle_artifacts(workspace: Path, checkpoint_dir: Path) -> dict[str, Path]:
     artifacts = {
-        "gi-v3-training.yaml": workspace / "gi-v3-training.yaml",
-        "models/gi.onnx": workspace / "gi-v3-work/gi.onnx",
-        "models/gi-v3.tflite": workspace / "gi-v3-work/gi-v3.tflite",
-        "reports/gi-v3-training-metrics.json": workspace / TRAINING_METRICS,
-        "reports/gi-v3-parity.json": workspace / "gi-v3-work/gi-v3-parity.json",
-        "conversion/gi_float32.tflite": workspace / "gi-v3-conversion/gi_float32.tflite",
-        "conversion/gi_accuracy_report.json": (
-            workspace / "gi-v3-conversion/gi_accuracy_report.json"
+        CONFIG_BASENAME: workspace / CONFIG_BASENAME,
+        f"models/{MODEL_NAME}.onnx": workspace / ONNX_PATH,
+        f"models/{CANDIDATE}.tflite": workspace / TFLITE_PATH,
+        f"reports/{TRAINING_METRICS.name}": workspace / TRAINING_METRICS,
+        f"reports/{PARITY_PATH.name}": workspace / PARITY_PATH,
+        f"conversion/{MODEL_NAME}_float32.tflite": (
+            workspace / CONVERSION_DIR / f"{MODEL_NAME}_float32.tflite"
         ),
-        "conversion/gi_accuracy_comparison_report.json": (
-            workspace / "gi-v3-conversion/gi_accuracy_comparison_report.json"
+        f"conversion/{MODEL_NAME}_accuracy_report.json": (
+            workspace / CONVERSION_DIR / f"{MODEL_NAME}_accuracy_report.json"
         ),
-        "audit/gi-v3-training-freeze.txt": checkpoint_dir / "gi-v3-training-freeze.txt",
-        "audit/gi-v3-conversion-freeze.txt": checkpoint_dir / "gi-v3-conversion-freeze.txt",
-        "locks/gi-v3-training.lock": TRAINING_LOCK,
-        "locks/gi-v3-conversion.lock": CONVERSION_LOCK,
-        "workflow/train_gi_v3_colab.py": DRIVER,
+        f"conversion/{MODEL_NAME}_accuracy_comparison_report.json": (
+            workspace / CONVERSION_DIR / f"{MODEL_NAME}_accuracy_comparison_report.json"
+        ),
+        f"audit/{TRAINING_FREEZE_BASENAME}": checkpoint_dir / TRAINING_FREEZE_BASENAME,
+        f"audit/{CONVERSION_FREEZE_BASENAME}": checkpoint_dir / CONVERSION_FREEZE_BASENAME,
+        f"locks/{TRAINING_LOCK.name}": TRAINING_LOCK,
+        f"locks/{CONVERSION_LOCK.name}": CONVERSION_LOCK,
+        f"workflow/{DRIVER.name}": DRIVER,
         "patched-sources/openwakeword-train.py": (workspace / "openwakeword/openwakeword/train.py"),
         "patched-sources/openwakeword-setup.py": workspace / "openwakeword/setup.py",
         "patched-sources/piper-generate_samples.py": (
@@ -1805,9 +1859,13 @@ def _bundle_artifacts(workspace: Path, checkpoint_dir: Path) -> dict[str, Path]:
             workspace / ".venv-train/lib/python3.12/site-packages/torch_audiomentations/utils/io.py"
         ),
     }
-    external_data = workspace / "gi-v3-work/gi.onnx.data"
+    external_data = workspace / ONNX_DATA_PATH
     if external_data.is_file():
-        artifacts["models/gi.onnx.data"] = external_data
+        artifacts[f"models/{MODEL_NAME}.onnx.data"] = external_data
+    extra = _extra_bundle_artifacts(workspace, checkpoint_dir)
+    if set(artifacts) & set(extra):
+        raise RuntimeError("Extra bundle artifacts overlap the base bundle")
+    artifacts.update(extra)
     return artifacts
 
 
@@ -1818,8 +1876,8 @@ def _environment_provenance() -> dict[str, object]:
         "python": "3.12.13",
         "dependency_locks": LOCK_PROVENANCE,
         "audit_snapshots": (
-            "gi-v3-training-freeze.txt",
-            "gi-v3-conversion-freeze.txt",
+            TRAINING_FREEZE_BASENAME,
+            CONVERSION_FREEZE_BASENAME,
         ),
     }
 
@@ -1841,8 +1899,8 @@ def _stage_checkpoint_records(checkpoint_dir: Path) -> dict[str, dict[str, objec
 
 def bundle(workspace: Path, checkpoint_dir: Path) -> None:
     training_metrics = _require_training_targets(workspace)
-    training_lock = checkpoint_dir / "gi-v3-training-freeze.txt"
-    conversion_lock = checkpoint_dir / "gi-v3-conversion-freeze.txt"
+    training_lock = checkpoint_dir / TRAINING_FREEZE_BASENAME
+    conversion_lock = checkpoint_dir / CONVERSION_FREEZE_BASENAME
     _write_freeze(_python(workspace / ".venv-train"), training_lock)
     _write_freeze(_python(workspace / ".venv-convert"), conversion_lock)
     artifacts = _bundle_artifacts(workspace, checkpoint_dir)
@@ -1850,14 +1908,15 @@ def bundle(workspace: Path, checkpoint_dir: Path) -> None:
         if not path.is_file():
             raise RuntimeError(f"Missing final artifact: {path}")
     expected_hashes = {
-        "gi-v3-training.yaml": CONFIG_SHA256,
+        CONFIG_BASENAME: CONFIG_SHA256,
         "patched-sources/openwakeword-train.py": TRAIN_PATCHED_SHA256,
         "patched-sources/openwakeword-setup.py": OWW_SETUP_PATCHED_SHA256,
         "patched-sources/piper-generate_samples.py": PIPER_PATCHED_SHA256,
         "patched-sources/torch-audiomentations-io.py": AUDIO_IO_PATCHED_SHA256,
-        "locks/gi-v3-training.lock": TRAINING_LOCK_SHA256,
-        "locks/gi-v3-conversion.lock": CONVERSION_LOCK_SHA256,
-        "workflow/train_gi_v3_colab.py": sha256(DRIVER),
+        f"locks/{TRAINING_LOCK.name}": TRAINING_LOCK_SHA256,
+        f"locks/{CONVERSION_LOCK.name}": CONVERSION_LOCK_SHA256,
+        f"workflow/{DRIVER.name}": sha256(DRIVER),
+        **_extra_expected_hashes(),
     }
     for name, expected in expected_hashes.items():
         actual = sha256(artifacts[name])
@@ -1865,7 +1924,7 @@ def bundle(workspace: Path, checkpoint_dir: Path) -> None:
             raise RuntimeError(f"Unexpected final artifact SHA-256 for {name}: {actual}")
     stage_checkpoints = _stage_checkpoint_records(checkpoint_dir)
     manifest = {
-        "model": "gi-v3",
+        "model": CANDIDATE,
         "human_audio_used": False,
         "paid_runtime_requested": False,
         "config_sha256": CONFIG_SHA256,
@@ -1879,7 +1938,7 @@ def bundle(workspace: Path, checkpoint_dir: Path) -> None:
         },
         "environment_records": _environment_provenance(),
         "training_evaluation": {
-            "report": "reports/gi-v3-training-metrics.json",
+            "report": f"reports/{TRAINING_METRICS.name}",
             "targets": TRAINING_TARGETS,
             "final": training_metrics["final"],
             "passed": True,
@@ -1889,8 +1948,9 @@ def bundle(workspace: Path, checkpoint_dir: Path) -> None:
             name: {"bytes": path.stat().st_size, "sha256": sha256(path)}
             for name, path in artifacts.items()
         },
+        **_extra_manifest_fields(workspace, checkpoint_dir),
     }
-    manifest_path = checkpoint_dir / "gi-v3-manifest.json"
+    manifest_path = checkpoint_dir / MANIFEST_BASENAME
     atomic_text(manifest_path, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     archive_path = _checkpoint_path(checkpoint_dir, "final-bundle")
     part = Path(f"{archive_path}.part")
@@ -1913,7 +1973,7 @@ def bundle(workspace: Path, checkpoint_dir: Path) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--workspace", type=Path, default=Path("/content/gi-v3"))
+    parser.add_argument("--workspace", type=Path, default=DEFAULT_WORKSPACE)
     parser.add_argument("--checkpoint-dir", type=Path, required=True)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument(

@@ -17,19 +17,23 @@ from types import ModuleType
 from typing import NamedTuple
 
 SCRIPT = Path(__file__).resolve()
-TRAINER_PATH = SCRIPT.with_name("train_gi_v3_colab.py")
+CANDIDATE = "gi-v3"
+TRAINER_PATH = SCRIPT.with_name(f"train_{CANDIDATE.replace('-', '_')}_colab.py")
+MANIFEST_BASENAME = f"{CANDIDATE}-manifest.json"
 CONTENT_ROOT = Path("/content")
-WORKSPACE = CONTENT_ROOT / "gi-v3"
-CHECKPOINT_DIR = CONTENT_ROOT / "gi-v3-checkpoints"
-IMPORT_DIR = CONTENT_ROOT / "gi-v3-import"
-TRANSFER_DIR = CONTENT_ROOT / "gi-v3-transfer"
+WORKSPACE = CONTENT_ROOT / CANDIDATE
+CHECKPOINT_DIR = CONTENT_ROOT / f"{CANDIDATE}-checkpoints"
+IMPORT_DIR = CONTENT_ROOT / f"{CANDIDATE}-import"
+TRANSFER_DIR = CONTENT_ROOT / f"{CANDIDATE}-transfer"
 CHUNK_BYTES = 64 * 1024**2
 
 
 def _load_trainer() -> ModuleType:
-    spec = importlib.util.spec_from_file_location("train_gi_v3_colab", TRAINER_PATH)
+    spec = importlib.util.spec_from_file_location(
+        f"train_{CANDIDATE.replace('-', '_')}_colab", TRAINER_PATH
+    )
     if spec is None or spec.loader is None:
-        raise RuntimeError(f"Cannot load GI v3 trainer: {TRAINER_PATH}")
+        raise RuntimeError(f"Cannot load {CANDIDATE} trainer: {TRAINER_PATH}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -52,10 +56,10 @@ class StageSpec(NamedTuple):
 
 
 STAGES = {
-    "generate": StageSpec("generate", "gi-v3-generated-clips.tar"),
-    "augment": StageSpec("augment", "gi-v3-features.tar"),
-    "train": StageSpec("train", "gi-v3-onnx.tar"),
-    "finish": StageSpec("bundle", "gi-v3-final-bundle.tar"),
+    "generate": StageSpec("generate", f"{CANDIDATE}-generated-clips.tar"),
+    "augment": StageSpec("augment", f"{CANDIDATE}-features.tar"),
+    "train": StageSpec("train", f"{CANDIDATE}-onnx.tar"),
+    "finish": StageSpec("bundle", f"{CANDIDATE}-final-bundle.tar"),
 }
 TRAINING_STAGES = ("generate", "augment", "train")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -128,9 +132,9 @@ def _checkpoint_valid(checkpoint_dir: Path, stage: str) -> bool:
 def _bundled_manifest_sha256(archive: Path) -> str:
     with tarfile.open(archive) as bundle:
         try:
-            member = bundle.getmember("gi-v3-manifest.json")
+            member = bundle.getmember(MANIFEST_BASENAME)
         except KeyError as error:
-            raise RuntimeError(f"Final bundle has no GI v3 manifest: {archive}") from error
+            raise RuntimeError(f"Final bundle has no {CANDIDATE} manifest: {archive}") from error
         if not member.isfile():
             raise RuntimeError(f"Final bundle manifest is not a file: {archive}")
         stream = bundle.extractfile(member)
@@ -165,10 +169,10 @@ def require_local_boundaries(
     if not content_root.is_dir():
         raise RuntimeError(f"Missing Colab content root: {content_root}")
     expected = {
-        "workspace": content_root / "gi-v3",
-        "checkpoint_dir": content_root / "gi-v3-checkpoints",
-        "import_dir": content_root / "gi-v3-import",
-        "transfer_dir": content_root / "gi-v3-transfer",
+        "workspace": content_root / CANDIDATE,
+        "checkpoint_dir": content_root / f"{CANDIDATE}-checkpoints",
+        "import_dir": content_root / f"{CANDIDATE}-import",
+        "transfer_dir": content_root / f"{CANDIDATE}-transfer",
     }
     supplied = {
         "workspace": workspace,
@@ -237,7 +241,7 @@ def _existing_transfer(
         and digest == sha256(archive)
     )
     if stage == "finish":
-        source_manifest = checkpoint_dir / "gi-v3-manifest.json"
+        source_manifest = checkpoint_dir / MANIFEST_BASENAME
         same = same and sha256(transfer_dir / source_manifest.name) == sha256(source_manifest)
     if not same:
         raise RuntimeError(
@@ -272,10 +276,10 @@ def pack_checkpoint(
     if not TRAINER._checkpoint_valid(archive, spec.trainer_stage):
         raise RuntimeError(f"Checkpoint failed trainer provenance validation: {archive}")
     if stage == "finish":
-        source_manifest = checkpoint_dir / "gi-v3-manifest.json"
+        source_manifest = checkpoint_dir / MANIFEST_BASENAME
         _safe_regular_file(source_manifest)
         if sha256(source_manifest) != _bundled_manifest_sha256(archive):
-            raise RuntimeError("Separate GI v3 manifest differs from the final bundle")
+            raise RuntimeError(f"Separate {CANDIDATE} manifest differs from the final bundle")
 
     existing = _existing_transfer(stage, checkpoint_dir, transfer_dir)
     if existing is not None:
@@ -341,7 +345,7 @@ def _validate_transfer_set(stage: str, import_dir: Path) -> tuple[dict[str, str]
     entries = read_sha256sums(manifest)
     expected_fixed = {spec.sidecar}
     if stage == "finish":
-        expected_fixed.add("gi-v3-manifest.json")
+        expected_fixed.add(MANIFEST_BASENAME)
     parts = _part_names(spec, entries)
     if set(entries) != expected_fixed | set(parts):
         raise RuntimeError(f"Unexpected transfer manifest entries for {stage}")
@@ -420,14 +424,14 @@ def _restore_one(stage: str, checkpoint_dir: Path, import_dir: Path) -> None:
 
 
 def _restore_finish_manifest(checkpoint_dir: Path, import_dir: Path) -> None:
-    destination = checkpoint_dir / "gi-v3-manifest.json"
+    destination = checkpoint_dir / MANIFEST_BASENAME
     source = import_dir / destination.name
     expected = _bundled_manifest_sha256(checkpoint_dir / STAGES["finish"].archive)
     if destination.is_file() and not destination.is_symlink() and sha256(destination) == expected:
         return
     _safe_regular_file(source)
     if sha256(source) != expected:
-        raise RuntimeError("Imported GI v3 manifest differs from the final bundle")
+        raise RuntimeError(f"Imported {CANDIDATE} manifest differs from the final bundle")
     _atomic_copy(source, destination)
 
 
