@@ -113,6 +113,10 @@ deployment source of truth.
 
 ## Version 3 candidate
 
+The completed version 3 candidate is rejected and was not deployed. See the
+[version 3 evaluation](gi-v3-evaluation.md) for the frozen hashes, exact scores,
+privacy boundary, and minimum version 4 plan.
+
 Version 2 used only 1,000 training examples and is not reliable across six
 short human samples. The finite Wyoming file test detected none. A quiet
 speaker-to-Voice-PE test detected two of six isolated attempts at the same

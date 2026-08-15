@@ -627,6 +627,7 @@ def test_runbook_records_every_non_git_home_assistant_step() -> None:
 def test_gi_v3_candidate_uses_a_large_private_safe_training_plan() -> None:
     config = load_yaml(f"{PACKAGE}/models/gi-v3-training.yaml")
     model_record = (ROOT / PACKAGE / "models/README.md").read_text()
+    evaluation = (ROOT / PACKAGE / "models/gi-v3-evaluation.md").read_text()
     normalized_record = " ".join(model_record.split())
 
     assert config["model_name"] == "gi"
@@ -636,7 +637,15 @@ def test_gi_v3_candidate_uses_a_large_private_safe_training_plan() -> None:
     assert config["n_samples_val"] == 2_000
     assert config["steps"] == 50_000
     assert config["max_negative_weight"] == 1_500
+    assert config["target_accuracy"] == 0.5
+    assert config["target_recall"] == 0.25
+    assert config["target_false_positives_per_hour"] == 0.2
     assert config["output_dir"] == "./gi-v3-work"
+    assert "Status: **rejected on 2026-08-15**" in evaluation
+    assert "Version 3 did not activate on any of the" in evaluation
+    assert "Do not promote or deploy this model" in evaluation
+    assert "No audio, transcript, personal path, or private content is in Git" in evaluation
+    assert "## Version 4 acceptance gates" in evaluation
 
     for required in (
         "gi-v3-training.yaml",
