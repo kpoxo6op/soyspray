@@ -34,6 +34,41 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def test_atomic_text_recovers_a_partial_and_rejects_a_symlink(tmp_path: Path) -> None:
+    driver = load_driver()
+    destination = tmp_path / "record.json"
+    partial = Path(f"{destination}.part")
+    partial.write_text("incomplete")
+
+    driver.atomic_text(destination, "complete\n")
+
+    assert destination.read_text() == "complete\n"
+    assert not partial.exists()
+
+    outside = tmp_path / "outside"
+    outside.write_text("keep\n")
+    partial.symlink_to(outside)
+    with pytest.raises(RuntimeError, match="Refusing unsafe atomic temporary file"):
+        driver.atomic_text(destination, "replacement\n")
+    assert outside.read_text() == "keep\n"
+
+
+def test_config_copy_recovers_a_wrong_regular_staged_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    driver = load_driver()
+    source = tmp_path / "source.yaml"
+    source.write_text("model_name: gi\n")
+    destination = tmp_path / "work/config.yaml"
+    destination.parent.mkdir()
+    destination.write_text("incomplete")
+    monkeypatch.setattr(driver, "CONFIG_SHA256", driver.sha256(source))
+
+    driver._copy_config(source, destination)
+
+    assert destination.read_bytes() == source.read_bytes()
+
+
 def test_colab_notebook_is_a_two_cell_pinned_browser_checkpoint_launcher() -> None:
     notebook = json.loads(NOTEBOOK.read_text())
     cells = notebook["cells"]
@@ -555,6 +590,50 @@ def test_conversion_stack_probe_imports_onnx2tf_tensorflow_and_tf_keras(
     assert commands[1] == [str(python.parent / "onnx2tf"), "--help"]
 
 
+def test_conversion_prepare_discards_pip_part_before_install(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    driver = load_driver()
+    events = []
+    workspace = tmp_path / "work"
+    checkpoint_dir = tmp_path / "checkpoints"
+    pip_destination = workspace / "downloads" / driver.DOWNLOADS["pip"].filename
+    python = workspace / ".venv-convert/bin/python"
+
+    monkeypatch.setattr(driver, "_create_venv", lambda path: events.append(("venv", path)))
+    monkeypatch.setattr(
+        driver,
+        "_discard_download_parts",
+        lambda paths: events.append(("discard", tuple(paths))),
+    )
+    monkeypatch.setattr(
+        driver,
+        "_install_conversion_dependencies",
+        lambda executable, downloads: events.append(("install", executable, downloads)),
+    )
+    monkeypatch.setattr(
+        driver, "_pip", lambda executable, *args: events.append(("pip", executable, args))
+    )
+    monkeypatch.setattr(
+        driver,
+        "_probe_conversion_stack",
+        lambda executable: events.append(("probe", executable)),
+    )
+    monkeypatch.setattr(
+        driver,
+        "_write_freeze",
+        lambda executable, path: events.append(("freeze", executable, path)),
+    )
+
+    driver.prepare_conversion(workspace, checkpoint_dir)
+
+    assert events[:3] == [
+        ("venv", workspace / ".venv-convert"),
+        ("discard", (pip_destination,)),
+        ("install", python, workspace / "downloads"),
+    ]
+
+
 def test_download_command_resumes_into_part_file() -> None:
     driver = load_driver()
     destination = Path("/content/gi-v3/downloads/a.bin")
@@ -585,6 +664,34 @@ def test_completed_partial_download_is_verified_and_promoted_without_http(
 
     assert destination.read_bytes() == data
     assert not Path(f"{destination}.part").exists()
+
+
+def test_download_rejects_final_and_partial_symlinks(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    driver = load_driver()
+    data = b"pinned"
+    asset = driver.Download("https://invalid.example/file", "file", len(data), digest(data))
+    outside = tmp_path / "outside"
+    outside.write_bytes(data)
+    destination = tmp_path / "file"
+    destination.symlink_to(outside)
+    monkeypatch.setattr(
+        driver.subprocess,
+        "run",
+        lambda *args, **kwargs: pytest.fail("curl must not run for an unsafe path"),
+    )
+
+    with pytest.raises(RuntimeError, match="unsafe download destination"):
+        driver.download(asset, destination)
+    assert outside.read_bytes() == data
+
+    destination.unlink()
+    outside.write_bytes(b"keep")
+    Path(f"{destination}.part").symlink_to(outside)
+    with pytest.raises(RuntimeError, match="unsafe download part"):
+        driver.download(asset, destination)
+    assert outside.read_bytes() == b"keep"
 
 
 def test_train_patch_is_exact_and_fixes_both_upstream_bugs(
@@ -890,6 +997,7 @@ def test_audioset_extractor_is_fixed_to_first_300_embedded_rows() -> None:
     driver = load_driver()
     source = driver.AUDIOSET_EXTRACTOR
 
+    compile(source, "<audioset-extractor>", "exec")
     assert "Audio(decode=False)" in source
     assert "range(300)" in source
     assert '["bytes"]' in source
@@ -897,6 +1005,114 @@ def test_audioset_extractor_is_fixed_to_first_300_embedded_rows() -> None:
     assert "16000" in source
     assert "PCM_16" in source
     assert "audioset-manifest.json" in source
+    assert "os.replace(manifest_part, manifest_path)" in source
+
+
+def test_lfs_clone_recovers_an_incomplete_directory_without_partial_clone_filter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    driver = load_driver()
+    revision = "1" * 40
+    destination = tmp_path / "rir"
+    destination.mkdir()
+    (destination / "incomplete").write_text("partial")
+    commands = []
+    events = []
+    real_replace = driver.os.replace
+
+    def fake_run(command, cwd=None, env=None) -> None:
+        commands.append((list(command), cwd, env))
+        events.append(command[1])
+        if command[:3] == ["git", "clone", "--no-checkout"]:
+            clone_destination = Path(command[-1])
+            (clone_destination / ".git").mkdir(parents=True)
+
+    def fake_subprocess_run(command, **kwargs):
+        assert command == ["git", "rev-parse", "HEAD"]
+        events.append("rev-parse")
+        return SimpleNamespace(stdout=f"{revision}\n")
+
+    def fake_replace(source: Path, target: Path) -> None:
+        events.append("promote")
+        real_replace(source, target)
+
+    monkeypatch.setattr(driver, "run", fake_run)
+    monkeypatch.setattr(driver.subprocess, "run", fake_subprocess_run)
+    monkeypatch.setattr(driver.os, "replace", fake_replace)
+
+    driver.clone_pinned("https://example.invalid/rir", revision, destination, lfs=True)
+
+    clone = commands[0][0]
+    assert clone == [
+        "git",
+        "clone",
+        "--no-checkout",
+        "https://example.invalid/rir",
+        f"{destination}.part",
+    ]
+    assert events == ["clone", "fetch", "checkout", "rev-parse", "promote"]
+    assert commands[0][2]["GIT_LFS_SKIP_SMUDGE"] == "1"
+    assert (destination / ".git").is_dir()
+    assert not (destination / "incomplete").exists()
+    assert not Path(f"{destination}.part").exists()
+
+
+def test_lfs_clone_rebuilds_an_existing_partial_clone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    driver = load_driver()
+    revision = "2" * 40
+    destination = tmp_path / "rir"
+    (destination / ".git").mkdir(parents=True)
+    (destination / "stale").write_text("partial clone")
+    commands = []
+    real_rmtree = driver.shutil.rmtree
+    removals = 0
+
+    def fake_run(command, cwd=None, env=None) -> None:
+        commands.append(list(command))
+        if command[:3] == ["git", "clone", "--no-checkout"]:
+            (Path(command[-1]) / ".git").mkdir(parents=True)
+
+    def fake_subprocess_run(command, **kwargs):
+        if command == [
+            "git",
+            "config",
+            "--local",
+            "--get",
+            "remote.origin.partialclonefilter",
+        ]:
+            return SimpleNamespace(returncode=0, stdout="blob:none\n")
+        assert command == ["git", "rev-parse", "HEAD"]
+        return SimpleNamespace(stdout=f"{revision}\n")
+
+    monkeypatch.setattr(driver, "run", fake_run)
+    monkeypatch.setattr(driver.subprocess, "run", fake_subprocess_run)
+
+    def interrupt_first_removal(path: Path) -> None:
+        nonlocal removals
+        removals += 1
+        if removals == 1:
+            raise RuntimeError("interrupted removal")
+        real_rmtree(path)
+
+    monkeypatch.setattr(driver.shutil, "rmtree", interrupt_first_removal)
+
+    with pytest.raises(RuntimeError, match="interrupted removal"):
+        driver.clone_pinned("https://example.invalid/rir", revision, destination, lfs=True)
+    assert not destination.exists()
+    assert Path(f"{destination}.part").is_dir()
+
+    driver.clone_pinned("https://example.invalid/rir", revision, destination, lfs=True)
+
+    assert commands[0] == [
+        "git",
+        "clone",
+        "--no-checkout",
+        "https://example.invalid/rir",
+        f"{destination}.part",
+    ]
+    assert not (destination / "stale").exists()
 
 
 def test_parity_verifier_checks_the_pinned_streaming_runtime_boundary() -> None:
@@ -1246,6 +1462,35 @@ def test_audioset_extract_manifest_verifies_every_wav(tmp_path: Path) -> None:
         driver.verify_audioset_extract(output)
 
 
+def test_audioset_prepare_rebuilds_an_incomplete_extract(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    driver = load_driver()
+    output = tmp_path / "audioset_16k"
+    output.mkdir()
+    (output / "audioset-manifest.json").write_text("{")
+    events = []
+
+    def fake_verify(path: Path) -> None:
+        events.append("verify")
+        if not (path / "ready").is_file():
+            raise RuntimeError("incomplete")
+
+    def fake_run(command, cwd=None, env=None) -> None:
+        events.append("run")
+        assert command[0] == "/venv/python"
+        assert command[2] == driver.AUDIOSET_EXTRACTOR
+        output.mkdir(parents=True)
+        (output / "ready").write_text("ready")
+
+    monkeypatch.setattr(driver, "verify_audioset_extract", fake_verify)
+    monkeypatch.setattr(driver, "run", fake_run)
+
+    driver._prepare_audioset_extract(Path("/venv/python"), tmp_path / "source.parquet", output)
+
+    assert events == ["verify", "run", "verify"]
+
+
 def test_rir_verification_checks_lfs_and_clean_worktree(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1325,6 +1570,76 @@ def test_patched_source_checkout_rejects_the_wrong_revision(tmp_path: Path) -> N
         )
 
 
+def test_prepare_orders_cached_resource_checks_and_full_verification(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    driver = load_driver()
+    workspace = tmp_path / "work"
+    checkpoints = tmp_path / "checkpoints"
+    events = []
+    subset = {Path("cached-resource"): "verified"}
+
+    monkeypatch.setattr(driver, "require_free_disk", lambda path: None)
+    monkeypatch.setattr(driver, "_copy_config", lambda source, target: None)
+    monkeypatch.setattr(driver, "_create_venv", lambda path: None)
+    monkeypatch.setattr(driver, "_install_training_dependencies", lambda *args: None)
+    monkeypatch.setattr(driver, "clone_pinned", lambda *args, **kwargs: None)
+    monkeypatch.setattr(driver, "patch_train", lambda path: None)
+    monkeypatch.setattr(driver, "patch_openwakeword_setup", lambda path: None)
+    monkeypatch.setattr(driver, "patch_piper", lambda path: None)
+    monkeypatch.setattr(driver, "patch_audio_io", lambda path: None)
+    monkeypatch.setattr(driver, "_probe_piper_import", lambda *args: None)
+    monkeypatch.setattr(driver, "require_training_cuda", lambda path: None)
+    monkeypatch.setattr(driver, "verify_rir_checkout", lambda path: None)
+    monkeypatch.setattr(driver, "_prepare_audioset_extract", lambda *args: None)
+    monkeypatch.setattr(driver, "_write_freeze", lambda *args: None)
+    monkeypatch.setattr(
+        driver,
+        "_openwakeword_existing_allowed_files",
+        lambda repository: subset,
+    )
+    monkeypatch.setattr(
+        driver,
+        "_discard_download_parts",
+        lambda paths: events.append(("discard", len(paths))),
+    )
+
+    def fake_verify(repository: Path, allowed, expected_revision=None) -> None:
+        if repository.name == "openwakeword":
+            events.append("verify-subset" if allowed is subset else "verify-full")
+
+    def fake_download(asset, destination: Path) -> None:
+        if "openwakeword/resources/models" in str(destination):
+            events.append("download-resource")
+
+    monkeypatch.setattr(driver, "verify_patched_checkout", fake_verify)
+    monkeypatch.setattr(
+        driver,
+        "_install_openwakeword_editable",
+        lambda *args: events.append("install-editable"),
+    )
+    monkeypatch.setattr(driver, "download", fake_download)
+    monkeypatch.setattr(driver, "run", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        driver.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(stdout=f"{tmp_path / 'io.py'}\n"),
+    )
+
+    driver.prepare(workspace, checkpoints, tmp_path / "config.yaml")
+
+    source_discard = events.index(("discard", 5))
+    subset_verify = events.index("verify-subset")
+    editable_install = events.index("install-editable")
+    resource_downloads = [
+        index for index, event in enumerate(events) if event == "download-resource"
+    ]
+    full_verify = events.index("verify-full")
+    assert source_discard < subset_verify < editable_install < min(resource_downloads)
+    assert len(resource_downloads) == 4
+    assert max(resource_downloads) < full_verify
+
+
 def test_openwakeword_checkout_allows_only_verified_downloaded_resources(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -1351,6 +1666,7 @@ def test_openwakeword_checkout_allows_only_verified_downloaded_resources(
 
     resources = repository / "openwakeword/resources/models"
     resources.mkdir(parents=True)
+    downloaded = []
     for name in (
         "embedding_onnx",
         "embedding_tflite",
@@ -1364,7 +1680,38 @@ def test_openwakeword_checkout_allows_only_verified_downloaded_resources(
             name,
             driver.Download(asset.url, asset.filename, len(data), digest(data)),
         )
-        (resources / asset.filename).write_bytes(data)
+        path = resources / asset.filename
+        path.write_bytes(data)
+        downloaded.append((path, data))
+
+    piper_checkpoint = tmp_path / "piper/models/model.pt"
+    partials = [Path(f"{path}.part") for path in (downloaded[0][0], piper_checkpoint)]
+    for partial in partials:
+        partial.parent.mkdir(parents=True, exist_ok=True)
+        partial.write_bytes(b"partial")
+    driver._discard_download_parts((downloaded[0][0], piper_checkpoint))
+    assert not any(partial.exists() for partial in partials)
+
+    partial = partials[0]
+    partial.symlink_to(downloaded[0][0])
+    with pytest.raises(RuntimeError, match="Refusing unsafe download part"):
+        driver._discard_download_parts((downloaded[0][0],))
+    partial.unlink()
+
+    missing, missing_data = downloaded[-1]
+    missing.unlink()
+    driver.verify_patched_checkout(
+        repository, driver._openwakeword_existing_allowed_files(repository)
+    )
+    missing.write_bytes(missing_data)
+
+    cached, cached_data = downloaded[0]
+    cached.write_bytes(b"corrupt")
+    with pytest.raises(RuntimeError, match="Unexpected patched source"):
+        driver.verify_patched_checkout(
+            repository, driver._openwakeword_existing_allowed_files(repository)
+        )
+    cached.write_bytes(cached_data)
 
     driver.verify_patched_checkout(repository, driver._openwakeword_allowed_files())
 

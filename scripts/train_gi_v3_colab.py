@@ -287,6 +287,7 @@ import hashlib
 import io
 import json
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -328,9 +329,12 @@ manifest = {
     "rows": 300,
     "files": files,
 }
-(output / "audioset-manifest.json").write_text(
+manifest_path = output / "audioset-manifest.json"
+manifest_part = Path(f"{manifest_path}.part")
+manifest_part.write_text(
     json.dumps(manifest, indent=2, sort_keys=True) + "\n"
 )
+os.replace(manifest_part, manifest_path)
 """.strip()
 
 PARITY_VERIFIER = r"""
@@ -400,7 +404,11 @@ def sha256(path: Path) -> str:
 def atomic_text(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(f"{path}.part")
-    temporary.write_text(text)
+    if temporary.is_symlink() or (temporary.exists() and not temporary.is_file()):
+        raise RuntimeError(f"Refusing unsafe atomic temporary file: {temporary}")
+    temporary.unlink(missing_ok=True)
+    with temporary.open("x") as stream:
+        stream.write(text)
     os.replace(temporary, path)
 
 
@@ -435,11 +443,15 @@ def download_command(asset: Download, destination: Path) -> tuple[list[str], Pat
 
 
 def download(asset: Download, destination: Path) -> None:
+    if destination.is_symlink() or (destination.exists() and not destination.is_file()):
+        raise RuntimeError(f"Refusing unsafe download destination: {destination}")
     if destination.exists():
         verify_file(destination, asset)
         return
     destination.parent.mkdir(parents=True, exist_ok=True)
     command, part = download_command(asset, destination)
+    if part.is_symlink() or (part.exists() and not part.is_file()):
+        raise RuntimeError(f"Refusing unsafe download part: {part}")
     if part.exists() and part.stat().st_size > asset.size:
         raise RuntimeError(f"Partial download is larger than the pinned input: {part}")
     if part.exists() and part.stat().st_size == asset.size:
@@ -665,23 +677,52 @@ def require_checkpoint_storage(
 
 def clone_pinned(url: str, revision: str, destination: Path, lfs: bool = False) -> None:
     environment = os.environ.copy()
+    clone_part = Path(f"{destination}.part")
     if lfs:
         environment["GIT_LFS_SKIP_SMUDGE"] = "1"
+    if destination.is_symlink() or (destination.exists() and not destination.is_dir()):
+        raise RuntimeError(f"Refusing unsafe Git source path: {destination}")
+    if lfs and (destination / ".git").is_dir():
+        partial_clone = subprocess.run(
+            ["git", "config", "--local", "--get", "remote.origin.partialclonefilter"],
+            cwd=destination,
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+        if partial_clone.returncode not in (0, 1):
+            raise RuntimeError(f"Cannot inspect Git source configuration: {destination}")
+        if partial_clone.stdout.strip():
+            if clone_part.is_symlink() or (clone_part.exists() and not clone_part.is_dir()):
+                raise RuntimeError(f"Refusing unsafe Git clone part: {clone_part}")
+            if clone_part.exists():
+                shutil.rmtree(clone_part)
+            os.replace(destination, clone_part)
+    if destination.exists() and not (destination / ".git").is_dir():
+        shutil.rmtree(destination)
+    repository = destination
     if not destination.exists():
         destination.parent.mkdir(parents=True, exist_ok=True)
-        run(
-            ["git", "clone", "--no-checkout", "--filter=blob:none", url, str(destination)],
-            env=environment,
-        )
-    if not (destination / ".git").is_dir():
-        raise RuntimeError(f"Not a Git source directory: {destination}")
-    run(["git", "fetch", "--depth", "1", "origin", revision], cwd=destination, env=environment)
-    run(["git", "checkout", "--detach", revision], cwd=destination, env=environment)
+        repository = clone_part
+        if repository.is_symlink() or (repository.exists() and not repository.is_dir()):
+            raise RuntimeError(f"Refusing unsafe Git clone part: {repository}")
+        if repository.exists():
+            shutil.rmtree(repository)
+        clone = ["git", "clone", "--no-checkout"]
+        if not lfs:
+            clone.append("--filter=blob:none")
+        run([*clone, url, str(repository)], env=environment)
+    if not (repository / ".git").is_dir():
+        raise RuntimeError(f"Not a Git source directory: {repository}")
+    run(["git", "fetch", "--depth", "1", "origin", revision], cwd=repository, env=environment)
+    run(["git", "checkout", "--detach", revision], cwd=repository, env=environment)
     actual = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=destination, check=True, text=True, capture_output=True
+        ["git", "rev-parse", "HEAD"], cwd=repository, check=True, text=True, capture_output=True
     ).stdout.strip()
     if actual != revision:
-        raise RuntimeError(f"Wrong revision for {destination}: {actual}")
+        raise RuntimeError(f"Wrong revision for {repository}: {actual}")
+    if repository != destination:
+        os.replace(repository, destination)
 
 
 def verify_patched_checkout(
@@ -730,6 +771,22 @@ def _openwakeword_allowed_files() -> dict[Path, str]:
         asset = DOWNLOADS[name]
         allowed[Path("openwakeword/resources/models") / asset.filename] = asset.sha256
     return allowed
+
+
+def _openwakeword_existing_allowed_files(repository: Path) -> dict[Path, str]:
+    return {
+        path: expected
+        for path, expected in _openwakeword_allowed_files().items()
+        if (repository / path).is_file()
+    }
+
+
+def _discard_download_parts(destinations: Sequence[Path]) -> None:
+    for destination in destinations:
+        partial = Path(f"{destination}.part")
+        if partial.is_symlink() or (partial.exists() and not partial.is_file()):
+            raise RuntimeError(f"Refusing unsafe download part: {partial}")
+        partial.unlink(missing_ok=True)
 
 
 def verify_rir_checkout(repository: Path) -> None:
@@ -786,6 +843,19 @@ def verify_audioset_extract(output: Path) -> None:
             or item.get("sha256") != sha256(path)
         ):
             raise RuntimeError(f"AudioSet WAV failed verification: {name}")
+
+
+def _prepare_audioset_extract(python: Path, source: Path, output: Path) -> None:
+    if output.is_symlink() or (output.exists() and not output.is_dir()):
+        raise RuntimeError(f"Refusing unsafe AudioSet output path: {output}")
+    if output.exists():
+        try:
+            verify_audioset_extract(output)
+            return
+        except (OSError, RuntimeError, ValueError):
+            shutil.rmtree(output)
+    run([str(python), "-c", AUDIOSET_EXTRACTOR, str(source), str(output)])
+    verify_audioset_extract(output)
 
 
 def _python(venv: Path) -> Path:
@@ -1056,10 +1126,13 @@ def _copy_config(source: Path, destination: Path) -> None:
     if sha256(source) != CONFIG_SHA256:
         raise RuntimeError(f"Unexpected GI v3 config SHA-256: {sha256(source)}")
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists() and sha256(destination) != CONFIG_SHA256:
-        raise RuntimeError(f"Refusing to replace a different staged config: {destination}")
-    if not destination.exists():
-        shutil.copyfile(source, destination)
+    if destination.is_symlink() or (destination.exists() and not destination.is_file()):
+        raise RuntimeError(f"Refusing unsafe staged config path: {destination}")
+    if destination.exists() and sha256(destination) == CONFIG_SHA256:
+        return
+    atomic_text(destination, source.read_text())
+    if sha256(destination) != CONFIG_SHA256:
+        raise RuntimeError(f"Wrong staged config SHA-256: {destination}")
 
 
 def _write_freeze(python: Path, destination: Path) -> None:
@@ -1075,6 +1148,7 @@ def prepare(workspace: Path, checkpoint_dir: Path, config: Path) -> None:
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     downloads_dir = workspace / "downloads"
     _copy_config(config, workspace / "gi-v3-training.yaml")
+    _discard_download_parts((downloads_dir / DOWNLOADS["pip"].filename,))
 
     train_venv = workspace / ".venv-train"
     _create_venv(train_venv)
@@ -1090,12 +1164,23 @@ def prepare(workspace: Path, checkpoint_dir: Path, config: Path) -> None:
     patch_train(openwakeword / "openwakeword/train.py")
     patch_openwakeword_setup(openwakeword / "setup.py")
     patch_piper(piper / "generate_samples.py")
+    checkpoint = piper / "models" / DOWNLOADS["piper_checkpoint"].filename
+    resources = openwakeword / "openwakeword/resources/models"
+    _discard_download_parts(
+        [checkpoint]
+        + [
+            resources / DOWNLOADS[name].filename
+            for name in (
+                "embedding_onnx",
+                "embedding_tflite",
+                "melspectrogram_onnx",
+                "melspectrogram_tflite",
+            )
+        ]
+    )
     verify_patched_checkout(
         openwakeword,
-        {
-            Path("openwakeword/train.py"): TRAIN_PATCHED_SHA256,
-            Path("setup.py"): OWW_SETUP_PATCHED_SHA256,
-        },
+        _openwakeword_existing_allowed_files(openwakeword),
         REVISIONS["openwakeword"],
     )
     verify_patched_checkout(
@@ -1121,9 +1206,7 @@ def prepare(workspace: Path, checkpoint_dir: Path, config: Path) -> None:
     _probe_piper_import(train_python, piper / "generate_samples.py")
     require_training_cuda(train_python)
 
-    checkpoint = piper / "models" / DOWNLOADS["piper_checkpoint"].filename
     download(DOWNLOADS["piper_checkpoint"], checkpoint)
-    resources = openwakeword / "openwakeword/resources/models"
     for name in (
         "embedding_onnx",
         "embedding_tflite",
@@ -1153,10 +1236,7 @@ def prepare(workspace: Path, checkpoint_dir: Path, config: Path) -> None:
         rir_link.symlink_to(rir_source / "16khz", target_is_directory=True)
 
     audioset_output = workspace / "audioset_16k"
-    manifest = audioset_output / "audioset-manifest.json"
-    if not manifest.exists():
-        run([str(train_python), "-c", AUDIOSET_EXTRACTOR, str(audioset), str(audioset_output)])
-    verify_audioset_extract(audioset_output)
+    _prepare_audioset_extract(train_python, audioset, audioset_output)
 
     _write_freeze(train_python, checkpoint_dir / "gi-v3-training-freeze.txt")
 
@@ -1165,6 +1245,7 @@ def prepare_conversion(workspace: Path, checkpoint_dir: Path) -> None:
     conversion_venv = workspace / ".venv-convert"
     _create_venv(conversion_venv)
     conversion_python = _python(conversion_venv)
+    _discard_download_parts((workspace / "downloads" / DOWNLOADS["pip"].filename,))
     _install_conversion_dependencies(conversion_python, workspace / "downloads")
     _pip(conversion_python, "check")
     _probe_conversion_stack(conversion_python)
