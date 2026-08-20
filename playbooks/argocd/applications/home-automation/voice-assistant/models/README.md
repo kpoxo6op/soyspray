@@ -215,3 +215,10 @@ The first model is intentionally small. If household speech, television, or
 music produces false wakes, add those recordings as held-out negatives and
 train a new version. Do not lower the runtime threshold before measuring the
 false-wake rate.
+
+## Version 5 personalized candidate
+
+GI v5 uses private samples of the primary user's voice. See the
+[GI v5 record](gi-v5-evaluation.md) for its fixed training inputs, selection
+metrics, artifact checksums, privacy boundary, and live acceptance procedure.
+GI v2 stays available as the rollback model until that live check passes.
