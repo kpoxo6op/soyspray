@@ -20,7 +20,7 @@ def replace_once(source: str, old: str, new: str) -> str:
 
 
 def patch_handler(source: str, expected_sha256: str = HANDLER_SHA256) -> str:
-    """Keep GI fail-closed and require consecutive high wake scores."""
+    """Keep GI fail-closed and require voiced, consecutive high wake scores."""
     actual_sha256 = hashlib.sha256(source.encode()).hexdigest()
     if actual_sha256 != expected_sha256:
         raise ValueError(f"handler.py checksum is {actual_sha256}, expected {expected_sha256}")
@@ -29,6 +29,12 @@ def patch_handler(source: str, expected_sha256: str = HANDLER_SHA256) -> str:
         source,
         "from pyopen_wakeword import Model, OpenWakeWord, OpenWakeWordFeatures",
         "from pyopen_wakeword import OpenWakeWord, OpenWakeWordFeatures",
+    )
+    source = replace_once(
+        source,
+        "from dataclasses import dataclass",
+        """from array import array
+from dataclasses import dataclass""",
     )
     source = replace_once(source, "\nDEFAULT_MODEL = Model.OKAY_NABU\n", "")
     source = replace_once(
@@ -94,12 +100,56 @@ def patch_handler(source: str, expected_sha256: str = HANDLER_SHA256) -> str:
     )
     source = replace_once(
         source,
+        """        self.audio_timestamp = 0
+
+        _LOGGER.debug("Client connected: %s", self.client_id)
+""",
+        """        self.audio_timestamp = 0
+        self.voice_grace_ms = 0
+
+        _LOGGER.debug("Client connected: %s", self.client_id)
+""",
+    )
+    source = replace_once(
+        source,
+        """            self.audio_timestamp = 0
+            self.oww_features.reset()
+""",
+        """            self.audio_timestamp = 0
+            self.voice_grace_ms = 0
+            self.oww_features.reset()
+""",
+    )
+    source = replace_once(
+        source,
+        """        elif AudioChunk.is_type(event.type):
+            chunk = self.converter.convert(AudioChunk.from_event(event))
+            for features in self.oww_features.process_streaming(chunk.audio):
+""",
+        """        elif AudioChunk.is_type(event.type):
+            chunk = self.converter.convert(AudioChunk.from_event(event))
+            samples = array("h")
+            samples.frombytes(chunk.audio)
+            if samples and max(abs(sample) for sample in samples) >= 12:
+                self.voice_grace_ms = 2000
+            else:
+                self.voice_grace_ms = max(0, self.voice_grace_ms - chunk.milliseconds)
+
+            for features in self.oww_features.process_streaming(chunk.audio):
+""",
+    )
+    source = replace_once(
+        source,
         """                        if prob <= self.threshold:
                             continue
 
                         detector.triggers_left -= 1
 """,
         """                        if prob <= self.threshold:
+                            detector.triggers_left = self.trigger_level
+                            continue
+
+                        if self.voice_grace_ms <= 0:
                             detector.triggers_left = self.trigger_level
                             continue
 
@@ -113,6 +163,8 @@ def patch_handler(source: str, expected_sha256: str = HANDLER_SHA256) -> str:
             raise ValueError(f"GI-only handler still contains {value!r}")
     if "for custom_model in self.state.custom_models" not in source:
         raise ValueError("GI-only handler no longer advertises custom models")
+    if "max(abs(sample) for sample in samples) >= 12" not in source:
+        raise ValueError("GI-only handler no longer requires voiced audio")
     return source
 
 
