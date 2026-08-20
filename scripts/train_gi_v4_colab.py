@@ -27,7 +27,7 @@ PIPER_MODELS_SOURCE_SHA256 = "eb88105d8fc762e1b0e74a85d1da38583e428ab92e66bef0bd
 PIPER_GENERATOR_PATCHED_SHA256 = "8f2a6e04c1613682fa3b1f494f948bd56fa6373fe7ea65abd7a8fb3838cd94bf"
 PIPER_MODELS_PATCHED_SHA256 = "8e8df32f4bba732d4751d0c7b820b08d0f8a09aefaef3b7d99414a7b978e2dd1"
 TRAIN_PATCHED_SHA256 = "17a657bbc3edf295b8952a421861b27932be7dd5833ac0d29274ae7c916cc357"
-CONFIG_SHA256 = "a5de7be6e3427c6bdf6b035936c088249da074b85b9da7c1010d232928a75b7f"
+CONFIG_SHA256 = "60490043cf32855c61a81af6632d3ed53fc425dc290118a98e63ad0f621bdacf"
 CONFIG = (
     ROOT
     / "playbooks/argocd/applications/home-automation/voice-assistant/models"
@@ -54,6 +54,9 @@ COMMON_PATCH_TRAIN = BASE.patch_train
 COMMON_VERIFY_CANDIDATE = BASE.verify_candidate
 COMMON_TRAIN_PATCHED_SHA256 = BASE.TRAIN_PATCHED_SHA256
 COMMON_TRAINING_METRICS = BASE.TRAINING_METRICS
+COMMON_CHECKPOINT_VALID = BASE._checkpoint_valid
+LEGACY_DATA_CONFIG_SHA256 = "a5de7be6e3427c6bdf6b035936c088249da074b85b9da7c1010d232928a75b7f"
+LEGACY_DATA_DRIVER_SHA256 = "a8f2f890ccf2acc7660a892e7419cd75c16dcb9fd09ee9c646877a8529a3ad95"
 
 
 def _configure_base() -> None:
@@ -140,6 +143,30 @@ def _extra_checkpoint_provenance() -> dict[str, object]:
     }
 
 
+def _checkpoint_valid(path: Path, stage: str | None = None) -> bool:
+    if COMMON_CHECKPOINT_VALID(path, stage):
+        return True
+    try:
+        record = json.loads(BASE._checkpoint_manifest(path).read_text())
+    except (json.JSONDecodeError, OSError):
+        return False
+    record_stage = record.get("stage")
+    if record_stage not in {"generate", "augment"} or (
+        stage is not None and record_stage != stage
+    ):
+        return False
+    legacy = BASE._checkpoint_provenance(record_stage)
+    legacy["config_sha256"] = LEGACY_DATA_CONFIG_SHA256
+    legacy["driver_sha256"] = LEGACY_DATA_DRIVER_SHA256
+    return (
+        path.is_file()
+        and not path.is_symlink()
+        and record.get("bytes") == path.stat().st_size
+        and record.get("sha256") == BASE.sha256(path)
+        and all(record.get(key) == value for key, value in legacy.items())
+    )
+
+
 def _generate_operation(workspace: Path, staged_config: Path) -> list[str]:
     del staged_config
     return [
@@ -209,6 +236,7 @@ def _piper_allowed_files() -> dict[Path, str]:
 
 
 BASE._extra_checkpoint_provenance = _extra_checkpoint_provenance
+BASE._checkpoint_valid = _checkpoint_valid
 BASE._generate_operation = _generate_operation
 BASE.patch_train = _patch_train
 BASE.patch_piper_checkout = _patch_piper_checkout
