@@ -5,6 +5,6 @@ voice_assistant_ha_token: >-
   {{ lookup('ansible.builtin.env', 'VOICE_ASSISTANT_HA_TOKEN') | default('', true) }}
 voice_assistant_gi_model_path: >-
   {{ lookup('ansible.builtin.env', 'VOICE_ASSISTANT_GI_MODEL_PATH') | default('', true) }}
-voice_assistant_gi_model_configmap_name: openwakeword-gi-model-v5
-voice_assistant_gi_model_sha256: bed4311c39eeb28803f8de7df16d923e45f8bde4f4d6b631e882ec9baffe5070
+voice_assistant_gi_model_configmap_name: openwakeword-gi-model-v2
+voice_assistant_gi_model_sha256: 4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739
 voice_assistant_gi_model_retired_configmaps: []
