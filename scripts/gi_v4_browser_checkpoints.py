@@ -4,8 +4,11 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 from types import ModuleType
+
+os.environ["MPLBACKEND"] = "Agg"
 
 SCRIPT = Path(__file__).resolve()
 COMMON_HELPER = SCRIPT.with_name("gi_v3_browser_checkpoints.py")
