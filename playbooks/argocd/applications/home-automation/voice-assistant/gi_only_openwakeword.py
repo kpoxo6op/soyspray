@@ -20,7 +20,7 @@ def replace_once(source: str, old: str, new: str) -> str:
 
 
 def patch_handler(source: str, expected_sha256: str = HANDLER_SHA256) -> str:
-    """Remove all built-in wake models and every default-model fallback."""
+    """Keep GI fail-closed and require consecutive high wake scores."""
     actual_sha256 = hashlib.sha256(source.encode()).hexdigest()
     if actual_sha256 != expected_sha256:
         raise ValueError(f"handler.py checksum is {actual_sha256}, expected {expected_sha256}")
@@ -91,6 +91,20 @@ def patch_handler(source: str, expected_sha256: str = HANDLER_SHA256) -> str:
 
 """,
         "",
+    )
+    source = replace_once(
+        source,
+        """                        if prob <= self.threshold:
+                            continue
+
+                        detector.triggers_left -= 1
+""",
+        """                        if prob <= self.threshold:
+                            detector.triggers_left = self.trigger_level
+                            continue
+
+                        detector.triggers_left -= 1
+""",
     )
 
     forbidden = ("OKAY_NABU", "Model(ww_name)", "for model in Model:")
