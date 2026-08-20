@@ -324,7 +324,7 @@ spec:
                   handler_source=pathlib.Path(handler.__file__).read_text();
                   assert 'OKAY_NABU' not in handler_source and 'Model(ww_name)' not in handler_source;
                   assert hashlib.sha256(pathlib.Path('/models/gi.tflite').read_bytes()).hexdigest()
-                  == 'f9389b52d82404bc094e65afaf22c2c0f4afc27924fbbd998ad1e128d248f30c';
+                  == 'e61dd9f2880f226b05b8f9885c053fa7ec7805170c3f3b4d56427c6294cb4be0';
                   model=OpenWakeWord.from_model('/models/gi.tflite');
                   assert model.input_windows == 16;
                   next(model.process_streaming(np.zeros((1, 1, model.input_windows,
@@ -355,7 +355,7 @@ spec:
       volumes:
         - name: models
           configMap:
-            name: openwakeword-gi-model-v7
+            name: openwakeword-gi-model-v7b
         - name: tmp
           emptyDir:
             sizeLimit: 256Mi
