@@ -65,7 +65,18 @@ confirmed three detections from eight attempts.
 | Live recall | `0.375` |
 | Source WAV SHA-256 | `3fb1387b4e89468555d006bbf3649094197a33be9ffffec8a81bfc490740828e` |
 
-The laptop volume returned to its original 17% level after the run. Voice PE
-returned to `idle`, and the Argo CD application stayed healthy. GI v5 remains a
-failed candidate. Use the five missed private clips as training evidence for a
-later model, and keep separate new samples for its live acceptance test.
+The laptop volume returned to its original 17% level after the run. The live
+device then produced repeated false wakes in a silent room. Home Assistant
+history shows wake events every 20 to 60 seconds during much of the v5
+deployment. Two private photos taken about ten seconds apart show the Voice PE
+ring off and then blue without speech.
+
+GI v5 was rolled back through GitOps on 2026-08-20. The deployment returned to
+immutable ConfigMap `openwakeword-gi-model-v2` and SHA-256
+`4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739`.
+Argo CD returned to `Synced` and `Healthy`. A ten-minute silent-room watch after
+the rollout recorded no new wake event, and the satellite stayed `idle`.
+
+GI v5 is a failed candidate for both recall and false-wake safety. Use the five
+missed private clips as training evidence for a later model. Keep separate new
+samples for its live acceptance test.
