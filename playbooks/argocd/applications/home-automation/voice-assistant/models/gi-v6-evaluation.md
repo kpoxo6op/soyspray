@@ -63,3 +63,20 @@ deploy GI v6 with threshold `0.65` and trigger level `2` again.
 Keep immutable ConfigMap `openwakeword-gi-model-v2` available during live
 acceptance. Roll back the deployment reference to that ConfigMap and its
 recorded SHA-256 if GI v6 causes missed or false wakes.
+
+## Guarded retry result
+
+The wake handler was changed to require consecutive high model scores. A later
+change also required recent voiced audio before a high score could count. A
+captured false-wake stream had a peak amplitude of only 8 signed 16-bit PCM
+counts, while a Voice PE recording of a played GI sample peaked at 57 counts.
+The voiced-audio gate used a threshold of 12 counts and a two-second grace
+period.
+
+Guarded GI v6 passed an initial ten-minute silent soak. It then detected 6 of
+17 reserved live playback clips, or 35.3%. A further false wake occurred about
+six minutes after playback ended, at `2026-08-20T08:03:09.294407+00:00`.
+
+GI v6 is rejected. The gate reduced the false-wake rate but did not make this
+model safe. GI v2 was restored through GitOps before the next model was
+deployed.
