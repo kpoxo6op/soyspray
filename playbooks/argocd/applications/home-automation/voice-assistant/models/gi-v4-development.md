@@ -4,6 +4,11 @@ GI v2 remains the deployed model. It is usable but not fully reliable. GI v3
 was rejected. GI v4 is an optional later improvement and has not been trained
 or deployed.
 
+The first 32-unit GI v4 candidate failed its fixed synthetic gates. The next
+candidate changes only `layer_size` from `32` to `64`. It reuses the verified
+generated and augmented data. The trainer accepts only the exact recorded
+32-unit data checkpoints for these two data stages.
+
 The v4 workflow is reproducible by code:
 
 - `gi_v4_synthesis_plan.py` creates 44,000 deterministic synthetic records.
