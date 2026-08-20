@@ -49,6 +49,17 @@ The model and private derived features are not stored in Git. No automated
 acceptance suite was run. Promotion depends on normal workload startup and live
 Voice PE playback of the 17 reserved utterances.
 
+## Initial live safety result
+
+GI v6 failed its first silent-room safety soak on 2026-08-20 with the existing
+runtime threshold `0.65` and trigger level `2`. Home Assistant recorded three
+wake events while the user was away and the room was silent. The first event
+occurred about one minute after deployment. No reserved holdout clip was played.
+
+The deployment returned to GI v2 through GitOps. Argo CD returned to `Synced`
+and `Healthy`, and the replacement pod became Ready with zero restarts. Do not
+deploy GI v6 with threshold `0.65` and trigger level `2` again.
+
 Keep immutable ConfigMap `openwakeword-gi-model-v2` available during live
 acceptance. Roll back the deployment reference to that ConfigMap and its
 recorded SHA-256 if GI v6 causes missed or false wakes.
