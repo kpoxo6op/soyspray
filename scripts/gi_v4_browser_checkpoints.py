@@ -51,6 +51,26 @@ BASE.IMPORT_DIR = IMPORT_DIR
 BASE.TRANSFER_DIR = TRANSFER_DIR
 BASE.STAGES = STAGES
 
+_common_run_target = BASE.run_target
+
+
+def _run_target(
+    target: str,
+    workspace: Path,
+    checkpoint_dir: Path,
+    import_dir: Path,
+    transfer_dir: Path,
+) -> tuple[Path, ...]:
+    stages = BASE.TRAINING_STAGES if target == "finish" else BASE.TRAINING_STAGES[
+        : BASE.TRAINING_STAGES.index(target) + 1
+    ]
+    for stage in reversed(stages[1:]):
+        TRAINER._clear_stage_outputs(workspace, stage)
+    return _common_run_target(target, workspace, checkpoint_dir, import_dir, transfer_dir)
+
+
+BASE.run_target = _run_target
+
 
 def __getattr__(name: str) -> object:
     return getattr(BASE, name)
