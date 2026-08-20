@@ -134,6 +134,8 @@ def main() -> int:
     parser.add_argument("--threads", type=int, default=6)
     parser.add_argument("--seed", type=int, default=20260820)
     parser.add_argument("--negative-weight", type=float, default=8.0)
+    parser.add_argument("--model-name", default="gi-v5-personalized")
+    parser.add_argument("--output-prefix", default="gi-v5")
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
@@ -273,7 +275,7 @@ def main() -> int:
 
     model.load_state_dict(best_state)
     model = model.to("cpu").eval()
-    onnx_path = args.output_dir / "gi-v5.onnx"
+    onnx_path = args.output_dir / f"{args.output_prefix}.onnx"
     torch.onnx.export(
         model,
         torch.zeros((1,) + INPUT_SHAPE, dtype=torch.float32),
@@ -284,7 +286,7 @@ def main() -> int:
     )
     report = {
         "schema_version": 1,
-        "model": "gi-v5-personalized",
+        "model": args.model_name,
         "seed": args.seed,
         "steps": args.steps,
         "width": args.width,
@@ -298,7 +300,7 @@ def main() -> int:
         "history": history,
         "onnx_sha256": sha256(onnx_path),
     }
-    (args.output_dir / "gi-v5-training.json").write_text(
+    (args.output_dir / f"{args.output_prefix}-training.json").write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n"
     )
     return 0
