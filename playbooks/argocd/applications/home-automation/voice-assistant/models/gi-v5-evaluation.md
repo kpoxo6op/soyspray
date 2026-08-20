@@ -50,3 +50,22 @@ primary user's voice.
 Keep immutable ConfigMap `openwakeword-gi-model-v2` available until GI v5
 passes the live test. Roll back the deployment reference to that ConfigMap and
 its recorded SHA-256 if GI v5 is not reliable.
+
+## Live playback result
+
+The first live Voice PE playback evaluation failed on 2026-08-20. One new
+private recording produced eight isolated `GI` clips. The laptop played each
+clip separately at 45% speaker volume near Voice PE. Home Assistant wake events
+confirmed three detections from eight attempts.
+
+| Result | Value |
+| --- | --- |
+| Detected | `3` |
+| Attempted | `8` |
+| Live recall | `0.375` |
+| Source WAV SHA-256 | `3fb1387b4e89468555d006bbf3649094197a33be9ffffec8a81bfc490740828e` |
+
+The laptop volume returned to its original 17% level after the run. Voice PE
+returned to `idle`, and the Argo CD application stayed healthy. GI v5 remains a
+failed candidate. Use the five missed private clips as training evidence for a
+later model, and keep separate new samples for its live acceptance test.
