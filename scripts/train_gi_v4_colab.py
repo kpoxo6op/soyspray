@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -262,6 +263,8 @@ sys.stdout.buffer.write(plan_api.canonical_json(plan))
 
 
 def _build_synthesis_plan(workspace: Path) -> Path:
+    environment = os.environ.copy()
+    environment["MPLBACKEND"] = "Agg"
     result = subprocess.run(
         [
             str(BASE._python(workspace / ".venv-train")),
@@ -272,6 +275,7 @@ def _build_synthesis_plan(workspace: Path) -> Path:
         cwd=workspace,
         check=True,
         capture_output=True,
+        env=environment,
     )
     path = workspace / "gi-v4-synthesis-plan.json"
     BASE.atomic_text(path, result.stdout.decode("utf-8"))
