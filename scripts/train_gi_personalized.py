@@ -114,7 +114,7 @@ class WakeWordNet(torch.nn.Module):
 
 def predictions(model: WakeWordNet, values: np.ndarray, device: torch.device) -> np.ndarray:
     with torch.no_grad():
-        tensor = torch.from_numpy(np.asarray(values, dtype=np.float32)).to(device)
+        tensor = torch.from_numpy(np.array(values, dtype=np.float32, copy=True)).to(device)
         return model(tensor).squeeze(1).cpu().numpy()
 
 
@@ -133,6 +133,7 @@ def main() -> int:
     parser.add_argument("--width", type=int, default=64)
     parser.add_argument("--threads", type=int, default=6)
     parser.add_argument("--seed", type=int, default=20260820)
+    parser.add_argument("--negative-weight", type=float, default=8.0)
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
@@ -198,7 +199,7 @@ def main() -> int:
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.steps)
     best_state = copy.deepcopy(model.state_dict())
-    best_score: tuple[float, int, float] = (-1.0, -10**9, -1.0)
+    best_score: tuple[int, int, float, float] = (0, -10**9, -1.0, -1.0)
     history: list[dict[str, float | int]] = []
 
     for step in range(1, args.steps + 1):
@@ -213,7 +214,7 @@ def main() -> int:
                 synthetic_negative[rng.integers(len(synthetic_negative), size=32)],
                 generic_windows(
                     validation_values,
-                    rng.integers(0, split - INPUT_SHAPE[0], size=48),
+                    rng.integers(0, split - INPUT_SHAPE[0], size=96),
                 ),
             )
         )
@@ -224,7 +225,12 @@ def main() -> int:
         order = rng.permutation(len(labels))
         x = torch.from_numpy(values[order]).to(device)
         y = torch.from_numpy(labels[order, None]).to(device)
-        weight = torch.where(y == 0, torch.tensor(1.5, device=device), torch.tensor(1.0, device=device))
+        negative_weight = 1.5 + (args.negative_weight - 1.5) * step / args.steps
+        weight = torch.where(
+            y == 0,
+            torch.tensor(negative_weight, device=device),
+            torch.tensor(1.0, device=device),
+        )
 
         optimizer.zero_grad()
         loss = torch.nn.functional.binary_cross_entropy(model(x), y, weight=weight)
@@ -244,7 +250,13 @@ def main() -> int:
                 + np.mean(negative_scores < PRODUCTION_THRESHOLD))
                 / 2
             )
-            score = (personal_recall, -generic_false_positives, synthetic_accuracy)
+            recall_floor_met = personal_recall >= 0.90
+            score = (
+                int(recall_floor_met),
+                -generic_false_positives if recall_floor_met else -10**9,
+                synthetic_accuracy,
+                personal_recall,
+            )
             history.append(
                 {
                     "step": step,
@@ -276,6 +288,7 @@ def main() -> int:
         "seed": args.seed,
         "steps": args.steps,
         "width": args.width,
+        "maximum_negative_weight": args.negative_weight,
         "production_threshold": PRODUCTION_THRESHOLD,
         "voice_sha256": sha256(args.voice_wav),
         "utterance_count": len(utterances),
