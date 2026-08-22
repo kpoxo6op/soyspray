@@ -151,9 +151,7 @@ def _checkpoint_valid(path: Path, stage: str | None = None) -> bool:
     except (json.JSONDecodeError, OSError):
         return False
     record_stage = record.get("stage")
-    if record_stage not in {"generate", "augment"} or (
-        stage is not None and record_stage != stage
-    ):
+    if record_stage not in {"generate", "augment"} or (stage is not None and record_stage != stage):
         return False
     legacy = BASE._checkpoint_provenance(record_stage)
     legacy["config_sha256"] = LEGACY_DATA_CONFIG_SHA256

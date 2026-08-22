@@ -61,9 +61,11 @@ def _run_target(
     import_dir: Path,
     transfer_dir: Path,
 ) -> tuple[Path, ...]:
-    stages = BASE.TRAINING_STAGES if target == "finish" else BASE.TRAINING_STAGES[
-        : BASE.TRAINING_STAGES.index(target) + 1
-    ]
+    stages = (
+        BASE.TRAINING_STAGES
+        if target == "finish"
+        else BASE.TRAINING_STAGES[: BASE.TRAINING_STAGES.index(target) + 1]
+    )
     for stage in reversed(stages[1:]):
         TRAINER._clear_stage_outputs(workspace, stage)
     return _common_run_target(target, workspace, checkpoint_dir, import_dir, transfer_dir)
