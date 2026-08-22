@@ -253,7 +253,11 @@ def test_gi_wake_word_is_local_pinned_and_wan_denied() -> None:
     assert "np.zeros" in startup_probe_command
     assert container["startupProbe"]["timeoutSeconds"] == 20
     assert container["readinessProbe"]["tcpSocket"]["port"] == 10400
-    assert {item["name"]: item["value"] for item in container["env"]} == {"PYTHONPATH": "/patched"}
+    assert {item["name"]: item["value"] for item in container["env"]} == {
+        "PYTHONPATH": "/patched",
+        "GI_CAPTURE_PATH": "/tmp/gi-false-wake-once.wav",
+        "GI_CAPTURE_EXPIRES_AT": "1787442460",
+    }
     assert container["livenessProbe"] == {
         "tcpSocket": {"port": 10400},
         "periodSeconds": 30,
@@ -281,6 +285,8 @@ def test_gi_wake_word_is_local_pinned_and_wan_denied() -> None:
     ]
     model_volume = next(volume for volume in pod["volumes"] if volume["name"] == "models")
     assert model_volume["configMap"]["name"] == DEPLOYED_GI_MODEL_CONFIGMAP
+    tmp_volume = next(volume for volume in pod["volumes"] if volume["name"] == "tmp")
+    assert tmp_volume == {"name": "tmp", "emptyDir": {"sizeLimit": "256Mi"}}
     init = pod["initContainers"][0]
     assert init["name"] == "patch-gi-only"
     assert init["image"] == OPENWAKEWORD_IMAGE
@@ -305,9 +311,13 @@ def test_openwakeword_patch_is_fail_closed_and_gi_only() -> None:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    source = """from dataclasses import dataclass
+    source = """import logging
+import time
+from dataclasses import dataclass
 
 from pyopen_wakeword import Model, OpenWakeWord, OpenWakeWordFeatures
+
+_LOGGER = logging.getLogger(__name__)
 
 DEFAULT_MODEL = Model.OKAY_NABU
 
@@ -418,6 +428,30 @@ DEFAULT_MODEL = Model.OKAY_NABU
     assert patched.rfind("_LOGGER.info(", 0, detection_log) > -1
     assert candidate_log < patched.index("if not gate_open:", candidate_log)
     assert patched.index("await self.write_event(") < detection_log
+
+    capture_call = patched.index("_save_gi_capture_once(self.capture_buffer)")
+    assert patched.index("await self.write_event(") < capture_call < detection_log
+    for required in (
+        'os.environ.get("GI_CAPTURE_PATH")',
+        'os.environ.get("GI_CAPTURE_EXPIRES_AT")',
+        "CAPTURE_MAX_BYTES = 4 * 16000 * 2",
+        "_capture_attempted = bool(CAPTURE_PATH and os.path.exists(CAPTURE_PATH))",
+        "time.time() < CAPTURE_EXPIRES_AT",
+        "self.capture_buffer.extend(chunk.audio)",
+        "del self.capture_buffer[:-CAPTURE_MAX_BYTES]",
+        "os.O_WRONLY | os.O_CREAT | os.O_EXCL",
+        "0o600",
+        "wav_file.setnchannels(1)",
+        "wav_file.setsampwidth(2)",
+        "wav_file.setframerate(16000)",
+        '"GI_CAPTURE_SAVED path=%s bytes=%s"',
+        '"GI_CAPTURE_FAILED path=%s error=%s"',
+    ):
+        assert required in patched
+    assert patched.index("_save_gi_capture_once(self.capture_buffer)") > patched.index(
+        "await self.write_event("
+    )
+    assert "_save_gi_capture_once(chunk.audio)" not in patched
 
 
 def test_gi_voice_pe_firmware_renderer_disables_nabu() -> None:

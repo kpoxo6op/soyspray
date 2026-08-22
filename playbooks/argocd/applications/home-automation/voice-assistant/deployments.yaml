@@ -294,6 +294,10 @@ spec:
           env:
             - name: PYTHONPATH
               value: /patched
+            - name: GI_CAPTURE_PATH
+              value: /tmp/gi-false-wake-once.wav
+            - name: GI_CAPTURE_EXPIRES_AT
+              value: "1787442460"
           ports:
             - name: wyoming
               containerPort: 10400

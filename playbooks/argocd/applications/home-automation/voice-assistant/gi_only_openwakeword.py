@@ -32,9 +32,71 @@ def patch_handler(source: str, expected_sha256: str = HANDLER_SHA256) -> str:
     )
     source = replace_once(
         source,
-        "from dataclasses import dataclass",
-        """from array import array
+        """import logging
+import time
 from dataclasses import dataclass""",
+        """import logging
+import os
+import time
+import wave
+from array import array
+from dataclasses import dataclass""",
+    )
+    source = replace_once(
+        source,
+        "_LOGGER = logging.getLogger(__name__)",
+        """_LOGGER = logging.getLogger(__name__)
+
+CAPTURE_PATH = os.environ.get("GI_CAPTURE_PATH")
+try:
+    CAPTURE_EXPIRES_AT = float(os.environ.get("GI_CAPTURE_EXPIRES_AT") or "0")
+except ValueError:
+    CAPTURE_EXPIRES_AT = 0
+CAPTURE_MAX_BYTES = 4 * 16000 * 2
+_capture_attempted = bool(CAPTURE_PATH and os.path.exists(CAPTURE_PATH))
+
+
+def _gi_capture_enabled() -> bool:
+    return bool(
+        CAPTURE_PATH
+        and time.time() < CAPTURE_EXPIRES_AT
+        and not _capture_attempted
+    )
+
+
+def _gi_capture_failed(error: Exception) -> None:
+    global _capture_attempted
+    _capture_attempted = True
+    _LOGGER.warning(
+        "GI_CAPTURE_FAILED path=%s error=%s", CAPTURE_PATH, type(error).__name__
+    )
+
+
+def _save_gi_capture_once(audio: bytearray) -> None:
+    global _capture_attempted
+    if not _gi_capture_enabled():
+        audio.clear()
+        return
+
+    _capture_attempted = True
+    try:
+        with open(
+            CAPTURE_PATH,
+            "xb",
+            opener=lambda path, _: os.open(
+                path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
+            ),
+        ) as capture_file:
+            with wave.open(capture_file, "wb") as wav_file:
+                wav_file.setnchannels(1)
+                wav_file.setsampwidth(2)
+                wav_file.setframerate(16000)
+                wav_file.writeframes(audio)
+        _LOGGER.info("GI_CAPTURE_SAVED path=%s bytes=%s", CAPTURE_PATH, len(audio))
+    except Exception as error:
+        _gi_capture_failed(error)
+    finally:
+        audio.clear()""",
     )
     source = replace_once(source, "\nDEFAULT_MODEL = Model.OKAY_NABU\n", "")
     source = replace_once(
@@ -107,6 +169,7 @@ from dataclasses import dataclass""",
         """        self.audio_timestamp = 0
         self.voice_grace_ms = 0
         self.last_gate_peak = 0
+        self.capture_buffer = bytearray()
 
         _LOGGER.debug("Client connected: %s", self.client_id)
 """,
@@ -119,6 +182,7 @@ from dataclasses import dataclass""",
         """            self.audio_timestamp = 0
             self.voice_grace_ms = 0
             self.last_gate_peak = 0
+            self.capture_buffer.clear()
             self.oww_features.reset()
 """,
     )
@@ -130,6 +194,17 @@ from dataclasses import dataclass""",
 """,
         """        elif AudioChunk.is_type(event.type):
             chunk = self.converter.convert(AudioChunk.from_event(event))
+            if _gi_capture_enabled():
+                try:
+                    self.capture_buffer.extend(chunk.audio)
+                    if len(self.capture_buffer) > CAPTURE_MAX_BYTES:
+                        del self.capture_buffer[:-CAPTURE_MAX_BYTES]
+                except Exception as error:
+                    _gi_capture_failed(error)
+                    self.capture_buffer.clear()
+            else:
+                self.capture_buffer.clear()
+
             samples = array("h")
             samples.frombytes(chunk.audio)
             chunk_peak = max((abs(sample) for sample in samples), default=0)
@@ -184,7 +259,8 @@ from dataclasses import dataclass""",
                             "Detected %s at %s", detector.id, self.audio_timestamp
                         )
 """,
-        """                        _LOGGER.info(
+        """                        _save_gi_capture_once(self.capture_buffer)
+                        _LOGGER.info(
                             "GI_DETECTION client_id=%s model=%s audio_timestamp=%s "
                             "score=%.6f chunk_peak=%s last_gate_peak=%s "
                             "remaining_grace_ms=%s gate_open=%s triggers_left=%s",
