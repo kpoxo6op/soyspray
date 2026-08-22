@@ -14,7 +14,6 @@ import torch
 from scipy import ndimage, signal
 from scipy.io import wavfile
 
-
 SAMPLE_RATE = 16_000
 CLIP_SAMPLES = 32_000
 INPUT_SHAPE = (16, 96)
@@ -162,9 +161,7 @@ def main() -> int:
         ncpu=args.threads,
     )
     personal_train = extractor.embed_clips(train_clips, batch_size=128, ncpu=args.threads)
-    personal_validation = extractor.embed_clips(
-        validation_clips, batch_size=128, ncpu=args.threads
-    )
+    personal_validation = extractor.embed_clips(validation_clips, batch_size=128, ncpu=args.threads)
     if personal_train.shape[1:] != INPUT_SHAPE or personal_validation.shape[1:] != INPUT_SHAPE:
         raise RuntimeError(
             f"Unexpected personalized feature shapes: {personal_train.shape}, "
@@ -173,12 +170,8 @@ def main() -> int:
     np.save(args.output_dir / "personal-features-train.npy", personal_train)
     np.save(args.output_dir / "personal-features-validation.npy", personal_validation)
 
-    synthetic_positive = np.load(
-        args.features_dir / "positive_features_train.npy", mmap_mode="r"
-    )
-    synthetic_negative = np.load(
-        args.features_dir / "negative_features_train.npy", mmap_mode="r"
-    )
+    synthetic_positive = np.load(args.features_dir / "positive_features_train.npy", mmap_mode="r")
+    synthetic_negative = np.load(args.features_dir / "negative_features_train.npy", mmap_mode="r")
     validation_values = np.load(args.validation_features, mmap_mode="r")
     if synthetic_positive.shape[1:] != INPUT_SHAPE or synthetic_negative.shape[1:] != INPUT_SHAPE:
         raise RuntimeError("Synthetic features have the wrong shape")
@@ -201,7 +194,7 @@ def main() -> int:
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.steps)
     best_state = copy.deepcopy(model.state_dict())
-    best_score: tuple[int, int, float, float] = (0, -10**9, -1.0, -1.0)
+    best_score: tuple[int, int, float, float] = (0, -(10**9), -1.0, -1.0)
     history: list[dict[str, float | int]] = []
 
     for step in range(1, args.steps + 1):
@@ -248,14 +241,16 @@ def main() -> int:
             personal_recall = float(np.mean(personal_scores >= PRODUCTION_THRESHOLD))
             generic_false_positives = int(np.sum(generic_scores >= PRODUCTION_THRESHOLD))
             synthetic_accuracy = float(
-                (np.mean(positive_scores >= PRODUCTION_THRESHOLD)
-                + np.mean(negative_scores < PRODUCTION_THRESHOLD))
+                (
+                    np.mean(positive_scores >= PRODUCTION_THRESHOLD)
+                    + np.mean(negative_scores < PRODUCTION_THRESHOLD)
+                )
                 / 2
             )
             recall_floor_met = personal_recall >= 0.90
             score = (
                 int(recall_floor_met),
-                -generic_false_positives if recall_floor_met else -10**9,
+                -generic_false_positives if recall_floor_met else -(10**9),
                 synthetic_accuracy,
                 personal_recall,
             )
