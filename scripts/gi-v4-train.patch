@@ -1,0 +1,256 @@
+--- a/openwakeword/train.py
++++ b/openwakeword/train.py
+@@ -260,8 +260,17 @@
+
+         return best_model
+
+-    def auto_train(self, X_train, X_val, false_positive_val_data, steps=50000, max_negative_weight=1000,
+-                   target_fp_per_hour=0.2):
++    def auto_train(
++        self,
++        X_train,
++        X_val,
++        false_positive_val_data,
++        steps=50000,
++        max_negative_weight=1000,
++        target_accuracy=0.95,
++        target_recall=0.95,
++        target_fp_per_hour=0.2,
++    ):
+         """A sequence of training steps that produce relatively strong models
+         automatically, based on validation data and performance targets provided.
+         After training merges the best checkpoints and returns a single model.
+@@ -325,53 +334,74 @@
+                     val_steps=val_steps, warmup_steps=steps//5,
+                     hold_steps=steps//3, lr=lr, val_set_hrs=val_set_hrs)
+
+-        # Merge best models
+-        logging.info("Merging checkpoints above the 90th percentile into single model...")
+-        accuracy_percentile = np.percentile(self.history["val_accuracy"], 90)
+-        recall_percentile = np.percentile(self.history["val_recall"], 90)
+-        fp_percentile = np.percentile(self.history["val_fp_per_hr"], 10)
+-
+-        # Get models above the 90th percentile
+-        models = []
+-        for model, score in zip(self.best_models, self.best_model_scores):
+-            if score["val_accuracy"] >= accuracy_percentile and \
+-                    score["val_recall"] >= recall_percentile and \
+-                    score["val_fp_per_hr"] <= fp_percentile:
+-                models.append(model)
+-
+-        if len(models) > 0:
+-            combined_model = self.average_models(models=models)
+-        else:
+-            combined_model = self.model
++        eligible = []
++        for index, score in enumerate(self.best_model_scores):
++            score["checkpoint_index"] = index
++            score["eligible"] = bool(
++                np.isfinite(score["val_accuracy"])
++                and np.isfinite(score["val_recall"])
++                and np.isfinite(score["val_fp_per_hr"])
++                and score["val_accuracy"] >= target_accuracy
++                and score["val_recall"] >= target_recall
++                and score["val_fp_per_hr"] <= target_fp_per_hour
++            )
++            if score["eligible"]:
++                eligible.append(index)
++        self.selection = {
++            "method": "max_recall_then_accuracy_then_min_fp_then_earliest",
++            "evaluated_count": len(self.best_model_scores),
++            "eligible_count": len(eligible),
++            "selected_checkpoint_index": None,
++            "passed": False,
++        }
++        if not eligible:
++            self.final_model_metrics = None
++            return None
++        selected = max(
++            eligible,
++            key=lambda index: (
++                self.best_model_scores[index]["val_recall"],
++                self.best_model_scores[index]["val_accuracy"],
++                -self.best_model_scores[index]["val_fp_per_hr"],
++                -self.best_model_scores[index]["val_n_fp"],
++                -index,
++            ),
++        )
++        self.selection["selected_checkpoint_index"] = selected
++        selected_model = self.best_models[selected]
+
+-        # Report validation metrics for combined model
++        # Recompute metrics for the exact selected checkpoint
+         with torch.no_grad():
+             for batch in X_val:
+                 x, y = batch[0].to(self.device), batch[1].to(self.device)
+-                val_ps = combined_model(x)
++                val_ps = selected_model(x)
+
+-            combined_model_recall = self.recall(val_ps, y[..., None]).detach().cpu().numpy()
+-            combined_model_accuracy = self.accuracy(val_ps, y[..., None].to(torch.int64)).detach().cpu().numpy()
++            selected_model_recall = self.recall(val_ps, y[..., None]).detach().cpu().numpy()
++            selected_model_accuracy = self.accuracy(val_ps, y[..., None].to(torch.int64)).detach().cpu().numpy()
+
+-            combined_model_fp = 0
++            selected_model_fp = 0
+             for batch in false_positive_val_data:
+                 x_val, y_val = batch[0].to(self.device), batch[1].to(self.device)
+-                val_ps = combined_model(x_val)
+-                combined_model_fp += self.fp(val_ps, y_val[..., None])
++                val_ps = selected_model(x_val)
++                selected_model_fp += self.fp(val_ps, y_val[..., None])
+
+-            combined_model_fp_per_hr = (combined_model_fp/val_set_hrs).detach().cpu().numpy()
++            selected_model_fp_per_hr = (selected_model_fp/val_set_hrs).detach().cpu().numpy()
+
+-        logging.info(f"\n################\nFinal Model Accuracy: {combined_model_accuracy}"
+-                     f"\nFinal Model Recall: {combined_model_recall}\nFinal Model False Positives per Hour: {combined_model_fp_per_hr}"
++        logging.info(f"\n################\nFinal Model Accuracy: {selected_model_accuracy}"
++                     f"\nFinal Model Recall: {selected_model_recall}\nFinal Model False Positives per Hour: {selected_model_fp_per_hr}"
+                      "\n################\n")
+
+         self.final_model_metrics = {
+-            "accuracy": float(np.asarray(combined_model_accuracy).item()),
+-            "recall": float(np.asarray(combined_model_recall).item()),
+-            "false_positives_per_hour": float(np.asarray(combined_model_fp_per_hr).item()),
++            "accuracy": float(np.asarray(selected_model_accuracy).item()),
++            "recall": float(np.asarray(selected_model_recall).item()),
++            "false_positives_per_hour": float(np.asarray(selected_model_fp_per_hr).item()),
+         }
+-
+-        return combined_model
++        self.selection["passed"] = bool(
++            self.final_model_metrics["accuracy"] >= target_accuracy
++            and self.final_model_metrics["recall"] >= target_recall
++            and self.final_model_metrics["false_positives_per_hour"] <= target_fp_per_hour
++        )
++        return selected_model if self.selection["passed"] else None
+
+     def predict_on_features(self, features, model=None):
+         """
+@@ -560,20 +590,19 @@
+                 self.history["val_recall"].append(val_recall)
+                 self.history["val_n_fp"].append(val_fp.detach().cpu().numpy())
+
+-            # Save models with a validation score above/below the 90th percentile
+-            # of the validation scores up to that point
++            # Save every completed validation checkpoint for absolute-gate selection.
+             if step_ndx in val_steps and step_ndx > 1:
+-                if self.history["val_n_fp"][-1] <= np.percentile(self.history["val_n_fp"], 50) and \
+-                   self.history["val_recall"][-1] >= np.percentile(self.history["val_recall"], 5):
+-                    # logging.info("Saving checkpoint with metrics >= to targets!")
+-                    self.best_models.append(copy.deepcopy(self.model))
+-                    self.best_model_scores.append({"training_step_ndx": step_ndx, "val_n_fp": self.history["val_n_fp"][-1],
+-                                                   "val_recall": self.history["val_recall"][-1],
+-                                                   "val_accuracy": self.history["val_accuracy"][-1],
+-                                                   "val_fp_per_hr": self.history.get("val_fp_per_hr", [0])[-1]})
+-                    self.best_val_recall = self.history["val_recall"][-1]
+-                    self.best_val_accuracy = self.history["val_accuracy"][-1]
+-                    self.best_val_fp = min(self.best_val_fp, self.history["val_fp_per_hr"][-1])
++                self.best_models.append(copy.deepcopy(self.model))
++                self.best_model_scores.append({
++                    "training_step_ndx": step_ndx,
++                    "val_n_fp": self.history["val_n_fp"][-1],
++                    "val_recall": self.history["val_recall"][-1],
++                    "val_accuracy": self.history["val_accuracy"][-1],
++                    "val_fp_per_hr": self.history.get("val_fp_per_hr", [0])[-1],
++                })
++                self.best_val_recall = self.history["val_recall"][-1]
++                self.best_val_accuracy = self.history["val_accuracy"][-1]
++                self.best_val_fp = min(self.best_val_fp, self.history["val_fp_per_hr"][-1])
+
+             if step_ndx == max_steps-1:
+                 break
+@@ -909,19 +938,29 @@
+             false_positive_val_data=X_val_fp,
+             steps=config["steps"],
+             max_negative_weight=config["max_negative_weight"],
++            target_accuracy=config["target_accuracy"],
++            target_recall=config["target_recall"],
+             target_fp_per_hour=config["target_false_positives_per_hour"],
+         )
+
+-        # Export the trained model to onnx
+         onnx_path = os.path.join(config["output_dir"], config["model_name"] + ".onnx")
+-        oww.export_model(model=best_model, model_name=config["model_name"], output_dir=config["output_dir"])
+         model_files = {}
+-        for model_path in (onnx_path, onnx_path + ".data"):
+-            if os.path.isfile(model_path):
+-                with open(model_path, "rb") as model_file:
+-                    model_files[os.path.basename(model_path)] = hashlib.file_digest(model_file, "sha256").hexdigest()
++        if best_model is not None:
++            oww.export_model(
++                model=best_model,
++                model_name=config["model_name"],
++                output_dir=config["output_dir"],
++            )
++            for model_path in (onnx_path, onnx_path + ".data"):
++                if os.path.isfile(model_path):
++                    with open(model_path, "rb") as model_file:
++                        model_files[os.path.basename(model_path)] = hashlib.file_digest(
++                            model_file, "sha256"
++                        ).hexdigest()
+         with open(args.training_config, "rb") as config_file:
+             config_sha256 = hashlib.file_digest(config_file, "sha256").hexdigest()
++        with open(__file__, "rb") as trainer_file:
++            trainer_sha256 = hashlib.file_digest(trainer_file, "sha256").hexdigest()
+
+         def json_default(value):
+             if isinstance(value, np.ndarray):
+@@ -930,22 +969,44 @@
+                 return value.item()
+             raise TypeError(f"Cannot serialize {type(value).__name__}")
+
++        checkpoints = [
++            {
++                "checkpoint_index": score["checkpoint_index"],
++                "training_step_ndx": score["training_step_ndx"],
++                "accuracy": score["val_accuracy"],
++                "recall": score["val_recall"],
++                "false_positives": score["val_n_fp"],
++                "false_positives_per_hour": score["val_fp_per_hr"],
++                "eligible": score["eligible"],
++            }
++            for score in oww.best_model_scores
++        ]
++        passed = bool(
++            best_model is not None
++            and oww.selection["passed"]
++            and oww.final_model_metrics is not None
++            and model_files
++        )
+         report = {
+-            "schema_version": 1,
++            "schema_version": 2,
+             "model_name": config["model_name"],
+             "config_sha256": config_sha256,
++            "trainer_sha256": trainer_sha256,
+             "false_positive_validation_hours": 11.3,
++            "metric_threshold": 0.5,
+             "targets": {
+                 "minimum_accuracy": config["target_accuracy"],
+                 "minimum_recall": config["target_recall"],
+                 "maximum_false_positives_per_hour": config["target_false_positives_per_hour"],
+             },
+             "history": oww.history,
+-            "checkpoint_scores": oww.best_model_scores,
++            "checkpoints": checkpoints,
++            "selection": oww.selection,
+             "final": oww.final_model_metrics,
+             "model_files": model_files,
++            "passed": passed,
+         }
+-        report_path = os.path.join(config["output_dir"], "gi-v3-training-metrics.json")
++        report_path = os.path.join(config["output_dir"], "gi-v4-training-metrics.json")
+         report_part = report_path + ".part"
+         if os.path.lexists(report_part):
+             os.unlink(report_part)
+@@ -953,6 +1014,8 @@
+             json.dump(report, report_file, allow_nan=False, indent=2, sort_keys=True, default=json_default)
+             report_file.write("\n")
+         os.replace(report_part, report_path)
++        if not passed:
++            raise SystemExit("No GI v4 training checkpoint met every configured target")
+
+         # Convert the model from onnx to tflite format
+         if args.convert_to_tflite:

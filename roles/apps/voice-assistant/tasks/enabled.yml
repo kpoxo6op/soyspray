@@ -1,0 +1,173 @@
+---
+- name: Protect the current private GI model from cleanup
+  ansible.builtin.assert:
+    that:
+      - voice_assistant_gi_model_configmap_name not in voice_assistant_gi_model_retired_configmaps
+    fail_msg: The current private GI model ConfigMap cannot also be retired.
+
+- name: Read the existing Home Assistant voice token
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: Secret
+    name: voice-assistant-ha-token
+    namespace: home-automation
+  register: voice_assistant_token_secret
+  no_log: true
+
+- name: Require a token for the first voice deployment
+  ansible.builtin.assert:
+    that:
+      - >-
+        (voice_assistant_token_secret.resources | length > 0)
+        or (voice_assistant_ha_token | length > 0)
+    fail_msg: >-
+      Set VOICE_ASSISTANT_HA_TOKEN for the first deployment. Later runs preserve
+      the existing Kubernetes Secret when the variable is empty.
+  no_log: true
+
+- name: Store the Home Assistant voice token
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: voice-assistant-ha-token
+        namespace: home-automation
+      type: Opaque
+      stringData:
+        token: "{{ voice_assistant_ha_token }}"
+  when: voice_assistant_ha_token | length > 0
+  no_log: true
+
+- name: Read the existing private GI model ConfigMap
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: ConfigMap
+    name: "{{ voice_assistant_gi_model_configmap_name }}"
+    namespace: home-automation
+  register: voice_assistant_gi_model_configmap
+  no_log: true
+
+- name: Require the private GI model for its first deployment
+  ansible.builtin.assert:
+    that:
+      - >-
+        (voice_assistant_gi_model_configmap.resources | length > 0)
+        or (voice_assistant_gi_model_path | length > 0)
+    fail_msg: >-
+      Set VOICE_ASSISTANT_GI_MODEL_PATH to the private gi.tflite file for the
+      first deployment. Later runs preserve the immutable Kubernetes ConfigMap.
+
+- name: Inspect the private GI model input
+  ansible.builtin.stat:
+    path: "{{ voice_assistant_gi_model_path }}"
+    checksum_algorithm: sha256
+    get_checksum: true
+  delegate_to: localhost
+  become: false
+  register: voice_assistant_gi_model_stat
+  when: voice_assistant_gi_model_path | length > 0
+
+- name: Verify the private GI model input
+  ansible.builtin.assert:
+    that:
+      - voice_assistant_gi_model_stat.stat.exists
+      - voice_assistant_gi_model_stat.stat.isreg
+      - voice_assistant_gi_model_stat.stat.checksum == voice_assistant_gi_model_sha256
+    fail_msg: >-
+      The private GI model is missing or its SHA-256 does not match the pinned
+      voice_assistant_gi_model_sha256 value.
+  when: voice_assistant_gi_model_path | length > 0
+
+- name: Read the verified private GI model input
+  ansible.builtin.slurp:
+    src: "{{ voice_assistant_gi_model_path }}"
+  delegate_to: localhost
+  become: false
+  register: voice_assistant_gi_model_file
+  when: voice_assistant_gi_model_path | length > 0
+  no_log: true
+
+- name: Store the immutable private GI model ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: "{{ voice_assistant_gi_model_configmap_name }}"
+        namespace: home-automation
+        labels:
+          app.kubernetes.io/part-of: home-assistant-voice
+        annotations:
+          voice.soyspray.vip/model-sha256: "{{ voice_assistant_gi_model_sha256 }}"
+      immutable: true
+      binaryData:
+        gi.tflite: "{{ voice_assistant_gi_model_file.content }}"
+  when: voice_assistant_gi_model_path | length > 0
+  no_log: true
+
+- name: Verify the live private GI model ConfigMap
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: ConfigMap
+    name: "{{ voice_assistant_gi_model_configmap_name }}"
+    namespace: home-automation
+  register: voice_assistant_gi_model_live
+  no_log: true
+
+- name: Hash the live private GI model bytes
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python }}"
+      - -c
+      - >-
+        import base64, hashlib, sys;
+        print(hashlib.sha256(base64.b64decode(sys.stdin.buffer.read())).hexdigest())
+    stdin: "{{ voice_assistant_gi_model_live.resources[0].binaryData['gi.tflite'] }}"
+    stdin_add_newline: false
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  register: voice_assistant_gi_model_live_checksum
+  no_log: true
+
+- name: Require the pinned immutable GI model ConfigMap
+  ansible.builtin.assert:
+    that:
+      - voice_assistant_gi_model_live.resources | length == 1
+      - voice_assistant_gi_model_live.resources[0].immutable | bool
+      - >-
+        voice_assistant_gi_model_live.resources[0].metadata.annotations['voice.soyspray.vip/model-sha256']
+        == voice_assistant_gi_model_sha256
+      - voice_assistant_gi_model_live_checksum.stdout == voice_assistant_gi_model_sha256
+    fail_msg: >-
+      The live GI model ConfigMap is absent, mutable, or has the wrong pinned
+      checksum annotation. Supply the verified private model or bump its version.
+  no_log: true
+
+- name: Apply the Home Assistant voice application
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/home-automation/voice-assistant/voice-assistant-application.yaml')
+         | replace('targetRevision: HEAD', 'targetRevision: ' + voice_assistant_target_revision) }}
+
+- name: Remove explicitly retired private GI model ConfigMaps
+  kubernetes.core.k8s:
+    state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: ConfigMap
+    name: "{{ item }}"
+    namespace: home-automation
+  loop: "{{ voice_assistant_gi_model_retired_configmaps }}"
+  when: voice_assistant_gi_model_retired_configmaps | length > 0

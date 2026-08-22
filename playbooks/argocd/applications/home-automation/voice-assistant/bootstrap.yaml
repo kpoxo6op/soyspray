@@ -1,0 +1,105 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: voice-model-bootstrap-v1
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  backoffLimit: 4
+  activeDeadlineSeconds: 1800
+  template:
+    metadata:
+      labels:
+        app: voice-model-bootstrap
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: model-bootstrap
+          image: curlimages/curl:8.14.1@sha256:9a1ed35addb45476afa911696297f8e115993df459278ed036182dd2cd22b67b
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              SPEECH_REVISION=a17c6ed2bbbb09176164e81cd3161b264d0fb2ba
+              SPEECH_SHA256=3dbf8c16b2d08767eba4866a444f075d0a5b1304c73ca366d2c60346b28759e7
+              PIPER_REVISION=ea046e8458f6acd997706d6e6066a022b42f6fb1
+              PIPER_MODEL_SHA256=5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f
+              PIPER_CONFIG_SHA256=efe19c417bed055f2d69908248c6ba650fa135bc868b0e6abb3da181dab690a0
+
+              SPEECH_URL="https://huggingface.co/datasets/rhasspy/rhasspy-speech/resolve/${SPEECH_REVISION}/models/en_US-rhasspy.tar.gz"
+              PIPER_BASE_URL="https://huggingface.co/rhasspy/piper-voices/resolve/${PIPER_REVISION}/en/en_US/lessac/medium"
+
+              if [ "$(cat /speech/models/en_US-rhasspy/.artifact-sha256 2>/dev/null || true)" != "${SPEECH_SHA256}" ]; then
+                rm -rf /speech/bootstrap-en_US-rhasspy /speech/models/en_US-rhasspy
+                mkdir -p /speech/bootstrap-en_US-rhasspy /speech/models
+                curl --fail --location --retry 5 \
+                  --output /speech/en_US-rhasspy.tar.gz.part "${SPEECH_URL}"
+                printf '%s  %s\n' "${SPEECH_SHA256}" /speech/en_US-rhasspy.tar.gz.part \
+                  | sha256sum -c -
+                tar -xzf /speech/en_US-rhasspy.tar.gz.part \
+                  -C /speech/bootstrap-en_US-rhasspy
+                printf '%s\n' "${SPEECH_SHA256}" \
+                  > /speech/bootstrap-en_US-rhasspy/en_US-rhasspy/.artifact-sha256
+                mv /speech/bootstrap-en_US-rhasspy/en_US-rhasspy /speech/models/
+                rm -rf /speech/bootstrap-en_US-rhasspy
+                rm /speech/en_US-rhasspy.tar.gz.part
+              fi
+
+              PIPER_MARKER="${PIPER_MODEL_SHA256}:${PIPER_CONFIG_SHA256}"
+              if [ "$(cat /piper/.artifact-sha256 2>/dev/null || true)" != "${PIPER_MARKER}" ] \
+                || ! printf '%s  %s\n%s  %s\n' \
+                "${PIPER_MODEL_SHA256}" /piper/en_US-lessac-medium.onnx \
+                "${PIPER_CONFIG_SHA256}" /piper/en_US-lessac-medium.onnx.json \
+                | sha256sum -c -; then
+                curl --fail --location --retry 5 \
+                  --output /piper/en_US-lessac-medium.onnx.part \
+                  "${PIPER_BASE_URL}/en_US-lessac-medium.onnx"
+                curl --fail --location --retry 5 \
+                  --output /piper/en_US-lessac-medium.onnx.json.part \
+                  "${PIPER_BASE_URL}/en_US-lessac-medium.onnx.json"
+                printf '%s  %s\n%s  %s\n' \
+                  "${PIPER_MODEL_SHA256}" /piper/en_US-lessac-medium.onnx.part \
+                  "${PIPER_CONFIG_SHA256}" /piper/en_US-lessac-medium.onnx.json.part \
+                  | sha256sum -c -
+                mv /piper/en_US-lessac-medium.onnx.part \
+                  /piper/en_US-lessac-medium.onnx
+                mv /piper/en_US-lessac-medium.onnx.json.part \
+                  /piper/en_US-lessac-medium.onnx.json
+                printf '%s\n' "${PIPER_MARKER}" > /piper/.artifact-sha256.part
+                mv /piper/.artifact-sha256.part /piper/.artifact-sha256
+              fi
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: speech-data
+              mountPath: /speech
+            - name: piper-data
+              mountPath: /piper
+      volumes:
+        - name: speech-data
+          persistentVolumeClaim:
+            claimName: speech-to-phrase-data-v1
+        - name: piper-data
+          persistentVolumeClaim:
+            claimName: piper-en-data-v1

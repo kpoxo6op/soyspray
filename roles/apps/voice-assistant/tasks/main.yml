@@ -1,0 +1,10 @@
+---
+- name: Deploy the Home Assistant voice services
+  ansible.builtin.import_tasks: enabled.yml
+  when: voice_assistant_enabled | bool
+  tags: voice_assistant
+
+- name: Remove the Home Assistant voice services
+  ansible.builtin.import_tasks: disabled.yml
+  when: not (voice_assistant_enabled | bool)
+  tags: voice_assistant

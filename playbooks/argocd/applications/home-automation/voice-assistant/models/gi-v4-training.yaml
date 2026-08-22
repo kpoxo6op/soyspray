@@ -1,0 +1,42 @@
+# Synthetic-only v4 candidate. Human samples remain sealed evaluation data.
+model_name: gi
+target_phrase:
+  - gee eye
+  - GI
+custom_negative_phrases:
+  - gee
+  - eye
+  - nabu
+  - okay nabu
+  - turn on the lights
+  - turn off the lights
+
+n_samples: 20000
+n_samples_val: 2000
+tts_batch_size: 50
+augmentation_batch_size: 16
+piper_sample_generator_path: ./piper-sample-generator
+output_dir: ./gi-v4-work
+
+rir_paths:
+  - ./mit_rirs
+background_paths:
+  - ./audioset_16k
+background_paths_duplication_rate:
+  - 1
+false_positive_validation_data_path: ./validation_set_features.npy
+augmentation_rounds: 1
+feature_data_files:
+  ACAV100M_sample: ./openwakeword_features_ACAV100M_2000_hrs_16bit.npy
+batch_n_per_class:
+  ACAV100M_sample: 1024
+  adversarial_negative: 50
+  positive: 50
+
+model_type: dnn
+layer_size: 64
+steps: 50000
+max_negative_weight: 1500
+target_false_positives_per_hour: 0.2
+target_accuracy: 0.95
+target_recall: 0.95

@@ -1,0 +1,241 @@
+--- a/generate_samples.py
++++ b/generate_samples.py
+@@ -20,6 +20,7 @@
+ _DIR = Path(__file__).parent
+ _LOGGER = logging.getLogger(__name__)
+ logging.basicConfig(level=logging.DEBUG)
++PLANNED_NOISE_INTERFACE = 1
+
+
+ # Main generation function
+@@ -73,7 +74,7 @@
+     _LOGGER.debug("Loading %s", model)
+     model_path = Path(model)
+
+-    torch_model = torch.load(model_path)
++    torch_model = torch.load(model_path, weights_only=False)
+     torch_model.eval()
+     _LOGGER.info("Successfully loaded the model")
+
+@@ -260,6 +261,81 @@
+     _LOGGER.info("Done")
+
+
++def load_planned_model(*, model_path: Path, config_path: Path):
++    """Load one pinned renderer for deterministic planned batches."""
++    with config_path.open("r", encoding="utf-8") as config_file:
++        config = json.load(config_file)
++    model = torch.load(model_path, weights_only=False)
++    model.eval()
++    if torch.cuda.is_available():
++        model.cuda()
++    resampler = torchaudio.transforms.Resample(
++        config["audio"]["sample_rate"],
++        16000,
++        lowpass_filter_width=64,
++        rolloff=0.9475937167399596,
++        resampling_method="sinc_interp_kaiser",
++        beta=14.769656459379492,
++    )
++    return {"model": model, "config": config, "resampler": resampler}
++
++
++def generate_planned_batch(
++    renderer,
++    *,
++    texts,
++    speaker_pairs,
++    slerp_weight,
++    length_scale,
++    noise_scale,
++    noise_scale_w,
++    duration_noise_seeds,
++    latent_noise_seeds,
++):
++    """Return one 16 kHz mono PCM16 byte buffer for each planned row."""
++    lengths = {
++        len(texts),
++        len(speaker_pairs),
++        len(duration_noise_seeds),
++        len(latent_noise_seeds),
++    }
++    if lengths == {0} or len(lengths) != 1:
++        raise ValueError("Planned Piper batch fields must have one non-zero length")
++    config = renderer["config"]
++    voice = config["espeak"]["voice"]
++    phoneme_ids = [get_phonemes(voice, config, text)[0] for text in texts]
++    phoneme_lengths = [len(ids) for ids in phoneme_ids]
++    maximum = max(phoneme_lengths)
++    phoneme_ids = [ids + [1] * (maximum - len(ids)) for ids in phoneme_ids]
++    speaker_1 = torch.LongTensor([pair[0] for pair in speaker_pairs])
++    speaker_2 = torch.LongTensor([pair[1] for pair in speaker_pairs])
++    with torch.no_grad():
++        audio, phoneme_samples = generate_audio(
++            renderer["model"],
++            speaker_1,
++            speaker_2,
++            phoneme_ids,
++            slerp_weight,
++            noise_scale,
++            noise_scale_w,
++            length_scale,
++            None,
++            phoneme_lengths=phoneme_lengths,
++            duration_noise_seeds=duration_noise_seeds,
++            latent_noise_seeds=latent_noise_seeds,
++        )
++    for index in range(audio.shape[0]):
++        last_sample = int(phoneme_samples[index].flatten().sum().item())
++        audio[index, 0, last_sample + 1 :] = 0
++    audio = renderer["resampler"](audio.cpu()).numpy()
++    return [
++        remove_silence(audio_float_to_int16(audio[index]).flatten())
++        .astype(np.int16)
++        .tobytes()
++        for index in range(audio.shape[0])
++    ]
++
++
+ def remove_silence(
+     x: np.ndarray,
+     frame_duration: float = 0.030,
+@@ -289,9 +365,14 @@
+     noise_scale_w,
+     length_scale,
+     max_len,
++    phoneme_lengths=None,
++    duration_noise_seeds=None,
++    latent_noise_seeds=None,
+ ):
+     x = torch.LongTensor(phoneme_ids)
+-    x_lengths = torch.LongTensor([len(i) for i in phoneme_ids])
++    x_lengths = torch.LongTensor(
++        phoneme_lengths if phoneme_lengths is not None else [len(i) for i in phoneme_ids]
++    )
+
+     if torch.cuda.is_available():
+         speaker_1 = speaker_1.cuda()
+@@ -304,8 +385,28 @@
+     emb1 = model.emb_g(speaker_2)
+     g = slerp(emb0, emb1, slerp_weight).unsqueeze(-1)  # [b, h, 1]
+
++    duration_noise = None
++    if duration_noise_seeds is not None:
++        duration_noise = torch.zeros((len(phoneme_ids), 2, x.size(2)))
++        for index, (seed, length) in enumerate(
++            zip(duration_noise_seeds, x_lengths.cpu().tolist())
++        ):
++            generator = torch.Generator(device="cpu")
++            generator.manual_seed(seed)
++            duration_noise[index, :, :length] = torch.randn(
++                (2, length), generator=generator
++            )
++        duration_noise = duration_noise.to(x.device)
++
+     if model.use_sdp:
+-        logw = model.dp(x, x_mask, g=g, reverse=True, noise_scale=noise_scale_w)
++        logw = model.dp(
++            x,
++            x_mask,
++            g=g,
++            reverse=True,
++            noise_scale=noise_scale_w,
++            noise=duration_noise,
++        )
+     else:
+         logw = model.dp(x, x_mask, g=g)
+     w = torch.exp(logw) * x_mask * length_scale
+@@ -324,7 +425,20 @@
+         1, 2
+     )  # [b, t', t], [b, t, d] -> [b, d, t']
+
+-    z_p = m_p + torch.randn_like(m_p) * torch.exp(logs_p) * noise_scale
++    if latent_noise_seeds is None:
++        latent_noise = torch.randn_like(m_p)
++    else:
++        latent_noise = torch.zeros(m_p.shape)
++        for index, (seed, length) in enumerate(
++            zip(latent_noise_seeds, y_lengths.cpu().tolist())
++        ):
++            generator = torch.Generator(device="cpu")
++            generator.manual_seed(seed)
++            latent_noise[index, :, :length] = torch.randn(
++                (m_p.size(1), length), generator=generator
++            )
++        latent_noise = latent_noise.to(m_p.device)
++    z_p = m_p + latent_noise * torch.exp(logs_p) * noise_scale
+     z = model.flow(z_p, y_mask, g=g, reverse=True)
+     o = model.dec((z * y_mask)[:, :, :max_len], g=g)
+
+@@ -409,26 +523,18 @@
+     v2_norm = v2 / torch.norm(v2, dim=zdim, keepdim=True)
+     dot = (v1_norm * v2_norm).sum(zdim)
+
+-    # if the vectors are too close, return a simple linear interpolation
+-    if (torch.abs(dot) > DOT_THR).any():
+-        res = (1 - t) * v1 + t * v2
+-
+-    # else apply SLERP
+-    else:
+-        # compute the angle terms we need
+-        theta = torch.acos(dot)
+-        theta_t = theta * t
+-        sin_theta = torch.sin(theta)
+-        sin_theta_t = torch.sin(theta_t)
+-
+-        # compute the sine scaling terms for the vectors
+-        s1 = torch.sin(theta - theta_t) / sin_theta
+-        s2 = sin_theta_t / sin_theta
+-
+-        # interpolate the vectors
+-        res = (s1.unsqueeze(zdim) * v1) + (s2.unsqueeze(zdim) * v2)
+-
+-    return res
++    dot = torch.clamp(dot, -1.0, 1.0)
++    theta = torch.acos(dot)
++    sin_theta = torch.sin(theta)
++    safe_sin_theta = torch.where(
++        torch.abs(sin_theta) > 0, sin_theta, torch.ones_like(sin_theta)
++    )
++    s1 = (torch.sin(theta * (1 - t)) / safe_sin_theta).unsqueeze(zdim)
++    s2 = (torch.sin(theta * t) / safe_sin_theta).unsqueeze(zdim)
++    spherical = (s1 * v1) + (s2 * v2)
++    linear = (1 - t) * v1 + t * v2
++    use_linear = (torch.abs(dot) > DOT_THR).unsqueeze(zdim)
++    return torch.where(use_linear, linear, spherical)
+
+
+ def audio_float_to_int16(
+--- a/piper_train/vits/models.py
++++ b/piper_train/vits/models.py
+@@ -60,7 +60,16 @@
+         if gin_channels != 0:
+             self.cond = nn.Conv1d(gin_channels, filter_channels, 1)
+
+-    def forward(self, x, x_mask, w=None, g=None, reverse=False, noise_scale=1.0):
++    def forward(
++        self,
++        x,
++        x_mask,
++        w=None,
++        g=None,
++        reverse=False,
++        noise_scale=1.0,
++        noise=None,
++    ):
+         x = torch.detach(x)
+         x = self.pre(x)
+         if g is not None:
+@@ -108,7 +117,11 @@
+         else:
+             flows = list(reversed(self.flows))
+             flows = flows[:-2] + [flows[-1]]  # remove a useless vflow
+-            z = torch.randn(x.size(0), 2, x.size(2)).type_as(x) * noise_scale
++            if noise is None:
++                noise = torch.randn(x.size(0), 2, x.size(2)).type_as(x)
++            elif tuple(noise.shape) != (x.size(0), 2, x.size(2)):
++                raise ValueError("Wrong planned duration-noise shape")
++            z = noise.type_as(x) * noise_scale
+
+             for flow in flows:
+                 z = flow(z, x_mask, g=x, reverse=reverse)
