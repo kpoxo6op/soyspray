@@ -33,8 +33,8 @@ PIPER_MODEL_SHA256 = "5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eea
 PIPER_CONFIG_SHA256 = "efe19c417bed055f2d69908248c6ba650fa135bc868b0e6abb3da181dab690a0"
 GI_MODEL_CONFIGMAP = "openwakeword-gi-model-v2"
 GI_MODEL_SHA256 = "4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739"
-DEPLOYED_GI_MODEL_CONFIGMAP = GI_MODEL_CONFIGMAP
-DEPLOYED_GI_MODEL_SHA256 = GI_MODEL_SHA256
+DEPLOYED_GI_MODEL_CONFIGMAP = "openwakeword-gi-model-v7b"
+DEPLOYED_GI_MODEL_SHA256 = "e61dd9f2880f226b05b8f9885c053fa7ec7805170c3f3b4d56427c6294cb4be0"
 
 
 def render_voice_stack() -> list[dict]:
@@ -305,7 +305,9 @@ def test_openwakeword_patch_is_fail_closed_and_gi_only() -> None:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    source = """from pyopen_wakeword import Model, OpenWakeWord, OpenWakeWordFeatures
+    source = """from dataclasses import dataclass
+
+from pyopen_wakeword import Model, OpenWakeWord, OpenWakeWordFeatures
 
 DEFAULT_MODEL = Model.OKAY_NABU
 
@@ -352,6 +354,36 @@ DEFAULT_MODEL = Model.OKAY_NABU
             )
 
         for custom_model in self.state.custom_models:
+
+        self.audio_timestamp = 0
+
+        _LOGGER.debug("Client connected: %s", self.client_id)
+
+            self.audio_timestamp = 0
+            self.oww_features.reset()
+
+        elif AudioChunk.is_type(event.type):
+            chunk = self.converter.convert(AudioChunk.from_event(event))
+            for features in self.oww_features.process_streaming(chunk.audio):
+
+                        if prob <= self.threshold:
+                            continue
+
+                        detector.triggers_left -= 1
+                        if detector.triggers_left > 0:
+                            continue
+
+                        detector.is_detected = True
+                        detector.last_triggered = time.monotonic()
+                        await self.write_event(
+                            Detection(
+                                name=detector.id, timestamp=self.audio_timestamp
+                            ).event()
+                        )
+
+                        _LOGGER.debug(
+                            "Detected %s at %s", detector.id, self.audio_timestamp
+                        )
 """
     patched = module.patch_handler(source, sha256(source.encode()).hexdigest())
 
@@ -360,6 +392,32 @@ DEFAULT_MODEL = Model.OKAY_NABU
     assert "for model in Model:" not in patched
     assert "if ww_name in self.state.custom_models" in patched
     assert "for custom_model in self.state.custom_models" in patched
+    assert "GI_CANDIDATE" in patched
+    assert "GI_DETECTION" in patched
+
+    candidate_log = patched.index('"GI_CANDIDATE')
+    detection_log = patched.index('"GI_DETECTION')
+    candidate_block = patched[candidate_log : patched.index("if not gate_open:", candidate_log)]
+    detection_block = patched[detection_log : patched.index("_LOGGER.debug(", detection_log)]
+    for log_block in (candidate_block, detection_block):
+        for field in (
+            "client_id=%s",
+            "model=%s",
+            "audio_timestamp=%s",
+            "score=%.6f",
+            "chunk_peak=%s",
+            "last_gate_peak=%s",
+            "remaining_grace_ms=%s",
+            "gate_open=%s",
+            "triggers_left=%s",
+        ):
+            assert field in log_block
+        assert "chunk.audio" not in log_block
+
+    assert patched.rfind("_LOGGER.info(", 0, candidate_log) > -1
+    assert patched.rfind("_LOGGER.info(", 0, detection_log) > -1
+    assert candidate_log < patched.index("if not gate_open:", candidate_log)
+    assert patched.index("await self.write_event(") < detection_log
 
 
 def test_gi_voice_pe_firmware_renderer_disables_nabu() -> None:
@@ -517,8 +575,8 @@ def test_ansible_bootstraps_the_runtime_secret_and_argocd_application() -> None:
     assert defaults["voice_assistant_enabled"] is True
     assert "VOICE_ASSISTANT_HA_TOKEN" in defaults["voice_assistant_ha_token"]
     assert "VOICE_ASSISTANT_GI_MODEL_PATH" in defaults["voice_assistant_gi_model_path"]
-    assert defaults["voice_assistant_gi_model_configmap_name"] == GI_MODEL_CONFIGMAP
-    assert defaults["voice_assistant_gi_model_sha256"] == GI_MODEL_SHA256
+    assert defaults["voice_assistant_gi_model_configmap_name"] == DEPLOYED_GI_MODEL_CONFIGMAP
+    assert defaults["voice_assistant_gi_model_sha256"] == DEPLOYED_GI_MODEL_SHA256
     assert re.fullmatch(r"[0-9a-f]{64}", defaults["voice_assistant_gi_model_sha256"])
     assert defaults["voice_assistant_gi_model_retired_configmaps"] == []
     assert "enabled.yml" in tasks

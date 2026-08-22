@@ -106,6 +106,7 @@ from dataclasses import dataclass""",
 """,
         """        self.audio_timestamp = 0
         self.voice_grace_ms = 0
+        self.last_gate_peak = 0
 
         _LOGGER.debug("Client connected: %s", self.client_id)
 """,
@@ -117,6 +118,7 @@ from dataclasses import dataclass""",
 """,
         """            self.audio_timestamp = 0
             self.voice_grace_ms = 0
+            self.last_gate_peak = 0
             self.oww_features.reset()
 """,
     )
@@ -130,8 +132,10 @@ from dataclasses import dataclass""",
             chunk = self.converter.convert(AudioChunk.from_event(event))
             samples = array("h")
             samples.frombytes(chunk.audio)
-            if samples and max(abs(sample) for sample in samples) >= 12:
+            chunk_peak = max((abs(sample) for sample in samples), default=0)
+            if chunk_peak >= 12:
                 self.voice_grace_ms = 2000
+                self.last_gate_peak = chunk_peak
             else:
                 self.voice_grace_ms = max(0, self.voice_grace_ms - chunk.milliseconds)
 
@@ -149,11 +153,54 @@ from dataclasses import dataclass""",
                             detector.triggers_left = self.trigger_level
                             continue
 
-                        if self.voice_grace_ms <= 0:
+                        gate_open = self.voice_grace_ms > 0
+                        if gate_open:
+                            detector.triggers_left -= 1
+                        else:
                             detector.triggers_left = self.trigger_level
-                            continue
 
-                        detector.triggers_left -= 1
+                        _LOGGER.info(
+                            "GI_CANDIDATE client_id=%s model=%s audio_timestamp=%s "
+                            "score=%.6f chunk_peak=%s last_gate_peak=%s "
+                            "remaining_grace_ms=%s gate_open=%s triggers_left=%s",
+                            self.client_id,
+                            detector.id,
+                            self.audio_timestamp,
+                            prob,
+                            chunk_peak,
+                            self.last_gate_peak,
+                            self.voice_grace_ms,
+                            gate_open,
+                            detector.triggers_left,
+                        )
+                        if not gate_open:
+                            continue
+""",
+    )
+
+    source = replace_once(
+        source,
+        """                        _LOGGER.debug(
+                            "Detected %s at %s", detector.id, self.audio_timestamp
+                        )
+""",
+        """                        _LOGGER.info(
+                            "GI_DETECTION client_id=%s model=%s audio_timestamp=%s "
+                            "score=%.6f chunk_peak=%s last_gate_peak=%s "
+                            "remaining_grace_ms=%s gate_open=%s triggers_left=%s",
+                            self.client_id,
+                            detector.id,
+                            self.audio_timestamp,
+                            prob,
+                            chunk_peak,
+                            self.last_gate_peak,
+                            self.voice_grace_ms,
+                            gate_open,
+                            detector.triggers_left,
+                        )
+                        _LOGGER.debug(
+                            "Detected %s at %s", detector.id, self.audio_timestamp
+                        )
 """,
     )
 
@@ -163,7 +210,9 @@ from dataclasses import dataclass""",
             raise ValueError(f"GI-only handler still contains {value!r}")
     if "for custom_model in self.state.custom_models" not in source:
         raise ValueError("GI-only handler no longer advertises custom models")
-    if "max(abs(sample) for sample in samples) >= 12" not in source:
+    if "chunk_peak = max((abs(sample) for sample in samples), default=0)" not in source:
+        raise ValueError("GI-only handler no longer measures the current chunk peak once")
+    if "if chunk_peak >= 12:" not in source:
         raise ValueError("GI-only handler no longer requires voiced audio")
     return source
 
