@@ -44,6 +44,7 @@
       - { name: Mosquitto, role: apps/mosquitto }
       - { name: Zigbee2MQTT, role: apps/zigbee2mqtt }
       - { name: Home Assistant, role: apps/homeassistant }
+      - { name: Home Assistant Voice, role: apps/voice-assistant }
 
       # Web applications
       - { name: Autism Traits, role: apps/autism-traits }

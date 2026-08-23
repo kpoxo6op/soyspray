@@ -1,0 +1,175 @@
+---
+- name: Do not delete the selected GI model
+  ansible.builtin.assert:
+    that:
+      - voice_assistant_gi_model_configmap_name not in voice_assistant_gi_model_retired_configmaps
+    fail_msg: The selected GI model cannot be in the deletion list.
+
+- name: Read the Home Assistant voice token
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: Secret
+    name: voice-assistant-ha-token
+    namespace: home-automation
+  register: voice_assistant_token_secret
+  no_log: true
+
+- name: Check that the Home Assistant voice token exists
+  ansible.builtin.assert:
+    that:
+      - >-
+        (voice_assistant_token_secret.resources | length > 0)
+        or (voice_assistant_ha_token | length > 0)
+    fail_msg: >-
+      For the first deployment, set VOICE_ASSISTANT_HA_TOKEN. If the Secret
+      already exists, leave this variable empty.
+  no_log: true
+
+- name: Create the Home Assistant voice token
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: voice-assistant-ha-token
+        namespace: home-automation
+      type: Opaque
+      stringData:
+        token: "{{ voice_assistant_ha_token }}"
+  when: voice_assistant_ha_token | length > 0
+  no_log: true
+
+- name: Read the GI model ConfigMap
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: ConfigMap
+    name: "{{ voice_assistant_gi_model_configmap_name }}"
+    namespace: home-automation
+  register: voice_assistant_gi_model_configmap
+  no_log: true
+
+- name: Check that the GI model exists
+  ansible.builtin.assert:
+    that:
+      - >-
+        (voice_assistant_gi_model_configmap.resources | length > 0)
+        or (voice_assistant_gi_model_path | length > 0)
+    fail_msg: >-
+      For the first deployment, set VOICE_ASSISTANT_GI_MODEL_PATH to the private
+      gi.tflite file. If the ConfigMap already exists, leave this variable empty.
+
+- name: Check the GI model file
+  ansible.builtin.stat:
+    path: "{{ voice_assistant_gi_model_path }}"
+    checksum_algorithm: sha256
+    get_checksum: true
+  delegate_to: localhost
+  become: false
+  register: voice_assistant_gi_model_stat
+  when: voice_assistant_gi_model_path | length > 0
+
+- name: Check the GI model checksum
+  ansible.builtin.assert:
+    that:
+      - voice_assistant_gi_model_stat.stat.exists
+      - voice_assistant_gi_model_stat.stat.isreg
+      - voice_assistant_gi_model_stat.stat.checksum == voice_assistant_gi_model_sha256
+    fail_msg: >-
+      The GI model does not exist, is not a regular file, or its SHA-256 does
+      not match voice_assistant_gi_model_sha256.
+  when: voice_assistant_gi_model_path | length > 0
+
+- name: Read the checked GI model file
+  ansible.builtin.slurp:
+    src: "{{ voice_assistant_gi_model_path }}"
+  delegate_to: localhost
+  become: false
+  register: voice_assistant_gi_model_file
+  when: voice_assistant_gi_model_path | length > 0
+  no_log: true
+
+- name: Create the immutable GI model ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: "{{ voice_assistant_gi_model_configmap_name }}"
+        namespace: home-automation
+        labels:
+          app.kubernetes.io/part-of: home-assistant-voice
+        annotations:
+          voice.soyspray.vip/model-sha256: "{{ voice_assistant_gi_model_sha256 }}"
+      immutable: true
+      binaryData:
+        gi.tflite: "{{ voice_assistant_gi_model_file.content }}"
+  when: voice_assistant_gi_model_path | length > 0
+  no_log: true
+
+- name: Read the deployed GI model ConfigMap
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: ConfigMap
+    name: "{{ voice_assistant_gi_model_configmap_name }}"
+    namespace: home-automation
+  register: voice_assistant_gi_model_live
+  no_log: true
+
+- name: Hash the deployed GI model
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python }}"
+      - -c
+      - >-
+        import base64, hashlib, sys;
+        print(hashlib.sha256(base64.b64decode(sys.stdin.buffer.read())).hexdigest())
+    stdin: "{{ voice_assistant_gi_model_live.resources[0].binaryData['gi.tflite'] }}"
+    stdin_add_newline: false
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  register: voice_assistant_gi_model_live_checksum
+  no_log: true
+
+- name: Check the deployed GI model ConfigMap
+  ansible.builtin.assert:
+    that:
+      - voice_assistant_gi_model_live.resources | length == 1
+      - voice_assistant_gi_model_live.resources[0].immutable | bool
+      - >-
+        voice_assistant_gi_model_live.resources[0].metadata.annotations['voice.soyspray.vip/model-sha256']
+        == voice_assistant_gi_model_sha256
+      - voice_assistant_gi_model_live_checksum.stdout == voice_assistant_gi_model_sha256
+    fail_msg: >-
+      The GI model ConfigMap is missing, can be changed, or does not match
+      voice_assistant_gi_model_sha256. Set VOICE_ASSISTANT_GI_MODEL_PATH to the
+      correct file. If this ConfigMap already exists, choose a new
+      voice_assistant_gi_model_configmap_name.
+  no_log: true
+
+- name: Apply the Home Assistant voice app
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: argocd
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/home-automation/voice-assistant/voice-assistant-application.yaml')
+         | replace('targetRevision: HEAD', 'targetRevision: ' + voice_assistant_target_revision) }}
+
+- name: Delete the listed old GI model ConfigMaps
+  kubernetes.core.k8s:
+    state: absent
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: ConfigMap
+    name: "{{ item }}"
+    namespace: home-automation
+  loop: "{{ voice_assistant_gi_model_retired_configmaps }}"
+  when: voice_assistant_gi_model_retired_configmaps | length > 0
