@@ -46,6 +46,15 @@ data:
         name: Tapo bedtime motion guard
         icon: mdi:weather-night
 
+    light:
+      - platform: group
+        name: Peanut
+        unique_id: peanut
+        entities:
+          - light.top
+          - light.middle
+          - light.bottom
+
     automation: !include automations.yaml
     script: !include scripts.yaml
     scene: !include scenes.yaml

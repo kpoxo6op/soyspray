@@ -62,6 +62,7 @@ spec:
                   "--hass-token", token,
                   "--retrain-on-start",
                   "--retrain-seconds", "300",
+                  "--retrain-on-connect",
               ]
               asyncio.run(main())
           ports:

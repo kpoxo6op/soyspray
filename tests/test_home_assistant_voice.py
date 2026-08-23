@@ -145,6 +145,7 @@ def test_voice_services_use_local_storage_and_limited_network_access() -> None:
     assert "secretKeyRef" not in speech_text
     assert "--retrain-seconds" in speech_text
     assert "300" in speech_text
+    assert "--retrain-on-connect" in speech_text
     assert "HOME_ASSISTANT_SERVICE_HOST" in speech_text
     assert "home-assistant.home-automation.svc.cluster.local" not in speech_text
     assert "training_info.json" in speech_text
@@ -652,7 +653,7 @@ def test_home_assistant_has_local_voice_settings() -> None:
         "playbooks/argocd/applications/home-automation/home-assistant/deployment.yaml"
     )
     assert deployment["spec"]["template"]["metadata"]["annotations"] == {
-        "soyspray.vip/bootstrap-config-revision": "2026-08-15-voice-only-lights"
+        "soyspray.vip/bootstrap-config-revision": "2026-08-24-peanut-light-group"
     }
     configmap = load_yaml(
         "playbooks/argocd/applications/home-automation/home-assistant/configmap-bootstrap.yaml"
@@ -674,3 +675,23 @@ def test_home_assistant_has_local_voice_settings() -> None:
         "tapo_bedtime_motion_guard_clear",
     ):
         assert by_id[automation_id].get("initial_state", True) is True
+
+
+def test_home_assistant_has_peanut_light_group() -> None:
+    home_assistant = "playbooks/argocd/applications/home-automation/home-assistant"
+    bootstrap = load_yaml(f"{home_assistant}/configmap-bootstrap.yaml")["data"][
+        "configuration.yaml"
+    ]
+    configuration = yaml.load(bootstrap, Loader=yaml.BaseLoader)
+    light_groups = {
+        light["unique_id"]: light
+        for light in configuration["light"]
+        if light["platform"] == "group"
+    }
+
+    assert light_groups["peanut"] == {
+        "platform": "group",
+        "name": "Peanut",
+        "unique_id": "peanut",
+        "entities": ["light.top", "light.middle", "light.bottom"],
+    }

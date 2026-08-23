@@ -1,7 +1,9 @@
 # Home Assistant local GI voice control
 
 This package provides local voice control for `light.top`, `light.middle`, and
-`light.bottom`. Home Assistant Voice PE streams audio to Home Assistant.
+`light.bottom`. The code defines `light.peanut` as a group that controls all
+three lights.
+Home Assistant Voice PE streams audio to Home Assistant.
 Home Assistant uses these local Wyoming services:
 
 - Speech-to-Phrase for speech-to-text.
@@ -98,7 +100,8 @@ Create an Assist pipeline named `GI` with these settings:
 - Streaming wake word: `gi`.
 - Prefer local intents: enabled.
 
-Keep `light.top`, `light.middle`, and `light.bottom` exposed to Assist.
+Keep `light.top`, `light.middle`, `light.bottom`, and `light.peanut` exposed to
+Assist. Use `turn on peanut` or `turn off peanut` to control all three lights.
 Assign the Voice PE and the lights to the correct Area. Select the GI pipeline
 for the satellite. The global preferred pipeline can remain different.
 

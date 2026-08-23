@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       annotations:
-        soyspray.vip/bootstrap-config-revision: "2026-08-15-voice-only-lights"
+        soyspray.vip/bootstrap-config-revision: "2026-08-24-peanut-light-group"
       labels:
         app: home-assistant
         component: main
