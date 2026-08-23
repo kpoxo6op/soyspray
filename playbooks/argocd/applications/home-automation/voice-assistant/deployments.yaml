@@ -1,0 +1,368 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: speech-to-phrase
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: speech-to-phrase
+  template:
+    metadata:
+      labels:
+        app: speech-to-phrase
+      annotations:
+        voice.soyspray.vip/token-revision: "1"
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: speech-to-phrase
+          image: rhasspy/wyoming-speech-to-phrase:1.4.3@sha256:e532f0dbc6b21285c4c784212003865b9167041927328a767cb0beb1a0beaa20
+          imagePullPolicy: IfNotPresent
+          command:
+            - /usr/src/.venv/bin/python3
+            - -c
+          args:
+            - |
+              import asyncio
+              import os
+              import pathlib
+              import sys
+
+              from speech_to_phrase.__main__ import main
+
+              token = pathlib.Path(
+                  "/run/secrets/home-assistant/token"
+              ).read_text(encoding="utf-8").strip()
+              if not token:
+                  raise RuntimeError("Home Assistant token is empty")
+
+              hass_host = os.environ["HOME_ASSISTANT_SERVICE_HOST"]
+              hass_port = os.environ["HOME_ASSISTANT_SERVICE_PORT"]
+
+              sys.argv = [
+                  "speech-to-phrase",
+                  "--uri", "tcp://0.0.0.0:10300",
+                  "--models-dir", "/data/models",
+                  "--train-dir", "/data/train",
+                  "--tools-dir", "/usr/src/tools",
+                  "--hass-websocket-uri",
+                  f"ws://{hass_host}:{hass_port}/api/websocket",
+                  "--hass-token", token,
+                  "--retrain-on-start",
+                  "--retrain-seconds", "300",
+              ]
+              asyncio.run(main())
+          ports:
+            - name: wyoming
+              containerPort: 10300
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 3Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            exec:
+              command:
+                - /usr/src/.venv/bin/python3
+                - -c
+                - >-
+                  import pathlib, socket;
+                  assert pathlib.Path('/data/models/en_US-rhasspy/.artifact-sha256').is_file();
+                  socket.create_connection(('127.0.0.1', 10300), 2).close()
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            exec:
+              command:
+                - /usr/src/.venv/bin/python3
+                - -c
+                - >-
+                  import pathlib, socket;
+                  assert pathlib.Path('/data/models/en_US-rhasspy/.artifact-sha256').is_file();
+                  assert pathlib.Path('/data/train/en_US-rhasspy/training_info.json').is_file();
+                  socket.create_connection(('127.0.0.1', 10300), 2).close()
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 10300
+            periodSeconds: 30
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+            - name: home-assistant-token
+              mountPath: /run/secrets/home-assistant
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: speech-to-phrase-data-v1
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: home-assistant-token
+          secret:
+            secretName: voice-assistant-ha-token
+            defaultMode: 288
+            items:
+              - key: token
+                path: token
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: piper-en
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: piper-en
+  template:
+    metadata:
+      labels:
+        app: piper-en
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: piper-en
+          image: rhasspy/wyoming-piper:2.3.1@sha256:69b7f797ae3a8c3c0202cbf97152fb795d78c2355de2a31655c20671247360d8
+          imagePullPolicy: IfNotPresent
+          args:
+            - --voice
+            - en_US-lessac-medium
+            - --download-dir
+            - /data
+          ports:
+            - name: wyoming
+              containerPort: 10200
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            exec:
+              command:
+                - /usr/src/.venv/bin/python3
+                - -c
+                - >-
+                  import pathlib, socket;
+                  assert pathlib.Path('/data/.artifact-sha256').is_file();
+                  socket.create_connection(('127.0.0.1', 10200), 2).close()
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+                - /usr/src/.venv/bin/python3
+                - -c
+                - >-
+                  import pathlib, socket;
+                  assert pathlib.Path('/data/.artifact-sha256').is_file();
+                  socket.create_connection(('127.0.0.1', 10200), 2).close()
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 10200
+            periodSeconds: 30
+            failureThreshold: 3
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: piper-en-data-v1
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openwakeword-gi
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector:
+    matchLabels:
+      app: openwakeword-gi
+  template:
+    metadata:
+      labels:
+        app: openwakeword-gi
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: patch-gi-only
+          image: rhasspy/wyoming-openwakeword:2.1.0@sha256:52cb1168731a1849fc28cf339c935fde58746bbabc94226668a40ef6ddf5d42b
+          imagePullPolicy: IfNotPresent
+          command:
+            - /usr/src/.venv/bin/python3
+            - /patch-source/patch.py
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: patch-source
+              mountPath: /patch-source
+              readOnly: true
+            - name: patched-package
+              mountPath: /patched
+      containers:
+        - name: openwakeword
+          image: rhasspy/wyoming-openwakeword:2.1.0@sha256:52cb1168731a1849fc28cf339c935fde58746bbabc94226668a40ef6ddf5d42b
+          imagePullPolicy: IfNotPresent
+          workingDir: /tmp
+          command:
+            - /usr/src/.venv/bin/python3
+            - -P
+            - -m
+            - wyoming_openwakeword
+          args:
+            - --uri
+            - tcp://0.0.0.0:10400
+            - --custom-model-dir
+            - /models
+            - --threshold
+            - "0.65"
+            - --trigger-level
+            - "2"
+          env:
+            - name: PYTHONPATH
+              value: /patched
+          ports:
+            - name: wyoming
+              containerPort: 10400
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          startupProbe:
+            exec:
+              command:
+                - /usr/src/.venv/bin/python3
+                - -c
+                - >-
+                  import hashlib, pathlib, numpy as np, socket;
+                  from pyopen_wakeword import OpenWakeWord;
+                  import wyoming_openwakeword.handler as handler;
+                  assert str(pathlib.Path(handler.__file__).resolve()).startswith('/patched/');
+                  handler_source=pathlib.Path(handler.__file__).read_text();
+                  assert 'OKAY_NABU' not in handler_source and 'Model(ww_name)' not in handler_source;
+                  assert hashlib.sha256(pathlib.Path('/models/gi.tflite').read_bytes()).hexdigest()
+                  == 'e61dd9f2880f226b05b8f9885c053fa7ec7805170c3f3b4d56427c6294cb4be0';
+                  model=OpenWakeWord.from_model('/models/gi.tflite');
+                  assert model.input_windows == 16;
+                  next(model.process_streaming(np.zeros((1, 1, model.input_windows,
+                  model.embeddings.shape[1]), dtype=np.float32)));
+                  socket.create_connection(('127.0.0.1', 10400), 2).close()
+            periodSeconds: 5
+            timeoutSeconds: 20
+            failureThreshold: 30
+          readinessProbe:
+            tcpSocket:
+              port: 10400
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: 10400
+            periodSeconds: 30
+            failureThreshold: 3
+          volumeMounts:
+            - name: models
+              mountPath: /models
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: patched-package
+              mountPath: /patched
+              readOnly: true
+      volumes:
+        - name: models
+          configMap:
+            name: openwakeword-gi-model-v7b
+        - name: tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: patch-source
+          configMap:
+            name: openwakeword-gi-patch
+            defaultMode: 0555
+        - name: patched-package
+          emptyDir:
+            sizeLimit: 4Mi
