@@ -1,0 +1,238 @@
+#!/usr/bin/env python3
+"""Make an openWakeWord copy that has no built-in wake words."""
+
+from __future__ import annotations
+
+import hashlib
+import pathlib
+import shutil
+import sys
+
+HANDLER_SHA256 = "ec7f2d79b9c9cb3bf426b285b2ef5e6ca1224aee8cbd9e31bc2d5b5a37235a95"
+
+
+def replace_once(source: str, old: str, new: str) -> str:
+    """Replace one source block. Stop if it is missing or repeated."""
+    count = source.count(old)
+    if count != 1:
+        raise ValueError(f"Source block appears {count} times; expected once: {old[:80]!r}")
+    return source.replace(old, new)
+
+
+def patch_handler(source: str, expected_sha256: str = HANDLER_SHA256) -> str:
+    """Remove built-in wake words. Require recent audio and high scores in a row."""
+    actual_sha256 = hashlib.sha256(source.encode()).hexdigest()
+    if actual_sha256 != expected_sha256:
+        raise ValueError(f"handler.py has SHA-256 {actual_sha256}; expected {expected_sha256}")
+
+    source = replace_once(
+        source,
+        "from pyopen_wakeword import Model, OpenWakeWord, OpenWakeWordFeatures",
+        "from pyopen_wakeword import OpenWakeWord, OpenWakeWordFeatures",
+    )
+    source = replace_once(
+        source,
+        "from dataclasses import dataclass",
+        """from array import array
+from dataclasses import dataclass""",
+    )
+    source = replace_once(source, "\nDEFAULT_MODEL = Model.OKAY_NABU\n", "")
+    source = replace_once(
+        source,
+        """            if detect.names:
+                for ww_name in detect.names:
+                    if ww_name in self.state.custom_models:
+                        ww_names.add(ww_name)
+                    else:
+                        try:
+                            model = Model(ww_name)
+                            ww_names.add(ww_name)
+                        except ValueError:
+                            continue
+
+            if not ww_names:
+                ww_names.add(DEFAULT_MODEL.value)
+""",
+        """            if detect.names:
+                for ww_name in detect.names:
+                    if ww_name in self.state.custom_models:
+                        ww_names.add(ww_name)
+""",
+    )
+    source = replace_once(
+        source,
+        """                model_path = self.state.custom_models.get(ww_name)
+                if model_path is not None:
+                    oww_model = OpenWakeWord.from_model(model_path)
+                else:
+                    try:
+                        model = Model(ww_name)
+                        oww_model = OpenWakeWord.from_builtin(model)
+                    except ValueError:
+                        pass
+""",
+        """                model_path = self.state.custom_models.get(ww_name)
+                if model_path is not None:
+                    oww_model = OpenWakeWord.from_model(model_path)
+""",
+    )
+    source = replace_once(
+        source,
+        """        for model in Model:
+            phrase = _get_phrase(model.value)
+            models.append(
+                WakeModel(
+                    name=model.value,
+                    description=phrase,
+                    phrase=phrase,
+                    attribution=Attribution(
+                        name="dscripka",
+                        url="https://github.com/dscripka/openWakeWord",
+                    ),
+                    installed=True,
+                    languages=["en"],
+                    version="v0.1",
+                )
+            )
+
+""",
+        "",
+    )
+    source = replace_once(
+        source,
+        """        self.audio_timestamp = 0
+
+        _LOGGER.debug("Client connected: %s", self.client_id)
+""",
+        """        self.audio_timestamp = 0
+        self.recent_audio_time_left_ms = 0
+        self.last_audio_peak = 0
+
+        _LOGGER.debug("Client connected: %s", self.client_id)
+""",
+    )
+    source = replace_once(
+        source,
+        """            self.audio_timestamp = 0
+            self.oww_features.reset()
+""",
+        """            self.audio_timestamp = 0
+            self.recent_audio_time_left_ms = 0
+            self.last_audio_peak = 0
+            self.oww_features.reset()
+""",
+    )
+    source = replace_once(
+        source,
+        """        elif AudioChunk.is_type(event.type):
+            chunk = self.converter.convert(AudioChunk.from_event(event))
+            for features in self.oww_features.process_streaming(chunk.audio):
+""",
+        """        elif AudioChunk.is_type(event.type):
+            chunk = self.converter.convert(AudioChunk.from_event(event))
+            samples = array("h")
+            samples.frombytes(chunk.audio)
+            chunk_peak = max((abs(sample) for sample in samples), default=0)
+            if chunk_peak >= 12:
+                self.recent_audio_time_left_ms = 2000
+                self.last_audio_peak = chunk_peak
+            else:
+                self.recent_audio_time_left_ms = max(
+                    0, self.recent_audio_time_left_ms - chunk.milliseconds
+                )
+
+            for features in self.oww_features.process_streaming(chunk.audio):
+""",
+    )
+    source = replace_once(
+        source,
+        """                        if prob <= self.threshold:
+                            continue
+
+                        detector.triggers_left -= 1
+""",
+        """                        if prob <= self.threshold:
+                            detector.triggers_left = self.trigger_level
+                            continue
+
+                        audio_is_recent = self.recent_audio_time_left_ms > 0
+                        if audio_is_recent:
+                            detector.triggers_left -= 1
+                        else:
+                            detector.triggers_left = self.trigger_level
+
+                        _LOGGER.info(
+                            "GI_CANDIDATE client_id=%s model=%s audio_timestamp=%s "
+                            "score=%.6f chunk_peak=%s last_audio_peak=%s "
+                            "recent_audio_time_left_ms=%s audio_is_recent=%s "
+                            "triggers_left=%s",
+                            self.client_id,
+                            detector.id,
+                            self.audio_timestamp,
+                            prob,
+                            chunk_peak,
+                            self.last_audio_peak,
+                            self.recent_audio_time_left_ms,
+                            audio_is_recent,
+                            detector.triggers_left,
+                        )
+                        if not audio_is_recent:
+                            continue
+""",
+    )
+
+    source = replace_once(
+        source,
+        """                        _LOGGER.debug(
+                            "Detected %s at %s", detector.id, self.audio_timestamp
+                        )
+""",
+        """                        _LOGGER.info(
+                            "GI_DETECTION client_id=%s model=%s audio_timestamp=%s "
+                            "score=%.6f chunk_peak=%s last_audio_peak=%s "
+                            "recent_audio_time_left_ms=%s audio_is_recent=%s "
+                            "triggers_left=%s",
+                            self.client_id,
+                            detector.id,
+                            self.audio_timestamp,
+                            prob,
+                            chunk_peak,
+                            self.last_audio_peak,
+                            self.recent_audio_time_left_ms,
+                            audio_is_recent,
+                            detector.triggers_left,
+                        )
+                        _LOGGER.debug(
+                            "Detected %s at %s", detector.id, self.audio_timestamp
+                        )
+""",
+    )
+
+    forbidden = ("OKAY_NABU", "Model(ww_name)", "for model in Model:")
+    for value in forbidden:
+        if value in source:
+            raise ValueError(f"The patch did not remove unsupported code: {value!r}")
+    if "for custom_model in self.state.custom_models" not in source:
+        raise ValueError("The patch removed the custom model list")
+    if "chunk_peak = max((abs(sample) for sample in samples), default=0)" not in source:
+        raise ValueError("The patch does not calculate one peak for each audio chunk")
+    if "if chunk_peak >= 12:" not in source:
+        raise ValueError("The patch does not check the audio level")
+    return source
+
+
+def main() -> None:
+    source_package = pathlib.Path("/usr/src/wyoming_openwakeword")
+    target_package = pathlib.Path("/patched/wyoming_openwakeword")
+    if len(sys.argv) == 3:
+        source_package = pathlib.Path(sys.argv[1])
+        target_package = pathlib.Path(sys.argv[2])
+
+    shutil.copytree(source_package, target_package)
+    handler_path = target_package / "handler.py"
+    handler_path.write_text(patch_handler(handler_path.read_text(encoding="utf-8")))
+    print(target_package)
+
+
+if __name__ == "__main__":
+    main()

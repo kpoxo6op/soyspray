@@ -16,6 +16,7 @@ data:
       elevation: 65
       unit_system: metric
       time_zone: Pacific/Auckland
+      internal_url: http://192.168.20.33:8123
 
     default_config:
 
@@ -44,6 +45,15 @@ data:
       tapo_bedtime_motion_guard:
         name: Tapo bedtime motion guard
         icon: mdi:weather-night
+
+    light:
+      - platform: group
+        name: Peanut
+        unique_id: peanut
+        entities:
+          - light.top
+          - light.middle
+          - light.bottom
 
     automation: !include automations.yaml
     script: !include scripts.yaml
@@ -84,6 +94,7 @@ data:
       max: 3
     - id: tapo_motion_relax_lights_after_sunset
       alias: Tapo motion turns on Relax lights after sunset
+      initial_state: false
       triggers:
         - trigger: state
           entity_id: binary_sensor.tapo_t100_motion
@@ -168,6 +179,7 @@ data:
       mode: single
     - id: tapo_motion_relax_lights_off_after_midnight
       alias: Tapo motion clears Relax lights quickly after midnight
+      initial_state: false
       triggers:
         - trigger: state
           entity_id: binary_sensor.tapo_t100_motion
@@ -228,6 +240,7 @@ data:
       mode: restart
     - id: tapo_motion_relax_lights_off_after_clear
       alias: Tapo motion clears Relax lights after 10 minutes
+      initial_state: false
       triggers:
         - trigger: state
           entity_id: binary_sensor.tapo_t100_motion
