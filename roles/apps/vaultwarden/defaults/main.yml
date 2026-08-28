@@ -1,3 +1,4 @@
 ---
 vaultwarden_enabled: true
 vaultwarden_target_revision: HEAD
+vaultwarden_agent_master_password_override: ""

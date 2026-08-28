@@ -41,10 +41,12 @@
 - name: Resolve the stable Vaultwarden agent password
   ansible.builtin.set_fact:
     vaultwarden_agent_master_password: >-
-      {{ (existing['master-password'] | b64decode)
-         if 'master-password' in existing
-         else lookup('ansible.builtin.password', '/dev/null',
-                     length=48, chars=['ascii_letters', 'digits']) }}
+      {{ vaultwarden_agent_master_password_override
+         if vaultwarden_agent_master_password_override | length > 0
+         else ((existing['master-password'] | b64decode)
+               if 'master-password' in existing
+               else lookup('ansible.builtin.password', '/dev/null',
+                           length=48, chars=['ascii_letters', 'digits'])) }}
   vars:
     existing: >-
       {{ vaultwarden_agent_bootstrap_secret.resources[0].data

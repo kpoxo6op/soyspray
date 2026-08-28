@@ -124,6 +124,7 @@ def test_vaultwarden_role_and_make_target_manage_the_application_lifecycle() -> 
     assert defaults == {
         "vaultwarden_enabled": True,
         "vaultwarden_target_revision": "HEAD",
+        "vaultwarden_agent_master_password_override": "",
     }
     assert "enabled.yml" in main
     assert "disabled.yml" in main
@@ -131,6 +132,7 @@ def test_vaultwarden_role_and_make_target_manage_the_application_lifecycle() -> 
     assert "vaultwarden-agent-bootstrap" in enabled
     assert "kubernetes.core.k8s_info" in enabled
     assert "b64decode" in enabled
+    assert "vaultwarden_agent_master_password_override" in enabled
     assert "lookup('ansible.builtin.password', '/dev/null'" in enabled
     assert "no_log: true" in enabled
     assert "state: present" in enabled
