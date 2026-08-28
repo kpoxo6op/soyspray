@@ -2,6 +2,16 @@
 
 This directory contains utility scripts for the cluster and the Kong bank lab.
 
+## Credential trial
+
+- `agent-secret` reads only `hays-online-timesheets` from Vaultwarden. It needs
+  `bw`, `kubectl`, and cluster access. The command prints plaintext credential
+  JSON, so do not send its output to logs or GitHub.
+
+```bash
+agent-secret read hays-online-timesheets
+```
+
 ## Kong bank lab
 
 - `banklab_status.py` prints node and Argo application health.
