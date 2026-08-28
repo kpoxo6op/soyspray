@@ -35,6 +35,7 @@ def test_vaultwarden_uses_one_restricted_persistent_replica() -> None:
     pvc = resource(resources, "PersistentVolumeClaim", "vaultwarden-data")
     pod = deployment["spec"]["template"]["spec"]
     server = pod["containers"][0]
+    environment = {item["name"]: item["value"] for item in server["env"]}
 
     assert deployment["spec"]["replicas"] == 1
     assert deployment["spec"]["strategy"] == {"type": "Recreate"}
@@ -50,6 +51,8 @@ def test_vaultwarden_uses_one_restricted_persistent_replica() -> None:
     )
     assert ":latest" not in server["image"]
     assert server["imagePullPolicy"] == "IfNotPresent"
+    assert environment["SIGNUPS_ALLOWED"] == "false"
+    assert environment["INVITATIONS_ALLOWED"] == "false"
     assert server["securityContext"]["allowPrivilegeEscalation"] is False
     assert server["securityContext"]["capabilities"] == {"drop": ["ALL"]}
     assert server["securityContext"]["readOnlyRootFilesystem"] is True
