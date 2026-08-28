@@ -45,7 +45,9 @@ command = sys.argv[1]
 appdata = Path(os.environ["BITWARDENCLI_APPDATA_DIR"])
 appdata.mkdir(parents=True, exist_ok=True)
 login_marker = appdata / "logged-in"
-if command == "status":
+if command == "config" and login_marker.exists():
+    raise SystemExit(1)
+elif command == "status":
     print(json.dumps({"status": "locked" if login_marker.exists() else "unauthenticated"}))
 elif command == "login":
     assert "--passwordenv" in sys.argv
@@ -83,7 +85,7 @@ elif command == "get":
             "password": "hays-pass",
         }
     calls = call_log.read_text()
-    assert "config server https://vault.soyspray.vip" in calls
+    assert calls.count("config server https://vault.soyspray.vip") == 1
     assert calls.count("login agent@example.test --passwordenv BW_PASSWORD --raw") == 1
     assert calls.count("unlock --passwordenv BW_PASSWORD --raw") == 1
     assert "sync" in calls
