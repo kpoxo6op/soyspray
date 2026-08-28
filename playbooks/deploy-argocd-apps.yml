@@ -10,6 +10,7 @@
     argocd_app_roles:
       # Security and identity
       - { name: Authentik, role: apps/authentik }
+      - { name: Vaultwarden, role: apps/vaultwarden }
 
       # Observability
       - { name: Prometheus, role: apps/prometheus }

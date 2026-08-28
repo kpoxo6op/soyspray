@@ -1,0 +1,3 @@
+---
+vaultwarden_enabled: true
+vaultwarden_target_revision: HEAD
