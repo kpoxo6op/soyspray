@@ -1,5 +1,5 @@
 ---
 vaultwarden_enabled: true
 vaultwarden_target_revision: HEAD
-vaultwarden_account_email_override: ""
+vaultwarden_agent_email: automation@vault.soyspray.vip
 vaultwarden_agent_master_password_override: ""

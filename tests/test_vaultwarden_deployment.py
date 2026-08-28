@@ -128,19 +128,23 @@ def test_vaultwarden_role_and_make_target_manage_the_application_lifecycle() -> 
     assert defaults == {
         "vaultwarden_enabled": True,
         "vaultwarden_target_revision": "HEAD",
-        "vaultwarden_account_email_override": "",
+        "vaultwarden_agent_email": "automation@vault.soyspray.vip",
         "vaultwarden_agent_master_password_override": "",
     }
     assert "enabled.yml" in main
     assert "disabled.yml" in main
     assert "vaultwarden_enabled | bool" in main
-    assert "vaultwarden-agent-bootstrap" in enabled
+    assert "vaultwarden-agent-login" in enabled
+    assert "name: vaultwarden-agent-bootstrap" in enabled
+    assert "state: absent" in enabled
     assert "kubernetes.core.k8s_info" in enabled
     assert "b64decode" in enabled
     assert "vaultwarden_agent_master_password_override" in enabled
-    assert "vaultwarden_account_email_override" in enabled
-    assert "existing['email'] | b64decode" in enabled
-    assert "boris@vault.soyspray.vip" in enabled
+    assert "vaultwarden_agent_email" in enabled
+    assert "vaultwarden_account_email_override" not in enabled
+    assert "boris@vault.soyspray.vip" not in enabled
+    assert "vaultwarden_existing_agent_email == vaultwarden_agent_email" in enabled
+    assert 'email: "{{ vaultwarden_agent_email }}"' in enabled
     assert "hays-agent@vault.soyspray.vip" not in enabled
     assert "lookup('ansible.builtin.password', '/dev/null'" in enabled
     assert "no_log: true" in enabled
