@@ -653,7 +653,7 @@ def test_home_assistant_has_local_voice_settings() -> None:
         "playbooks/argocd/applications/home-automation/home-assistant/deployment.yaml"
     )
     assert deployment["spec"]["template"]["metadata"]["annotations"] == {
-        "soyspray.vip/bootstrap-config-revision": "2026-08-24-peanut-light-group"
+        "soyspray.vip/bootstrap-config-revision": "2026-08-25-snappy-peanut-v3"
     }
     configmap = load_yaml(
         "playbooks/argocd/applications/home-automation/home-assistant/configmap-bootstrap.yaml"

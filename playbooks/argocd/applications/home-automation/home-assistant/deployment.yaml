@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       annotations:
-        soyspray.vip/bootstrap-config-revision: "2026-08-24-peanut-light-group"
+        soyspray.vip/bootstrap-config-revision: "2026-08-25-snappy-peanut-v3"
       labels:
         app: home-assistant
         component: main
