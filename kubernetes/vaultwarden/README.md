@@ -4,21 +4,28 @@ This package runs the private Vaultwarden trial at
 `https://vault.soyspray.vip`. It currently holds the recoverable Hays Online
 Timesheets login.
 
+Boris and the local agent use one account during V1. Keep only the Hays item in
+this account until the identity split is designed.
+
 ## Use the vault
 
 Connect to the home LAN or Tailscale, then open
 `https://vault.soyspray.vip`. Sign in with:
 
-- Email: `hays-agent@vault.soyspray.vip`
+- Email: the `email` value in the `vaultwarden-agent-bootstrap` Secret
 - Master password: the `master-password` value in the
   `vaultwarden-agent-bootstrap` Secret
 
 Registration is closed. Use this account to view, add, edit, and autofill
 items.
 
-On Boris's Wayland laptop, copy the master password for one paste:
+On Boris's Wayland laptop, show the email and copy the master password for one
+paste:
 
 ```bash
+kubectl -n vaultwarden get secret vaultwarden-agent-bootstrap \
+  -o jsonpath='{.data.email}' | base64 --decode
+printf '\n'
 kubectl -n vaultwarden get secret vaultwarden-agent-bootstrap \
   -o jsonpath='{.data.master-password}' | base64 --decode | wl-copy --paste-once
 ```
@@ -30,36 +37,19 @@ clients. Before sign-in, select **Self-hosted** and set the server URL to
 
 ## Change the master password
 
-Vaultwarden 1.37.2 cannot change the password through its bundled web vault.
-The upstream fix is merged but is not in a stable release. Use official
-Bitwarden Desktop 2026.6.1 once for this change.
+The desktop app opens the web vault for this account setting. This is expected.
+The deployment temporarily pins the exact pre-release image built from upstream
+fix commit `fa2566d`. Stable Vaultwarden 1.37.2 cannot accept the current web
+vault password-change request.
 
 1. Write the new password on paper. It must have at least 12 characters.
    V1 has no master-password reset. The paper copy is the recovery copy.
-2. Download and check the official desktop application:
-
-   ```bash
-   cd /tmp
-   curl --fail --location \
-     --output Bitwarden-2026.6.1-x86_64.AppImage \
-     https://github.com/bitwarden/clients/releases/download/desktop-v2026.6.1/Bitwarden-2026.6.1-x86_64.AppImage
-   printf '%s  %s\n' \
-     cdec96d158a1317f22ec6c06fd36c5ca87e2d432444c014710e1e4f8ee29d4f9 \
-     Bitwarden-2026.6.1-x86_64.AppImage | sha256sum --check -
-   chmod 700 Bitwarden-2026.6.1-x86_64.AppImage
-   ./Bitwarden-2026.6.1-x86_64.AppImage --appimage-extract-and-run
-   ```
-
-3. Confirm that **Help > About** shows `2026.6.1`. Do not accept an update yet.
-4. Select **Self-hosted** and set the server to `https://vault.soyspray.vip`.
-5. Sign in with the current account and master password.
-6. Select **Account > Change master password**.
-7. Enter the current password and the new password.
-8. Leave **Also rotate my account's encryption key** clear.
-9. Select **Change master password**, then sign out and close the application.
-
-The account now has the new password, but the agent still has the old one.
-Update the runtime Secret from a pushed topic branch:
+2. Open `https://vault.soyspray.vip` and sign in.
+3. Select **Settings > Security > Master password**.
+4. Enter the current password and the new password.
+5. Leave **Also rotate my account's encryption key** clear.
+6. Select **Change master password**. The web vault signs out.
+7. Update the runtime Secret before using the local reader:
 
 ```bash
 cd /home/boris/code/soyspray
@@ -83,7 +73,7 @@ make go
 )
 ```
 
-Clear the old command-line client session, then test a silent read:
+8. Clear the old command-line client session, then test a silent read:
 
 ```bash
 VAULTWARDEN_CLI_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/bw-hays-agent"
@@ -96,9 +86,7 @@ unset VAULTWARDEN_CLI_DIR
 agent-secret read hays-online-timesheets >/dev/null
 ```
 
-Delete the temporary AppImage after this test. The normal web vault and current
-Bitwarden clients can use the new password. The temporary version is only for
-the password-change request. See the
+The installed desktop app remains the normal human client. See the
 [Vaultwarden problem](https://github.com/dani-garcia/vaultwarden/issues/7622),
 [merged fix](https://github.com/dani-garcia/vaultwarden/pull/7634), and
 [Bitwarden password guide](https://bitwarden.com/help/master-password/).
