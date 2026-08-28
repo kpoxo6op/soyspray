@@ -39,6 +39,9 @@ and backup/retention checks.
   `targetRevision` at that branch, then revert to `HEAD` after merge.
 - When creating PRs, ensure any temporary Argo `targetRevision` changes are
   set back to `HEAD`.
+- When work creates or changes a feature folder, add or update a short,
+  human-centered `README.md` in that folder. Explain its purpose, normal human
+  use, important commands, checks, and limits. Keep shared indexes concise.
 - Prefer explicit confirmations before destructive cluster actions.
 
 ## Pull Request Standard
