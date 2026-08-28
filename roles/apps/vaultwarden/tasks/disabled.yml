@@ -1,0 +1,44 @@
+---
+- name: Find the live Vaultwarden Argo application
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: vaultwarden
+    namespace: argocd
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: vaultwarden_live_application
+
+- name: Quiesce the Vaultwarden Argo application before removal
+  kubernetes.core.k8s:
+    state: patched
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: vaultwarden
+    namespace: argocd
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      operation: null
+      spec:
+        syncPolicy:
+          automated: null
+  when: vaultwarden_live_application.resources | length == 1
+
+- name: Remove the Vaultwarden Argo application
+  kubernetes.core.k8s:
+    state: absent
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: vaultwarden
+    namespace: argocd
+    wait: true
+    wait_timeout: 300
+    kubeconfig: "{{ kubeconfig_path }}"
+
+- name: Remove the Vaultwarden Argo project
+  kubernetes.core.k8s:
+    state: absent
+    api_version: argoproj.io/v1alpha1
+    kind: AppProject
+    name: vaultwarden
+    namespace: argocd
+    kubeconfig: "{{ kubeconfig_path }}"

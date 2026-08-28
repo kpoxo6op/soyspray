@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: vaultwarden
+  namespace: argocd
+spec:
+  sourceRepos:
+    - https://github.com/kpoxo6op/soyspray.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: vaultwarden
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: PersistentVolumeClaim
+    - group: ""
+      kind: Service
+    - group: apps
+      kind: Deployment
+    - group: networking.k8s.io
+      kind: Ingress

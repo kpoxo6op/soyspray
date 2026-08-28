@@ -1,0 +1,10 @@
+---
+- name: Deploy Vaultwarden
+  ansible.builtin.import_tasks: enabled.yml
+  when: vaultwarden_enabled | bool
+  tags: vaultwarden
+
+- name: Remove Vaultwarden
+  ansible.builtin.import_tasks: disabled.yml
+  when: not (vaultwarden_enabled | bool)
+  tags: vaultwarden

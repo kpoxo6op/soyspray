@@ -1,0 +1,336 @@
+#!/usr/bin/env node
+
+"use strict";
+
+const { execFileSync, spawn } = require("node:child_process");
+const fs = require("node:fs/promises");
+const os = require("node:os");
+const path = require("node:path");
+
+const HAYS_ROOT = "https://www1.hays.com.au/HaysOnline/";
+const JOB_LIST_URL = `${HAYS_ROOT}joblist.aspx`;
+const LOGIN_ID = "#PageBody_ContentHolder_LoginID";
+const LOGIN_PASSWORD = "#PageBody_ContentHolder_Password";
+const LOGIN_BUTTON = "#PageBody_ContentHolder_LoginButton";
+const ITEM_NAME = "hays-online-timesheets";
+
+class SafeError extends Error {}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+function parseProof(pageText) {
+  const normalized = pageText.replace(/\s+/g, " ").trim();
+  const received = normalized.match(/Timesheet Received on (\d{1,2}\/\d{1,2}\/\d{4})/i);
+  if (!/Timesheet Details/i.test(normalized) || !received) {
+    throw new SafeError("Hays did not open submitted timesheet details");
+  }
+  return {
+    status: "opened",
+    page: "submitted-timesheet",
+    receivedOn: received[1],
+  };
+}
+
+function parseTimestamp(label) {
+  const match = label.match(
+    /(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})\s*(AM|PM)/i,
+  );
+  if (!match) return Number.NaN;
+  let [, day, month, year, hour, minute, period] = match;
+  year = Number(year) < 100 ? Number(year) + 2000 : Number(year);
+  hour = Number(hour) % 12;
+  if (period.toUpperCase() === "PM") hour += 12;
+  return Date.UTC(year, Number(month) - 1, Number(day), hour, Number(minute));
+}
+
+async function waitFor(check, message, timeout = 30000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (await check()) return;
+    await delay(250);
+  }
+  throw new SafeError(message);
+}
+
+async function fetchJson(url, options = {}) {
+  let response;
+  try {
+    response = await fetch(url, { ...options, signal: AbortSignal.timeout(3000) });
+  } catch {
+    throw new SafeError("the dedicated Hays browser did not answer");
+  }
+  if (!response.ok) throw new SafeError("the dedicated Hays browser returned an error");
+  return response.json();
+}
+
+async function endpointFromProfile(profileDirectory) {
+  try {
+    const activePort = await fs.readFile(
+      path.join(profileDirectory, "DevToolsActivePort"),
+      "utf8",
+    );
+    const port = Number(activePort.split(/\r?\n/, 1)[0]);
+    if (!Number.isInteger(port) || port < 1) return null;
+    const endpoint = `http://127.0.0.1:${port}`;
+    await fetchJson(`${endpoint}/json/version`);
+    return endpoint;
+  } catch {
+    return null;
+  }
+}
+
+async function browserEndpoint() {
+  const stateRoot = process.env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state");
+  const profileDirectory = path.join(stateRoot, "hays-agent-chrome");
+  await fs.mkdir(profileDirectory, { recursive: true, mode: 0o700 });
+  await fs.chmod(profileDirectory, 0o700);
+
+  const existing = await endpointFromProfile(profileDirectory);
+  if (existing) return existing;
+
+  await fs.rm(path.join(profileDirectory, "DevToolsActivePort"), { force: true });
+  const chrome = process.env.HAYS_CHROME_BINARY || "/usr/bin/google-chrome-stable";
+  try {
+    const child = spawn(
+      chrome,
+      [
+        `--user-data-dir=${profileDirectory}`,
+        "--remote-debugging-port=0",
+        "--disable-extensions",
+        "--disable-save-password-bubble",
+        "--disable-sync",
+        "--no-default-browser-check",
+        "--no-first-run",
+        "--start-maximized",
+        "about:blank",
+      ],
+      { detached: true, stdio: "ignore" },
+    );
+    child.unref();
+  } catch {
+    throw new SafeError("the dedicated Hays browser could not start");
+  }
+
+  let endpoint = null;
+  await waitFor(async () => {
+    endpoint = await endpointFromProfile(profileDirectory);
+    return endpoint !== null;
+  }, "the dedicated Hays browser did not start");
+  return endpoint;
+}
+
+class CdpSession {
+  constructor(url) {
+    this.url = url;
+    this.nextId = 1;
+    this.pending = new Map();
+    this.socket = null;
+  }
+
+  async connect() {
+    this.socket = new WebSocket(this.url);
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => reject(new SafeError("the Hays browser connection timed out")),
+        5000,
+      );
+      this.socket.addEventListener("open", () => {
+        clearTimeout(timer);
+        resolve();
+      });
+      this.socket.addEventListener("error", () => {
+        clearTimeout(timer);
+        reject(new SafeError("the Hays browser connection failed"));
+      });
+    });
+    this.socket.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data);
+      if (!message.id || !this.pending.has(message.id)) return;
+      const { resolve, reject, timer, method } = this.pending.get(message.id);
+      clearTimeout(timer);
+      this.pending.delete(message.id);
+      if (message.error) reject(new SafeError(`Chrome rejected ${method}`));
+      else resolve(message.result);
+    });
+  }
+
+  send(method, params = {}) {
+    if (!this.socket) throw new SafeError("the Hays browser is not connected");
+    const id = this.nextId++;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new SafeError(`Chrome did not finish ${method}`));
+      }, 10000);
+      this.pending.set(id, { resolve, reject, timer, method });
+      this.socket.send(JSON.stringify({ id, method, params }));
+    });
+  }
+
+  close() {
+    if (this.socket) this.socket.close();
+    this.socket = null;
+  }
+}
+
+async function haysPage(endpoint) {
+  const pages = await fetchJson(`${endpoint}/json/list`);
+  const existing = pages.find(
+    (page) => page.type === "page" && page.url.includes("hays.com.au/HaysOnline"),
+  );
+  if (existing) return existing;
+  return fetchJson(`${endpoint}/json/new?${encodeURIComponent(JOB_LIST_URL)}`, {
+    method: "PUT",
+  });
+}
+
+async function evaluate(session, expression) {
+  const result = await session.send("Runtime.evaluate", {
+    expression,
+    awaitPromise: true,
+    returnByValue: true,
+  });
+  if (result.exceptionDetails) throw new SafeError("the Hays page could not be read");
+  return result.result.value;
+}
+
+async function navigate(session, url) {
+  await session.send("Page.navigate", { url });
+  await waitFor(
+    () => evaluate(session, "document.readyState === 'complete'"),
+    "the Hays page did not load",
+  );
+}
+
+async function insertText(session, selector, value) {
+  const focused = await evaluate(
+    session,
+    `(() => { const input = document.querySelector(${JSON.stringify(selector)});` +
+      " if (!input) return false; input.value = ''; input.focus();" +
+      " return document.activeElement === input; })()",
+  );
+  if (!focused) throw new SafeError("the Hays login form changed");
+  await session.send("Input.insertText", { text: value });
+}
+
+function readCredentials() {
+  const helper = path.join(__dirname, "agent-secret");
+  let output;
+  try {
+    output = execFileSync(helper, ["read", ITEM_NAME], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 90000,
+    });
+  } catch {
+    throw new SafeError("the dedicated Hays credential could not be read");
+  }
+  let credentials;
+  try {
+    credentials = JSON.parse(output);
+  } catch {
+    throw new SafeError("the dedicated Hays credential is invalid");
+  }
+  output = "";
+  if (
+    typeof credentials.username !== "string" ||
+    !credentials.username ||
+    typeof credentials.password !== "string" ||
+    !credentials.password
+  ) {
+    throw new SafeError("the dedicated Hays credential is incomplete");
+  }
+  return credentials;
+}
+
+async function ensureLogin(session) {
+  await navigate(session, JOB_LIST_URL);
+  const loginVisible = await evaluate(
+    session,
+    `Boolean(document.querySelector(${JSON.stringify(LOGIN_ID)}))`,
+  );
+  if (!loginVisible) return;
+
+  let credentials = readCredentials();
+  try {
+    await insertText(session, LOGIN_ID, credentials.username);
+    await insertText(session, LOGIN_PASSWORD, credentials.password);
+    credentials.username = "";
+    credentials.password = "";
+    const clicked = await evaluate(
+      session,
+      `(() => { const button = document.querySelector(${JSON.stringify(LOGIN_BUTTON)});` +
+        " if (!button) return false; button.click(); return true; })()",
+    );
+    if (!clicked) throw new SafeError("the Hays login form changed");
+    await waitFor(
+      async () => !(await evaluate(session, `Boolean(document.querySelector(${JSON.stringify(LOGIN_ID)}))`)),
+      "Hays rejected the dedicated agent login",
+    );
+  } finally {
+    credentials.username = "";
+    credentials.password = "";
+    credentials = null;
+  }
+  await navigate(session, JOB_LIST_URL);
+}
+
+async function latestSubmission(session) {
+  const links = await evaluate(
+    session,
+    `Array.from(document.querySelectorAll('a[href*="TSDetails.aspx?TsID="]'))` +
+      ".map((link) => ({ href: link.href, label: link.textContent.trim() }))",
+  );
+  if (!Array.isArray(links) || links.length === 0) {
+    throw new SafeError("Hays has no submitted timesheet to open");
+  }
+  const dated = links
+    .map((link) => ({ ...link, timestamp: parseTimestamp(link.label) }))
+    .filter((link) => Number.isFinite(link.timestamp))
+    .sort((left, right) => right.timestamp - left.timestamp);
+  if (dated.length === 0) throw new SafeError("Hays returned an unknown timesheet date");
+  return dated[0].href;
+}
+
+async function run() {
+  const endpoint = await browserEndpoint();
+  const page = await haysPage(endpoint);
+  const session = new CdpSession(page.webSocketDebuggerUrl);
+  await session.connect();
+  try {
+    await session.send("Page.enable");
+    await session.send("Runtime.enable");
+    await ensureLogin(session);
+    const submissionUrl = await latestSubmission(session);
+    await navigate(session, submissionUrl);
+    const headings = await evaluate(
+      session,
+      "Array.from(document.querySelectorAll('h1, h2, h3')).map((heading) => heading.textContent.trim()).join('\\n')",
+    );
+    const proof = parseProof(headings);
+    await session.send("Page.bringToFront");
+    process.stdout.write(`${JSON.stringify(proof)}\n`);
+  } finally {
+    session.close();
+  }
+}
+
+async function main() {
+  if (process.argv[2] === "--check-proof") {
+    process.stdin.setEncoding("utf8");
+    let pageText = "";
+    for await (const chunk of process.stdin) pageText += chunk;
+    process.stdout.write(`${JSON.stringify(parseProof(pageText))}\n`);
+    return;
+  }
+  if (process.argv.length !== 2) throw new SafeError("usage: hays-open-submitted-timesheet");
+  await run();
+}
+
+main().catch((error) => {
+  const message = error instanceof SafeError ? error.message : "the Hays check failed";
+  process.stderr.write(`hays-open-submitted-timesheet: ${message}\n`);
+  process.exitCode = 1;
+});
