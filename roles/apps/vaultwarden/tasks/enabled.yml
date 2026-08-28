@@ -38,8 +38,14 @@
   register: vaultwarden_agent_bootstrap_secret
   no_log: true
 
-- name: Resolve the stable Vaultwarden agent password
+- name: Resolve the stable Vaultwarden account credentials
   ansible.builtin.set_fact:
+    vaultwarden_account_email: >-
+      {{ vaultwarden_account_email_override
+         if vaultwarden_account_email_override | length > 0
+         else ((existing['email'] | b64decode)
+               if 'email' in existing
+               else 'boris@vault.soyspray.vip') }}
     vaultwarden_agent_master_password: >-
       {{ vaultwarden_agent_master_password_override
          if vaultwarden_agent_master_password_override | length > 0
@@ -68,6 +74,6 @@
           soyspray.vip/credential-source: runtime-generated-not-committed
       type: Opaque
       stringData:
-        email: hays-agent@vault.soyspray.vip
+        email: "{{ vaultwarden_account_email }}"
         master-password: "{{ vaultwarden_agent_master_password }}"
   no_log: true

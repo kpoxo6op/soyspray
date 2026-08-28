@@ -49,6 +49,10 @@ def test_vaultwarden_uses_one_restricted_persistent_replica() -> None:
         r"ghcr\.io/dani-garcia/vaultwarden:[^@]+@sha256:[0-9a-f]{64}",
         server["image"],
     )
+    assert server["image"] == (
+        "ghcr.io/dani-garcia/vaultwarden:testing@"
+        "sha256:93a29083d81bab3b29a34252662cd50d8191eeb248e2d9f9573ba455b4367934"
+    )
     assert ":latest" not in server["image"]
     assert server["imagePullPolicy"] == "IfNotPresent"
     assert environment["SIGNUPS_ALLOWED"] == "false"
@@ -124,6 +128,7 @@ def test_vaultwarden_role_and_make_target_manage_the_application_lifecycle() -> 
     assert defaults == {
         "vaultwarden_enabled": True,
         "vaultwarden_target_revision": "HEAD",
+        "vaultwarden_account_email_override": "",
         "vaultwarden_agent_master_password_override": "",
     }
     assert "enabled.yml" in main
@@ -133,6 +138,10 @@ def test_vaultwarden_role_and_make_target_manage_the_application_lifecycle() -> 
     assert "kubernetes.core.k8s_info" in enabled
     assert "b64decode" in enabled
     assert "vaultwarden_agent_master_password_override" in enabled
+    assert "vaultwarden_account_email_override" in enabled
+    assert "existing['email'] | b64decode" in enabled
+    assert "boris@vault.soyspray.vip" in enabled
+    assert "hays-agent@vault.soyspray.vip" not in enabled
     assert "lookup('ansible.builtin.password', '/dev/null'" in enabled
     assert "no_log: true" in enabled
     assert "state: present" in enabled
