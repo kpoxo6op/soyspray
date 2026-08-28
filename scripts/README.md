@@ -8,9 +8,14 @@ This directory contains utility scripts for the cluster and the Kong bank lab.
   reads only `hays-online-timesheets`. It needs `bw`, `kubectl`, and cluster
   access. The command prints plaintext credential JSON, so do not send its
   output to logs or GitHub. It never uses the human master password.
+- `hays-open-submitted-timesheet` uses that item to sign in to Hays and open
+  the newest submitted-timesheet details page. It uses a separate Chrome
+  profile and prints only the received date. It does not edit or submit a
+  timesheet.
 
 ```bash
 agent-secret read hays-online-timesheets
+scripts/hays-open-submitted-timesheet
 ```
 
 ## Kong bank lab

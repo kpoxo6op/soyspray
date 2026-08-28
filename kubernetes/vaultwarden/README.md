@@ -78,6 +78,24 @@ The helper uses the agent account's random master password internally. A local
 process with the same cluster access can read that agent password. The human
 master password is not in Kubernetes and is not available to the helper.
 
+## Open the latest submitted Hays timesheet
+
+Run the one-shot check from the repository root:
+
+```bash
+scripts/hays-open-submitted-timesheet
+```
+
+The command starts or reuses a dedicated Chrome profile at
+`~/.local/state/hays-agent-chrome`. It signs in with the agent item, opens the
+newest submitted-timesheet details page, and leaves that tab visible. It prints
+only the page type and received date. It does not edit, submit, approve, or send
+a timesheet.
+
+The command needs `bw`, `kubectl`, Google Chrome, and cluster access. It does
+not use the human Vaultwarden account, the human master password, or the normal
+Chrome profile.
+
 ## Deploy and check
 
 Push the branch before deployment, then run from the repository root:

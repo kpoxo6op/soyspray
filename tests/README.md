@@ -6,6 +6,7 @@ requiring a live cluster.
 | File | Coverage |
 | --- | --- |
 | [`test_agent_secret.py`](test_agent_secret.py) | Vaultwarden reader allow-list, error handling, locking, and repeated reads |
+| [`test_hays_open_submitted_timesheet.py`](test_hays_open_submitted_timesheet.py) | Safe proof and credential boundary for the submitted-timesheet opener |
 | [`test_api_contracts.py`](test_api_contracts.py) | OpenAPI contracts and API catalog consistency |
 | [`test_customer_app.py`](test_customer_app.py) | Demo server and browser-facing responses |
 | [`test_docs.py`](test_docs.py) | Operator documentation and links |
