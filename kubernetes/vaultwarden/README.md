@@ -1,95 +1,67 @@
 # Vaultwarden trial
 
 This package runs the private Vaultwarden trial at
-`https://vault.soyspray.vip`. It currently holds the recoverable Hays Online
-Timesheets login.
+`https://vault.soyspray.vip`. It holds the recoverable Hays Online Timesheets
+login.
 
-Boris and the local agent use one account during V1. Keep only the Hays item in
-this account until the identity split is designed.
+V1 has two identities:
+
+- Boris uses a private human account. Its email and master password do not
+  enter Kubernetes.
+- The local agent uses `automation@vault.soyspray.vip`. Kubernetes keeps this
+  account's random master password in `vaultwarden-agent-login`.
+
+Both accounts can read one shared item in the `Hays timesheets` collection.
 
 ## Use the vault
 
 Connect to the home LAN or Tailscale, then open
-`https://vault.soyspray.vip`. Sign in with:
-
-- Email: the `email` value in the `vaultwarden-agent-bootstrap` Secret
-- Master password: the `master-password` value in the
-  `vaultwarden-agent-bootstrap` Secret
-
-Registration is closed. Use this account to view, add, edit, and autofill
-items.
-
-On Boris's Wayland laptop, show the email and copy the master password for one
-paste:
-
-```bash
-kubectl -n vaultwarden get secret vaultwarden-agent-bootstrap \
-  -o jsonpath='{.data.email}' | base64 --decode
-printf '\n'
-kubectl -n vaultwarden get secret vaultwarden-agent-bootstrap \
-  -o jsonpath='{.data.master-password}' | base64 --decode | wl-copy --paste-once
-```
+`https://vault.soyspray.vip`. Sign in with your human email and the master
+password that you keep on paper. Registration is closed during normal use.
 
 The server also works with official Bitwarden browser, desktop, and mobile
 clients. Before sign-in, select **Self-hosted** and set the server URL to
 `https://vault.soyspray.vip`. Bitwarden documents the client steps in
 [Connect individual clients](https://bitwarden.com/help/change-client-environment/).
 
-## Change the master password
+## Change your human master password
 
-The desktop app opens the web vault for this account setting. This is expected.
-The deployment temporarily pins the exact pre-release image built from upstream
-fix commit `fa2566d`. Stable Vaultwarden 1.37.2 cannot accept the current web
-vault password-change request.
+1. Write the new password on paper. V1 cannot reset a forgotten master
+   password.
+2. Open the web vault and select **Settings > Security > Master password**.
+3. Enter the old and new passwords.
+4. Leave **Also rotate my account's encryption key** clear for this trial.
+5. Select **Change master password** and sign in again on your devices.
 
-1. Write the new password on paper. It must have at least 12 characters.
-   V1 has no master-password reset. The paper copy is the recovery copy.
-2. Open `https://vault.soyspray.vip` and sign in.
-3. Select **Settings > Security > Master password**.
-4. Enter the current password and the new password.
-5. Leave **Also rotate my account's encryption key** clear.
-6. Select **Change master password**. The web vault signs out.
-7. Update the runtime Secret before using the local reader:
+No cluster change is required. The human password is independent from the
+agent account. See the
+[Bitwarden master-password guide](https://bitwarden.com/help/master-password/).
 
-```bash
-cd /home/boris/code/soyspray
-make go
-(
-  set -euo pipefail
-  VAULTWARDEN_PASSWORD_VARS="$(mktemp /dev/shm/vaultwarden-password.XXXXXX.json)"
-  trap 'rm -f "$VAULTWARDEN_PASSWORD_VARS"' EXIT
-  read -rsp 'New master password: ' VAULTWARDEN_NEW_PASSWORD
-  printf '\n'
-  printf '%s' "$VAULTWARDEN_NEW_PASSWORD" \
-    | jq -Rs --arg revision "$(git branch --show-current)" \
-      '{vaultwarden_agent_master_password_override: ., vaultwarden_target_revision: $revision}' \
-    > "$VAULTWARDEN_PASSWORD_VARS"
-  unset VAULTWARDEN_NEW_PASSWORD
-  soyspray-venv/bin/ansible-playbook \
-    -i kubespray/inventory/soycluster/hosts.yml \
-    --become --become-user=root --user ubuntu \
-    playbooks/deploy-argocd-apps.yml --tags vaultwarden \
-    --extra-vars "@$VAULTWARDEN_PASSWORD_VARS"
-)
-```
+## Enrol the agent once
 
-8. Clear the old command-line client session, then test a silent read:
+Use this only when the agent account must be created again.
+
+1. Create the `Soyspray` organization and its `Hays timesheets` collection
+   from the human account.
+2. Through GitOps, temporarily set `INVITATIONS_ALLOWED=true`. Keep
+   `SIGNUPS_ALLOWED=false`.
+3. Invite `automation@vault.soyspray.vip` as a **User**. Give it only
+   **View items** access to `Hays timesheets`. Allow password viewing. Do not
+   give edit or collection-management access.
+4. Register the invited account with the random password from
+   `vaultwarden-agent-login`. Do not display or log that password.
+5. Compare the member fingerprint in both sessions. Confirm the member from
+   the human account.
+6. Move `hays-online-timesheets` from the human vault to the shared collection.
+7. Restore `INVITATIONS_ALLOWED=false` through GitOps.
+8. Run the silent check:
 
 ```bash
-VAULTWARDEN_CLI_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/bw-hays-agent"
-if ! BITWARDENCLI_APPDATA_DIR="$VAULTWARDEN_CLI_DIR" bw status --nointeraction \
-  | jq -e '.status == "unauthenticated"' >/dev/null; then
-  BITWARDENCLI_APPDATA_DIR="$VAULTWARDEN_CLI_DIR" \
-    bw logout --quiet --nointeraction
-fi
-unset VAULTWARDEN_CLI_DIR
 agent-secret read hays-online-timesheets >/dev/null
 ```
 
-The installed desktop app remains the normal human client. See the
-[Vaultwarden problem](https://github.com/dani-garcia/vaultwarden/issues/7622),
-[merged fix](https://github.com/dani-garcia/vaultwarden/pull/7634), and
-[Bitwarden password guide](https://bitwarden.com/help/master-password/).
+Do not enable global sign-ups for enrollment. With no mail service, an open
+invitation must be completed and confirmed in the same session.
 
 ## Let an agent read Hays
 
@@ -101,6 +73,10 @@ agent-secret read hays-online-timesheets
 
 The command prints the username and password as plaintext JSON. Do not redirect
 the output to logs or paste it into GitHub or a shell command.
+
+The helper uses the agent account's random master password internally. A local
+process with the same cluster access can read that agent password. The human
+master password is not in Kubernetes and is not available to the helper.
 
 ## Deploy and check
 
@@ -126,6 +102,7 @@ resources are in the
 ## V1 limits
 
 V1 has one replica and one retained Longhorn volume. It has no backup, MFA,
-phone approval, or multi-node recovery. Issues
+phone approval, scheduled Hays run, or multi-node recovery. Issues
 [#202](https://github.com/kpoxo6op/soyspray/issues/202) to
-[#205](https://github.com/kpoxo6op/soyspray/issues/205) track that work.
+[#205](https://github.com/kpoxo6op/soyspray/issues/205) and
+[#207](https://github.com/kpoxo6op/soyspray/issues/207) track that work.

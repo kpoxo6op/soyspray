@@ -4,9 +4,10 @@ This directory contains utility scripts for the cluster and the Kong bank lab.
 
 ## Credential trial
 
-- `agent-secret` reads only `hays-online-timesheets` from Vaultwarden. It needs
-  `bw`, `kubectl`, and cluster access. The command prints plaintext credential
-  JSON, so do not send its output to logs or GitHub.
+- `agent-secret` signs in as the dedicated Vaultwarden automation account and
+  reads only `hays-online-timesheets`. It needs `bw`, `kubectl`, and cluster
+  access. The command prints plaintext credential JSON, so do not send its
+  output to logs or GitHub. It never uses the human master password.
 
 ```bash
 agent-secret read hays-online-timesheets
