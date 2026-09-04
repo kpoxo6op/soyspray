@@ -365,6 +365,63 @@ def test_existing_database_is_migrated_without_exposing_old_names(tmp_path: Path
     )
 
 
+def test_existing_claims_start_the_event_log_with_current_state(tmp_path: Path) -> None:
+    module = load_server_module()
+    database = tmp_path / "boys.sqlite3"
+    with sqlite3.connect(database) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE participants (
+                name_key TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                pin_salt BLOB,
+                pin_hash BLOB
+            );
+            CREATE TABLE availability (
+                name_key TEXT NOT NULL REFERENCES participants(name_key) ON DELETE CASCADE,
+                day TEXT NOT NULL,
+                PRIMARY KEY (name_key, day)
+            );
+            INSERT INTO participants VALUES ('boris k', 'Boris K', X'01', X'02');
+            INSERT INTO participants VALUES (
+                'innok mikhalev', 'Innok Mikhalev', X'03', X'04'
+            );
+            """
+        )
+        connection.executemany(
+            "INSERT INTO availability VALUES ('innok mikhalev', ?)",
+            ((f"2026-09-{day:02d}",) for day in range(1, 20)),
+        )
+
+    app = module.BoysApp(
+        database_path=database,
+        seed_pin="1357",
+        session_key=b"test-session-key-that-is-long-enough",
+        assets_dir=APP,
+    )
+    expected = [
+        {
+            "name": "Innok Mikhalev",
+            "action": "baseline",
+            "days": 19,
+        },
+        {
+            "name": "Boris K",
+            "action": "baseline",
+            "days": 0,
+        },
+    ]
+    assert app.events() == expected
+
+    restarted = module.BoysApp(
+        database_path=database,
+        seed_pin="1357",
+        session_key=b"test-session-key-that-is-long-enough",
+        assets_dir=APP,
+    )
+    assert restarted.events() == expected
+
+
 def test_scheduler_frontend_is_local_and_shows_calendar_stripes() -> None:
     html = (APP / "index.html").read_text()
     script = (APP / "app.js").read_text()
@@ -405,6 +462,9 @@ def test_scheduler_frontend_is_local_and_shows_calendar_stripes() -> None:
     assert "/api/events" in events_script
     assert "Set ${event.days} available" in events_script
     assert 'event.action === "claimed"' in events_script
+    assert 'event.action === "baseline"' in events_script
+    assert 'time.textContent = "Before log"' in events_script
+    assert "setInterval(loadEvents, 5000)" in events_script
     assert "availability-stripe" in script
     assert "is-selected" not in script
     assert "is-selected" not in styles
