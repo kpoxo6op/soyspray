@@ -349,23 +349,26 @@ def test_scheduler_frontend_is_local_and_shows_calendar_stripes() -> None:
     assert "/api/claim" in script
     assert "· claim" not in script
     assert "calendar-grid" in html
+    assert "Each boy has one color." in html
     assert "availability-stripe" in script
     assert "aria-pressed" in script
     assert set(re.findall(r"<h([1-6])", html)) == {"1", "2"}
     assert "--background:" in styles
     assert ".availability-stripe" in styles
     assert "mix-blend-mode: multiply" in styles
-    assert "stripe-2" not in styles
+    color_classes = dict(re.findall(r'^\s+"([^"]+)": "(boy-[^"]+)",$', script, re.MULTILINE))
+    assert set(color_classes) == set(CREW)
+    assert len(set(color_classes.values())) == len(CREW)
+    boy_colors = re.findall(r"--boy-[a-z-]+:\s*(#[0-9a-fA-F]{6})", styles)
+    assert len(boy_colors) == len(CREW)
+    assert len(set(boy_colors)) == len(CREW)
+    assert "colorIndex" not in script
+    assert "stripe-0" not in styles
+    assert "stripe-1" not in styles
     assert ".card" not in styles
     assert "box-shadow" not in styles
     assert "gradient" not in styles
     assert styles.count("font-family:") == 1
-    colored = {
-        color.lower()
-        for color in re.findall(r"#[0-9a-fA-F]{6}", styles)
-        if not (color[1:3] == color[3:5] == color[5:7])
-    }
-    assert colored <= {"#3159d8", "#d65a42"}
 
 
 def test_gitops_package_has_persistence_and_a_narrow_public_path() -> None:
