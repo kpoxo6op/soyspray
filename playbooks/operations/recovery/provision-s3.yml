@@ -1,0 +1,231 @@
+---
+- name: Prepare the S3 store for Longhorn recovery
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    recovery_region: ap-southeast-2
+    recovery_bucket: "soyspray-recovery-au2-{{ recovery_account }}"
+    recovery_user: soyspray-longhorn-backup
+    recovery_prefix: longhorn/
+  tasks:
+    - name: Require the account and credential export paths
+      ansible.builtin.assert:
+        that:
+          - recovery_account is defined
+          - recovery_account | string is match('^[0-9]{12}$')
+          - recovery_public_key is defined
+          - recovery_sealed_credentials is defined
+
+    - name: Verify the credential recipient before creating a key
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - pkeyutl
+          - -encrypt
+          - -pubin
+          - -inkey
+          - "{{ recovery_public_key }}"
+          - -pkeyopt
+          - rsa_padding_mode:oaep
+          - -pkeyopt
+          - rsa_oaep_md:sha256
+          - -out
+          - /dev/null
+        stdin: '{}'
+      changed_when: false
+      check_mode: false
+
+    - name: Read the active AWS account
+      amazon.aws.aws_caller_info:
+      register: recovery_caller
+
+    - name: Require the intended AWS account
+      ansible.builtin.assert:
+        that:
+          - recovery_caller.account == recovery_account | string
+
+    - name: Read existing buckets
+      amazon.aws.s3_bucket_info:
+        name: "{{ recovery_bucket }}"
+      register: recovery_existing_bucket
+
+    - name: Check that an existing store has no versioning
+      ansible.builtin.command:
+        argv:
+          - aws
+          - s3api
+          - get-bucket-versioning
+          - --bucket
+          - "{{ recovery_bucket }}"
+          - --expected-bucket-owner
+          - "{{ recovery_account | string }}"
+          - --output
+          - json
+          - --no-cli-pager
+      register: recovery_versioning
+      changed_when: false
+      check_mode: false
+      when: recovery_existing_bucket.buckets | length > 0
+
+    - name: Require an unversioned store
+      ansible.builtin.assert:
+        that:
+          - (recovery_versioning.stdout | default('{}', true) | from_json).Status is not defined
+        fail_msg: Versioning needs a separate review. Do not suspend it through this operation.
+      when: recovery_existing_bucket.buckets | length > 0
+
+    - name: Check that an existing store has no lifecycle rules
+      ansible.builtin.command:
+        argv:
+          - aws
+          - s3api
+          - get-bucket-lifecycle-configuration
+          - --bucket
+          - "{{ recovery_bucket }}"
+          - --expected-bucket-owner
+          - "{{ recovery_account | string }}"
+          - --output
+          - json
+          - --no-cli-pager
+      register: recovery_lifecycle
+      changed_when: false
+      failed_when: >-
+        recovery_lifecycle.rc == 0 or
+        'NoSuchLifecycleConfiguration' not in recovery_lifecycle.stderr
+      check_mode: false
+      when: recovery_existing_bucket.buckets | length > 0
+
+    - name: Create a private encrypted store without lifecycle or versioning
+      amazon.aws.s3_bucket:
+        name: "{{ recovery_bucket }}"
+        region: "{{ recovery_region }}"
+        state: present
+        encryption: AES256
+        public_access:
+          block_public_acls: true
+          block_public_policy: true
+          ignore_public_acls: true
+          restrict_public_buckets: true
+        tags:
+          Project: soyspray
+          Purpose: recovery
+        policy:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: RequireTLS
+              Effect: Deny
+              Principal: '*'
+              Action: s3:*
+              Resource:
+                - "arn:aws:s3:::{{ recovery_bucket }}"
+                - "arn:aws:s3:::{{ recovery_bucket }}/*"
+              Condition:
+                Bool:
+                  aws:SecureTransport: 'false'
+
+    - name: Create the dedicated Longhorn identity
+      amazon.aws.iam_user:
+        name: "{{ recovery_user }}"
+        state: present
+        tags:
+          Project: soyspray
+          Purpose: longhorn-backup
+      register: recovery_identity
+
+    - name: Limit Longhorn to its backup prefix and store metadata
+      # The AWS module cannot preview a policy for a user created only in check mode.
+      when: not ansible_check_mode or not recovery_identity.changed
+      amazon.aws.iam_policy:
+        iam_type: user
+        iam_name: "{{ recovery_user }}"
+        policy_name: longhorn-store
+        state: present
+        policy_json: "{{ recovery_policy | to_json }}"
+      vars:
+        recovery_policy:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: InspectStore
+              Effect: Allow
+              Action:
+                - s3:GetBucketLocation
+                - s3:GetBucketVersioning
+                - s3:GetLifecycleConfiguration
+              Resource: "arn:aws:s3:::{{ recovery_bucket }}"
+            - Sid: ListBackupPrefix
+              Effect: Allow
+              Action: s3:ListBucket
+              Resource: "arn:aws:s3:::{{ recovery_bucket }}"
+              Condition:
+                StringLike:
+                  s3:prefix: ["{{ recovery_prefix }}*"]
+            - Sid: ManageBackupObjects
+              Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+                - s3:DeleteObject
+                - s3:AbortMultipartUpload
+                - s3:ListMultipartUploadParts
+              Resource: "arn:aws:s3:::{{ recovery_bucket }}/{{ recovery_prefix }}*"
+
+    - name: Read the encrypted credential export
+      ansible.builtin.stat:
+        path: "{{ recovery_sealed_credentials }}"
+      register: recovery_export
+
+    - name: Read the existing Longhorn access keys
+      amazon.aws.iam_access_key_info:
+        user_name: "{{ recovery_user }}"
+      register: recovery_keys
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Require a new identity or its existing encrypted export
+      ansible.builtin.assert:
+        that:
+          - >-
+            (not recovery_export.stat.exists and recovery_keys.access_keys | length == 0) or
+            (recovery_export.stat.exists and recovery_export.stat.size > 0 and recovery_keys.access_keys | length == 1)
+        fail_msg: Inspect the existing key and export. This operation never rotates or replaces a key.
+      when: not ansible_check_mode
+
+    - name: Create and seal the first access key
+      when:
+        - not ansible_check_mode
+        - not recovery_export.stat.exists
+      no_log: true
+      block:
+        - name: Create one Longhorn access key
+          amazon.aws.iam_access_key:
+            user_name: "{{ recovery_user }}"
+            state: present
+            rotate_keys: false
+          register: recovery_new_key
+
+        - name: Encrypt the key for the off-cluster recipient
+          ansible.builtin.command:
+            argv:
+              - openssl
+              - pkeyutl
+              - -encrypt
+              - -pubin
+              - -inkey
+              - "{{ recovery_public_key }}"
+              - -pkeyopt
+              - rsa_padding_mode:oaep
+              - -pkeyopt
+              - rsa_oaep_md:sha256
+              - -out
+              - "{{ recovery_sealed_credentials }}.tmp"
+            stdin: >-
+              {{ {'AWS_ACCESS_KEY_ID': recovery_new_key.access_key.access_key_id,
+                  'AWS_SECRET_ACCESS_KEY': recovery_new_key.secret_access_key} | to_json }}
+          changed_when: true
+
+        - name: Keep the completed encrypted export for retries
+          ansible.builtin.command:
+            argv: [mv, "{{ recovery_sealed_credentials }}.tmp", "{{ recovery_sealed_credentials }}"]
+          changed_when: true
