@@ -49,6 +49,7 @@
 
       # Web applications
       - { name: Autism Traits, role: apps/autism-traits }
+      - { name: Boys Calendar, role: apps/boys }
   tasks:
     - name: "Include {{ item.name }}"
       ansible.builtin.include_role:

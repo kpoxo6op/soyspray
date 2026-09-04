@@ -13,6 +13,8 @@ KONG_REVISION ?= HEAD
 AUTISM_TRAITS_APP := kubernetes/autism-traits/app
 AUTISM_TRAITS_ENABLED ?= true
 AUTISM_TRAITS_REVISION ?= HEAD
+BOYS_ENABLED ?= true
+BOYS_REVISION ?= HEAD
 VOICE_ASSISTANT_REVISION ?= HEAD
 VOICE_ASSISTANT_ENABLED ?= true
 VAULTWARDEN_PACKAGE := kubernetes/vaultwarden
@@ -37,12 +39,13 @@ KUSTOMIZATIONS := \
 	kubernetes/banklab/customer-web \
 	kubernetes/banklab/docs-site \
 	kubernetes/autism-traits \
+	kubernetes/boys \
 	$(VAULTWARDEN_PACKAGE) \
 	playbooks/argocd/applications/home-automation/voice-assistant \
 	playbooks/argocd/applications/kong-bank-lab/operator-dashboard
 
 .PHONY: help setup act check autism-traits-check lint validate validate-skills status-page-check test docs docs-serve \
-	render status smoke go deploy kong-on kong-off autism-traits vaultwarden voice-assistant voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login list-apps node0 node1 node2 \
+	render status smoke go deploy kong-on kong-off autism-traits boys vaultwarden voice-assistant voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login list-apps node0 node1 node2 \
 	master worker1 worker2 worker3 clean
 
 help: ## Show the operator commands
@@ -64,11 +67,12 @@ autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check kubernetes/banklab/customer-web/app scripts tests
-	$(PYTHON) -m ruff format --check kubernetes/banklab/customer-web/app scripts tests
+	$(PYTHON) -m ruff check kubernetes/banklab/customer-web/app kubernetes/boys/app scripts tests
+	$(PYTHON) -m ruff format --check kubernetes/banklab/customer-web/app kubernetes/boys/app scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		roles/apps/kong-bank-lab/tasks/*.yml roles/apps/kong-bank-lab/defaults/*.yml \
 		roles/apps/autism-traits/tasks/*.yml roles/apps/autism-traits/defaults/*.yml \
+		roles/apps/boys/tasks/*.yml roles/apps/boys/defaults/*.yml \
 		roles/apps/vaultwarden/tasks/*.yml roles/apps/vaultwarden/defaults/*.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
 
@@ -112,7 +116,7 @@ go: check ## Run the deployment preflight
 	test -n "$$branch" && test "$$branch" != main || { echo 'Deploy from a topic branch, not main.' >&2; exit 1; }
 	test -z "$$(git status --porcelain)" || { echo 'Commit the working tree before deployment.' >&2; exit 1; }
 	git merge-base --is-ancestor HEAD '@{upstream}' || { echo 'Push the current commit before deployment.' >&2; exit 1; }
-	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --syntax-check --tags kong_bank_lab,autism_traits,vaultwarden,voice_assistant
+	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --syntax-check --tags kong_bank_lab,autism_traits,boys,vaultwarden,voice_assistant
 	$(PYTHON) scripts/banklab_status.py || printf '\nBank-lab applications need reconciliation.\n'
 	printf '\nDeployment preflight passed.\n'
 
@@ -130,6 +134,11 @@ autism-traits: go ## Reconcile or remove the autism traits site
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags autism_traits \
 		-e autism_traits_enabled=$(AUTISM_TRAITS_ENABLED) \
 		-e autism_traits_target_revision=$(AUTISM_TRAITS_REVISION)
+
+boys: go
+	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags boys \
+		-e boys_enabled=$(BOYS_ENABLED) \
+		-e boys_target_revision=$(BOYS_REVISION)
 
 vaultwarden: go
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags vaultwarden \
