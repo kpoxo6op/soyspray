@@ -159,6 +159,14 @@ def test_crew_claim_and_availability_round_trip(tmp_path: Path) -> None:
         assert request(server, "GET", "/api/session", cookie=boris_cookie)[2] == {
             "authenticated": True
         }
+        status, _, payload = request(server, "GET", "/api/events", cookie=boris_cookie)
+        assert status == 200
+        assert [(event["name"], event["action"]) for event in payload["events"]] == [
+            ("Boris K", "claimed")
+        ]
+        assert re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z", payload["events"][0]["at"]
+        )
         with app.connect() as connection:
             salt, pin_hash = connection.execute(
                 "SELECT pin_salt, pin_hash FROM participants WHERE name_key = ?",
@@ -230,15 +238,46 @@ def test_crew_claim_and_availability_round_trip(tmp_path: Path) -> None:
         status, _, payload = request(server, "GET", "/api/availability", cookie=boris_cookie)
         assert status == 200
         assert payload["me"] == "Boris K"
-        participants = {item["name"]: item["dates"] for item in payload["participants"]}
+        participants = {item["name"]: item for item in payload["participants"]}
         assert list(participants) == sorted(CREW, key=str.casefold)
-        assert participants["Boris K"] == [first_day, overlap_day]
-        assert participants["Sergey Kiktev"] == [overlap_day]
+        assert participants["Boris K"] == {
+            "name": "Boris K",
+            "claimed": True,
+            "dates": [first_day, overlap_day],
+        }
+        assert participants["Sergey Kiktev"] == {
+            "name": "Sergey Kiktev",
+            "claimed": True,
+            "dates": [overlap_day],
+        }
         assert all(
-            not dates
-            for name, dates in participants.items()
+            not participant["claimed"] and not participant["dates"]
+            for name, participant in participants.items()
             if name not in {"Boris K", "Sergey Kiktev"}
         )
+
+        status, _, payload = request(server, "GET", "/api/events", cookie=boris_cookie)
+        assert status == 200
+        assert [
+            (event["name"], event["action"], event.get("days")) for event in payload["events"]
+        ] == [
+            ("Sergey Kiktev", "availability", 1),
+            ("Boris K", "availability", 2),
+            ("Sergey Kiktev", "claimed", None),
+            ("Boris K", "claimed", None),
+        ]
+
+        assert (
+            request(
+                server,
+                "PUT",
+                "/api/availability",
+                {"dates": [overlap_day]},
+                sergey_cookie,
+            )[0]
+            == 200
+        )
+        assert request(server, "GET", "/api/events", cookie=boris_cookie)[2] == payload
 
         status, _, payload = request(
             server,
@@ -253,6 +292,7 @@ def test_crew_claim_and_availability_round_trip(tmp_path: Path) -> None:
         status, headers, _ = request(server, "GET", "/api/availability")
         assert status == 401
         assert headers["Content-Security-Policy"].startswith("default-src 'self'")
+        assert request(server, "GET", "/api/events")[0] == 401
 
         status, _, payload = request(
             server,
@@ -313,6 +353,10 @@ def test_existing_database_is_migrated_without_exposing_old_names(tmp_path: Path
         columns = {row[1] for row in connection.execute("PRAGMA table_info(participants)")}
         assert {"pin_salt", "pin_hash"} <= columns
         assert connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'events'"
+        ).fetchone() == ("events",)
+        assert connection.execute("SELECT COUNT(*) FROM events").fetchone() == (0,)
+        assert connection.execute(
             "SELECT name FROM participants WHERE name_key = 'old name'"
         ).fetchone() == ("Old Name",)
     assert app.crew() == [{"name": name, "claimed": False} for name in CREW]
@@ -325,6 +369,8 @@ def test_scheduler_frontend_is_local_and_shows_calendar_stripes() -> None:
     html = (APP / "index.html").read_text()
     script = (APP / "app.js").read_text()
     styles = (APP / "styles.css").read_text()
+    events_html = (APP / "events.html").read_text()
+    events_script = (APP / "events.js").read_text()
 
     assert "Boys calendar" in html
     assert '<select id="name"' in html
@@ -350,7 +396,18 @@ def test_scheduler_frontend_is_local_and_shows_calendar_stripes() -> None:
     assert "· claim" not in script
     assert "calendar-grid" in html
     assert "Each boy has one color." in html
+    assert 'href="/events.html"' in html
+    assert 'id="event-list"' in events_html
+    assert 'href="/"' in events_html
+    assert "Back to calendar" in events_html
+    assert "Newest first." in events_html
+    assert "/api/events" in events_script
+    assert "Set ${event.days} available" in events_script
+    assert 'event.action === "claimed"' in events_script
     assert "availability-stripe" in script
+    assert '"no dates"' in script
+    assert '"unclaimed"' in script
+    assert '${days === 1 ? "day" : "days"}' in script
     assert "aria-pressed" in script
     assert set(re.findall(r"<h([1-6])", html)) == {"1", "2"}
     assert "--background:" in styles
@@ -401,6 +458,10 @@ def test_gitops_package_has_persistence_and_a_narrow_public_path() -> None:
     deployments = {
         item["metadata"]["name"]: item for item in resources if item["kind"] == "Deployment"
     }
+    app_config = next(item for item in resources if item["kind"] == "ConfigMap")
+    assert {"server.py", "index.html", "app.js", "styles.css", "events.html", "events.js"} <= set(
+        app_config["data"]
+    )
     assert set(deployments) == {"boys", "boys-cloudflared"}
     app_container = deployments["boys"]["spec"]["template"]["spec"]["containers"][0]
     assert app_container["image"].startswith("python:3.13-alpine@sha256:")
