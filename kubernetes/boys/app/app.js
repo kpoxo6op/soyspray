@@ -1,4 +1,5 @@
 const state = {
+  crew: [],
   me: "",
   participants: [],
   selected: new Set(),
@@ -9,7 +10,14 @@ const state = {
 const loginView = document.querySelector("#login-view");
 const calendarView = document.querySelector("#calendar-view");
 const loginForm = document.querySelector("#login-form");
+const claimForm = document.querySelector("#claim-form");
+const nameSelect = document.querySelector("#name");
+const claimButton = document.querySelector("#claim-button");
+const claimName = document.querySelector("#claim-name");
+const loginUsername = document.querySelector("#login-username");
+const claimUsername = document.querySelector("#claim-username");
 const loginError = document.querySelector("#login-error");
+const claimError = document.querySelector("#claim-error");
 const monthLabel = document.querySelector("#month-label");
 const calendarGrid = document.querySelector("#calendar-grid");
 const summary = document.querySelector("#calendar-summary");
@@ -53,21 +61,81 @@ async function api(path, options = {}) {
   return payload;
 }
 
-function showLogin() {
+function selectedCrewMember() {
+  return state.crew.find((member) => member.name === nameSelect.value);
+}
+
+function updateClaimButton() {
+  const member = selectedCrewMember();
+  loginUsername.value = member?.name || "";
+  claimButton.hidden = !member || member.claimed;
+}
+
+function renderCrew() {
+  const selectedName = nameSelect.value;
+  const prompt = document.createElement("option");
+  prompt.value = "";
+  prompt.textContent = "Select name";
+  nameSelect.replaceChildren(prompt);
+  state.crew.forEach((member) => {
+    const option = document.createElement("option");
+    option.value = member.name;
+    option.textContent = member.claimed ? member.name : `${member.name} · claim`;
+    nameSelect.append(option);
+  });
+  if (state.crew.some((member) => member.name === selectedName)) {
+    nameSelect.value = selectedName;
+  }
+  updateClaimButton();
+}
+
+async function loadCrew() {
+  try {
+    const payload = await api("/api/crew");
+    state.crew = payload.crew;
+    renderCrew();
+  } catch (error) {
+    loginError.textContent = error.message;
+  }
+}
+
+function hideClaim(focus = false) {
+  claimForm.reset();
+  claimError.textContent = "";
+  claimForm.hidden = true;
+  loginForm.hidden = false;
+  updateClaimButton();
+  if (focus) nameSelect.focus();
+}
+
+function showClaim() {
+  const member = selectedCrewMember();
+  if (!member || member.claimed) return;
+  loginError.textContent = "";
+  claimName.textContent = member.name;
+  claimUsername.value = member.name;
+  loginForm.hidden = true;
+  claimButton.hidden = true;
+  claimForm.hidden = false;
+  document.querySelector("#seed-pin").focus();
+}
+
+async function showLogin() {
   loginView.hidden = false;
   calendarView.hidden = true;
   state.me = "";
   state.participants = [];
   state.selected = new Set();
-  document.querySelector("#name").focus();
+  loginForm.reset();
+  hideClaim();
+  await loadCrew();
+  nameSelect.focus();
 }
 
 function openCalendar(payload) {
   state.me = payload.me;
   state.participants = payload.participants;
-  const mine = state.participants.find(
-    (participant) => participant.name.localeCompare(state.me, undefined, { sensitivity: "accent" }) === 0,
-  );
+  const mine = state.participants.find((participant) => participant.name === state.me);
   state.selected = new Set(mine?.dates || []);
   state.dirty = false;
   loginView.hidden = true;
@@ -78,9 +146,7 @@ function openCalendar(payload) {
 
 function visibleParticipants() {
   return state.participants.map((participant) =>
-    participant.name === state.me
-      ? { ...participant, dates: [...state.selected] }
-      : participant,
+    participant.name === state.me ? { ...participant, dates: [...state.selected] } : participant,
   );
 }
 
@@ -92,7 +158,7 @@ function colorIndex(name) {
   const ordered = visibleParticipants()
     .map((participant) => participant.name)
     .sort((first, second) => first.localeCompare(second));
-  return ordered.indexOf(name) % 8;
+  return ordered.indexOf(name) % 2;
 }
 
 function renderDay(value, outside) {
@@ -110,7 +176,9 @@ function renderDay(value, outside) {
     month: "long",
     year: "numeric",
   });
-  const availability = people.length ? ` Available: ${people.map((person) => person.name).join(", ")}.` : "";
+  const availability = people.length
+    ? ` Available: ${people.map((person) => person.name).join(", ")}.`
+    : "";
   button.setAttribute("aria-label", `${dateName}.${availability}`);
   button.disabled = !selectable;
   if (outside) button.classList.add("is-outside");
@@ -175,7 +243,9 @@ function renderCalendar() {
 
 function renderLegend() {
   legend.replaceChildren();
-  const participants = visibleParticipants().sort((first, second) => first.name.localeCompare(second.name));
+  const participants = visibleParticipants().sort((first, second) =>
+    first.name.localeCompare(second.name),
+  );
   participants.forEach((participant) => {
     const item = document.createElement("span");
     item.className = "legend-item";
@@ -194,7 +264,7 @@ function render() {
   renderLegend();
   const participantCount = visibleParticipants().length;
   const selectedCount = state.selected.size;
-  summary.textContent = `${participantCount} ${participantCount === 1 ? "boy" : "boys"} · ${selectedCount} of your dates selected`;
+  summary.textContent = `${participantCount} boys · ${selectedCount} of your dates selected`;
   saveButton.textContent = state.dirty ? "Save changes" : "Dates saved";
   saveButton.disabled = !state.dirty;
 }
@@ -207,6 +277,14 @@ function showToast(message) {
     toast.hidden = true;
   }, 2600);
 }
+
+nameSelect.addEventListener("change", () => {
+  loginError.textContent = "";
+  updateClaimButton();
+});
+
+claimButton.addEventListener("click", showClaim);
+document.querySelector("#cancel-claim").addEventListener("click", () => hideClaim(true));
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -228,6 +306,39 @@ loginForm.addEventListener("submit", async (event) => {
   } finally {
     button.disabled = false;
     button.textContent = "Open calendar";
+  }
+});
+
+claimForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  claimError.textContent = "";
+  const member = selectedCrewMember();
+  if (!member) return;
+  const button = claimForm.querySelector("button[type=submit]");
+  button.disabled = true;
+  button.textContent = "Claiming…";
+  const form = new FormData(claimForm);
+  try {
+    await api("/api/claim", {
+      method: "POST",
+      body: JSON.stringify({
+        name: member.name,
+        seed_pin: form.get("seed_pin"),
+        pin: form.get("pin"),
+      }),
+    });
+    const payload = await api("/api/availability");
+    claimForm.reset();
+    openCalendar(payload);
+  } catch (error) {
+    claimError.textContent = error.message;
+    if (error.message === "This name is already claimed.") {
+      await loadCrew();
+      hideClaim(true);
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = "Claim and open";
   }
 });
 
@@ -267,4 +378,6 @@ document.querySelector("#logout-button").addEventListener("click", async () => {
   }
 });
 
-api("/api/availability").then(openCalendar).catch(showLogin);
+api("/api/session")
+  .then((session) => (session.authenticated ? api("/api/availability").then(openCalendar) : showLogin()))
+  .catch(() => showLogin());

@@ -1,15 +1,14 @@
 :root {
   color-scheme: light;
-  --background: #f7f7f5;
+  --background: #f7f7f7;
+  --surface: #ffffff;
   --foreground: #171717;
-  --card: #ffffff;
-  --muted: #6b6b67;
-  --muted-surface: #f1f1ee;
-  --border: #deded9;
-  --ring: #171717;
-  --radius: 0.85rem;
-  font-family:
-    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --muted: #707070;
+  --line: #d9d9d9;
+  --soft: #eeeeee;
+  --accent-a: #3159d8;
+  --accent-b: #d65a42;
+  font-family: ui-sans-serif, system-ui, sans-serif;
   font-synthesis: none;
 }
 
@@ -22,17 +21,17 @@ body {
   min-height: 100vh;
   margin: 0;
   color: var(--foreground);
-  background:
-    radial-gradient(circle at 15% 8%, rgb(255 255 255 / 96%), transparent 32rem),
-    var(--background);
+  background: var(--background);
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
-button {
+button,
+select {
   color: inherit;
 }
 
@@ -41,7 +40,7 @@ button {
 }
 
 .shell {
-  width: min(1120px, calc(100% - 2rem));
+  width: min(1080px, calc(100% - 2rem));
   margin: 0 auto;
   padding: 1.5rem 0 3rem;
 }
@@ -50,47 +49,29 @@ button {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border);
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.site-header p,
+.page-title p,
+.calendar-intro p,
+.claim-form p,
+.save-panel p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.site-header p {
+  font-size: 0.8rem;
 }
 
 .wordmark {
   color: var(--foreground);
-  font-size: 1.05rem;
-  font-weight: 750;
-  letter-spacing: -0.03em;
-  text-decoration: none;
-}
-
-.route-label,
-.privacy-note,
-.card-heading p,
-.save-panel p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-
-.login-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(19rem, 0.8fr);
-  gap: clamp(3rem, 10vw, 8rem);
-  align-items: center;
-  min-height: calc(100vh - 8rem);
-  padding: 4rem 0;
-}
-
-.intro {
-  max-width: 41rem;
-}
-
-.eyebrow {
-  margin: 0 0 1rem;
-  color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  text-decoration: none;
 }
 
 h1,
@@ -101,123 +82,171 @@ p {
 
 h1 {
   margin: 0;
-  font-size: clamp(3rem, 8vw, 6.5rem);
+  font-size: clamp(2.8rem, 7vw, 5.5rem);
   font-weight: 650;
-  letter-spacing: -0.075em;
-  line-height: 0.92;
+  letter-spacing: -0.065em;
+  line-height: 0.95;
 }
 
-.lede {
-  max-width: 35rem;
-  margin: 1.75rem 0 0;
-  color: var(--muted);
-  font-size: clamp(1rem, 2vw, 1.2rem);
-  line-height: 1.65;
+h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
 }
 
-.card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--card);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
-}
-
-.login-card {
+.login-layout {
   display: grid;
-  gap: 0.8rem;
-  padding: 1.5rem;
+  grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.65fr);
+  gap: clamp(3rem, 10vw, 8rem);
+  align-items: center;
+  min-height: calc(100vh - 6rem);
+  padding: 4rem 0;
 }
 
-.card-heading {
-  margin-bottom: 0.75rem;
+.page-title p {
+  margin-top: 1.25rem;
+  font-size: 1rem;
 }
 
-.card-heading h2 {
-  margin: 0 0 0.35rem;
-  font-size: 1.1rem;
+.access-panel {
+  width: 100%;
+  max-width: 25rem;
+  justify-self: end;
+}
+
+.access-form,
+.claim-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.claim-form {
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.claim-form h2 {
+  margin-bottom: -0.2rem;
+}
+
+.claim-form p {
+  margin-bottom: 0.35rem;
+  font-size: 0.82rem;
 }
 
 label {
-  margin-top: 0.25rem;
-  font-size: 0.85rem;
-  font-weight: 600;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 650;
 }
 
-input {
+input,
+select {
   width: 100%;
-  height: 2.65rem;
-  padding: 0 0.8rem;
+  height: 2.8rem;
+  padding: 0 0.15rem;
   color: var(--foreground);
-  border: 1px solid var(--border);
-  border-radius: 0.55rem;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
   outline: none;
-  background: var(--card);
+  background: transparent;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 input:focus-visible,
-button:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+select:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent-a);
+  outline-offset: 3px;
 }
 
 .button,
-.icon-button {
+.icon-button,
+.text-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.5rem;
-  border: 1px solid transparent;
-  border-radius: 0.55rem;
-  font-size: 0.875rem;
-  font-weight: 650;
+  border: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease, opacity 120ms ease;
+}
+
+.button {
+  min-height: 2.65rem;
+  padding: 0 1rem;
+  border-radius: 0.35rem;
+}
+
+.button-primary {
+  color: white;
+  background: var(--accent-a);
+}
+
+.button-primary:hover:not(:disabled) {
+  opacity: 0.88;
 }
 
 .button:disabled,
 .icon-button:disabled,
 .calendar-day:disabled {
   cursor: not-allowed;
-  opacity: 0.42;
+  opacity: 0.38;
 }
 
-.button-primary {
-  color: white;
-  background: var(--foreground);
+.text-button {
+  width: fit-content;
+  padding: 0.25rem 0;
+  color: var(--accent-a);
+  background: transparent;
 }
 
-.button-primary:hover:not(:disabled) {
-  background: #30302f;
+#claim-button {
+  margin-top: 0.75rem;
 }
 
-.button-ghost,
-.icon-button {
-  border-color: var(--border);
-  background: var(--card);
-}
-
-.button-ghost {
-  padding: 0 0.9rem;
-}
-
-.button-ghost:hover,
-.icon-button:hover:not(:disabled) {
-  background: var(--muted-surface);
+.claim-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
 }
 
 .form-error {
   min-height: 1.1rem;
   margin: 0;
-  color: #9f2020;
-  font-size: 0.82rem;
+  color: var(--accent-b);
+  font-size: 0.8rem;
 }
 
-.privacy-note {
-  text-align: center;
+.access-note {
+  display: grid;
+  gap: 0.35rem;
+  margin: 1.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.access-note a {
+  width: fit-content;
+  color: var(--foreground);
+  text-underline-offset: 0.2rem;
 }
 
 .calendar-layout {
-  padding: 3.5rem 0 0;
+  padding-top: 3rem;
 }
 
 .calendar-intro {
@@ -229,31 +258,19 @@ button:focus-visible {
 }
 
 .calendar-intro h1 {
-  font-size: clamp(2.7rem, 6vw, 5.2rem);
+  font-size: clamp(2.8rem, 6vw, 5rem);
 }
 
-.calendar-intro > div > p:last-child {
-  margin: 1rem 0 0;
-  color: var(--muted);
+.calendar-intro p {
+  margin-top: 0.8rem;
 }
 
 .identity {
   display: flex;
-  gap: 0.5rem;
+  gap: 1rem;
   align-items: center;
-}
-
-.badge {
-  padding: 0.45rem 0.7rem;
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  background: var(--card);
   font-size: 0.82rem;
-  font-weight: 650;
-}
-
-.calendar-card {
-  overflow: hidden;
+  font-weight: 700;
 }
 
 .calendar-toolbar {
@@ -261,19 +278,23 @@ button:focus-visible {
   grid-template-columns: 2.5rem 1fr 2.5rem;
   align-items: center;
   gap: 0.75rem;
-  padding: 1rem;
-  border-bottom: 1px solid var(--border);
+  padding: 0 0 0.8rem;
 }
 
 .calendar-toolbar h2 {
-  margin: 0;
   text-align: center;
-  font-size: 1rem;
 }
 
 .icon-button {
   width: 2.5rem;
+  height: 2.5rem;
   padding: 0;
+  background: transparent;
+}
+
+.icon-button:hover:not(:disabled),
+.text-button:hover {
+  opacity: 0.65;
 }
 
 .weekday-row,
@@ -284,48 +305,51 @@ button:focus-visible {
 
 .weekday-row {
   color: var(--muted);
-  border-bottom: 1px solid var(--border);
-  background: var(--muted-surface);
+  border-top: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+  border-left: 1px solid var(--line);
 }
 
 .weekday-row span {
   padding: 0.65rem 0.4rem;
   text-align: center;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.calendar-grid {
+  border-top: 1px solid var(--line);
+  border-left: 1px solid var(--line);
 }
 
 .calendar-day {
   position: relative;
   display: flex;
   min-width: 0;
-  min-height: 6.4rem;
-  padding: 0.7rem;
+  min-height: 6.2rem;
+  padding: 0.65rem;
   border: 0;
-  border-right: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
   overflow: hidden;
   text-align: left;
-  background: var(--card);
+  background: var(--surface);
   cursor: pointer;
 }
 
-.calendar-day:nth-child(7n) {
-  border-right: 0;
-}
-
 .calendar-day:hover:not(:disabled) {
-  background: #fafaf8;
+  background: var(--soft);
 }
 
 .calendar-day.is-outside {
-  background: #fafaf9;
+  background: var(--background);
 }
 
 .calendar-day.is-selected {
-  box-shadow: inset 0 0 0 2px var(--foreground);
+  outline: 2px solid var(--accent-a);
+  outline-offset: -2px;
   z-index: 1;
 }
 
@@ -335,54 +359,53 @@ button:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.55rem;
-  height: 1.55rem;
-  border-radius: 999px;
-  font-size: 0.78rem;
-  font-weight: 650;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  font-size: 0.76rem;
+  font-weight: 700;
 }
 
 .is-today .day-number {
   color: white;
-  background: var(--foreground);
+  background: var(--accent-a);
 }
 
 .overlap-count {
   position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
+  top: 0.7rem;
+  right: 0.7rem;
   color: var(--muted);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 700;
 }
 
 .stripe-stack {
   position: absolute;
-  right: 0.7rem;
-  bottom: 0.75rem;
-  left: 0.7rem;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  left: 0.65rem;
   display: flex;
   flex-direction: column;
 }
 
 .availability-stripe {
   display: block;
-  height: 0.42rem;
-  margin-top: -0.12rem;
+  height: 0.36rem;
+  margin-top: -0.1rem;
   border-radius: 999px;
-  opacity: 0.72;
+  opacity: 0.68;
   mix-blend-mode: multiply;
   transform: skewX(-16deg);
 }
 
-.stripe-0 { background: #e76f51; }
-.stripe-1 { background: #2a9d8f; }
-.stripe-2 { background: #e9c46a; }
-.stripe-3 { background: #457b9d; }
-.stripe-4 { background: #9b5de5; }
-.stripe-5 { background: #f15bb5; }
-.stripe-6 { background: #00b4d8; }
-.stripe-7 { background: #7a9e48; }
+.stripe-0 {
+  background: var(--accent-a);
+}
+
+.stripe-1 {
+  background: var(--accent-b);
+}
 
 .calendar-footer {
   display: grid;
@@ -394,8 +417,8 @@ button:focus-visible {
 
 .summary {
   margin: 0 0 0.8rem;
-  font-size: 0.85rem;
-  font-weight: 650;
+  font-size: 0.84rem;
+  font-weight: 700;
 }
 
 .legend {
@@ -407,27 +430,27 @@ button:focus-visible {
 .legend-item {
   display: inline-flex;
   align-items: center;
-  gap: 0.42rem;
+  gap: 0.4rem;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
 }
 
 .legend-mark {
-  width: 1.4rem;
-  height: 0.35rem;
+  width: 1.25rem;
+  height: 0.3rem;
   border-radius: 999px;
   transform: skewX(-16deg);
 }
 
 .save-panel {
   display: flex;
-  align-items: center;
   gap: 1rem;
+  align-items: center;
 }
 
-.save-panel .button {
-  min-width: 8rem;
-  padding: 0 1rem;
+.save-panel p {
+  max-width: 15rem;
+  font-size: 0.76rem;
 }
 
 .toast {
@@ -437,10 +460,9 @@ button:focus-visible {
   max-width: calc(100% - 2.5rem);
   padding: 0.8rem 1rem;
   color: white;
-  border-radius: 0.6rem;
+  border-radius: 0.35rem;
   background: var(--foreground);
-  box-shadow: 0 8px 30px rgb(0 0 0 / 18%);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
 }
 
 @media (max-width: 760px) {
@@ -456,8 +478,13 @@ button:focus-visible {
     padding: 3rem 0;
   }
 
+  .access-panel {
+    max-width: none;
+    justify-self: stretch;
+  }
+
   h1 {
-    font-size: clamp(3.25rem, 17vw, 5rem);
+    font-size: clamp(3rem, 16vw, 4.8rem);
   }
 
   .calendar-layout {
@@ -486,25 +513,25 @@ button:focus-visible {
   }
 
   .day-number {
-    width: 1.35rem;
-    height: 1.35rem;
-    font-size: 0.7rem;
+    width: 1.3rem;
+    height: 1.3rem;
+    font-size: 0.68rem;
   }
 
   .overlap-count {
-    top: 0.45rem;
-    right: 0.45rem;
-    font-size: 0.62rem;
+    top: 0.42rem;
+    right: 0.42rem;
+    font-size: 0.6rem;
   }
 
   .stripe-stack {
     right: 0.4rem;
-    bottom: 0.45rem;
+    bottom: 0.42rem;
     left: 0.4rem;
   }
 
   .availability-stripe {
-    height: 0.32rem;
+    height: 0.3rem;
   }
 
   .save-panel {
@@ -517,10 +544,7 @@ button:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  * {
     scroll-behavior: auto !important;
-    transition: none !important;
   }
 }
