@@ -18,5 +18,7 @@ preseeded name has a fixed calendar color and line pattern in `app.js` and
 `styles.css`. All calendar lines have the same weight.
 
 The signed-in calendar shows each boy's claim state and available-day count.
-The separate event log records new claims and changed availability totals. It
-does not create events when a person saves the same dates again.
+The separate event log records new claims and changed availability totals.
+Earlier claims appear once as `Before log` with their current day count. The
+open log refreshes every five seconds. The app does not create events when a
+person saves the same dates again.

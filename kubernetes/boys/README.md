@@ -15,8 +15,9 @@ with a lost PIN to `t.me/borex69`. Cloudflare processes the public requests and
 connection metadata to deliver the site.
 
 The event log requires a signed-in session. It records new claims and changed
-availability totals in newest-first order. It does not invent timestamps for
-activity that occurred before the log was deployed.
+availability totals in newest-first order and refreshes every five seconds.
+Existing claims appear as a `Before log` baseline, with their current
+available-day count and no invented timestamp.
 
 ## Request path
 
