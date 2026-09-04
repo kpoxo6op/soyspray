@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-proxy-set-headers-dispatcharr
+  annotations: {argocd.argoproj.io/sync-wave: "-1"}
+data:
+  X-Forwarded-Host: $http_host
+---
+apiVersion: v1
+kind: Service
+metadata: {name: authentik-server-dispatcharr}
+spec:
+  type: ExternalName
+  externalName: authentik-server.authentik.svc.cluster.local
+  ports: [{name: http, port: 80, protocol: TCP, targetPort: 80}]
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: {name: dispatcharr-authentik-outpost}
+spec:
+  ingressClassName: nginx
+  tls: [{hosts: [dispatcharr.soyspray.vip], secretName: prod-cert-tls}]
+  rules:
+    - host: dispatcharr.soyspray.vip
+      http:
+        paths:
+          - path: /outpost.goauthentik.io
+            pathType: Prefix
+            backend:
+              service: {name: authentik-server-dispatcharr, port: {number: 80}}
