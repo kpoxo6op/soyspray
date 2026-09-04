@@ -1,14 +1,16 @@
 # Boys calendar
 
-This package serves `https://boys.soyspray.vip`. People enter a name and the
-shared PIN. They select dates in one shared calendar. Colored stripes show each
-person's availability and overlap inside each date.
+This package serves `https://boys.soyspray.vip`. The nine crew names are ready
+in the sign-in list. A person claims an unused name with the crew PIN and then
+chooses a personal PIN. Colored stripes show each person's availability and
+overlap inside each date.
 
-The application stores only names and selected dates in SQLite on the
-`boys-data` Longhorn claim. It has no account, email, analytics, or third-party
-browser script. The shared PIN is suitable for a trusted event group. It does
-not prove who entered a name. Cloudflare processes the public requests and
-connection metadata to deliver the site.
+The application stores the names, selected dates, and salted personal PIN
+hashes in SQLite on the `boys-data` Longhorn claim. It has no email, analytics,
+or third-party browser script. The crew PIN can claim an unused name but cannot
+replace a claimed PIN. The sign-in page directs a person with a lost PIN to
+`t.me/borex69`. Cloudflare processes the public requests and connection metadata
+to deliver the site.
 
 ## Request path
 
@@ -28,7 +30,7 @@ Ingress remains available through LAN and Tailscale split DNS.
 Add these values to the ignored repository `.env` file:
 
 ```dotenv
-BOYS_PIN=<shared-pin>
+BOYS_PIN=<crew-claim-pin>
 BOYS_SESSION_KEY=<at-least-32-random-characters>
 BOYS_CLOUDFLARED_TOKEN=<dedicated-tunnel-token>
 ```
@@ -61,6 +63,9 @@ this exact expression:
 Remove the `NEL` and `Report-To` response headers. Keep the rule limited to
 this hostname so browsers do not send Cloudflare Network Error Logging reports
 for the calendar.
+
+The crew list is in `app/server.py`. A name can be claimed once. The personal
+PIN must contain 4 to 8 digits and must differ from the crew PIN.
 
 ## Check
 
