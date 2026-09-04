@@ -117,6 +117,28 @@ def test_crew_claim_and_availability_round_trip(tmp_path: Path) -> None:
         status, _, payload = request(
             server,
             "POST",
+            "/api/claim/check",
+            {"name": "Boris K", "seed_pin": "wrong"},
+        )
+        assert status == 401
+        assert payload == {"error": "The crew PIN is not correct."}
+
+        status, _, payload = request(
+            server,
+            "POST",
+            "/api/claim/check",
+            {"name": "Boris K", "seed_pin": "1357"},
+        )
+        assert status == 200
+        assert payload == {"name": "Boris K"}
+        assert request(server, "GET", "/api/crew")[2]["crew"][0] == {
+            "name": "Boris K",
+            "claimed": False,
+        }
+
+        status, _, payload = request(
+            server,
+            "POST",
             "/api/claim",
             {"name": "Boris K", "seed_pin": "wrong", "pin": "2468"},
         )
@@ -308,11 +330,24 @@ def test_scheduler_frontend_is_local_and_shows_calendar_stripes() -> None:
     assert '<select id="name"' in html
     assert 'inputmode="numeric"' in html
     assert re.findall(r'https://[^"\s]+', html) == ["https://t.me/borex69"]
-    assert 'id="claim-form"' in html
-    assert 'id="claim-button"' in html
+    forms = {
+        form_id: re.search(rf'<form id="{form_id}".*?</form>', html, re.DOTALL).group()
+        for form_id in ("name-form", "login-form", "crew-pin-form", "personal-pin-form")
+    }
+    assert forms["name-form"].count("<select") == 1
+    assert 'type="password"' not in forms["name-form"]
+    for form_id in ("login-form", "crew-pin-form", "personal-pin-form"):
+        assert forms[form_id].count('type="password"') == 1
+        assert "<select" not in forms[form_id]
+    for form in forms.values():
+        assert form.count('class="button button-primary"') == 1
+    assert 'id="claim-form"' not in html
+    assert 'id="claim-button"' not in html
     assert "Forgot PIN?" in html
     assert "/api/crew" in script
+    assert "/api/claim/check" in script
     assert "/api/claim" in script
+    assert "· claim" not in script
     assert "calendar-grid" in html
     assert "availability-stripe" in script
     assert "aria-pressed" in script
