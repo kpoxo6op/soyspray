@@ -15,3 +15,7 @@ The access flow shows one step at a time. A person selects a preseeded name. An
 unclaimed name requires the crew PIN and then a new personal PIN. A claimed
 name requires its personal PIN. The site does not accept other names. Each
 preseeded name has a fixed calendar color in `app.js` and `styles.css`.
+
+The signed-in calendar shows each boy's claim state and available-day count.
+The separate event log records new claims and changed availability totals. It
+does not create events when a person saves the same dates again.

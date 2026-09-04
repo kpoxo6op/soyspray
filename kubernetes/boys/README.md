@@ -4,14 +4,19 @@ This package serves `https://boys.soyspray.vip`. The nine crew names are ready
 in the sign-in list. A person claims an unused name with the crew PIN and then
 chooses a personal PIN. Each name has a fixed color. Stacked stripes show the
 availability overlap inside each date. The page shows the name, crew PIN, and
-personal PIN as separate steps.
+personal PIN as separate steps. The calendar lists each boy as `unclaimed`,
+`no dates`, or with an available-day count.
 
-The application stores the names, selected dates, and salted personal PIN
-hashes in SQLite on the `boys-data` Longhorn claim. It has no email, analytics,
-or third-party browser script. The crew PIN can claim an unused name but cannot
-replace a claimed PIN. The sign-in page directs a person with a lost PIN to
-`t.me/borex69`. Cloudflare processes the public requests and connection metadata
-to deliver the site.
+The application stores names, selected dates, activity events, and salted
+personal PIN hashes in SQLite on the `boys-data` Longhorn claim. It has no
+email, analytics, or third-party browser script. The crew PIN can claim an
+unused name but cannot replace a claimed PIN. The sign-in page directs a person
+with a lost PIN to `t.me/borex69`. Cloudflare processes the public requests and
+connection metadata to deliver the site.
+
+The event log requires a signed-in session. It records new claims and changed
+availability totals in newest-first order. It does not invent timestamps for
+activity that occurred before the log was deployed.
 
 ## Request path
 
