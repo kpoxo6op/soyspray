@@ -1,0 +1,31 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: dispatcharr-reconcile
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+spec:
+  activeDeadlineSeconds: 600
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector: {kubernetes.io/hostname: node-0}
+      automountServiceAccountToken: false
+      containers:
+        - name: reconcile
+          image: python:3.13-alpine@sha256:540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e094d188b196a934d
+          command: [python, /reconcile/reconcile.py]
+          envFrom: [{secretRef: {name: dispatcharr-secrets}}]
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: reconcile, mountPath: /reconcile, readOnly: true}
+      volumes:
+        - name: reconcile
+          configMap: {name: dispatcharr-reconcile}

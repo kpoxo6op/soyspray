@@ -1,0 +1,5 @@
+live_tv_enabled: false
+live_tv_target_revision: HEAD
+live_tv_jellyfin_admin_user: admin
+live_tv_jellyfin_playback_user: playback
+live_tv_dispatcharr_admin_user: admin

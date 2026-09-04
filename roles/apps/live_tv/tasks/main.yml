@@ -1,0 +1,7 @@
+---
+- name: Reconcile live TV applications
+  ansible.builtin.include_tasks:
+    file: "{{ 'enabled.yml' if (live_tv_enabled | bool) else 'disabled.yml' }}"
+    apply:
+      tags: [live-tv]
+  tags: live-tv

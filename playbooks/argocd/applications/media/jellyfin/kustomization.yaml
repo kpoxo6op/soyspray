@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: media
+resources: [pvc-config.yaml, deployment.yaml, service.yaml, ingress.yaml, network-policy.yaml, bootstrap-job.yaml]
+configMapGenerator:
+  - name: jellyfin-bootstrap
+    files: [bootstrap.py]
+  - name: jellyfin-sso
+    files: [providers.json=sso-config.json]
+labels:
+  - pairs: {app.kubernetes.io/name: jellyfin, app.kubernetes.io/part-of: live-tv}
+    includeSelectors: false

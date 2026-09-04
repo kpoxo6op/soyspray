@@ -1,0 +1,104 @@
+---
+- name: Ensure the media namespace
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata: {name: media}
+
+- name: Read live TV secrets
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: "{{ live_tv_secret }}"
+    namespace: media
+    kubeconfig: "{{ kubeconfig_path }}"
+  loop: [dispatcharr-secrets, jellyfin-secrets]
+  loop_control:
+    loop_var: live_tv_secret
+  register: live_tv_existing_secrets
+  no_log: true
+
+- name: Read the Authentik runtime secret
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: authentik-runtime
+    namespace: authentik
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: live_tv_authentik_secret
+  no_log: true
+
+- name: Require the Jellyfin OIDC client secret
+  ansible.builtin.assert:
+    that:
+      - live_tv_authentik_secret.resources | length == 1
+      - "'JELLYFIN_OIDC_CLIENT_SECRET' in live_tv_authentik_secret.resources[0].data"
+    fail_msg: Apply the Authentik role once before live TV so it creates the Jellyfin OIDC secret.
+  no_log: true
+
+- name: Resolve stable live TV passwords
+  ansible.builtin.set_fact:
+    live_tv_dispatcharr_password: >-
+      {{ (dispatcharr_data['DISPATCHARR_ADMIN_PASSWORD'] | b64decode)
+         if 'DISPATCHARR_ADMIN_PASSWORD' in dispatcharr_data
+         else lookup('ansible.builtin.password', '/dev/null', length=48, chars=['ascii_letters', 'digits']) }}
+    live_tv_jellyfin_admin_password: >-
+      {{ (jellyfin_data['JELLYFIN_ADMIN_PASSWORD'] | b64decode)
+         if 'JELLYFIN_ADMIN_PASSWORD' in jellyfin_data
+         else lookup('ansible.builtin.password', '/dev/null', length=48, chars=['ascii_letters', 'digits']) }}
+    live_tv_jellyfin_playback_password: >-
+      {{ (jellyfin_data['JELLYFIN_PLAYBACK_PASSWORD'] | b64decode)
+         if 'JELLYFIN_PLAYBACK_PASSWORD' in jellyfin_data
+         else lookup('ansible.builtin.password', '/dev/null', length=48, chars=['ascii_letters', 'digits']) }}
+    live_tv_jellyfin_oidc_secret: >-
+      {{ live_tv_authentik_secret.resources[0].data['JELLYFIN_OIDC_CLIENT_SECRET'] | b64decode }}
+  vars:
+    dispatcharr_data: >-
+      {{ (live_tv_existing_secrets.results[0].resources | first | default({})).get('data', {}) }}
+    jellyfin_data: >-
+      {{ (live_tv_existing_secrets.results[1].resources | first | default({})).get('data', {}) }}
+  no_log: true
+
+- name: Create the stable Dispatcharr secret
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata: {name: dispatcharr-secrets, namespace: media}
+      stringData:
+        DISPATCHARR_ADMIN_USER: "{{ live_tv_dispatcharr_admin_user }}"
+        DISPATCHARR_ADMIN_PASSWORD: "{{ live_tv_dispatcharr_password }}"
+  no_log: true
+
+- name: Create the stable Jellyfin secret
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata: {name: jellyfin-secrets, namespace: media}
+      stringData:
+        JELLYFIN_ADMIN_USER: "{{ live_tv_jellyfin_admin_user }}"
+        JELLYFIN_ADMIN_PASSWORD: "{{ live_tv_jellyfin_admin_password }}"
+        JELLYFIN_PLAYBACK_USER: "{{ live_tv_jellyfin_playback_user }}"
+        JELLYFIN_PLAYBACK_PASSWORD: "{{ live_tv_jellyfin_playback_password }}"
+        JELLYFIN_OIDC_CLIENT_SECRET: "{{ live_tv_jellyfin_oidc_secret }}"
+  no_log: true
+
+- name: Apply the live TV Argo applications
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/media/' + live_tv_application + '/' + live_tv_application + '-application.yaml')
+         | from_yaml
+         | combine({'spec': {'source': {'targetRevision': live_tv_target_revision | string}}}, recursive=true) }}
+  loop: [media-helper, dispatcharr, jellyfin]
+  loop_control:
+    loop_var: live_tv_application

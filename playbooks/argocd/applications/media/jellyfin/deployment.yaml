@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: jellyfin}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: jellyfin}}
+  template:
+    metadata: {labels: {app: jellyfin}}
+    spec:
+      nodeSelector: {kubernetes.io/hostname: node-0}
+      securityContext:
+        supplementalGroups: [109]
+      automountServiceAccountToken: false
+      initContainers:
+        - name: install-sso
+          image: python:3.13-alpine@sha256:540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e094d188b196a934d
+          command:
+            - python
+            - -c
+            - |
+              import hashlib, io, shutil, urllib.request, zipfile
+              from pathlib import Path
+
+              version = "4.3.0.55"
+              jellyfin_version = "10.11.11"
+              install_id = f"{version}-jellyfin-{jellyfin_version}"
+              checksum = "e066b312b96cc8133cca9711d9f5778e0bc64004e6cb9a6a6ed230f74b9808d8"
+              url = "https://github.com/Flowfin/jellyfin-plugin-sso/releases/download/4.3.0-beta.55/community-sso-for-jellyfin_4.3.0.55.zip"
+              plugins = Path("/config/data/plugins")
+              target = plugins / f"Community SSO for Jellyfin_{version}"
+              marker = target / ".soyspray-version"
+              if marker.is_file() and marker.read_text().strip() == install_id:
+                  raise SystemExit(0)
+              request = urllib.request.Request(url, headers={"User-Agent": "soyspray-jellyfin/1"})
+              with urllib.request.urlopen(request, timeout=90) as response:
+                  archive = response.read()
+              if hashlib.sha256(archive).hexdigest() != checksum:
+                  raise RuntimeError("Community SSO checksum mismatch")
+              stage = plugins / f".sso-{version}"
+              shutil.rmtree(stage, ignore_errors=True)
+              stage.mkdir(parents=True)
+              with zipfile.ZipFile(io.BytesIO(archive)) as package:
+                  package.extractall(stage)
+              marker = stage / ".soyspray-version"
+              marker.write_text(install_id + "\n")
+              shutil.rmtree(target, ignore_errors=True)
+              stage.replace(target)
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {cpu: 250m, memory: 128Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: data, mountPath: /config/data}
+      containers:
+        - name: jellyfin
+          image: jellyfin/jellyfin:10.11.11@sha256:aefb67e6a7ff1debdd154a78a7bbb780fd0c873d8639210a7f6a2016ad2b35db
+          env:
+            - {name: TZ, value: Pacific/Auckland}
+            - {name: JELLYFIN_DATA_DIR, value: /config/data}
+            - {name: JELLYFIN_SSO_CONFIG_FILE, value: /run/sso/providers.json}
+          ports: [{name: http, containerPort: 8096}]
+          readinessProbe: {httpGet: {path: /health, port: http}, initialDelaySeconds: 15}
+          livenessProbe: {httpGet: {path: /health, port: http}, initialDelaySeconds: 60}
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: "3", memory: 3Gi}
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - {name: config, mountPath: /config}
+            - {name: data, mountPath: /config/data}
+            - {name: cache, mountPath: /cache}
+            - {name: media, mountPath: /media, readOnly: true}
+            - {name: dri, mountPath: /dev/dri/renderD128}
+            - {name: sso-config, mountPath: /run/sso/providers.json, subPath: providers.json, readOnly: true}
+            - {name: sso-secret, mountPath: /run/secrets/jellyfin_oidc_client_secret, subPath: JELLYFIN_OIDC_CLIENT_SECRET, readOnly: true}
+      volumes:
+        - name: config
+          persistentVolumeClaim: {claimName: jellyfin-config-v2}
+        - name: data
+          hostPath: {path: /srv/media/jellyfin-data, type: DirectoryOrCreate}
+        - {name: cache, emptyDir: {}}
+        - name: media
+          persistentVolumeClaim: {claimName: media-downloads}
+        - name: dri
+          hostPath: {path: /dev/dri/renderD128, type: CharDevice}
+        - name: sso-config
+          configMap: {name: jellyfin-sso}
+        - name: sso-secret
+          secret:
+            secretName: jellyfin-secrets
+            items:
+              - {key: JELLYFIN_OIDC_CLIENT_SECRET, path: JELLYFIN_OIDC_CLIENT_SECRET}

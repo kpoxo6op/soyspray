@@ -28,7 +28,6 @@ NAVIGATION_DIRECTORIES = (
     ".agents/skills/security-threat-model/agents",
     ".agents/skills/security-threat-model/references",
     ".agents/skills/systematic-debugging",
-    ".agents/skills/test-driven-development",
     ".agents/skills/verification-before-completion",
     ".github",
     ".github/workflows",
@@ -67,7 +66,16 @@ NAVIGATION_DIRECTORIES = (
     "playbooks/argocd/applications/kong-bank-lab/operator-dashboard/dashboards",
     "playbooks/argocd/applications/web/autism-traits",
     "playbooks/argocd/applications/web/boys",
+    "playbooks/argocd/applications/security/authentik",
     "playbooks/argocd/applications/security/vaultwarden",
+    "playbooks/argocd/applications/media",
+    "playbooks/argocd/applications/media/dispatcharr",
+    "playbooks/argocd/applications/media/jellyfin",
+    "playbooks/argocd/applications/media/media-helper",
+    "roles/apps/live_tv",
+    "roles/apps/live_tv/defaults",
+    "roles/apps/live_tv/tasks",
+    "soydocs/android-tv",
     "roles/apps/autism-traits",
     "roles/apps/autism-traits/defaults",
     "roles/apps/autism-traits/tasks",
@@ -77,6 +85,7 @@ NAVIGATION_DIRECTORIES = (
     "roles/apps/kong-bank-lab",
     "roles/apps/kong-bank-lab/defaults",
     "roles/apps/kong-bank-lab/tasks",
+    "roles/apps/authentik",
     "roles/apps/vaultwarden",
     "roles/apps/vaultwarden/defaults",
     "roles/apps/vaultwarden/tasks",
@@ -117,7 +126,7 @@ def test_project_skills_validate() -> None:
         text=True,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "Validated 9 project skills" in result.stdout
+    assert "Validated 8 project skills" in result.stdout
 
 
 def test_dead_goal_scaffolding_is_absent() -> None:

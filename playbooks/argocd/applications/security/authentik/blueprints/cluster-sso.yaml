@@ -32,6 +32,11 @@ entries:
         qbittorrent_username: !Env QBITTORRENT_WEB_USERNAME
         qbittorrent_password: !Env QBITTORRENT_WEB_PASSWORD
 
+  - model: authentik_core.group
+    id: media-users
+    identifiers:
+      name: media-users
+
   - model: authentik_core.user
     id: boris-user
     state: created
@@ -42,6 +47,7 @@ entries:
       email: kpoxo6op@gmail.com
       groups:
         - !KeyOf cluster-admins
+        - !KeyOf media-users
       password: !Env SSO_PASSWORD
 
   - model: authentik_providers_oauth2.oauth2provider

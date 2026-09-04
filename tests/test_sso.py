@@ -40,6 +40,8 @@ def test_authentik_blueprint_reads_credentials_from_environment() -> None:
     assert "model: authentik_core.user" in blueprint
     assert "username: boris" in blueprint
     assert "cluster-admins" in blueprint
+    assert "id: media-users" in blueprint
+    assert "- !KeyOf media-users" in blueprint
     assert "model: authentik_providers_oauth2.oauth2provider" in blueprint
     assert "model: authentik_core.application" in blueprint
     assert blueprint.count("model: authentik_blueprints.metaapplyblueprint") >= 4

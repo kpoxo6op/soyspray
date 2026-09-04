@@ -17,6 +17,11 @@ spec:
         releaseName: authentik
         valueFiles:
           - $values/playbooks/argocd/applications/security/authentik/values.yaml
+        parameters:
+          - name: 'server.podAnnotations.soyspray\.vip/runtime-secret-resource-version'
+            value: "AUTHENTIK_RUNTIME_SECRET_RESOURCE_VERSION"
+          - name: 'worker.podAnnotations.soyspray\.vip/runtime-secret-resource-version'
+            value: "AUTHENTIK_RUNTIME_SECRET_RESOURCE_VERSION"
     - repoURL: https://github.com/kpoxo6op/soyspray.git
       targetRevision: "HEAD"
       ref: values

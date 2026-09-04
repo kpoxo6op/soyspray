@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: dispatcharr}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: dispatcharr}}
+  template:
+    metadata: {labels: {app: dispatcharr}}
+    spec:
+      nodeSelector: {kubernetes.io/hostname: node-0}
+      automountServiceAccountToken: false
+      containers:
+        - name: dispatcharr
+          image: ghcr.io/dispatcharr/dispatcharr:0.30.0@sha256:e764cd3fb3a4b14e0c96eeb830cce645b44ef0a2494838e21462c71dde5abeb4
+          env:
+            - {name: DISPATCHARR_ENV, value: aio}
+            - {name: REDIS_HOST, value: localhost}
+            - {name: CELERY_BROKER_URL, value: redis://localhost:6379/0}
+            - {name: TZ, value: Pacific/Auckland}
+          ports: [{name: http, containerPort: 9191}]
+          readinessProbe:
+            httpGet: {path: /api/status/, port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /api/status/, port: http}
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: "2", memory: 3Gi}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: okru-plugin, mountPath: /opt/streamlink-plugins, readOnly: true}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: dispatcharr-data}
+        - name: okru-plugin
+          configMap: {name: okru-plugin}
