@@ -51,6 +51,17 @@ Configure the `boys-public` tunnel route with these values:
 The public DNS record must be one proxied CNAME to the dedicated tunnel. Do not
 add a wildcard route, public router port, NodePort, or LoadBalancer.
 
+Create one Response Header Transform Rule named `boys response privacy` with
+this exact expression:
+
+```text
+(http.host eq "boys.soyspray.vip")
+```
+
+Remove the `NEL` and `Report-To` response headers. Keep the rule limited to
+this hostname so browsers do not send Cloudflare Network Error Logging reports
+for the calendar.
+
 ## Check
 
 Run the application and repository checks:
@@ -68,6 +79,10 @@ kubectl -n argocd get application boys
 kubectl -n boys get deployment,pod,pvc,ingress
 curl --fail --head https://boys.soyspray.vip/
 ```
+
+The public response must not contain `NEL` or `Report-To`. Public DNS must
+return Cloudflare addresses, not a LAN or Tailscale address. The local resolver
+can still return the private Ingress address for the private path.
 
 ## Stop or remove
 
