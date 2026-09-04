@@ -1,0 +1,77 @@
+---
+- name: Return Applications from an unchanged merged branch to HEAD
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    handoff_repository: https://github.com/kpoxo6op/soyspray.git
+    handoff_checkout: "{{ playbook_dir }}/../../.."
+  tasks:
+    - name: Require the branch being retired
+      ansible.builtin.assert:
+        that:
+          - handoff_branch is defined
+          - handoff_branch != 'main'
+          - handoff_branch != 'HEAD'
+
+    - name: Validate the branch name
+      ansible.builtin.command:
+        argv: [git, check-ref-format, --branch, "{{ handoff_branch }}"]
+        chdir: "{{ handoff_checkout }}"
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      check_mode: false
+
+    - name: Read the fetched branch and main trees
+      ansible.builtin.command:
+        argv: [git, rev-parse, "origin/{{ item }}^{tree}"]
+        chdir: "{{ handoff_checkout }}"
+      loop: ["{{ handoff_branch }}", main]
+      register: handoff_trees
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      check_mode: false
+
+    - name: Require the merged branch and main to have identical content
+      ansible.builtin.assert:
+        that:
+          - handoff_trees.results[0].stdout == handoff_trees.results[1].stdout
+        fail_msg: Fetch origin and reconcile the branch with main before this operation.
+
+    - name: Read live Applications
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: handoff_applications
+
+    - name: Require healthy Applications without another controller
+      ansible.builtin.assert:
+        that:
+          - item.metadata.deletionTimestamp is not defined
+          - item.metadata.ownerReferences | default([]) | length == 0
+          - item.operation | default(none) == none
+          - item.status.sync.status == 'Synced'
+          - item.status.health.status == 'Healthy'
+        fail_msg: Inspect this Application and its owner before changing its source.
+      loop: "{{ handoff_applications.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+      when: >-
+        item.spec.sources | default([item.spec.source | default({})])
+        | selectattr('repoURL', 'defined')
+        | selectattr('repoURL', 'equalto', handoff_repository)
+        | selectattr('targetRevision', 'defined')
+        | selectattr('targetRevision', 'equalto', handoff_branch)
+        | list | length > 0
+
+    - name: Handoff each matching Application source
+      ansible.builtin.include_tasks: handoff-source.yml
+      loop: "{{ handoff_applications.resources }}"
+      loop_control:
+        loop_var: handoff_app
+        label: "{{ handoff_app.metadata.name }}"
