@@ -1,0 +1,27 @@
+---
+- name: Change only the observed repository branch reference
+  kubernetes.core.k8s_json_patch:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: "{{ handoff_app.metadata.name }}"
+    namespace: argocd
+    kubeconfig: "{{ kubeconfig_path }}"
+    patch:
+      - op: test
+        path: /metadata/uid
+        value: "{{ handoff_app.metadata.uid }}"
+      - op: test
+        path: "{{ handoff_source_path }}"
+        value: "{{ item }}"
+      - op: replace
+        path: "{{ handoff_source_path }}/targetRevision"
+        value: HEAD
+  vars:
+    handoff_source_path: "{{ '/spec/sources/' ~ (handoff_source_index | string) if handoff_app.spec.sources is defined else '/spec/source' }}"
+  loop: "{{ handoff_app.spec.sources | default([handoff_app.spec.source | default({})]) }}"
+  loop_control:
+    index_var: handoff_source_index
+    label: "{{ handoff_app.metadata.name }} source {{ handoff_source_index }}"
+  when:
+    - item.repoURL | default('') == handoff_repository
+    - item.targetRevision | default('') == handoff_branch
