@@ -395,7 +395,8 @@ def test_scheduler_frontend_is_local_and_shows_calendar_stripes() -> None:
     assert "/api/claim" in script
     assert "· claim" not in script
     assert "calendar-grid" in html
-    assert "Each boy has one color." in html
+    assert "Each boy has one color." not in html
+    assert "Select your dates." in html
     assert 'href="/events.html"' in html
     assert 'id="event-list"' in events_html
     assert 'href="/"' in events_html
@@ -405,6 +406,8 @@ def test_scheduler_frontend_is_local_and_shows_calendar_stripes() -> None:
     assert "Set ${event.days} available" in events_script
     assert 'event.action === "claimed"' in events_script
     assert "availability-stripe" in script
+    assert "is-selected" not in script
+    assert "is-selected" not in styles
     assert '"no dates"' in script
     assert '"unclaimed"' in script
     assert '${days === 1 ? "day" : "days"}' in script
@@ -412,19 +415,24 @@ def test_scheduler_frontend_is_local_and_shows_calendar_stripes() -> None:
     assert set(re.findall(r"<h([1-6])", html)) == {"1", "2"}
     assert "--background:" in styles
     assert ".availability-stripe" in styles
-    assert "mix-blend-mode: multiply" in styles
+    assert "mix-blend-mode" not in styles
     color_classes = dict(re.findall(r'^\s+"([^"]+)": "(boy-[^"]+)",$', script, re.MULTILINE))
     assert set(color_classes) == set(CREW)
     assert len(set(color_classes.values())) == len(CREW)
     boy_colors = re.findall(r"--boy-[a-z-]+:\s*(#[0-9a-fA-F]{6})", styles)
     assert len(boy_colors) == len(CREW)
     assert len(set(boy_colors)) == len(CREW)
+    boy_patterns = re.findall(r"--boy-pattern:\s*([^;]+);", styles)
+    assert len(boy_patterns) == len(CREW)
+    assert len(set(boy_patterns)) == len(CREW)
+    assert "background-image: var(--boy-pattern)" in styles
+    assert "radial-gradient" in styles
+    assert "repeating-linear-gradient" in styles
     assert "colorIndex" not in script
     assert "stripe-0" not in styles
     assert "stripe-1" not in styles
     assert ".card" not in styles
     assert "box-shadow" not in styles
-    assert "gradient" not in styles
     assert styles.count("font-family:") == 1
 
 
