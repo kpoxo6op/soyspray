@@ -17,7 +17,6 @@ Vendored from [obra/superpowers](https://github.com/obra/superpowers) at commit
 `d884ae04edebef577e82ff7c4e143debd0bbec99`:
 
 - `systematic-debugging`
-- `test-driven-development`
 - `verification-before-completion`
 
 Each vendored package retains its upstream license. Review source changes before
