@@ -3,7 +3,9 @@ const eventEmpty = document.querySelector("#event-empty");
 const eventError = document.querySelector("#event-error");
 
 function eventAction(event) {
-  if (event.action === "claimed") return "Claimed name";
+  if (event.action === "claimed" || (event.action === "baseline" && event.days === 0)) {
+    return "Claimed name";
+  }
   if (event.days === 0) return "Cleared available days";
   return `Set ${event.days} available ${event.days === 1 ? "day" : "days"}`;
 }
@@ -20,13 +22,17 @@ function renderEvent(event) {
   action.className = "event-action";
   action.textContent = eventAction(event);
 
-  const time = document.createElement("time");
+  const time = document.createElement(event.action === "baseline" ? "span" : "time");
   time.className = "event-time";
-  time.dateTime = event.at;
-  time.textContent = new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(event.at));
+  if (event.action === "baseline") {
+    time.textContent = "Before log";
+  } else {
+    time.dateTime = event.at;
+    time.textContent = new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(event.at));
+  }
 
   item.append(name, action, time);
   return item;
@@ -49,3 +55,4 @@ async function loadEvents() {
 }
 
 loadEvents();
+setInterval(loadEvents, 5000);

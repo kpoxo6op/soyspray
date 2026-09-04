@@ -179,6 +179,8 @@ class BoysApp:
                     action TEXT NOT NULL,
                     available_days INTEGER
                 );
+                CREATE UNIQUE INDEX IF NOT EXISTS one_baseline_per_participant
+                    ON events(name_key) WHERE action = 'baseline';
                 """
             )
             columns = {row[1] for row in connection.execute("PRAGMA table_info(participants)")}
@@ -192,6 +194,22 @@ class BoysApp:
                 ON CONFLICT(name_key) DO UPDATE SET name = excluded.name
                 """,
                 ((name.casefold(), name) for name in CREW),
+            )
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO events (name_key, action, available_days)
+                SELECT participants.name_key, 'baseline', COUNT(availability.day)
+                FROM participants
+                LEFT JOIN availability USING (name_key)
+                WHERE participants.pin_hash IS NOT NULL
+                  AND participants.name_key IN ({placeholders})
+                  AND NOT EXISTS (
+                      SELECT 1 FROM events
+                      WHERE events.name_key = participants.name_key
+                  )
+                GROUP BY participants.name_key
+                """.format(placeholders=", ".join("?" for _ in CREW)),
+                tuple(name.casefold() for name in CREW),
             )
 
     def ready(self) -> bool:
@@ -383,13 +401,18 @@ class BoysApp:
                 FROM events
                 JOIN participants USING (name_key)
                 WHERE participants.name_key IN ({placeholders})
-                ORDER BY events.id DESC
+                ORDER BY
+                    events.action = 'baseline',
+                    CASE WHEN events.action = 'baseline' THEN events.available_days END DESC,
+                    events.id DESC
                 """.format(placeholders=", ".join("?" for _ in CREW)),
                 tuple(name.casefold() for name in CREW),
             ).fetchall()
         result = []
         for created_at, name, action, available_days in rows:
-            event = {"at": created_at, "name": name, "action": action}
+            event = {"name": name, "action": action}
+            if action != "baseline":
+                event["at"] = created_at
             if available_days is not None:
                 event["days"] = available_days
             result.append(event)
