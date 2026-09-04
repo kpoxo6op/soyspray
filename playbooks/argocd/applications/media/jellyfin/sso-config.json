@@ -1,0 +1,26 @@
+{
+  "FormatVersion": 1,
+  "Configuration": {
+    "OidConfigs": {
+      "authentik": {
+        "OidEndpoint": "https://auth.soyspray.vip/application/o/jellyfin/.well-known/openid-configuration",
+        "OidClientId": "jellyfin",
+        "OidSecretFile": "/run/secrets/jellyfin_oidc_client_secret",
+        "Enabled": true,
+        "EnableAuthorization": true,
+        "EnableAllFolders": true,
+        "Roles": ["media-users", "cluster-admins"],
+        "AdminRoles": ["cluster-admins"],
+        "RoleClaim": "groups",
+        "OidScopes": ["profile", "email"],
+        "DefaultUsernameClaim": "preferred_username",
+        "EnableLiveTv": true,
+        "EnableLiveTvManagement": false,
+        "AllowPrivateNetworkAddresses": true,
+        "RequirePkce": true,
+        "SchemeOverride": "https"
+      }
+    },
+    "SamlConfigs": {}
+  }
+}
