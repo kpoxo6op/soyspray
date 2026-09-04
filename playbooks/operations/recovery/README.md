@@ -11,8 +11,18 @@ or expiry rule. Longhorn owns backup retention. The operation rejects an
 existing bucket with versioning or lifecycle rules and never rotates a key.
 
 Run from an authenticated AWS operator session. AWS CloudShell can supply this
-session without creating an administrator access key. Install Ansible Core
-2.18 and the collection listed in `requirements.yml` in that environment.
+session without creating an administrator access key. Prepare its tools:
+
+```bash
+python3 -m venv recovery-venv
+source recovery-venv/bin/activate
+python -m pip install ansible-core==2.18.18 boto3==1.43.62
+```
+
+Install the collection listed in `requirements.yml` as shown below. An initial
+`--check` run verifies the account and recipient but skips bucket creation and
+the policy for a new user. Run check mode again after bootstrap to inspect
+the existing resources.
 
 On the laptop, create an RSA transfer key in a private directory outside Git:
 
