@@ -1,0 +1,41 @@
+---
+- name: Read live TV Argo applications
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: "{{ item }}"
+    namespace: argocd
+    kubeconfig: "{{ kubeconfig_path }}"
+  loop: [jellyfin, dispatcharr, media-helper]
+  register: live_tv_apps
+
+- name: Quiesce live TV Argo applications
+  kubernetes.core.k8s:
+    state: patched
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: "{{ item.item }}"
+    namespace: argocd
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      metadata:
+        finalizers: [resources-finalizer.argocd.argoproj.io]
+      operation: null
+      spec:
+        syncPolicy:
+          automated: null
+  loop: "{{ live_tv_apps.results }}"
+  when: item.resources | length == 1
+
+- name: Remove live TV Argo applications
+  kubernetes.core.k8s:
+    state: absent
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: "{{ item }}"
+    namespace: argocd
+    kubeconfig: "{{ kubeconfig_path }}"
+    wait: true
+    delete_options:
+      propagationPolicy: Foreground
+  loop: [jellyfin, dispatcharr, media-helper]
