@@ -7,7 +7,8 @@ person's availability and overlap inside each date.
 The application stores only names and selected dates in SQLite on the
 `boys-data` Longhorn claim. It has no account, email, analytics, or third-party
 browser script. The shared PIN is suitable for a trusted event group. It does
-not prove who entered a name.
+not prove who entered a name. Cloudflare processes the public requests and
+connection metadata to deliver the site.
 
 ## Request path
 
@@ -72,4 +73,5 @@ curl --fail --head https://boys.soyspray.vip/
 
 Use `make boys BOYS_ENABLED=false` to remove the workloads and runtime secrets.
 The namespace and `boys-data` claim remain because they contain the event data.
-Delete that claim only when the group no longer needs its saved dates.
+This package does not configure an offsite backup. Delete the claim only when
+the group no longer needs its saved dates.

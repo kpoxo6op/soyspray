@@ -2,7 +2,7 @@
 
 [`boys-project.yaml`](boys-project.yaml) limits the application to the
 `kpoxo6op/soyspray` repository, the `boys` namespace, and the required resource
-kinds. Argo CD cannot create or read the runtime secrets.
+kinds. The AppProject does not allow Secret resources.
 
 [`boys-application.yaml`](boys-application.yaml) reconciles the
 [boys package](../../../../../kubernetes/boys/README.md). The Ansible role
