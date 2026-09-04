@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Serve the shared-PIN boys availability calendar."""
+"""Serve the boys availability calendar."""
 
 from __future__ import annotations
 
@@ -46,6 +46,19 @@ SESSION_MAX_AGE = 90 * 24 * 60 * 60
 FAILED_PIN_LIMIT = 10
 FAILED_PIN_WINDOW = 10 * 60
 FAILED_PIN_CLIENT_LIMIT = 4096
+PIN_HASH_ROUNDS = 200_000
+CREW = (
+    "Boris K",
+    "Sergey Kiktev",
+    "Max Edin",
+    "Innok Mikhalev",
+    "Alexey Pichulev",
+    "Vitaly Borisov",
+    "Eugene Kobyak",
+    "Konstantin Pastbin",
+    "Bronislav",
+)
+CREW_BY_KEY = {name.casefold(): name for name in CREW}
 
 
 def normalize_name(value: object) -> tuple[str, str]:
@@ -57,6 +70,17 @@ def normalize_name(value: object) -> tuple[str, str]:
     if any(unicodedata.category(character).startswith("C") for character in name):
         raise ValueError("The name contains an unsupported character.")
     return name, name.casefold()
+
+
+def normalize_pin(value: object) -> str:
+    pin = value if isinstance(value, str) else ""
+    if not 4 <= len(pin) <= 8 or not pin.isascii() or not pin.isdigit():
+        raise ValueError("Use 4 to 8 digits for your PIN.")
+    return pin
+
+
+def hash_pin(pin: str, salt: bytes) -> bytes:
+    return hashlib.pbkdf2_hmac("sha256", pin.encode(), salt, PIN_HASH_ROUNDS)
 
 
 def encode_token(payload: dict, key: bytes) -> str:
@@ -80,7 +104,11 @@ def decode_token(token: str, key: bytes) -> dict | None:
         if not hmac.compare_digest(signature, expected):
             return None
         payload = json.loads(raw)
-        if not isinstance(payload, dict) or int(payload.get("expires", 0)) < int(time.time()):
+        if (
+            not isinstance(payload, dict)
+            or payload.get("version") != 2
+            or int(payload.get("expires", 0)) < int(time.time())
+        ):
             return None
         name, name_key = normalize_name(payload.get("name"))
         if payload.get("name_key") != name_key:
@@ -101,17 +129,17 @@ class BoysApp:
     def __init__(
         self,
         database_path: Path,
-        pin: str,
+        seed_pin: str,
         session_key: bytes,
         assets_dir: Path = APP_DIR,
         cookie_secure: bool = True,
     ) -> None:
-        if not pin:
+        if not seed_pin:
             raise ValueError("BOYS_PIN is required")
         if len(session_key) < 32:
             raise ValueError("BOYS_SESSION_KEY must contain at least 32 bytes")
         self.database_path = Path(database_path)
-        self.pin = pin
+        self.seed_pin = seed_pin
         self.session_key = session_key
         self.assets_dir = Path(assets_dir)
         self.cookie_secure = cookie_secure
@@ -133,7 +161,9 @@ class BoysApp:
                 """
                 CREATE TABLE IF NOT EXISTS participants (
                     name_key TEXT PRIMARY KEY,
-                    name TEXT NOT NULL
+                    name TEXT NOT NULL,
+                    pin_salt BLOB,
+                    pin_hash BLOB
                 );
                 CREATE TABLE IF NOT EXISTS availability (
                     name_key TEXT NOT NULL REFERENCES participants(name_key) ON DELETE CASCADE,
@@ -141,6 +171,18 @@ class BoysApp:
                     PRIMARY KEY (name_key, day)
                 );
                 """
+            )
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(participants)")}
+            if "pin_salt" not in columns:
+                connection.execute("ALTER TABLE participants ADD COLUMN pin_salt BLOB")
+            if "pin_hash" not in columns:
+                connection.execute("ALTER TABLE participants ADD COLUMN pin_hash BLOB")
+            connection.executemany(
+                """
+                INSERT INTO participants (name_key, name) VALUES (?, ?)
+                ON CONFLICT(name_key) DO UPDATE SET name = excluded.name
+                """,
+                ((name.casefold(), name) for name in CREW),
             )
 
     def ready(self) -> bool:
@@ -172,33 +214,92 @@ class BoysApp:
         with self.failed_pins_lock:
             self.failed_pins.pop(client, None)
 
-    def login(self, name_value: object, pin_value: object, client: str) -> tuple[str, str]:
-        if not self.client_can_try_pin(client):
-            raise PermissionError("Too many PIN attempts. Try again in 10 minutes.")
-        pin = pin_value if isinstance(pin_value, str) else ""
-        if not hmac.compare_digest(pin, self.pin):
-            self.record_failed_pin(client)
-            raise PermissionError("The PIN is not correct.")
-        name, name_key = normalize_name(name_value)
-        self.clear_failed_pins(client)
-        with self.connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO participants (name_key, name) VALUES (?, ?)
-                ON CONFLICT(name_key) DO UPDATE SET
-                    name = excluded.name
-                """,
-                (name_key, name),
-            )
+    def create_session(self, name: str, name_key: str) -> tuple[str, str]:
         token = encode_token(
             {
                 "expires": int(time.time()) + SESSION_MAX_AGE,
                 "name": name,
                 "name_key": name_key,
+                "version": 2,
             },
             self.session_key,
         )
         return name, token
+
+    def crew_member(self, name_value: object) -> tuple[str, str] | None:
+        _, name_key = normalize_name(name_value)
+        name = CREW_BY_KEY.get(name_key)
+        return (name, name_key) if name else None
+
+    def crew(self) -> list[dict]:
+        with self.connect() as connection:
+            claimed = {
+                name_key: pin_hash is not None
+                for name_key, pin_hash in connection.execute(
+                    "SELECT name_key, pin_hash FROM participants"
+                )
+            }
+        return [{"name": name, "claimed": claimed.get(name.casefold(), False)} for name in CREW]
+
+    def login(self, name_value: object, pin_value: object, client: str) -> tuple[str, str]:
+        if not self.client_can_try_pin(client):
+            raise PermissionError("Too many PIN attempts. Try again in 10 minutes.")
+        member = self.crew_member(name_value)
+        if not member:
+            self.record_failed_pin(client)
+            raise PermissionError("Choose your crew name.")
+        name, name_key = member
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT pin_salt, pin_hash FROM participants WHERE name_key = ?",
+                (name_key,),
+            ).fetchone()
+        if not row or row[0] is None or row[1] is None:
+            raise PermissionError("Claim this name first.")
+        pin = pin_value if isinstance(pin_value, str) else ""
+        valid_pin = 4 <= len(pin) <= 8 and pin.isascii() and pin.isdigit()
+        if not valid_pin or not hmac.compare_digest(hash_pin(pin, row[0]), row[1]):
+            self.record_failed_pin(client)
+            raise PermissionError("The PIN is not correct.")
+        self.clear_failed_pins(client)
+        return self.create_session(name, name_key)
+
+    def claim(
+        self,
+        name_value: object,
+        seed_pin_value: object,
+        pin_value: object,
+        client: str,
+    ) -> tuple[str, str]:
+        if not self.client_can_try_pin(client):
+            raise PermissionError("Too many PIN attempts. Try again in 10 minutes.")
+        seed_pin = seed_pin_value if isinstance(seed_pin_value, str) else ""
+        if not hmac.compare_digest(seed_pin, self.seed_pin):
+            self.record_failed_pin(client)
+            raise PermissionError("The crew PIN is not correct.")
+        member = self.crew_member(name_value)
+        if not member:
+            raise PermissionError("Choose your crew name.")
+        name, name_key = member
+        pin = normalize_pin(pin_value)
+        if hmac.compare_digest(pin, self.seed_pin):
+            raise ValueError("Choose a different PIN.")
+        salt = os.urandom(16)
+        pin_digest = hash_pin(pin, salt)
+        with self.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT pin_hash FROM participants WHERE name_key = ?",
+                (name_key,),
+            ).fetchone()
+            if not row or row[0] is not None:
+                raise ValueError("This name is already claimed.")
+            connection.execute(
+                "UPDATE participants SET pin_salt = ?, pin_hash = ? WHERE name_key = ?",
+                (salt, pin_digest, name_key),
+            )
+        self.clear_failed_pins(client)
+        return self.create_session(name, name_key)
 
     def session(self, cookie_header: str | None) -> dict | None:
         if not cookie_header:
@@ -209,7 +310,15 @@ class BoysApp:
         except (CookieError, ValueError):
             return None
         morsel = cookie.get("boys_session")
-        return decode_token(morsel.value, self.session_key) if morsel else None
+        session = decode_token(morsel.value, self.session_key) if morsel else None
+        if not session:
+            return None
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT pin_hash FROM participants WHERE name_key = ?",
+                (session["name_key"],),
+            ).fetchone()
+        return session if row and row[0] is not None else None
 
     def availability(self, me: str) -> dict:
         with self.connect() as connection:
@@ -218,8 +327,10 @@ class BoysApp:
                 SELECT participants.name, availability.day
                 FROM participants
                 LEFT JOIN availability USING (name_key)
+                WHERE participants.name_key IN ({placeholders})
                 ORDER BY participants.name_key, availability.day
-                """
+                """.format(placeholders=", ".join("?" for _ in CREW)),
+                tuple(name.casefold() for name in CREW),
             ).fetchall()
         grouped: dict[str, list[str]] = {}
         for name, day in rows:
@@ -251,14 +362,6 @@ class BoysApp:
 
         with self.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            connection.execute(
-                """
-                INSERT INTO participants (name_key, name) VALUES (?, ?)
-                ON CONFLICT(name_key) DO UPDATE SET
-                    name = excluded.name
-                """,
-                (session["name_key"], session["name"]),
-            )
             connection.execute(
                 "DELETE FROM availability WHERE name_key = ?", (session["name_key"],)
             )
@@ -381,6 +484,16 @@ class Handler(BaseHTTPRequestHandler):
                 HTTPStatus.OK if ready else HTTPStatus.SERVICE_UNAVAILABLE,
                 {"ready": ready},
             )
+        elif path == "/api/session":
+            self.send_json(
+                HTTPStatus.OK,
+                {"authenticated": self.current_session() is not None},
+            )
+        elif path == "/api/crew":
+            try:
+                self.send_json(HTTPStatus.OK, {"crew": self.app.crew()})
+            except sqlite3.Error as error:
+                self.send_database_error("read crew", error)
         elif path == "/api/availability":
             session = self.current_session()
             if not session:
@@ -400,6 +513,18 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/session":
                 name, token = self.app.login(
                     payload.get("name"), payload.get("pin"), self.client_key()
+                )
+                self.send_json(
+                    HTTPStatus.OK,
+                    {"name": name},
+                    {"Set-Cookie": self.session_cookie(token)},
+                )
+            elif path == "/api/claim":
+                name, token = self.app.claim(
+                    payload.get("name"),
+                    payload.get("seed_pin"),
+                    payload.get("pin"),
+                    self.client_key(),
                 )
                 self.send_json(
                     HTTPStatus.OK,
@@ -454,11 +579,11 @@ def make_server(address: tuple[str, int], app: BoysApp) -> ThreadingHTTPServer:
 
 
 def main() -> None:
-    pin = os.environ.get("BOYS_PIN", "")
+    seed_pin = os.environ.get("BOYS_PIN", "")
     session_key = os.environ.get("BOYS_SESSION_KEY", "").encode()
     app = BoysApp(
         database_path=Path(os.environ.get("BOYS_DATABASE", "/data/boys.sqlite3")),
-        pin=pin,
+        seed_pin=seed_pin,
         session_key=session_key,
         cookie_secure=os.environ.get("BOYS_COOKIE_SECURE", "true").lower() != "false",
     )
