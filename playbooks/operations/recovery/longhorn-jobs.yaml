@@ -1,0 +1,29 @@
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: critical-recent
+  namespace: longhorn-system
+spec:
+  name: critical-recent
+  cron: '*/30 * * * *'
+  task: backup-force-create
+  groups: [critical]
+  retain: 48
+  concurrency: 1
+  labels:
+    soyspray-policy: critical-recent
+---
+apiVersion: longhorn.io/v1beta2
+kind: RecurringJob
+metadata:
+  name: critical-daily
+  namespace: longhorn-system
+spec:
+  name: critical-daily
+  cron: '15 14 * * *'
+  task: backup-force-create
+  groups: [critical]
+  retain: 30
+  concurrency: 1
+  labels:
+    soyspray-policy: critical-daily
