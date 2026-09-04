@@ -20,6 +20,15 @@ VOICE_ASSISTANT_ENABLED ?= true
 VAULTWARDEN_PACKAGE := kubernetes/vaultwarden
 VAULTWARDEN_ENABLED ?= true
 VAULTWARDEN_REVISION ?= HEAD
+LIVE_TV_ENABLED ?= false
+LIVE_TV_REVISION ?= HEAD
+ifeq ($(LIVE_TV_ENABLED),true)
+LIVE_TV_TAGS := authentik,live-tv
+LIVE_TV_AUTHENTIK_ARGS := -e authentik_target_revision=$(LIVE_TV_REVISION)
+else
+LIVE_TV_TAGS := live-tv
+LIVE_TV_AUTHENTIK_ARGS :=
+endif
 VOICE_PE_HOST ?= home-assistant-voice-0a9b95.local
 VOICE_PE_CONFIG := .build/voice-pe/gi-voice-pe.yaml
 ESPHOME := uvx --from esphome==2025.5.1 esphome
@@ -42,10 +51,13 @@ KUSTOMIZATIONS := \
 	kubernetes/boys \
 	$(VAULTWARDEN_PACKAGE) \
 	playbooks/argocd/applications/home-automation/voice-assistant \
+	playbooks/argocd/applications/media/media-helper \
+	playbooks/argocd/applications/media/dispatcharr \
+	playbooks/argocd/applications/media/jellyfin \
 	playbooks/argocd/applications/kong-bank-lab/operator-dashboard
 
 .PHONY: help setup act check autism-traits-check lint validate validate-skills status-page-check test docs docs-serve \
-	render status smoke go deploy kong-on kong-off autism-traits boys vaultwarden voice-assistant voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login list-apps node0 node1 node2 \
+	render status smoke go deploy kong-on kong-off autism-traits boys vaultwarden live-tv voice-assistant voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login list-apps node0 node1 node2 \
 	master worker1 worker2 worker3 clean
 
 help: ## Show the operator commands
@@ -75,6 +87,8 @@ lint: ## Check Python style and common defects
 		roles/apps/boys/tasks/*.yml roles/apps/boys/defaults/*.yml \
 		roles/apps/vaultwarden/tasks/*.yml roles/apps/vaultwarden/defaults/*.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
+	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
+		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml
 
 validate: validate-skills status-page-check ## Validate YAML, OpenAPI, and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py
@@ -116,7 +130,7 @@ go: check ## Run the deployment preflight
 	test -n "$$branch" && test "$$branch" != main || { echo 'Deploy from a topic branch, not main.' >&2; exit 1; }
 	test -z "$$(git status --porcelain)" || { echo 'Commit the working tree before deployment.' >&2; exit 1; }
 	git merge-base --is-ancestor HEAD '@{upstream}' || { echo 'Push the current commit before deployment.' >&2; exit 1; }
-	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --syntax-check --tags kong_bank_lab,autism_traits,boys,vaultwarden,voice_assistant
+	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --syntax-check --tags authentik,live-tv,kong_bank_lab,autism_traits,boys,vaultwarden,voice_assistant
 	$(PYTHON) scripts/banklab_status.py || printf '\nBank-lab applications need reconciliation.\n'
 	printf '\nDeployment preflight passed.\n'
 
@@ -144,6 +158,11 @@ vaultwarden: go
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags vaultwarden \
 		-e vaultwarden_enabled=$(VAULTWARDEN_ENABLED) \
 		-e vaultwarden_target_revision=$(VAULTWARDEN_REVISION)
+
+live-tv: go
+	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags $(LIVE_TV_TAGS) $(LIVE_TV_AUTHENTIK_ARGS) \
+		-e live_tv_enabled=$(LIVE_TV_ENABLED) \
+		-e live_tv_target_revision=$(LIVE_TV_REVISION)
 
 voice-assistant: go
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags voice_assistant \

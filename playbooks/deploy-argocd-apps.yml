@@ -40,6 +40,7 @@
       - { name: LazyLibrarian, role: apps/lazylibrarian }
       - { name: Booklore, role: apps/booklore }
       - { name: Immich, role: apps/immich }
+      - { name: Live TV, role: apps/live_tv }
 
       # Home Automation
       - { name: Mosquitto, role: apps/mosquitto }
