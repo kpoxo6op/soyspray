@@ -72,7 +72,7 @@
     - name: Require an unversioned store
       ansible.builtin.assert:
         that:
-          - (recovery_versioning.stdout | from_json).Status is not defined
+          - (recovery_versioning.stdout | default('{}', true) | from_json).Status is not defined
         fail_msg: Versioning needs a separate review. Do not suspend it through this operation.
       when: recovery_existing_bucket.buckets | length > 0
 
