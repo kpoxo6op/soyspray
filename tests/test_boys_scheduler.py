@@ -402,6 +402,25 @@ def test_argocd_role_owns_secrets_and_revision_selection() -> None:
         "repoURL": "https://github.com/kpoxo6op/soyspray.git",
         "targetRevision": "HEAD",
         "path": "kubernetes/boys",
+        "kustomize": {
+            "patches": [
+                {
+                    "target": {"kind": "Deployment", "name": "boys"},
+                    "patch": (
+                        "apiVersion: apps/v1\n"
+                        "kind: Deployment\n"
+                        "metadata:\n"
+                        "  name: boys\n"
+                        "spec:\n"
+                        "  template:\n"
+                        "    metadata:\n"
+                        "      annotations:\n"
+                        "        soyspray.vip/runtime-secret-resource-version: "
+                        '"BOYS_RUNTIME_SECRET_RESOURCE_VERSION"'
+                    ),
+                }
+            ]
+        },
     }
     assert application["spec"]["project"] == "boys"
     assert project["spec"]["destinations"] == [
@@ -416,6 +435,9 @@ def test_argocd_role_owns_secrets_and_revision_selection() -> None:
     assert "BOYS_PIN" in enabled
     assert "BOYS_SESSION_KEY" in enabled
     assert "BOYS_CLOUDFLARED_TOKEN" in enabled
+    assert "boys_runtime_secret" in enabled
+    assert "BOYS_RUNTIME_SECRET_RESOURCE_VERSION" in enabled
+    assert "resourceVersion" in enabled
     assert "targetRevision" in enabled
     assert disabled.index("Quiesce the boys Argo application") < disabled.index(
         "Remove the boys runtime secrets"

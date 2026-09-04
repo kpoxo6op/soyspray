@@ -12,6 +12,16 @@
       - key: session-key
         env_var: BOYS_SESSION_KEY
 
+- name: Read the boys runtime secret version
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: boys-runtime
+    namespace: boys
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: boys_runtime_secret
+  no_log: true
+
 - name: Bootstrap the boys Cloudflare Tunnel token
   ansible.builtin.include_role:
     name: app-secret
@@ -36,6 +46,10 @@
     kubeconfig: "{{ kubeconfig_path }}"
     definition: >-
       {{ lookup('file', playbook_dir + '/argocd/applications/web/boys/boys-application.yaml')
+         | replace(
+             'BOYS_RUNTIME_SECRET_RESOURCE_VERSION',
+             boys_runtime_secret.resources[0].metadata.resourceVersion | string
+           )
          | from_yaml
          | combine(
              {'spec': {'source': {'targetRevision': (boys_target_revision | string)}}},

@@ -13,6 +13,21 @@ spec:
     repoURL: https://github.com/kpoxo6op/soyspray.git
     targetRevision: HEAD
     path: kubernetes/boys
+    kustomize:
+      patches:
+        - target:
+            kind: Deployment
+            name: boys
+          patch: |-
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: boys
+            spec:
+              template:
+                metadata:
+                  annotations:
+                    soyspray.vip/runtime-secret-resource-version: "BOYS_RUNTIME_SECRET_RESOURCE_VERSION"
   destination:
     server: https://kubernetes.default.svc
     namespace: boys
