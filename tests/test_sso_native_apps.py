@@ -93,8 +93,21 @@ def test_native_app_blueprint_uses_exact_oidc_clients() -> None:
         }
     ]
 
+    jellyfin = providers["jellyfin-provider"]
+    assert jellyfin["client_type"] == "confidential"
+    assert jellyfin["client_id"] == "jellyfin"
+    assert jellyfin["client_secret"] == "JELLYFIN_OIDC_CLIENT_SECRET"
+    assert jellyfin["grant_types"] == ["authorization_code", "refresh_token"]
+    assert jellyfin["redirect_uris"] == [
+        {
+            "matching_mode": "strict",
+            "url": "https://tv.soyspray.vip/sso/OID/redirect/authentik",
+            "redirect_uri_type": "authorization",
+        }
+    ]
 
-def test_native_apps_are_limited_to_cluster_admins() -> None:
+
+def test_native_apps_keep_admin_surfaces_separate_from_media_viewers() -> None:
     entries = _blueprint_entries()
     applications = {
         item["id"]: item for item in entries if item["model"] == "authentik_core.application"
@@ -105,15 +118,31 @@ def test_native_apps_are_limited_to_cluster_admins() -> None:
         "immich-application",
         "booklore-application",
         "home-assistant-application",
+        "jellyfin-application",
     }
     assert {item["identifiers"]["target"] for item in bindings} == {
         "immich-application",
         "booklore-application",
         "home-assistant-application",
+        "jellyfin-application",
     }
+    binding_groups = {
+        application: {
+            item["attrs"]["group"][1][1]
+            for item in bindings
+            if item["identifiers"]["target"] == application
+        }
+        for application in applications
+    }
+    assert applications["jellyfin-application"]["attrs"]["policy_engine_mode"] == "any"
+    assert applications["jellyfin-application"]["attrs"]["meta_launch_url"] == (
+        "https://tv.soyspray.vip/sso/OID/start/authentik"
+    )
+    assert binding_groups["jellyfin-application"] == {"media-users", "cluster-admins"}
     assert all(
-        item["attrs"]["group"] == ["authentik_core.group", ["name", "cluster-admins"]]
-        for item in bindings
+        groups == {"cluster-admins"}
+        for application, groups in binding_groups.items()
+        if application != "jellyfin-application"
     )
 
 

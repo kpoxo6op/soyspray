@@ -81,7 +81,7 @@ def _ingress_annotations(name: str) -> dict[str, str]:
     return load_yaml(f"{APPLICATIONS[name]['directory']}/ingress.yaml")["metadata"]["annotations"]
 
 
-def test_blueprint_has_five_bound_single_application_proxy_providers() -> None:
+def test_blueprint_has_all_bound_single_application_proxy_providers() -> None:
     entries = _blueprint_entries()
     dependencies = {
         item["attrs"]["identifiers"]["name"]
@@ -89,31 +89,64 @@ def test_blueprint_has_five_bound_single_application_proxy_providers() -> None:
         if item["model"] == "authentik_blueprints.metaapplyblueprint"
     }
     providers = [
-        item for item in entries if item["model"] == "authentik_providers_proxy.proxyprovider"
+        item
+        for item in entries
+        if item["model"] == "authentik_providers_proxy.proxyprovider"
+        and item.get("state", "present") != "absent"
     ]
-    applications = [item for item in entries if item["model"] == "authentik_core.application"]
+    applications = [
+        item
+        for item in entries
+        if item["model"] == "authentik_core.application"
+        and item.get("state", "present") != "absent"
+    ]
     bindings = [item for item in entries if item["model"] == "authentik_policies.policybinding"]
     outposts = [item for item in entries if item["model"] == "authentik_outposts.outpost"]
 
-    assert len(providers) == 5
-    assert {item["attrs"]["external_host"] for item in providers} == {
-        f"https://{settings['host']}" for settings in APPLICATIONS.values()
+    expected_hosts = {f"https://{settings['host']}" for settings in APPLICATIONS.values()} | {
+        "https://dispatcharr.soyspray.vip"
     }
+    assert len(providers) == len(expected_hosts)
+    assert {item["attrs"]["external_host"] for item in providers} == expected_hosts
     assert {item["attrs"]["mode"] for item in providers} == {"forward_single"}
-    assert len(applications) == 5
-    assert len(bindings) == 5
-    assert all(
-        item["attrs"]["group"] == ["authentik_core.group", ["name", "cluster-admins"]]
-        for item in bindings
-    )
+    assert len(applications) == len(expected_hosts)
+    assert len(bindings) == len(expected_hosts)
+    binding_groups = {
+        application["id"]: {
+            item["attrs"]["group"][1][1]
+            for item in bindings
+            if item["identifiers"]["target"] == application["id"]
+        }
+        for application in applications
+    }
+    assert all(groups == {"cluster-admins"} for groups in binding_groups.values())
     assert len(outposts) == 1
     assert outposts[0]["identifiers"]["managed"] == "goauthentik.io/outposts/embedded"
-    assert len(outposts[0]["attrs"]["providers"]) == 5
+    assert len(outposts[0]["attrs"]["providers"]) == len(expected_hosts)
     assert outposts[0]["attrs"]["config"] == {
         "authentik_host": "https://auth.soyspray.vip",
     }
     assert "Soyspray cluster SSO" in dependencies
     assert "System - Proxy Provider - Scopes" in dependencies
+
+    absent = {
+        (item["model"], tuple(item["identifiers"].items()))
+        for item in entries
+        if item.get("state") == "absent"
+    }
+    assert absent == {
+        ("authentik_core.application", (("slug", "tv-wall"),)),
+        (
+            "authentik_providers_proxy.proxyprovider",
+            (("name", "TV wall forward auth"),),
+        ),
+    }
+    outpost_index = next(
+        index for index, item in enumerate(entries) if item["model"] == "authentik_outposts.outpost"
+    )
+    assert all(
+        index > outpost_index for index, item in enumerate(entries) if item.get("state") == "absent"
+    )
 
 
 def test_blueprint_preserves_native_machine_api_paths() -> None:
@@ -122,6 +155,7 @@ def test_blueprint_preserves_native_machine_api_paths() -> None:
         item["id"]: item["attrs"]
         for item in entries
         if item["model"] == "authentik_providers_proxy.proxyprovider"
+        and item.get("state", "present") != "absent"
     }
 
     assert providers["lazylibrarian-proxy-provider"]["skip_path_regex"] == (
@@ -130,7 +164,7 @@ def test_blueprint_preserves_native_machine_api_paths() -> None:
     assert providers["qbittorrent-proxy-provider"]["skip_path_regex"] == r"^/api/v2(/|$)"
     assert all(
         "skip_path_regex" not in providers[f"{name}-proxy-provider"]
-        for name in ("longhorn", "prometheus", "zigbee2mqtt")
+        for name in ("longhorn", "prometheus", "zigbee2mqtt", "dispatcharr")
     )
 
 

@@ -20,10 +20,21 @@ def test_headlamp_uses_an_external_oidc_secret_and_group_rbac() -> None:
 
 def test_authentik_restarts_when_runtime_oidc_clients_change() -> None:
     values = load_yaml("playbooks/argocd/applications/security/authentik/values.yaml")
+    application = load_yaml(
+        "playbooks/argocd/applications/security/authentik/authentik-application.yaml"
+    )
+    tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
 
-    expected = {"soyspray.vip/runtime-secret-revision": "2026-08-09-3"}
-    assert values["server"]["podAnnotations"] == expected
-    assert values["worker"]["podAnnotations"] == expected
+    assert "podAnnotations" not in values["server"]
+    assert "podAnnotations" not in values["worker"]
+    parameters = application["spec"]["sources"][0]["helm"]["parameters"]
+    assert {item["name"] for item in parameters} == {
+        r"server.podAnnotations.soyspray\.vip/runtime-secret-resource-version",
+        r"worker.podAnnotations.soyspray\.vip/runtime-secret-resource-version",
+    }
+    assert {item["value"] for item in parameters} == {"AUTHENTIK_RUNTIME_SECRET_RESOURCE_VERSION"}
+    assert "register: authentik_runtime_secret_apply" in tasks
+    assert "authentik_runtime_secret_apply.result.metadata.resourceVersion" in tasks
 
 
 def test_authentik_worker_probe_allows_blueprint_apply_time() -> None:
