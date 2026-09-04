@@ -11,6 +11,6 @@ make setup
 soyspray-venv/bin/python -m pytest -q tests/test_boys_scheduler.py
 ```
 
-The shared PIN is not an identity system. A person who knows the PIN can use
-an existing name and change its dates. Use this site only for the trusted event
-group. Rotate the PIN if it leaves that group.
+The access flow shows one step at a time. A person selects a preseeded name. An
+unclaimed name requires the crew PIN and then a new personal PIN. A claimed
+name requires its personal PIN. The site does not accept other names.

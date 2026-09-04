@@ -3,7 +3,8 @@
 This package serves `https://boys.soyspray.vip`. The nine crew names are ready
 in the sign-in list. A person claims an unused name with the crew PIN and then
 chooses a personal PIN. Colored stripes show each person's availability and
-overlap inside each date.
+overlap inside each date. The page shows the name, crew PIN, and personal PIN
+as separate steps.
 
 The application stores the names, selected dates, and salted personal PIN
 hashes in SQLite on the `boys-data` Longhorn claim. It has no email, analytics,
