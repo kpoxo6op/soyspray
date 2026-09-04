@@ -14,7 +14,8 @@ soyspray-venv/bin/python -m pytest -q tests/test_boys_scheduler.py
 The access flow shows one step at a time. A person selects a preseeded name. An
 unclaimed name requires the crew PIN and then a new personal PIN. A claimed
 name requires its personal PIN. The site does not accept other names. Each
-preseeded name has a fixed calendar color in `app.js` and `styles.css`.
+preseeded name has a fixed calendar color and line pattern in `app.js` and
+`styles.css`. All calendar lines have the same weight.
 
 The signed-in calendar shows each boy's claim state and available-day count.
 The separate event log records new claims and changed availability totals. It

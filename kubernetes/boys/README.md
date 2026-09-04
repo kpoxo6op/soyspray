@@ -2,10 +2,10 @@
 
 This package serves `https://boys.soyspray.vip`. The nine crew names are ready
 in the sign-in list. A person claims an unused name with the crew PIN and then
-chooses a personal PIN. Each name has a fixed color. Stacked stripes show the
-availability overlap inside each date. The page shows the name, crew PIN, and
-personal PIN as separate steps. The calendar lists each boy as `unclaimed`,
-`no dates`, or with an available-day count.
+chooses a personal PIN. Each name has a fixed color and line pattern. Equal
+stacked lines show the availability overlap inside each date. The page shows
+the name, crew PIN, and personal PIN as separate steps. The calendar lists each
+boy as `unclaimed`, `no dates`, or with an available-day count.
 
 The application stores names, selected dates, activity events, and salted
 personal PIN hashes in SQLite on the `boys-data` Longhorn claim. It has no
