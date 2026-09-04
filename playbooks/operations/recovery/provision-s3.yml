@@ -132,8 +132,11 @@
         tags:
           Project: soyspray
           Purpose: longhorn-backup
+      register: recovery_identity
 
     - name: Limit Longhorn to its backup prefix and store metadata
+      # The AWS module cannot preview a policy for a user created only in check mode.
+      when: not ansible_check_mode or not recovery_identity.changed
       amazon.aws.iam_policy:
         iam_type: user
         iam_name: "{{ recovery_user }}"
