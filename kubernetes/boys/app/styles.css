@@ -56,7 +56,6 @@ select {
 .site-header p,
 .page-title p,
 .calendar-intro p,
-.claim-form p,
 .save-panel p {
   margin: 0;
   color: var(--muted);
@@ -94,7 +93,7 @@ h2 {
   font-weight: 700;
 }
 
-.login-layout {
+.access-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(18rem, 0.65fr);
   gap: clamp(3rem, 10vw, 8rem);
@@ -114,24 +113,9 @@ h2 {
   justify-self: end;
 }
 
-.access-form,
-.claim-form {
+.access-form {
   display: grid;
   gap: 0.75rem;
-}
-
-.claim-form {
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--line);
-}
-
-.claim-form h2 {
-  margin-bottom: -0.2rem;
-}
-
-.claim-form p {
-  margin-bottom: 0.35rem;
-  font-size: 0.82rem;
 }
 
 label {
@@ -213,14 +197,18 @@ a:focus-visible {
   background: transparent;
 }
 
-#claim-button {
-  margin-top: 0.75rem;
+.step-links {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
 }
 
-.claim-actions {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
+.step-links a {
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-underline-offset: 0.2rem;
 }
 
 .form-error {
@@ -231,18 +219,10 @@ a:focus-visible {
 }
 
 .access-note {
-  display: grid;
-  gap: 0.35rem;
-  margin: 1.25rem 0 0;
+  margin: 0.5rem 0 0;
   color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.5;
-}
-
-.access-note a {
-  width: fit-content;
-  color: var(--foreground);
-  text-underline-offset: 0.2rem;
 }
 
 .calendar-layout {
@@ -471,7 +451,7 @@ a:focus-visible {
     padding-top: 1rem;
   }
 
-  .login-layout {
+  .access-layout {
     grid-template-columns: 1fr;
     gap: 2.5rem;
     min-height: auto;

@@ -264,11 +264,10 @@ class BoysApp:
         self.clear_failed_pins(client)
         return self.create_session(name, name_key)
 
-    def claim(
+    def check_claim(
         self,
         name_value: object,
         seed_pin_value: object,
-        pin_value: object,
         client: str,
     ) -> tuple[str, str]:
         if not self.client_can_try_pin(client):
@@ -281,6 +280,24 @@ class BoysApp:
         if not member:
             raise PermissionError("Choose your crew name.")
         name, name_key = member
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT pin_hash FROM participants WHERE name_key = ?",
+                (name_key,),
+            ).fetchone()
+        if not row or row[0] is not None:
+            raise ValueError("This name is already claimed.")
+        self.clear_failed_pins(client)
+        return name, name_key
+
+    def claim(
+        self,
+        name_value: object,
+        seed_pin_value: object,
+        pin_value: object,
+        client: str,
+    ) -> tuple[str, str]:
+        name, name_key = self.check_claim(name_value, seed_pin_value, client)
         pin = normalize_pin(pin_value)
         if hmac.compare_digest(pin, self.seed_pin):
             raise ValueError("Choose a different PIN.")
@@ -531,6 +548,13 @@ class Handler(BaseHTTPRequestHandler):
                     {"name": name},
                     {"Set-Cookie": self.session_cookie(token)},
                 )
+            elif path == "/api/claim/check":
+                name, _ = self.app.check_claim(
+                    payload.get("name"),
+                    payload.get("seed_pin"),
+                    self.client_key(),
+                )
+                self.send_json(HTTPStatus.OK, {"name": name})
             elif path == "/api/logout":
                 self.send_json(
                     HTTPStatus.OK,

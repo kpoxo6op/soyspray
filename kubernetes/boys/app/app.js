@@ -1,5 +1,7 @@
 const state = {
   crew: [],
+  member: null,
+  claimSeedPin: "",
   me: "",
   participants: [],
   selected: new Set(),
@@ -7,17 +9,22 @@ const state = {
   dirty: false,
 };
 
-const loginView = document.querySelector("#login-view");
+const accessView = document.querySelector("#access-view");
 const calendarView = document.querySelector("#calendar-view");
+const nameForm = document.querySelector("#name-form");
 const loginForm = document.querySelector("#login-form");
-const claimForm = document.querySelector("#claim-form");
+const crewPinForm = document.querySelector("#crew-pin-form");
+const personalPinForm = document.querySelector("#personal-pin-form");
+const accessForms = [nameForm, loginForm, crewPinForm, personalPinForm];
+const accessTitle = document.querySelector("#access-title");
+const accessInstruction = document.querySelector("#access-instruction");
 const nameSelect = document.querySelector("#name");
-const claimButton = document.querySelector("#claim-button");
-const claimName = document.querySelector("#claim-name");
 const loginUsername = document.querySelector("#login-username");
 const claimUsername = document.querySelector("#claim-username");
+const nameError = document.querySelector("#name-error");
 const loginError = document.querySelector("#login-error");
-const claimError = document.querySelector("#claim-error");
+const crewPinError = document.querySelector("#crew-pin-error");
+const personalPinError = document.querySelector("#personal-pin-error");
 const monthLabel = document.querySelector("#month-label");
 const calendarGrid = document.querySelector("#calendar-grid");
 const summary = document.querySelector("#calendar-summary");
@@ -65,10 +72,13 @@ function selectedCrewMember() {
   return state.crew.find((member) => member.name === nameSelect.value);
 }
 
-function updateClaimButton() {
-  const member = selectedCrewMember();
-  loginUsername.value = member?.name || "";
-  claimButton.hidden = !member || member.claimed;
+function showAccessStep(form, title, instruction, focusSelector) {
+  accessForms.forEach((item) => {
+    item.hidden = item !== form;
+  });
+  accessTitle.textContent = title;
+  accessInstruction.textContent = instruction;
+  document.querySelector(focusSelector).focus();
 }
 
 function renderCrew() {
@@ -80,13 +90,12 @@ function renderCrew() {
   state.crew.forEach((member) => {
     const option = document.createElement("option");
     option.value = member.name;
-    option.textContent = member.claimed ? member.name : `${member.name} · claim`;
+    option.textContent = member.name;
     nameSelect.append(option);
   });
   if (state.crew.some((member) => member.name === selectedName)) {
     nameSelect.value = selectedName;
   }
-  updateClaimButton();
 }
 
 async function loadCrew() {
@@ -95,41 +104,69 @@ async function loadCrew() {
     state.crew = payload.crew;
     renderCrew();
   } catch (error) {
-    loginError.textContent = error.message;
+    nameError.textContent = error.message;
   }
 }
 
-function hideClaim(focus = false) {
-  claimForm.reset();
-  claimError.textContent = "";
-  claimForm.hidden = true;
-  loginForm.hidden = false;
-  updateClaimButton();
-  if (focus) nameSelect.focus();
-}
-
-function showClaim() {
-  const member = selectedCrewMember();
-  if (!member || member.claimed) return;
+function showNameStep() {
+  state.member = null;
+  state.claimSeedPin = "";
+  loginForm.reset();
+  crewPinForm.reset();
+  personalPinForm.reset();
+  nameError.textContent = "";
   loginError.textContent = "";
-  claimName.textContent = member.name;
-  claimUsername.value = member.name;
-  loginForm.hidden = true;
-  claimButton.hidden = true;
-  claimForm.hidden = false;
-  document.querySelector("#seed-pin").focus();
+  crewPinError.textContent = "";
+  personalPinError.textContent = "";
+  showAccessStep(nameForm, "Boys calendar", "Choose your name.", "#name");
 }
 
-async function showLogin() {
-  loginView.hidden = false;
+function showLoginStep() {
+  loginForm.reset();
+  loginError.textContent = "";
+  loginUsername.value = state.member.name;
+  showAccessStep(loginForm, state.member.name, "Enter your PIN.", "#login-pin");
+}
+
+function showCrewPinStep() {
+  state.claimSeedPin = "";
+  crewPinForm.reset();
+  personalPinForm.reset();
+  crewPinError.textContent = "";
+  showAccessStep(
+    crewPinForm,
+    `Claim ${state.member.name}`,
+    "Enter the crew PIN.",
+    "#seed-pin",
+  );
+}
+
+function showPersonalPinStep() {
+  personalPinForm.reset();
+  personalPinError.textContent = "";
+  claimUsername.value = state.member.name;
+  showAccessStep(
+    personalPinForm,
+    "Personal PIN",
+    `Choose 4 to 8 digits for ${state.member.name}.`,
+    "#new-pin",
+  );
+}
+
+async function showAccess() {
+  accessView.hidden = false;
   calendarView.hidden = true;
+  state.member = null;
+  state.claimSeedPin = "";
   state.me = "";
   state.participants = [];
   state.selected = new Set();
+  nameForm.reset();
   loginForm.reset();
-  hideClaim();
+  crewPinForm.reset();
+  personalPinForm.reset();
+  showNameStep();
   await loadCrew();
-  nameSelect.focus();
 }
 
 function openCalendar(payload) {
@@ -138,7 +175,7 @@ function openCalendar(payload) {
   const mine = state.participants.find((participant) => participant.name === state.me);
   state.selected = new Set(mine?.dates || []);
   state.dirty = false;
-  loginView.hidden = true;
+  accessView.hidden = true;
   calendarView.hidden = false;
   document.querySelector("#signed-in-label").textContent = state.me;
   render();
@@ -279,15 +316,31 @@ function showToast(message) {
 }
 
 nameSelect.addEventListener("change", () => {
-  loginError.textContent = "";
-  updateClaimButton();
+  nameError.textContent = "";
 });
 
-claimButton.addEventListener("click", showClaim);
-document.querySelector("#cancel-claim").addEventListener("click", () => hideClaim(true));
+nameForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  nameError.textContent = "";
+  const member = selectedCrewMember();
+  if (!member) {
+    nameError.textContent = "Choose your crew name.";
+    return;
+  }
+  state.member = member;
+  if (member.claimed) showLoginStep();
+  else showCrewPinStep();
+});
+
+document.querySelectorAll(".choose-name-button").forEach((button) => {
+  button.addEventListener("click", showNameStep);
+});
+
+document.querySelector("#back-to-crew-pin").addEventListener("click", showCrewPinStep);
 
 loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (!state.member) return;
   loginError.textContent = "";
   const button = loginForm.querySelector("button[type=submit]");
   button.disabled = true;
@@ -296,7 +349,7 @@ loginForm.addEventListener("submit", async (event) => {
   try {
     await api("/api/session", {
       method: "POST",
-      body: JSON.stringify({ name: form.get("name"), pin: form.get("pin") }),
+      body: JSON.stringify({ name: state.member.name, pin: form.get("pin") }),
     });
     const payload = await api("/api/availability");
     loginForm.reset();
@@ -309,36 +362,73 @@ loginForm.addEventListener("submit", async (event) => {
   }
 });
 
-claimForm.addEventListener("submit", async (event) => {
+crewPinForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  claimError.textContent = "";
-  const member = selectedCrewMember();
-  if (!member) return;
-  const button = claimForm.querySelector("button[type=submit]");
+  if (!state.member) return;
+  crewPinError.textContent = "";
+  const button = crewPinForm.querySelector("button[type=submit]");
+  button.disabled = true;
+  button.textContent = "Checking…";
+  const form = new FormData(crewPinForm);
+  try {
+    await api("/api/claim/check", {
+      method: "POST",
+      body: JSON.stringify({
+        name: state.member.name,
+        seed_pin: form.get("seed_pin"),
+      }),
+    });
+    state.claimSeedPin = form.get("seed_pin");
+    crewPinForm.reset();
+    showPersonalPinStep();
+  } catch (error) {
+    crewPinError.textContent = error.message;
+    if (error.message === "This name is already claimed.") {
+      await loadCrew();
+      showNameStep();
+      nameError.textContent = error.message;
+    }
+  } finally {
+    button.disabled = false;
+    button.textContent = "Continue";
+  }
+});
+
+personalPinForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!state.member || !state.claimSeedPin) return;
+  personalPinError.textContent = "";
+  const button = personalPinForm.querySelector("button[type=submit]");
   button.disabled = true;
   button.textContent = "Claiming…";
-  const form = new FormData(claimForm);
+  const form = new FormData(personalPinForm);
   try {
     await api("/api/claim", {
       method: "POST",
       body: JSON.stringify({
-        name: member.name,
-        seed_pin: form.get("seed_pin"),
+        name: state.member.name,
+        seed_pin: state.claimSeedPin,
         pin: form.get("pin"),
       }),
     });
+    state.claimSeedPin = "";
     const payload = await api("/api/availability");
-    claimForm.reset();
+    personalPinForm.reset();
     openCalendar(payload);
   } catch (error) {
-    claimError.textContent = error.message;
-    if (error.message === "This name is already claimed.") {
+    if (error.message === "The crew PIN is not correct.") {
+      showCrewPinStep();
+      crewPinError.textContent = error.message;
+    } else if (error.message === "This name is already claimed.") {
       await loadCrew();
-      hideClaim(true);
+      showNameStep();
+      nameError.textContent = error.message;
+    } else {
+      personalPinError.textContent = error.message;
     }
   } finally {
     button.disabled = false;
-    button.textContent = "Claim and open";
+    button.textContent = "Claim name";
   }
 });
 
@@ -355,7 +445,7 @@ saveButton.addEventListener("click", async () => {
     render();
     showToast("Your dates are saved.");
   } catch (error) {
-    if (error.status === 401) showLogin();
+    if (error.status === 401) showAccess();
     else showToast(error.message);
   }
 });
@@ -374,10 +464,10 @@ document.querySelector("#logout-button").addEventListener("click", async () => {
   try {
     await api("/api/logout", { method: "POST", body: "{}" });
   } finally {
-    showLogin();
+    showAccess();
   }
 });
 
 api("/api/session")
-  .then((session) => (session.authenticated ? api("/api/availability").then(openCalendar) : showLogin()))
-  .catch(() => showLogin());
+  .then((session) => (session.authenticated ? api("/api/availability").then(openCalendar) : showAccess()))
+  .catch(() => showAccess());

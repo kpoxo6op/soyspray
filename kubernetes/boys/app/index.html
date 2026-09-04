@@ -15,18 +15,25 @@
         <p>Auckland · Australia</p>
       </header>
 
-      <section id="login-view" class="login-layout" aria-labelledby="login-title">
+      <section id="access-view" class="access-layout" aria-labelledby="access-title">
         <div class="page-title">
-          <h1 id="login-title">Boys calendar</h1>
-          <p>Choose your name and enter your PIN.</p>
+          <h1 id="access-title">Boys calendar</h1>
+          <p id="access-instruction">Choose your name.</p>
         </div>
 
         <div class="access-panel">
-          <form id="login-form" class="access-form" method="post" action="/api/session">
+          <form id="name-form" class="access-form">
             <label for="name">Name</label>
             <select id="name" name="name" autocomplete="username" required>
               <option value="">Select name</option>
             </select>
+
+            <p id="name-error" class="form-error" role="alert"></p>
+            <button class="button button-primary" type="submit">Continue</button>
+            <p class="access-note">Only names and selected dates are saved.</p>
+          </form>
+
+          <form id="login-form" class="access-form" method="post" action="/api/session" hidden>
             <input
               id="login-username"
               class="visually-hidden"
@@ -37,9 +44,9 @@
               aria-hidden="true"
             />
 
-            <label for="pin">PIN</label>
+            <label for="login-pin">PIN</label>
             <input
-              id="pin"
+              id="login-pin"
               name="pin"
               type="password"
               inputmode="numeric"
@@ -51,23 +58,13 @@
 
             <p id="login-error" class="form-error" role="alert"></p>
             <button class="button button-primary" type="submit">Open calendar</button>
+            <div class="step-links">
+              <button class="text-button choose-name-button" type="button">Choose another name</button>
+              <a href="https://t.me/borex69" target="_blank" rel="noreferrer">Forgot PIN? Message Boris.</a>
+            </div>
           </form>
 
-          <button id="claim-button" class="text-button" type="button" hidden>Claim this name</button>
-
-          <form id="claim-form" class="claim-form" method="post" action="/api/claim" hidden>
-            <h2>Claim <span id="claim-name"></span></h2>
-            <p>Use the crew PIN once. Then choose your PIN.</p>
-            <input
-              id="claim-username"
-              class="visually-hidden"
-              name="username"
-              type="text"
-              autocomplete="username"
-              tabindex="-1"
-              aria-hidden="true"
-            />
-
+          <form id="crew-pin-form" class="access-form" method="post" action="/api/claim/check" hidden>
             <label for="seed-pin">Crew PIN</label>
             <input
               id="seed-pin"
@@ -79,7 +76,23 @@
               required
             />
 
-            <label for="new-pin">Choose your PIN</label>
+            <p id="crew-pin-error" class="form-error" role="alert"></p>
+            <button class="button button-primary" type="submit">Continue</button>
+            <button class="text-button choose-name-button" type="button">Choose another name</button>
+          </form>
+
+          <form id="personal-pin-form" class="access-form" method="post" action="/api/claim" hidden>
+            <input
+              id="claim-username"
+              class="visually-hidden"
+              name="username"
+              type="text"
+              autocomplete="username"
+              tabindex="-1"
+              aria-hidden="true"
+            />
+
+            <label for="new-pin">Personal PIN</label>
             <input
               id="new-pin"
               name="pin"
@@ -91,17 +104,10 @@
               required
             />
 
-            <p id="claim-error" class="form-error" role="alert"></p>
-            <div class="claim-actions">
-              <button class="button button-primary" type="submit">Claim and open</button>
-              <button id="cancel-claim" class="text-button" type="button">Cancel</button>
-            </div>
+            <p id="personal-pin-error" class="form-error" role="alert"></p>
+            <button class="button button-primary" type="submit">Claim name</button>
+            <button id="back-to-crew-pin" class="text-button" type="button">Back</button>
           </form>
-
-          <p class="access-note">
-            <a href="https://t.me/borex69" target="_blank" rel="noreferrer">Forgot PIN? Message Boris.</a>
-            Only names and selected dates are saved.
-          </p>
         </div>
       </section>
 
