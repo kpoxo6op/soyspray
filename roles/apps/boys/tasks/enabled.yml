@@ -1,0 +1,43 @@
+---
+- name: Bootstrap the boys runtime secret
+  ansible.builtin.include_role:
+    name: app-secret
+  vars:
+    secret_name: boys-runtime
+    secret_namespace: boys
+    create_namespace: true
+    secret_data:
+      - key: pin
+        env_var: BOYS_PIN
+      - key: session-key
+        env_var: BOYS_SESSION_KEY
+
+- name: Bootstrap the boys Cloudflare Tunnel token
+  ansible.builtin.include_role:
+    name: app-secret
+  vars:
+    secret_name: boys-cloudflared-token
+    secret_namespace: boys
+    secret_data:
+      - key: token
+        env_var: BOYS_CLOUDFLARED_TOKEN
+
+- name: Apply the boys Argo project
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/web/boys/boys-project.yaml')
+         | from_yaml }}
+
+- name: Apply the boys Argo application
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: >-
+      {{ lookup('file', playbook_dir + '/argocd/applications/web/boys/boys-application.yaml')
+         | from_yaml
+         | combine(
+             {'spec': {'source': {'targetRevision': (boys_target_revision | string)}}},
+             recursive=true
+           ) }}
