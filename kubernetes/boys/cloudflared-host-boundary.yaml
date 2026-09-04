@@ -1,0 +1,78 @@
+apiVersion: crd.projectcalico.org/v1
+kind: GlobalNetworkPolicy
+metadata:
+  name: boys-cloudflared-host-boundary
+  labels:
+    app.kubernetes.io/name: boys-cloudflared
+    app.kubernetes.io/part-of: boys
+    boys-cluster-boundary: "true"
+spec:
+  order: 10
+  selector: boys-host-boundary == 'true'
+  preDNAT: true
+  applyOnForward: true
+  types:
+    - Ingress
+  ingress:
+    - action: Deny
+      source:
+        namespaceSelector: projectcalico.org/name == 'boys'
+        selector: boys-component == 'cloudflared'
+      destination:
+        nets:
+          - 10.233.0.0/18
+          - 10.233.64.0/18
+          - 192.168.20.0/24
+        notNets:
+          - 10.233.23.97/32
+        notSelector: >-
+          projectcalico.org/namespace == 'boys' &&
+          boys-component == 'web'
+---
+apiVersion: crd.projectcalico.org/v1
+kind: HostEndpoint
+metadata:
+  name: boys-node-0-host-boundary
+  labels:
+    app.kubernetes.io/part-of: boys
+    boys-cluster-boundary: "true"
+    boys-host-boundary: "true"
+spec:
+  node: node-0
+  interfaceName: "*"
+  expectedIPs:
+    - 192.168.20.10
+  profiles:
+    - projectcalico-default-allow
+---
+apiVersion: crd.projectcalico.org/v1
+kind: HostEndpoint
+metadata:
+  name: boys-node-1-host-boundary
+  labels:
+    app.kubernetes.io/part-of: boys
+    boys-cluster-boundary: "true"
+    boys-host-boundary: "true"
+spec:
+  node: node-1
+  interfaceName: "*"
+  expectedIPs:
+    - 192.168.20.11
+  profiles:
+    - projectcalico-default-allow
+---
+apiVersion: crd.projectcalico.org/v1
+kind: HostEndpoint
+metadata:
+  name: boys-node-2-host-boundary
+  labels:
+    app.kubernetes.io/part-of: boys
+    boys-cluster-boundary: "true"
+    boys-host-boundary: "true"
+spec:
+  node: node-2
+  interfaceName: "*"
+  expectedIPs:
+    - 192.168.20.12
+  profiles:
+    - projectcalico-default-allow
