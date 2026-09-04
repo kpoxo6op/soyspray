@@ -21,6 +21,9 @@ Monitoring, logging, and alerting tools.
 ### backups/
 Backup and disaster recovery solutions.
 
+### web/
+Small web applications and their public or private entry paths.
+
 ## Application Structure
 
 Each application directory contains:
