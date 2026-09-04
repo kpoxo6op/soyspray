@@ -225,8 +225,6 @@ function renderDay(value, outside) {
   button.disabled = !selectable;
   if (outside) button.classList.add("is-outside");
   if (dateKey(value) === dateKey(today)) button.classList.add("is-today");
-  if (state.selected.has(key)) button.classList.add("is-selected");
-
   const number = document.createElement("span");
   number.className = "day-number";
   number.textContent = value.getDate();
