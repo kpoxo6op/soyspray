@@ -1,0 +1,142 @@
+---
+- name: Create a named recovery point for one critical app
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    recovery_point: "backup-{{ recovery_backup_id }}-{{ recovery_app }}"
+  tasks:
+    - name: Require a critical app and a retryable backup identifier
+      ansible.builtin.assert:
+        that:
+          - recovery_app | default('') in ['obsidian', 'vaultwarden', 'boys']
+          - recovery_backup_id | default('') is match('^[a-z0-9][a-z0-9-]{0,23}$')
+
+    - name: Read volumes assigned to the explicit critical group
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Volume
+        namespace: longhorn-system
+        label_selectors: [recurring-job-group.longhorn.io/critical=enabled]
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_group
+
+    - name: Select the app's bound volume
+      ansible.builtin.set_fact:
+        recovery_selected: >-
+          {{ recovery_group.resources
+             | selectattr('status.kubernetesStatus.namespace', 'equalto', recovery_app) | list }}
+
+    - name: Require one healthy volume with filesystem freezing
+      ansible.builtin.assert:
+        that:
+          - recovery_selected | length == 1
+          - recovery_selected[0].status.state == 'attached'
+          - recovery_selected[0].status.robustness == 'healthy'
+          - recovery_selected[0].spec.numberOfReplicas == 3
+          - recovery_selected[0].spec.backupTargetName == 'critical-s3'
+          - recovery_selected[0].spec.freezeFilesystemForSnapshot == 'enabled'
+
+    - name: Read an existing recovery point before creating a snapshot
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Backup
+        name: "{{ recovery_point }}"
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_existing
+
+    - name: Require an existing identifier to refer to this volume
+      ansible.builtin.assert:
+        that:
+          - recovery_existing.resources[0].metadata.labels['backup-volume'] == recovery_selected[0].metadata.name
+          - recovery_existing.resources[0].metadata.labels['backup-target'] == 'critical-s3'
+      when: recovery_existing.resources | length > 0
+
+    - name: Create the named filesystem snapshot
+      when: recovery_existing.resources | length == 0
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: longhorn.io/v1beta2
+          kind: Snapshot
+          metadata:
+            name: "{{ recovery_point }}"
+            namespace: longhorn-system
+          spec:
+            volume: "{{ recovery_selected[0].metadata.name }}"
+            createSnapshot: true
+            labels:
+              RecurringJob: critical-recent
+
+    - name: Wait for the snapshot to be ready
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Snapshot
+        name: "{{ recovery_point }}"
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_snapshot
+      until:
+        - recovery_snapshot.resources | length == 1
+        - recovery_snapshot.resources[0].status.readyToUse | default(false)
+      retries: 60
+      delay: 5
+      when:
+        - not ansible_check_mode
+        - recovery_existing.resources | length == 0
+
+    - name: Back up the snapshot through the native Longhorn controller
+      when: recovery_existing.resources | length == 0
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: longhorn.io/v1beta2
+          kind: Backup
+          metadata:
+            name: "{{ recovery_point }}"
+            namespace: longhorn-system
+            labels:
+              backup-volume: "{{ recovery_selected[0].metadata.name }}"
+              backup-target: critical-s3
+          spec:
+            snapshotName: "{{ recovery_point }}"
+            backupMode: incremental
+            labels:
+              RecurringJob: critical-recent
+
+    - name: Wait for a completed backup or a reported failure
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Backup
+        name: "{{ recovery_point }}"
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_backup
+      until:
+        - recovery_backup.resources | length == 1
+        - recovery_backup.resources[0].status.state | default('') in ['Completed', 'Error', 'Unknown']
+      retries: 120
+      delay: 10
+      when: not ansible_check_mode
+
+    - name: Require a usable recovery point
+      ansible.builtin.assert:
+        that:
+          - recovery_backup.resources[0].status.state == 'Completed'
+          - recovery_backup.resources[0].status.error | default('') == ''
+          - recovery_backup.resources[0].status.url | default('') | length > 0
+        fail_msg: The backup did not complete. Inspect its status before treating it as a restore candidate.
+      when: not ansible_check_mode
+
+    - name: Report the completed recovery point
+      ansible.builtin.debug:
+        msg:
+          app: "{{ recovery_app }}"
+          backup: "{{ recovery_point }}"
+          recovery_point: "{{ recovery_backup.resources[0].status.snapshotCreatedAt }}"
+          upload_completed: "{{ recovery_backup.resources[0].status.backupCreatedAt }}"
+      when: not ansible_check_mode
