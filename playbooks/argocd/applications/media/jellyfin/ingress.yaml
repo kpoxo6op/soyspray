@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jellyfin
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "0"
+    nginx.ingress.kubernetes.io/whitelist-source-range: 192.168.20.0/24,100.64.0.0/10,10.233.0.0/16
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [tv.soyspray.vip]
+      secretName: prod-cert-tls
+  rules:
+    - host: tv.soyspray.vip
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend: {service: {name: jellyfin, port: {number: 8096}}}
