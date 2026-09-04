@@ -174,6 +174,7 @@ a:focus-visible {
   border: 0;
   font-size: 0.85rem;
   font-weight: 700;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -470,6 +471,54 @@ a:focus-visible {
   font-size: 0.76rem;
 }
 
+.event-layout {
+  padding-top: 3rem;
+}
+
+.event-intro {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.event-intro p,
+.event-empty {
+  margin: 0.8rem 0 0;
+  color: var(--muted);
+}
+
+.event-list {
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+  list-style: none;
+}
+
+.event-item {
+  display: grid;
+  grid-template-columns: minmax(10rem, 0.7fr) minmax(12rem, 1fr) auto;
+  gap: 1rem;
+  align-items: baseline;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.event-name {
+  font-weight: 700;
+}
+
+.event-action,
+.event-time {
+  font-size: 0.84rem;
+}
+
+.event-time {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .toast {
   position: fixed;
   right: 1.25rem;
@@ -506,6 +555,33 @@ a:focus-visible {
 
   .calendar-layout {
     padding-top: 2.5rem;
+  }
+
+  .event-layout {
+    padding-top: 2.5rem;
+  }
+
+  .event-intro {
+    display: grid;
+    gap: 1.5rem;
+  }
+
+  .event-intro .button {
+    width: 100%;
+  }
+
+  .event-item {
+    grid-template-columns: 1fr auto;
+    gap: 0.25rem 1rem;
+  }
+
+  .event-action {
+    grid-column: 1;
+  }
+
+  .event-time {
+    grid-column: 2;
+    grid-row: 1 / span 2;
   }
 
   .calendar-intro,

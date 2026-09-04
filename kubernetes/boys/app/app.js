@@ -295,7 +295,14 @@ function renderLegend() {
     mark.className = `legend-mark ${participantColorClasses[participant.name]}`;
     mark.setAttribute("aria-hidden", "true");
     const name = document.createElement("span");
-    name.textContent = participant.name === state.me ? `${participant.name} (you)` : participant.name;
+    const identity = participant.name === state.me ? `${participant.name} (you)` : participant.name;
+    const days = participant.dates.length;
+    const status = participant.claimed
+      ? days
+        ? `${days} ${days === 1 ? "day" : "days"}`
+        : "no dates"
+      : "unclaimed";
+    name.textContent = `${identity} · ${status}`;
     item.append(mark, name);
     legend.append(item);
   });
