@@ -17,6 +17,7 @@ PACKAGES = (
     "kubernetes/banklab/customer-web",
     "kubernetes/banklab/docs-site",
     "kubernetes/autism-traits",
+    "kubernetes/boys",
     "playbooks/argocd/applications/kong-bank-lab/operator-dashboard",
 )
 
@@ -143,6 +144,7 @@ def test_docs_site_publishes_selected_git_revision_with_tls() -> None:
         "kubernetes/banklab/customer-web",
         "kubernetes/banklab/docs-site",
         "kubernetes/autism-traits",
+        "kubernetes/boys",
     ),
 )
 def test_application_workloads_use_the_restricted_baseline(path: str) -> None:
@@ -178,6 +180,7 @@ def test_application_namespaces_enforce_restricted_pod_security() -> None:
         "kubernetes/banklab/tenancy",
         "kubernetes/banklab/docs-site",
         "kubernetes/autism-traits",
+        "kubernetes/boys",
     )
     namespaces = {}
     for path in paths:
@@ -202,6 +205,7 @@ def test_application_namespaces_enforce_restricted_pod_security() -> None:
         "tenant-customer-profile",
         "tenant-fraud",
         "tenant-open-banking",
+        "boys",
     }
     assert expected <= namespaces.keys()
     for name in expected:

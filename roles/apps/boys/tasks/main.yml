@@ -1,0 +1,10 @@
+---
+- name: Deploy the boys calendar
+  ansible.builtin.import_tasks: enabled.yml
+  when: boys_enabled | bool
+  tags: boys
+
+- name: Remove the boys calendar
+  ansible.builtin.import_tasks: disabled.yml
+  when: not (boys_enabled | bool)
+  tags: boys

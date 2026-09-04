@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="The boys availability calendar." />
+    <title>Boys calendar</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="site-header">
+        <a class="wordmark" href="/" aria-label="Boys calendar home">boys.soyspray.vip</a>
+        <p>Auckland · Australia</p>
+      </header>
+
+      <section id="access-view" class="access-layout" aria-labelledby="access-title">
+        <div class="page-title">
+          <h1 id="access-title">Boys calendar</h1>
+          <p id="access-instruction">Choose your name.</p>
+        </div>
+
+        <div class="access-panel">
+          <form id="name-form" class="access-form">
+            <label for="name">Name</label>
+            <select id="name" name="name" autocomplete="username" required>
+              <option value="">Select name</option>
+            </select>
+
+            <p id="name-error" class="form-error" role="alert"></p>
+            <button class="button button-primary" type="submit">Continue</button>
+            <p class="access-note">Only names and selected dates are saved.</p>
+          </form>
+
+          <form id="login-form" class="access-form" method="post" action="/api/session" hidden>
+            <input
+              id="login-username"
+              class="visually-hidden"
+              name="username"
+              type="text"
+              autocomplete="username"
+              tabindex="-1"
+              aria-hidden="true"
+            />
+
+            <label for="login-pin">PIN</label>
+            <input
+              id="login-pin"
+              name="pin"
+              type="password"
+              inputmode="numeric"
+              autocomplete="current-password"
+              pattern="[0-9]{4,8}"
+              placeholder="4–8 digits"
+              required
+            />
+
+            <p id="login-error" class="form-error" role="alert"></p>
+            <button class="button button-primary" type="submit">Open calendar</button>
+            <div class="step-links">
+              <button class="text-button choose-name-button" type="button">Choose another name</button>
+              <a href="https://t.me/borex69" target="_blank" rel="noreferrer">Forgot PIN? Message Boris.</a>
+            </div>
+          </form>
+
+          <form id="crew-pin-form" class="access-form" method="post" action="/api/claim/check" hidden>
+            <label for="seed-pin">Crew PIN</label>
+            <input
+              id="seed-pin"
+              name="seed_pin"
+              type="password"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              pattern="[0-9]+"
+              required
+            />
+
+            <p id="crew-pin-error" class="form-error" role="alert"></p>
+            <button class="button button-primary" type="submit">Continue</button>
+            <button class="text-button choose-name-button" type="button">Choose another name</button>
+          </form>
+
+          <form id="personal-pin-form" class="access-form" method="post" action="/api/claim" hidden>
+            <input
+              id="claim-username"
+              class="visually-hidden"
+              name="username"
+              type="text"
+              autocomplete="username"
+              tabindex="-1"
+              aria-hidden="true"
+            />
+
+            <label for="new-pin">Personal PIN</label>
+            <input
+              id="new-pin"
+              name="pin"
+              type="password"
+              inputmode="numeric"
+              autocomplete="new-password"
+              pattern="[0-9]{4,8}"
+              placeholder="4–8 digits"
+              required
+            />
+
+            <p id="personal-pin-error" class="form-error" role="alert"></p>
+            <button class="button button-primary" type="submit">Claim name</button>
+            <button id="back-to-crew-pin" class="text-button" type="button">Back</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="calendar-view" class="calendar-layout" hidden>
+        <header class="calendar-intro">
+          <div>
+            <h1>Availability</h1>
+            <p>Select your dates.</p>
+          </div>
+          <div class="identity">
+            <span id="signed-in-label"></span>
+            <a class="text-button" href="/events.html">Event log</a>
+            <button id="logout-button" class="text-button" type="button">Exit</button>
+          </div>
+        </header>
+
+        <section class="calendar-area" aria-labelledby="month-label">
+          <nav class="calendar-toolbar" aria-label="Calendar month">
+            <button id="previous-month" class="icon-button" type="button" aria-label="Previous month">←</button>
+            <h2 id="month-label"></h2>
+            <button id="next-month" class="icon-button" type="button" aria-label="Next month">→</button>
+          </nav>
+
+          <div class="weekday-row" aria-hidden="true">
+            <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span>
+            <span>Fri</span><span>Sat</span><span>Sun</span>
+          </div>
+          <div id="calendar-grid" class="calendar-grid" role="grid" aria-labelledby="month-label"></div>
+        </section>
+
+        <footer class="calendar-footer">
+          <div>
+            <p id="calendar-summary" class="summary"></p>
+            <div id="legend" class="legend" aria-label="Calendar participants"></div>
+          </div>
+          <div class="save-panel">
+            <p>Dates are not converted between time zones.</p>
+            <button id="save-button" class="button button-primary" type="button">Save dates</button>
+          </div>
+        </footer>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  </body>
+</html>

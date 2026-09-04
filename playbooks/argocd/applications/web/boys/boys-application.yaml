@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: boys
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: boys
+spec:
+  project: boys
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: HEAD
+    path: kubernetes/boys
+    kustomize:
+      patches:
+        - target:
+            kind: Deployment
+            name: boys
+          patch: |-
+            apiVersion: apps/v1
+            kind: Deployment
+            metadata:
+              name: boys
+            spec:
+              template:
+                metadata:
+                  annotations:
+                    soyspray.vip/runtime-secret-resource-version: "BOYS_RUNTIME_SECRET_RESOURCE_VERSION"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: boys
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: boys
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: v1.35
+        pod-security.kubernetes.io/warn: restricted
+        pod-security.kubernetes.io/warn-version: v1.35

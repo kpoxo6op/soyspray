@@ -1,0 +1,56 @@
+---
+- name: Find the live boys Argo application
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: boys
+    namespace: argocd
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: boys_live_application
+
+- name: Quiesce the boys Argo application
+  kubernetes.core.k8s:
+    state: patched
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: boys
+    namespace: argocd
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      operation: null
+      spec:
+        syncPolicy:
+          automated: null
+  when: boys_live_application.resources | length == 1
+
+- name: Remove the boys runtime secrets
+  kubernetes.core.k8s:
+    state: absent
+    api_version: v1
+    kind: Secret
+    name: "{{ item }}"
+    namespace: boys
+    kubeconfig: "{{ kubeconfig_path }}"
+  loop:
+    - boys-runtime
+    - boys-cloudflared-token
+
+- name: Remove the boys Argo application
+  kubernetes.core.k8s:
+    state: absent
+    api_version: argoproj.io/v1alpha1
+    kind: Application
+    name: boys
+    namespace: argocd
+    wait: true
+    wait_timeout: 300
+    kubeconfig: "{{ kubeconfig_path }}"
+
+- name: Remove the boys Argo project
+  kubernetes.core.k8s:
+    state: absent
+    api_version: argoproj.io/v1alpha1
+    kind: AppProject
+    name: boys
+    namespace: argocd
+    kubeconfig: "{{ kubeconfig_path }}"
