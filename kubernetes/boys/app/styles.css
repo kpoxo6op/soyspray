@@ -8,6 +8,15 @@
   --soft: #eeeeee;
   --accent-a: #3159d8;
   --accent-b: #d65a42;
+  --boy-boris-k: #e15759;
+  --boy-sergey-kiktev: #f28e2b;
+  --boy-max-edin: #4e79a7;
+  --boy-innok-mikhalev: #76b7b2;
+  --boy-alexey-pichulev: #b07aa1;
+  --boy-vitaly-borisov: #59a14f;
+  --boy-eugene-kobyak: #ff9da7;
+  --boy-konstantin-pastbin: #9c755f;
+  --boy-bronislav: #edc948;
   font-family: ui-sans-serif, system-ui, sans-serif;
   font-synthesis: none;
 }
@@ -374,17 +383,45 @@ a:focus-visible {
   height: 0.36rem;
   margin-top: -0.1rem;
   border-radius: 999px;
-  opacity: 0.68;
+  opacity: 0.9;
   mix-blend-mode: multiply;
   transform: skewX(-16deg);
 }
 
-.stripe-0 {
-  background: var(--accent-a);
+.boy-boris-k {
+  background: var(--boy-boris-k);
 }
 
-.stripe-1 {
-  background: var(--accent-b);
+.boy-sergey-kiktev {
+  background: var(--boy-sergey-kiktev);
+}
+
+.boy-max-edin {
+  background: var(--boy-max-edin);
+}
+
+.boy-innok-mikhalev {
+  background: var(--boy-innok-mikhalev);
+}
+
+.boy-alexey-pichulev {
+  background: var(--boy-alexey-pichulev);
+}
+
+.boy-vitaly-borisov {
+  background: var(--boy-vitaly-borisov);
+}
+
+.boy-eugene-kobyak {
+  background: var(--boy-eugene-kobyak);
+}
+
+.boy-konstantin-pastbin {
+  background: var(--boy-konstantin-pastbin);
+}
+
+.boy-bronislav {
+  background: var(--boy-bronislav);
 }
 
 .calendar-footer {

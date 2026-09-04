@@ -9,6 +9,18 @@ const state = {
   dirty: false,
 };
 
+const participantColorClasses = {
+  "Boris K": "boy-boris-k",
+  "Sergey Kiktev": "boy-sergey-kiktev",
+  "Max Edin": "boy-max-edin",
+  "Innok Mikhalev": "boy-innok-mikhalev",
+  "Alexey Pichulev": "boy-alexey-pichulev",
+  "Vitaly Borisov": "boy-vitaly-borisov",
+  "Eugene Kobyak": "boy-eugene-kobyak",
+  "Konstantin Pastbin": "boy-konstantin-pastbin",
+  "Bronislav": "boy-bronislav",
+};
+
 const accessView = document.querySelector("#access-view");
 const calendarView = document.querySelector("#calendar-view");
 const nameForm = document.querySelector("#name-form");
@@ -191,13 +203,6 @@ function peopleForDate(key) {
   return visibleParticipants().filter((participant) => participant.dates.includes(key));
 }
 
-function colorIndex(name) {
-  const ordered = visibleParticipants()
-    .map((participant) => participant.name)
-    .sort((first, second) => first.localeCompare(second));
-  return ordered.indexOf(name) % 2;
-}
-
 function renderDay(value, outside) {
   const key = dateKey(value);
   const selectable = !outside && value >= today && value <= lastSelectableDay;
@@ -240,7 +245,7 @@ function renderDay(value, outside) {
   stripes.setAttribute("aria-hidden", "true");
   people.forEach((person) => {
     const stripe = document.createElement("span");
-    stripe.className = `availability-stripe stripe-${colorIndex(person.name)}`;
+    stripe.className = `availability-stripe ${participantColorClasses[person.name]}`;
     stripes.append(stripe);
   });
   button.append(stripes);
@@ -287,7 +292,7 @@ function renderLegend() {
     const item = document.createElement("span");
     item.className = "legend-item";
     const mark = document.createElement("span");
-    mark.className = `legend-mark stripe-${colorIndex(participant.name)}`;
+    mark.className = `legend-mark ${participantColorClasses[participant.name]}`;
     mark.setAttribute("aria-hidden", "true");
     const name = document.createElement("span");
     name.textContent = participant.name === state.me ? `${participant.name} (you)` : participant.name;
