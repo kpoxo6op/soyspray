@@ -26,7 +26,9 @@ APP_DIR = Path(__file__).resolve().parent
 STATIC_FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/index.html": ("index.html", "text/html; charset=utf-8"),
+    "/events.html": ("events.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/events.js": ("events.js", "text/javascript; charset=utf-8"),
     "/styles.css": ("styles.css", "text/css; charset=utf-8"),
 }
 CONTENT_SECURITY_POLICY = "; ".join(
@@ -169,6 +171,13 @@ class BoysApp:
                     name_key TEXT NOT NULL REFERENCES participants(name_key) ON DELETE CASCADE,
                     day TEXT NOT NULL,
                     PRIMARY KEY (name_key, day)
+                );
+                CREATE TABLE IF NOT EXISTS events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+                    name_key TEXT NOT NULL REFERENCES participants(name_key) ON DELETE CASCADE,
+                    action TEXT NOT NULL,
+                    available_days INTEGER
                 );
                 """
             )
@@ -315,6 +324,10 @@ class BoysApp:
                 "UPDATE participants SET pin_salt = ?, pin_hash = ? WHERE name_key = ?",
                 (salt, pin_digest, name_key),
             )
+            connection.execute(
+                "INSERT INTO events (name_key, action) VALUES (?, 'claimed')",
+                (name_key,),
+            )
         self.clear_failed_pins(client)
         return self.create_session(name, name_key)
 
@@ -341,7 +354,7 @@ class BoysApp:
         with self.connect() as connection:
             rows = connection.execute(
                 """
-                SELECT participants.name, availability.day
+                SELECT participants.name, participants.pin_hash IS NOT NULL, availability.day
                 FROM participants
                 LEFT JOIN availability USING (name_key)
                 WHERE participants.name_key IN ({placeholders})
@@ -349,16 +362,38 @@ class BoysApp:
                 """.format(placeholders=", ".join("?" for _ in CREW)),
                 tuple(name.casefold() for name in CREW),
             ).fetchall()
-        grouped: dict[str, list[str]] = {}
-        for name, day in rows:
-            grouped.setdefault(name, [])
+        grouped: dict[str, dict] = {}
+        for name, claimed, day in rows:
+            participant = grouped.setdefault(
+                name,
+                {"name": name, "claimed": bool(claimed), "dates": []},
+            )
             if day:
-                grouped[name].append(day)
+                participant["dates"].append(day)
         participants = [
-            {"name": name, "dates": dates}
-            for name, dates in sorted(grouped.items(), key=lambda item: item[0].casefold())
+            item[1] for item in sorted(grouped.items(), key=lambda item: item[0].casefold())
         ]
         return {"me": me, "participants": participants}
+
+    def events(self) -> list[dict]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT events.created_at, participants.name, events.action, events.available_days
+                FROM events
+                JOIN participants USING (name_key)
+                WHERE participants.name_key IN ({placeholders})
+                ORDER BY events.id DESC
+                """.format(placeholders=", ".join("?" for _ in CREW)),
+                tuple(name.casefold() for name in CREW),
+            ).fetchall()
+        result = []
+        for created_at, name, action, available_days in rows:
+            event = {"at": created_at, "name": name, "action": action}
+            if available_days is not None:
+                event["days"] = available_days
+            result.append(event)
+        return result
 
     def save_availability(self, session: dict, values: object) -> dict:
         if not isinstance(values, list) or len(values) > 366:
@@ -379,13 +414,28 @@ class BoysApp:
 
         with self.connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
-            connection.execute(
-                "DELETE FROM availability WHERE name_key = ?", (session["name_key"],)
-            )
-            connection.executemany(
-                "INSERT INTO availability (name_key, day) VALUES (?, ?)",
-                ((session["name_key"], day) for day in sorted(selected)),
-            )
+            existing = {
+                row[0]
+                for row in connection.execute(
+                    "SELECT day FROM availability WHERE name_key = ?",
+                    (session["name_key"],),
+                )
+            }
+            if selected != existing:
+                connection.execute(
+                    "DELETE FROM availability WHERE name_key = ?", (session["name_key"],)
+                )
+                connection.executemany(
+                    "INSERT INTO availability (name_key, day) VALUES (?, ?)",
+                    ((session["name_key"], day) for day in sorted(selected)),
+                )
+                connection.execute(
+                    """
+                    INSERT INTO events (name_key, action, available_days)
+                    VALUES (?, 'availability', ?)
+                    """,
+                    (session["name_key"], len(selected)),
+                )
         return self.availability(session["name"])
 
 
@@ -520,6 +570,14 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_json(HTTPStatus.OK, self.app.availability(session["name"]))
             except sqlite3.Error as error:
                 self.send_database_error("read", error)
+        elif path == "/api/events":
+            if not self.current_session():
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "Enter your name and PIN."})
+                return
+            try:
+                self.send_json(HTTPStatus.OK, {"events": self.app.events()})
+            except sqlite3.Error as error:
+                self.send_database_error("read events", error)
         else:
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "Not found."})
 
