@@ -1,0 +1,191 @@
+---
+- name: Enable Longhorn recovery for the three critical claims
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    recovery_target: critical-s3
+    recovery_secret: longhorn-recovery-s3
+    recovery_claims:
+      - {app: obsidian, namespace: obsidian, claim: obsidian-livesync-couchdb-rescue-longhorn}
+      - {app: vaultwarden, namespace: vaultwarden, claim: vaultwarden-data}
+      - {app: boys, namespace: boys, claim: boys-data}
+  tasks:
+    - name: Require encrypted bootstrap inputs
+      ansible.builtin.assert:
+        that:
+          - recovery_account is defined
+          - recovery_bucket == 'soyspray-recovery-au2-' ~ recovery_account
+          - recovery_region == 'ap-southeast-2'
+          - longhorn_s3_credentials.AWS_ACCESS_KEY_ID | length > 0
+          - longhorn_s3_credentials.AWS_SECRET_ACCESS_KEY | length > 0
+      no_log: true
+
+    - name: Verify the store retention settings through its dedicated identity
+      ansible.builtin.command:
+        argv:
+          - uvx
+          - --from
+          - awscli==1.46.1
+          - aws
+          - s3api
+          - "{{ item }}"
+          - --bucket
+          - "{{ recovery_bucket }}"
+          - --expected-bucket-owner
+          - "{{ recovery_account }}"
+          - --output
+          - json
+      environment: "{{ longhorn_s3_credentials | combine({'AWS_DEFAULT_REGION': recovery_region, 'AWS_EC2_METADATA_DISABLED': 'true'}) }}"
+      loop: [get-bucket-versioning, get-bucket-lifecycle-configuration]
+      register: recovery_store_checks
+      failed_when: false
+      changed_when: false
+      check_mode: false
+      delegate_to: localhost
+      become: false
+      no_log: true
+
+    - name: Require verified absence of versioning and lifecycle rules
+      ansible.builtin.assert:
+        that:
+          - recovery_store_checks.results[0].rc == 0
+          - (recovery_store_checks.results[0].stdout | default('{}', true) | from_json).Status is not defined
+          - recovery_store_checks.results[1].rc != 0
+          - "'NoSuchLifecycleConfiguration' in recovery_store_checks.results[1].stderr"
+        fail_msg: Cannot verify a store without versioning or lifecycle rules. Inspect AWS access and bucket settings first.
+
+    - name: Read the existing critical claims
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: "{{ item.namespace }}"
+        name: "{{ item.claim }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ recovery_claims }}"
+      loop_control:
+        label: "{{ item.app }}"
+      register: recovery_pvcs
+
+    - name: Require bound filesystem claims on Longhorn
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+          - item.resources[0].metadata.deletionTimestamp is not defined
+          - item.resources[0].status.phase == 'Bound'
+          - item.resources[0].spec.storageClassName == 'longhorn'
+          - item.resources[0].spec.volumeMode | default('Filesystem') == 'Filesystem'
+      loop: "{{ recovery_pvcs.results }}"
+      loop_control:
+        label: "{{ item.item.app }}"
+
+    - name: Read the volumes bound to these claims
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Volume
+        namespace: longhorn-system
+        name: "{{ item.resources[0].spec.volumeName }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ recovery_pvcs.results }}"
+      loop_control:
+        label: "{{ item.item.app }}"
+      register: recovery_volumes
+
+    - name: Require healthy volumes with three replicas and their original claims
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+          - item.resources[0].status.robustness == 'healthy'
+          - item.resources[0].status.state == 'attached'
+          - item.resources[0].spec.numberOfReplicas == 3
+          - item.resources[0].spec.dataEngine == 'v1'
+          - item.resources[0].spec.backupTargetName in ['default', recovery_target]
+          - item.resources[0].status.kubernetesStatus.pvcName == item.item.item.claim
+          - item.resources[0].status.kubernetesStatus.namespace == item.item.item.namespace
+      loop: "{{ recovery_volumes.results }}"
+      loop_control:
+        label: "{{ item.item.item.app }}"
+
+    - name: Install the dedicated backup credentials without exposing them
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ recovery_secret }}"
+            namespace: longhorn-system
+          type: Opaque
+          data: "{{ dict(longhorn_s3_credentials.keys() | zip(longhorn_s3_credentials.values() | map('b64encode'))) }}"
+      no_log: true
+
+    - name: Configure the native Longhorn backup target
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: longhorn.io/v1beta2
+          kind: BackupTarget
+          metadata:
+            name: "{{ recovery_target }}"
+            namespace: longhorn-system
+            annotations:
+              argocd.argoproj.io/sync-options: Prune=false,Delete=false
+          spec:
+            backupTargetURL: "s3://{{ recovery_bucket }}@{{ recovery_region }}/longhorn/"
+            credentialSecret: "{{ recovery_secret }}"
+            pollInterval: 5m0s
+
+    - name: Wait until Longhorn can use the store
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: BackupTarget
+        name: "{{ recovery_target }}"
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_target_state
+      until:
+        - recovery_target_state.resources | length == 1
+        - recovery_target_state.resources[0].status.available | default(false)
+      retries: 60
+      delay: 5
+      when: not ansible_check_mode
+
+    - name: Enable filesystem freezing and the explicit critical backup group
+      kubernetes.core.k8s_json_patch:
+        api_version: longhorn.io/v1beta2
+        kind: Volume
+        name: "{{ item.resources[0].metadata.name }}"
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - op: test
+            path: /metadata/uid
+            value: "{{ item.resources[0].metadata.uid }}"
+          - op: test
+            path: /spec
+            value: "{{ item.resources[0].spec }}"
+          - op: add
+            path: /spec/backupTargetName
+            value: "{{ recovery_target }}"
+          - op: add
+            path: /spec/freezeFilesystemForSnapshot
+            value: enabled
+          - op: add
+            path: /metadata/labels/recurring-job-group.longhorn.io~1critical
+            value: enabled
+      loop: "{{ recovery_volumes.results }}"
+      loop_control:
+        label: "{{ item.item.item.app }}"
+      when: >-
+        item.resources[0].spec.backupTargetName != recovery_target or
+        item.resources[0].spec.freezeFilesystemForSnapshot != 'enabled' or
+        item.resources[0].metadata.labels.get('recurring-job-group.longhorn.io/critical') != 'enabled'
+
+    - name: Install the two native retention schedules
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition: "{{ lookup('file', playbook_dir ~ '/longhorn-jobs.yaml') | from_yaml_all | list }}"

@@ -66,3 +66,84 @@ This bootstrap does not change an existing backup bucket, workload, claim, or
 backup schedule. To stop later backups, pause their schedules. Retain the
 bucket and credentials until a deliberate retirement operation is approved.
 Never remove a backup store as a rollback of application code.
+
+## Enable critical volume backups
+
+Keep these inputs in an Ansible Vault file outside Git:
+
+```yaml
+recovery_account: '<verified-account-id>'
+recovery_region: ap-southeast-2
+recovery_bucket: 'soyspray-recovery-au2-<verified-account-id>'
+longhorn_s3_credentials:
+  AWS_ACCESS_KEY_ID: '<dedicated-key-id>'
+  AWS_SECRET_ACCESS_KEY: '<dedicated-secret-key>'
+```
+
+`configure-longhorn.yml` resolves the existing Obsidian, Vaultwarden, and Boys
+claims by namespace and name. It requires healthy, attached Longhorn volumes
+with three replicas. It enables filesystem freezing for these volumes and
+assigns them to the explicit `critical` group. It keeps their names, claims,
+data, and application ownership.
+
+Push the branch and run `make go`. Use the standard inventory and privilege
+settings for check mode, then omit `--check` to apply:
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/recovery/configure-longhorn.yml \
+  -e @"${HOME}/.config/soyspray/recovery/longhorn.vault.yml" \
+  --vault-password-file ~/.config/soyspray/recovery/vault-password --check
+```
+
+The `critical-recent` job runs every 30 minutes and retains 48 backups per
+volume. `critical-daily` runs at 14:15 UTC and retains 30 backups per volume.
+Both use Longhorn's `backup-force-create` task so a successful check can also
+be recorded when data has not changed. Native backup jobs retain the remote
+backups separately from their local snapshots. Keep
+`auto-cleanup-recurring-job-backup-snapshot` enabled.
+
+No job uses the default group. Database operator volumes, the Immich library,
+monitoring data, and retired claims are not selected by this operation.
+
+Check the actual backup results:
+
+```bash
+kubectl -n longhorn-system get backuptarget critical-s3
+kubectl -n longhorn-system get recurringjobs critical-recent critical-daily
+kubectl -n longhorn-system get backups
+kubectl -n longhorn-system get jobs
+```
+
+The first scheduled run starts at the next half hour. A schedule alone is not
+recovery evidence. Require a completed backup for each volume, then perform an
+isolated restore. SQLite databases and their WAL files must be restored
+together and pass an integrity check. Measure the recovery point and elapsed
+restore time. Keep seven days of backup evidence before accepting the
+one-hour recovery-point target.
+
+Before a data migration, also export the runtime secrets and configuration
+needed to use restored data into encrypted off-cluster inputs. A volume
+backup does not preserve a Boys session signing key or CouchDB credentials
+stored in a Kubernetes Secret.
+
+## Create a recovery point now
+
+Use `backup-now.yml` before a migration or restore exercise. It uses native
+Longhorn Snapshot and Backup resources. The identifier makes a retry refer to
+the same recovery point. Its retention belongs to `critical-recent`.
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/recovery/backup-now.yml \
+  -e recovery_app=boys -e recovery_backup_id=before-migration-1
+```
+
+Use `obsidian` or `vaultwarden` for the other critical apps. Choose a new
+identifier for a new recovery point. A retry stops on an unhealthy volume or
+failed backup. The operation waits for a completed upload; a snapshot alone
+does not count as an offsite backup.
