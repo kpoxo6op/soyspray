@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: boys
+resources:
+  - namespace.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - cloudflared-deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+  - cloudflared-calico-networkpolicy.yaml
+  - cloudflared-host-boundary.yaml
+transformers:
+  - cluster-scope-transformer.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/instance: boys
+configMapGenerator:
+  - name: boys-app
+    files:
+      - server.py=app/server.py
+      - index.html=app/index.html
+      - app.js=app/app.js
+      - styles.css=app/styles.css
+    options:
+      labels:
+        app.kubernetes.io/name: boys
+        app.kubernetes.io/part-of: boys

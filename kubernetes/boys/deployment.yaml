@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: boys
+  labels:
+    app.kubernetes.io/name: boys
+    app.kubernetes.io/part-of: boys
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: boys
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: boys
+        app.kubernetes.io/part-of: boys
+        boys-component: web
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: 1000
+        fsGroupChangePolicy: OnRootMismatch
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          image: python:3.13-alpine@sha256:399babc8b49529dabfd9c922f2b5eea81d611e4512e3ed250d75bd2e7683f4b0
+          imagePullPolicy: IfNotPresent
+          command:
+            - python
+            - /app/server.py
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: https
+              containerPort: 8443
+          env:
+            - name: BOYS_DATABASE
+              value: /data/boys.sqlite3
+            - name: BOYS_PIN
+              valueFrom:
+                secretKeyRef:
+                  name: boys-runtime
+                  key: pin
+            - name: BOYS_SESSION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: boys-runtime
+                  key: session-key
+          startupProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: app
+              mountPath: /app
+              readOnly: true
+            - name: data
+              mountPath: /data
+            - name: tls
+              mountPath: /tls
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: app
+          configMap:
+            name: boys-app
+            defaultMode: 0444
+        - name: data
+          persistentVolumeClaim:
+            claimName: boys-data
+        - name: tls
+          secret:
+            secretName: boys-tls
+            defaultMode: 0440
+        - name: tmp
+          emptyDir: {}
