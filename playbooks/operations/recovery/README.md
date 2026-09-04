@@ -94,7 +94,7 @@ source soyspray-venv/bin/activate
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/recovery/configure-longhorn.yml \
-  -e @~/.config/soyspray/recovery/longhorn.vault.yml \
+  -e @"${HOME}/.config/soyspray/recovery/longhorn.vault.yml" \
   --vault-password-file ~/.config/soyspray/recovery/vault-password --check
 ```
 
@@ -128,3 +128,22 @@ Before a data migration, also export the runtime secrets and configuration
 needed to use restored data into encrypted off-cluster inputs. A volume
 backup does not preserve a Boys session signing key or CouchDB credentials
 stored in a Kubernetes Secret.
+
+## Create a recovery point now
+
+Use `backup-now.yml` before a migration or restore exercise. It uses native
+Longhorn Snapshot and Backup resources. The identifier makes a retry refer to
+the same recovery point. Its retention belongs to `critical-recent`.
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/recovery/backup-now.yml \
+  -e recovery_app=boys -e recovery_backup_id=before-migration-1
+```
+
+Use `obsidian` or `vaultwarden` for the other critical apps. Choose a new
+identifier for a new recovery point. A retry stops on an unhealthy volume or
+failed backup. The operation waits for a completed upload; a snapshot alone
+does not count as an offsite backup.
