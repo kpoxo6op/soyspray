@@ -20,7 +20,6 @@ EPG_CACHE_SECONDS = 6 * 60 * 60
 EPG_FAILURE_RETRY_SECONDS = 5 * 60
 GUIDE_CACHE = {"expires_at": 0.0, "retry_at": 0.0, "xml": None, "programmes": None}
 GUIDE_LOCK = threading.Lock()
-GUIDE_REFRESH_LOCK = threading.Lock()
 GUIDE_REFRESHING = False
 
 
@@ -134,35 +133,30 @@ def guide_snapshot(catalog: dict, now=None) -> tuple[str, dict[str, list[dict]]]
             if GUIDE_CACHE["xml"] is not None:
                 return GUIDE_CACHE["xml"], GUIDE_CACHE["programmes"]
             raise GuideUnavailable("programme guide is unavailable")
-        try:
-            programmes = fetch_epg_lite(catalog)
-            missing = [
-                channel["slug"]
-                for channel in epg_channels(catalog)
-                if not programmes.get(channel["slug"])
-            ]
-            if missing:
-                raise GuideUnavailable("guide has no programmes for " + ", ".join(missing))
-            xml = build_xmltv(catalog, programmes)
-        except (
-            OSError,
-            ValueError,
-            gzip.BadGzipFile,
-            ET.ParseError,
-            urllib.error.URLError,
-        ) as error:
-            GUIDE_CACHE["retry_at"] = clock + EPG_FAILURE_RETRY_SECONDS
+    try:
+        programmes = fetch_epg_lite(catalog)
+        missing = [
+            channel["slug"]
+            for channel in epg_channels(catalog)
+            if not programmes.get(channel["slug"])
+        ]
+        if missing:
+            raise GuideUnavailable("guide has no programmes for " + ", ".join(missing))
+        xml = build_xmltv(catalog, programmes)
+    except (OSError, ValueError, EOFError, ET.ParseError, GuideUnavailable) as error:
+        with GUIDE_LOCK:
+            GUIDE_CACHE["retry_at"] = (
+                time.monotonic() + EPG_FAILURE_RETRY_SECONDS
+                if now is None
+                else clock + EPG_FAILURE_RETRY_SECONDS
+            )
             if GUIDE_CACHE["xml"] is not None:
                 return GUIDE_CACHE["xml"], GUIDE_CACHE["programmes"]
-            raise GuideUnavailable("programme guide is unavailable") from error
-        except GuideUnavailable:
-            GUIDE_CACHE["retry_at"] = clock + EPG_FAILURE_RETRY_SECONDS
-            if GUIDE_CACHE["xml"] is not None:
-                return GUIDE_CACHE["xml"], GUIDE_CACHE["programmes"]
-            raise
+        raise GuideUnavailable("programme guide is unavailable") from error
+    with GUIDE_LOCK:
         GUIDE_CACHE.update(
             {
-                "expires_at": clock + EPG_CACHE_SECONDS,
+                "expires_at": (time.monotonic() if now is None else clock) + EPG_CACHE_SECONDS,
                 "retry_at": 0.0,
                 "xml": xml,
                 "programmes": programmes,
@@ -173,8 +167,9 @@ def guide_snapshot(catalog: dict, now=None) -> tuple[str, dict[str, list[dict]]]
 
 def start_guide_refresh(catalog: dict) -> None:
     global GUIDE_REFRESHING
-    with GUIDE_REFRESH_LOCK:
-        if GUIDE_REFRESHING:
+    with GUIDE_LOCK:
+        clock = time.monotonic()
+        if GUIDE_REFRESHING or clock < max(GUIDE_CACHE["expires_at"], GUIDE_CACHE["retry_at"]):
             return
         GUIDE_REFRESHING = True
 
@@ -185,7 +180,7 @@ def start_guide_refresh(catalog: dict) -> None:
         except GuideUnavailable:
             pass
         finally:
-            with GUIDE_REFRESH_LOCK:
+            with GUIDE_LOCK:
                 GUIDE_REFRESHING = False
 
     threading.Thread(target=refresh, name="guide-refresh", daemon=True).start()
@@ -212,16 +207,20 @@ class Handler(BaseHTTPRequestHandler):
         if request_path == "/playlist.m3u":
             playlist = build_playlist(self.catalog, service_url).encode()
             return self.send(200, playlist, "audio/x-mpegurl")
-        if request_path == "/xmltv.xml":
-            try:
-                guide, _ = guide_snapshot(self.catalog)
-            except GuideUnavailable:
+        if request_path in {"/xmltv.xml", "/ready"}:
+            start_guide_refresh(self.catalog)
+            with GUIDE_LOCK:
+                guide = GUIDE_CACHE["xml"]
+            if guide is None:
                 return self.send(503, b"programme guide unavailable\n", "text/plain")
+            if request_path == "/ready":
+                return self.send(200, b"ok\n", "text/plain")
             return self.send(200, guide.encode(), "application/xml")
         if request_path == "/api/v1/channels":
             body = json.dumps(self.catalog, ensure_ascii=False).encode()
             return self.send(200, body, "application/json")
         return self.send(404, b"not found\n", "text/plain")
+
 
 if __name__ == "__main__":
     start_guide_refresh(Handler.catalog)
