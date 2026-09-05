@@ -299,6 +299,74 @@ prometheus-node-exporter:
 
 kube-state-metrics:
   namespaceOverride: monitoring
+  rbac:
+    extraRules:
+      - apiGroups: [apiextensions.k8s.io]
+        resources: [customresourcedefinitions]
+        verbs: [list, watch]
+      - apiGroups: [longhorn.io]
+        resources: [backups, volumes]
+        verbs: [list, watch]
+  customResourceState:
+    enabled: true
+    config:
+      kind: CustomResourceStateMetrics
+      spec:
+        resources:
+          - groupVersionKind:
+              group: longhorn.io
+              version: v1beta2
+              kind: Backup
+            metricNamePrefix: soyspray_longhorn
+            labelsFromPath:
+              backup: [metadata, name]
+              volume: [status, volumeName]
+              backup_target: [status, backupTargetName]
+              state: [status, state]
+              progress: [status, progress]
+              backup_error: [status, error]
+              backup_reconcile_error: [status, messages, error]
+            metrics:
+              - name: backup_snapshot_timestamp_seconds
+                help: Unix time of the source snapshot; not backup completion time.
+                each:
+                  type: Gauge
+                  gauge:
+                    path: [status, snapshotCreatedAt]
+                    nilIsZero: false
+          - groupVersionKind:
+              group: longhorn.io
+              version: v1beta2
+              kind: Volume
+            metricNamePrefix: soyspray_longhorn
+            metrics:
+              - name: volume_info
+                help: Longhorn volume ownership and its explicitly assigned backup group.
+                each:
+                  type: Info
+                  info:
+                    path: []
+                    labelsFromPath:
+                      volume: [metadata, name]
+                      volume_uid: [metadata, uid]
+                      critical_group: [metadata, labels, recurring-job-group.longhorn.io/critical]
+                      backup_target: [spec, backupTargetName]
+                      app_namespace: [status, kubernetesStatus, namespace]
+                      pvc: [status, kubernetesStatus, pvcName]
+                      pv_status: [status, kubernetesStatus, pvStatus]
+  prometheus:
+    monitor:
+      http:
+        metricRelabelings:
+          # Reject a backup with an error before storing any sample or error text.
+          - action: drop
+            sourceLabels: [__name__, backup_error]
+            regex: 'soyspray_longhorn_backup_snapshot_timestamp_seconds;.+'
+          - action: drop
+            sourceLabels: [__name__, backup_reconcile_error]
+            regex: 'soyspray_longhorn_backup_snapshot_timestamp_seconds;.+'
+          - action: labeldrop
+            regex: 'backup_(reconcile_)?error'
   resources:
     requests:
       cpu: 50m
