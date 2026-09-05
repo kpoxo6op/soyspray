@@ -1,36 +1,37 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="The boys availability calendar." />
-    <title>Boys calendar</title>
+    <meta name="description" content="Общий план поездки и доступность участников." />
+    <title>Общая поездка</title>
     <link rel="stylesheet" href="/styles.css" />
     <script src="/app.js" defer></script>
+    <script type="module" src="/trip.js"></script>
   </head>
   <body>
     <main class="shell">
       <header class="site-header">
-        <a class="wordmark" href="/" aria-label="Boys calendar home">boys.soyspray.vip</a>
-        <p>Auckland · Australia</p>
+        <a class="wordmark" href="/" aria-label="Главная страница поездки">boys.soyspray.vip</a>
+        <p>Планы нашей компании</p>
       </header>
 
       <section id="access-view" class="access-layout" aria-labelledby="access-title">
         <div class="page-title">
-          <h1 id="access-title">Boys calendar</h1>
-          <p id="access-instruction">Choose your name.</p>
+          <h1 id="access-title">Общая поездка</h1>
+          <p id="access-instruction">Выберите своё имя.</p>
         </div>
 
         <div class="access-panel">
           <form id="name-form" class="access-form">
-            <label for="name">Name</label>
+            <label for="name">Имя</label>
             <select id="name" name="name" autocomplete="username" required>
-              <option value="">Select name</option>
+              <option value="">Выберите имя</option>
             </select>
 
             <p id="name-error" class="form-error" role="alert"></p>
-            <button class="button button-primary" type="submit">Continue</button>
-            <p class="access-note">Only names and selected dates are saved.</p>
+            <button class="button button-primary" type="submit">Продолжить</button>
+            <p class="access-note">Планы и ответы видны только вошедшим участникам.</p>
           </form>
 
           <form id="login-form" class="access-form" method="post" action="/api/session" hidden>
@@ -44,7 +45,7 @@
               aria-hidden="true"
             />
 
-            <label for="login-pin">PIN</label>
+            <label for="login-pin">Личный PIN</label>
             <input
               id="login-pin"
               name="pin"
@@ -52,20 +53,20 @@
               inputmode="numeric"
               autocomplete="current-password"
               pattern="[0-9]{4,8}"
-              placeholder="4–8 digits"
+              placeholder="4–8 цифр"
               required
             />
 
             <p id="login-error" class="form-error" role="alert"></p>
-            <button class="button button-primary" type="submit">Open calendar</button>
+            <button class="button button-primary" type="submit">Войти</button>
             <div class="step-links">
-              <button class="text-button choose-name-button" type="button">Choose another name</button>
-              <a href="https://t.me/borex69" target="_blank" rel="noreferrer">Forgot PIN? Message Boris.</a>
+              <button class="text-button choose-name-button" type="button">Выбрать другое имя</button>
+              <a href="https://t.me/borex69" target="_blank" rel="noreferrer">Забыли PIN? Напишите Борису.</a>
             </div>
           </form>
 
           <form id="crew-pin-form" class="access-form" method="post" action="/api/claim/check" hidden>
-            <label for="seed-pin">Crew PIN</label>
+            <label for="seed-pin">Общий PIN</label>
             <input
               id="seed-pin"
               name="seed_pin"
@@ -77,8 +78,8 @@
             />
 
             <p id="crew-pin-error" class="form-error" role="alert"></p>
-            <button class="button button-primary" type="submit">Continue</button>
-            <button class="text-button choose-name-button" type="button">Choose another name</button>
+            <button class="button button-primary" type="submit">Продолжить</button>
+            <button class="text-button choose-name-button" type="button">Выбрать другое имя</button>
           </form>
 
           <form id="personal-pin-form" class="access-form" method="post" action="/api/claim" hidden>
@@ -92,7 +93,7 @@
               aria-hidden="true"
             />
 
-            <label for="new-pin">Personal PIN</label>
+            <label for="new-pin">Личный PIN</label>
             <input
               id="new-pin"
               name="pin"
@@ -100,64 +101,97 @@
               inputmode="numeric"
               autocomplete="new-password"
               pattern="[0-9]{4,8}"
-              placeholder="4–8 digits"
+              placeholder="4–8 цифр"
               required
             />
 
             <p id="personal-pin-error" class="form-error" role="alert"></p>
-            <button class="button button-primary" type="submit">Claim name</button>
-            <button id="back-to-crew-pin" class="text-button" type="button">Back</button>
+            <button class="button button-primary" type="submit">Закрепить имя</button>
+            <button id="back-to-crew-pin" class="text-button" type="button">Назад</button>
           </form>
         </div>
       </section>
 
       <section id="calendar-view" class="calendar-layout" hidden>
         <header class="calendar-intro">
-          <div>
-            <h1>Availability</h1>
-            <p>Select your dates.</p>
-          </div>
+          <div><p class="eyebrow">Общий план</p><h1 id="view-title">Поездка</h1></div>
           <div class="identity">
             <span id="signed-in-label"></span>
-            <a class="text-button" href="/events.html">Event log</a>
-            <button id="logout-button" class="text-button" type="button">Exit</button>
+            <a class="text-button" href="/events.html">История</a>
+            <button id="logout-button" class="text-button" type="button">Выйти</button>
           </div>
         </header>
-
-        <section class="calendar-area" aria-labelledby="month-label">
-          <nav class="calendar-toolbar" aria-label="Calendar month">
-            <button id="previous-month" class="icon-button" type="button" aria-label="Previous month">←</button>
-            <h2 id="month-label"></h2>
-            <button id="next-month" class="icon-button" type="button" aria-label="Next month">→</button>
-          </nav>
-
-          <div class="weekday-row" aria-hidden="true">
-            <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span>
-            <span>Fri</span><span>Sat</span><span>Sun</span>
-          </div>
-          <div id="calendar-grid" class="calendar-grid" role="grid" aria-labelledby="month-label"></div>
+        <nav class="view-tabs" aria-label="Разделы поездки">
+          <button type="button" data-view="trip-panel" aria-current="page">Поездка</button>
+          <button type="button" data-view="dates-panel">Даты</button>
+          <button type="button" data-view="members-panel">Участники</button>
+        </nav>
+        <p id="trip-sync-status" class="sync-status" role="status" aria-live="polite"></p>
+        <section id="trip-panel" aria-label="Поездка">
+          <div id="trip-overview"></div>
         </section>
-
-        <section id="save-conflict" class="save-conflict" aria-labelledby="conflict-title" hidden>
-          <h2 id="conflict-title">Review changed dates</h2>
-          <p>Saved in another window: <span id="remote-dates"></span></p>
-          <p>Your current draft: <span id="draft-dates"></span></p>
-          <button id="reapply-dates" class="button" type="button">Apply my edits to these saved dates</button>
-          <button id="use-remote-dates" class="text-button" type="button">Discard my draft and use saved dates</button>
-        </section>
-
-        <footer class="calendar-footer">
-          <div>
+        <section id="dates-panel" aria-label="Даты" hidden>
+          <div id="trip-options"></div>
+          <section class="general-availability" aria-labelledby="availability-title">
+            <h2 id="availability-title">Общая доступность</h2>
+            <p>Эти отметки показывают свободные дни. Ответы на варианты поездки находятся выше.</p>
+            <form id="range-form" class="range-controls">
+              <label>С <input id="range-start" type="date" required></label>
+              <label>По <input id="range-end" type="date" required></label>
+              <button class="button" type="submit" name="action" value="select">Выбрать дни</button>
+              <button class="button" type="submit" name="action" value="remove">Убрать дни</button>
+            </form>
+            <p id="range-error" class="form-error" role="alert"></p>
+            <section class="calendar-area" aria-labelledby="month-label">
+              <nav class="calendar-toolbar" aria-label="Месяц календаря">
+                <button id="previous-month" class="icon-button" type="button" aria-label="Предыдущий месяц">←</button>
+                <h2 id="month-label"></h2>
+                <button id="next-month" class="icon-button" type="button" aria-label="Следующий месяц">→</button>
+              </nav>
+              <div class="weekday-row" aria-hidden="true">
+                <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+              </div>
+              <div id="calendar-grid" class="calendar-grid" role="grid" aria-labelledby="month-label"></div>
+            </section>
+            <aside id="day-details" class="day-details" aria-live="polite"></aside>
             <p id="calendar-summary" class="summary"></p>
-            <div id="legend" class="legend" aria-label="Calendar participants"></div>
-          </div>
+            <div id="legend" class="legend" aria-label="Участники календаря"></div>
+          </section>
+          <section id="save-conflict" class="save-conflict" aria-labelledby="conflict-title" hidden>
+            <h2 id="conflict-title">Сравните изменения дат</h2>
+            <p>Сохранено в другом окне: <span id="remote-dates"></span></p>
+            <p>Ваш черновик: <span id="draft-dates"></span></p>
+            <button id="reapply-dates" class="button" type="button">Добавить мои изменения к сохранённым датам</button>
+            <button id="use-remote-dates" class="text-button" type="button">Отменить черновик и взять сохранённые даты</button>
+          </section>
+        </section>
+        <section id="members-panel" aria-label="Участники" hidden><div id="trip-members"></div></section>
+        <footer class="calendar-footer">
           <div class="save-panel">
-            <p>Dates are not converted between time zones.</p>
+            <p>Общая доступность</p>
             <p id="save-status" role="status" aria-live="polite"></p>
-            <button id="save-button" class="button button-primary" type="button">Save dates</button>
+            <button id="save-button" class="button button-primary" type="button">Сохранить даты</button>
           </div>
         </footer>
       </section>
+      <dialog id="trip-editor" aria-labelledby="trip-edit-title">
+        <form id="trip-edit-form">
+          <header class="dialog-heading"><h2 id="trip-edit-title"></h2><button id="trip-edit-close" class="text-button" type="button">Закрыть</button></header>
+          <div id="trip-edit-fields"></div>
+          <section id="trip-edit-conflict" class="save-conflict" hidden></section>
+          <p id="trip-edit-error" class="form-error" role="alert"></p>
+          <footer class="dialog-footer"><p id="trip-edit-status" role="status" aria-live="polite"></p><button id="trip-edit-save" class="button button-primary" type="submit">Сохранить</button></footer>
+        </form>
+      </dialog>
+      <dialog id="trip-summary-dialog" aria-labelledby="trip-summary-title">
+        <h2 id="trip-summary-title">Текст для Telegram</h2>
+        <p>Вставьте текст в чат сами. По умолчанию личные бюджеты и заметки о дороге не включены.</p>
+        <label><input id="summary-private" type="checkbox">Включить личные бюджеты и заметки</label>
+        <label for="trip-summary-text" class="visually-hidden">Текст поездки</label>
+        <textarea id="trip-summary-text" rows="14" readonly></textarea>
+        <p id="trip-copy-status" role="status"></p>
+        <div class="dialog-footer"><button id="trip-summary-close" type="button" class="button">Закрыть</button><button id="trip-copy-button" type="button" class="button button-primary">Скопировать</button></div>
+      </dialog>
     </main>
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
