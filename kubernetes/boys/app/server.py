@@ -28,8 +28,7 @@ from trips import Conflict, TripStore, fields
 
 APP_DIR = Path(__file__).resolve().parent
 STATIC_FILES = {
-    "/trip.js": ("trip.js", "text/javascript; charset=utf-8"),
-    "/trip-utils.mjs": ("trip-utils.mjs", "text/javascript; charset=utf-8"),
+    "/links.js": ("links.js", "text/javascript; charset=utf-8"),
     "/": ("index.html", "text/html; charset=utf-8"),
     "/index.html": ("index.html", "text/html; charset=utf-8"),
     "/events.html": ("events.html", "text/html; charset=utf-8"),
