@@ -10,7 +10,7 @@ import pytest
 from apps.boys.check_restore import database_state
 
 ROOT = Path(__file__).resolve().parents[3]
-RUNTIME = ROOT / "kubernetes/boys/app"
+RUNTIME = ROOT / "apps/boys/app"
 INPUTS = {"boys_pin": "1357", "boys_session_key": "synthetic-recovery-key-with-no-live-access"}
 
 

@@ -51,7 +51,7 @@
             fields(seed, ('id', 'document'))
             identifier(seed['id'])
             board(seed['document'])
-          - "{{ playbook_dir }}/../../../kubernetes/boys/app"
+          - "{{ playbook_dir }}/../../../apps/boys/app"
         stdin: "{{ boys_trip_input.boys_trip_seed | to_json }}"
       delegate_to: localhost
       become: false

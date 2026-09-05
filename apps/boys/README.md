@@ -4,6 +4,13 @@ Open <https://boys.soyspray.vip>. Use **Календарь** to mark free days a
 **Ссылки** to keep accommodation links. Select an unclaimed name, enter the crew
 PIN, then set a personal PIN. Claimed names require their personal PIN.
 
+**Календарь** opens first. Mark days or use **Выбрать диапазон**, then select
+**Сохранить даты**. **Ссылки** keeps a separate list of manual accommodation
+links. Failed saves retain the draft. Review conflicts before reapplying edits.
+The save indicator remains visible on phones, and leaving with unsaved changes
+gives a warning. General availability and earlier events remain available.
+The smaller interface preserves existing hidden trip fields and audit history.
+
 The app keeps the existing SQLite database, sessions, and single-writer
 `boys` deployment on `boys-data`. The critical Longhorn backup group protects
 that claim. See [recovery operations](../../playbooks/operations/recovery/README.md)
@@ -26,10 +33,14 @@ running app.
 The native root owns the existing Boys Application and AppProject. Their
 prune and deletion guards preserve them if removed from the root. The namespace
 and PVC also have explicit data protection. Normal deployment cannot retire
-Boys or remove its access keys. Source, manifests, browser checks, and the
-[detailed operating guide](../../kubernetes/boys/README.md) still use
-`kubernetes/boys/`. Keep the current runtime Secret and signing key. Moving
-those files is a separate change after recovery checks.
+Boys or remove its access keys.
+
+Runtime source and its compatibility contract are in [app/](app/README.md).
+[manifests/](manifests/README.md) contains the workload and tunnel configuration.
+Checks live in `tests/`. The Docker build includes only the listed runtime files;
+Python and browser tools are development dependencies outside the image.
+The image workflow checks fresh access, migration, and rollback with disposable
+data before publishing. It opens a draft promotion and never merges or deploys.
 
 ## Bootstrap and recovery inputs
 
@@ -103,18 +114,3 @@ It does not prove seven days of recovery-point coverage. The command does not
 change the live workload or its data. Use the report's check ID and backup UID
 with the guarded [cleanup operation](../../playbooks/operations/recovery/README.md)
 if an interrupted check leaves scratch resources behind.
-
-## Adopt the existing Application
-
-During this migration, first run a fresh isolated restore. Keep the resulting
-private report. Push the branch and run `make go`. Run `apps/boys/adopt.yml`
-with the same Ansible inventory and privilege flags shown above, then use
-`make deploy APP=boys REVISION=YOUR_PUSHED_BRANCH`.
-
-The retryable adoption operation accepts only the known legacy HEAD source or
-the native HEAD source. It removes the old runtime-version patch and Argo
-cascading finalizers. It rejects a concurrent Application edit before writing.
-Removing the patch causes one Recreate rollout of the same immutable image.
-Verify the original claim, access keys, saved data, and app health after that
-rollout. Unknown finalizers remain in place. After merge, deploy HEAD again.
-Do not run the old role or its disable operation after adoption.

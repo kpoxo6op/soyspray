@@ -64,7 +64,7 @@
   kubernetes.core.k8s:
     state: present
     kubeconfig: "{{ kubeconfig_path }}"
-    definition: "{{ lookup('file', boys_bootstrap_root + '/kubernetes/boys/namespace.yaml') | from_yaml }}"
+    definition: "{{ lookup('file', boys_bootstrap_root + '/apps/boys/manifests/namespace.yaml') | from_yaml }}"
   when: boys_existing_runtime.resources | length == 0 or boys_existing_tunnel.resources | length == 0
 
 - name: Restore the missing Boys runtime Secret

@@ -15,12 +15,7 @@ APP_PATHS = {
         "playbooks/argocd/applications/media/immich/",
         "playbooks/argocd/applications/backups/immich-offsite-backup/",
     ),
-    "boys": (
-        "kubernetes/boys/",
-        "apps/boys/",
-        "roles/apps/boys/",
-        "playbooks/argocd/applications/web/boys/",
-    ),
+    "boys": ("apps/boys/",),
     "autism": ("apps/autism-traits/",),
 }
 SHARED_CONTROLS = {

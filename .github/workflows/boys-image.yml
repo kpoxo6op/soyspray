@@ -4,23 +4,23 @@ on:
   push:
     branches: [main]
     paths:
-      - kubernetes/boys/app/**
-      - kubernetes/boys/Dockerfile
-      - kubernetes/boys/.dockerignore
-      - kubernetes/boys/test-image.py
-      - kubernetes/boys/tests/**
-      - kubernetes/boys/package*.json
-      - kubernetes/boys/playwright.config.js
+      - apps/boys/app/**
+      - apps/boys/Dockerfile
+      - apps/boys/.dockerignore
+      - apps/boys/test-image.py
+      - apps/boys/tests/**
+      - apps/boys/package*.json
+      - apps/boys/playwright.config.js
       - .github/workflows/boys-image.yml
   pull_request:
     paths:
-      - kubernetes/boys/app/**
-      - kubernetes/boys/Dockerfile
-      - kubernetes/boys/.dockerignore
-      - kubernetes/boys/test-image.py
-      - kubernetes/boys/tests/**
-      - kubernetes/boys/package*.json
-      - kubernetes/boys/playwright.config.js
+      - apps/boys/app/**
+      - apps/boys/Dockerfile
+      - apps/boys/.dockerignore
+      - apps/boys/test-image.py
+      - apps/boys/tests/**
+      - apps/boys/package*.json
+      - apps/boys/playwright.config.js
       - .github/workflows/boys-image.yml
   workflow_dispatch:
 
@@ -41,12 +41,12 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: kubernetes/boys/package-lock.json
+          cache-dependency-path: apps/boys/package-lock.json
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
       - name: Check dates and trip behavior in phone and desktop browsers
-        working-directory: kubernetes/boys
+        working-directory: apps/boys
         run: |
           npm ci
           npx playwright install --with-deps chromium
@@ -77,7 +77,7 @@ jobs:
           elif [ "$GITHUB_EVENT_NAME" = push ]; then
             git cat-file -e "$BEFORE^{commit}"
             git diff --name-only "$BEFORE" "$GITHUB_SHA" -- \
-              kubernetes/boys/app kubernetes/boys/Dockerfile kubernetes/boys/.dockerignore \
+              apps/boys/app apps/boys/Dockerfile apps/boys/.dockerignore \
               > "$RUNNER_TEMP/boys-runtime-files"
             if [ -s "$RUNNER_TEMP/boys-runtime-files" ]; then changed=true; fi
           fi
@@ -85,7 +85,7 @@ jobs:
       - name: Build the pinned runtime
         run: |
           docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" \
-            --tag "$IMAGE:$IMAGE_TAG" kubernetes/boys
+            --tag "$IMAGE:$IMAGE_TAG" apps/boys
       - name: Check the image without cluster access
         run: |
           docker run --detach --name boys-check --network none --read-only \
@@ -94,7 +94,7 @@ jobs:
             --env BOYS_PIN=1234 --env BOYS_COOKIE_SECURE=false \
             --env BOYS_SESSION_KEY=image-test-key-with-no-production-access \
             "$IMAGE:$IMAGE_TAG"
-          docker exec -i boys-check python - < kubernetes/boys/test-image.py
+          docker exec -i boys-check python - < apps/boys/test-image.py
       - name: Remove the isolated test container
         if: always()
         run: docker rm --force boys-check || true
@@ -103,7 +103,7 @@ jobs:
           previous="$(python3 - <<'PYTHON'
           import re
           from pathlib import Path
-          text = Path('kubernetes/boys/deployment.yaml').read_text()
+          text = Path('apps/boys/manifests/deployment.yaml').read_text()
           image = re.findall(r'(?m)^          image: (ghcr\.io/kpoxo6op/boys@sha256:[0-9a-f]{64})$', text)
           if len(image) != 1:
               raise SystemExit('Expected one prior Boys digest')
@@ -123,14 +123,14 @@ jobs:
               --env "BOYS_TRIP_SEED_FILE=${2-}" "$1"
           }
           run_image "$previous"
-          docker exec -i boys-migration python - < kubernetes/boys/test-image.py
-          docker exec -i boys-migration python - record < kubernetes/boys/tests/image-migration.py
+          docker exec -i boys-migration python - < apps/boys/test-image.py
+          docker exec -i boys-migration python - record < apps/boys/tests/image-migration.py
           docker rm --force boys-migration
           run_image "$IMAGE:$IMAGE_TAG" /data/check-seed.json
-          docker exec -i boys-migration python - migrated < kubernetes/boys/tests/image-migration.py
+          docker exec -i boys-migration python - migrated < apps/boys/tests/image-migration.py
           docker rm --force boys-migration
           run_image "$previous"
-          docker exec -i boys-migration python - rollback < kubernetes/boys/tests/image-migration.py
+          docker exec -i boys-migration python - rollback < apps/boys/tests/image-migration.py
       - name: Remove the isolated migration data
         if: always()
         run: |
@@ -159,9 +159,9 @@ jobs:
           image = os.environ['BOYS_IMAGE_REF']
           if not re.fullmatch(r'ghcr.io/kpoxo6op/boys@sha256:[0-9a-f]{64}', image):
               raise SystemExit('The published image reference is not a digest')
-          path = Path('kubernetes/boys/deployment.yaml')
+          path = Path('apps/boys/manifests/deployment.yaml')
           text = path.read_text()
-          pattern = r'(?m)^          image: (?:python:3\.13-alpine|ghcr\.io/kpoxo6op/boys)@sha256:[0-9a-f]{64}$'
+          pattern = r'(?m)^          image: ghcr\.io/kpoxo6op/boys@sha256:[0-9a-f]{64}$'
           text, count = re.subn(pattern, '          image: ' + image, text)
           if count != 1:
               raise SystemExit('Expected exactly one Boys runtime image to promote')
@@ -170,7 +170,7 @@ jobs:
           if git diff --quiet; then exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add kubernetes/boys/deployment.yaml
+          git add apps/boys/manifests/deployment.yaml
           git commit -m 'Promote the tested Boys image digest'
           git push origin "$branch"
           promotion_commit="$(git rev-parse HEAD)"

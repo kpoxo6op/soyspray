@@ -12,9 +12,9 @@ from scripts import ci_scope
 @pytest.mark.parametrize(
     "path",
     [
-        "kubernetes/boys/app/app.js",
+        "apps/boys/app/app.js",
         "apps/boys/argocd/application.yaml",
-        "roles/apps/boys/tasks/enabled.yml",
+        "apps/boys/bootstrap-tasks.yml",
     ],
 )
 def test_boys_changes_select_its_browser_checks(path):
@@ -69,7 +69,7 @@ def test_deleted_and_renamed_paths_are_both_checked(tmp_path, monkeypatch):
         return subprocess.check_output(["git", *args], cwd=tmp_path, text=True).strip()
 
     git("init", "--quiet")
-    old = tmp_path / "kubernetes/boys/old name.js"
+    old = tmp_path / "apps/boys/old name.js"
     old.parent.mkdir(parents=True)
     old.write_text("source")
     git("add", ".")
@@ -100,7 +100,7 @@ def test_deleted_and_renamed_paths_are_both_checked(tmp_path, monkeypatch):
     )
     monkeypatch.chdir(tmp_path)
     paths = ci_scope.changed_paths(base)
-    assert set(paths) == {"kubernetes/boys/old name.js", "apps/autism-traits/new.js"}
+    assert set(paths) == {"apps/boys/old name.js", "apps/autism-traits/new.js"}
     assert ci_scope.select(paths) == {"boys": True, "autism": True, "immich": False}
 
 

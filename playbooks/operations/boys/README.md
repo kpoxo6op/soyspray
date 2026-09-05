@@ -6,7 +6,7 @@ bound `boys-data` claim and does not change the PIN or session key.
 
 Create a file outside the repository with `ansible-vault create`. Use
 `boys_trip_seed` as its top-level key, with an `id` and `document` accepted by
-the [Boys data interface](../../../kubernetes/boys/README.md). Keep destination,
+the [Boys data interface](../../../apps/boys/app/README.md). Keep destination,
 dates, and private content in this encrypted file. Keep its Vault password and
 an offline copy outside the cluster. Do not put either in Git or shell history.
 

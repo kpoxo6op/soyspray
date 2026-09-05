@@ -39,7 +39,7 @@ NODE2 := 192.168.20.12
 KUSTOMIZATIONS := \
 	argocd \
 	apps/autism-traits/manifests \
-	kubernetes/boys \
+	apps/boys/manifests \
 	$(VAULTWARDEN_PACKAGE) \
 	playbooks/argocd/applications/home-automation/voice-assistant \
 	playbooks/argocd/applications/media/media-helper \
@@ -69,7 +69,7 @@ setup: ## Create the venv and install local tooling
 	$(VENV)/bin/python -m pip install -r requirements-dev.txt
 	$(VENV)/bin/ansible-galaxy collection install -r requirements-ansible.yml
 	cd $(AUTISM_TRAITS_APP) && npm ci
-	cd kubernetes/boys && npm ci && npx playwright install chromium
+	cd apps/boys && npm ci && npx playwright install chromium
 
 act: ## Open a shell in the project venv
 	bash -lc 'source $(VENV)/bin/activate && exec bash -i'
@@ -93,17 +93,16 @@ restore-check: ## Restore APP in isolation and check its data through the standa
 	$(MAKE) --no-print-directory app-command COMMAND=restore-check
 
 boys-check: ## Check Boys dates, trip behavior, and phone and desktop browsers
-	cd kubernetes/boys && npm test
+	cd apps/boys && npm test
 
 autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/boys/tests apps/immich scripts tests
-	$(PYTHON) -m ruff format --check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/boys/tests apps/immich scripts tests
+	$(PYTHON) -m ruff check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/immich scripts tests
+	$(PYTHON) -m ruff format --check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/immich scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/boys/adopt.yml \
-		roles/apps/boys/tasks/*.yml roles/apps/boys/defaults/*.yml \
+		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml \
 		roles/apps/vaultwarden/tasks/*.yml roles/apps/vaultwarden/defaults/*.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
@@ -129,7 +128,7 @@ status-page-check:
 	$(PYTHON) scripts/configure_status_page.py --check
 
 test: ## Run the focused test suite
-	$(PYTEST) -q tests apps/autism-traits/tests apps/boys/tests kubernetes/boys/tests
+	$(PYTEST) -q tests apps/autism-traits/tests apps/boys/tests
 
 render: ## Render all managed Kustomize packages
 	for path in $(KUSTOMIZATIONS); do \
