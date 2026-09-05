@@ -1,23 +1,38 @@
 # Boys calendar
 
-This package serves `https://boys.soyspray.vip`. The nine crew names are ready
-in the sign-in list. A person claims an unused name with the crew PIN and then
-chooses a personal PIN. Each name has a fixed color and line pattern. Equal
-stacked lines show the availability overlap inside each date. The page shows
-the name, crew PIN, and personal PIN as separate steps. The calendar lists each
-boy as `unclaimed`, `no dates`, or with an available-day count.
+This package serves `https://boys.soyspray.vip`. The Russian interface has
+three views: **Поездка**, **Даты**, and **Участники**. Sign in with a personal
+PIN. To claim an unused name, select it, enter the crew PIN, and set a personal
+PIN. The crew PIN cannot replace a claimed PIN.
 
-The application stores names, selected dates, activity events, and salted
-personal PIN hashes in SQLite on the `boys-data` Longhorn claim. It has no
-email, analytics, or third-party browser script. The crew PIN can claim an
-unused name but cannot replace a claimed PIN. The sign-in page directs a person
-with a lost PIN to `t.me/borex69`. Cloudflare processes the public requests and
-connection metadata to deliver the site.
+Use **Поездка** to edit shared decisions, accommodation quotes, and the next
+call. Any claimed member can mark a section agreed or reopen it. The board
+shows that person's name and time. Editing an agreed value makes it a draft.
+Agreement does not mean that every member voted for it.
 
-The event log requires a signed-in session. It records new claims and changed
-availability totals in newest-first order and refreshes every five seconds.
-Existing claims appear as a `Before log` baseline, with their current
-available-day count and no invented timestamp.
+Use **Даты** to compare proposed stays and answer yes, maybe, or no. A blank
+answer stays unanswered. The separate availability calendar supports individual
+days and inclusive ranges. Crew colours and patterns show overlap. The calendar
+opens at the trip month. The history link keeps earlier claims and availability
+events, including baseline records without invented timestamps.
+
+Use **Участники** to edit your own attendance, travel dates, accompanying adult
+and child counts, optional budget, and travel notes. Do not enter family names.
+The board shows differences from the selected shared dates. Budgets use AUD per
+person, excluding flights. Accommodation estimates need an explicit paying-person
+count. A manual quote is dated information; the site does not fetch prices or
+make bookings.
+
+The call editor stores a UTC instant and IANA timezone. It displays Auckland
+and Brisbane times and asks which occurrence to use when the clock repeats a
+time. **Текст для Telegram** prepares saved information for manual copying.
+Personal budgets and travel notes are excluded unless you select them. It does
+not send messages or read chat.
+
+Names, dates, events, salted PIN hashes, and trip data use SQLite on `boys-data`.
+Trip content requires a signed-in session. The app has no email, analytics, or
+third-party browser script. Cloudflare processes public requests and connection
+metadata to deliver the site. A lost-PIN link opens `t.me/borex69`.
 
 ## Saving dates
 
@@ -27,7 +42,9 @@ an earlier selection is saving; those newer edits still need another save.
 
 If another window changes your dates, compare its saved dates with your draft.
 Apply your additions and removals to the reviewed dates, then save again, or
-discard your draft. Other members refresh on focus and every 30 seconds. A
+discard your draft. Trip editors use the same conflict review. They keep input
+when saving fails and preserve edits made during an outstanding save. Other
+members refresh on focus and every 30 seconds. A
 failed refresh is shown. Navigation warns when you have unsaved changes.
 
 ## Trip data interface
@@ -41,8 +58,9 @@ database. Startup stops if backup validation fails or the migration is partial.
 Runtime input can supply `BOYS_TRIP_SEED_FILE`, the path to a mounted Secret
 file with an `id` and `document`. Prepare that input through Ansible Vault.
 Keep real destination, dates, and trip content outside Git and static assets.
-Seeding creates a draft once. Restarting never resets later edits. The UI is
-not enabled by this data-layer change.
+Seeding creates a draft once. Restarting never resets later edits. Without
+a seed, the interface explains that no trip is configured and keeps general
+availability available.
 
 Authenticated endpoints:
 

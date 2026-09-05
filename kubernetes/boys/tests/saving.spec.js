@@ -11,11 +11,13 @@ async function signIn(page) {
   await page.request.put('/api/availability', { data: { dates: [], expected_revision: current.revision } });
   await page.goto('/');
   await expect(page.locator('#calendar-view')).toBeVisible();
+  await page.locator('[data-view=dates-panel]').click();
+  await expect(page.locator('#trip-sync-status')).toContainText('Поездка обновлена');
   if (await days(page).count() < 3) await page.locator('#next-month').click();
 }
 
 function days(page) {
-  return page.locator('.calendar-day:not([disabled])');
+  return page.locator('.calendar-day[aria-readonly=false]');
 }
 
 async function updateElsewhere(page, dates) {
@@ -46,7 +48,7 @@ test('claim flow and personal PIN login remain separate', async ({ page }) => {
   await expect(page.locator('#login-form')).toBeVisible();
   await page.locator('#login-pin').fill('1357');
   await page.locator('#login-form button[type=submit]').click();
-  await expect(page.locator('#login-error')).toContainText('not correct');
+  await expect(page.locator('#login-error')).toContainText('не подходит');
   await page.locator('#login-pin').fill('5678');
   await page.locator('#login-form button[type=submit]').click();
   await expect(page.locator('#calendar-view')).toBeVisible();
@@ -60,13 +62,15 @@ test('failed saves keep the draft and permit a successful retry', async ({ page 
   await days(page).nth(0).click();
   await page.route('**/api/availability', (route) => route.request().method() === 'PUT' ? route.abort('failed') : route.continue());
   await page.locator('#save-button').click();
-  await expect(page.locator('#save-status')).toContainText('Save failed');
+  await expect(page.locator('#save-status')).toContainText('Не удалось сохранить');
   await expect(page.locator('#save-button')).toBeEnabled();
   await expect(days(page).nth(0)).toHaveAttribute('aria-pressed', 'true');
   await page.unroute('**/api/availability');
   await page.locator('#save-button').click();
-  await expect(page.locator('#save-status')).toHaveText('All displayed dates are saved.');
+  await expect(page.locator('#save-status')).toHaveText('Общая доступность сохранена.');
   await page.reload();
+  await page.locator('[data-view=dates-panel]').click();
+  await expect(page.locator('#trip-sync-status')).toContainText('Поездка обновлена');
   await expect(days(page).nth(0)).toHaveAttribute('aria-pressed', 'true');
 });
 
@@ -91,12 +95,14 @@ test('new edits during a save remain unsaved and no duplicate save starts', asyn
   await days(page).nth(1).click();
   await expect(page.locator('#save-button')).toBeDisabled();
   release();
-  await expect(page.locator('#save-status')).toHaveText('You have unsaved changes.');
+  await expect(page.locator('#save-status')).toHaveText('Есть несохранённые изменения.');
   expect(writes).toBe(1);
   await expect(days(page).nth(1)).toHaveAttribute('aria-pressed', 'true');
   await page.locator('#save-button').click();
-  await expect(page.locator('#save-status')).toHaveText('All displayed dates are saved.');
+  await expect(page.locator('#save-status')).toHaveText('Общая доступность сохранена.');
   await page.reload();
+  await page.locator('[data-view=dates-panel]').click();
+  await expect(page.locator('#trip-sync-status')).toContainText('Поездка обновлена');
   await expect(days(page).nth(0)).toHaveAttribute('aria-pressed', 'true');
   await expect(days(page).nth(1)).toHaveAttribute('aria-pressed', 'true');
 });
@@ -111,7 +117,7 @@ test('conflicts preserve the draft and reapply its delta after review', async ({
   await expect(page.locator('#save-button')).toBeDisabled();
   await page.locator('#reapply-dates').click();
   await page.locator('#save-button').click();
-  await expect(page.locator('#save-status')).toHaveText('All displayed dates are saved.');
+  await expect(page.locator('#save-status')).toHaveText('Общая доступность сохранена.');
   const saved = await (await page.request.get('/api/availability')).json();
   const mine = saved.participants.find((person) => person.name === 'Boris K');
   expect(mine.dates).toHaveLength(2);
@@ -167,10 +173,10 @@ test('a lost acknowledgement is confirmed by conflict recovery', async ({ page }
     } else await route.continue();
   });
   await page.locator('#save-button').click();
-  await expect(page.locator('#save-status')).toContainText('Save failed');
+  await expect(page.locator('#save-status')).toContainText('Не удалось сохранить');
   await page.unroute('**/api/availability');
   await page.locator('#save-button').click();
-  await expect(page.locator('#save-status')).toHaveText('All displayed dates are saved.');
+  await expect(page.locator('#save-status')).toHaveText('Общая доступность сохранена.');
   await expect(page.locator('#save-conflict')).toBeHidden();
 });
 
@@ -192,12 +198,12 @@ test('a delayed refresh cannot overwrite a later save acknowledgement', async ({
   await pending;
   await days(page).nth(0).click();
   await page.locator('#save-button').click();
-  await expect(page.locator('#save-status')).toHaveText('All displayed dates are saved.');
+  await expect(page.locator('#save-status')).toHaveText('Общая доступность сохранена.');
   const refreshed = page.waitForResponse((response) => response.url().endsWith('/api/availability') && response.request().method() === 'GET');
   release();
   await refreshed;
   await expect(days(page).nth(0)).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#save-status')).toHaveText('All displayed dates are saved.');
+  await expect(page.locator('#save-status')).toHaveText('Общая доступность сохранена.');
 });
 
 test('periodic refresh updates another member without losing the local draft', async ({ page, playwright }) => {
@@ -216,9 +222,9 @@ test('periodic refresh updates another member without losing the local draft', a
     const current = await (await other.get('/api/availability')).json();
     await other.put('/api/availability', { data: { dates: [futureDay(20)], expected_revision: current.revision } });
     await page.clock.fastForward(30000);
-    await expect(page.locator('#legend')).toContainText('Bronislav · 1 day');
+    await expect(page.locator('#legend')).toContainText('Bronislav · дней: 1');
     await expect(days(page).nth(0)).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('#save-status')).toHaveText('You have unsaved changes.');
+    await expect(page.locator('#save-status')).toHaveText('Есть несохранённые изменения.');
   } finally {
     await other.dispose();
   }

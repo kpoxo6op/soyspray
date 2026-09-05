@@ -96,6 +96,25 @@ async function api(path, options = {}) {
   }
 }
 
+function boysError(error) {
+  const known = {
+    "The PIN is not correct.": "Личный PIN не подходит.",
+    "The crew PIN is not correct.": "Общий PIN не подходит.",
+    "This name is already claimed.": "Это имя уже закреплено. Войдите с личным PIN.",
+    "Choose a different PIN.": "Выберите другой личный PIN.",
+    "Use 4 to 8 digits for your PIN.": "Личный PIN должен содержать от 4 до 8 цифр.",
+    "Select dates from today through the next year.": "Выберите даты от сегодняшнего дня до года вперёд.",
+  };
+  if (known[error.message]) return known[error.message];
+  if (error.name === "AbortError") return "Сервер не ответил вовремя. Повторите попытку.";
+  if (error.status === 401) return "Войдите снова. Черновик остаётся в этом окне.";
+  if (error.status === 409) return "Данные изменились в другом окне. Сравните изменения.";
+  if (/^[А-Яа-яЁё]/.test(error.message)) return error.message;
+  if (error.status === 400) return "Проверьте значения полей, даты и суммы.";
+  return "Не удалось связаться с сервером. Повторите попытку.";
+}
+window.boysError = boysError;
+
 function selectedCrewMember() {
   return state.crew.find((member) => member.name === nameSelect.value);
 }
@@ -113,7 +132,7 @@ function renderCrew() {
   const selectedName = nameSelect.value;
   const prompt = document.createElement("option");
   prompt.value = "";
-  prompt.textContent = "Select name";
+  prompt.textContent = "Выберите имя";
   nameSelect.replaceChildren(prompt);
   state.crew.forEach((member) => {
     const option = document.createElement("option");
@@ -132,7 +151,7 @@ async function loadCrew() {
     state.crew = payload.crew;
     renderCrew();
   } catch (error) {
-    nameError.textContent = error.message;
+    nameError.textContent = boysError(error);
   }
 }
 
@@ -146,14 +165,14 @@ function showNameStep() {
   loginError.textContent = "";
   crewPinError.textContent = "";
   personalPinError.textContent = "";
-  showAccessStep(nameForm, "Boys calendar", "Choose your name.", "#name");
+  showAccessStep(nameForm, "Общая поездка", "Выберите своё имя.", "#name");
 }
 
 function showLoginStep() {
   loginForm.reset();
   loginError.textContent = "";
   loginUsername.value = state.member.name;
-  showAccessStep(loginForm, state.member.name, "Enter your PIN.", "#login-pin");
+  showAccessStep(loginForm, state.member.name, "Введите личный PIN.", "#login-pin");
 }
 
 function showCrewPinStep() {
@@ -163,8 +182,8 @@ function showCrewPinStep() {
   crewPinError.textContent = "";
   showAccessStep(
     crewPinForm,
-    `Claim ${state.member.name}`,
-    "Enter the crew PIN.",
+    `Закрепить имя: ${state.member.name}`,
+    "Введите общий PIN.",
     "#seed-pin",
   );
 }
@@ -175,13 +194,14 @@ function showPersonalPinStep() {
   claimUsername.value = state.member.name;
   showAccessStep(
     personalPinForm,
-    "Personal PIN",
-    `Choose 4 to 8 digits for ${state.member.name}.`,
+    "Личный PIN",
+    `Выберите от 4 до 8 цифр для ${state.member.name}.`,
     "#new-pin",
   );
 }
 
 async function showAccess() {
+  document.dispatchEvent(new CustomEvent("boys:close"));
   accessView.hidden = false;
   calendarView.hidden = true;
   state.member = null;
@@ -218,6 +238,8 @@ function openCalendar(payload) {
   calendarView.hidden = false;
   document.querySelector("#signed-in-label").textContent = state.me;
   render();
+  setView("trip-panel");
+  document.dispatchEvent(new CustomEvent("boys:open", { detail: payload }));
 }
 
 function visibleParticipants() {
@@ -240,17 +262,18 @@ function renderDay(value, outside) {
   button.className = "calendar-day";
   button.setAttribute("role", "gridcell");
   button.setAttribute("aria-pressed", state.selected.has(key) ? "true" : "false");
-  const dateName = value.toLocaleDateString(undefined, {
+  const dateName = value.toLocaleDateString("ru-RU", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
   });
   const availability = people.length
-    ? ` Available: ${people.map((person) => person.name).join(", ")}.`
+    ? ` Свободны: ${people.map((person) => person.name).join(", ")}.`
     : "";
   button.setAttribute("aria-label", `${dateName}.${availability}`);
-  button.disabled = !selectable;
+  button.disabled = outside;
+  button.setAttribute("aria-readonly", String(!selectable));
   if (outside) button.classList.add("is-outside");
   if (dateKey(value) === dateKey(today)) button.classList.add("is-today");
   const number = document.createElement("span");
@@ -276,10 +299,13 @@ function renderDay(value, outside) {
   });
   button.append(stripes);
 
-  if (selectable) {
+  if (!outside) {
     button.addEventListener("click", () => {
-      if (state.selected.has(key)) state.selected.delete(key);
-      else state.selected.add(key);
+      if (selectable) {
+        if (state.selected.has(key)) state.selected.delete(key);
+        else state.selected.add(key);
+      }
+      state.detailDay = key;
       updateDirty();
       render();
     });
@@ -289,7 +315,7 @@ function renderDay(value, outside) {
 
 function renderCalendar() {
   const focused = calendarGrid.contains(document.activeElement) ? document.activeElement.dataset.date : null;
-  monthLabel.textContent = state.month.toLocaleDateString(undefined, {
+  monthLabel.textContent = state.month.toLocaleDateString("ru-RU", {
     month: "long",
     year: "numeric",
   });
@@ -324,13 +350,13 @@ function renderLegend() {
     mark.className = `legend-mark ${participantColorClasses[participant.name]}`;
     mark.setAttribute("aria-hidden", "true");
     const name = document.createElement("span");
-    const identity = participant.name === state.me ? `${participant.name} (you)` : participant.name;
+    const identity = participant.name === state.me ? `${participant.name} (вы)` : participant.name;
     const days = participant.dates.length;
     const status = participant.claimed
       ? days
-        ? `${days} ${days === 1 ? "day" : "days"}`
-        : "no dates"
-      : "unclaimed";
+        ? `дней: ${days}`
+        : "нет дат"
+      : "имя не закреплено";
     name.textContent = `${identity} · ${status}`;
     item.append(mark, name);
     legend.append(item);
@@ -340,19 +366,20 @@ function renderLegend() {
 function render() {
   renderCalendar();
   renderLegend();
+  renderDayDetails();
   const participantCount = visibleParticipants().length;
   const selectedCount = state.selected.size;
-  summary.textContent = `${participantCount} boys · ${selectedCount} of your dates selected`;
-  saveButton.textContent = state.saving ? "Saving…" : state.dirty ? "Save changes" : "Dates saved";
+  summary.textContent = `Участников: ${participantCount} · ваших свободных дней: ${selectedCount}`;
+  saveButton.textContent = state.saving ? "Сохраняем…" : state.dirty ? "Сохранить даты" : "Даты сохранены";
   saveButton.disabled = state.saving || !state.dirty || !!state.conflict;
   document.querySelector("#logout-button").disabled = state.saving;
   saveStatus.textContent = state.saving
-    ? "Saving the submitted dates. New edits remain unsaved."
-    : state.saveError || (state.dirty ? "You have unsaved changes." : "All displayed dates are saved.");
+    ? "Сохраняем отправленные даты. Новые изменения ещё не сохранены."
+    : state.saveError || (state.dirty ? "Есть несохранённые изменения." : "Общая доступность сохранена.");
   conflictPanel.hidden = !state.conflict;
   if (state.conflict) {
-    document.querySelector("#remote-dates").textContent = editableDates(mineFrom(state.conflict)).join(", ") || "No future dates";
-    document.querySelector("#draft-dates").textContent = editableDates(state.selected).join(", ") || "No future dates";
+    document.querySelector("#remote-dates").textContent = editableDates(mineFrom(state.conflict)).join(", ") || "Будущих дат нет";
+    document.querySelector("#draft-dates").textContent = editableDates(state.selected).join(", ") || "Будущих дат нет";
   }
 }
 
@@ -374,7 +401,7 @@ nameForm.addEventListener("submit", (event) => {
   nameError.textContent = "";
   const member = selectedCrewMember();
   if (!member) {
-    nameError.textContent = "Choose your crew name.";
+    nameError.textContent = "Выберите своё имя.";
     return;
   }
   state.member = member;
@@ -394,7 +421,7 @@ loginForm.addEventListener("submit", async (event) => {
   loginError.textContent = "";
   const button = loginForm.querySelector("button[type=submit]");
   button.disabled = true;
-  button.textContent = "Opening…";
+  button.textContent = "Входим…";
   const form = new FormData(loginForm);
   try {
     await api("/api/session", {
@@ -405,10 +432,10 @@ loginForm.addEventListener("submit", async (event) => {
     loginForm.reset();
     openCalendar(payload);
   } catch (error) {
-    loginError.textContent = error.message;
+    loginError.textContent = boysError(error);
   } finally {
     button.disabled = false;
-    button.textContent = "Open calendar";
+    button.textContent = "Войти";
   }
 });
 
@@ -418,7 +445,7 @@ crewPinForm.addEventListener("submit", async (event) => {
   crewPinError.textContent = "";
   const button = crewPinForm.querySelector("button[type=submit]");
   button.disabled = true;
-  button.textContent = "Checking…";
+  button.textContent = "Проверяем…";
   const form = new FormData(crewPinForm);
   try {
     await api("/api/claim/check", {
@@ -432,15 +459,15 @@ crewPinForm.addEventListener("submit", async (event) => {
     crewPinForm.reset();
     showPersonalPinStep();
   } catch (error) {
-    crewPinError.textContent = error.message;
+    crewPinError.textContent = boysError(error);
     if (error.message === "This name is already claimed.") {
       await loadCrew();
       showNameStep();
-      nameError.textContent = error.message;
+      nameError.textContent = boysError(error);
     }
   } finally {
     button.disabled = false;
-    button.textContent = "Continue";
+    button.textContent = "Продолжить";
   }
 });
 
@@ -450,7 +477,7 @@ personalPinForm.addEventListener("submit", async (event) => {
   personalPinError.textContent = "";
   const button = personalPinForm.querySelector("button[type=submit]");
   button.disabled = true;
-  button.textContent = "Claiming…";
+  button.textContent = "Закрепляем имя…";
   const form = new FormData(personalPinForm);
   try {
     await api("/api/claim", {
@@ -468,17 +495,17 @@ personalPinForm.addEventListener("submit", async (event) => {
   } catch (error) {
     if (error.message === "The crew PIN is not correct.") {
       showCrewPinStep();
-      crewPinError.textContent = error.message;
+      crewPinError.textContent = boysError(error);
     } else if (error.message === "This name is already claimed.") {
       await loadCrew();
       showNameStep();
-      nameError.textContent = error.message;
+      nameError.textContent = boysError(error);
     } else {
-      personalPinError.textContent = error.message;
+      personalPinError.textContent = boysError(error);
     }
   } finally {
     button.disabled = false;
-    button.textContent = "Claim name";
+    button.textContent = "Закрепить имя";
   }
 });
 
@@ -500,6 +527,7 @@ function mineFrom(payload) {
 
 function acceptRefresh(payload) {
   state.participants = payload.participants;
+  document.dispatchEvent(new CustomEvent("boys:members", { detail: payload.participants }));
   const remote = mineFrom(payload);
   if (!state.dirty || sameDates(remote, state.selected)) {
     state.selected = remote;
@@ -510,7 +538,7 @@ function acceptRefresh(payload) {
     updateDirty();
   } else if (payload.revision !== state.revision) {
     state.conflict = payload;
-    state.saveError = "Your dates changed in another window. Compare the dates below.";
+    state.saveError = "Ваши даты изменились в другом окне. Сравните изменения ниже.";
   }
   render();
 }
@@ -525,8 +553,8 @@ async function refreshAvailability() {
   } catch (error) {
     if (generation === state.generation) {
       state.saveError = error.status === 401
-        ? "Your session expired. Sign in in another window, then retry. Your draft is kept here."
-        : "Could not refresh other members’ dates. Your draft is kept here.";
+        ? "Сессия истекла. Войдите в другом окне и повторите сохранение. Черновик остаётся здесь."
+        : "Не удалось обновить даты участников. Черновик остаётся здесь.";
       render();
     }
   } finally {
@@ -553,13 +581,13 @@ saveButton.addEventListener("click", async () => {
     state.revision = payload.revision;
     // Keep changes made while this exact snapshot was in flight.
     updateDirty();
-    showToast(state.dirty ? "Submitted dates saved. Your newer edits are not saved yet." : "Your dates are saved.");
+    showToast(state.dirty ? "Отправленные даты сохранены. Новые изменения ещё не сохранены." : "Ваши даты сохранены.");
   } catch (error) {
     if (generation !== state.generation) return;
     conflict = error.status === 409;
     state.saveError = error.status === 401
-      ? "Your session expired. Sign in in another window, then retry. Your draft is kept here."
-      : "Save failed. Your draft is kept here. " + error.message;
+      ? "Сессия истекла. Войдите в другом окне и повторите сохранение. Черновик остаётся здесь."
+      : "Не удалось сохранить. Черновик остаётся здесь. " + boysError(error);
   } finally {
     if (generation === state.generation) {
       state.saving = false;
@@ -596,15 +624,15 @@ setInterval(() => {
   if (!document.hidden) refreshAvailability();
 }, 30000);
 window.addEventListener("beforeunload", (event) => {
-  if (state.dirty || state.saving) {
+  if (state.dirty || state.saving || window.boysTrip?.dirty() || window.boysTrip?.saving()) {
     event.preventDefault();
     event.returnValue = "";
   }
 });
 document.addEventListener("click", (event) => {
   const link = event.target.closest("a[href]");
-  if (link && link.target !== "_blank" && (state.dirty || state.saving)
-      && !window.confirm("Leave without saving your changes?")) event.preventDefault();
+  if (link && link.target !== "_blank" && (state.dirty || state.saving || window.boysTrip?.dirty() || window.boysTrip?.saving())
+      && !window.confirm("Уйти без сохранения изменений?")) event.preventDefault();
 });
 
 previousButton.addEventListener("click", () => {
@@ -618,14 +646,65 @@ nextButton.addEventListener("click", () => {
 });
 
 document.querySelector("#logout-button").addEventListener("click", async () => {
-  if (state.saving) return;
-  if (state.dirty && !window.confirm("Exit without saving your changes?")) return;
+  if (state.saving || window.boysTrip?.saving()) return;
+  if ((state.dirty || window.boysTrip?.dirty()) && !window.confirm("Выйти без сохранения изменений?")) return;
   try {
     await api("/api/logout", { method: "POST", body: "{}" });
   } finally {
     showAccess();
   }
 });
+
+function setView(id) {
+  document.querySelectorAll("[data-view]").forEach((button) => {
+    const active = button.dataset.view === id;
+    document.getElementById(button.dataset.view).hidden = !active;
+    if (active) {
+      button.setAttribute("aria-current", "page");
+      document.querySelector("#view-title").textContent = button.textContent;
+    } else button.removeAttribute("aria-current");
+  });
+}
+document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));
+
+function renderDayDetails() {
+  const root = document.querySelector("#day-details");
+  root.replaceChildren();
+  if (!state.detailDay) { root.textContent = "Нажмите день, чтобы изменить отметку и посмотреть участников."; return; }
+  const date = new Date(state.detailDay + "T12:00:00");
+  const heading = document.createElement("h3");
+  heading.textContent = date.toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const people = peopleForDate(state.detailDay);
+  const content = document.createElement("p");
+  content.textContent = people.length ? "Свободны: " + people.map((person) => person.name).join(", ") : "Пока никто не отметил этот день.";
+  root.append(heading, content);
+}
+const rangeStart = document.querySelector("#range-start");
+const rangeEnd = document.querySelector("#range-end");
+for (const input of [rangeStart, rangeEnd]) { input.min = dateKey(today); input.max = dateKey(lastSelectableDay); }
+document.querySelector("#range-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const error = document.querySelector("#range-error"); error.textContent = "";
+  if (!rangeStart.value || !rangeEnd.value || rangeEnd.value < rangeStart.value || rangeStart.value < dateKey(today) || rangeEnd.value > dateKey(lastSelectableDay)) {
+    error.textContent = "Укажите начало и конец в пределах доступного года. Конец не может быть раньше начала."; return;
+  }
+  const remove = event.submitter?.value === "remove";
+  const cursor = new Date(rangeStart.value + "T12:00:00");
+  while (dateKey(cursor) <= rangeEnd.value) {
+    if (remove) state.selected.delete(dateKey(cursor)); else state.selected.add(dateKey(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  state.month = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+  state.detailDay = rangeStart.value;
+  updateDirty(); render();
+});
+window.boysCalendar = {
+  setMonth(value) {
+    const date = new Date(value + "T12:00:00");
+    if (!Number.isNaN(date.getTime())) { state.month = new Date(date.getFullYear(), date.getMonth(), 1); renderCalendar(); }
+  },
+  session: () => state.me ? { me: state.me, participants: state.participants } : null,
+};
 
 api("/api/session")
   .then((session) => (session.authenticated ? api("/api/availability").then(openCalendar) : showAccess()))

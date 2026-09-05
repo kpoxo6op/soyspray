@@ -64,7 +64,7 @@ act: ## Open a shell in the project venv
 check: lint validate test autism-traits-check boys-check ## Run the complete local gate
 	printf '\nLocal gate passed.\n'
 
-boys-check: ## Check Boys save recovery in phone and desktop browsers
+boys-check: ## Check Boys dates, trip behavior, and phone and desktop browsers
 	cd kubernetes/boys && npm test
 
 autism-traits-check: ## Check and build the autism traits web application
