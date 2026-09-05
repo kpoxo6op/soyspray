@@ -79,6 +79,32 @@ class PairedBackup(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="soyspray-backup-")
         self.addCleanup(self.temp.cleanup)
         self.work = Path(self.temp.name)
+        self.scripts = ROOT / "backup"
+        if image := os.environ.get("IMMICH_SCRIPT_IMAGE"):
+            self.scripts = self.work / "scripts"
+            self.scripts.mkdir()
+            copied = run(
+                "docker",
+                "run",
+                "--rm",
+                "--network",
+                "none",
+                "--read-only",
+                "--cap-drop",
+                "ALL",
+                "--security-opt",
+                "no-new-privileges",
+                "--user",
+                f"{os.getuid()}:{os.getgid()}",
+                "-v",
+                f"{self.scripts}:/work",
+                image,
+            )
+            self.assertEqual(copied.returncode, 0, copied.stderr)
+            for name in ("dump.sh", "dump.sql", "backup.sh"):
+                self.assertEqual(
+                    (self.scripts / name).read_bytes(), (ROOT / "backup" / name).read_bytes()
+                )
         for name in (
             "backup",
             "repository",
@@ -141,7 +167,7 @@ class PairedBackup(unittest.TestCase):
             "--tmpfs",
             "/tmp",
             "-v",
-            f"{ROOT / 'backup'}:/scripts:ro",
+            f"{self.scripts}:/scripts:ro",
             "-v",
             f"{self.work / 'backup'}:/backup",
             "-v",
