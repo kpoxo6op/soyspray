@@ -175,3 +175,68 @@ Restore only the required data and configuration fields into reviewed
 manifests. Do not apply archived UIDs, resource versions, or owner references.
 An encrypted runtime archive complements the volume backups; it does not
 prove that the application can be restored.
+
+## Inspect an isolated volume restore
+
+`restore-volume.yml` restores one completed critical backup into a new
+Longhorn claim. It checks the source claim and backup identity first. The
+scratch namespace denies ingress and egress. Its inspection container has no
+service-account token, host mounts, or public endpoint. The container uses a
+pinned Python image and stops after four hours. The disposable volume has one
+replica and no selected backup jobs.
+
+Push the branch and run `make go`. Select an actual completed backup name:
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/recovery/restore-volume.yml \
+  -e recovery_app=boys -e recovery_check_id=initial-20260905 \
+  -e recovery_backup_name=backup-initial-20260905-boys
+```
+
+Use `vaultwarden` or `obsidian` and that app's backup name for the other
+critical volumes. A retry reuses the same scratch claim. Use a new check ID
+for a fresh restore. The operation rejects an existing namespace or storage
+class with different ownership or backup identity. Check mode validates the
+source and proposed storage resources; it does not mount data.
+
+Copy the restored directory to a private location outside Git for application
+checks. The inspection container does not run the app, so this copy includes
+the SQLite database and any WAL files without concurrent app writes:
+
+```bash
+install -d -m 700 ~/.local/state/soyspray/restores/boys-initial-20260905
+kubectl -n restore-boys-initial-20260905 cp inspect:/data \
+  ~/.local/state/soyspray/restores/boys-initial-20260905/data
+```
+
+Use SQLite's backup API on the copied database before test writes. Require
+`PRAGMA integrity_check` to return `ok`. Verify the existing Boys identities,
+PIN hashes, sessions, dates, and events against the restored data. Start the
+same app version with the archived runtime inputs, using only a loopback
+endpoint. Verify the restricted Vaultwarden identity can decrypt a record.
+Start CouchDB from its restored data and archived configuration with network
+isolation, then read real notes and attachment chunks. Keep private data out
+of logs, screenshots, and Git. Record the backup recovery point, restore
+duration, results, and any unknown checks outside the repository.
+
+The volume restore alone is not acceptance evidence. Do not move stateful
+ownership until application checks pass. Keep production claims, credentials,
+and offsite backups during this operation.
+
+After saving the results, remove only that disposable workspace:
+
+```bash
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/recovery/cleanup-restore.yml \
+  -e recovery_app=boys -e recovery_check_id=initial-20260905
+```
+
+Cleanup checks ownership labels and claim bindings, then uses UID
+preconditions to delete the scratch namespace and storage class. It waits
+for the disposable backing volume to disappear. It retains offsite backups
+and production claims. A failed restore can also use this cleanup operation;
+retain its error evidence first.
