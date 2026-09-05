@@ -49,7 +49,8 @@ The standard deployment runs this bootstrap before the native root. The general
 Ansible deployment uses the same tasks for `--tags cert-manager`. Existing ACME
 and TLS keys remain unchanged. Do not rotate keys or force renewal as a test.
 Argo bootstrap owns the existing public Bitnami OCI repository registration.
-The unused old role remains only until these replacements are verified live.
+The old role and duplicate repository definition were removed after the native
+bootstrap passed live identity and repeat checks.
 
 Verify both issuers and certificates are Ready, their revisions and expiry dates
 are unchanged, reflector and foundation pods keep their identities, and retained
