@@ -1,0 +1,11 @@
+---
+- name: Bootstrap the existing Boys access identities
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    boys_bootstrap_root: "{{ playbook_dir }}/../.."
+  tasks:
+    - name: Prepare the Boys identities from existing Secrets or Vault inputs
+      ansible.builtin.import_tasks: bootstrap-tasks.yml
