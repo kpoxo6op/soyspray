@@ -4,6 +4,8 @@ Each migrated app keeps its Argo definitions, configuration, custom source,
 useful checks, and operating guide in its own folder. The native root lists
 adopted apps in [its Kustomization](../argocd/kustomization.yaml).
 
+- [Vaultwarden](vaultwarden/README.md): private human vault and restricted reader.
+- [Domain health](domain-health/README.md): domain checks and Prometheus metrics.
 - [ExternalDNS](external-dns/README.md): maintain ingress DNS through the existing Cloudflare identity.
 - [Boys](boys/README.md): shared calendar and accommodation links.
 - [Headlamp](headlamp/README.md): browse the cluster through Authentik OIDC.
@@ -28,8 +30,19 @@ under `soyspray.vip/` describe access and the declared backup policy.
 Status separates the desired source, Argo's last comparison, and its successful
 deployment history. It reports a running revision only when Argo confirms the
 current sources are synced. It includes Argo's comparison time; the command does
-not refresh Argo or probe the runtime. A previous successful sync does not prove
+not refresh Argo or execute a runtime probe. A previous successful sync does not prove
 that a later partial deployment completed.
+
+The separate `runtime` field reports pod images and the image IDs observed by the
+kubelet. It follows controller UIDs from Argo-managed workloads through native
+controllers to pods; labels alone do not establish ownership. During a rollout,
+old, pending, and terminating pods stay visible. App, init, and ephemeral
+containers are listed separately. These observations do not prove a user journey.
+
+Offline Application input never triggers a workload API read. Supply
+`--runtime-input` with a saved Kubernetes workload list to include image evidence.
+A workload read failure keeps the known Argo and backup fields, reports runtime
+as unknown, and returns a nonzero exit code.
 
 Missing fields appear as `unknown` with a cause. Access URLs and declared backup
 policies are not proof of a successful user journey or recovery. For mapped
@@ -50,7 +63,7 @@ replacement before removing its old path.
 
 ## Check, compare, and deploy
 
-Boys, autism traits, and ExternalDNS have app command files. Use the Application name:
+Boys, autism traits, ExternalDNS, domain health, and Vaultwarden have app command files. Use the Application name:
 
 ```sh
 make check APP=boys
