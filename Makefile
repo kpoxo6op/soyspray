@@ -96,8 +96,8 @@ autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/tests apps/immich scripts tests
-	$(PYTHON) -m ruff format --check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/tests apps/immich scripts tests
+	$(PYTHON) -m ruff check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/boys/tests apps/immich scripts tests
+	$(PYTHON) -m ruff format --check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/boys/tests apps/immich scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml \
 		roles/apps/boys/tasks/*.yml roles/apps/boys/defaults/*.yml \

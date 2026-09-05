@@ -60,3 +60,26 @@ The separate [trip bootstrap](../../playbooks/operations/boys/README.md) loads
 the private initial seed from encrypted input. It does not replace the current
 trip database. Keep `boys-data`, the database path, and the session key together
 through restores so existing dates, personal PIN hashes, and sessions survive.
+
+## Check a restored data copy
+
+`check_restore.py` checks a restored `boys.sqlite3` with its WAL files present.
+It uses SQLite's backup API to make a second disposable database before starting
+the app or testing claims. The supplied restore remains unchanged. The app binds
+only to an ephemeral loopback port.
+
+Give the checker `--database /private/restore/boys.sqlite3` and
+`--runtime /private/copied-app`. The runtime directory must contain `/app` copied
+from the selected deployed image. Pass a JSON object with `boys_pin` and
+`boys_session_key` on standard input from the encrypted recovery archive. Keep
+this transfer out of shell history and logs. The checker prints only counts,
+check results, and evidence gaps, and returns a nonzero code on failure.
+
+The checks cover SQLite integrity and foreign keys, unchanged records at startup,
+authenticated calendar/history/trip reads, legacy session format, preserved PIN
+hashes, and concurrent claims on the disposable copy. A fully claimed crew has no
+unclaimed identity for the race check; this result remains unknown with its cause.
+The checker does not guess a human PIN or claim that a saved browser cookie was
+tested. It does not prove that the backup is recent or perform the volume restore.
+Use the [isolated Longhorn restore operation](../../playbooks/operations/recovery/README.md#inspect-an-isolated-volume-restore)
+for that step. Run `make check APP=boys` for synthetic recovery checks.
