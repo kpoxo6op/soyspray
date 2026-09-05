@@ -115,7 +115,8 @@ lint: ## Check Python style and common defects
 		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml \
 		playbooks/operations/boys/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint playbooks/bootstrap-apps.yml \
-		playbooks/operations/recovery/restore-volume.yml playbooks/operations/recovery/cleanup-restore.yml
+		playbooks/operations/recovery/restore-volume.yml playbooks/operations/recovery/cleanup-restore.yml \
+		playbooks/operations/recovery/configure-longhorn.yml playbooks/operations/recovery/backup-daily-now.yml
 
 validate: validate-skills status-page-check prometheus-check ## Validate YAML and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py

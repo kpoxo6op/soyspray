@@ -93,7 +93,7 @@ backup schedule. To stop later backups, pause their schedules. Retain the
 bucket and credentials until a deliberate retirement operation is approved.
 Never remove a backup store as a rollback of application code.
 
-## Enable critical volume backups
+## Enable durable volume backups
 
 Keep these inputs in an Ansible Vault file outside Git:
 
@@ -107,9 +107,10 @@ longhorn_s3_credentials:
 ```
 
 `configure-longhorn.yml` resolves the existing Obsidian, Vaultwarden, and Boys
-claims by namespace and name. It requires healthy, attached Longhorn volumes
+claims and the active small-volume claims listed in the playbook by namespace
+and name. It checks the PVC UID and PV CSI binding. It requires healthy, attached Longhorn volumes
 with three replicas. It enables filesystem freezing for these volumes and
-assigns them to the explicit `critical` group. It keeps their names, claims,
+assigns each claim to its explicit `critical` or `durable-small` group. It keeps their names, claims,
 data, and application ownership.
 
 Push the branch and run `make go`. Use the standard inventory and privilege
@@ -131,8 +132,35 @@ be recorded when data has not changed. Native backup jobs retain the remote
 backups separately from their local snapshots. Keep
 `auto-cleanup-recurring-job-backup-snapshot` enabled.
 
+The `durable-small-daily` job runs at 15:45 UTC and retains 30 backups. It covers
+Home Assistant configuration, Mosquitto, Zigbee2MQTT, BookLore configuration/data
+and MariaDB, Dispatcharr, active Jellyfin configuration, LazyLibrarian books and
+configuration, qBittorrent configuration, and persistent Redis data. These volumes
+keep three replicas. The operation preserves the critical schedules.
+
 No job uses the default group. Database operator volumes, the Immich library,
-monitoring data, and retired claims are not selected by this operation.
+monitoring data, the retired Jellyfin claim, and node-local media are not selected.
+The Speech-to-Phrase and Piper volumes contain downloaded models and generated
+training output. Home Assistant stores the source configuration. Unique GI model
+and node-local file recovery need separate coverage; this policy does not prove it.
+
+Run the native daily job once after bootstrap to establish initial coverage. Give
+each deliberate run a new identifier; retries inspect the same Job:
+
+```bash
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/recovery/backup-daily-now.yml \
+  -e recovery_backup_id=initial-small-1
+```
+
+This uses Longhorn's generated CronJob template and its native retention policy.
+It requires the CronJob's owner UID to match the daily policy. A retry must match
+the original template and identity. The completed Job expires after one day;
+Longhorn retains backup records and S3 objects under its own policy. Verify a
+completed backup for every selected claim with `make backup-status FORMAT=json`.
+Restore each database and verify its integrity before accepting recovery coverage.
+
 
 Check the actual backup results:
 

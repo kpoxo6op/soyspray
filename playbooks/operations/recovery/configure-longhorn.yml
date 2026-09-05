@@ -1,5 +1,5 @@
 ---
-- name: Enable Longhorn recovery for the three critical claims
+- name: Enable Longhorn recovery for explicit durable claims
   hosts: kube_control_plane[0]
   gather_facts: false
   become: true
@@ -8,9 +8,21 @@
     recovery_target: critical-s3
     recovery_secret: longhorn-recovery-s3
     recovery_claims:
-      - {app: obsidian, namespace: obsidian, claim: obsidian-livesync-couchdb-rescue-longhorn}
-      - {app: vaultwarden, namespace: vaultwarden, claim: vaultwarden-data}
-      - {app: boys, namespace: boys, claim: boys-data}
+      - {app: obsidian, namespace: obsidian, claim: obsidian-livesync-couchdb-rescue-longhorn, group: critical}
+      - {app: vaultwarden, namespace: vaultwarden, claim: vaultwarden-data, group: critical}
+      - {app: boys, namespace: boys, claim: boys-data, group: critical}
+      - {app: home-assistant, namespace: home-automation, claim: home-assistant-config, group: durable-small}
+      - {app: mosquitto, namespace: home-automation, claim: mosquitto-data, group: durable-small}
+      - {app: zigbee2mqtt, namespace: home-automation, claim: zigbee2mqtt-data, group: durable-small}
+      - {app: booklore-config, namespace: media, claim: booklore-config, group: durable-small}
+      - {app: booklore-data, namespace: media, claim: booklore-data, group: durable-small}
+      - {app: booklore-mariadb, namespace: media, claim: booklore-mariadb, group: durable-small}
+      - {app: dispatcharr, namespace: media, claim: dispatcharr-data, group: durable-small}
+      - {app: jellyfin, namespace: media, claim: jellyfin-config-v2, group: durable-small}
+      - {app: lazylibrarian-books, namespace: media, claim: lazylibrarian-books, group: durable-small}
+      - {app: lazylibrarian-config, namespace: media, claim: lazylibrarian-config, group: durable-small}
+      - {app: qbittorrent, namespace: media, claim: qbittorrent-config, group: durable-small}
+      - {app: redis, namespace: redis, claim: redis-data-redis-master-0, group: durable-small}
   tasks:
     - name: Require encrypted bootstrap inputs
       ansible.builtin.assert:
@@ -56,7 +68,7 @@
           - "'NoSuchLifecycleConfiguration' in recovery_store_checks.results[1].stderr"
         fail_msg: Cannot verify a store without versioning or lifecycle rules. Inspect AWS access and bucket settings first.
 
-    - name: Read the existing critical claims
+    - name: Read the explicitly selected durable claims
       kubernetes.core.k8s_info:
         api_version: v1
         kind: PersistentVolumeClaim
@@ -80,7 +92,32 @@
       loop_control:
         label: "{{ item.item.app }}"
 
-    - name: Read the volumes bound to these claims
+    - name: Read the Kubernetes volume bindings
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolume
+        name: "{{ item.resources[0].spec.volumeName }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ recovery_pvcs.results }}"
+      loop_control:
+        label: "{{ item.item.app }}"
+      register: recovery_pvs
+
+    - name: Require the original claim UID and Longhorn CSI binding
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+          - item.resources[0].metadata.deletionTimestamp is not defined
+          - item.resources[0].spec.claimRef.uid == item.item.resources[0].metadata.uid
+          - item.resources[0].spec.claimRef.namespace == item.item.item.namespace
+          - item.resources[0].spec.claimRef.name == item.item.item.claim
+          - item.resources[0].spec.csi.driver == 'driver.longhorn.io'
+          - item.resources[0].spec.csi.volumeHandle == item.item.resources[0].spec.volumeName
+      loop: "{{ recovery_pvs.results }}"
+      loop_control:
+        label: "{{ item.item.item.app }}"
+
+    - name: Read the Longhorn volumes bound to these claims
       kubernetes.core.k8s_info:
         api_version: longhorn.io/v1beta2
         kind: Volume
@@ -153,7 +190,7 @@
       delay: 5
       when: not ansible_check_mode
 
-    - name: Enable filesystem freezing and the explicit critical backup group
+    - name: Enable filesystem freezing and each explicit backup group
       kubernetes.core.k8s_json_patch:
         api_version: longhorn.io/v1beta2
         kind: Volume
@@ -174,7 +211,7 @@
             path: /spec/freezeFilesystemForSnapshot
             value: enabled
           - op: add
-            path: /metadata/labels/recurring-job-group.longhorn.io~1critical
+            path: "/metadata/labels/recurring-job-group.longhorn.io~1{{ item.item.item.group }}"
             value: enabled
       loop: "{{ recovery_volumes.results }}"
       loop_control:
@@ -182,9 +219,9 @@
       when: >-
         item.resources[0].spec.backupTargetName != recovery_target or
         item.resources[0].spec.freezeFilesystemForSnapshot != 'enabled' or
-        item.resources[0].metadata.labels.get('recurring-job-group.longhorn.io/critical') != 'enabled'
+        item.resources[0].metadata.labels.get('recurring-job-group.longhorn.io/' ~ item.item.item.group) != 'enabled'
 
-    - name: Install the two native retention schedules
+    - name: Install the native retention schedules
       kubernetes.core.k8s:
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
