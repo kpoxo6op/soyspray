@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: domain-health
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '2'
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-method: Prometheus domain expiry, nameserver, and Cloudflare
+      zone checks
+    soyspray.vip/data: none
+    soyspray.vip/backup: Off-cluster Vault inputs for Cloudflare and the existing
+      Healthchecks integration
+    soyspray.vip/backup-cause: No persistent volume; preserve provider access, expected
+      nameservers, and the independent check identity.
+  labels:
+    soyspray.vip/owner: platform
+spec:
+  project: domain-health
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: HEAD
+    path: playbooks/argocd/applications/observability/domain-health
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: domain-health
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - PruneLast=true
