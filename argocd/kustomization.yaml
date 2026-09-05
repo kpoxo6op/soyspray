@@ -6,3 +6,4 @@ resources:
   - ../apps/boys/argocd
   - ../apps/external-dns/argocd
   - ../apps/domain-health/argocd
+  - ../apps/vaultwarden/argocd
