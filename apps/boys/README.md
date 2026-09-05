@@ -22,6 +22,7 @@ Run these commands from the repository root:
 make status APP=boys FORMAT=json
 make check APP=boys
 make diff APP=boys
+make smoke APP=boys
 make deploy APP=boys REVISION=YOUR_PUSHED_BRANCH
 ```
 
@@ -122,3 +123,20 @@ last attempt separately from the last accepted restore, including its age and
 tested image. A later failure does not erase earlier evidence. Missing or
 invalid reports remain unknown with a cause. These reports do not prove seven
 days of backup coverage or an existing human browser login.
+
+## Check the live public journey
+
+`make smoke APP=boys` reads the access URL from Application metadata and opens
+fresh phone and desktop browser contexts. It checks readiness, protected private
+API routes, the absent public seed, and keyboard navigation from name selection
+to the appropriate PIN screen. Browser writes and requests to other origins are
+blocked. No PIN is entered, no identity is claimed, and no plan is changed.
+
+The command prints JSON. A completed public check returns zero with overall
+status `partial`; authenticated sign-in, claim completion, calendar saves, and
+links remain unknown with a cause. A failed public check returns nonzero. If all
+names are claimed or unclaimed, the unavailable counterpart screen is unknown.
+No response bodies, screenshots, traces, cookies, or personal names are saved.
+Use the installed app browser dependencies from `make setup`. The existing local
+and image tests verify writes and claim races against disposable data; they do
+not prove an existing human session works against the live service.
