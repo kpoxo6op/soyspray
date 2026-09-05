@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: obsidian-livesync
+  namespace: argocd
+  labels:
+    soyspray.vip/owner: household
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-url: https://obsidian.soyspray.vip
+    soyspray.vip/access-method: CouchDB credentials in the existing Obsidian LiveSync
+      clients
+    soyspray.vip/backup: 'Longhorn critical: every 30 minutes, 48 recent and 30 daily;
+      three replicas'
+    soyspray.vip/backup-cause: Restore the original CouchDB credentials and complete
+      database volume; attachment evidence is unknown when no attachment exists.
+    soyspray.vip/data-claims: obsidian/obsidian-livesync-couchdb-rescue-longhorn
+spec:
+  project: obsidian-livesync
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: obsidian
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: HEAD
+    path: playbooks/argocd/applications/database/obsidian-livesync
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - PruneLast=true
