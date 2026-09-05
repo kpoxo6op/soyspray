@@ -26,7 +26,8 @@ running app.
 The native root owns the existing Boys Application and AppProject. Their
 prune and deletion guards preserve them if removed from the root. The namespace
 and PVC also have explicit data protection. Normal deployment cannot retire
-Boys or remove its access keys. Source, manifests, browser checks, and the
+Boys or remove its access keys. Workload manifests use `apps/boys/manifests/`.
+Source, browser checks, and the
 [detailed operating guide](../../kubernetes/boys/README.md) still use
 `kubernetes/boys/`. Keep the current runtime Secret and signing key. Moving
 those files is a separate change after recovery checks.
