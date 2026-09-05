@@ -23,7 +23,10 @@ path, including the full local gate and preflight. Source changes build a
 separate immutable image; deploy its reviewed digest promotion to change the
 running app.
 
-Application adoption is pending. Source, manifests, browser checks, and the
+The native root owns the existing Boys Application and AppProject. Their
+prune and deletion guards preserve them if removed from the root. The namespace
+and PVC also have explicit data protection. Normal deployment cannot retire
+Boys or remove its access keys. Source, manifests, browser checks, and the
 [detailed operating guide](../../kubernetes/boys/README.md) still use
 `kubernetes/boys/`. Keep the current runtime Secret and signing key. Moving
 those files is a separate change after recovery checks.
@@ -100,3 +103,18 @@ It does not prove seven days of recovery-point coverage. The command does not
 change the live workload or its data. Use the report's check ID and backup UID
 with the guarded [cleanup operation](../../playbooks/operations/recovery/README.md)
 if an interrupted check leaves scratch resources behind.
+
+## Adopt the existing Application
+
+During this migration, first run a fresh isolated restore. Keep the resulting
+private report. Push the branch and run `make go`. Run `apps/boys/adopt.yml`
+with the same Ansible inventory and privilege flags shown above, then use
+`make deploy APP=boys REVISION=YOUR_PUSHED_BRANCH`.
+
+The retryable adoption operation accepts only the known legacy HEAD source or
+the native HEAD source. It removes the old runtime-version patch and Argo
+cascading finalizers. It rejects a concurrent Application edit before writing.
+Removing the patch causes one Recreate rollout of the same immutable image.
+Verify the original claim, access keys, saved data, and app health after that
+rollout. Unknown finalizers remain in place. After merge, deploy HEAD again.
+Do not run the old role or its disable operation after adoption.
