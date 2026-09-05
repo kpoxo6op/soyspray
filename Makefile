@@ -128,10 +128,10 @@ go: check ## Run the deployment preflight
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --syntax-check --tags authentik,live-tv,autism_traits,boys,vaultwarden,voice_assistant
 	printf '\nDeployment preflight passed.\n'
 
-autism-traits: go ## Reconcile or remove the autism traits site
-	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags autism_traits \
-		-e autism_traits_enabled=$(AUTISM_TRAITS_ENABLED) \
-		-e autism_traits_target_revision=$(AUTISM_TRAITS_REVISION)
+autism-traits: go ## Reconcile the autism traits site through the native Argo root
+	test "$(AUTISM_TRAITS_ENABLED)" = true || { echo 'Retire an adopted app through an explicit operation; this command only deploys.' >&2; exit 1; }
+	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(AUTISM_TRAITS_REVISION) \
+		-e argocd_preview_application=$(if $(filter HEAD,$(AUTISM_TRAITS_REVISION)),,autism-traits)
 
 boys: go
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags boys \
