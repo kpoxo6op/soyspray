@@ -85,9 +85,6 @@ spec:
               drop:
                 - ALL
           volumeMounts:
-            - name: app
-              mountPath: /app
-              readOnly: true
             - name: data
               mountPath: /data
             - name: tls
@@ -96,10 +93,6 @@ spec:
             - name: tmp
               mountPath: /tmp
       volumes:
-        - name: app
-          configMap:
-            name: boys-app
-            defaultMode: 0444
         - name: data
           persistentVolumeClaim:
             claimName: boys-data
