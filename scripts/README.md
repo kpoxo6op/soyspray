@@ -25,6 +25,8 @@ scripts/hays-open-submitted-timesheet
   address when the custom hostname must be bypassed.
 - `validate_skills.py` checks the Agent Skills under `.agents/skills`.
 - `validate_yaml.py` parses the YAML files used by the local quality gate.
+- `ci_scope.py` selects affected browser checks for GitHub CI. Shared checks
+  always run; [manual dispatch](../.github/workflows/README.md) runs all checks.
 
 Use `make status-page-check` to validate the external status configuration,
 `make status-page` to apply it, and `make check` for the full local gate.
