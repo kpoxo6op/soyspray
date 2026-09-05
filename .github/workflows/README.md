@@ -5,10 +5,11 @@ use their PR run, so the same head does not start a second copy of CI. A newer r
 cancels the older run for the same PR or event/ref.
 
 Shared checks always run: Python tests and formatting, Ansible lint, YAML
-validation, and configured Kustomize rendering. The Boys and autism browser suites
-run when their paths change. Changes to shared deployment controls, the workflow,
-or its scope helper select both. Deleted paths count, and an unavailable base
-revision selects both suites. The final `check` job rejects failed, cancelled, or
+validation, configured Kustomize rendering, and native Prometheus rule tests.
+The Boys and autism browser suites and Immich recovery checks run when their paths
+change. Changes to shared deployment controls, the workflow, or its scope helper
+select all three. Deleted paths count, and an unavailable base revision selects
+all application checks. The final `check` job rejects failed, cancelled, or
 unexpectedly skipped required checks. CI does not deploy or modify the cluster.
 
 Run all configured repository checks explicitly:
@@ -18,11 +19,14 @@ make check
 gh workflow run ci.yml --ref main
 ```
 
-Manual CI dispatch always runs both browser suites and shared checks. For a local
+Manual CI dispatch always runs both browser suites, native Immich recovery tests,
+and shared checks. For a local
 scope check, use `python -m scripts.ci_scope --base origin/main` after committing
 the change. The helper selects tests; the app inventory still comes from Argo
 Application metadata. Add a new browser suite to this workflow when an app needs
-one. Keep `make check` as the complete local gate.
+one. Keep `make check` as the complete local gate. The Docker-based Immich tests
+can also run separately with `python3 apps/immich/tests/test_backup.py`; they never
+connect to Kubernetes or the production repository.
 
 `boys-image.yml` builds and checks the Boys image on source pull requests.
 Test-only changes run the checks without publishing another digest. Runtime
