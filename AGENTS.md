@@ -15,8 +15,12 @@ and backup/retention checks.
   templates.
 
 ## Node Access
-- Use `make master` (SSH) to access the single Kubernetes node.
-- The node IP is `192.168.20.10` and the SSH user is `ubuntu` (per `Makefile`).
+- The cluster has three nodes: node-0 (`192.168.20.10`), node-1
+  (`192.168.20.11`), and node-2 (`192.168.20.12`).
+- Use `make node0`, `make node1`, or `make node2` for SSH as `ubuntu`.
+- Kubespray inventory is `kubespray/inventory/soycluster/hosts.yml`.
+- Kubespray owns the cluster foundation. Argo CD owns application workloads;
+  Ansible owns bootstrap inputs, secrets, recovery, and deliberate operations.
 
 ## Networking Notes
 - Router (OpenWrt) is at `192.168.20.1`.
@@ -72,35 +76,8 @@ and backup/retention checks.
 - Exclude one-off reports, temporary evidence, generated screenshots, secrets,
   personal context, and irrelevant employer or client names from the PR.
 
-## OpenClaw
-- Keep the browser on direct OpenClaw control only (no Chrome extension relay).
-- Known issue this session: browser control failed due bad Chrome path resolution; enforce
-  `browser.executablePath=/usr/bin/google-chrome-stable` in config.
-- Auth is OAuth-only (`openai-codex`) moving forward (use your ChatGPT subscription flow).
-- Do not store OpenAI API keys or static provider tokens in repo or checked-in configs.
-- Re-run OAuth when auth is broken:
-  - `sudo su - openclaw -c "openclaw onboard --auth-choice openai-codex --set-default"`
-  - or `sudo su - openclaw -c "openclaw models auth login --provider openai-codex --method oauth --set-default"`
-- After OAuth, verify quickly:
-  - `sudo su - openclaw -c "openclaw models auth list"`
-  - `sudo su - openclaw -c "openclaw models status"`
-- Non-interactive OAuth token refresh:
-  - Set `OPENCLAW_OAUTH_ACCESS_TOKEN='<access-token>'` (required), optional
-    `OPENCLAW_OAUTH_REFRESH_TOKEN='<refresh-token>'`, optional `OPENCLAW_OAUTH_EXPIRES_IN='30d'`.
-  - Run: `ansible-playbook playbooks/operations/openclaw/configure-openclaw-oauth-token.yml`
-- Re-extract fresh token after interactive OAuth flow:
-  - `sudo su - openclaw -c "jq -r '.profiles[\"openai-codex:default\"].access' ~/.openclaw/agents/main/agent/auth-profiles.json"`
-- If browser automation fails:
-  - `sudo su - openclaw -c "openclaw browser status --browser-profile openclaw2 --json"`
-  - `sudo su - openclaw -c "openclaw browser stop --browser-profile openclaw2"`
-  - `sudo su - openclaw -c "openclaw browser start --browser-profile openclaw2"`
-  - `sudo su - openclaw -c "openclaw browser --json status --browser-profile openclaw2"`
-- Service checks after restart:
-  - `sudo su - openclaw -c "openclaw gateway status --json"`
-  - `sudo su - openclaw -c "openclaw health"`
-- Keep stable config targets in `~/.openclaw/openclaw.json`:
-  - `gateway.auth.mode=token`, `gateway.auth.token` present
-  - `browser.executablePath=/usr/bin/google-chrome-stable`
-  - `browser.profiles.openclaw2.cdpPort` expected to stay stable
-- If jobs fail after service restart, rerun one-off job before changing anything else:
-  - `openclaw runjob once openclaw2`
+## Laptop operations
+- OpenClaw runs on the laptop. Do not install it on cluster nodes.
+- Keep shared Tailscale access, Kubernetes tools, Node.js/npm, and browser tooling.
+- Keep `playbooks/operations/retirement/node0-openclaw.yml` through the migration
+  window. It verifies absence without revoking credentials shared with the laptop.
