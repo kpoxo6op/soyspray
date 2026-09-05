@@ -95,7 +95,7 @@ status-page-check:
 	$(PYTHON) scripts/configure_status_page.py --check
 
 test: ## Run the focused test suite
-	$(PYTEST) -q tests
+	$(PYTEST) -q tests kubernetes/boys/tests
 
 render: ## Render all managed Kustomize packages
 	for path in $(KUSTOMIZATIONS); do \
