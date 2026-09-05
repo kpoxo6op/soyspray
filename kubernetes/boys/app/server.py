@@ -22,7 +22,9 @@ from http import HTTPStatus
 from http.cookies import CookieError, SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
+
+from trips import Conflict, TripStore, fields
 
 APP_DIR = Path(__file__).resolve().parent
 STATIC_FILES = {
@@ -145,6 +147,7 @@ class BoysApp:
         session_key: bytes,
         assets_dir: Path = APP_DIR,
         cookie_secure: bool = True,
+        trip_seed: Path | None = None,
     ) -> None:
         if not seed_pin:
             raise ValueError("BOYS_PIN is required")
@@ -159,6 +162,9 @@ class BoysApp:
         self.failed_pins_lock = threading.Lock()
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
         self.initialize_database()
+        self.trips = TripStore(self.database_path, self.connect, (name.casefold() for name in CREW))
+        if trip_seed is not None:
+            self.trips.seed(trip_seed)
 
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path, timeout=5)
@@ -591,6 +597,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urlsplit(self.path).path
+        if path.startswith("/api/trip"):
+            self.trip_request(self.command, path)
+            return
         if path in STATIC_FILES:
             filename, content_type = STATIC_FILES[path]
             self.send_bytes(
@@ -638,6 +647,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         path = urlsplit(self.path).path
+        if path.startswith("/api/trip"):
+            self.trip_request(self.command, path)
+            return
         try:
             payload = self.read_json()
             if path == "/api/session":
@@ -687,6 +699,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_PUT(self) -> None:
         path = urlsplit(self.path).path
+        if path.startswith("/api/trip"):
+            self.trip_request(self.command, path)
+            return
         if path != "/api/availability":
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "Not found."})
             return
@@ -710,6 +725,63 @@ class Handler(BaseHTTPRequestHandler):
         except sqlite3.Error as error:
             self.send_database_error("save", error)
 
+    def trip_request(self, method: str, path: str) -> None:
+        session = self.current_session()
+        if not session:
+            self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "Войдите под своим именем."})
+            return
+        member = session["name_key"]
+        try:
+            if method == "GET" and path == "/api/trip":
+                result = self.app.trips.read(member)
+            elif method == "GET" and path == "/api/trip/activity":
+                before = parse_qs(urlsplit(self.path).query).get("before", [None])[0]
+                result = {
+                    "activity": self.app.trips.activity(member, int(before) if before else None)
+                }
+            elif method == "PUT" and path == "/api/trip":
+                payload = fields(self.read_json(), ("document", "expected_revision"))
+                result = {
+                    "trip": self.app.trips.update(
+                        member, payload["expected_revision"], payload["document"]
+                    )
+                }
+            elif method == "PUT" and path == "/api/trip/response":
+                payload = fields(
+                    self.read_json(), ("document", "expected_revision", "expected_trip_revision")
+                )
+                result = {
+                    "response": self.app.trips.respond(
+                        member,
+                        payload["expected_revision"],
+                        payload["document"],
+                        payload["expected_trip_revision"],
+                    )
+                }
+            elif method == "POST" and path == "/api/trip/decision":
+                payload = fields(self.read_json(), ("section", "agreed", "expected_revision"))
+                result = {
+                    "trip": self.app.trips.decide(
+                        member, payload["expected_revision"], payload["section"], payload["agreed"]
+                    )
+                }
+            else:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "Не найдено."})
+                return
+            self.send_json(HTTPStatus.OK, result)
+        except Conflict as error:
+            self.send_json(HTTPStatus.CONFLICT, {"error": str(error)})
+        except PermissionError as error:
+            self.send_json(HTTPStatus.FORBIDDEN, {"error": str(error)})
+        except LookupError as error:
+            self.send_json(HTTPStatus.NOT_FOUND, {"error": str(error)})
+        except TypeError as error:
+            self.send_json(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {"error": str(error)})
+        except ValueError as error:
+            self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error)})
+        except sqlite3.Error as error:
+            self.send_database_error("trip", error)
+
 
 def make_server(address: tuple[str, int], app: BoysApp) -> ThreadingHTTPServer:
     server = ThreadingHTTPServer(address, Handler)
@@ -726,6 +798,9 @@ def main() -> None:
         seed_pin=seed_pin,
         session_key=session_key,
         cookie_secure=os.environ.get("BOYS_COOKIE_SECURE", "true").lower() != "false",
+        trip_seed=Path(os.environ["BOYS_TRIP_SEED_FILE"])
+        if os.environ.get("BOYS_TRIP_SEED_FILE")
+        else None,
     )
     http_port = int(os.environ.get("APP_PORT", "8080"))
     http_server = make_server(("0.0.0.0", http_port), app)
