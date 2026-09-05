@@ -7,7 +7,7 @@ PYTHON := $(if $(wildcard $(VENV)/bin/python),$(VENV)/bin/python,python3)
 PYTEST := $(PYTHON) -m pytest
 INVENTORY := kubespray/inventory/soycluster/hosts.yml
 ANSIBLE := source $(VENV)/bin/activate && ansible-playbook -i $(INVENTORY) --become --become-user=root --user ubuntu
-AUTISM_TRAITS_APP := kubernetes/autism-traits/app
+AUTISM_TRAITS_APP := apps/autism-traits/app
 AUTISM_TRAITS_ENABLED ?= true
 AUTISM_TRAITS_REVISION ?= HEAD
 BOYS_ENABLED ?= true
@@ -83,8 +83,8 @@ autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check kubernetes/boys/app kubernetes/boys/tests scripts tests
-	$(PYTHON) -m ruff format --check kubernetes/boys/app kubernetes/boys/tests scripts tests
+	$(PYTHON) -m ruff check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py scripts tests
+	$(PYTHON) -m ruff format --check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		roles/apps/autism-traits/tasks/*.yml roles/apps/autism-traits/defaults/*.yml \
 		roles/apps/boys/tasks/*.yml roles/apps/boys/defaults/*.yml \
