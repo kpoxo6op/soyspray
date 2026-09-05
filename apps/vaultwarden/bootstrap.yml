@@ -1,0 +1,10 @@
+---
+- name: Bootstrap the existing restricted Vaultwarden identity
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Preserve or restore the restricted agent credentials
+      ansible.builtin.import_tasks: bootstrap-tasks.yml
