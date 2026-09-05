@@ -56,10 +56,10 @@ help: ## Show the operator commands
 	awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 apps: ## List Applications and their declared owners (FORMAT=json is supported)
-	$(PYTHON) scripts/app_status.py apps --format "$(FORMAT)"
+	$(PYTHON) -m scripts.app_status apps --format "$(FORMAT)"
 
 status: ## Read desired/running revisions and evidence gaps for APP (FORMAT=json is supported)
-	$(PYTHON) scripts/app_status.py status --app "$(APP)" --format "$(FORMAT)"
+	$(PYTHON) -m scripts.app_status status --app "$(APP)" --format "$(FORMAT)"
 
 backup-status: ## Read backup coverage, age, failures, and missing recovery evidence
 	$(PYTHON) -m scripts.backup_status --format "$(FORMAT)"

@@ -184,6 +184,13 @@ def main(argv=None):
     parser.add_argument("--app")
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--input", help="Read a saved kubectl JSON response for an offline check.")
+    parser.add_argument(
+        "--backup-input", help="Read saved native backup observations for an offline status check."
+    )
+    parser.add_argument(
+        "--restore-dir",
+        help="Use private restore reports; required to enable report reads with offline input.",
+    )
     args = parser.parse_args(argv)
     if args.command == "status" and not args.app:
         parser.error("status requires --app (make status APP=boys).")
@@ -202,6 +209,41 @@ def main(argv=None):
         report["applications"] = [
             app_status(app) if args.command == "status" else inventory(app) for app in apps
         ]
+        if args.command == "status":
+            from scripts import backup_status
+            from scripts.app_recovery import app_recovery
+
+            now = datetime.now(timezone.utc)
+            try:
+                if args.backup_input:
+                    data = json.loads(Path(args.backup_input).read_text())
+                elif args.input:
+                    data = {}
+                else:
+                    data = backup_status.read_observations()
+                backups = backup_status.build_report(data, now)
+            except (OSError, ValueError):
+                backups = {
+                    "longhorn": unknown("The supplied native backup observations cannot be read.")
+                }
+                code = 2
+            report["backup_source"] = args.backup_input or (
+                "unavailable in offline Application input"
+                if args.input
+                else "Native Kubernetes backup records"
+            )
+            for app, row in zip(apps, report["applications"], strict=True):
+                row["recovery"].update(
+                    app_recovery(
+                        app,
+                        backups,
+                        now,
+                        args.restore_dir,
+                        not (args.input or args.backup_input) or args.restore_dir is not None,
+                    )
+                )
+            if not args.input and backups["longhorn"]["value"] == "unknown":
+                code = 2
     except (OSError, RuntimeError, ValueError, subprocess.TimeoutExpired) as exc:
         report["applications"] = unknown(f"Cannot read the application inventory: {exc}")
         code = 2
