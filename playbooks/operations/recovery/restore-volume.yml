@@ -115,7 +115,7 @@
       register: recovery_volume
       until: >-
         recovery_volume.resources | length == 1 and
-        ((recovery_volume.resources[0].status.robustness | default('') == 'healthy' and
+        ((recovery_volume.resources[0].status.restoreInitiated | default(false) and
           not recovery_volume.resources[0].status.restoreRequired | default(true)) or
          recovery_volume.resources[0].status.robustness | default('') == 'faulted' or
          (recovery_volume.resources[0].status.conditions | default([])
@@ -127,7 +127,8 @@
     - name: Require usable restored data before starting an inspection pod
       ansible.builtin.assert:
         that:
-          - recovery_volume.resources[0].status.robustness == 'healthy'
+          - recovery_volume.resources[0].status.restoreInitiated
+          - recovery_volume.resources[0].status.robustness != 'faulted'
           - not recovery_volume.resources[0].status.restoreRequired
         fail_msg: >-
           Longhorn could not restore the scratch volume. Inspect its conditions and
