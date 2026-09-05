@@ -173,3 +173,42 @@ def test_failed_inventory_read_is_an_error_with_unknown_status(monkeypatch, caps
     report = json.loads(capsys.readouterr().out)
     assert report["applications"]["value"] == "unknown"
     assert report["applications"]["cause"]
+
+
+def test_offline_status_keeps_app_health_when_backup_input_fails(
+    tmp_path, capsys, app, monkeypatch
+):
+    from scripts.restore_evidence import Path as EvidencePath
+
+    app["metadata"]["annotations"]["soyspray.vip/data-claims"] = "crew/data"
+    saved = tmp_path / "applications.json"
+    saved.write_text(json.dumps({"kind": "List", "items": [app]}))
+    bad = tmp_path / "backups.json"
+    bad.write_text("invalid JSON")
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Offline status must not query the cluster or scan private reports")
+
+    monkeypatch.setattr(status.subprocess, "run", forbidden)
+    monkeypatch.setattr(EvidencePath, "glob", forbidden)
+    assert (
+        status.main(
+            [
+                "status",
+                "--app",
+                "crew",
+                "--input",
+                str(saved),
+                "--backup-input",
+                str(bad),
+                "--format",
+                "json",
+            ]
+        )
+        == 2
+    )
+    report = json.loads(capsys.readouterr().out)
+    row = report["applications"][0]
+    assert row["health"]["value"] == "Healthy"
+    assert row["recovery"]["last_restore"]["value"][0]["evidence"]["value"] == "unknown"
+    assert row["recovery"]["latest_backup"]["value"][0]["backup"]["value"] == "unknown"

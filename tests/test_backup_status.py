@@ -200,3 +200,49 @@ def test_api_errors_preserve_the_failure_cause_without_reading_secrets(monkeypat
     assert key == "longhorn_backups"
     assert value["value"] == "unknown"
     assert "Forbidden" in value["cause"]
+
+
+def test_private_restore_reports_attach_only_through_application_metadata(data, tmp_path):
+    data["pvs"]["items"][0]["metadata"]["uid"] = "pv-uid"
+    data["applications"]["items"] = [
+        {
+            "metadata": {
+                "name": "boys",
+                "namespace": "argocd",
+                "annotations": {"soyspray.vip/data-claims": "notes/data"},
+            }
+        }
+    ]
+    path = tmp_path / "boys" / "check-1" / "report.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "app": "boys",
+                "check_id": "check-1",
+                "started_at": "2026-09-05T04:00:00Z",
+                "finished_at": "2026-09-05T05:00:00Z",
+                "status": "passed",
+                "cleanup": "completed",
+                "original_resources": "unchanged",
+                "source_claim_uid": "claim-uid",
+                "source_volume_uid": "pv-uid",
+                "image": "ghcr.io/example/boys@sha256:" + "a" * 64,
+                "backup": {"recovery_point": "2026-09-05T03:30:00Z"},
+                "data": {"data_checks": "passed"},
+            }
+        )
+    )
+    report = status.build_report(data, NOW)
+    status.attach_restore_evidence(report, data, NOW, tmp_path)
+    evidence = report["restore_evidence"]["value"][0]["claims"]["value"][0]["evidence"]["value"]
+    assert evidence["last_success"]["value"]["age_seconds"] == 7200
+    data["pvs"]["items"][0]["metadata"]["uid"] = "replacement-pv"
+    report = status.build_report(data, NOW)
+    status.attach_restore_evidence(report, data, NOW, tmp_path)
+    evidence = report["restore_evidence"]["value"][0]["claims"]["value"][0]["evidence"]["value"]
+    assert evidence["last_success"]["value"] == "unknown"
+    data["applications"] = {"value": "unknown", "cause": "API unavailable"}
+    status.attach_restore_evidence(report, data, NOW, tmp_path)
+    assert report["restore_evidence"]["value"] == "unknown"
