@@ -45,10 +45,8 @@ curl --fail http://127.0.0.1:8080/api/v1/channels
 
 Stop the port forward after the checks. An unknown path returns `404`. A required unavailable guide returns `503`.
 
-## Shutdown and rollback
+## Deployment and rollback
 
-```bash
-LIVE_TV_ENABLED=false LIVE_TV_REVISION=HEAD make live-tv
-```
-
-This keeps Dispatcharr and Jellyfin configuration and all shared media. Roll back with a reverted, pushed Git revision.
+The native root now owns this helper. See the [operator guide](../../../../../apps/media-helper/README.md).
+The live-TV shutdown command applies only to Dispatcharr and Jellyfin. Roll back
+with a reverted, pushed Git revision through the native Ansible operation.

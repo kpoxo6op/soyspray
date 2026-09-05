@@ -6,7 +6,7 @@
     name: "{{ item }}"
     namespace: argocd
     kubeconfig: "{{ kubeconfig_path }}"
-  loop: [jellyfin, dispatcharr, media-helper]
+  loop: [jellyfin, dispatcharr]
   register: live_tv_apps
 
 - name: Quiesce live TV Argo applications
@@ -38,4 +38,4 @@
     wait: true
     delete_options:
       propagationPolicy: Foreground
-  loop: [jellyfin, dispatcharr, media-helper]
+  loop: [jellyfin, dispatcharr]

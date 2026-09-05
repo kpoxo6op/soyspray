@@ -99,6 +99,6 @@
       {{ lookup('file', playbook_dir + '/argocd/applications/media/' + live_tv_application + '/' + live_tv_application + '-application.yaml')
          | from_yaml
          | combine({'spec': {'source': {'targetRevision': live_tv_target_revision | string}}}, recursive=true) }}
-  loop: [media-helper, dispatcharr, jellyfin]
+  loop: [dispatcharr, jellyfin]
   loop_control:
     loop_var: live_tv_application

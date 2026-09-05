@@ -8,3 +8,4 @@ resources:
   - ../apps/domain-health/argocd
   - ../apps/vaultwarden/argocd
   - ../apps/obsidian-livesync/argocd
+  - ../apps/media-helper/argocd
