@@ -34,12 +34,3 @@ spec:
     syncOptions:
     - CreateNamespace=true
     - PruneLast=true
-    managedNamespaceMetadata:
-      labels:
-        app.kubernetes.io/part-of: vaultwarden
-        pod-security.kubernetes.io/enforce: restricted
-        pod-security.kubernetes.io/enforce-version: v1.35
-        pod-security.kubernetes.io/warn: restricted
-        pod-security.kubernetes.io/warn-version: v1.35
-      annotations:
-        argocd.argoproj.io/sync-options: Prune=false,Delete=false
