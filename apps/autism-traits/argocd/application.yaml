@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: autism-traits
+  namespace: argocd
+  finalizers: []
+  labels:
+    app.kubernetes.io/part-of: autism-traits
+    soyspray.vip/owner: platform
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-url: https://autism.soyspray.vip
+    soyspray.vip/access-method: Public Cloudflare Tunnel; private LAN and Tailscale ingress
+    soyspray.vip/data: none
+    soyspray.vip/backup: not-required
+    soyspray.vip/backup-cause: Answers stay in browser memory; recovery requires the backed-up tunnel identity.
+spec:
+  project: autism-traits
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: HEAD
+    path: kubernetes/autism-traits
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: autism-traits
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: autism-traits
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: v1.35
+        pod-security.kubernetes.io/warn: restricted
+        pod-security.kubernetes.io/warn-version: v1.35
