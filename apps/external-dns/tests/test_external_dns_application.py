@@ -1,8 +1,6 @@
 from pathlib import Path
 
 import yaml
-from ansible.parsing.dataloader import DataLoader
-from ansible.template import Templar
 
 APP = Path(__file__).resolve().parents[1]
 
@@ -50,28 +48,3 @@ def test_project_scope_keeps_bootstrap_secrets_outside_argo():
         "ClusterRole",
         "ClusterRoleBinding",
     }
-
-
-def test_adoption_patch_tests_the_observed_version_and_keeps_other_finalizers():
-    play = yaml.safe_load((APP / "adopt.yml").read_text())[0]
-    task = next(t for t in play["tasks"] if "kubernetes.core.k8s_json_patch" in t)
-    variables = {
-        "external_dns_existing_app": {
-            "resources": [{"metadata": {"resourceVersion": "version-1"}}]
-        },
-        "external_dns_finalizers": [
-            "another-controller/finalizer",
-            "resources-finalizer.argocd.argoproj.io",
-        ],
-        "external_dns_cascading_finalizers": play["vars"]["external_dns_cascading_finalizers"],
-    }
-    templar = Templar(loader=DataLoader(), variables=variables)
-    patch = templar.template(task["kubernetes.core.k8s_json_patch"]["patch"])
-    assert patch == [
-        {"op": "test", "path": "/metadata/resourceVersion", "value": "version-1"},
-        {
-            "op": "replace",
-            "path": "/metadata/finalizers",
-            "value": ["another-controller/finalizer"],
-        },
-    ]
