@@ -15,7 +15,6 @@
       # Observability
       - { name: Prometheus, role: apps/prometheus }
       - { name: Alloy Loki Manual, role: apps/alloy-loki-manual }
-      - { name: Domain Health, role: apps/domain-health }
 
       # Infrastructure
       - { name: Longhorn, role: apps/longhorn }

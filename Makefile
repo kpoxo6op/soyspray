@@ -13,6 +13,7 @@ AUTISM_TRAITS_REVISION ?= HEAD
 BOYS_ENABLED ?= true
 BOYS_REVISION ?= HEAD
 EXTERNAL_DNS_REVISION ?= HEAD
+DOMAIN_HEALTH_REVISION ?= HEAD
 VOICE_ASSISTANT_REVISION ?= HEAD
 VOICE_ASSISTANT_ENABLED ?= true
 VAULTWARDEN_PACKAGE := kubernetes/vaultwarden
@@ -41,6 +42,7 @@ KUSTOMIZATIONS := \
 	argocd \
 	apps/autism-traits/manifests \
 	apps/boys/manifests \
+	apps/domain-health \
 	$(VAULTWARDEN_PACKAGE) \
 	playbooks/argocd/applications/home-automation/voice-assistant \
 	playbooks/argocd/applications/media/media-helper \
@@ -50,7 +52,7 @@ KUSTOMIZATIONS := \
 .PHONY: help setup act check full-check app-command diff deploy smoke restore-check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
 	test render go autism-traits boys vaultwarden live-tv voice-assistant voice-pe-render \
 	voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
-	apps status backup-status external-dns list-apps node0 node1 node2 master worker1 worker2 worker3 clean
+	apps status backup-status external-dns domain-health list-apps node0 node1 node2 master worker1 worker2 worker3 clean
 
 help: ## Show the operator commands
 	printf 'Soyspray operator commands\n\n'
@@ -103,10 +105,10 @@ autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/immich scripts tests
-	$(PYTHON) -m ruff format --check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/immich scripts tests
+	$(PYTHON) -m ruff check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/immich scripts tests
+	$(PYTHON) -m ruff format --check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/immich scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml \
+		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml \
 		roles/apps/vaultwarden/tasks/*.yml roles/apps/vaultwarden/defaults/*.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
@@ -132,7 +134,7 @@ status-page-check:
 	$(PYTHON) scripts/configure_status_page.py --check
 
 test: ## Run the focused test suite
-	$(PYTEST) -q tests apps/autism-traits/tests apps/boys/tests apps/external-dns/tests
+	$(PYTEST) -q tests apps/autism-traits/tests apps/boys/tests apps/external-dns/tests apps/domain-health/tests
 
 render: ## Render all managed Kustomize packages
 	for path in $(KUSTOMIZATIONS); do \
@@ -165,6 +167,11 @@ external-dns: go ## Reconcile ExternalDNS through the native Argo root
 	$(ANSIBLE) apps/external-dns/bootstrap.yml
 	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(EXTERNAL_DNS_REVISION) \
 		-e argocd_preview_application=$(if $(filter HEAD,$(EXTERNAL_DNS_REVISION)),,external-dns)
+
+domain-health: go ## Reconcile domain checks through the native Argo root
+	$(ANSIBLE) apps/domain-health/bootstrap.yml
+	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(DOMAIN_HEALTH_REVISION) \
+		-e argocd_preview_application=$(if $(filter HEAD,$(DOMAIN_HEALTH_REVISION)),,domain-health)
 
 vaultwarden: go
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags vaultwarden \

@@ -1,0 +1,105 @@
+---
+- name: Read the existing Domain Health check identity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: domain-health
+    name: domain-health-config
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: domain_health_existing_config
+  no_log: true
+
+- name: Read the existing Domain Health provider identity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: domain-health
+    name: cloudflare-api-token
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: domain_health_existing_provider
+  no_log: true
+
+- name: Select supplied or existing access values
+  ansible.builtin.set_fact:
+    domain_health_bootstrap_ping: >-
+      {{ domain_health_healthchecks_ping_url | default(
+         (domain_health_existing_config.resources | first | default({})).data['healthchecks-ping-url'] | default('') | b64decode) }}
+    domain_health_bootstrap_nameservers: >-
+      {{ domain_health_expected_nameservers | default(
+         (domain_health_existing_config.resources | first | default({})).data['expected-nameservers'] | default('') | b64decode) }}
+    domain_health_bootstrap_provider_token: >-
+      {{ domain_health_cloudflare_api_token | default(
+         (domain_health_existing_provider.resources | first | default({})).data['api-token'] | default('') | b64decode) }}
+  no_log: true
+
+- name: Validate the complete access identities
+  ansible.builtin.set_fact:
+    domain_health_bootstrap_available: >-
+      {{ domain_health_healthchecks_ping_url | default('') is string and domain_health_expected_nameservers | default('') is string and
+         domain_health_cloudflare_api_token | default('') is string and
+         domain_health_bootstrap_ping is string and domain_health_bootstrap_ping is match('^https://[^/]+/.+') and
+         domain_health_bootstrap_nameservers is string and domain_health_bootstrap_nameservers | trim | length > 0 and
+         domain_health_bootstrap_provider_token is string and domain_health_bootstrap_provider_token | trim | length > 0 }}
+    domain_health_bootstrap_matches: >-
+      {{ (domain_health_existing_config.resources | length == 0 or
+          (domain_health_bootstrap_ping == (domain_health_existing_config.resources[0].data['healthchecks-ping-url'] | default('') | b64decode) and
+           domain_health_bootstrap_nameservers ==
+           (domain_health_existing_config.resources[0].data['expected-nameservers'] | default('') | b64decode))) and
+         (domain_health_existing_provider.resources | length == 0 or
+          domain_health_bootstrap_provider_token == (domain_health_existing_provider.resources[0].data['api-token'] | default('') | b64decode)) }}
+  no_log: true
+
+- name: Require complete existing identities or encrypted bootstrap inputs
+  ansible.builtin.assert:
+    that: domain_health_bootstrap_available | bool
+    fail_msg: >-
+      Restore domain-health-config and cloudflare-api-token, or supply domain_health_healthchecks_ping_url,
+      domain_health_expected_nameservers, and domain_health_cloudflare_api_token through an Ansible Vault variables file.
+      Keep the existing provider and independent Healthchecks identities.
+
+- name: Refuse to replace an existing access identity
+  ansible.builtin.assert:
+    that: domain_health_bootstrap_matches | bool
+    fail_msg: >-
+      Supplied Domain Health inputs differ from the existing identities. Use matching recovery
+      inputs. This bootstrap cannot rotate the provider token, Healthchecks URL, or expected nameservers.
+
+- name: Apply the protected namespace before restoring a missing identity
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: "{{ lookup('file', playbook_dir + '/namespace.yaml') | from_yaml }}"
+  when: domain_health_existing_config.resources | length == 0 or domain_health_existing_provider.resources | length == 0
+
+- name: Restore the missing Domain Health check Secret
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", create, -f, '-']
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: domain-health-config
+        namespace: domain-health
+      type: Opaque
+      stringData:
+        healthchecks-ping-url: {{ domain_health_bootstrap_ping | to_json }}
+        expected-nameservers: {{ domain_health_bootstrap_nameservers | to_json }}
+  changed_when: true
+  no_log: true
+  when: domain_health_existing_config.resources | length == 0 and not ansible_check_mode
+
+- name: Restore the missing Domain Health provider Secret
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", create, -f, '-']
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: cloudflare-api-token
+        namespace: domain-health
+      type: Opaque
+      stringData:
+        api-token: {{ domain_health_bootstrap_provider_token | to_json }}
+  changed_when: true
+  no_log: true
+  when: domain_health_existing_provider.resources | length == 0 and not ansible_check_mode

@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: domain-health
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '-10'
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  description: Run domain expiry and nameserver checks with existing provider identities.
+  sourceRepos:
+  - https://github.com/kpoxo6op/soyspray.git
+  destinations:
+  - server: https://kubernetes.default.svc
+    namespace: domain-health
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+  - group: ''
+    kind: ConfigMap
+  - group: ''
+    kind: Service
+  - group: apps
+    kind: Deployment
