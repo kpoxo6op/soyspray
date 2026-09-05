@@ -9,9 +9,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 @pytest.mark.parametrize("revision", ["HEAD", "reviewed-branch"])
-def test_cert_manager_deployment_uses_only_native_root_and_keeps_identity_ownership(
-    tmp_path, revision
-):
+def test_cert_manager_deployment_prepares_identity_before_native_root(tmp_path, revision):
     calls = tmp_path / "calls.jsonl"
     runner = tmp_path / "ansible"
     runner.write_text(
@@ -35,13 +33,14 @@ def test_cert_manager_deployment_uses_only_native_root_and_keeps_identity_owners
         timeout=20,
     )
     assert [json.loads(line) for line in calls.read_text().splitlines()] == [
+        ["apps/cert-manager-config/bootstrap.yml"],
         [
             "playbooks/bootstrap-apps.yml",
             "-e",
             "argocd_revision=" + revision,
             "-e",
             "argocd_preview_application=" + ("" if revision == "HEAD" else "cert-manager-config"),
-        ]
+        ],
     ]
 
 

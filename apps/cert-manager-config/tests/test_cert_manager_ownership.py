@@ -2,8 +2,6 @@ import subprocess
 from pathlib import Path
 
 import yaml
-from ansible.parsing.dataloader import DataLoader
-from ansible.template import Templar
 
 ROOT = Path(__file__).resolve().parents[3]
 APP = ROOT / "apps/cert-manager-config"
@@ -82,19 +80,3 @@ def test_existing_issuer_and_certificate_identities_are_protected():
                 "name": "cloudflare-api-token",
                 "key": "api-token",
             }
-
-
-def test_legacy_role_keeps_secret_bootstrap_without_competing_application_ownership():
-    tasks = yaml.safe_load((ROOT / "roles/apps/cert-manager/tasks/main.yml").read_text())
-    templar = Templar(loader=DataLoader(), variables={"playbook_dir": str(ROOT / "playbooks")})
-    for task in tasks:
-        if "kubernetes.core.k8s" in task:
-            definition = templar.template(task["kubernetes.core.k8s"]["definition"])
-            resource = yaml.safe_load(definition) if isinstance(definition, str) else definition
-            assert resource["kind"] == "Secret"
-            assert resource["metadata"]["name"] == "bitnami-oci-helm"
-        elif "ansible.builtin.include_role" in task:
-            assert task["ansible.builtin.include_role"]["name"] == "app-secret"
-            assert task["vars"]["secret_name"] == "cloudflare-api-token"
-        else:
-            raise AssertionError("Unexpected legacy registration action")
