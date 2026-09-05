@@ -32,7 +32,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: ghcr.io/kpoxo6op/boys@sha256:514986821c85172712c7db8db29fa32f4c50a5171539f4ac77b9f69697853217
+          image: ghcr.io/kpoxo6op/boys@sha256:652605ee527cf34fbd98863dc9ae52e016a921e9c92ee5ab1edbb854c8df276a
           imagePullPolicy: IfNotPresent
           command:
             - python
