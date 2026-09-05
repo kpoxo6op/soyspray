@@ -82,6 +82,44 @@ jobs:
       - name: Remove the isolated test container
         if: always()
         run: docker rm --force boys-check || true
+      - name: Check database migration and previous-image rollback
+        run: |
+          previous="$(python3 - <<'PYTHON'
+          import re
+          from pathlib import Path
+          text = Path('kubernetes/boys/deployment.yaml').read_text()
+          image = re.findall(r'(?m)^          image: (ghcr\.io/kpoxo6op/boys@sha256:[0-9a-f]{64})$', text)
+          if len(image) != 1:
+              raise SystemExit('Expected one prior Boys digest')
+          print(image[0])
+          PYTHON
+          )"
+          docker volume create boys-migration-data
+          docker run --rm --network none --read-only --user 0 --cap-drop ALL --cap-add CHOWN \
+            --mount source=boys-migration-data,target=/data "$IMAGE:$IMAGE_TAG" \
+            python -c 'import os; os.chown("/data", 1000, 1000)'
+          run_image() {
+            docker run --detach --name boys-migration --network none --read-only \
+              --cap-drop ALL --security-opt no-new-privileges \
+              --mount source=boys-migration-data,target=/data --tmpfs /tmp:rw,size=16m \
+              --env BOYS_PIN=1234 --env BOYS_COOKIE_SECURE=false \
+              --env BOYS_SESSION_KEY=image-test-key-with-no-production-access \
+              --env "BOYS_TRIP_SEED_FILE=${2-}" "$1"
+          }
+          run_image "$previous"
+          docker exec -i boys-migration python - < kubernetes/boys/test-image.py
+          docker exec -i boys-migration python - record < kubernetes/boys/tests/image-migration.py
+          docker rm --force boys-migration
+          run_image "$IMAGE:$IMAGE_TAG" /data/check-seed.json
+          docker exec -i boys-migration python - migrated < kubernetes/boys/tests/image-migration.py
+          docker rm --force boys-migration
+          run_image "$previous"
+          docker exec -i boys-migration python - rollback < kubernetes/boys/tests/image-migration.py
+      - name: Remove the isolated migration data
+        if: always()
+        run: |
+          docker rm --force boys-migration || true
+          docker volume rm boys-migration-data || true
       - name: Publish the tested image
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
