@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '-2'
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-method: Inspect certificate status and retained HTTPS application
+      hosts; no standalone UI
+    soyspray.vip/data: Cloudflare token, ACME account keys, and generated TLS keys
+      in the existing cert-manager namespace; no PVC
+    soyspray.vip/backup: Off-cluster encrypted inputs and certificate reissuance;
+      no volume backup
+    soyspray.vip/backup-cause: A separate restore of certificate identity has not
+      been demonstrated.
+  labels:
+    soyspray.vip/owner: platform
+spec:
+  project: cert-manager-config
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: HEAD
+    path: playbooks/argocd/applications/infrastructure/cert-manager
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - PruneLast=true
