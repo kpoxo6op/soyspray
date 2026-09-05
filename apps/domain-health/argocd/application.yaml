@@ -20,7 +20,7 @@ spec:
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
     targetRevision: HEAD
-    path: playbooks/argocd/applications/observability/domain-health
+    path: apps/domain-health
   destination:
     server: https://kubernetes.default.svc
     namespace: domain-health
