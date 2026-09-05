@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+from pathlib import Path
 
 import yaml
-from conftest import ROOT, load_yaml
 
-PACKAGE = "kubernetes/vaultwarden"
+ROOT = Path(__file__).resolve().parents[3]
+
+PACKAGE = "apps/vaultwarden/manifests"
 APPLICATION = "apps/vaultwarden/argocd/application.yaml"
 PROJECT = "apps/vaultwarden/argocd/project.yaml"
 
@@ -83,8 +85,8 @@ def test_vaultwarden_has_private_nginx_tls_and_bounded_argocd_ownership() -> Non
     resources = render_package()
     ingress = resource(resources, "Ingress")
     annotations = ingress["metadata"]["annotations"]
-    app = load_yaml(APPLICATION)
-    project = load_yaml(PROJECT)
+    app = yaml.safe_load((ROOT / APPLICATION).read_text())
+    project = yaml.safe_load((ROOT / PROJECT).read_text())
 
     assert ingress["spec"]["ingressClassName"] == "nginx"
     assert annotations["cert-manager.io/cluster-issuer"] == "letsencrypt-prod"
