@@ -4,6 +4,7 @@ Each migrated app keeps its Argo definitions, configuration, custom source,
 useful checks, and operating guide in its own folder. The native root lists
 adopted apps in [its Kustomization](../argocd/kustomization.yaml).
 
+- [Certificate configuration](cert-manager-config/README.md): issuers, wildcard certificates and TLS reflection.
 - [Media helper](media-helper/README.md): internal channel catalog, playlist and guide.
 - [Obsidian sync](obsidian-livesync/README.md): CouchDB note sync and recovery.
 - [Vaultwarden](vaultwarden/README.md): private human vault and restricted reader.
@@ -91,7 +92,7 @@ including runtime patches. It compares local workload changes, not edits to
 Application metadata or bootstrap secrets. Argo omits Secret values. Read the
 native manifests and Ansible check output for those separate changes.
 
-Media Helper compares a clean, pushed single Git source. ExternalDNS and Headlamp
+Media helper and certificate configuration compare a clean, pushed single Git source. ExternalDNS and Headlamp
 compare a clean, pushed commit with the live chart deployment. It
 keeps explicit chart versions and resolves Git values to the exact commit. It
 rejects Application setting changes that native revision overrides cannot render.
@@ -103,9 +104,10 @@ sync policy. An Application without a maintained operation file reports `unknown
 with its cause. The native app Makefiles are command entrypoints; they do not
 replace the Application metadata inventory.
 
-Boys also has a complete isolated `restore-check` operation. It reads encrypted
-off-cluster inputs, verifies a completed backup through the restored app, and
-cleans up its own temporary resources. See [Boys recovery](boys/README.md#run-an-isolated-restore).
+Boys, Vaultwarden, and Obsidian have maintained isolated `restore-check` operations.
+They read encrypted off-cluster inputs, verify a completed backup through the
+restored app, and clean up temporary resources. Each app README states its tested
+coverage and remaining human-login, note, or attachment gaps.
 Unsupported restore operations report `unknown` with their cause. Restore
 reports do not replace the separate seven-day recovery-point measurements.
 
