@@ -41,5 +41,5 @@ route. Secrets and login details are not stored in this repository.
 - Add tests and a rollback path for behaviour changes.
 
 Reusable engineering workflows live under `.agents/skills`. They cover
-Ansible application roles, Argo/Kubernetes architecture, lab UX, browser
+Ansible application roles, Argo/Kubernetes architecture, browser
 testing, security, debugging, and completion verification.

@@ -1,7 +1,6 @@
 # Soyspray docs archive
 
-This folder holds project notes that are useful but not part of the public
-MkDocs navigation.
+This folder holds operating notes and maintenance references.
 
 ## Current runbooks
 

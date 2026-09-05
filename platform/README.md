@@ -2,13 +2,10 @@
 
 This folder contains cluster services shared by application tenants.
 
-- [`kong/`](kong/) contains the optional API gateway platform used by the bank
-  lab.
 - [`public-status.json`](public-status.json) defines the external Better Stack
   status page, its DNS-only Cloudflare CNAME, and its monitored services.
 
-Application-specific workloads stay under [`../apis/`](../apis/) and
-[`../kubernetes/`](../kubernetes/) so platform ownership remains visible.
+Application workloads stay under [`../kubernetes/`](../kubernetes/).
 
 ## Public status page
 
