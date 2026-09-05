@@ -1,0 +1,268 @@
+---
+- name: Retire only the dedicated OpenClaw installation on node-0
+  hosts: node-0
+  gather_facts: false
+  become: true
+  vars:
+    openclaw_retirement_audit: |
+      import hashlib, json, os, pwd, re, subprocess
+      from pathlib import Path
+
+      def run(*args):
+          return subprocess.run(args, capture_output=True, text=True, check=False)
+
+      def properties(unit):
+          result = run('systemctl', 'show', unit,
+                       '--property=User,FragmentPath,ActiveState,UnitFileState,MainPID')
+          return dict(line.split('=', 1) for line in result.stdout.splitlines() if '=' in line)
+
+      def fingerprint(path):
+          p = Path(path)
+          if not p.exists():
+              return None
+          return {'target': str(p.resolve()),
+                  'sha256': hashlib.sha256(p.read_bytes()).hexdigest()}
+
+      try:
+          account = pwd.getpwnam('openclaw')
+          account = {'uid': account.pw_uid, 'home': account.pw_dir}
+      except KeyError:
+          account = None
+      modules = []
+      for root in ['/usr/local/lib/node_modules', '/usr/lib/node_modules']:
+          for p in Path(root).glob('*openclaw*'):
+              package = p / 'package.json'
+              modules.append({'path': str(p), 'symlink': p.is_symlink(),
+                              'name': json.loads(package.read_text()).get('name') if package.is_file() else None})
+      binaries = []
+      for root in ['/usr/local/bin', '/usr/bin', '/root/.local/bin', '/home/ubuntu/.local/bin']:
+          for p in Path(root).glob('*openclaw*'):
+              binaries.append({'path': str(p), 'symlink': p.is_symlink(), 'target': str(p.resolve())})
+      state = []
+      for name in ['/root/.openclaw', '/home/ubuntu/.openclaw']:
+          p = Path(name)
+          if p.exists() or p.is_symlink():
+              state.append({'path': name, 'symlink': p.is_symlink(),
+                            'children': sorted(x.name for x in p.iterdir())})
+      protected = ['/etc/kubernetes/admin.conf', '/usr/bin/node', '/usr/bin/npm',
+                   '/usr/local/bin/kubectl', '/usr/bin/google-chrome-stable',
+                   '/usr/local/lib/node_modules/playwright/package.json',
+                   '/usr/lib/node_modules/playwright/package.json',
+                   '/usr/lib/node_modules/clawhub/package.json',
+                   '/usr/sbin/tailscaled', '/usr/bin/tailscale']
+      other_schedules = []
+      for root in ['/etc/cron.d', '/etc/cron.daily', '/etc/cron.hourly',
+                   '/etc/cron.weekly', '/etc/cron.monthly', '/var/spool/cron/crontabs',
+                   '/var/spool/cron/atjobs']:
+          for p in Path(root).glob('*'):
+              if p.name != 'openclaw' and p.is_file() and b'openclaw' in p.read_bytes().lower():
+                  other_schedules.append(str(p))
+      system_units = [line.split()[0] for line in run('systemctl', 'list-unit-files',
+                      '--no-legend', '--no-pager').stdout.splitlines() if 'openclaw' in line.lower()]
+      user_unit_paths = []
+      for root in ['/root', '/home/ubuntu', '/home/openclaw']:
+          user_unit_paths.extend(str(p) for p in (Path(root) / '.config/systemd/user').rglob('*openclaw*'))
+      user_units = []
+      bus = bool(account and Path('/run/user/' + str(account['uid']) + '/bus').exists())
+      if bus:
+          result = run('runuser', '-u', 'openclaw', '--', 'env',
+                       'XDG_RUNTIME_DIR=/run/user/' + str(account['uid']),
+                       'systemctl', '--user', 'list-unit-files', '--no-legend', '--no-pager')
+          if result.returncode:
+              raise RuntimeError('Cannot inspect the dedicated user manager')
+          user_units = [line.split()[0] for line in result.stdout.splitlines() if 'openclaw' in line.lower()]
+      processes, unexpected_account_processes = [], []
+      for p in Path('/proc').iterdir():
+          if not p.name.isdigit():
+              continue
+          try:
+              command = (p / 'cmdline').read_bytes().replace(b'\0', b' ')
+              comm = (p / 'comm').read_text()
+              cgroup = (p / 'cgroup').read_text()
+              if b'openclaw' in command.lower() or 'openclaw' in comm.lower():
+                  processes.append(int(p.name))
+              if account and p.stat().st_uid == account['uid'] and 'kubepods' not in cgroup:
+                  allowed = ['/system.slice/openclaw-gateway.service',
+                             '/user.slice/user-' + str(account['uid']) + '.slice/']
+                  if not any(x in cgroup for x in allowed):
+                      unexpected_account_processes.append(int(p.name))
+          except (FileNotFoundError, ProcessLookupError):
+              pass
+      listeners = [line for line in run('ss', '-lntupH').stdout.splitlines()
+                   if 'openclaw' in line.lower() or re.search(r':187(?:89|91|92)\s', line)]
+      home = Path('/home/openclaw')
+      print(json.dumps({'hostname': run('hostname', '-s').stdout.strip(),
+                        'account': account, 'home_exists': home.exists(),
+                        'home_symlink': home.is_symlink(),
+                        'home_uid': home.stat().st_uid if home.exists() else None,
+                        'modules': modules, 'binaries': binaries, 'state': state,
+                        'protected': {p: fingerprint(p) for p in protected},
+                        'gateway': properties('openclaw-gateway.service'),
+                        'tailscale': properties('tailscaled.service'),
+                        'system_units': system_units, 'user_units': user_units,
+                        'user_unit_paths': user_unit_paths, 'user_bus': bus,
+                        'other_schedules': other_schedules,
+                        'cron_exists': Path('/var/spool/cron/crontabs/openclaw').exists(),
+                        'linger': Path('/var/lib/systemd/linger/openclaw').exists(),
+                        'processes': processes, 'unexpected_account_processes': unexpected_account_processes,
+                        'listeners': listeners}))
+  tasks:
+    - name: Read host ownership and protected tools without exposing credentials
+      ansible.builtin.command:
+        argv: [python3, '-']
+        stdin: "{{ openclaw_retirement_audit }}"
+      register: openclaw_before_read
+      changed_when: false
+      check_mode: false
+
+    - name: Keep the pre-retirement inventory
+      ansible.builtin.set_fact:
+        openclaw_before: "{{ openclaw_before_read.stdout | from_json }}"
+
+    - name: Verify the exact node, account, service, and schedule scope
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'node-0'
+          - openclaw_before.hostname == 'node-0'
+          - openclaw_before.account == none or openclaw_before.account == {'uid':1002, 'home':'/home/openclaw'}
+          - not openclaw_before.home_symlink
+          - not openclaw_before.home_exists or openclaw_before.home_uid == 1002
+          - openclaw_before.gateway.FragmentPath | default('') in ['', '/etc/systemd/system/openclaw-gateway.service']
+          - openclaw_before.gateway.User | default('') in ['', 'openclaw']
+          - openclaw_before.system_units | difference(['openclaw-gateway.service']) | length == 0
+          - openclaw_before.user_units | difference(['openclaw-gateway.service']) | length == 0
+          - openclaw_before.user_unit_paths | reject('match', '^/home/openclaw/') | list | length == 0
+          - openclaw_before.other_schedules | length == 0
+          - openclaw_before.unexpected_account_processes | length == 0
+          - openclaw_before.tailscale.ActiveState == 'active'
+          - openclaw_before.tailscale.UnitFileState == 'enabled'
+          - openclaw_before.protected.values() | select('equalto', none) | list | length == 0
+        fail_msg: The node no longer matches the verified retirement scope. Inspect the changed ownership or schedules first.
+
+    - name: Verify each module before deleting its directory
+      ansible.builtin.assert:
+        that:
+          - item.name == 'openclaw'
+          - not item.symlink
+      loop: "{{ openclaw_before.modules }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Verify each binary resolves into an identified OpenClaw module
+      ansible.builtin.assert:
+        that:
+          - item.symlink
+          - item.target | dirname in openclaw_before.modules | map(attribute='path') | list
+      loop: "{{ openclaw_before.binaries }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Verify the old root and Ubuntu state copies
+      ansible.builtin.assert:
+        that:
+          - not item.symlink
+          - item.children | difference(['agents', 'identity', 'completions', 'memory']) | length == 0
+          - "'identity' in item.children"
+      loop: "{{ openclaw_before.state }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Remove the dedicated account's cron and native scheduled jobs
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /var/spool/cron/crontabs/openclaw
+        - /home/openclaw/.openclaw/cron
+
+    - name: Stop and disable the dedicated user gateway when installed
+      ansible.builtin.systemd_service:
+        name: openclaw-gateway.service
+        scope: user
+        state: stopped
+        enabled: false
+      become_user: openclaw
+      become: true
+      environment:
+        XDG_RUNTIME_DIR: /run/user/1002
+      when: openclaw_before.user_bus and 'openclaw-gateway.service' in openclaw_before.user_units
+
+    - name: Stop and disable the system gateway
+      ansible.builtin.systemd_service:
+        name: openclaw-gateway.service
+        state: stopped
+        enabled: false
+      when: openclaw_before.gateway.FragmentPath | default('') != ''
+
+    - name: Remove the complete system unit and drop-in directory
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/systemd/system/openclaw-gateway.service
+        - /etc/systemd/system/openclaw-gateway.service.d
+
+    - name: Reload system unit definitions
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Disable linger for the dedicated account
+      ansible.builtin.command:
+        argv: [loginctl, disable-linger, openclaw]
+      changed_when: true
+      when: openclaw_before.account != none and openclaw_before.linger
+
+    - name: Stop only the dedicated account's user manager
+      ansible.builtin.systemd_service:
+        name: user@1002.service
+        state: stopped
+      when: openclaw_before.user_bus
+
+    - name: Remove the dedicated account and its home
+      ansible.builtin.user:
+        name: openclaw
+        state: absent
+        remove: true
+      when: openclaw_before.account != none
+
+    - name: Remove residual dedicated home, linger marker, and verified state copies
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ ['/home/openclaw', '/var/lib/systemd/linger/openclaw'] + (openclaw_before.state | map(attribute='path') | list) }}"
+
+    - name: Remove only verified OpenClaw binaries and modules
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ openclaw_before.binaries + openclaw_before.modules }}"
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Read the host after retirement
+      ansible.builtin.command:
+        argv: [python3, '-']
+        stdin: "{{ openclaw_retirement_audit }}"
+      register: openclaw_after_read
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Verify absence and unchanged protected tools and Tailscale process
+      vars:
+        openclaw_after: "{{ openclaw_after_read.stdout | from_json }}"
+      ansible.builtin.assert:
+        that:
+          - openclaw_after.account == none
+          - not openclaw_after.home_exists
+          - not openclaw_after.linger
+          - not openclaw_after.cron_exists
+          - (openclaw_after.modules + openclaw_after.binaries + openclaw_after.state) | length == 0
+          - (openclaw_after.system_units + openclaw_after.user_units + openclaw_after.user_unit_paths) | length == 0
+          - (openclaw_after.processes + openclaw_after.listeners + openclaw_after.other_schedules) | length == 0
+          - openclaw_after.gateway.ActiveState | default('inactive') == 'inactive'
+          - openclaw_after.protected == openclaw_before.protected
+          - openclaw_after.tailscale == openclaw_before.tailscale
+        fail_msg: Retirement verification failed. Keep the playbook and inspect the remaining resource.
+      when: not ansible_check_mode
