@@ -6,7 +6,7 @@ REVISION ?= HEAD
 
 check:
 	$(PYTHON) -m pytest -q apps/cert-manager-config/tests tests/test_argocd_root.py
-	$(PYTHON) -m ansiblelint apps/cert-manager-config/*.yml roles/apps/cert-manager/tasks/main.yml
+	$(PYTHON) -m ansiblelint roles/apps/cert-manager/tasks/main.yml roles/apps/authentik/tasks/certificate.yml
 	kubectl kustomize apps/cert-manager-config/argocd >/dev/null
 
 diff:

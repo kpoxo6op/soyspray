@@ -19,12 +19,15 @@ same. Prune/delete protection retains these resources when the app is parked.
 Application deletion does not cascade. Deliberate retirement needs a separate
 Ansible operation. Keep DNS-01 challenge access and existing client hostnames.
 
-During adoption, manifests remain at the existing source path. Run `adopt.yml`
-with the standard inventory and privilege options from AGENTS.md, first with
-`--check`, then without it. It accepts only the known idle Application and removes
-only Argo's cascading finalizers with a resource-version guard. Push first and
-run `make go` before the operation. Then use the standard deployment command.
-After merge, deploy HEAD and verify the exact Argo revision and health.
+Manifests and operating checks now live together in this app folder. Deployment
+uses the native root after the full gate and pushed-commit preflight. For a branch
+preview, use the command above. After merge, run `make deploy APP=cert-manager-config`
+and verify the exact HEAD comparison and health. The old source and one-time
+adoption operation have been removed after identity verification.
+
+Authentik waits for the reflected wildcard Secret in its own namespace. Its
+role does not submit this Application, retarget it to an Authentik branch, or
+apply the Certificate. Deploy certificate configuration before Authentik setup.
 
 The remaining Ansible role keeps Cloudflare-token and shared public Bitnami OCI
 repository bootstrap during migration. It no longer submits this Application.

@@ -7,6 +7,10 @@ the supported native OIDC clients and forward-auth applications.
 `defaults/main.yml` selects the pushed Git revision. `tasks/main.yml` preserves
 runtime credentials and applies the applications. `tasks/native-apps.yml`
 configures application settings that cannot come from an Authentik blueprint.
+`tasks/certificate.yml` waits for the wildcard TLS Secret from the native
+[certificate app](../../../apps/cert-manager-config/README.md). Deploy that app
+first. Authentik does not retarget its Application or write its Certificate;
+the existing reflector creates the Authentik TLS mirror.
 
 Run the role from the repository root after `make go` and after you push the
 branch:
