@@ -55,6 +55,8 @@ spec:
                 secretKeyRef:
                   name: boys-runtime
                   key: session-key
+            - name: BOYS_TRIP_SEED_FILE
+              value: /run/trip/seed.json
           startupProbe:
             httpGet:
               path: /ready
@@ -90,6 +92,9 @@ spec:
             - name: tls
               mountPath: /tls
               readOnly: true
+            - name: trip-seed
+              mountPath: /run/trip
+              readOnly: true
             - name: tmp
               mountPath: /tmp
       volumes:
@@ -99,6 +104,10 @@ spec:
         - name: tls
           secret:
             secretName: boys-tls
+            defaultMode: 0440
+        - name: trip-seed
+          secret:
+            secretName: boys-trip-seed
             defaultMode: 0440
         - name: tmp
           emptyDir: {}
