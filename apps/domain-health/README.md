@@ -4,11 +4,12 @@ The exporter checks domain expiry, Cloudflare zone status, and authoritative
 nameservers. Prometheus reads its metrics, and the existing Healthchecks identity
 receives its scheduled result. Keep these checks independent of laptop diagnosis.
 
-The native root owns the existing Application and a dedicated AppProject. During
-adoption, runtime manifests and source remain at the existing path under
-`playbooks/argocd/applications/observability/domain-health`. Its Service,
-Deployment, ConfigMap, namespace, and two Secret identities stay in place. Runtime
-packaging and removal of the old path follow verified adoption.
+The native root owns the existing Application and a dedicated AppProject. The app
+keeps its manifests in `manifests/` and source in `app/`. Its Service, Deployment,
+ConfigMap, namespace, and two Secret identities stay in place. The app-local
+Kustomize package preserves the active workload. Immutable image packaging is a
+separate change; the existing script ConfigMap stays until that replacement is
+deployed and verified.
 
 ```sh
 make check APP=domain-health
