@@ -32,3 +32,8 @@ successful runtime build publishes its GHCR digest and opens a draft promotion
 PR. It has no cluster credentials and does not merge or deploy. Reruns use a
 new image tag and promotion branch so they cannot overwrite a reviewed draft.
 Close superseded promotion drafts during review.
+
+The [autism image workflow](autism-image.yml) builds the static site with pinned
+upstream images and checks the running image with phone and desktop browsers.
+Source merges open a draft digest and configuration promotion. The running site
+changes only when that promotion is deployed. See the [app guide](../../apps/autism-traits/README.md).

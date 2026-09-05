@@ -26,3 +26,5 @@ kubeconfig.*
 age.key
 age.txt
 .sops-age-key.txt
+
+apps/*/app/dist/

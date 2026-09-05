@@ -66,22 +66,18 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: kubernetes/autism-traits/app/package-lock.json
+          cache-dependency-path: apps/autism-traits/app/package-lock.json
       - name: Install autism traits dependencies
-        working-directory: kubernetes/autism-traits/app
+        working-directory: apps/autism-traits/app
         run: npm ci
       - name: Check autism traits application
-        working-directory: kubernetes/autism-traits/app
+        working-directory: apps/autism-traits/app
         run: npm run check
-      - name: Verify committed autism traits bundle
-        run: |
-          git diff --exit-code -- kubernetes/autism-traits/app/dist
-          test -z "$(git ls-files --others --exclude-standard -- kubernetes/autism-traits/app/dist)"
       - name: Install Playwright Chromium
-        working-directory: kubernetes/autism-traits/app
+        working-directory: apps/autism-traits/app
         run: npx playwright install --with-deps chromium
       - name: Test autism traits browser flow
-        working-directory: kubernetes/autism-traits/app
+        working-directory: apps/autism-traits/app
         run: npm run test:e2e
 
   boys:
