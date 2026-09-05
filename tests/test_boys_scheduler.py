@@ -548,9 +548,6 @@ def test_argocd_role_owns_secrets_and_revision_selection() -> None:
 
     assert "boys_enabled: true" in defaults
     assert "boys_target_revision: HEAD" in defaults
-    assert "BOYS_PIN" in enabled
-    assert "BOYS_SESSION_KEY" in enabled
-    assert "BOYS_CLOUDFLARED_TOKEN" in enabled
     assert "boys_runtime_secret" in enabled
     assert "BOYS_RUNTIME_SECRET_RESOURCE_VERSION" in enabled
     assert "resourceVersion" in enabled

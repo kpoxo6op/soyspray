@@ -1,0 +1,101 @@
+---
+- name: Read the existing Boys runtime identity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: boys
+    name: boys-runtime
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: boys_existing_runtime
+  no_log: true
+
+- name: Read the existing Boys tunnel identity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: boys
+    name: boys-cloudflared-token
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: boys_existing_tunnel
+  no_log: true
+
+- name: Select supplied or existing access values
+  ansible.builtin.set_fact:
+    boys_bootstrap_pin: >-
+      {{ boys_pin | default((boys_existing_runtime.resources | first | default({})).data.pin | default('') | b64decode) }}
+    boys_bootstrap_session_key: >-
+      {{ boys_session_key | default((boys_existing_runtime.resources | first | default({})).data['session-key'] | default('') | b64decode) }}
+    boys_bootstrap_tunnel_token: >-
+      {{ boys_cloudflared_token | default((boys_existing_tunnel.resources | first | default({})).data.token | default('') | b64decode) }}
+  no_log: true
+
+- name: Validate the complete access identities
+  ansible.builtin.set_fact:
+    boys_bootstrap_available: >-
+      {{ boys_pin | default('') is string and boys_session_key | default('') is string and
+         boys_cloudflared_token | default('') is string and
+         boys_bootstrap_pin is string and boys_bootstrap_pin is match('^[0-9]{4,8}$') and
+         boys_bootstrap_session_key is string and boys_bootstrap_session_key | length >= 32 and
+         boys_bootstrap_tunnel_token is string and boys_bootstrap_tunnel_token | trim | length > 0 }}
+    boys_bootstrap_matches: >-
+      {{ (boys_existing_runtime.resources | length == 0 or
+          (boys_bootstrap_pin == (boys_existing_runtime.resources[0].data.pin | default('') | b64decode) and
+           boys_bootstrap_session_key == (boys_existing_runtime.resources[0].data['session-key'] | default('') | b64decode))) and
+         (boys_existing_tunnel.resources | length == 0 or
+          boys_bootstrap_tunnel_token == (boys_existing_tunnel.resources[0].data.token | default('') | b64decode)) }}
+  no_log: true
+
+- name: Require complete existing identities or encrypted bootstrap inputs
+  ansible.builtin.assert:
+    that: boys_bootstrap_available | bool
+    fail_msg: >-
+      Restore boys-runtime and boys-cloudflared-token, or supply boys_pin,
+      boys_session_key, and boys_cloudflared_token through an Ansible Vault variables file.
+      Quote the PIN as a string and keep the existing session signing key.
+
+- name: Refuse to replace an existing access identity
+  ansible.builtin.assert:
+    that: boys_bootstrap_matches | bool
+    fail_msg: >-
+      Supplied Boys inputs differ from the existing identities. Use matching recovery
+      inputs. This bootstrap cannot rotate the crew PIN, session key, or tunnel token.
+
+- name: Apply the protected namespace before restoring a missing identity
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: "{{ lookup('file', boys_bootstrap_root + '/kubernetes/boys/namespace.yaml') | from_yaml }}"
+  when: boys_existing_runtime.resources | length == 0 or boys_existing_tunnel.resources | length == 0
+
+- name: Restore the missing Boys runtime Secret
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", create, -f, '-']
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: boys-runtime
+        namespace: boys
+      type: Opaque
+      stringData:
+        pin: {{ boys_bootstrap_pin | to_json }}
+        session-key: {{ boys_bootstrap_session_key | to_json }}
+  changed_when: true
+  no_log: true
+  when: boys_existing_runtime.resources | length == 0
+
+- name: Restore the missing Boys tunnel Secret
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", create, -f, '-']
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: boys-cloudflared-token
+        namespace: boys
+      type: Opaque
+      stringData:
+        token: {{ boys_bootstrap_tunnel_token | to_json }}
+  changed_when: true
+  no_log: true
+  when: boys_existing_tunnel.resources | length == 0
