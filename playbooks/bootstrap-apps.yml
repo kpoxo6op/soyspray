@@ -131,9 +131,11 @@
         - argocd_preview_child.resources[0].status.sync.status | default('') == 'Synced'
         - argocd_preview_child.resources[0].status.health.status | default('') == 'Healthy'
         - >-
+          argocd_preview_child.resources[0].spec.source is not defined or
           argocd_preview_child.resources[0].status.sync.comparedTo.source | default({}) ==
           argocd_preview_child.resources[0].spec.source | default({})
         - >-
+          argocd_preview_child.resources[0].spec.sources is not defined or
           argocd_preview_child.resources[0].status.sync.comparedTo.sources | default([]) ==
           argocd_preview_child.resources[0].spec.sources | default([])
         - >-
