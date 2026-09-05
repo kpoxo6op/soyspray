@@ -21,7 +21,7 @@ spec:
       targetRevision: "0.35"
       helm:
         valueFiles:
-          - $values/playbooks/argocd/applications/infrastructure/headlamp/values.yaml
+          - $values/apps/headlamp/values.yaml
     - repoURL: https://github.com/kpoxo6op/soyspray.git
       targetRevision: "HEAD"
       ref: values

@@ -4,7 +4,7 @@ from conftest import ROOT, load_yaml
 
 
 def test_headlamp_uses_an_external_oidc_secret_and_group_rbac() -> None:
-    values = load_yaml("playbooks/argocd/applications/infrastructure/headlamp/values.yaml")
+    values = load_yaml("apps/headlamp/values.yaml")
 
     assert values["config"]["oidc"]["secret"]["create"] is False
     assert values["config"]["oidc"]["externalSecret"] == {
