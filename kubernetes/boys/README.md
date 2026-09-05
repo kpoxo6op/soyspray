@@ -1,51 +1,32 @@
 # Boys calendar
 
-This package serves `https://boys.soyspray.vip`. The Russian interface has
-three views: **Поездка**, **Даты**, and **Участники**. Sign in with a personal
-PIN. To claim an unused name, select it, enter the crew PIN, and set a personal
-PIN. The crew PIN cannot replace a claimed PIN.
+Open <https://boys.soyspray.vip> and sign in with your personal PIN. For an
+unclaimed name, select it, enter the crew PIN, then set a personal PIN. The
+crew PIN cannot reset a claimed name.
 
-Use **Поездка** to edit shared decisions, accommodation quotes, and the next
-call. Any claimed member can mark a section agreed or reopen it. The board
-shows that person's name and time. Editing an agreed value makes it a draft.
-Agreement does not mean that every member voted for it.
+**Календарь** opens first. Mark the days when you are free, then select
+**Сохранить даты**. Open **Выбрать диапазон** to mark several days together.
+Crew colours and patterns show overlap. Select a day to see who is free.
+The calendar opens at the active trip month. **История** shows earlier events.
 
-Use **Даты** to compare proposed stays and answer yes, maybe, or no. A blank
-answer stays unanswered. The separate availability calendar supports individual
-days and inclusive ranges. Crew colours and patterns show overlap. The calendar
-opens at the trip month. The history link keeps earlier claims and availability
-events, including baseline records without invented timestamps.
+**Ссылки** is a separate list of places to consider. Add only a title and URL.
+Select **Изменить** to correct or remove one link. The app does not fetch prices,
+copy chat messages, or make bookings.
 
-Use **Участники** to edit your own attendance, travel dates, accompanying adult
-and child counts, optional budget, and travel notes. Do not enter family names.
-The board shows differences from the selected shared dates. Budgets use AUD per
-person, excluding flights. Accommodation estimates need an explicit paying-person
-count. A manual quote is dated information; the site does not fetch prices or
-make bookings.
+The save indicator stays visible on phones. Failed saves keep your draft.
+Edits made during a save still need another save. If another window changes
+saved data, review the conflict before applying your draft. Refresh runs on
+focus and every 30 seconds without replacing unsaved input. Leaving with
+unsaved changes gives a warning.
 
-The call editor stores a UTC instant and IANA timezone. It displays Auckland
-and Brisbane times and asks which occurrence to use when the clock repeats a
-time. **Текст для Telegram** prepares saved information for manual copying.
-Personal budgets and travel notes are excluded unless you select them. It does
-not send messages or read chat.
+The smaller interface preserves all saved trip fields and responses. Editing
+a link changes only its title and URL. Existing quotes, dates, notes, budgets,
+and other fields remain in the database, though the interface no longer
+shows their forms. The compatibility API and audit log remain available.
 
-Names, dates, events, salted PIN hashes, and trip data use SQLite on `boys-data`.
-Trip content requires a signed-in session. The app has no email, analytics, or
-third-party browser script. Cloudflare processes public requests and connection
-metadata to deliver the site. A lost-PIN link opens `t.me/borex69`.
-
-## Saving dates
-
-Save keeps historical availability. It changes only your future selections.
-The status line shows pending and failed saves. You can continue editing while
-an earlier selection is saving; those newer edits still need another save.
-
-If another window changes your dates, compare its saved dates with your draft.
-Apply your additions and removals to the reviewed dates, then save again, or
-discard your draft. Trip editors use the same conflict review. They keep input
-when saving fails and preserve edits made during an outstanding save. Other
-members refresh on focus and every 30 seconds. A
-failed refresh is shown. Navigation warns when you have unsaved changes.
+Names, dates, events, salted PIN hashes, and private trip data use SQLite on
+`boys-data`. The app uses no external browser scripts or analytics. Cloudflare
+handles public requests. A lost-PIN link opens `t.me/borex69`.
 
 ## Trip data interface
 
