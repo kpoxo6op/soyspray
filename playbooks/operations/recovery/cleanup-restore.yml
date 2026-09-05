@@ -1,0 +1,89 @@
+---
+- name: Remove only the named isolated restore workspace
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    recovery_scratch: "restore-{{ recovery_app }}-{{ recovery_check_id }}"
+  tasks:
+    - name: Require the app and check identifier
+      ansible.builtin.assert:
+        that:
+          - recovery_app | default('') in ['boys', 'vaultwarden', 'obsidian']
+          - recovery_check_id | default('') is match('^[a-z0-9][a-z0-9-]{0,23}$')
+
+    - name: Read the named scratch resources before deletion
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api }}"
+        kind: "{{ item.kind }}"
+        name: "{{ recovery_scratch }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop:
+        - {api: v1, kind: Namespace}
+        - {api: storage.k8s.io/v1, kind: StorageClass}
+      register: recovery_existing
+
+    - name: Require this operation's ownership labels on every resource
+      ansible.builtin.assert:
+        that:
+          - item.metadata.labels['soyspray.vip/purpose'] | default('') == 'restore-check'
+          - item.metadata.labels['soyspray.vip/app'] | default('') == recovery_app
+          - item.metadata.labels['soyspray.vip/check-id'] | default('') == recovery_check_id
+          - item.metadata.annotations['soyspray.vip/backup-uid'] | default('') | length > 0
+      loop: "{{ recovery_existing.results | map(attribute='resources') | flatten }}"
+      loop_control:
+        label: "{{ item.kind }}/{{ item.metadata.name }}"
+
+    - name: Read claims before deleting a scratch namespace
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_claims
+
+    - name: Require isolated bindings and the disposable storage class
+      ansible.builtin.assert:
+        that:
+          - item.metadata.name == 'restored-data'
+          - item.spec.storageClassName == recovery_scratch
+          - item.metadata.labels['soyspray.vip/purpose'] | default('') == 'restore-check'
+          - >-
+            item.spec.volumeName | default('unbound') not in
+            (recovery_claims.resources | rejectattr('metadata.namespace', 'equalto', recovery_scratch)
+             | selectattr('spec.volumeName', 'defined') | map(attribute='spec.volumeName') | list)
+      loop: "{{ recovery_claims.resources | selectattr('metadata.namespace', 'equalto', recovery_scratch) | list }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Delete the verified scratch namespace before its storage class
+      kubernetes.core.k8s:
+        state: absent
+        api_version: "{{ item.apiVersion }}"
+        kind: "{{ item.kind }}"
+        name: "{{ item.metadata.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        delete_options:
+          preconditions: {uid: "{{ item.metadata.uid }}"}
+        wait: true
+        wait_timeout: 300
+      loop: "{{ recovery_existing.results | map(attribute='resources') | flatten }}"
+      loop_control:
+        label: "{{ item.kind }}/{{ item.metadata.name }}"
+
+    - name: Wait for disposable backing volumes to be removed
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolume
+        name: "{{ item.spec.volumeName }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_remaining
+      until: recovery_remaining.resources | length == 0
+      retries: 60
+      delay: 5
+      loop: >-
+        {{ recovery_claims.resources | selectattr('metadata.namespace', 'equalto', recovery_scratch)
+           | selectattr('spec.volumeName', 'defined') | list }}
+      loop_control:
+        label: "{{ item.spec.volumeName }}"
+      when: not ansible_check_mode

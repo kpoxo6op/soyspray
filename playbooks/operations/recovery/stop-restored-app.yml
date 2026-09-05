@@ -1,0 +1,52 @@
+---
+- name: Stop only the named scratch app while retaining its restored volume
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    recovery_scratch: "restore-{{ recovery_app }}-{{ recovery_check_id }}"
+  tasks:
+    - name: Require the app and check identifier
+      ansible.builtin.assert:
+        that:
+          - recovery_app | default('') in ['vaultwarden', 'obsidian']
+          - recovery_check_id | default('') is match('^[a-z0-9][a-z0-9-]{0,23}$')
+
+    - name: Read the scratch namespace and app
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: "{{ item }}"
+        namespace: "{{ recovery_scratch if item == 'Pod' else omit }}"
+        name: "{{ 'app' if item == 'Pod' else recovery_scratch }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: [Namespace, Pod]
+      register: recovery_existing
+
+    - name: Require the namespace ownership and scratch pod label
+      ansible.builtin.assert:
+        that:
+          - recovery_existing.results[0].resources | length == 1
+          - recovery_existing.results[0].resources[0].metadata.labels['soyspray.vip/purpose'] == 'restore-check'
+          - recovery_existing.results[0].resources[0].metadata.labels['soyspray.vip/app'] == recovery_app
+          - recovery_existing.results[0].resources[0].metadata.labels['soyspray.vip/check-id'] == recovery_check_id
+          - item.metadata.labels['soyspray.vip/purpose'] | default('') == 'restore-check'
+      loop: "{{ recovery_existing.results[1].resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Stop the verified scratch app with a UID precondition
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Pod
+        namespace: "{{ recovery_scratch }}"
+        name: app
+        kubeconfig: "{{ kubeconfig_path }}"
+        delete_options:
+          preconditions: {uid: "{{ item.metadata.uid }}"}
+        wait: true
+        wait_timeout: 120
+      loop: "{{ recovery_existing.results[1].resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"

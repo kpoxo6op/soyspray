@@ -1,0 +1,201 @@
+---
+- name: Restore one critical backup into a private scratch volume
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    recovery_claims:
+      boys: boys-data
+      vaultwarden: vaultwarden-data
+      obsidian: obsidian-livesync-couchdb-rescue-longhorn
+    recovery_scratch: "restore-{{ recovery_app }}-{{ recovery_check_id }}"
+    recovery_labels:
+      soyspray.vip/purpose: restore-check
+      soyspray.vip/app: "{{ recovery_app }}"
+      soyspray.vip/check-id: "{{ recovery_check_id }}"
+  tasks:
+    - name: Require an app, completed backup, and isolated check identifier
+      ansible.builtin.assert:
+        that:
+          - recovery_app | default('') in recovery_claims
+          - recovery_check_id | default('') is match('^[a-z0-9][a-z0-9-]{0,23}$')
+          - recovery_backup_name | default('') is match('^backup-[a-z0-9-]+$')
+
+    - name: Read the original claim without changing its ownership
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: "{{ recovery_app }}"
+        name: "{{ recovery_claims[recovery_app] }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_original
+
+    - name: Read the named backup
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Backup
+        namespace: longhorn-system
+        name: "{{ recovery_backup_name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_backup
+
+    - name: Require a completed backup of the original bound claim
+      ansible.builtin.assert:
+        that:
+          - recovery_original.resources | length == 1
+          - recovery_original.resources[0].status.phase == 'Bound'
+          - recovery_original.resources[0].spec.storageClassName == 'longhorn'
+          - recovery_backup.resources | length == 1
+          - recovery_backup.resources[0].status.state == 'Completed'
+          - recovery_backup.resources[0].status.error | default('') == ''
+          - recovery_backup.resources[0].status.backupTargetName == 'critical-s3'
+          - recovery_backup.resources[0].status.volumeName == recovery_original.resources[0].spec.volumeName
+          - recovery_backup.resources[0].status.url is match('^s3://')
+
+    - name: Read any existing scratch namespace or storage class
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api }}"
+        kind: "{{ item.kind }}"
+        name: "{{ recovery_scratch }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop:
+        - {api: v1, kind: Namespace}
+        - {api: storage.k8s.io/v1, kind: StorageClass}
+      register: recovery_existing
+
+    - name: Refuse to adopt resources from another operation or backup
+      ansible.builtin.assert:
+        that:
+          - item.metadata.labels['soyspray.vip/purpose'] | default('') == 'restore-check'
+          - item.metadata.labels['soyspray.vip/app'] | default('') == recovery_app
+          - item.metadata.labels['soyspray.vip/check-id'] | default('') == recovery_check_id
+          - item.metadata.annotations['soyspray.vip/backup-uid'] | default('') == recovery_backup.resources[0].metadata.uid
+        fail_msg: The scratch name is already used by another resource. Use a new check identifier.
+      loop: "{{ recovery_existing.results | map(attribute='resources') | flatten }}"
+      loop_control:
+        label: "{{ item.kind }}/{{ item.metadata.name }}"
+
+    - name: Create the isolated namespace, network policy, class, and claim
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition: "{{ lookup('template', 'restore-volume.yaml.j2') | from_yaml_all | list }}"
+
+    - name: Wait for the restored claim to bind
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        name: restored-data
+        namespace: "{{ recovery_scratch }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_restored
+      until:
+        - recovery_restored.resources | length == 1
+        - recovery_restored.resources[0].status.phase | default('') == 'Bound'
+      retries: 90
+      delay: 10
+      when: not ansible_check_mode
+
+    - name: Require a different claim and backing volume before mounting
+      ansible.builtin.assert:
+        that:
+          - recovery_restored.resources[0].metadata.uid != recovery_original.resources[0].metadata.uid
+          - recovery_restored.resources[0].spec.volumeName != recovery_original.resources[0].spec.volumeName
+          - recovery_restored.resources[0].spec.storageClassName == recovery_scratch
+      when: not ansible_check_mode
+
+    - name: Wait for native restore completion or a reported storage failure
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Volume
+        name: "{{ recovery_restored.resources[0].spec.volumeName }}"
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_volume
+      until: >-
+        recovery_volume.resources | length == 1 and
+        ((recovery_volume.resources[0].status.restoreInitiated | default(false) and
+          not recovery_volume.resources[0].status.restoreRequired | default(true)) or
+         recovery_volume.resources[0].status.robustness | default('') == 'faulted' or
+         (recovery_volume.resources[0].status.conditions | default([])
+          | selectattr('reason', 'equalto', 'ReplicaSchedulingFailure') | list | length > 0))
+      retries: 90
+      delay: 10
+      when: not ansible_check_mode
+
+    - name: Require usable restored data before starting an inspection pod
+      ansible.builtin.assert:
+        that:
+          - recovery_volume.resources[0].status.restoreInitiated
+          - recovery_volume.resources[0].status.robustness != 'faulted'
+          - not recovery_volume.resources[0].status.restoreRequired
+        fail_msg: >-
+          Longhorn could not restore the scratch volume. Inspect its conditions and
+          scheduling capacity, then clean up the scratch workspace before retrying.
+          Conditions: {{ recovery_volume.resources[0].status.conditions | default([]) }}
+      when: not ansible_check_mode
+
+    - name: Mount only the restored data for inspection
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: inspect
+            namespace: "{{ recovery_scratch }}"
+            labels: "{{ recovery_labels }}"
+          spec:
+            automountServiceAccountToken: false
+            enableServiceLinks: false
+            restartPolicy: Never
+            activeDeadlineSeconds: 14400
+            securityContext:
+              seccompProfile: {type: RuntimeDefault}
+            containers:
+              - name: inspect
+                image: python:3.13-alpine@sha256:399babc8b49529dabfd9c922f2b5eea81d611e4512e3ed250d75bd2e7683f4b0
+                command: [python, -c, 'import time; time.sleep(14400)']
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  readOnlyRootFilesystem: true
+                  capabilities: {drop: [ALL]}
+                resources:
+                  requests: {cpu: 10m, memory: 32Mi}
+                  limits: {cpu: 500m, memory: 256Mi}
+                volumeMounts:
+                  - {name: data, mountPath: /data}
+            volumes:
+              - name: data
+                persistentVolumeClaim: {claimName: restored-data}
+      when: not ansible_check_mode
+
+    - name: Wait for the isolated inspection container
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ recovery_scratch }}"
+        name: inspect
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_inspector
+      until:
+        - recovery_inspector.resources | length == 1
+        - recovery_inspector.resources[0].status.phase | default('') == 'Running'
+        - recovery_inspector.resources[0].status.containerStatuses[0].ready | default(false)
+      retries: 90
+      delay: 10
+      when: not ansible_check_mode
+
+    - name: Report the restored volume and its recovery point
+      ansible.builtin.debug:
+        msg:
+          app: "{{ recovery_app }}"
+          namespace: "{{ recovery_scratch }}"
+          backup: "{{ recovery_backup_name }}"
+          recovery_point: "{{ recovery_backup.resources[0].status.snapshotCreatedAt }}"
+          source_claim_uid: "{{ recovery_original.resources[0].metadata.uid }}"
+          restored_claim_uid: "{{ recovery_restored.resources[0].metadata.uid }}"
+          data_checks: unknown - inspect the restored data before accepting recovery
+      when: not ansible_check_mode

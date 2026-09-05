@@ -175,3 +175,117 @@ Restore only the required data and configuration fields into reviewed
 manifests. Do not apply archived UIDs, resource versions, or owner references.
 An encrypted runtime archive complements the volume backups; it does not
 prove that the application can be restored.
+
+## Inspect an isolated volume restore
+
+`restore-volume.yml` restores one completed critical backup into a new
+Longhorn claim. It checks the source claim and backup identity first. The
+scratch namespace denies ingress and egress. Its inspection container has no
+service-account token, host mounts, or public endpoint. The container uses a
+pinned Python image and stops after four hours. The disposable volume has one
+replica and no selected backup jobs.
+
+Push the branch and run `make go`. Select an actual completed backup name:
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/recovery/restore-volume.yml \
+  -e recovery_app=boys -e recovery_check_id=initial-20260905 \
+  -e recovery_backup_name=backup-initial-20260905-boys
+```
+
+Use `vaultwarden` or `obsidian` and that app's backup name for the other
+critical volumes. A retry reuses the same scratch claim. Use a new check ID
+for a fresh restore. The operation rejects an existing namespace or storage
+class with different ownership or backup identity. Check mode validates the
+source and proposed storage resources; it does not mount data.
+
+The operation waits for Longhorn restore completion before mounting data. It
+stops on a reported scheduling failure or faulted volume. Physical free space
+does not guarantee scheduling capacity: inspect Longhorn disk reservations
+and scheduled volume sizes. Record the failure and clean up that scratch
+workspace before retrying.
+
+Copy the restored directory to a private location outside Git for application
+checks. The inspection container does not run the app, so this copy includes
+the SQLite database and any WAL files without concurrent app writes:
+
+```bash
+install -d -m 700 ~/.local/state/soyspray/restores/boys-initial-20260905
+kubectl -n restore-boys-initial-20260905 cp --retries=3 inspect:/data \
+  ~/.local/state/soyspray/restores/boys-initial-20260905/data
+```
+
+Use SQLite's backup API on the copied database before test writes. Require
+`PRAGMA integrity_check` to return `ok`. Verify the existing Boys identities,
+PIN hashes, sessions, dates, and events against the restored data. Start the
+same app version with the archived runtime inputs, using only a loopback
+endpoint. Verify the restricted Vaultwarden identity can decrypt a record.
+For the stock Vaultwarden and CouchDB servers, use `start-restored-app.yml`
+after copying the untouched restore. It uses the same pinned image versions
+as the current deployments. It retains network isolation and mounts only the
+scratch claim. CouchDB needs the encrypted runtime archive:
+
+```bash
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/recovery/start-restored-app.yml \
+  -e recovery_app=obsidian -e recovery_check_id=initial-20260905 \
+  -e @"${HOME}/.config/soyspray/recovery/runtime-20260905.vault.yml" \
+  --vault-password-file ~/.config/soyspray/recovery/vault-password
+kubectl -n restore-obsidian-initial-20260905 port-forward pod/app 15985:5984
+```
+
+For Vaultwarden, create a temporary RSA certificate outside Git. The current
+Bitwarden CLI requires HTTPS. This certificate is for the isolated loopback
+test and is not added to the system trust store:
+
+```bash
+restore_tls_dir="${HOME}/.local/state/soyspray/restores/vault-tls"
+install -d -m 700 "$restore_tls_dir"
+umask 077
+openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=localhost \
+  -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' \
+  -addext 'basicConstraints=critical,CA:TRUE' \
+  -addext 'keyUsage=critical,digitalSignature,keyEncipherment,keyCertSign' \
+  -keyout "$restore_tls_dir/key.pem" -out "$restore_tls_dir/cert.pem"
+```
+
+Select `recovery_app=vaultwarden`, pass
+`-e recovery_tls_directory="$restore_tls_dir"` to `start-restored-app.yml`, and
+forward `18443:8443`. Point the separate test CLI data directory at
+`https://localhost:18443`. Set `NODE_EXTRA_CA_CERTS="$restore_tls_dir/cert.pem"`
+only for that CLI process. TLS uses Vaultwarden's native `ROCKET_TLS` setting.
+Keep certificate verification enabled.
+
+Use a separate Bitwarden CLI data directory for the test login. Read real
+notes, attachment chunks, and vault records. Keep private data out
+of logs, screenshots, and Git. Record the backup recovery point, restore
+duration, results, and any unknown checks outside the repository.
+
+The volume restore alone is not acceptance evidence. Do not move stateful
+ownership until application checks pass. Keep production claims, credentials,
+and offsite backups during this operation.
+
+To stop a scratch server before copying its files or changing its pod
+configuration, run `stop-restored-app.yml` with the same app and check ID. It
+deletes only that verified app pod and retains the inspector and restored
+claim. A failed or interrupted file copy is not a recovery candidate. Retry
+the copy after the app stops, and check the complete result before using it.
+
+After saving the results, remove only that disposable workspace:
+
+```bash
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/recovery/cleanup-restore.yml \
+  -e recovery_app=boys -e recovery_check_id=initial-20260905
+```
+
+Cleanup checks ownership labels and claim bindings, then uses UID
+preconditions to delete the scratch namespace and storage class. It waits
+for the disposable backing volume to disappear. It retains offsite backups
+and production claims. A failed restore can also use this cleanup operation;
+retain its error evidence first.
