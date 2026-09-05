@@ -46,8 +46,32 @@ The critical Longhorn policy keeps 48 recent backups every 30 minutes and 30 dai
 backups. Use the [isolated recovery procedure](../../playbooks/operations/recovery/README.md)
 to check SQLite integrity, encrypted records and attachments, and restricted-record
 decryption. Human unlock and seven-day recovery-point proof remain separate checks.
-`make restore-check APP=vaultwarden` remains unknown until that procedure has a
-maintained app command. Upgrade the testing image in a separate reviewed change.
+Run `make restore-check APP=vaultwarden` from a committed, pushed branch. It runs
+`make go`, selects the newest complete critical-s3 backup, restores a separate
+volume, and starts the observed pinned stock image with network isolation. It
+checks SQLite with its WAL, recorded attachment sizes, and the restricted record's login
+fields through a private TLS endpoint. It never uses the human master password.
+The original claim, PV, deployment, and agent Secret must remain unchanged.
+Guarded cleanup runs after a failed restore attempt too.
+
+Defaults are `~/.config/soyspray/recovery/vaultwarden.vault.yml` and
+`vault-password`. Both must be outside the checkout. Override inputs or select
+an older completed backup with:
+
+```sh
+soyspray-venv/bin/python -m apps.vaultwarden.restore_check \
+  --vault-file /private/vaultwarden.vault.yml \
+  --vault-password-file /private/vault-password --backup BACKUP_NAME
+```
+
+The command needs `bw`, `openssl`, cluster access, and the repo venv. It serializes
+local checks and uses loopback port 18443. CLI state and copied data are temporary;
+private reports stay under `~/.local/state/soyspray/restores/vaultwarden/`.
+`make backup-status FORMAT=json` reads that evidence. Failed cleanup is a failed
+check: inspect its private log and retry the guarded cleanup procedure.
+Repeat monthly. Attachment presence does not prove human attachment decryption,
+and this check does not compare an older snapshot with later live edits.
+Upgrade the testing image in a separate reviewed change.
 
 ## Restricted reader
 

@@ -1,20 +1,21 @@
-"""Run an isolated Boys restore through the maintained Ansible recovery operations."""
+"""Run an isolated Vaultwarden restore through the maintained Ansible recovery operations."""
 
 import argparse
 import base64
+import fcntl
 import hashlib
 import json
 import os
 import re
 import secrets
 import subprocess
-import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 import yaml
 
+from apps.vaultwarden.check_restore import check_data, check_login
 from scripts.backup_status import timestamp
 from scripts.restore_common import identity, require, save_report
 from scripts.restore_common import select_backup as select_backup
@@ -24,23 +25,24 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def runtime_values(archived, live):
-    values = {name: archived.get(name) for name in ("boys_pin", "boys_session_key")}
+    email = archived.get("vaultwarden_agent_email")
+    password = archived.get("vaultwarden_agent_master_password")
     require(
-        isinstance(values["boys_pin"], str) and isinstance(values["boys_session_key"], str),
-        "The encrypted Boys runtime inputs are incomplete.",
+        email == "automation@vault.soyspray.vip" and isinstance(password, str) and password,
+        "The encrypted restricted agent inputs are incomplete.",
     )
-    for key, name in (("pin", "boys_pin"), ("session-key", "boys_session_key")):
+    for key, value in (("email", email), ("master-password", password)):
         require(
-            live.get("data", {}).get(key) == base64.b64encode(values[name].encode()).decode(),
-            "The archived Boys identity does not match the current runtime Secret.",
+            live.get("data", {}).get(key) == base64.b64encode(value.encode()).decode(),
+            "The archived restricted identity does not match the runtime Secret.",
         )
-    return values
+    return {"email": email, "password": password}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     recovery = Path.home() / ".config/soyspray/recovery"
-    parser.add_argument("--vault-file", type=Path, default=recovery / "boys-runtime.vault.yml")
+    parser.add_argument("--vault-file", type=Path, default=recovery / "vaultwarden.vault.yml")
     parser.add_argument(
         "--vault-password-file",
         type=Path,
@@ -55,12 +57,12 @@ def main():
     check_id = started.strftime("%Y%m%d%H%M%S") + "-" + secrets.token_hex(2)
     state = (
         Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
-        / "soyspray/restores/boys"
+        / "soyspray/restores/vaultwarden"
     )
     output = state / check_id
     report = {
         "schema_version": 1,
-        "app": "boys",
+        "app": "vaultwarden",
         "check_id": check_id,
         "started_at": started.isoformat(),
         "status": "running",
@@ -68,6 +70,7 @@ def main():
     }
     created_output = False
     operation_started = False
+    lock = None
     stage = "preflight"
     try:
         require(
@@ -77,8 +80,13 @@ def main():
         output.mkdir(mode=0o700, parents=True)
         created_output = True
         state.chmod(0o700)
+        lock = (state / ".lock").open("a+")
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise ValueError("Another Vaultwarden restore check is running.") from None
         save_report(output, report)
-        print(f"Checking Boys recovery. Private logs: {output}", flush=True)
+        print(f"Checking Vaultwarden recovery. Private logs: {output}", flush=True)
         with (output / "preflight.log").open("w") as log:
             subprocess.run(
                 ["make", "go"],
@@ -98,7 +106,7 @@ def main():
             )
         require(
             args.vault_file.read_bytes().startswith(b"$ANSIBLE_VAULT;"),
-            "The Boys input file must use Ansible Vault encryption.",
+            "The Vaultwarden input file must use Ansible Vault encryption.",
         )
         with tempfile.TemporaryDirectory(prefix="working-", dir=output) as directory:
             work = Path(directory)
@@ -122,7 +130,7 @@ def main():
                 )
 
             stage = "backup and identity selection"
-            claim = kube("-n", "boys", "get", "pvc", "boys-data")
+            claim = kube("-n", "vaultwarden", "get", "pvc", "vaultwarden-data")
             volume = kube("get", "pv", claim["spec"]["volumeName"])
             verify_binding(claim, volume)
             backup = select_backup(
@@ -142,7 +150,7 @@ def main():
             }
             report["source_claim_uid"] = claim["metadata"]["uid"]
             report["source_volume_uid"] = volume["metadata"]["uid"]
-            runtime_secret = kube("-n", "boys", "get", "secret", "boys-runtime")
+            runtime_secret = kube("-n", "vaultwarden", "get", "secret", "vaultwarden-agent-login")
             archived = yaml.safe_load(
                 subprocess.check_output(
                     [
@@ -160,33 +168,41 @@ def main():
             secret_hash = hashlib.sha256(
                 json.dumps(runtime_secret["data"], sort_keys=True).encode()
             ).hexdigest()
-            deployment = kube("-n", "boys", "get", "deployment", "boys")
+            deployment = kube("-n", "vaultwarden", "get", "deployment", "vaultwarden")
             require(
                 deployment["spec"].get("replicas") == 1
                 and deployment["spec"].get("strategy", {}).get("type") == "Recreate",
-                "Boys must retain its single-writer deployment.",
+                "Vaultwarden must retain its single-writer deployment.",
             )
-            pods = kube("-n", "boys", "get", "pods", "-l", "boys-component=web")["items"]
+            pods = kube(
+                "-n", "vaultwarden", "get", "pods", "-l", "app.kubernetes.io/name=vaultwarden"
+            )["items"]
             require(
                 len(pods) == 1 and not pods[0]["metadata"].get("deletionTimestamp"),
-                "Boys has no single stable runtime pod.",
+                "Vaultwarden has no single stable runtime pod.",
             )
             pod = pods[0]
-            container = next(item for item in pod["spec"]["containers"] if item["name"] == "web")
+            container = next(
+                item for item in pod["spec"]["containers"] if item["name"] == "vaultwarden"
+            )
             running = next(
-                item for item in pod["status"]["containerStatuses"] if item["name"] == "web"
+                item for item in pod["status"]["containerStatuses"] if item["name"] == "vaultwarden"
             )
             image = container["image"]
             require(
-                re.fullmatch(r"ghcr.io/kpoxo6op/boys@sha256:[0-9a-f]{64}", image)
+                re.fullmatch(
+                    r"ghcr.io/dani-garcia/vaultwarden(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}",
+                    image,
+                )
                 and running.get("ready")
                 and running.get("imageID", "").endswith(image.split("@", 1)[1]),
-                "The Boys pod has not confirmed its pinned running image.",
+                "The Vaultwarden pod has not confirmed its pinned running image.",
             )
             report["image"] = image
-            namespace = "restore-boys-" + check_id
+            namespace = "restore-vaultwarden-" + check_id
             variables = {
-                "recovery_app": "boys",
+                "recovery_app": "vaultwarden",
+                "recovery_vaultwarden_image": image,
                 "recovery_check_id": check_id,
                 "recovery_backup_name": backup["metadata"]["name"],
                 "recovery_expected_claim_uid": claim["metadata"]["uid"],
@@ -230,55 +246,80 @@ def main():
                     "The restore did not use an isolated claim and volume.",
                 )
                 report["restored_claim_uid"] = restored["metadata"]["uid"]
-                stage = "copy restored data and deployed runtime"
-                for source, target, container_name in (
-                    (f"{namespace}/inspect:/data", work / "data", "inspect"),
-                    (f"boys/{pod['metadata']['name']}:/app", work / "runtime", "web"),
-                ):
-                    subprocess.run(
-                        ["kubectl", "cp", "--retries=3", "-c", container_name, source, str(target)],
-                        env=env,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.PIPE,
-                        check=True,
-                        timeout=300,
-                    )
-                stage = "restored application data checks"
-                checked = subprocess.run(
+                stage = "copy the idle restored database and WAL together"
+                subprocess.run(
                     [
-                        sys.executable,
-                        str(ROOT / "apps/boys/check_restore.py"),
-                        "--database",
-                        str(work / "data/boys.sqlite3"),
-                        "--runtime",
-                        str(work / "runtime"),
+                        "kubectl",
+                        "cp",
+                        "--retries=3",
+                        "-c",
+                        "inspect",
+                        f"{namespace}/inspect:/data",
+                        str(work / "data"),
                     ],
-                    input=json.dumps(inputs),
-                    capture_output=True,
-                    text=True,
-                    timeout=120,
+                    env=env,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    check=True,
+                    timeout=300,
                 )
-                report["data"] = json.loads(checked.stdout)
-                require(
-                    checked.returncode == 0 and report["data"].get("data_checks") == "passed",
-                    "The restored application data check failed.",
+                stage = "restored SQLite and attachment checks"
+                report["data"] = check_data(work / "data")
+                stage = "isolated stock server startup"
+                tls = work / "tls"
+                tls.mkdir()
+                subprocess.run(
+                    [
+                        "openssl",
+                        "req",
+                        "-x509",
+                        "-newkey",
+                        "rsa:2048",
+                        "-nodes",
+                        "-days",
+                        "2",
+                        "-subj",
+                        "/CN=localhost",
+                        "-addext",
+                        "subjectAltName=DNS:localhost,IP:127.0.0.1",
+                        "-addext",
+                        "basicConstraints=critical,CA:TRUE",
+                        "-addext",
+                        "keyUsage=critical,digitalSignature,keyEncipherment,keyCertSign",
+                        "-keyout",
+                        str(tls / "key.pem"),
+                        "-out",
+                        str(tls / "cert.pem"),
+                    ],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                    check=True,
+                    timeout=30,
                 )
+                variables["recovery_tls_directory"] = str(tls)
+                ansible("start-restored-app.yml", "start.log")
+                stage = "restricted restored login and record decryption"
+                report["data"].update(check_login(namespace, work, env, inputs))
+                report["data"]["data_checks"] = "passed"
                 stage = "original resource verification"
                 require(
-                    identity(kube("-n", "boys", "get", "pvc", "boys-data")) == identity(claim)
+                    identity(kube("-n", "vaultwarden", "get", "pvc", "vaultwarden-data"))
+                    == identity(claim)
                     and identity(kube("get", "pv", claim["spec"]["volumeName"])) == identity(volume)
-                    and identity(kube("-n", "boys", "get", "deployment", "boys"))
+                    and identity(kube("-n", "vaultwarden", "get", "deployment", "vaultwarden"))
                     == identity(deployment),
-                    "The original Boys claim, volume, or deployment changed during the check.",
+                    "The original Vaultwarden claim, volume, or deployment changed during the check.",
                 )
-                current_secret = kube("-n", "boys", "get", "secret", "boys-runtime")
+                current_secret = kube(
+                    "-n", "vaultwarden", "get", "secret", "vaultwarden-agent-login"
+                )
                 require(
                     current_secret["metadata"]["uid"] == runtime_secret["metadata"]["uid"]
                     and hashlib.sha256(
                         json.dumps(current_secret["data"], sort_keys=True).encode()
                     ).hexdigest()
                     == secret_hash,
-                    "The Boys runtime identity changed during the check.",
+                    "The Vaultwarden runtime identity changed during the check.",
                 )
                 report["original_resources"] = "unchanged"
             finally:
@@ -304,6 +345,8 @@ def main():
             report["cause"] = error.strerror
         else:
             report["cause"] = "The operation did not complete because of an unexpected local error."
+    if lock is not None:
+        lock.close()
     report["finished_at"] = datetime.now(timezone.utc).isoformat()
     report["duration_seconds"] = int((datetime.now(timezone.utc) - started).total_seconds())
     if created_output:

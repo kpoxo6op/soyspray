@@ -318,7 +318,8 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=localhost \
 ```
 
 Select `recovery_app=vaultwarden`, pass
-`-e recovery_tls_directory="$restore_tls_dir"` to `start-restored-app.yml`, and
+`-e recovery_tls_directory="$restore_tls_dir"` and
+`-e recovery_vaultwarden_image=PINNED_STOCK_IMAGE` to `start-restored-app.yml`, and
 forward `18443:8443`. Point the separate test CLI data directory at
 `https://localhost:18443`. Set `NODE_EXTRA_CA_CERTS="$restore_tls_dir/cert.pem"`
 only for that CLI process. TLS uses Vaultwarden's native `ROCKET_TLS` setting.
