@@ -5,7 +5,7 @@ REVISION ?= HEAD
 .PHONY: check diff deploy
 
 check:
-	$(PYTHON) -m pytest -q apps/media-helper/tests tests/test_argocd_root.py tests/test_live_tv.py
+	$(PYTHON) -m pytest -q apps/media-helper/tests tests/test_argocd_root.py tests/test_live_tv.py tests/test_ci_scope.py
 	kubectl kustomize apps/media-helper/argocd >/dev/null
 
 diff:
