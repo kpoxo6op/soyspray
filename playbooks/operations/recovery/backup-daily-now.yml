@@ -1,0 +1,114 @@
+---
+- name: Run the native small-volume backup job now
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    recovery_daily_job: "backup-durable-small-{{ recovery_backup_id }}"
+  tasks:
+    - name: Require a retryable operation identifier
+      ansible.builtin.assert:
+        that:
+          - recovery_backup_id | default('') is match('^[a-z0-9][a-z0-9-]{0,23}$')
+
+    - name: Read the native daily policy and its generated CronJob
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api }}"
+        kind: "{{ item.kind }}"
+        name: durable-small-daily
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop:
+        - {api: longhorn.io/v1beta2, kind: RecurringJob}
+        - {api: batch/v1, kind: CronJob}
+      register: recovery_daily
+
+    - name: Require the intended native backup policy
+      ansible.builtin.assert:
+        that:
+          - recovery_daily.results[0].resources | length == 1
+          - recovery_daily.results[1].resources | length == 1
+          - recovery_daily.results[0].resources[0].spec.task == 'backup-force-create'
+          - recovery_daily.results[0].resources[0].spec.groups == ['durable-small']
+          - recovery_daily.results[0].resources[0].spec.retain == 30
+          - >-
+            recovery_daily.results[1].resources[0].metadata.ownerReferences
+            | selectattr('kind', 'equalto', 'RecurringJob')
+            | selectattr('uid', 'equalto', recovery_daily.results[0].resources[0].metadata.uid)
+            | list | length == 1
+          - >-
+            recovery_daily.results[1].resources[0].spec.jobTemplate.spec.template.metadata.labels['recurring-job.longhorn.io']
+            == 'durable-small-daily'
+
+    - name: Read an existing run before creation
+      kubernetes.core.k8s_info:
+        api_version: batch/v1
+        kind: Job
+        name: "{{ recovery_daily_job }}"
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_daily_existing
+
+    - name: Require a retry to belong to this policy and CronJob
+      ansible.builtin.assert:
+        that:
+          - recovery_daily_existing.resources[0].metadata.labels['soyspray.vip/purpose'] == 'backup-check'
+          - >-
+            recovery_daily_existing.resources[0].metadata.annotations['soyspray.vip/cronjob-uid']
+            == recovery_daily.results[1].resources[0].metadata.uid
+          - recovery_daily_existing.resources[0].spec.template.spec == recovery_daily.results[1].resources[0].spec.jobTemplate.spec.template.spec
+          - >-
+            recovery_daily_existing.resources[0].spec.template.metadata.labels
+            | dict2items
+            | rejectattr('key', 'in', ['controller-uid', 'job-name', 'batch.kubernetes.io/controller-uid', 'batch.kubernetes.io/job-name'])
+            | items2dict == recovery_daily.results[1].resources[0].spec.jobTemplate.spec.template.metadata.labels
+      when: recovery_daily_existing.resources | length > 0
+
+    - name: Create one run from the existing native Longhorn job template
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: "{{ recovery_daily_job }}"
+            namespace: longhorn-system
+            labels:
+              soyspray.vip/purpose: backup-check
+            annotations:
+              soyspray.vip/cronjob-uid: "{{ recovery_daily.results[1].resources[0].metadata.uid }}"
+          spec: >-
+            {{ recovery_daily.results[1].resources[0].spec.jobTemplate.spec
+               | combine({'activeDeadlineSeconds': 3600, 'ttlSecondsAfterFinished': 86400}) }}
+      when:
+        - recovery_daily_existing.resources | length == 0
+        - not ansible_check_mode
+
+    - name: Wait for the native job to complete or report failure
+      kubernetes.core.k8s_info:
+        api_version: batch/v1
+        kind: Job
+        name: "{{ recovery_daily_job }}"
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_daily_result
+      until: >-
+        recovery_daily_result.resources | length == 1 and
+        (recovery_daily_result.resources[0].status.conditions | default([])
+         | selectattr('status', 'equalto', 'True')
+         | selectattr('type', 'in', ['Complete', 'Failed']) | list | length > 0)
+      retries: 360
+      delay: 10
+      when: not ansible_check_mode
+
+    - name: Require a successful native backup run
+      ansible.builtin.assert:
+        that:
+          - >-
+            recovery_daily_result.resources[0].status.conditions | default([])
+            | selectattr('status', 'equalto', 'True')
+            | selectattr('type', 'equalto', 'Complete') | list | length == 1
+        fail_msg: The native backup run did not complete. Inspect retained backup records before restore selection.
+      when: not ansible_check_mode
