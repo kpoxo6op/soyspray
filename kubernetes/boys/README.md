@@ -41,11 +41,10 @@ The build context includes only the listed application files.
 The Boys image workflow checks pull requests in an isolated container. A
 successful main-branch build publishes an immutable GHCR digest and opens a
 draft promotion PR. The PR changes the deployment image; add any configuration
-that requires that source revision before deploying it. The first promotion
-must also remove the old source ConfigMap and its mount. The existing PVC,
-database path, runtime Secret, session key, and single-writer deployment stay
-in place. Source-only changes can no longer change the running app after this
-first image adoption.
+that requires that source revision before deploying it. The server and static
+assets run from the image. The existing PVC, database path, runtime Secret,
+session key, and single-writer deployment stay in place. Source-only changes
+do not change the running app.
 
 The workflow does not merge or deploy. GitHub can require approval before
 running checks on a workflow-created PR. Review and approve those checks, then
@@ -69,7 +68,7 @@ BOYS_CLOUDFLARED_TOKEN=<dedicated-tunnel-token>
 Push the topic branch before deployment. Then run:
 
 ```bash
-make boys BOYS_REVISION=feat/boys-event-scheduler
+make boys BOYS_REVISION=<pushed-promotion-branch>
 kubectl -n boys rollout status deployment/boys
 kubectl -n boys rollout status deployment/boys-cloudflared
 ```
@@ -124,5 +123,7 @@ can still return the private Ingress address for the private path.
 
 Use `make boys BOYS_ENABLED=false` to remove the workloads and runtime secrets.
 The namespace and `boys-data` claim remain because they contain the event data.
-This package does not configure an offsite backup. Delete the claim only when
-the group no longer needs its saved dates.
+The critical Longhorn backup group protects this claim every 30 minutes.
+See the [recovery operations](../../playbooks/operations/recovery/README.md)
+for backup and isolated restore commands. Data retirement requires a separate
+Ansible operation.
