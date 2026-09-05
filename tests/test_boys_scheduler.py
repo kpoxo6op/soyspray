@@ -510,11 +510,15 @@ def test_gitops_package_has_persistence_and_a_narrow_public_path() -> None:
     by_kind_name = {(item["kind"], item["metadata"]["name"]): item for item in resources}
 
     namespace = by_kind_name[("Namespace", "boys")]
-    assert namespace["metadata"]["annotations"]["argocd.argoproj.io/sync-options"] == "Delete=false"
+    assert {"Prune=false", "Delete=false"} <= set(
+        namespace["metadata"]["annotations"]["argocd.argoproj.io/sync-options"].split(",")
+    )
     assert namespace["metadata"]["labels"]["pod-security.kubernetes.io/enforce"] == "restricted"
 
     pvc = by_kind_name[("PersistentVolumeClaim", "boys-data")]
-    assert pvc["metadata"]["annotations"]["argocd.argoproj.io/sync-options"] == "Delete=false"
+    assert {"Prune=false", "Delete=false"} <= set(
+        pvc["metadata"]["annotations"]["argocd.argoproj.io/sync-options"].split(",")
+    )
     assert pvc["spec"]["storageClassName"] == "longhorn"
 
     ingress = by_kind_name[("Ingress", "boys")]
@@ -526,13 +530,10 @@ def test_gitops_package_has_persistence_and_a_narrow_public_path() -> None:
     deployments = {
         item["metadata"]["name"]: item for item in resources if item["kind"] == "Deployment"
     }
-    app_config = next(item for item in resources if item["kind"] == "ConfigMap")
-    assert {"server.py", "index.html", "app.js", "styles.css", "events.html", "events.js"} <= set(
-        app_config["data"]
-    )
     assert set(deployments) == {"boys", "boys-cloudflared"}
     app_container = deployments["boys"]["spec"]["template"]["spec"]["containers"][0]
-    assert app_container["image"].startswith("python:3.13-alpine@sha256:")
+    assert app_container["image"].startswith("ghcr.io/kpoxo6op/boys@sha256:")
+    assert not any(mount["mountPath"] == "/app" for mount in app_container["volumeMounts"])
     assert {item["name"] for item in app_container["env"]} == {
         "BOYS_DATABASE",
         "BOYS_PIN",

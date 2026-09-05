@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/name: boys
     app.kubernetes.io/part-of: boys
   annotations:
-    argocd.argoproj.io/sync-options: Delete=false
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
   accessModes:
     - ReadWriteOnce

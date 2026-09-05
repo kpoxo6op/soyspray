@@ -16,16 +16,3 @@ transformers:
 labels:
   - pairs:
       app.kubernetes.io/instance: boys
-configMapGenerator:
-  - name: boys-app
-    files:
-      - server.py=app/server.py
-      - index.html=app/index.html
-      - app.js=app/app.js
-      - events.html=app/events.html
-      - events.js=app/events.js
-      - styles.css=app/styles.css
-    options:
-      labels:
-        app.kubernetes.io/name: boys
-        app.kubernetes.io/part-of: boys

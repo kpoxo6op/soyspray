@@ -32,7 +32,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: python:3.13-alpine@sha256:399babc8b49529dabfd9c922f2b5eea81d611e4512e3ed250d75bd2e7683f4b0
+          image: ghcr.io/kpoxo6op/boys@sha256:1297297dae4f8f88ec57ba4a0f08412e0d8f7d432ee3826c3cd17fcf933a8137
           imagePullPolicy: IfNotPresent
           command:
             - python
@@ -85,9 +85,6 @@ spec:
               drop:
                 - ALL
           volumeMounts:
-            - name: app
-              mountPath: /app
-              readOnly: true
             - name: data
               mountPath: /data
             - name: tls
@@ -96,10 +93,6 @@ spec:
             - name: tmp
               mountPath: /tmp
       volumes:
-        - name: app
-          configMap:
-            name: boys-app
-            defaultMode: 0444
         - name: data
           persistentVolumeClaim:
             claimName: boys-data
