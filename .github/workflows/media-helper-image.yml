@@ -87,7 +87,7 @@ jobs:
           digest="$(docker image inspect "$IMAGE:$IMAGE_TAG" --format '{{index .RepoDigests 0}}')"
           printf 'MEDIA_HELPER_IMAGE_REF=%s\n' "$digest" >> "$GITHUB_ENV"
           printf 'Tested image: `%s`\nSource: `%s`\n' "$digest" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
-      - name: Open a draft digest and configuration promotion
+      - name: Open a draft digest promotion
         if: github.ref == 'refs/heads/main' && steps.runtime.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -99,7 +99,7 @@ jobs:
           if git diff --quiet; then exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add apps/media-helper/manifests/deployment.yaml apps/media-helper/kustomization.yaml
+          git add apps/media-helper/manifests/deployment.yaml
           git commit -m 'Promote the tested media helper runtime image'
           git push origin "$branch"
           promotion_commit="$(git rev-parse HEAD)"
@@ -108,7 +108,7 @@ jobs:
 
           Image: \`$MEDIA_HELPER_IMAGE_REF\`.
 
-          The image passed standard-library runtime checks and entrypoint checks with no external network, an unprivileged user, a read-only filesystem, and no capabilities. Promotion couples the image digest with removal of the frozen ConfigMap generator, Python command and code mount when present. Readiness waits for the first complete guide, so the old pod remains available while the new cache warms. Liveness stays on healthz. It preserves the service, channel identities, resource limits, pod restrictions and temporary volume. Later promotions change only the digest. Guide reads use the last complete cache or return a prompt 503 while one background refresh runs.
+          The image passed standard-library runtime checks and entrypoint checks with no external network, an unprivileged user, a read-only filesystem, and no capabilities. Promotion changes only the digest. It preserves the service, channel identities, readiness, liveness, resource limits, pod restrictions and temporary volume. Guide reads use the last complete cache or return a prompt 503 while one background refresh runs.
 
           Run \`make go\` and deploy through the standard Ansible path. Verify catalog, playlist and guide reads from Dispatcharr and the Jellyfin user journey before merge. Roll back the image and dependent configuration together. This workflow never merges or deploys.
 
