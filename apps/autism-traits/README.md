@@ -50,7 +50,10 @@ LAN and Tailscale route uses the existing Ingress. Preserve the tunnel identity,
 `autism-traits-cloudflared-token`, `autism-traits-tls`, and the public hostname.
 Cert-manager owns certificate issuance; this bootstrap does not replace its key.
 
-`bootstrap.yml` keeps the existing token when no input is supplied. To restore a
+`bootstrap.yml` preserves an existing token. A different supplied value stops
+before any write. A matching value makes no change. The operation creates only
+a missing Secret; native create rejects a competing creation instead of replacing
+it. Check mode validates inputs and skips Secret creation. To restore a
 missing token, put `autism_traits_cloudflared_token` in an Ansible Vault variables
 file outside the checkout. Use the saved token from the off-cluster runtime backup;
 do not create a new tunnel or commit the token. Run from the repository root:
