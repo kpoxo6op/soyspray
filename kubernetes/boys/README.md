@@ -19,6 +19,17 @@ availability totals in newest-first order and refreshes every five seconds.
 Existing claims appear as a `Before log` baseline, with their current
 available-day count and no invented timestamp.
 
+## Saving dates
+
+Save keeps historical availability. It changes only your future selections.
+The status line shows pending and failed saves. You can continue editing while
+an earlier selection is saving; those newer edits still need another save.
+
+If another window changes your dates, compare its saved dates with your draft.
+Apply your additions and removals to the reviewed dates, then save again, or
+discard your draft. Other members refresh on focus and every 30 seconds. A
+failed refresh is shown. Navigation warns when you have unsaved changes.
+
 ## Request path
 
 ```text
@@ -52,8 +63,11 @@ use the normal Ansible deployment path. Keep the prior digest for rollback.
 
 `test-image.py` checks readiness, authentication, claim and personal-PIN login,
 sessions, and static assets against a fresh isolated image. It has no cluster
-access or real account data. The full application tests remain in
-`tests/test_boys_scheduler.py`.
+access or real account data. The API checks are in
+`tests/test_boys_scheduler.py`. The phone and desktop browser checks under
+`tests/` use a disposable local database. Set `BOYS_TEST_BROWSER` to an installed
+Chromium executable when needed. Browser tools are development dependencies
+and are excluded from the runtime image.
 
 ## Deploy
 
@@ -103,6 +117,11 @@ Run the application and repository checks:
 
 ```bash
 soyspray-venv/bin/python -m pytest -q tests/test_boys_scheduler.py
+cd kubernetes/boys
+npm ci
+npx playwright install chromium
+npm test
+cd ../..
 kubectl kustomize kubernetes/boys >/dev/null
 make check
 ```
