@@ -1,0 +1,20 @@
+---
+- name: Wait for the native certificate app to provide Authentik TLS
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: prod-cert-tls
+    namespace: authentik
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: authentik_wildcard_certificate
+  no_log: true
+  until:
+    - authentik_wildcard_certificate.resources | length == 1
+    - authentik_wildcard_certificate.resources[0].type == 'kubernetes.io/tls'
+    - authentik_wildcard_certificate.resources[0].data['tls.crt'] | default('') | length > 0
+    - authentik_wildcard_certificate.resources[0].data['tls.key'] | default('') | length > 0
+    - >-
+      authentik_wildcard_certificate.resources[0].metadata.annotations['reflector.v1.k8s.emberstack.com/reflects']
+      | default('') == 'cert-manager/prod-cert-tls'
+  retries: 30
+  delay: 2
