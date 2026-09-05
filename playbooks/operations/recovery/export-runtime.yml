@@ -1,0 +1,89 @@
+---
+- name: Keep critical runtime resources in an off-cluster encrypted archive
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    recovery_runtime_sources:
+      - {api: v1, kind: Secret, namespace: boys, name: boys-runtime}
+      - {api: v1, kind: Secret, namespace: boys, name: boys-cloudflared-token}
+      - {api: v1, kind: Secret, namespace: boys, name: boys-tls}
+      - {api: v1, kind: Secret, namespace: vaultwarden, name: vaultwarden-agent-login}
+      - {api: v1, kind: Secret, namespace: obsidian, name: obsidian-livesync-couchdb}
+      - {api: v1, kind: ConfigMap, namespace: obsidian, name: obsidian-livesync-couchdb}
+      - {api: apps/v1, kind: Deployment, namespace: obsidian, name: obsidian-livesync-couchdb-hostpath-rescue}
+  tasks:
+    - name: Require explicit off-cluster archive and password paths
+      ansible.builtin.assert:
+        that:
+          - recovery_runtime_archive is defined
+          - recovery_vault_password_file is defined
+          - recovery_runtime_archive is match('^/')
+          - recovery_runtime_archive is search('\.vault\.yml$')
+          - recovery_vault_password_file is match('^/')
+          - not (recovery_runtime_archive | realpath).startswith(((playbook_dir ~ '/../../..') | realpath) ~ '/')
+
+    - name: Check the local Vault password file before reading secrets
+      ansible.builtin.stat:
+        path: "{{ recovery_vault_password_file }}"
+      delegate_to: localhost
+      become: false
+      register: recovery_password_file
+
+    - name: Require an existing private Vault password file
+      ansible.builtin.assert:
+        that:
+          - recovery_password_file.stat.isreg | default(false)
+          - recovery_password_file.stat.mode == '0600'
+
+    - name: Read only the runtime resources needed by the critical apps
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api }}"
+        kind: "{{ item.kind }}"
+        namespace: "{{ item.namespace }}"
+        name: "{{ item.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ recovery_runtime_sources }}"
+      register: recovery_runtime
+      no_log: true
+
+    - name: Require every named runtime resource
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+      loop: "{{ recovery_runtime.results }}"
+      no_log: true
+
+    - name: Protect the archive directory on the operator machine
+      ansible.builtin.file:
+        path: "{{ recovery_runtime_archive | dirname }}"
+        state: directory
+        mode: '0700'
+      delegate_to: localhost
+      become: false
+
+    - name: Encrypt directly from memory without a plaintext export
+      ansible.builtin.command:
+        argv:
+          - "{{ playbook_dir }}/../../../soyspray-venv/bin/ansible-vault"
+          - encrypt
+          - --vault-password-file
+          - "{{ recovery_vault_password_file }}"
+          - --output
+          - "{{ recovery_runtime_archive }}"
+        stdin: >-
+          {{ {'recovery_resources': recovery_runtime.results | map(attribute='resources') | flatten} | to_json }}
+        creates: "{{ recovery_runtime_archive }}"
+      delegate_to: localhost
+      become: false
+      no_log: true
+
+    - name: Limit access to the encrypted archive
+      ansible.builtin.file:
+        path: "{{ recovery_runtime_archive }}"
+        state: file
+        mode: '0600'
+      delegate_to: localhost
+      become: false
+      when: not ansible_check_mode

@@ -147,3 +147,31 @@ Use `obsidian` or `vaultwarden` for the other critical apps. Choose a new
 identifier for a new recovery point. A retry stops on an unhealthy volume or
 failed backup. The operation waits for a completed upload; a snapshot alone
 does not count as an offsite backup.
+
+## Preserve runtime inputs
+
+`export-runtime.yml` reads the named Boys, Vaultwarden agent, and CouchDB
+runtime resources. It encrypts them directly into an off-cluster Ansible Vault
+archive. It does not write a plaintext export. Use an absolute archive path
+outside this repository and a private Vault password file with mode `0600`.
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/recovery/export-runtime.yml \
+  -e recovery_runtime_archive="${HOME}/.config/soyspray/recovery/runtime-20260905.vault.yml" \
+  -e recovery_vault_password_file="${HOME}/.config/soyspray/recovery/vault-password"
+```
+
+A retry retains the existing archive. Use a new filename after a deliberate
+credential or runtime configuration change. Keep a separate recovery copy of
+the archive and its key. The archive includes the Boys session key and crew
+PIN, CouchDB credentials and configuration, and the restricted Vaultwarden
+agent login. It does not contain the human vault's master password.
+
+The archive stores the original Kubernetes objects as reference inputs.
+Restore only the required data and configuration fields into reviewed
+manifests. Do not apply archived UIDs, resource versions, or owner references.
+An encrypted runtime archive complements the volume backups; it does not
+prove that the application can be restored.
