@@ -1,0 +1,52 @@
+---
+- name: Prepare the existing Vaultwarden Application for native adoption
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    vaultwarden_cascading_finalizers:
+      - resources-finalizer.argocd.argoproj.io
+      - resources-finalizer.argocd.argoproj.io/background
+  tasks:
+    - name: Read the existing Application
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: vaultwarden
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: vaultwarden_existing_app
+
+    - name: Require the known source and ownership before removing cascading deletion
+      vars:
+        vaultwarden_legacy_spec: >-
+          {{ (lookup('file', playbook_dir + '/../../playbooks/argocd/applications/security/' +
+              'vaultwarden/vaultwarden-application.yaml') | from_yaml).spec }}
+        vaultwarden_native_spec: "{{ (lookup('file', playbook_dir + '/argocd/application.yaml') | from_yaml).spec }}"
+      ansible.builtin.assert:
+        that:
+          - vaultwarden_existing_app.resources | length == 1
+          - vaultwarden_existing_app.resources[0].spec in [vaultwarden_legacy_spec, vaultwarden_native_spec]
+          - vaultwarden_existing_app.resources[0].metadata.deletionTimestamp is not defined
+          - >-
+            vaultwarden_existing_app.resources[0].status.operationState.phase | default('')
+            not in ['Running', 'Terminating']
+
+    - name: Remove only the Argo cascading finalizers from the observed Application
+      vars:
+        vaultwarden_finalizers: "{{ vaultwarden_existing_app.resources[0].metadata.finalizers | default([]) }}"
+      kubernetes.core.k8s_json_patch:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: vaultwarden
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - op: test
+            path: /metadata/resourceVersion
+            value: "{{ vaultwarden_existing_app.resources[0].metadata.resourceVersion }}"
+          - op: replace
+            path: /metadata/finalizers
+            value: "{{ vaultwarden_finalizers | difference(vaultwarden_cascading_finalizers) }}"
+      when: vaultwarden_finalizers | intersect(vaultwarden_cascading_finalizers) | length > 0
