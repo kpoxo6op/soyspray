@@ -3,7 +3,6 @@ kind: Application
 metadata:
   name: autism-traits
   namespace: argocd
-  finalizers: []
   labels:
     app.kubernetes.io/part-of: autism-traits
     soyspray.vip/owner: platform
