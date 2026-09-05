@@ -16,13 +16,19 @@
       register: autism_traits_existing_token
       no_log: true
 
-    - name: Check whether the tunnel identity can be used
+    - name: Check whether the existing or supplied identity can be used
       ansible.builtin.set_fact:
         autism_traits_identity_available: >-
           {{ (autism_traits_cloudflared_token | default('') is string) and
-             ((autism_traits_cloudflared_token | default('') | trim | length > 0) or
-              (autism_traits_existing_token.resources | length == 1 and
-               autism_traits_existing_token.resources[0].data.token | default('') | length > 0)) }}
+             ((autism_traits_existing_token.resources | length == 1 and
+               autism_traits_existing_token.resources[0].data.token | default('') | length > 0) or
+              (autism_traits_existing_token.resources | length == 0 and
+               autism_traits_cloudflared_token | default('') | trim | length > 0)) }}
+        autism_traits_identity_matches: >-
+          {{ autism_traits_existing_token.resources | length == 0 or
+             autism_traits_cloudflared_token | default('') == '' or
+             autism_traits_cloudflared_token ==
+             (autism_traits_existing_token.resources[0].data.token | default('') | b64decode) }}
       no_log: true
 
     - name: Require an existing identity or an encrypted bootstrap input
@@ -32,18 +38,22 @@
           Restore the tunnel Secret or supply autism_traits_cloudflared_token through
           an Ansible Vault variables file. The public tunnel identity must already exist.
 
-    - name: Apply the declared namespace for a supplied bootstrap input
+    - name: Keep the existing tunnel identity unchanged
+      ansible.builtin.assert:
+        that: autism_traits_identity_matches | bool
+        fail_msg: The supplied tunnel token differs from the existing identity. No change was made.
+
+    - name: Apply the declared namespace for a missing identity
       kubernetes.core.k8s:
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
         definition: "{{ lookup('file', playbook_dir + '/manifests/namespace.yaml') | from_yaml }}"
-      when: autism_traits_cloudflared_token | default('') | trim | length > 0
+      when: autism_traits_existing_token.resources | length == 0
 
-    - name: Apply the supplied tunnel token without changing its identity
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        definition:
+    - name: Create only the missing tunnel Secret
+      ansible.builtin.command:
+        argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", create, -f, '-']
+        stdin: |
           apiVersion: v1
           kind: Secret
           metadata:
@@ -51,6 +61,7 @@
             namespace: autism-traits
           type: Opaque
           stringData:
-            token: "{{ autism_traits_cloudflared_token }}"
+            token: {{ autism_traits_cloudflared_token | to_json }}
+      changed_when: true
       no_log: true
-      when: autism_traits_cloudflared_token | default('') | trim | length > 0
+      when: autism_traits_existing_token.resources | length == 0 and not ansible_check_mode
