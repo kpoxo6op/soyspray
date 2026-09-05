@@ -297,6 +297,7 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/recovery/start-restored-app.yml \
   -e recovery_app=obsidian -e recovery_check_id=initial-20260905 \
+  -e recovery_couchdb_image=OBSERVED_PINNED_COUCHDB_IMAGE \
   -e @"${HOME}/.config/soyspray/recovery/runtime-20260905.vault.yml" \
   --vault-password-file ~/.config/soyspray/recovery/vault-password
 kubectl -n restore-obsidian-initial-20260905 port-forward pod/app 15985:5984

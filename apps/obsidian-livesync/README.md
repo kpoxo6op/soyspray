@@ -54,6 +54,37 @@ missing chunks; do not repair or remove notes during an ownership migration.
 The legacy offsite export remains active with its existing destination during
 the recovery observation period. Its retirement needs a separate reviewed change.
 
-`make restore-check APP=obsidian-livesync` and `make smoke APP=obsidian-livesync`
-remain unknown until maintained app commands cover these procedures. A successful
-backup schedule or upload does not prove a restore or seven-day recovery-point age.
+Run `make restore-check APP=obsidian-livesync` from a committed, pushed branch.
+It runs the full gate, selects a complete critical-s3 backup, creates a separate
+claim, and starts the observed CouchDB digest with network isolation. The original
+claim, PV, deployment, credentials, and configuration must remain unchanged.
+Guarded cleanup runs after a failed attempt too.
+
+The command reads `obsidian_couchdb_identity` from
+`~/.config/soyspray/recovery/obsidian.vault.yml`, with `vault-password` alongside it.
+It checks the identity against live and the committed configuration against the
+live ConfigMap before any writes. Offsite writer keys are not used. Inputs must
+stay outside Git. Override them or select a specific completed backup with:
+
+```sh
+soyspray-venv/bin/python -m apps.obsidian-livesync.restore_check \
+  --vault-file /private/obsidian.vault.yml \
+  --vault-password-file /private/vault-password --backup BACKUP_NAME
+```
+
+CouchDB credentials must authenticate against the restored server. The check reads
+plain note chunks, including embedded legacy Eden chunks, and compares UTF-8 byte
+lengths with stored sizes. Missing chunks fail unless the same incomplete note
+revision and missing chunks also exist in the live vault. The report keeps that
+incomplete coverage visible. Binary attachments and legacy note formats remain
+unknown; no data is invented or repaired to make the check pass.
+
+Private reports stay under `~/.local/state/soyspray/restores/obsidian-livesync/`.
+`make backup-status FORMAT=json` shows the counts and coverage limits. Temporary
+credentials are removed with the working directory; note content is never written
+to a local file. Repeat monthly. If cleanup fails, inspect its private log and use
+the guarded cleanup operation with the report's check ID.
+
+`make smoke APP=obsidian-livesync` remains unknown until a maintained command
+covers the client sync journey. A successful upload or isolated database read
+does not prove two-client sync, attachment recovery, or seven-day recovery-point age.

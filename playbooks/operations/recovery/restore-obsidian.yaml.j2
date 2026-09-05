@@ -33,7 +33,7 @@ spec:
     seccompProfile: {type: RuntimeDefault}
   initContainers:
     - name: config
-      image: couchdb:3.4.2@sha256:2817ad50b5c5cf7461f5963670466197426605a790a19a6208068c509a2d8a59
+      image: {{ recovery_couchdb_image | to_json }}
       command: [sh, -ec, 'cp /input/* /config/']
       securityContext:
         allowPrivilegeEscalation: false
@@ -46,7 +46,7 @@ spec:
         - {name: config, mountPath: /config}
   containers:
     - name: app
-      image: couchdb:3.4.2@sha256:2817ad50b5c5cf7461f5963670466197426605a790a19a6208068c509a2d8a59
+      image: {{ recovery_couchdb_image | to_json }}
       env:
         - name: COUCHDB_USER
           valueFrom:

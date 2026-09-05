@@ -104,13 +104,30 @@ def read_evidence(app, claim_uid, pv_uid, now, root=None):
             result.update(
                 image=record["image"],
                 recovery_point=point.isoformat(),
-                human_personal_pin=unknown(
-                    "This report does not prove a human personal-PIN login."
-                ),
                 existing_browser_cookie=unknown(
                     "This report does not prove a saved browser-cookie check."
                 ),
             )
+            login_field = "human_personal_pin" if app == "boys" else "human_login"
+            result[login_field] = unknown("This report does not prove a human login.")
+            if app == "obsidian-livesync":
+                fields = (
+                    "active_plain_notes",
+                    "readable_plain_notes",
+                    "unreadable_plain_notes",
+                    "pre_existing_missing_chunks",
+                    "active_binary_documents",
+                    "legacy_note_documents",
+                )
+                result["data_coverage"] = {
+                    key: {"value": data[key]}
+                    if type(data.get(key)) is int and data[key] >= 0
+                    else unknown("This report does not record a valid count.")
+                    for key in fields
+                }
+                result["data_coverage"]["attachment_recovery"] = unknown(
+                    "The maintained check reads plain notes; binary attachment recovery is not verified."
+                )
         else:
             result["cause"] = (
                 "The attempt did not complete successfully against the observed claim and PV with data checks and cleanup."

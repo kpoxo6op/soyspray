@@ -112,6 +112,7 @@ def test_only_archived_original_restricted_identity_is_accepted():
         ("ghcr.io/dani-garcia/vaultwarden:1.0@sha256:" + "b" * 64, True),
         ("ghcr.io/dani-garcia/vaultwarden@sha256:" + "b" * 64, True),
         ("ghcr.io/dani-garcia/vaultwarden:latest", False),
+        ("ghcrXio/dani-garcia/vaultwarden@sha256:" + "a" * 64, False),
         ("ghcr.io/other/vaultwarden@sha256:" + "a" * 64, False),
         ("", False),
     ],
