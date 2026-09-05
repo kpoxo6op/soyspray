@@ -6,7 +6,6 @@ soyspray-venv
 !.agents/skills/**/LICENSE.txt
 !.agents/skills/**/NOTICE.txt
 .router-backups/
-.banklab-runtime/
 .build/
 .pytest_cache/
 .playwright-mcp/
@@ -15,7 +14,6 @@ output/playwright/
 playwright-report/
 test-results/
 __pycache__/
-site/
 *.key
 *.pem
 *.crt

@@ -2,8 +2,8 @@
 repos:
   - repo: local
     hooks:
-      - id: banklab-check
-        name: Kong bank lab quality gate
+      - id: soyspray-check
+        name: Soyspray quality gate
         entry: make check
         language: system
         pass_filenames: false
