@@ -105,10 +105,10 @@ autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
-	$(PYTHON) -m ruff format --check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
+	$(PYTHON) -m ruff check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
+	$(PYTHON) -m ruff format --check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml \
+		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml \
 		roles/apps/vaultwarden/tasks/*.yml roles/apps/vaultwarden/defaults/*.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
@@ -135,7 +135,7 @@ status-page-check:
 	$(PYTHON) scripts/configure_status_page.py --check
 
 test: ## Run the focused test suite
-	$(PYTEST) -q tests apps/autism-traits/tests apps/boys/tests apps/external-dns/tests apps/domain-health/tests
+	$(PYTEST) -q tests apps/autism-traits/tests apps/boys/tests apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests
 
 render: ## Render all managed Kustomize packages
 	for path in $(KUSTOMIZATIONS); do \
@@ -174,10 +174,11 @@ domain-health: go ## Reconcile domain checks through the native Argo root
 	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(DOMAIN_HEALTH_REVISION) \
 		-e argocd_preview_application=$(if $(filter HEAD,$(DOMAIN_HEALTH_REVISION)),,domain-health)
 
-vaultwarden: go
-	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags vaultwarden \
-		-e vaultwarden_enabled=$(VAULTWARDEN_ENABLED) \
-		-e vaultwarden_target_revision=$(VAULTWARDEN_REVISION)
+vaultwarden: go ## Reconcile Vaultwarden through the native Argo root
+	test "$(VAULTWARDEN_ENABLED)" = true || { echo 'Retire an adopted app through an explicit operation; this command only deploys.' >&2; exit 1; }
+	$(ANSIBLE) apps/vaultwarden/bootstrap.yml
+	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(VAULTWARDEN_REVISION) \
+		-e argocd_preview_application=$(if $(filter HEAD,$(VAULTWARDEN_REVISION)),,vaultwarden)
 
 live-tv: go
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags $(LIVE_TV_TAGS) $(LIVE_TV_AUTHENTIK_ARGS) \
