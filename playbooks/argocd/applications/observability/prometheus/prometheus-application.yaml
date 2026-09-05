@@ -14,7 +14,6 @@ spec:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
     targetRevision: "HEAD"
     path: playbooks/argocd/applications/observability/prometheus
-    kustomize: {}
   destination:
     server: "https://kubernetes.default.svc"
     namespace: monitoring

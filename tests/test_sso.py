@@ -104,7 +104,7 @@ def test_prometheus_application_returns_to_the_reviewed_head_revision() -> None:
     )
 
     assert app["spec"]["source"]["targetRevision"] == "HEAD"
-    assert app["spec"]["source"]["kustomize"] == {}
+    assert app["spec"]["source"].get("kustomize", {}) == {}
     assert "retry" not in app["spec"]["syncPolicy"]["automated"]
     assert app["spec"]["syncPolicy"]["retry"]["limit"] == 5
 
