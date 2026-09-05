@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -21,7 +22,13 @@ def test_native_ownership_keeps_workload_names_and_bootstrap_secret_boundary():
         (item["group"], item["kind"]) for item in project["spec"]["namespaceResourceWhitelist"]
     } == {("", "ConfigMap"), ("", "Service"), ("apps", "Deployment")}
     source = APP.parents[1] / application["spec"]["source"]["path"]
-    deployment = yaml.safe_load((source / "deployment.yaml").read_text())
+    deployment = next(
+        obj
+        for obj in yaml.safe_load_all(
+            subprocess.check_output(["kubectl", "kustomize", str(source)], text=True)
+        )
+        if obj["kind"] == "Deployment"
+    )
     assert deployment["metadata"]["name"] == "domain-health"
     assert deployment["spec"]["selector"]["matchLabels"] == {
         "app.kubernetes.io/name": "domain-health"

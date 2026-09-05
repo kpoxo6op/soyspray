@@ -16,7 +16,16 @@ SPEC = yaml.safe_load((APP / "argocd/application.yaml").read_text())["spec"]
     "change,allowed",
     [
         (lambda obj: None, True),
-        (lambda obj: obj["spec"].update(project="default"), True),
+        (
+            lambda obj: obj["spec"].update(
+                project="default",
+                source={
+                    **obj["spec"]["source"],
+                    "path": "playbooks/argocd/applications/observability/domain-health",
+                },
+            ),
+            True,
+        ),
         (lambda obj: obj["spec"]["source"].update(targetRevision="another-preview"), False),
         (lambda obj: obj["spec"]["destination"].update(namespace="another-app"), False),
         (lambda obj: obj["spec"].update(project="foreign"), False),
