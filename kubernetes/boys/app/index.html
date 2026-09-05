@@ -3,22 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Общий план поездки и доступность участников." />
-    <title>Общая поездка</title>
+    <meta name="description" content="Календарь свободных дней и общие ссылки." />
+    <title>Наш календарь</title>
     <link rel="stylesheet" href="/styles.css" />
     <script src="/app.js" defer></script>
-    <script type="module" src="/trip.js"></script>
+    <script src="/links.js" defer></script>
   </head>
   <body>
     <main class="shell">
       <header class="site-header">
         <a class="wordmark" href="/" aria-label="Главная страница поездки">boys.soyspray.vip</a>
-        <p>Планы нашей компании</p>
+        <p>Договоримся о встрече</p>
       </header>
 
       <section id="access-view" class="access-layout" aria-labelledby="access-title">
         <div class="page-title">
-          <h1 id="access-title">Общая поездка</h1>
+          <h1 id="access-title">Наш календарь</h1>
           <p id="access-instruction">Выберите своё имя.</p>
         </div>
 
@@ -114,27 +114,34 @@
 
       <section id="calendar-view" class="calendar-layout" hidden>
         <header class="calendar-intro">
-          <div><p class="eyebrow">Общий план</p><h1 id="view-title">Поездка</h1></div>
+          <h1 id="view-title">Календарь</h1>
           <div class="identity">
             <span id="signed-in-label"></span>
             <a class="text-button" href="/events.html">История</a>
             <button id="logout-button" class="text-button" type="button">Выйти</button>
           </div>
         </header>
-        <nav class="view-tabs" aria-label="Разделы поездки">
-          <button type="button" data-view="trip-panel" aria-current="page">Поездка</button>
-          <button type="button" data-view="dates-panel">Даты</button>
-          <button type="button" data-view="members-panel">Участники</button>
+        <nav class="view-tabs" aria-label="Разделы">
+          <button type="button" data-view="dates-panel" aria-current="page">Календарь</button>
+          <button type="button" data-view="links-panel">Ссылки</button>
         </nav>
-        <p id="trip-sync-status" class="sync-status" role="status" aria-live="polite"></p>
-        <section id="trip-panel" aria-label="Поездка">
-          <div id="trip-overview"></div>
-        </section>
-        <section id="dates-panel" aria-label="Даты" hidden>
-          <div id="trip-options"></div>
-          <section class="general-availability" aria-labelledby="availability-title">
-            <h2 id="availability-title">Общая доступность</h2>
-            <p>Эти отметки показывают свободные дни. Ответы на варианты поездки находятся выше.</p>
+        <section id="dates-panel" aria-label="Календарь">
+          <p>Отметьте дни, когда вы свободны.</p>
+          <p id="trip-caption" class="muted"></p>
+          <section class="calendar-area" aria-labelledby="month-label">
+            <nav class="calendar-toolbar" aria-label="Месяц календаря">
+              <button id="previous-month" class="icon-button" type="button" aria-label="Предыдущий месяц">←</button>
+              <h2 id="month-label"></h2>
+              <button id="next-month" class="icon-button" type="button" aria-label="Следующий месяц">→</button>
+            </nav>
+            <div class="weekday-row" aria-hidden="true">
+              <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+            </div>
+            <div id="calendar-grid" class="calendar-grid" role="grid" aria-labelledby="month-label"></div>
+          </section>
+          <aside id="day-details" class="day-details" aria-live="polite"></aside>
+          <details class="range-picker">
+            <summary>Выбрать диапазон</summary>
             <form id="range-form" class="range-controls">
               <label>С <input id="range-start" type="date" required></label>
               <label>По <input id="range-end" type="date" required></label>
@@ -142,21 +149,9 @@
               <button class="button" type="submit" name="action" value="remove">Убрать дни</button>
             </form>
             <p id="range-error" class="form-error" role="alert"></p>
-            <section class="calendar-area" aria-labelledby="month-label">
-              <nav class="calendar-toolbar" aria-label="Месяц календаря">
-                <button id="previous-month" class="icon-button" type="button" aria-label="Предыдущий месяц">←</button>
-                <h2 id="month-label"></h2>
-                <button id="next-month" class="icon-button" type="button" aria-label="Следующий месяц">→</button>
-              </nav>
-              <div class="weekday-row" aria-hidden="true">
-                <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
-              </div>
-              <div id="calendar-grid" class="calendar-grid" role="grid" aria-labelledby="month-label"></div>
-            </section>
-            <aside id="day-details" class="day-details" aria-live="polite"></aside>
-            <p id="calendar-summary" class="summary"></p>
-            <div id="legend" class="legend" aria-label="Участники календаря"></div>
-          </section>
+          </details>
+          <p id="calendar-summary" class="summary"></p>
+          <div id="legend" class="legend" aria-label="Участники календаря"></div>
           <section id="save-conflict" class="save-conflict" aria-labelledby="conflict-title" hidden>
             <h2 id="conflict-title">Сравните изменения дат</h2>
             <p>Сохранено в другом окне: <span id="remote-dates"></span></p>
@@ -164,36 +159,35 @@
             <button id="reapply-dates" class="button" type="button">Добавить мои изменения к сохранённым датам</button>
             <button id="use-remote-dates" class="text-button" type="button">Отменить черновик и взять сохранённые даты</button>
           </section>
+          <footer class="calendar-footer">
+            <div class="save-panel">
+              <p>Мои свободные дни</p>
+              <p id="save-status" role="status" aria-live="polite"></p>
+              <button id="save-button" class="button button-primary" type="button">Сохранить даты</button>
+            </div>
+          </footer>
         </section>
-        <section id="members-panel" aria-label="Участники" hidden><div id="trip-members"></div></section>
-        <footer class="calendar-footer">
-          <div class="save-panel">
-            <p>Общая доступность</p>
-            <p id="save-status" role="status" aria-live="polite"></p>
-            <button id="save-button" class="button button-primary" type="button">Сохранить даты</button>
-          </div>
-        </footer>
+        <section id="links-panel" aria-label="Ссылки" hidden>
+          <div class="links-heading"><p>Места, которые стоит посмотреть.</p><button id="add-link" type="button" class="button button-primary" disabled>Добавить ссылку</button></div>
+          <p id="links-status" class="muted" role="status"></p>
+          <ul id="links-list" class="links-list"></ul>
+        </section>
       </section>
-      <dialog id="trip-editor" aria-labelledby="trip-edit-title">
-        <form id="trip-edit-form">
-          <header class="dialog-heading"><h2 id="trip-edit-title"></h2><button id="trip-edit-close" class="text-button" type="button">Закрыть</button></header>
-          <div id="trip-edit-fields"></div>
-          <section id="trip-edit-conflict" class="save-conflict" hidden></section>
-          <p id="trip-edit-error" class="form-error" role="alert"></p>
-          <footer class="dialog-footer"><p id="trip-edit-status" role="status" aria-live="polite"></p><button id="trip-edit-save" class="button button-primary" type="submit">Сохранить</button></footer>
+      <dialog id="link-editor" aria-labelledby="link-edit-title">
+        <form id="link-form">
+          <header class="dialog-heading"><h2 id="link-edit-title">Добавить ссылку</h2><button id="link-close" class="text-button" type="button">Закрыть</button></header>
+          <label class="edit-field">Название<input id="link-title" name="title" type="text" required maxlength="200" autocomplete="off"></label>
+          <label class="edit-field">Ссылка<input id="link-url" name="url" type="url" required maxlength="2048" placeholder="https://…" autocomplete="off"></label>
+          <section id="link-conflict" class="save-conflict" hidden>
+            <p id="link-conflict-message"></p>
+            <button id="link-reapply" class="button" type="button">Оставить мой вариант</button>
+            <button id="link-discard" class="text-button" type="button">Отменить мой черновик</button>
+          </section>
+          <p id="link-error" class="form-error" role="alert"></p>
+          <footer class="dialog-footer"><button id="link-delete" type="button" class="text-button" hidden>Удалить</button><p id="link-save-status" role="status"></p><button id="link-save" class="button button-primary" type="submit">Сохранить</button></footer>
         </form>
       </dialog>
-      <dialog id="trip-summary-dialog" aria-labelledby="trip-summary-title">
-        <h2 id="trip-summary-title">Текст для Telegram</h2>
-        <p>Вставьте текст в чат сами. По умолчанию личные бюджеты и заметки о дороге не включены.</p>
-        <label><input id="summary-private" type="checkbox">Включить личные бюджеты и заметки</label>
-        <label for="trip-summary-text" class="visually-hidden">Текст поездки</label>
-        <textarea id="trip-summary-text" rows="14" readonly></textarea>
-        <p id="trip-copy-status" role="status"></p>
-        <div class="dialog-footer"><button id="trip-summary-close" type="button" class="button">Закрыть</button><button id="trip-copy-button" type="button" class="button button-primary">Скопировать</button></div>
-      </dialog>
     </main>
-
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   </body>
 </html>

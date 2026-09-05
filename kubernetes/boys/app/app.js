@@ -165,7 +165,7 @@ function showNameStep() {
   loginError.textContent = "";
   crewPinError.textContent = "";
   personalPinError.textContent = "";
-  showAccessStep(nameForm, "Общая поездка", "Выберите своё имя.", "#name");
+  showAccessStep(nameForm, "Наш календарь", "Выберите своё имя.", "#name");
 }
 
 function showLoginStep() {
@@ -238,7 +238,7 @@ function openCalendar(payload) {
   calendarView.hidden = false;
   document.querySelector("#signed-in-label").textContent = state.me;
   render();
-  setView("trip-panel");
+  setView("dates-panel");
   document.dispatchEvent(new CustomEvent("boys:open", { detail: payload }));
 }
 
@@ -624,14 +624,14 @@ setInterval(() => {
   if (!document.hidden) refreshAvailability();
 }, 30000);
 window.addEventListener("beforeunload", (event) => {
-  if (state.dirty || state.saving || window.boysTrip?.dirty() || window.boysTrip?.saving()) {
+  if (state.dirty || state.saving || window.boysLinks?.dirty() || window.boysLinks?.saving()) {
     event.preventDefault();
     event.returnValue = "";
   }
 });
 document.addEventListener("click", (event) => {
   const link = event.target.closest("a[href]");
-  if (link && link.target !== "_blank" && (state.dirty || state.saving || window.boysTrip?.dirty() || window.boysTrip?.saving())
+  if (link && link.target !== "_blank" && (state.dirty || state.saving || window.boysLinks?.dirty() || window.boysLinks?.saving())
       && !window.confirm("Уйти без сохранения изменений?")) event.preventDefault();
 });
 
@@ -646,8 +646,8 @@ nextButton.addEventListener("click", () => {
 });
 
 document.querySelector("#logout-button").addEventListener("click", async () => {
-  if (state.saving || window.boysTrip?.saving()) return;
-  if ((state.dirty || window.boysTrip?.dirty()) && !window.confirm("Выйти без сохранения изменений?")) return;
+  if (state.saving || window.boysLinks?.saving()) return;
+  if ((state.dirty || window.boysLinks?.dirty()) && !window.confirm("Выйти без сохранения изменений?")) return;
   try {
     await api("/api/logout", { method: "POST", body: "{}" });
   } finally {
