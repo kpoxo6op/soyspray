@@ -8,3 +8,5 @@
 !app/events.js
 !app/styles.css
 !app/trips.py
+!app/trip.js
+!app/trip-utils.mjs
