@@ -117,10 +117,14 @@ The Ansible lifecycle is in
 resources are in the
 [Vaultwarden Argo CD folder](../../playbooks/argocd/applications/security/vaultwarden/README.md).
 
-## V1 limits
+## Recovery and upgrade limits
 
-V1 has one replica and one retained Longhorn volume. It has no backup, MFA,
-phone approval, scheduled Hays run, or multi-node recovery. Issues
-[#202](https://github.com/kpoxo6op/soyspray/issues/202) to
-[#205](https://github.com/kpoxo6op/soyspray/issues/205) and
-[#207](https://github.com/kpoxo6op/soyspray/issues/207) track that work.
+The server keeps one writer on its original Longhorn volume. Longhorn retains
+48 recent backups at 30-minute intervals and 30 daily backups. Keep the complete
+SQLite database, WAL files, attachments, and server keys together during restore.
+Use the [recovery operations](../../playbooks/operations/recovery/README.md) for
+isolated checks. The human master password remains necessary to unlock personal
+records. A backup does not recover a forgotten master password.
+
+The server still uses its pinned testing image. Upgrade that image separately
+after recovery checks. Native Argo adoption does not change the running image.

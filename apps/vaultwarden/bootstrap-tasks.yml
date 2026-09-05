@@ -1,0 +1,70 @@
+---
+- name: Read the existing restricted agent identity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: vaultwarden
+    name: vaultwarden-agent-login
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: vaultwarden_existing_agent
+  no_log: true
+
+- name: Select supplied or existing agent credentials
+  ansible.builtin.set_fact:
+    vaultwarden_bootstrap_email: >-
+      {{ vaultwarden_agent_email | default(
+         (vaultwarden_existing_agent.resources | first | default({})).data.email | default('') | b64decode) }}
+    vaultwarden_bootstrap_password: >-
+      {{ vaultwarden_agent_master_password | default(
+         (vaultwarden_existing_agent.resources | first | default({})).data['master-password'] | default('') | b64decode) }}
+  no_log: true
+
+- name: Validate the complete restricted identity
+  ansible.builtin.set_fact:
+    vaultwarden_bootstrap_available: >-
+      {{ vaultwarden_agent_email | default('') is string and vaultwarden_agent_master_password | default('') is string and
+         vaultwarden_bootstrap_email == 'automation@vault.soyspray.vip' and
+         vaultwarden_bootstrap_password is string and vaultwarden_bootstrap_password | trim | length > 0 }}
+    vaultwarden_bootstrap_matches: >-
+      {{ vaultwarden_existing_agent.resources | length == 0 or
+         (vaultwarden_bootstrap_email == (vaultwarden_existing_agent.resources[0].data.email | default('') | b64decode) and
+          vaultwarden_bootstrap_password == (vaultwarden_existing_agent.resources[0].data['master-password'] | default('') | b64decode)) }}
+  no_log: true
+
+- name: Require the existing agent identity or encrypted recovery inputs
+  ansible.builtin.assert:
+    that: vaultwarden_bootstrap_available | bool
+    fail_msg: >-
+      Restore the restricted agent email and original master password from an off-cluster Ansible Vault file.
+      Use vaultwarden_agent_email and vaultwarden_agent_master_password. Keep the human master password outside Kubernetes.
+
+- name: Refuse to replace an existing agent identity
+  ansible.builtin.assert:
+    that: vaultwarden_bootstrap_matches | bool
+    fail_msg: Supplied inputs differ from the existing restricted identity. This bootstrap cannot rotate or replace it.
+
+- name: Prepare the protected namespace before restoring missing credentials
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition: "{{ lookup('file', playbook_dir + '/../../kubernetes/vaultwarden/namespace.yaml') | from_yaml }}"
+  when: vaultwarden_existing_agent.resources | length == 0
+
+- name: Restore only a missing restricted agent Secret
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", create, -f, '-']
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: vaultwarden-agent-login
+        namespace: vaultwarden
+        labels:
+          app.kubernetes.io/name: vaultwarden
+      type: Opaque
+      stringData:
+        email: {{ vaultwarden_bootstrap_email | to_json }}
+        master-password: {{ vaultwarden_bootstrap_password | to_json }}
+  changed_when: true
+  no_log: true
+  when: vaultwarden_existing_agent.resources | length == 0 and not ansible_check_mode
