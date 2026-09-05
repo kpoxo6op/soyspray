@@ -6,7 +6,7 @@ when changing deployment ownership.
 
 ## Paired recovery backup
 
-The backup operation is being prepared in `backup/`. It is not registered for
+The backup operation is packaged from `backup/`. It is not registered for
 scheduled deployment yet. The current application and nightly S3 copy continue
 to use their existing definitions.
 
@@ -41,3 +41,26 @@ cluster in the encrypted recovery inputs. Never place it in Git or CI fixtures.
 References: [Immich backup order](https://docs.immich.app/administration/backup-and-restore/),
 [PostgreSQL synchronized dumps](https://www.postgresql.org/docs/16/app-pgdump.html),
 and [Restic retention](https://restic.readthedocs.io/en/stable/060_forget.html).
+
+## Image changes and promotion
+
+CI builds the script bundle and runs the native recovery tests using files copied
+from that exact image. The bundle is a short init step; PostgreSQL and Restic still
+run their pinned upstream images. Runtime scripts are not loaded from ConfigMaps.
+
+A runtime source merge publishes the tested bundle to GHCR and opens a draft
+promotion containing its digest in `backup/kustomization.yaml`. Source-only and
+test-only merges do not change a running Job. Any configuration that requires a
+new script version must be reviewed in the same promotion. The first promotion
+records the image before a Job is registered. Do not enable the schedule until a
+real backup and isolated restore pass.
+
+The native image workflow is called by affected-app CI. Manual full-repository CI
+checks the image without publishing. To request a tested rebuild and promotion:
+
+```sh
+gh workflow run immich-backup-image.yml --ref main -f publish=true
+```
+
+Roll back the digest and dependent configuration together. Keep all existing
+claims, database identities, and S3 archives during recovery adoption.
