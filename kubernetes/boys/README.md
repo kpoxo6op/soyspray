@@ -114,18 +114,15 @@ and are excluded from the runtime image.
 
 ## Deploy
 
-Add these values to the ignored repository `.env` file:
-
-```dotenv
-BOYS_PIN=<crew-claim-pin>
-BOYS_SESSION_KEY=<at-least-32-random-characters>
-BOYS_CLOUDFLARED_TOKEN=<dedicated-tunnel-token>
-```
+Normal deployment reads the existing runtime and tunnel Secrets. It no longer
+reads `.env` for Boys. To recover missing identities, use the
+[encrypted bootstrap procedure](../../apps/boys/README.md#bootstrap-and-recovery-inputs).
+Keep the original crew PIN, signing key, and tunnel token.
 
 Push the topic branch before deployment. Then run:
 
 ```bash
-make boys BOYS_REVISION=<pushed-promotion-branch>
+make deploy APP=boys REVISION=YOUR_PUSHED_BRANCH
 kubectl -n boys rollout status deployment/boys
 kubectl -n boys rollout status deployment/boys-cloudflared
 ```
