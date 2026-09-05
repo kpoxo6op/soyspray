@@ -4,6 +4,7 @@ Each migrated app keeps its Argo definitions, configuration, custom source,
 useful checks, and operating guide in its own folder. The native root lists
 adopted apps in [its Kustomization](../argocd/kustomization.yaml).
 
+- [ExternalDNS](external-dns/README.md): maintain ingress DNS through the existing Cloudflare identity.
 - [Boys](boys/README.md): shared calendar and accommodation links.
 - [Headlamp](headlamp/README.md): browse the cluster through Authentik OIDC.
 - [Autism traits](autism-traits/README.md): static assessment with scoring in the browser.
