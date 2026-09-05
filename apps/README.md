@@ -55,6 +55,7 @@ make diff APP=boys
 make deploy APP=boys REVISION=YOUR_PUSHED_BRANCH
 make deploy APP=boys
 make full-check
+make restore-check APP=boys
 ```
 
 `check APP=...` runs that app's maintained local checks. `make check` without
@@ -75,3 +76,9 @@ that Argo will delete it: check its `Prune=false` protection and the Application
 sync policy. An Application without a maintained operation file reports `unknown`
 with its cause. The native app Makefiles are command entrypoints; they do not
 replace the Application metadata inventory.
+
+Boys also has a complete isolated `restore-check` operation. It reads encrypted
+off-cluster inputs, verifies a completed backup through the restored app, and
+cleans up its own temporary resources. See [Boys recovery](boys/README.md#run-an-isolated-restore).
+Unsupported restore operations report `unknown` with their cause. Restore
+reports do not replace the separate seven-day recovery-point measurements.
