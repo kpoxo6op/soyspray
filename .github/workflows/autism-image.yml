@@ -1,0 +1,136 @@
+name: Autism site image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/autism-traits/**
+      - .github/workflows/autism-image.yml
+  pull_request:
+    paths:
+      - apps/autism-traits/**
+      - .github/workflows/autism-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: autism-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    env:
+      IMAGE: ghcr.io/kpoxo6op/autism-traits
+      IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/autism-traits/app/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Detect a source change before publishing
+        id: runtime
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          changed=false
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            changed=true
+          elif [ "$GITHUB_EVENT_NAME" = push ]; then
+            git cat-file -e "$BEFORE^{commit}"
+            git diff --name-only "$BEFORE" "$GITHUB_SHA" -- \
+              apps/autism-traits/app apps/autism-traits/config \
+              apps/autism-traits/Dockerfile apps/autism-traits/.dockerignore \
+              > "$RUNNER_TEMP/autism-runtime-files"
+            if [ -s "$RUNNER_TEMP/autism-runtime-files" ]; then changed=true; fi
+          fi
+          printf 'changed=%s\n' "$changed" >> "$GITHUB_OUTPUT"
+      - name: Build the static site with pinned upstream images
+        run: |
+          docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" \
+            --tag "$IMAGE:$IMAGE_TAG" apps/autism-traits
+      - name: Run the image with disposable TLS input
+        run: |
+          mkdir "$RUNNER_TEMP/autism-tls"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj /CN=autism.soyspray.vip -addext subjectAltName=DNS:autism.soyspray.vip \
+            -keyout "$RUNNER_TEMP/autism-tls/tls.key" -out "$RUNNER_TEMP/autism-tls/tls.crt"
+          chmod 755 "$RUNNER_TEMP/autism-tls"
+          chmod 444 "$RUNNER_TEMP/autism-tls/"*
+          docker run --detach --name autism-image-check --read-only \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,size=16m,uid=101,gid=101 \
+            --mount "type=bind,source=$RUNNER_TEMP/autism-tls,target=/tls,readonly" \
+            -p 127.0.0.1:4173:8080 -p 127.0.0.1:8443:8443 "$IMAGE:$IMAGE_TAG"
+          curl --fail --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:4173/healthz
+          curl --fail --noproxy '*' --resolve autism.soyspray.vip:8443:127.0.0.1 \
+            --cacert "$RUNNER_TEMP/autism-tls/tls.crt" https://autism.soyspray.vip:8443/healthz
+          python apps/autism-traits/test-image.py
+      - name: Install browser checks
+        working-directory: apps/autism-traits/app
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Check the built image on phone and desktop
+        working-directory: apps/autism-traits/app
+        env:
+          AUTISM_BASE_URL: http://127.0.0.1:4173
+        run: npm run test:e2e
+      - name: Remove the isolated test container
+        if: always()
+        run: docker rm --force autism-image-check || true
+      - name: Publish the tested image
+        if: github.ref == 'refs/heads/main' && steps.runtime.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE:$IMAGE_TAG"
+          digest="$(docker image inspect "$IMAGE:$IMAGE_TAG" --format '{{index .RepoDigests 0}}')"
+          printf 'AUTISM_IMAGE_REF=%s\n' "$digest" >> "$GITHUB_ENV"
+          printf 'Tested image: `%s`\nSource: `%s`\n' "$digest" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - name: Open a draft digest and configuration promotion
+        if: github.ref == 'refs/heads/main' && steps.runtime.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m pip install PyYAML==6.0.3
+          branch="promote/autism-${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git switch -c "$branch"
+          python apps/autism-traits/promote-image.py "$AUTISM_IMAGE_REF"
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add kubernetes/autism-traits/deployment.yaml kubernetes/autism-traits/kustomization.yaml
+          git commit -m 'Promote the tested autism site image and configuration'
+          git push origin "$branch"
+          promotion_commit="$(git rev-parse HEAD)"
+          cat > "$RUNNER_TEMP/promotion.md" <<BODY
+          Promote the static site built from [source $GITHUB_SHA](https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA).
+
+          Image: \`$AUTISM_IMAGE_REF\`.
+
+          The image passed scoring, HTTP, TLS, privacy-header and phone/desktop browser checks. This promotion removes the asset and Nginx configuration mounts so the tested image supplies those files. It preserves the TLS Secret, namespace, Service, tunnel, network policies and browser-only scoring.
+
+          Run \`make go\` and deploy through the standard Ansible path. Verify both the private origin and public tunnel before merge. Roll back the digest and compatible configuration together. This workflow does not merge or deploy.
+
+          Commits, oldest first:
+
+          - [Promote the tested autism site image and configuration](https://github.com/$GITHUB_REPOSITORY/commit/$promotion_commit)
+          BODY
+          gh pr create --draft --base main --head "$branch" \
+            --title 'Promote the tested autism site image' --body-file "$RUNNER_TEMP/promotion.md"
