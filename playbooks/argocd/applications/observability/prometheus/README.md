@@ -70,3 +70,24 @@ Alerts are routed based on severity:
 *   **Critical/Warning**: Sent to Telegram via a custom template.
 *   **Watchdog**: Sent to Healthchecks.io (Dead Man's Switch).
 *   **Info/Other**: Suppressed or logged.
+
+## Longhorn backup timestamps
+
+The existing kube-state-metrics service reads Longhorn Backup and Volume
+objects. It exports `soyspray_longhorn_backup_snapshot_timestamp_seconds`
+and `soyspray_longhorn_volume_info`. The timestamp is the source snapshot
+start time. A missing or invalid timestamp does not become zero.
+
+Prometheus rejects backup samples with an error and removes the temporary
+error label before storage. A restore candidate must also have
+`state="Completed"`, `progress="100"`, a positive timestamp no later than now,
+and the same backup target as its volume. Select protected volumes through
+`critical_group="enabled"` and `pv_status="Bound"`; use their namespace and
+claim labels for display. Do not treat a missing series as a healthy backup.
+
+After `make go`, use the standard Prometheus Ansible deployment with
+`-e prometheus_target_revision=<reviewed-branch>` for branch validation.
+After merge, use `-e prometheus_target_revision=HEAD` and repeat the operation.
+Check that kube-state-metrics remains available and compare the timestamps
+with the Longhorn Backup objects. These raw metrics do not by themselves
+prove seven days of coverage or a successful restore.
