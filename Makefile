@@ -22,6 +22,7 @@ VAULTWARDEN_ENABLED ?= true
 VAULTWARDEN_REVISION ?= HEAD
 HEADLAMP_REVISION ?= HEAD
 MEDIA_HELPER_REVISION ?= HEAD
+CERT_MANAGER_CONFIG_REVISION ?= HEAD
 OBSIDIAN_REVISION ?= HEAD
 OBSIDIAN_ENABLED ?= true
 FORMAT ?= text
@@ -57,7 +58,7 @@ KUSTOMIZATIONS := \
 
 .PHONY: help setup act check full-check app-command diff deploy smoke restore-check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
 	test render go autism-traits boys vaultwarden obsidian-livesync headlamp live-tv voice-assistant voice-pe-render \
-	voice-pe-check voice-pe-compile voice-pe-upload media-helper status-page status-page-fallback argo-login \
+	voice-pe-check voice-pe-compile voice-pe-upload media-helper cert-manager-config status-page status-page-fallback argo-login \
 	apps status backup-status external-dns domain-health list-apps node0 node1 node2 master worker1 worker2 worker3 clean
 
 help: ## Show the operator commands
@@ -111,10 +112,10 @@ autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
-	$(PYTHON) -m ruff format --check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
+	$(PYTHON) -m ruff check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
+	$(PYTHON) -m ruff format --check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml apps/obsidian-livesync/*.yml \
+		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml apps/obsidian-livesync/*.yml apps/cert-manager-config/*.yml roles/apps/cert-manager/tasks/main.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml \
@@ -140,7 +141,7 @@ status-page-check:
 	$(PYTHON) scripts/configure_status_page.py --check
 
 test: ## Run the focused test suite
-	$(PYTEST) -q tests apps/autism-traits/tests apps/boys/tests apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/headlamp/tests apps/media-helper/tests
+	$(PYTEST) -q tests apps/autism-traits/tests apps/boys/tests apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests
 
 render: ## Render all managed Kustomize packages
 	for path in $(KUSTOMIZATIONS); do \
@@ -182,6 +183,10 @@ domain-health: go ## Reconcile domain checks through the native Argo root
 media-helper: go ## Reconcile the media helper through the native Argo root
 	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(MEDIA_HELPER_REVISION) \
 		-e argocd_preview_application=$(if $(filter HEAD,$(MEDIA_HELPER_REVISION)),,media-helper)
+
+cert-manager-config: go ## Reconcile the certificate configuration through the native Argo root
+	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(CERT_MANAGER_CONFIG_REVISION) \
+		-e argocd_preview_application=$(if $(filter HEAD,$(CERT_MANAGER_CONFIG_REVISION)),,cert-manager-config)
 
 headlamp: go ## Reconcile Headlamp through the native Argo root
 	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(HEADLAMP_REVISION) \
