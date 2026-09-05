@@ -9,6 +9,12 @@ import subprocess
 from pathlib import Path
 
 APP_PATHS = {
+    "immich": (
+        "apps/immich/",
+        "roles/apps/immich/",
+        "playbooks/argocd/applications/media/immich/",
+        "playbooks/argocd/applications/backups/immich-offsite-backup/",
+    ),
     "boys": (
         "kubernetes/boys/",
         "apps/boys/",
