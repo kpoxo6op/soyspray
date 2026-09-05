@@ -37,6 +37,10 @@ Security playbooks.
 
 - sync-certificates.yml - Synchronize TLS certificates across namespaces
 
+### boys/
+
+[Private Boys trip bootstrap](boys/README.md) from off-cluster Ansible Vault input.
+
 ### recovery/
 
 Critical S3 backups, encrypted runtime exports, and isolated restore operations.
