@@ -1,0 +1,59 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: critical-backups
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: critical-backup-evidence
+      interval: 1m
+      rules:
+        # Keep the last raw inventory for one day so a lost collector is visible.
+        - record: soyspray:critical_backup_expected
+          expr: |
+            max by (volume, backup_target, volume_uid, app_namespace, pvc) (
+              last_over_time(soyspray_longhorn_volume_info{critical_group="enabled",pv_status="Bound"}[24h])
+            )
+        - record: soyspray:critical_backup_snapshot_timestamp_seconds
+          expr: |
+            max by (volume, backup_target) (
+              (soyspray_longhorn_backup_snapshot_timestamp_seconds{state="Completed",progress="100"} > 0) <= time()
+            )
+            * on (volume, backup_target) group_left(volume_uid, app_namespace, pvc)
+            max by (volume, backup_target, volume_uid, app_namespace, pvc) (
+              soyspray_longhorn_volume_info{critical_group="enabled",pv_status="Bound"}
+            )
+        - record: soyspray:critical_backup_age_seconds
+          expr: time() - soyspray:critical_backup_snapshot_timestamp_seconds
+        - record: soyspray:critical_backup_observed
+          expr: |
+            (soyspray:critical_backup_age_seconds >= bool 0)
+            or (soyspray:critical_backup_expected * 0)
+        - record: soyspray:critical_backup_rpo_met
+          expr: soyspray:critical_backup_age_seconds < bool 3600
+        - alert: CriticalBackupGettingOld
+          expr: soyspray:critical_backup_age_seconds > 2700
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Critical backup is getting old"
+            description: "{{ $labels.app_namespace }}/{{ $labels.pvc }} has no successful snapshot from the last 45 minutes. Run make backup-status FORMAT=json."
+        - alert: CriticalBackupEvidenceMissing
+          expr: soyspray:critical_backup_observed == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Critical backup evidence is missing"
+            description: "No eligible backup or current volume inventory for {{ $labels.app_namespace }}/{{ $labels.pvc }}. Recovery-point age is unknown. Run make backup-status FORMAT=json."
+        - alert: CriticalBackupInventoryMissing
+          expr: absent(soyspray_longhorn_volume_info{critical_group="enabled",pv_status="Bound"})
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Critical backup inventory is missing"
+            description: "Prometheus cannot see any bound critical Longhorn volume. Check kube-state-metrics and the critical backup group. This is not evidence of healthy backups."

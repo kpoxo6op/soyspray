@@ -1,0 +1,206 @@
+rule_files:
+- critical-backups.yaml
+evaluation_interval: 1m
+tests:
+- name: Use the latest valid snapshot and deduplicate collector pods
+  interval: 1m
+  input_series:
+  - series: soyspray_longhorn_volume_info{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data",critical_group="enabled",pv_status="Bound",pod="first"}
+    values: 1+0x120
+  - series: soyspray_longhorn_volume_info{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data",critical_group="enabled",pv_status="Bound",pod="second"}
+    values: 1+0x120
+  - series: soyspray_longhorn_backup_snapshot_timestamp_seconds{volume="v1",backup_target="s3",state="Completed",progress="100",backup="good"}
+    values: 2400+0x120
+  - series: soyspray_longhorn_backup_snapshot_timestamp_seconds{volume="v1",backup_target="s3",state="Completed",progress="100",backup="old"}
+    values: 1800+0x120
+  - series: soyspray_longhorn_backup_snapshot_timestamp_seconds{volume="v1",backup_target="s3",state="Completed",progress="100",backup="future"}
+    values: 99999+0x120
+  - series: soyspray_longhorn_backup_snapshot_timestamp_seconds{volume="v1",backup_target="s3",state="Completed",progress="100",backup="zero"}
+    values: 0+0x120
+  - series: soyspray_longhorn_backup_snapshot_timestamp_seconds{volume="v1",backup_target="s3",state="InProgress",progress="100",backup="unfinished"}
+    values: 3500+0x120
+  - series: soyspray_longhorn_backup_snapshot_timestamp_seconds{volume="v1",backup_target="s3",state="Completed",progress="99",backup="partial"}
+    values: 3550+0x120
+  - series: soyspray_longhorn_backup_snapshot_timestamp_seconds{volume="v1",backup_target="old-s3",state="Completed",progress="100",backup="other-target"}
+    values: 3590+0x120
+  promql_expr_test:
+  - expr: soyspray:critical_backup_snapshot_timestamp_seconds
+    eval_time: 1h
+    exp_samples:
+    - labels: soyspray:critical_backup_snapshot_timestamp_seconds{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data"}
+      value: 2400
+  - expr: soyspray:critical_backup_age_seconds
+    eval_time: 1h
+    exp_samples:
+    - labels: soyspray:critical_backup_age_seconds{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data"}
+      value: 1200
+  - expr: soyspray:critical_backup_observed
+    eval_time: 1h
+    exp_samples:
+    - labels: soyspray:critical_backup_observed{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data"}
+      value: 1
+  - expr: soyspray:critical_backup_rpo_met
+    eval_time: 1h
+    exp_samples:
+    - labels: soyspray:critical_backup_rpo_met{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data"}
+      value: 1
+  alert_rule_test:
+  - eval_time: 1h
+    alertname: CriticalBackupGettingOld
+    exp_alerts: []
+  - eval_time: 1h
+    alertname: CriticalBackupEvidenceMissing
+    exp_alerts: []
+  - eval_time: 1h
+    alertname: CriticalBackupInventoryMissing
+    exp_alerts: []
+- name: Warn before the one-hour target and fail the target at exactly one hour
+  interval: 1m
+  input_series:
+  - series: soyspray_longhorn_volume_info{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data",critical_group="enabled",pv_status="Bound",pod="first"}
+    values: 1+0x120
+  - series: soyspray_longhorn_backup_snapshot_timestamp_seconds{volume="v1",backup_target="s3",state="Completed",progress="100",backup="good"}
+    values: 60+0x120
+  promql_expr_test:
+  - expr: soyspray:critical_backup_rpo_met
+    eval_time: 60m
+    exp_samples:
+    - labels: soyspray:critical_backup_rpo_met{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data"}
+      value: 1
+  - expr: soyspray:critical_backup_rpo_met
+    eval_time: 61m
+    exp_samples:
+    - labels: soyspray:critical_backup_rpo_met{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data"}
+      value: 0
+  alert_rule_test:
+  - eval_time: 50m
+    alertname: CriticalBackupGettingOld
+    exp_alerts: []
+  - eval_time: 52m
+    alertname: CriticalBackupGettingOld
+    exp_alerts:
+    - exp_labels:
+        volume: v1
+        backup_target: s3
+        volume_uid: uid1
+        app_namespace: boys
+        pvc: boys-data
+        severity: critical
+      exp_annotations:
+        summary: Critical backup is getting old
+        description: boys/boys-data has no successful snapshot from the last 45 minutes. Run make backup-status
+          FORMAT=json.
+- name: Invalid or unavailable backups leave age and RPO unknown
+  interval: 1m
+  input_series:
+  - series: soyspray_longhorn_volume_info{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data",critical_group="enabled",pv_status="Bound",pod="first"}
+    values: 1+0x120
+  - series: soyspray_longhorn_backup_snapshot_timestamp_seconds{volume="v1",backup_target="s3",state="Completed",progress="100",backup="future"}
+    values: 99999+0x120
+  - series: soyspray_longhorn_backup_snapshot_timestamp_seconds{volume="v1",backup_target="s3",state="Completed",progress="100",backup="zero"}
+    values: 0+0x120
+  - series: soyspray_longhorn_backup_snapshot_timestamp_seconds{volume="v1",backup_target="s3",state="Completed",progress="99",backup="partial"}
+    values: 20+0x120
+  - series: soyspray_longhorn_backup_snapshot_timestamp_seconds{volume="v1",backup_target="old-s3",state="Completed",progress="100",backup="wrong-target"}
+    values: 30+0x120
+  promql_expr_test:
+  - expr: soyspray:critical_backup_age_seconds
+    eval_time: 1h
+    exp_samples: []
+  - expr: soyspray:critical_backup_rpo_met
+    eval_time: 1h
+    exp_samples: []
+  - expr: soyspray:critical_backup_observed
+    eval_time: 1h
+    exp_samples:
+    - labels: soyspray:critical_backup_observed{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data"}
+      value: 0
+  alert_rule_test:
+  - eval_time: 4m
+    alertname: CriticalBackupEvidenceMissing
+    exp_alerts: []
+  - eval_time: 5m
+    alertname: CriticalBackupEvidenceMissing
+    exp_alerts:
+    - exp_labels:
+        volume: v1
+        backup_target: s3
+        volume_uid: uid1
+        app_namespace: boys
+        pvc: boys-data
+        severity: critical
+      exp_annotations:
+        summary: Critical backup evidence is missing
+        description: No eligible backup or current volume inventory for boys/boys-data. Recovery-point
+          age is unknown. Run make backup-status FORMAT=json.
+  - eval_time: 1h
+    alertname: CriticalBackupGettingOld
+    exp_alerts: []
+- name: Collector loss retains expected volumes but makes recovery evidence unknown
+  interval: 1m
+  input_series:
+  - series: soyspray_longhorn_volume_info{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data",critical_group="enabled",pv_status="Bound",pod="first"}
+    values: 1+0x59 stale
+  - series: soyspray_longhorn_backup_snapshot_timestamp_seconds{volume="v1",backup_target="s3",state="Completed",progress="100",backup="good"}
+    values: 60+0x59 stale
+  promql_expr_test:
+  - expr: soyspray:critical_backup_expected
+    eval_time: 66m
+    exp_samples:
+    - labels: soyspray:critical_backup_expected{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data"}
+      value: 1
+  - expr: soyspray:critical_backup_observed
+    eval_time: 66m
+    exp_samples:
+    - labels: soyspray:critical_backup_observed{volume="v1",backup_target="s3",volume_uid="uid1",app_namespace="boys",pvc="boys-data"}
+      value: 0
+  - expr: soyspray:critical_backup_rpo_met
+    eval_time: 66m
+    exp_samples: []
+  - expr: soyspray:critical_backup_expected
+    eval_time: 25h
+    exp_samples: []
+  alert_rule_test:
+  - eval_time: 66m
+    alertname: CriticalBackupEvidenceMissing
+    exp_alerts:
+    - exp_labels:
+        volume: v1
+        backup_target: s3
+        volume_uid: uid1
+        app_namespace: boys
+        pvc: boys-data
+        severity: critical
+      exp_annotations:
+        summary: Critical backup evidence is missing
+        description: No eligible backup or current volume inventory for boys/boys-data. Recovery-point
+          age is unknown. Run make backup-status FORMAT=json.
+  - eval_time: 66m
+    alertname: CriticalBackupInventoryMissing
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        critical_group: enabled
+        pv_status: Bound
+      exp_annotations:
+        summary: Critical backup inventory is missing
+        description: Prometheus cannot see any bound critical Longhorn volume. Check kube-state-metrics
+          and the critical backup group. This is not evidence of healthy backups.
+- name: An empty collector is not healthy
+  interval: 1m
+  input_series: []
+  alert_rule_test:
+  - eval_time: 4m
+    alertname: CriticalBackupInventoryMissing
+    exp_alerts: []
+  - eval_time: 5m
+    alertname: CriticalBackupInventoryMissing
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        critical_group: enabled
+        pv_status: Bound
+      exp_annotations:
+        summary: Critical backup inventory is missing
+        description: Prometheus cannot see any bound critical Longhorn volume. Check kube-state-metrics
+          and the critical backup group. This is not evidence of healthy backups.

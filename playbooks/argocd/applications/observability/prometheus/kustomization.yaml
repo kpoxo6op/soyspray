@@ -98,6 +98,7 @@ resources:
   - authentik-forward-auth.yaml
   - smartctl-exporter-daemonset.yaml
   - alerts/backups-essential.yaml
+  - alerts/critical-backups.yaml
   - alerts/cert-expiry.yaml
   - alerts/domain-health.yaml
   - alerts/authentik.yaml

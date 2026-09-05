@@ -45,7 +45,7 @@ KUSTOMIZATIONS := \
 	playbooks/argocd/applications/media/dispatcharr \
 	playbooks/argocd/applications/media/jellyfin
 
-.PHONY: help setup act check boys-check autism-traits-check lint validate validate-skills status-page-check \
+.PHONY: help setup act check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
 	test render go autism-traits boys vaultwarden live-tv voice-assistant voice-pe-render \
 	voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
 	apps status backup-status list-apps node0 node1 node2 master worker1 worker2 worker3 clean
@@ -95,7 +95,7 @@ lint: ## Check Python style and common defects
 		playbooks/operations/boys/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint playbooks/bootstrap-apps.yml
 
-validate: validate-skills status-page-check ## Validate YAML and rendered manifests
+validate: validate-skills status-page-check prometheus-check ## Validate YAML and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py
 	for path in $(KUSTOMIZATIONS); do \
 		printf 'Rendered %s\n' "$$path"; \
@@ -104,6 +104,9 @@ validate: validate-skills status-page-check ## Validate YAML and rendered manife
 
 validate-skills: ## Validate reusable project-local Agent Skills
 	$(PYTHON) scripts/validate_skills.py
+
+prometheus-check: ## Check monitoring rules and backup alert behavior with pinned promtool
+	$(PYTHON) scripts/check_prometheus.py
 
 status-page-check:
 	$(PYTHON) scripts/configure_status_page.py --check

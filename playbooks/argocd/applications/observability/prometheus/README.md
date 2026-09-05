@@ -91,3 +91,28 @@ After merge, use `-e prometheus_target_revision=HEAD` and repeat the operation.
 Check that kube-state-metrics remains available and compare the timestamps
 with the Longhorn Backup objects. These raw metrics do not by themselves
 prove seven days of coverage or a successful restore.
+
+## Critical recovery evidence
+
+`alerts/critical-backups.yaml` records the snapshot time, age, observation status,
+and one-hour recovery-point target each minute. It selects bound Longhorn volumes
+in the `critical` backup group. Only completed, 100 percent backups from the
+volume's current target can qualify. The collector filters backup errors before
+storage. Future and zero timestamps do not qualify.
+
+A missing backup or collector leaves age and target status unknown. The observation
+metric becomes zero. Raw volume inventory is retained in the rule query for 24
+hours so a lost collector still identifies affected claims. After that, the global
+inventory alert remains active. An intentional change to the critical group can
+therefore leave an evidence warning for up to one day.
+
+The old-backup alert starts after the snapshot is more than 45 minutes old for
+five minutes. Missing evidence also alerts after five minutes. Existing Alertmanager
+routing sends critical alerts to Telegram. These alerts prove neither a completed
+restore nor seven days of recovery coverage. Review continuous observations and
+restore results before accepting the policy. Prometheus retains 15 days of data.
+
+Run `make prometheus-check` for native Prometheus rule checks and recovery behavior
+tests. The full local and shared CI checks include this command. It uses Prometheus
+3.6.0's upstream `promtool`, cached locally after a SHA-256 checked download.
+Fixtures are in `tests/critical-backups.yaml` beside this application's manifests.
