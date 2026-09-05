@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vaultwarden
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: vaultwarden
+    soyspray.vip/owner: household
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-url: https://vault.soyspray.vip
+    soyspray.vip/access-method: Private human vault and restricted agent identity;
+      LAN or Tailscale
+    soyspray.vip/data-claims: vaultwarden/vaultwarden-data
+    soyspray.vip/data: vaultwarden/vaultwarden-data; /data/db.sqlite3 and attachments;
+      original account encryption keys
+    soyspray.vip/backup: 'Longhorn critical: every 30 minutes, 48 recent and 30 daily;
+      three replicas'
+    soyspray.vip/backup-cause: Restore the complete data directory and retain the
+      human master password outside the cluster.
+spec:
+  project: vaultwarden
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: HEAD
+    path: kubernetes/vaultwarden
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vaultwarden
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - PruneLast=true
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: vaultwarden
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: v1.35
+        pod-security.kubernetes.io/warn: restricted
+        pod-security.kubernetes.io/warn-version: v1.35
+      annotations:
+        argocd.argoproj.io/sync-options: Prune=false,Delete=false
