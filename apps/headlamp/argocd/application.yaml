@@ -3,7 +3,6 @@ kind: Application
 metadata:
   name: headlamp
   namespace: argocd
-  finalizers: []
   labels:
     app.kubernetes.io/part-of: soyspray
     soyspray.vip/owner: platform

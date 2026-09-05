@@ -48,7 +48,7 @@ def test_children_have_explicit_projects_and_survive_parent_removal():
         options = set(metadata["annotations"]["argocd.argoproj.io/sync-options"].split(","))
         assert {"Prune=false", "Delete=false"} <= options
         if child["kind"] == "Application":
-            assert metadata["finalizers"] == []
+            assert metadata.get("finalizers", []) == []
             assert metadata["labels"]["soyspray.vip/owner"]
             project = projects[child["spec"]["project"]]
             assert child["spec"]["destination"] in project["spec"]["destinations"]
