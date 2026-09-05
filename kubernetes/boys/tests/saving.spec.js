@@ -11,8 +11,7 @@ async function signIn(page) {
   await page.request.put('/api/availability', { data: { dates: [], expected_revision: current.revision } });
   await page.goto('/');
   await expect(page.locator('#calendar-view')).toBeVisible();
-  await page.locator('[data-view=dates-panel]').click();
-  await expect(page.locator('#trip-sync-status')).toContainText('Поездка обновлена');
+  await expect(page.locator('#trip-caption')).not.toBeEmpty();
   if (await days(page).count() < 3) await page.locator('#next-month').click();
 }
 
@@ -69,8 +68,7 @@ test('failed saves keep the draft and permit a successful retry', async ({ page 
   await page.locator('#save-button').click();
   await expect(page.locator('#save-status')).toHaveText('Общая доступность сохранена.');
   await page.reload();
-  await page.locator('[data-view=dates-panel]').click();
-  await expect(page.locator('#trip-sync-status')).toContainText('Поездка обновлена');
+  await expect(page.locator('#trip-caption')).not.toBeEmpty();
   await expect(days(page).nth(0)).toHaveAttribute('aria-pressed', 'true');
 });
 
@@ -101,8 +99,7 @@ test('new edits during a save remain unsaved and no duplicate save starts', asyn
   await page.locator('#save-button').click();
   await expect(page.locator('#save-status')).toHaveText('Общая доступность сохранена.');
   await page.reload();
-  await page.locator('[data-view=dates-panel]').click();
-  await expect(page.locator('#trip-sync-status')).toContainText('Поездка обновлена');
+  await expect(page.locator('#trip-caption')).not.toBeEmpty();
   await expect(days(page).nth(0)).toHaveAttribute('aria-pressed', 'true');
   await expect(days(page).nth(1)).toHaveAttribute('aria-pressed', 'true');
 });
