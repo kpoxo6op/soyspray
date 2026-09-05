@@ -114,3 +114,11 @@ It does not prove seven days of recovery-point coverage. The command does not
 change the live workload or its data. Use the report's check ID and backup UID
 with the guarded [cleanup operation](../../playbooks/operations/recovery/README.md)
 if an interrupted check leaves scratch resources behind.
+
+`make status APP=boys FORMAT=json` and `make backup-status FORMAT=json` show
+native backup age and the private restore reports available on this operator
+machine. Reports must match the observed claim and PV UIDs. Status shows the
+last attempt separately from the last accepted restore, including its age and
+tested image. A later failure does not erase earlier evidence. Missing or
+invalid reports remain unknown with a cause. These reports do not prove seven
+days of backup coverage or an existing human browser login.

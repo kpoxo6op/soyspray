@@ -325,3 +325,30 @@ preconditions to delete the scratch namespace and storage class. It waits
 for the disposable backing volume to disappear. It retains offsite backups
 and production claims. A failed restore can also use this cleanup operation;
 retain its error evidence first.
+
+## Read private restore evidence
+
+`make backup-status FORMAT=json` reads the Application inventory, native backup
+records, and private reports under `~/.local/state/soyspray/restores/` (or
+`XDG_STATE_HOME`). `make status APP=boys FORMAT=json` uses the same observations
+for claims named by the Application's `soyspray.vip/data-claims` annotation.
+Missing mappings remain unknown; folder names do not create app inventory.
+
+A restore is accepted only when its report matches the observed PVC and PV UIDs,
+contains completed data checks and cleanup, and confirms that original resources
+were unchanged. Status shows the last attempt separately from the last accepted
+restore, with its age and tested image. A later failed or interrupted attempt
+remains visible. Invalid or unreadable reports make the latest attempt uncertain.
+Only selected metadata is printed; private data and raw error text are omitted.
+
+This is historical evidence for that image and storage identity. It does not
+prove a human login, current runtime behavior, or seven days of RPO coverage.
+Reports stay on the operator machine and are not uploaded into the cluster.
+Keep the off-cluster recovery keys separately.
+
+For offline checks, `scripts.app_status` accepts `--input` for Applications and
+`--backup-input` for saved native backup observations. `scripts.backup_status`
+accepts an observation bundle through `--input`. Offline checks make no cluster
+requests and do not scan private reports unless `--restore-dir` is supplied.
+Saved observations establish the recorded storage identities, not the current
+cluster binding. Use live commands to check current bindings.

@@ -31,8 +31,10 @@ not refresh Argo or probe the runtime. A previous successful sync does not prove
 that a later partial deployment completed.
 
 Missing fields appear as `unknown` with a cause. Access URLs and declared backup
-policies are not proof of a successful user journey or recovery. Backup age and
-restore evidence remain unknown until their observation sources are connected.
+policies are not proof of a successful user journey or recovery. For mapped
+claims, status reads native Longhorn backup age and private restore reports.
+The `soyspray.vip/data-claims` annotation lists explicit `namespace/claim` names,
+separated by commas when needed. No second app inventory is maintained.
 Use [backup status](../playbooks/operations/recovery/README.md#read-backup-status)
 for native Longhorn and CNPG observations while per-app recovery mapping is added.
 An API failure returns an unknown inventory and a nonzero exit code, not an empty
