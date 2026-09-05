@@ -69,16 +69,12 @@
         namespace: longhorn-system
         name: "{{ item.resources[0].metadata.name }}"
         kubeconfig: "{{ kubeconfig_path }}"
-        patch:
-          - op: test
-            path: /metadata/uid
-            value: "{{ item.resources[0].metadata.uid }}"
-          - op: test
-            path: /spec
-            value: "{{ item.resources[0].spec }}"
-          - op: replace
-            path: /spec/numberOfReplicas
-            value: "{{ monitoring_replicas | int }}"
+        patch: >-
+          {{ [
+            {'op': 'test', 'path': '/metadata/uid', 'value': item.resources[0].metadata.uid},
+            {'op': 'test', 'path': '/spec', 'value': item.resources[0].spec},
+            {'op': 'replace', 'path': '/spec/numberOfReplicas', 'value': monitoring_replicas | int}
+          ] }}
       loop: "{{ monitoring_volumes.results }}"
       loop_control:
         label: "{{ item.item.item }}"
