@@ -1,8 +1,12 @@
 # Vaultwarden
 
 Open <https://vault.soyspray.vip> from the LAN or Tailscale. Keep the human vault
-and restricted agent account separate. The [vault guide](../../kubernetes/vaultwarden/README.md)
-explains normal use, client setup, and the existing Hays helper.
+and restricted agent account separate. Sign in with your human email and master password. Registration is closed.
+Official Bitwarden clients use **Self-hosted** with this server URL; see the
+[client setup guide](https://bitwarden.com/help/change-client-environment/).
+Keep the human master password outside Kubernetes. Use the
+[master-password guide](https://bitwarden.com/help/master-password/) when changing it;
+a volume restore cannot recover a forgotten master password.
 
 The native root owns the existing Application and AppProject. It preserves the
 namespace, `vaultwarden-data` claim, `/data` directory, server keys, host, and pinned
@@ -44,3 +48,34 @@ to check SQLite integrity, encrypted records and attachments, and restricted-rec
 decryption. Human unlock and seven-day recovery-point proof remain separate checks.
 `make restore-check APP=vaultwarden` remains unknown until that procedure has a
 maintained app command. Upgrade the testing image in a separate reviewed change.
+
+## Restricted reader
+
+The `automation@vault.soyspray.vip` account can view the existing shared item in
+`Hays timesheets`. It cannot edit or manage the collection. The app-local
+`agent_secret.py` keeps this one-item limit. The installed `agent-secret` command
+and `scripts/agent-secret` still use the same command path and private CLI state.
+
+With `bw`, `kubectl`, and cluster access, check the restricted record silently:
+
+```sh
+agent-secret read hays-online-timesheets >/dev/null
+```
+
+Without redirection, this command prints the username and password as plaintext
+JSON. Keep that output out of logs, GitHub, and shell arguments. A process with
+the same cluster access can read the agent password; this does not grant the
+human master password.
+
+For the existing Hays workflow, run `scripts/hays-open-submitted-timesheet`. It
+opens the latest submitted timesheet in its dedicated Chrome profile and leaves
+the page visible. It does not submit or change a timesheet.
+
+If recovery requires a new agent enrollment, create or restore the `Soyspray`
+organization and `Hays timesheets` collection from the human account. Temporarily
+allow invitations through a reviewed manifest change, while keeping sign-ups
+closed. Invite only the restricted identity with **View items** and password
+viewing. Complete registration with its private runtime input, compare member
+fingerprints, and confirm membership from the human account. Share only
+`hays-online-timesheets`, close invitations, and run the silent check above.
+Restore an existing identity from backup before considering new enrollment.
