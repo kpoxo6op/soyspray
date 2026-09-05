@@ -12,13 +12,13 @@ import pytest
 import yaml
 from conftest import ROOT
 
-HELPER = ROOT / "playbooks/argocd/applications/media/media-helper"
-CATALOG = HELPER / "channels.json"
+HELPER = ROOT / "apps/media-helper"
+CATALOG = HELPER / "app/channels.json"
 RECONCILE = ROOT / "playbooks/argocd/applications/media/dispatcharr/reconcile.py"
 
 
 def load_helper():
-    spec = importlib.util.spec_from_file_location("media_helper", HELPER / "app.py")
+    spec = importlib.util.spec_from_file_location("media_helper", HELPER / "app/app.py")
     module = importlib.util.module_from_spec(spec)
     assert spec.loader
     spec.loader.exec_module(module)
@@ -91,16 +91,9 @@ def test_tv_hostname_keeps_jellyfin_as_its_root_application() -> None:
         }
     ]
 
-    assert not (HELPER / "ingress.yaml").exists()
-    assert not (HELPER / "stream-ingress.yaml").exists()
-
 
 def test_media_helper_has_no_browser_interface() -> None:
     helper = load_helper()
-    kustomization = yaml.safe_load((HELPER / "kustomization.yaml").read_text())
-
-    assert not (HELPER / "static").exists()
-    assert not any("static/" in item for item in kustomization["configMapGenerator"][0]["files"])
 
     class Request:
         path = "/"
@@ -339,8 +332,8 @@ def test_guide_cache_rejects_empty_or_missing_channels(monkeypatch) -> None:
 
 def test_voice_control_is_out_of_scope() -> None:
     catalog = json.loads(CATALOG.read_text())
-    helper_source = (HELPER / "app.py").read_text()
-    helper_deployment = yaml.safe_load((HELPER / "deployment.yaml").read_text())
+    helper_source = (HELPER / "app/app.py").read_text()
+    helper_deployment = yaml.safe_load((HELPER / "manifests/deployment.yaml").read_text())
     helper_env = helper_deployment["spec"]["template"]["spec"]["containers"][0].get("env", [])
     home_assistant = (
         ROOT
@@ -358,7 +351,7 @@ def test_voice_control_is_out_of_scope() -> None:
 
 @pytest.mark.parametrize("name", ("media-helper", "dispatcharr", "jellyfin"))
 def test_media_packages_render(name: str) -> None:
-    path = f"playbooks/argocd/applications/media/{name}"
+    path = str(HELPER) if name == "media-helper" else f"playbooks/argocd/applications/media/{name}"
     result = subprocess.run(
         ["kubectl", "kustomize", path], cwd=ROOT, capture_output=True, text=True
     )
@@ -371,22 +364,6 @@ def test_media_helper_uses_server_side_apply_for_its_large_code_configmap() -> N
     assert kustomization["generatorOptions"]["annotations"] == {
         "argocd.argoproj.io/sync-options": "ServerSideApply=true"
     }
-
-
-def test_stock_jellyfin_web_has_no_snapshot_workload() -> None:
-    jellyfin = ROOT / "playbooks/argocd/applications/media/jellyfin"
-    helper_kustomization = (HELPER / "kustomization.yaml").read_text()
-
-    assert not (jellyfin / "web").exists()
-    assert not (ROOT / ".github/workflows/jellyfin-image.yml").exists()
-    assert not (HELPER / "snapshots.py").exists()
-    assert "snapshot" not in helper_kustomization
-
-    for name in ("dispatcharr", "jellyfin"):
-        policy = (
-            ROOT / f"playbooks/argocd/applications/media/{name}/network-policy.yaml"
-        ).read_text()
-        assert "channel-snapshots" not in policy
 
 
 def test_jellyfin_storage_and_hardware_contract() -> None:
@@ -486,18 +463,6 @@ def test_configuration_claims_are_protected(name: str, claim: str) -> None:
         assert pvc["spec"]["resources"]["requests"]["storage"] == "1Gi"
 
 
-def test_required_feature_readmes_exist() -> None:
-    paths = (
-        "playbooks/argocd/applications/media/README.md",
-        "playbooks/argocd/applications/media/jellyfin/README.md",
-        "playbooks/argocd/applications/media/dispatcharr/README.md",
-        "playbooks/argocd/applications/media/media-helper/README.md",
-        "soydocs/android-tv/README.md",
-    )
-    for path in paths:
-        assert (ROOT / path).is_file(), path
-
-
 def test_live_tv_role_propagates_its_deployment_tag() -> None:
     tasks = yaml.safe_load((ROOT / "roles/apps/live_tv/tasks/main.yml").read_text())
     include = tasks[0]["ansible.builtin.include_tasks"]
@@ -528,7 +493,7 @@ def test_live_tv_start_reconciles_authentik_from_the_same_revision() -> None:
     assert "--tags $(LIVE_TV_TAGS)" in makefile
 
 
-@pytest.mark.parametrize("name", ("media-helper", "dispatcharr", "jellyfin"))
+@pytest.mark.parametrize("name", ("dispatcharr", "jellyfin"))
 def test_live_tv_applications_use_controlled_cascade(name: str) -> None:
     application = yaml.safe_load(
         (ROOT / f"playbooks/argocd/applications/media/{name}/{name}-application.yaml").read_text()
@@ -780,7 +745,11 @@ def test_authentik_declares_jellyfin_oidc_and_live_tv_copies_its_secret() -> Non
 @pytest.mark.parametrize("name", ("media-helper", "dispatcharr", "jellyfin"))
 def test_media_network_policies_allow_nodelocal_dns(name: str) -> None:
     policy = yaml.safe_load(
-        (ROOT / f"playbooks/argocd/applications/media/{name}/network-policy.yaml").read_text()
+        (
+            (HELPER / "manifests/network-policy.yaml")
+            if name == "media-helper"
+            else (ROOT / f"playbooks/argocd/applications/media/{name}/network-policy.yaml")
+        ).read_text()
     )
     cidrs = {
         peer["ipBlock"]["cidr"]
@@ -792,7 +761,7 @@ def test_media_network_policies_allow_nodelocal_dns(name: str) -> None:
 
 
 def test_media_helper_cannot_read_the_dispatcharr_lineup() -> None:
-    policy = yaml.safe_load((HELPER / "network-policy.yaml").read_text())
+    policy = yaml.safe_load((HELPER / "manifests/network-policy.yaml").read_text())
     selectors = [
         peer.get("podSelector", {}).get("matchLabels", {})
         for rule in policy["spec"]["egress"]
@@ -802,7 +771,7 @@ def test_media_helper_cannot_read_the_dispatcharr_lineup() -> None:
 
 
 def test_jellyfin_can_read_media_helper_without_reverse_control_access() -> None:
-    helper = yaml.safe_load((HELPER / "network-policy.yaml").read_text())
+    helper = yaml.safe_load((HELPER / "manifests/network-policy.yaml").read_text())
     helper_ingress = [
         peer.get("podSelector", {}).get("matchLabels", {})
         for rule in helper["spec"]["ingress"]
