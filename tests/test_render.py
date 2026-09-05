@@ -8,7 +8,7 @@ from conftest import ROOT
 
 PACKAGES = (
     "apps/autism-traits/manifests",
-    "kubernetes/boys",
+    "apps/boys/manifests",
 )
 
 
@@ -29,7 +29,7 @@ def test_kustomize_package_renders(path: str) -> None:
     "path",
     (
         "apps/autism-traits/manifests",
-        "kubernetes/boys",
+        "apps/boys/manifests",
     ),
 )
 def test_application_workloads_use_the_restricted_baseline(path: str) -> None:
@@ -61,7 +61,7 @@ def test_application_workloads_use_the_restricted_baseline(path: str) -> None:
 def test_application_namespaces_enforce_restricted_pod_security() -> None:
     paths = (
         "apps/autism-traits/manifests",
-        "kubernetes/boys",
+        "apps/boys/manifests",
     )
     namespaces = {}
     for path in paths:
