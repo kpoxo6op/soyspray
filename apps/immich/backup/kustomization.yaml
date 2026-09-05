@@ -1,4 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# The first image promotion adds its digest before any Job is registered.
 resources: []
+images:
+- name: immich-backup-scripts
+  newName: ghcr.io/kpoxo6op/immich-backup-scripts
+  digest: sha256:eff7b44e898c549ef66d95984c22e6592ee2c10199438aa4de2bc8521bded191
