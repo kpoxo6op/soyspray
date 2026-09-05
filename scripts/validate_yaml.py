@@ -11,6 +11,8 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 YAML_ROOTS = [
     ".github",
+    "apps",
+    "argocd",
     "kubernetes",
     "platform",
     "tests",
