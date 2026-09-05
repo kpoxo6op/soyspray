@@ -5,8 +5,9 @@ import os
 import stat
 import subprocess
 import sys
+from pathlib import Path
 
-from conftest import ROOT
+ROOT = Path(__file__).resolve().parents[3]
 
 AGENT_SECRET = ROOT / "scripts/agent-secret"
 
@@ -78,7 +79,7 @@ elif command == "get":
     results = [
         subprocess.run(
             [sys.executable, AGENT_SECRET, "read", "hays-online-timesheets"],
-            cwd=ROOT,
+            cwd=tmp_path,
             env=environment,
             check=True,
             capture_output=True,

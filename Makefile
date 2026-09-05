@@ -16,7 +16,7 @@ EXTERNAL_DNS_REVISION ?= HEAD
 DOMAIN_HEALTH_REVISION ?= HEAD
 VOICE_ASSISTANT_REVISION ?= HEAD
 VOICE_ASSISTANT_ENABLED ?= true
-VAULTWARDEN_PACKAGE := kubernetes/vaultwarden
+VAULTWARDEN_PACKAGE := apps/vaultwarden/manifests
 VAULTWARDEN_ENABLED ?= true
 VAULTWARDEN_REVISION ?= HEAD
 FORMAT ?= text
@@ -105,11 +105,10 @@ autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
-	$(PYTHON) -m ruff format --check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
+	$(PYTHON) -m ruff check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/vaultwarden/agent_secret.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
+	$(PYTHON) -m ruff format --check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/vaultwarden/agent_secret.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml \
-		roles/apps/vaultwarden/tasks/*.yml roles/apps/vaultwarden/defaults/*.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml \

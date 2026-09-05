@@ -5,12 +5,12 @@ REVISION ?= HEAD
 .PHONY: check diff deploy
 
 check:
-	$(PYTHON) -m pytest -q apps/vaultwarden/tests tests/test_vaultwarden_deployment.py tests/test_agent_secret.py
+	$(PYTHON) -m pytest -q apps/vaultwarden/tests
 	$(PYTHON) -m ansiblelint apps/vaultwarden/*.yml
 	kubectl kustomize apps/vaultwarden/argocd >/dev/null
 
 diff:
-	$(PYTHON) -m scripts.app_diff --app vaultwarden --package kubernetes/vaultwarden
+	$(PYTHON) -m scripts.app_diff --app vaultwarden --package apps/vaultwarden/manifests
 
 deploy:
 	$(MAKE) --no-print-directory -f Makefile APP= vaultwarden VAULTWARDEN_ENABLED=true VAULTWARDEN_REVISION=$(REVISION)

@@ -47,7 +47,7 @@
   kubernetes.core.k8s:
     state: present
     kubeconfig: "{{ kubeconfig_path }}"
-    definition: "{{ lookup('file', playbook_dir + '/../../kubernetes/vaultwarden/namespace.yaml') | from_yaml }}"
+    definition: "{{ lookup('file', playbook_dir + '/manifests/namespace.yaml') | from_yaml }}"
   when: vaultwarden_existing_agent.resources | length == 0
 
 - name: Restore only a missing restricted agent Secret
