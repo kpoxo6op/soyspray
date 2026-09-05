@@ -23,6 +23,7 @@ def test_boys_changes_select_its_browser_checks(path):
         "autism": False,
         "immich": False,
         "domain_health": False,
+        "media_helper": False,
     }
 
 
@@ -32,12 +33,14 @@ def test_shared_only_change_keeps_application_checks_optional():
         "autism": False,
         "immich": False,
         "domain_health": False,
+        "media_helper": False,
     }
     assert ci_scope.select(["apps/autism-traits/app/src/App.tsx"]) == {
         "boys": False,
         "autism": True,
         "immich": False,
         "domain_health": False,
+        "media_helper": False,
     }
 
 
@@ -114,6 +117,7 @@ def test_deleted_and_renamed_paths_are_both_checked(tmp_path, monkeypatch):
         "autism": True,
         "immich": False,
         "domain_health": False,
+        "media_helper": False,
     }
 
 
@@ -128,6 +132,7 @@ def test_deleted_and_renamed_paths_are_both_checked(tmp_path, monkeypatch):
         "missing-output",
         "cancelled",
         "domain-image-failed",
+        "media-image-failed",
     ],
 )
 def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
@@ -139,6 +144,7 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
                 "autism": "false",
                 "immich": "false",
                 "domain_health": "false",
+                "media_helper": "false",
             },
         },
         "shared": {"result": "success"},
@@ -146,6 +152,7 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
         "autism": {"result": "skipped"},
         "immich": {"result": "skipped"},
         "domain_health": {"result": "skipped"},
+        "media_helper": {"result": "skipped"},
     }
     if failure in {"shared", "scope"}:
         jobs[failure]["result"] = "failure"
@@ -160,6 +167,9 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
     elif failure == "domain-image-failed":
         jobs["scope"]["outputs"]["domain_health"] = "true"
         jobs["domain_health"]["result"] = "failure"
+    elif failure == "media-image-failed":
+        jobs["scope"]["outputs"]["media_helper"] = "true"
+        jobs["media_helper"]["result"] = "failure"
     workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
     gate = workflow["jobs"]["check"]["steps"][0]["run"]
     run = subprocess.run(
@@ -177,6 +187,7 @@ def test_immich_recovery_changes_select_native_image_checks():
         "autism": False,
         "immich": True,
         "domain_health": False,
+        "media_helper": False,
     }
 
 
@@ -186,4 +197,19 @@ def test_domain_health_changes_select_the_native_image_checks():
         "autism": False,
         "immich": False,
         "domain_health": True,
+        "media_helper": False,
     }
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "apps/media-helper/app/app.py",
+        "apps/media-helper/app/channels.json",
+        "tests/test_live_tv.py",
+    ],
+)
+def test_helper_source_catalog_and_consumer_checks_select_its_image(path):
+    selected = ci_scope.select([path])
+    assert selected.pop("media_helper") is True
+    assert not any(selected.values())

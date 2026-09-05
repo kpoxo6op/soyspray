@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 
 APP_PATHS = {
+    "media_helper": ("apps/media-helper/", "tests/test_live_tv.py"),
     "domain_health": ("apps/domain-health/",),
     "immich": (
         "apps/immich/",

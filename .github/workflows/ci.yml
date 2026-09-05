@@ -19,6 +19,7 @@ jobs:
     outputs:
       immich: ${{ steps.scope.outputs.immich }}
       domain_health: ${{ steps.scope.outputs.domain_health }}
+      media_helper: ${{ steps.scope.outputs.media_helper }}
       boys: ${{ steps.scope.outputs.boys }}
       autism: ${{ steps.scope.outputs.autism }}
     steps:
@@ -131,8 +132,19 @@ jobs:
     with:
       publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
+  media_helper:
+    needs: scope
+    if: needs.scope.outputs.media_helper == 'true'
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    uses: ./.github/workflows/media-helper-image.yml
+    with:
+      publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
   check:
-    needs: [scope, shared, autism, boys, immich, domain_health]
+    needs: [scope, shared, autism, boys, immich, domain_health, media_helper]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -145,7 +157,7 @@ jobs:
           jobs = json.loads(os.environ['RESULTS'])
           for job in ('scope', 'shared'):
               assert jobs[job]['result'] == 'success', f'{job} did not pass'
-          for app in ('autism', 'boys', 'immich', 'domain_health'):
+          for app in ('autism', 'boys', 'immich', 'domain_health', 'media_helper'):
               selected = jobs['scope']['outputs'].get(app)
               assert selected in ('true', 'false'), f'{app} scope is missing'
               expected = 'success' if selected == 'true' else 'skipped'
