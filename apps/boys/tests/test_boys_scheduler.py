@@ -13,10 +13,11 @@ from pathlib import Path
 
 import pytest
 import yaml
-from conftest import ROOT
 
-PACKAGE = ROOT / "kubernetes/boys"
-APP = PACKAGE / "app"
+ROOT = Path(__file__).resolve().parents[3]
+
+PACKAGE = ROOT / "apps/boys/manifests"
+APP = ROOT / "apps/boys/app"
 APPLICATION = ROOT / "apps/boys/argocd/application.yaml"
 PROJECT = ROOT / "apps/boys/argocd/project.yaml"
 CREW = [
