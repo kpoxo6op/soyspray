@@ -29,11 +29,27 @@ Authentik waits for the reflected wildcard Secret in its own namespace. Its
 role does not submit this Application, retarget it to an Authentik branch, or
 apply the Certificate. Deploy certificate configuration before Authentik setup.
 
-The remaining Ansible role keeps Cloudflare-token and shared public Bitnami OCI
-repository bootstrap during migration. It no longer submits this Application.
-Keep those inputs and registrations until their native bootstrap replacement is
-verified. Existing Cloudflare, ACME, and TLS keys must remain unchanged during
-adoption. Do not rotate keys or force certificate renewal as a migration test.
+`bootstrap.yml` preserves the existing `cert-manager/cloudflare-api-token` Secret.
+To restore a missing Secret, supply `cert_manager_cloudflare_api_token` in an
+Ansible Vault variables file. Keep its password and encrypted input outside the
+cluster and public Git. The foundation namespace must already exist. An empty
+input or a token that differs from an existing Secret stops the operation.
+The create-only request also refuses a competing Secret creation.
+
+```sh
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu apps/cert-manager-config/bootstrap.yml \
+  --vault-password-file ~/.config/soyspray/recovery/vault-password \
+  -e @"$HOME/.config/soyspray/recovery/cert-manager-config.vault.yml" --check
+```
+
+After a pushed-commit `make go`, remove `--check` to restore the missing input.
+The standard deployment runs this bootstrap before the native root. The general
+Ansible deployment uses the same tasks for `--tags cert-manager`. Existing ACME
+and TLS keys remain unchanged. Do not rotate keys or force renewal as a test.
+Argo bootstrap owns the existing public Bitnami OCI repository registration.
+The unused old role remains only until these replacements are verified live.
 
 Verify both issuers and certificates are Ready, their revisions and expiry dates
 are unchanged, reflector and foundation pods keep their identities, and retained

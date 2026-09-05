@@ -2,8 +2,8 @@
 
 The `soyspray` Application is the native Argo root. Its Kustomization lists each
 child package explicitly. Each package contains an Application and AppProject.
-Headlamp, the autism traits site, Boys, and ExternalDNS use the native root. Other apps keep
-the existing Ansible path until their individual migrations pass.
+Run `make apps` for the current inventory and ownership. Other apps keep the
+existing Ansible path until their individual migrations pass.
 
 The root manages only Applications and AppProjects in `argocd`. Child projects
 limit workload sources, namespaces, and resource kinds. Changes here require
@@ -22,6 +22,11 @@ Run the same command with `-e argocd_revision=HEAD` after merge. Check the root 
 each affected child with `kubectl -n argocd get applications`. Confirm the intended
 revision, resource identities, and the app's user journey. Root health alone does
 not prove child access or recovery.
+
+Bootstrap also registers the existing public Bitnami OCI chart repository from
+`bootstrap/bitnami-oci.yaml`. It contains no credentials and keeps its existing
+Secret name, repository URL, and chart behavior. The general Ansible deployment
+uses the same task through `--tags bitnami-oci`.
 
 Root pruning and cascading deletion are disabled. Child Applications and
 AppProjects also carry `Prune=false,Delete=false`. Removing an entry from the list
