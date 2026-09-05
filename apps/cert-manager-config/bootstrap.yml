@@ -1,0 +1,10 @@
+---
+- name: Bootstrap the certificate provider identity
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Prepare the certificate provider input
+      ansible.builtin.import_tasks: bootstrap-tasks.yml

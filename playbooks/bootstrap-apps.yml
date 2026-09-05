@@ -43,6 +43,9 @@
         that: argocd_namespace.resources | length == 1
         fail_msg: Bootstrap Argo through the foundation procedure first.
 
+    - name: Prepare public chart repositories
+      ansible.builtin.import_tasks: ../argocd/bootstrap/repositories.yml
+
     - name: Apply the root project
       kubernetes.core.k8s:
         state: present

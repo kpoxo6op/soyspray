@@ -17,7 +17,6 @@
 
       # Infrastructure
       - { name: Longhorn, role: apps/longhorn }
-      - { name: Cert Manager, role: apps/cert-manager }
 
       # Database
       - { name: CNPG Operator, role: apps/cnpg-operator }
@@ -41,6 +40,15 @@
       - { name: Zigbee2MQTT, role: apps/zigbee2mqtt }
       - { name: Home Assistant, role: apps/homeassistant }
       - { name: Home Assistant Voice, role: apps/voice-assistant }
+  pre_tasks:
+    - name: Prepare the certificate provider identity
+      ansible.builtin.import_tasks: ../apps/cert-manager-config/bootstrap-tasks.yml
+      tags: cert-manager
+
+    - name: Prepare public chart repositories
+      ansible.builtin.import_tasks: ../argocd/bootstrap/repositories.yml
+      tags: [cert-manager, bitnami-oci]
+
   tasks:
     - name: "Include {{ item.name }}"
       ansible.builtin.include_role:

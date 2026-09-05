@@ -115,7 +115,7 @@ lint: ## Check Python style and common defects
 	$(PYTHON) -m ruff check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
 	$(PYTHON) -m ruff format --check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml apps/obsidian-livesync/*.yml roles/apps/cert-manager/tasks/main.yml roles/apps/authentik/tasks/certificate.yml \
+		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml apps/obsidian-livesync/*.yml apps/cert-manager-config/*.yml argocd/bootstrap/repositories.yml roles/apps/cert-manager/tasks/main.yml roles/apps/authentik/tasks/certificate.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml \
@@ -185,6 +185,7 @@ media-helper: go ## Reconcile the media helper through the native Argo root
 		-e argocd_preview_application=$(if $(filter HEAD,$(MEDIA_HELPER_REVISION)),,media-helper)
 
 cert-manager-config: go ## Reconcile the certificate configuration through the native Argo root
+	$(ANSIBLE) apps/cert-manager-config/bootstrap.yml
 	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(CERT_MANAGER_CONFIG_REVISION) \
 		-e argocd_preview_application=$(if $(filter HEAD,$(CERT_MANAGER_CONFIG_REVISION)),,cert-manager-config)
 

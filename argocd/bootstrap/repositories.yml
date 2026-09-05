@@ -1,0 +1,6 @@
+---
+- name: Register the existing public Bitnami OCI repository
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: '{{ kubeconfig_path }}'
+    definition: "{{ lookup('file', playbook_dir + '/../argocd/bootstrap/bitnami-oci.yaml') | from_yaml }}"
