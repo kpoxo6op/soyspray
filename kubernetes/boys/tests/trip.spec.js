@@ -40,6 +40,8 @@ test.beforeEach(async ({ page }) => {
   const claimed = crew.crew.find((item) => item.name === 'Boris K').claimed;
   const auth = await page.request.post(claimed ? '/api/session' : '/api/claim', { data: { name: 'Boris K', pin: '2468', ...(claimed ? {} : { seed_pin: '1357' }) } });
   expect(auth.status()).toBe(200);
+  const dates = await (await page.request.get('/api/availability')).json();
+  expect((await page.request.put('/api/availability', { data: { dates: [], expected_revision: dates.revision } })).status()).toBe(200);
   await update(page, (document) => Object.assign(document, board()));
   const current = await read(page);
   const mine = current.responses.find((item) => item.name_key === 'boris k');
@@ -77,7 +79,7 @@ test('range selection preserves old dates and gives keyboard day details', async
   await expect(page.locator(`[data-date="${day(62)}"]`)).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#day-details')).toContainText('Boris K');
   await page.locator('#save-button').click();
-  await expect(page.locator('#save-button')).toBeDisabled();
+  await expect(page.locator('#save-status')).toHaveText('Общая доступность сохранена.');
   const fresh = await (await page.request.get('/api/availability')).json();
   expect(fresh.participants.find((person) => person.name === 'Boris K').dates).toEqual(expect.arrayContaining([...history, day(61), day(62), day(63)]));
   await page.locator('#range-start').fill(day(62)); await page.locator('#range-end').fill(day(62));

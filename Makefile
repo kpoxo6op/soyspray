@@ -55,6 +55,7 @@ help: ## Show the operator commands
 setup: ## Create the venv and install local tooling
 	test -d $(VENV) || python3 -m venv $(VENV)
 	$(VENV)/bin/python -m pip install -r requirements-dev.txt
+	$(VENV)/bin/ansible-galaxy collection install -r requirements-ansible.yml
 	cd $(AUTISM_TRAITS_APP) && npm ci
 	cd kubernetes/boys && npm ci && npx playwright install chromium
 
@@ -79,7 +80,8 @@ lint: ## Check Python style and common defects
 		roles/apps/vaultwarden/tasks/*.yml roles/apps/vaultwarden/defaults/*.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml
+		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml \
+		playbooks/operations/boys/*.yml
 
 validate: validate-skills status-page-check ## Validate YAML and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py

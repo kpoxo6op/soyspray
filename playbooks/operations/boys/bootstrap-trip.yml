@@ -1,0 +1,116 @@
+---
+- name: Bootstrap the private Boys trip input
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Require an encrypted input outside the repository
+      ansible.builtin.assert:
+        that:
+          - boys_trip_vault_file is defined
+          - boys_trip_vault_file is match('^/')
+          - not (boys_trip_vault_file | realpath).startswith(((playbook_dir ~ '/../../..') | realpath) ~ '/')
+        fail_msg: Supply an off-cluster Ansible Vault file with boys_trip_seed.
+      no_log: true
+
+    - name: Read the raw encrypted file on the operator machine
+      ansible.builtin.slurp:
+        src: "{{ boys_trip_vault_file }}"
+      delegate_to: localhost
+      become: false
+      register: boys_trip_encrypted
+      no_log: true
+
+    - name: Require Ansible Vault encryption before loading input
+      ansible.builtin.assert:
+        that:
+          - (boys_trip_encrypted.content | b64decode).startswith('$ANSIBLE_VAULT;')
+      no_log: true
+
+    - name: Load the encrypted runtime input
+      ansible.builtin.include_vars:
+        file: "{{ boys_trip_vault_file }}"
+        name: boys_trip_input
+      no_log: true
+
+    - name: Validate the seed with the application schema
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - -c
+          - |
+            import json, sys
+            sys.path.insert(0, sys.argv[1])
+            from trips import board, fields, identifier
+            raw = sys.stdin.buffer.read()
+            if len(raw) > 65536:
+                raise ValueError('Trip input is too large')
+            seed = json.loads(raw)
+            fields(seed, ('id', 'document'))
+            identifier(seed['id'])
+            board(seed['document'])
+          - "{{ playbook_dir }}/../../../kubernetes/boys/app"
+        stdin: "{{ boys_trip_input.boys_trip_seed | to_json }}"
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      check_mode: false
+      no_log: true
+
+    - name: Read the existing Boys data claim
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: boys
+        name: boys-data
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: boys_trip_claim
+
+    - name: Require the existing bound data claim
+      ansible.builtin.assert:
+        that:
+          - boys_trip_claim.resources | length == 1
+          - boys_trip_claim.resources[0].status.phase == 'Bound'
+
+    - name: Read an existing seed without exposing its content
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: boys
+        name: boys-trip-seed
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: boys_trip_existing
+      no_log: true
+
+    - name: Refuse to replace an existing seed with different content
+      ansible.builtin.assert:
+        that:
+          - >-
+            boys_trip_existing.resources | length == 0 or
+            (boys_trip_existing.resources[0].data['seed.json'] | b64decode | from_json)
+            == boys_trip_input.boys_trip_seed
+        fail_msg: The existing seed differs. Edit the trip through its authenticated interface.
+      no_log: true
+
+    - name: Keep the initial trip in one protected immutable Secret
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: boys-trip-seed
+            namespace: boys
+            labels:
+              app.kubernetes.io/name: boys
+              app.kubernetes.io/managed-by: ansible
+            annotations:
+              argocd.argoproj.io/sync-options: Prune=false,Delete=false
+          type: Opaque
+          immutable: true
+          data:
+            seed.json: "{{ boys_trip_input.boys_trip_seed | to_json | b64encode }}"
+      no_log: true
