@@ -11,6 +11,7 @@ metadata:
     soyspray.vip/access-url: https://boys.soyspray.vip
     soyspray.vip/access-method: Crew claim PIN, then personal PIN; Cloudflare Tunnel,
       LAN, and Tailscale
+    soyspray.vip/data-claims: boys/boys-data
     soyspray.vip/data: boys/boys-data; /data/boys.sqlite3; original runtime signing
       key
     soyspray.vip/backup: 'Longhorn critical: every 30 minutes, 48 recent and 30 daily;
