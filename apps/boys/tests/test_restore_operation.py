@@ -275,3 +275,63 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
     )
     assert not list(reports[0].parent.glob("working-*"))
     assert "synthetic-identity-with-no-live-access" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "messages,accepted",
+    [
+        (None, True),
+        ({}, True),
+        ({"Error": ""}, True),
+        ({"Error": "failed"}, False),
+        ({"error": "failed"}, False),
+    ],
+)
+def test_native_restore_accepts_empty_longhorn_messages_and_rejects_errors(messages, accepted):
+    play = yaml.safe_load((ROOT / "playbooks/operations/recovery/restore-volume.yml").read_text())[
+        0
+    ]
+    guard = next(
+        condition
+        for task in play["tasks"]
+        for condition in task.get("ansible.builtin.assert", {}).get("that", [])
+        if "status.messages" in condition
+    )
+    variables = {"recovery_backup": {"resources": [{"status": {"messages": messages}}]}}
+    loader = DataLoader()
+    condition = Conditional(loader=loader)
+    condition.when = [guard]
+    assert (
+        condition.evaluate_conditional(Templar(loader=loader, variables=variables), variables)
+        is accepted
+    )
+
+
+@pytest.mark.parametrize(
+    "field,value,accepted",
+    [
+        ("progress", 100, True),
+        ("progress", 99, False),
+        ("error", None, True),
+        ("error", "", True),
+        ("error", "failed", False),
+    ],
+)
+def test_native_completion_and_error_guards_follow_longhorn_values(field, value, accepted):
+    play = yaml.safe_load((ROOT / "playbooks/operations/recovery/restore-volume.yml").read_text())[
+        0
+    ]
+    guard = next(
+        condition
+        for task in play["tasks"]
+        for condition in task.get("ansible.builtin.assert", {}).get("that", [])
+        if f"status.{field}" in condition
+    )
+    variables = {"recovery_backup": {"resources": [{"status": {field: value}}]}}
+    loader = DataLoader()
+    condition = Conditional(loader=loader)
+    condition.when = [guard]
+    assert (
+        condition.evaluate_conditional(Templar(loader=loader, variables=variables), variables)
+        is accepted
+    )
