@@ -96,10 +96,10 @@ autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/immich scripts tests
-	$(PYTHON) -m ruff format --check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/immich scripts tests
+	$(PYTHON) -m ruff check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/tests apps/immich scripts tests
+	$(PYTHON) -m ruff format --check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/tests apps/immich scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		apps/autism-traits/bootstrap.yml \
+		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml \
 		roles/apps/boys/tasks/*.yml roles/apps/boys/defaults/*.yml \
 		roles/apps/vaultwarden/tasks/*.yml roles/apps/vaultwarden/defaults/*.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
@@ -125,7 +125,7 @@ status-page-check:
 	$(PYTHON) scripts/configure_status_page.py --check
 
 test: ## Run the focused test suite
-	$(PYTEST) -q tests apps/autism-traits/tests kubernetes/boys/tests
+	$(PYTEST) -q tests apps/autism-traits/tests apps/boys/tests kubernetes/boys/tests
 
 render: ## Render all managed Kustomize packages
 	for path in $(KUSTOMIZATIONS); do \
