@@ -46,7 +46,7 @@ KUSTOMIZATIONS := \
 	playbooks/argocd/applications/media/dispatcharr \
 	playbooks/argocd/applications/media/jellyfin
 
-.PHONY: help setup act check full-check app-command diff deploy boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
+.PHONY: help setup act check full-check app-command diff deploy restore-check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
 	test render go autism-traits boys vaultwarden live-tv voice-assistant voice-pe-render \
 	voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
 	apps status backup-status list-apps node0 node1 node2 master worker1 worker2 worker3 clean
@@ -89,6 +89,9 @@ diff: ## Compare APP's local deployment with the live resources
 deploy: ## Run APP's standard Ansible path (REVISION=HEAD by default)
 	$(MAKE) --no-print-directory app-command COMMAND=deploy
 
+restore-check: ## Restore APP in isolation and check its data through the standard Ansible path
+	$(MAKE) --no-print-directory app-command COMMAND=restore-check
+
 boys-check: ## Check Boys dates, trip behavior, and phone and desktop browsers
 	cd kubernetes/boys && npm test
 
@@ -106,7 +109,8 @@ lint: ## Check Python style and common defects
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml \
 		playbooks/operations/boys/*.yml
-	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint playbooks/bootstrap-apps.yml
+	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint playbooks/bootstrap-apps.yml \
+		playbooks/operations/recovery/restore-volume.yml playbooks/operations/recovery/cleanup-restore.yml
 
 validate: validate-skills status-page-check prometheus-check ## Validate YAML and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py
