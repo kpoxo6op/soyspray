@@ -1,0 +1,78 @@
+apiVersion: crd.projectcalico.org/v1
+kind: GlobalNetworkPolicy
+metadata:
+  name: autism-traits-cloudflared-host-boundary
+  labels:
+    app.kubernetes.io/name: autism-traits-cloudflared
+    app.kubernetes.io/part-of: autism-traits
+    autism-traits-cluster-boundary: "true"
+spec:
+  order: 10
+  selector: autism-traits-host-boundary == 'true'
+  preDNAT: true
+  applyOnForward: true
+  types:
+    - Ingress
+  ingress:
+    - action: Deny
+      source:
+        namespaceSelector: projectcalico.org/name == 'autism-traits'
+        selector: autism-traits-component == 'cloudflared'
+      destination:
+        nets:
+          - 10.233.0.0/18
+          - 10.233.64.0/18
+          - 192.168.20.0/24
+        notNets:
+          - 10.233.23.96/32
+        notSelector: >-
+          projectcalico.org/namespace == 'autism-traits' &&
+          autism-traits-component == 'web'
+---
+apiVersion: crd.projectcalico.org/v1
+kind: HostEndpoint
+metadata:
+  name: autism-traits-node-0-host-boundary
+  labels:
+    app.kubernetes.io/part-of: autism-traits
+    autism-traits-cluster-boundary: "true"
+    autism-traits-host-boundary: "true"
+spec:
+  node: node-0
+  interfaceName: "*"
+  expectedIPs:
+    - 192.168.20.10
+  profiles:
+    - projectcalico-default-allow
+---
+apiVersion: crd.projectcalico.org/v1
+kind: HostEndpoint
+metadata:
+  name: autism-traits-node-1-host-boundary
+  labels:
+    app.kubernetes.io/part-of: autism-traits
+    autism-traits-cluster-boundary: "true"
+    autism-traits-host-boundary: "true"
+spec:
+  node: node-1
+  interfaceName: "*"
+  expectedIPs:
+    - 192.168.20.11
+  profiles:
+    - projectcalico-default-allow
+---
+apiVersion: crd.projectcalico.org/v1
+kind: HostEndpoint
+metadata:
+  name: autism-traits-node-2-host-boundary
+  labels:
+    app.kubernetes.io/part-of: autism-traits
+    autism-traits-cluster-boundary: "true"
+    autism-traits-host-boundary: "true"
+spec:
+  node: node-2
+  interfaceName: "*"
+  expectedIPs:
+    - 192.168.20.12
+  profiles:
+    - projectcalico-default-allow

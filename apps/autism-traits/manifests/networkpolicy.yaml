@@ -1,0 +1,102 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: autism-traits-default-deny
+  labels:
+    app.kubernetes.io/name: autism-traits
+    app.kubernetes.io/part-of: autism-traits
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: autism-traits-web
+  labels:
+    app.kubernetes.io/name: autism-traits
+    app.kubernetes.io/part-of: autism-traits
+spec:
+  podSelector:
+    matchLabels:
+      autism-traits-component: web
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              autism-traits-component: cloudflared
+      ports:
+        - protocol: TCP
+          port: 8443
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress: []
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: autism-traits-cloudflared
+  labels:
+    app.kubernetes.io/name: autism-traits-cloudflared
+    app.kubernetes.io/part-of: autism-traits
+spec:
+  podSelector:
+    matchLabels:
+      autism-traits-component: cloudflared
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 169.254.25.10/32
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    - to:
+        - podSelector:
+            matchLabels:
+              autism-traits-component: web
+      ports:
+        - protocol: TCP
+          port: 8443
+    - to:
+        - ipBlock: {cidr: 198.41.192.7/32}
+        - ipBlock: {cidr: 198.41.192.27/32}
+        - ipBlock: {cidr: 198.41.192.37/32}
+        - ipBlock: {cidr: 198.41.192.47/32}
+        - ipBlock: {cidr: 198.41.192.57/32}
+        - ipBlock: {cidr: 198.41.192.67/32}
+        - ipBlock: {cidr: 198.41.192.77/32}
+        - ipBlock: {cidr: 198.41.192.107/32}
+        - ipBlock: {cidr: 198.41.192.167/32}
+        - ipBlock: {cidr: 198.41.192.227/32}
+        - ipBlock: {cidr: 198.41.200.13/32}
+        - ipBlock: {cidr: 198.41.200.23/32}
+        - ipBlock: {cidr: 198.41.200.33/32}
+        - ipBlock: {cidr: 198.41.200.43/32}
+        - ipBlock: {cidr: 198.41.200.53/32}
+        - ipBlock: {cidr: 198.41.200.63/32}
+        - ipBlock: {cidr: 198.41.200.73/32}
+        - ipBlock: {cidr: 198.41.200.113/32}
+        - ipBlock: {cidr: 198.41.200.193/32}
+        - ipBlock: {cidr: 198.41.200.233/32}
+      ports:
+        - protocol: TCP
+          port: 7844
+        - protocol: UDP
+          port: 7844
