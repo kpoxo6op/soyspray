@@ -18,6 +18,7 @@ VAULTWARDEN_PACKAGE := kubernetes/vaultwarden
 VAULTWARDEN_ENABLED ?= true
 VAULTWARDEN_REVISION ?= HEAD
 FORMAT ?= text
+REVISION ?= HEAD
 LIVE_TV_ENABLED ?= false
 LIVE_TV_REVISION ?= HEAD
 ifeq ($(LIVE_TV_ENABLED),true)
@@ -45,7 +46,7 @@ KUSTOMIZATIONS := \
 	playbooks/argocd/applications/media/dispatcharr \
 	playbooks/argocd/applications/media/jellyfin
 
-.PHONY: help setup act check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
+.PHONY: help setup act check full-check app-command diff deploy boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
 	test render go autism-traits boys vaultwarden live-tv voice-assistant voice-pe-render \
 	voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
 	apps status backup-status list-apps node0 node1 node2 master worker1 worker2 worker3 clean
@@ -73,8 +74,20 @@ setup: ## Create the venv and install local tooling
 act: ## Open a shell in the project venv
 	bash -lc 'source $(VENV)/bin/activate && exec bash -i'
 
-check: lint validate test autism-traits-check boys-check ## Run the complete local gate
+check: ## Run app checks with APP, or the complete local gate without APP
+	$(if $(strip $(APP)),$(MAKE) --no-print-directory app-command COMMAND=check,$(MAKE) --no-print-directory full-check)
+
+full-check: lint validate test autism-traits-check boys-check ## Run the full repository gate explicitly
 	printf '\nLocal gate passed.\n'
+
+app-command:
+	$(PYTHON) -m scripts.app_command "$(COMMAND)" --app "$(APP)" --python "$(PYTHON)" --revision "$(REVISION)"
+
+diff: ## Compare APP's local deployment with the live resources
+	$(MAKE) --no-print-directory app-command COMMAND=diff
+
+deploy: ## Run APP's standard Ansible path (REVISION=HEAD by default)
+	$(MAKE) --no-print-directory app-command COMMAND=deploy
 
 boys-check: ## Check Boys dates, trip behavior, and phone and desktop browsers
 	cd kubernetes/boys && npm test
@@ -120,7 +133,8 @@ render: ## Render all managed Kustomize packages
 		kubectl kustomize "$$path"; \
 	done
 
-go: check ## Run the deployment preflight
+go: override APP :=
+go: check ## Run the full gate and deployment preflight even when APP is set
 	branch="$$(git branch --show-current)"; \
 	test -n "$$branch" && test "$$branch" != main || { echo 'Deploy from a topic branch, not main.' >&2; exit 1; }
 	test -z "$$(git status --porcelain)" || { echo 'Commit the working tree before deployment.' >&2; exit 1; }
