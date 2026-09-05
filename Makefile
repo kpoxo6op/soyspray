@@ -48,7 +48,7 @@ KUSTOMIZATIONS := \
 .PHONY: help setup act check boys-check autism-traits-check lint validate validate-skills status-page-check \
 	test render go autism-traits boys vaultwarden live-tv voice-assistant voice-pe-render \
 	voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
-	apps status list-apps node0 node1 node2 master worker1 worker2 worker3 clean
+	apps status backup-status list-apps node0 node1 node2 master worker1 worker2 worker3 clean
 
 help: ## Show the operator commands
 	printf 'Soyspray operator commands\n\n'
@@ -59,6 +59,9 @@ apps: ## List Applications and their declared owners (FORMAT=json is supported)
 
 status: ## Read desired/running revisions and evidence gaps for APP (FORMAT=json is supported)
 	$(PYTHON) scripts/app_status.py status --app "$(APP)" --format "$(FORMAT)"
+
+backup-status: ## Read backup coverage, age, failures, and missing recovery evidence
+	$(PYTHON) -m scripts.backup_status --format "$(FORMAT)"
 
 setup: ## Create the venv and install local tooling
 	test -d $(VENV) || python3 -m venv $(VENV)
