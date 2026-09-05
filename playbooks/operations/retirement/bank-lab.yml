@@ -1,0 +1,221 @@
+---
+- name: Retire the parked banking lab without deleting shared infrastructure
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars_files: [bank-lab-resources.yml]
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Require the lab to be absent from general deployment registration
+      ansible.builtin.assert:
+        that:
+          - >-
+            (lookup('file', playbook_dir ~ '/../../deploy-argocd-apps.yml') | from_yaml)[0]
+            .vars.argocd_app_roles | selectattr('role', 'equalto', 'apps/kong-bank-lab') | list | length == 0
+
+    - name: Read all Applications before retiring the dedicated project
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: bank_applications
+
+    - name: Require the runtime to remain parked and no other project users
+      ansible.builtin.assert:
+        that:
+          - >-
+            bank_applications.resources | map(attribute='metadata.name') | list
+            | intersect(bank_runtime_applications) | length == 0
+          - >-
+            bank_applications.resources | selectattr('spec.project', 'equalto', 'banklab-kong')
+            | map(attribute='metadata.name') | list | difference(['banklab-kong-crds']) | length == 0
+        fail_msg: A runtime or unknown lab Application exists. Inspect it before retiring the remaining CRD Application.
+
+    - name: Select the dedicated CRD Application
+      ansible.builtin.set_fact:
+        bank_crd_application: >-
+          {{ bank_applications.resources | selectattr('metadata.name', 'equalto', 'banklab-kong-crds') | list }}
+
+    - name: Verify the remaining Application's identity and complete resource scope
+      ansible.builtin.assert:
+        that:
+          - item.spec.project == 'banklab-kong'
+          - item.spec.source.repoURL == 'https://charts.konghq.com'
+          - item.spec.source.chart == 'kong'
+          - item.metadata.ownerReferences | default([]) | length == 0
+          - item.metadata.deletionTimestamp is not defined
+          - not item.operation | default(false)
+          - item.status.operationState.phase | default('') != 'Running'
+          - item.metadata.finalizers | default([]) | difference(bank_argo_finalizers) | length == 0
+          - item.status.resources | map(attribute='kind') | unique | list == ['CustomResourceDefinition']
+          - item.status.resources | map(attribute='name') | list | sort == bank_kong_crds | sort
+      loop: "{{ bank_crd_application }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Read the dedicated AppProject
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: AppProject
+        name: banklab-kong
+        namespace: argocd
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: bank_project
+
+    - name: Verify project ownership before deletion
+      ansible.builtin.assert:
+        that:
+          - item.metadata.labels['app.kubernetes.io/part-of'] | default('') == 'kong-bank-lab'
+          - item.metadata.ownerReferences | default([]) | length == 0
+      loop: "{{ bank_project.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Read only the explicitly named lab namespaces
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Namespace
+        name: "{{ item }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ bank_namespaces }}"
+      register: bank_namespace_results
+
+    - name: Require synthetic lab ownership on each remaining namespace
+      ansible.builtin.assert:
+        that:
+          - item.metadata.labels['banklab.konghq.com/environment'] | default('') == 'lab'
+          - item.metadata.labels['banklab.konghq.com/data-classification'] | default('') == 'synthetic'
+          - item.metadata.name != 'monitoring'
+      loop: "{{ bank_namespace_results.results | map(attribute='resources') | flatten }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Read claims before deleting any namespace
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: bank_claims_before
+
+    - name: Refuse to delete a namespace containing a claim
+      ansible.builtin.assert:
+        that:
+          - bank_claims_before.resources | selectattr('metadata.namespace', 'in', bank_namespaces) | list | length == 0
+
+    - name: Read all CRDs and preserve the Gateway API identities
+      kubernetes.core.k8s_info:
+        api_version: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: bank_crds_before
+
+    - name: Check every Kong type before removing the Application
+      ansible.builtin.include_tasks: check-kong-empty.yml
+
+    - name: Stop automatic sync and remove only the Argo deletion finalizer
+      kubernetes.core.k8s_json_patch:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: banklab-kong-crds
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch: >-
+          {{ [
+            {'op': 'test', 'path': '/metadata/uid', 'value': item.metadata.uid},
+            {'op': 'test', 'path': '/spec', 'value': item.spec},
+            {'op': 'add', 'path': '/spec/syncPolicy',
+             'value': item.spec.syncPolicy | default({}) | combine({'automated': none})},
+            {'op': 'add', 'path': '/metadata/finalizers', 'value': []}
+          ] }}
+      loop: "{{ bank_crd_application }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Delete the Application without cascading resource deletion
+      kubernetes.core.k8s:
+        state: absent
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: banklab-kong-crds
+        kubeconfig: "{{ kubeconfig_path }}"
+        delete_options:
+          preconditions: {uid: "{{ item.metadata.uid }}"}
+        wait: true
+      loop: "{{ bank_crd_application }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Recheck every Kong type immediately before deleting CRDs
+      ansible.builtin.include_tasks: check-kong-empty.yml
+
+    - name: Delete only the verified empty Kong CRDs
+      kubernetes.core.k8s:
+        state: absent
+        api_version: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        name: "{{ item.metadata.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        delete_options:
+          preconditions: {uid: "{{ item.metadata.uid }}"}
+        wait: true
+        wait_timeout: 120
+      loop: "{{ bank_kong_resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Delete only the verified synthetic lab namespaces
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Namespace
+        name: "{{ item.metadata.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        delete_options:
+          preconditions: {uid: "{{ item.metadata.uid }}"}
+        wait: true
+        wait_timeout: 300
+      loop: "{{ bank_namespace_results.results | map(attribute='resources') | flatten }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Remove the now-unused dedicated project
+      kubernetes.core.k8s:
+        state: absent
+        api_version: argoproj.io/v1alpha1
+        kind: AppProject
+        namespace: argocd
+        name: banklab-kong
+        kubeconfig: "{{ kubeconfig_path }}"
+        delete_options:
+          preconditions: {uid: "{{ item.metadata.uid }}"}
+        wait: true
+        wait_timeout: 120
+      loop: "{{ bank_project.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Read CRDs after retirement
+      kubernetes.core.k8s_info:
+        api_version: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: bank_crds_after
+      when: not ansible_check_mode
+
+    - name: Verify Kong absence and unchanged Gateway API identities
+      ansible.builtin.assert:
+        that:
+          - bank_crds_after.resources | selectattr('spec.group', 'search', '(^|[.])konghq[.]com$') | list | length == 0
+          - >-
+            (bank_crds_before.resources | rejectattr('spec.group', 'search', '(^|[.])konghq[.]com$')
+             | map(attribute='metadata.uid') | list) | difference
+            (bank_crds_after.resources | map(attribute='metadata.uid') | list) | length == 0
+          - >-
+            bank_crds_before.resources | selectattr('spec.group', 'equalto', 'gateway.networking.k8s.io')
+            | map(attribute='metadata.uid') | list | sort ==
+            bank_crds_after.resources | selectattr('spec.group', 'equalto', 'gateway.networking.k8s.io')
+            | map(attribute='metadata.uid') | list | sort
+      when: not ansible_check_mode
