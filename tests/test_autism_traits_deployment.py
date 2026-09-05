@@ -624,7 +624,8 @@ def test_operator_and_ci_paths_include_the_site_without_weakening_python_checks(
     makefile = (ROOT / "Makefile").read_text()
     playbook = load_yaml("playbooks/deploy-argocd-apps.yml")[0]
     workflow = load_yaml(".github/workflows/ci.yml")
-    steps = workflow["jobs"]["check"]["steps"]
+    steps = workflow["jobs"]["autism"]["steps"]
+    shared_steps = workflow["jobs"]["shared"]["steps"]
     runs = "\n".join(step.get("run", "") for step in steps)
 
     assert PACKAGE in makefile
@@ -651,5 +652,7 @@ def test_operator_and_ci_paths_include_the_site_without_weakening_python_checks(
     assert "git ls-files --others --exclude-standard" in runs
     assert "playwright install --with-deps chromium" in runs
     assert "npm run test:e2e" in runs
-    assert any(step.get("uses") == "actions/setup-python@v6" for step in steps)
-    assert "make check PYTHON=python3" in runs
+    assert any(step.get("uses") == "actions/setup-python@v6" for step in shared_steps)
+    assert any(
+        "make lint validate test PYTHON=python3" in step.get("run", "") for step in shared_steps
+    )
