@@ -52,9 +52,9 @@
           - recovery_backup.resources[0].status.state == 'Completed'
           - recovery_backup.resources[0].status.progress | default(0) == 100
           - >-
-            recovery_backup.resources[0].status.messages | default({}) | dict2items
+            recovery_backup.resources[0].status.messages | default({}, true) | dict2items
             | selectattr('key', 'match', '(?i)^error$') | selectattr('value') | list | length == 0
-          - recovery_backup.resources[0].status.error | default('') == ''
+          - recovery_backup.resources[0].status.error | default('', true) == ''
           - recovery_backup.resources[0].status.backupTargetName == 'critical-s3'
           - recovery_backup.resources[0].status.volumeName == recovery_original.resources[0].spec.volumeName
           - recovery_backup.resources[0].status.url is match('^s3://')
