@@ -20,7 +20,7 @@ def test_native_ownership_keeps_workload_names_and_bootstrap_secret_boundary():
     assert project["spec"]["clusterResourceWhitelist"] == []
     assert {
         (item["group"], item["kind"]) for item in project["spec"]["namespaceResourceWhitelist"]
-    } == {("", "ConfigMap"), ("", "Service"), ("apps", "Deployment")}
+    } == {("", "Service"), ("apps", "Deployment")}
     source = APP.parents[1] / application["spec"]["source"]["path"]
     deployment = next(
         obj

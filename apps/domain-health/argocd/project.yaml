@@ -16,8 +16,6 @@ spec:
   clusterResourceWhitelist: []
   namespaceResourceWhitelist:
   - group: ''
-    kind: ConfigMap
-  - group: ''
     kind: Service
   - group: apps
     kind: Deployment
