@@ -95,3 +95,32 @@ def test_only_clean_exact_pushed_native_proposals_are_compared(
             pushed_sources("external-dns", APP, tmp_path)
     if dirty or remote != COMMIT:
         assert not any(call[0] == "kubectl" for call in calls)
+
+
+def test_single_git_source_uses_exact_pushed_commit_and_keeps_original_inputs():
+    desired = yaml.safe_load((ROOT / "apps/media-helper/argocd/application.yaml").read_text())
+    live = copy.deepcopy(desired)
+    live["spec"]["source"]["targetRevision"] = "old-preview"
+    original = copy.deepcopy(live)
+    assert revision_arguments(live, desired, REPO, COMMIT) == ["--revision", COMMIT]
+    assert live == original
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        lambda spec: spec["source"].update(path="other/path"),
+        lambda spec: spec["source"].update(repoURL="https://example.test/foreign.git"),
+        lambda spec: spec["source"].update(targetRevision="preview"),
+        lambda spec: spec["source"].update(kustomize={"namePrefix": "other-"}),
+        lambda spec: spec.update(project="default"),
+        lambda spec: spec["destination"].update(namespace="other"),
+        lambda spec: spec["syncPolicy"]["automated"].update(prune=False),
+    ],
+)
+def test_single_git_comparison_rejects_changes_that_revision_cannot_apply(change):
+    live = yaml.safe_load((ROOT / "apps/media-helper/argocd/application.yaml").read_text())
+    desired = copy.deepcopy(live)
+    change(desired["spec"])
+    with pytest.raises(ValueError):
+        revision_arguments(live, desired, REPO, COMMIT)
