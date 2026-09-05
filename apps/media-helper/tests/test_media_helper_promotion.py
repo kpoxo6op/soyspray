@@ -26,7 +26,7 @@ def render(app):
     )
 
 
-def test_source_and_catalog_wait_for_a_coupled_image_promotion(tmp_path):
+def test_source_and_catalog_wait_for_a_digest_promotion(tmp_path):
     app = package(tmp_path)
     before = render(app)
     source = app / "app/app.py"
@@ -37,16 +37,12 @@ def test_source_and_catalog_wait_for_a_coupled_image_promotion(tmp_path):
     catalog.write_text(json.dumps(value))
     assert render(app) == before
     promotion.promote(IMAGE, app)
-    expected = [item for item in before if item["kind"] != "ConfigMap"]
+    expected = before
     pod = next(item for item in expected if item["kind"] == "Deployment")["spec"]["template"][
         "spec"
     ]
     container = pod["containers"][0]
     container["image"] = IMAGE
-    container.pop("command", None)
-    container["readinessProbe"]["httpGet"]["path"] = "/ready"
-    container["volumeMounts"] = [m for m in container["volumeMounts"] if m["name"] != "code"]
-    pod["volumes"] = [v for v in pod["volumes"] if v["name"] != "code"]
     assert render(app) == expected
     promotion.promote(IMAGE, app)
     assert render(app) == expected

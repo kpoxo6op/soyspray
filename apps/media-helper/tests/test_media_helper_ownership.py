@@ -20,7 +20,6 @@ def test_project_covers_only_existing_stateless_workload_kinds():
         (entry["group"], entry["kind"]) for entry in project["spec"]["namespaceResourceWhitelist"]
     }
     assert allowed == {
-        ("", "ConfigMap"),
         ("", "Service"),
         ("apps", "Deployment"),
         ("networking.k8s.io", "NetworkPolicy"),

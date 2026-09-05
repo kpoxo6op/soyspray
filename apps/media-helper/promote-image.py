@@ -1,4 +1,4 @@
-"""Promote a tested digest with the configuration that removes the frozen code mount."""
+"""Promote a tested digest without changing the media helper runtime configuration."""
 
 import argparse
 import re
@@ -7,9 +7,6 @@ from pathlib import Path
 import yaml
 
 IMAGE = r"ghcr\.io/kpoxo6op/media-helper@sha256:[0-9a-f]{64}"
-LEGACY = (
-    "python:3.13-alpine@sha256:540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e094d188b196a934d"
-)
 
 
 def promote(image, app):
@@ -38,45 +35,7 @@ def promote(image, app):
     ]
     code_volumes = [v for v in pod.get("volumes", []) if v["name"] == "code"]
     code_generators = [g for g in generators if g["name"] == "media-helper-code"]
-    if container["image"] == LEGACY:
-        if container.get("command") != ["python", "/app/app.py"]:
-            raise ValueError("Review the changed runtime command before promotion.")
-        if container.get("readinessProbe") != {"httpGet": {"path": "/healthz", "port": "http"}}:
-            raise ValueError("Review the changed readiness probe before promotion.")
-        if code_mounts != [{"name": "code", "mountPath": "/app", "readOnly": True}]:
-            raise ValueError("Review the changed runtime mount before promotion.")
-        if code_volumes != [
-            {
-                "name": "code",
-                "configMap": {
-                    "name": "media-helper-code",
-                    "items": [
-                        {"key": "app.py", "path": "app.py"},
-                        {"key": "channels.json", "path": "channels.json"},
-                    ],
-                },
-            }
-        ]:
-            raise ValueError("Review the changed code volume before promotion.")
-        if code_generators != [
-            {
-                "name": "media-helper-code",
-                "files": [
-                    "app.py=manifests/legacy-app.py",
-                    "channels.json=manifests/legacy-channels.json",
-                ],
-            }
-        ]:
-            raise ValueError("Review the changed frozen source before promotion.")
-        container.pop("command")
-        container["readinessProbe"]["httpGet"]["path"] = "/ready"
-        container["volumeMounts"] = [m for m in container["volumeMounts"] if m["name"] != "code"]
-        pod["volumes"] = [v for v in pod["volumes"] if v["name"] != "code"]
-        package["configMapGenerator"] = [g for g in generators if g["name"] != "media-helper-code"]
-        if not package["configMapGenerator"]:
-            package.pop("configMapGenerator")
-            package.pop("generatorOptions", None)
-    elif (
+    if (
         not re.fullmatch(IMAGE, container["image"])
         or container.get("command")
         or container.get("readinessProbe") != {"httpGet": {"path": "/ready", "port": "http"}}
@@ -86,9 +45,7 @@ def promote(image, app):
     ):
         raise ValueError("Review unknown image or runtime overrides before promotion.")
     container["image"] = image
-    # Validate both documents before writing; the workflow commits their transition together.
     path.write_text(yaml.safe_dump(deployment, sort_keys=False))
-    package_path.write_text(yaml.safe_dump(package, sort_keys=False))
 
 
 if __name__ == "__main__":
