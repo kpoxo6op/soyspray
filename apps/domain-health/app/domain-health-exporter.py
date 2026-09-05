@@ -11,7 +11,6 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO").upper(),
     format="%(asctime)s %(levelname)s %(message)s",
@@ -62,7 +61,9 @@ class MetricsState:
         with self._lock:
             if self._last_run_finished == 0:
                 return False
-            return self._last_run_ok and (time.time() - self._last_run_finished) < (CHECK_INTERVAL_SECONDS * 2)
+            return self._last_run_ok and (time.time() - self._last_run_finished) < (
+                CHECK_INTERVAL_SECONDS * 2
+            )
 
     def finish_run(self, ok):
         with self._lock:
