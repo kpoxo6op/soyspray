@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
-PACKAGE = ROOT / "playbooks/argocd/applications/database/obsidian-livesync"
+PACKAGE = ROOT / "apps/obsidian-livesync/manifests"
 APP = ROOT / "apps/obsidian-livesync"
 
 
