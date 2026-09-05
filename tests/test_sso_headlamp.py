@@ -71,11 +71,25 @@ def test_kubernetes_oidc_flags_match_the_headlamp_provider() -> None:
     }
 
 
-def test_authentik_role_creates_and_deploys_headlamp_oidc() -> None:
-    tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
-
-    assert "HEADLAMP_OIDC_CLIENT_SECRET" in tasks
-    assert "name: headlamp-oidc" in tasks
-    assert "OIDC_ISSUER_URL" in tasks
-    assert "headlamp-application.yaml" in tasks
-    assert "authentik_target_revision" in tasks
+def test_authentik_bootstraps_the_existing_headlamp_oidc_secret() -> None:
+    tasks = load_yaml("roles/apps/authentik/tasks/main.yml")
+    secrets = [
+        task
+        for task in tasks
+        if isinstance(definition := task.get("kubernetes.core.k8s", {}).get("definition"), dict)
+        and definition.get("kind") == "Secret"
+    ]
+    task = next(
+        task
+        for task in secrets
+        if task["kubernetes.core.k8s"]["definition"]["metadata"]["name"] == "headlamp-oidc"
+    )
+    secret = task["kubernetes.core.k8s"]["definition"]
+    assert task["no_log"] is True
+    assert secret["metadata"]["namespace"] == "headlamp"
+    assert secret["stringData"] == {
+        "OIDC_CLIENT_ID": "{{ authentik_runtime_values['HEADLAMP_OIDC_CLIENT_ID'] }}",
+        "OIDC_CLIENT_SECRET": "{{ authentik_runtime_values['HEADLAMP_OIDC_CLIENT_SECRET'] }}",
+        "OIDC_ISSUER_URL": "https://auth.soyspray.vip/application/o/headlamp/",
+        "OIDC_SCOPES": "profile,email,offline_access",
+    }
