@@ -4,6 +4,8 @@ kind: Kustomization
 namespace: obsidian
 
 resources:
+  - namespace.yaml
+  - pvc.yaml
   - configmap-couchdb.yaml
   - deployment-couchdb-rescue.yaml
   - networkpolicy-couchdb.yaml
