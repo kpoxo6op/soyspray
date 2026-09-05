@@ -1,0 +1,100 @@
+---
+- name: Start the stock database app against its isolated restored claim
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    recovery_scratch: "restore-{{ recovery_app }}-{{ recovery_check_id }}"
+  tasks:
+    - name: Require an isolated stock app restore
+      ansible.builtin.assert:
+        that:
+          - recovery_app | default('') in ['vaultwarden', 'obsidian']
+          - recovery_check_id | default('') is match('^[a-z0-9][a-z0-9-]{0,23}$')
+
+    - name: Read the scratch namespace
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Namespace
+        name: "{{ recovery_scratch }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_namespace
+
+    - name: Require this restore operation's namespace
+      ansible.builtin.assert:
+        that:
+          - recovery_namespace.resources | length == 1
+          - recovery_namespace.resources[0].metadata.labels['soyspray.vip/purpose'] == 'restore-check'
+          - recovery_namespace.resources[0].metadata.labels['soyspray.vip/app'] == recovery_app
+          - recovery_namespace.resources[0].metadata.labels['soyspray.vip/check-id'] == recovery_check_id
+
+    - name: Read the running inspector and its restored claim
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api }}"
+        kind: "{{ item.kind }}"
+        name: "{{ item.name }}"
+        namespace: "{{ recovery_scratch }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop:
+        - {api: v1, kind: Pod, name: inspect}
+        - {api: v1, kind: PersistentVolumeClaim, name: restored-data}
+        - {api: networking.k8s.io/v1, kind: NetworkPolicy, name: isolate}
+      register: recovery_workspace
+
+    - name: Require a running isolated inspector and disposable claim
+      ansible.builtin.assert:
+        that:
+          - recovery_workspace.results[0].resources | length == 1
+          - recovery_workspace.results[0].resources[0].status.phase == 'Running'
+          - recovery_workspace.results[1].resources | length == 1
+          - recovery_workspace.results[1].resources[0].spec.storageClassName == recovery_scratch
+          - recovery_workspace.results[1].resources[0].status.phase == 'Bound'
+          - recovery_workspace.results[2].resources | length == 1
+          - recovery_workspace.results[2].resources[0].spec.podSelector == {}
+          - recovery_workspace.results[2].resources[0].spec.ingress | default([]) == []
+          - recovery_workspace.results[2].resources[0].spec.egress | default([]) == []
+          - recovery_workspace.results[2].resources[0].spec.policyTypes | sort == ['Egress', 'Ingress']
+
+    - name: Select only CouchDB credentials and configuration from the Vault archive
+      ansible.builtin.set_fact:
+        recovery_couchdb_secret: >-
+          {{ recovery_resources | selectattr('kind', 'equalto', 'Secret')
+             | selectattr('metadata.namespace', 'equalto', 'obsidian')
+             | selectattr('metadata.name', 'equalto', 'obsidian-livesync-couchdb') | list }}
+        recovery_couchdb_config: >-
+          {{ recovery_resources | selectattr('kind', 'equalto', 'ConfigMap')
+             | selectattr('metadata.namespace', 'equalto', 'obsidian')
+             | selectattr('metadata.name', 'equalto', 'obsidian-livesync-couchdb') | list }}
+      no_log: true
+      when: recovery_app == 'obsidian'
+
+    - name: Require the archived CouchDB inputs
+      ansible.builtin.assert:
+        that:
+          - recovery_couchdb_secret | length == 1
+          - recovery_couchdb_config | length == 1
+      no_log: true
+      when: recovery_app == 'obsidian'
+
+    - name: Start only the selected stock app in the scratch namespace
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition: "{{ lookup('template', 'restore-' ~ recovery_app ~ '.yaml.j2') | from_yaml_all | list }}"
+      no_log: true
+
+    - name: Wait for the app's readiness check
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        name: app
+        namespace: "{{ recovery_scratch }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_app_pod
+      until:
+        - recovery_app_pod.resources | length == 1
+        - recovery_app_pod.resources[0].status.containerStatuses[0].ready | default(false)
+      retries: 60
+      delay: 5
+      when: not ansible_check_mode
