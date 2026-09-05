@@ -105,11 +105,15 @@
           - bank_claims_before.resources | selectattr('metadata.namespace', 'in', bank_namespaces) | list | length == 0
 
     - name: Read all CRDs and preserve the Gateway API identities
-      kubernetes.core.k8s_info:
-        api_version: apiextensions.k8s.io/v1
-        kind: CustomResourceDefinition
-        kubeconfig: "{{ kubeconfig_path }}"
-      register: bank_crds_before
+      ansible.builtin.command:
+        argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", get, crds, -o, json]
+      register: bank_crds_before_read
+      changed_when: false
+      check_mode: false
+
+    - name: Keep the original CRD inventory without dynamic schema conversion
+      ansible.builtin.set_fact:
+        bank_crds_before: "{{ {'resources': (bank_crds_before_read.stdout | from_json)['items']} }}"
 
     - name: Check every Kong type before removing the Application
       ansible.builtin.include_tasks: check-kong-empty.yml
@@ -198,11 +202,15 @@
         label: "{{ item.metadata.name }}"
 
     - name: Read CRDs after retirement
-      kubernetes.core.k8s_info:
-        api_version: apiextensions.k8s.io/v1
-        kind: CustomResourceDefinition
-        kubeconfig: "{{ kubeconfig_path }}"
-      register: bank_crds_after
+      ansible.builtin.command:
+        argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", get, crds, -o, json]
+      register: bank_crds_after_read
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Keep the remaining CRD inventory without dynamic schema conversion
+      ansible.builtin.set_fact:
+        bank_crds_after: "{{ {'resources': (bank_crds_after_read.stdout | from_json)['items']} }}"
       when: not ansible_check_mode
 
     - name: Verify Kong absence and unchanged Gateway API identities
