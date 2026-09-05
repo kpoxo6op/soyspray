@@ -13,6 +13,7 @@ from pathlib import Path
 from scripts.app_status import display, observed, unknown
 
 RESOURCES = {
+    "applications": ("applications.argoproj.io", "argocd"),
     "claims": ("persistentvolumeclaims", None),
     "pvs": ("persistentvolumes", None),
     "volumes": ("volumes.longhorn.io", "longhorn-system"),
@@ -89,7 +90,8 @@ def longhorn_report(data, now):
     rows = []
     for claim in sorted(claims, key=identity):
         name = "/".join(identity(claim))
-        pv = pvs.get(claim["spec"].get("volumeName"), {}).get("spec", {})
+        pv_object = pvs.get(claim["spec"].get("volumeName"), {})
+        pv = pv_object.get("spec", {})
         csi = pv.get("csi", {})
         verified_binding = (
             csi.get("driver") == "driver.longhorn.io"
@@ -152,6 +154,8 @@ def longhorn_report(data, now):
         ]
         row = {
             "claim": name,
+            "claim_uid": claim["metadata"].get("uid"),
+            "pv_uid": pv_object.get("metadata", {}).get("uid"),
             "volume": volume_name,
             "groups": groups,
             "backup_schedules": schedules,
@@ -298,6 +302,31 @@ def read_resource(entry):
     return key, value
 
 
+def read_observations():
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        return dict(pool.map(read_resource, RESOURCES.items()))
+
+
+def attach_restore_evidence(report, data, now, root=None, read_private=True):
+    from scripts.app_recovery import app_recovery
+
+    try:
+        apps = items(data, "applications")
+        report["restore_evidence"] = {
+            "value": [
+                {
+                    "app": app["metadata"]["name"],
+                    "claims": app_recovery(app, report, now, root, read_private)["last_restore"],
+                }
+                for app in sorted(apps, key=identity)
+            ]
+        }
+    except (KeyError, TypeError, ValueError):
+        report["restore_evidence"] = unknown(
+            "Application observations are unavailable; restore reports cannot establish the app inventory."
+        )
+
+
 def build_report(data, now):
     report = {"schema_version": 1, "observed_at": now.isoformat()}
     for key, function in (("longhorn", longhorn_report), ("cnpg", cnpg_report)):
@@ -367,7 +396,41 @@ def print_report(report):
             print(
                 f"  Failed records: {len(row['failed_backups'])}; unfinished: {len(row['unfinished_backups'])}."
             )
-    for key in ("restic", "restore_evidence", "seven_day_rpo"):
+    evidence = report["restore_evidence"]["value"]
+    if evidence == "unknown":
+        print(f"Restore evidence: {display(report['restore_evidence'])}")
+    else:
+        unmapped = []
+        for app in evidence:
+            claims = app["claims"]["value"]
+            if claims == "unknown":
+                unmapped.append(app["app"])
+                continue
+            for claim in claims:
+                result = claim["evidence"]["value"]
+                if result == "unknown":
+                    print(f"Restore {app['app']} {claim['claim']}: {display(claim['evidence'])}")
+                    continue
+                success = result["last_success"]["value"]
+                latest = result["last_attempt"]["value"]
+                age_text = (
+                    display(result["last_success"])
+                    if success == "unknown"
+                    else f"{success['age_seconds']} seconds ago"
+                )
+                attempt = (
+                    display(result["last_attempt"])
+                    if latest == "unknown"
+                    else f"{latest['status']}, accepted={latest['accepted']}"
+                )
+                print(
+                    f"Restore {app['app']} {claim['claim']}: last success {age_text}; latest attempt {attempt}."
+                )
+        if unmapped:
+            print(
+                f"Restore mapping unknown for {', '.join(unmapped)}: Application metadata has no valid data-claims mapping."
+            )
+    for key in ("restic", "seven_day_rpo"):
         print(f"{key}: {display(report[key])}")
 
 
@@ -375,6 +438,10 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--input", help="Read saved observation JSON for an offline check.")
+    parser.add_argument(
+        "--restore-dir",
+        help="Use a private restore report directory; enables report reads for offline input.",
+    )
     args = parser.parse_args(argv)
     try:
         if args.input:
@@ -382,9 +449,12 @@ def main(argv=None):
             if not isinstance(data, dict):
                 raise ValueError("The observation bundle must be an object.")
         else:
-            with ThreadPoolExecutor(max_workers=4) as pool:
-                data = dict(pool.map(read_resource, RESOURCES.items()))
-        report = build_report(data, datetime.now(timezone.utc))
+            data = read_observations()
+        now = datetime.now(timezone.utc)
+        report = build_report(data, now)
+        attach_restore_evidence(
+            report, data, now, args.restore_dir, not args.input or args.restore_dir is not None
+        )
         report["source"] = str(args.input) if args.input else "Native Kubernetes backup records"
     except (OSError, ValueError) as exc:
         report = {"error": unknown(f"Cannot read backup observations: {exc}")}
@@ -392,6 +462,7 @@ def main(argv=None):
         2
         if "error" in report
         or any(report[key]["value"] == "unknown" for key in ("longhorn", "cnpg"))
+        or (not args.input and report["restore_evidence"]["value"] == "unknown")
         else 0
     )
     if args.format == "json":
