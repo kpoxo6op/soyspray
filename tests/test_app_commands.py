@@ -119,13 +119,14 @@ def test_cached_cli_with_wrong_checksum_is_rejected(tmp_path):
         argocd_cli.verify(binary)
 
 
-def test_unimplemented_app_operation_reports_unknown_without_running_another_action():
+@pytest.mark.parametrize("action", ["restore-check", "smoke"])
+def test_unimplemented_app_operation_reports_unknown_without_running_another_action(action):
     result = subprocess.run(
-        command("autism-traits", "restore-check", "python3", "HEAD"),
+        command("autism-traits", action, "python3", "HEAD"),
         cwd=ROOT,
         capture_output=True,
         text=True,
     )
     assert result.returncode == 2
     assert result.stdout.startswith("unknown:")
-    assert "restore-check" in result.stdout
+    assert action in result.stdout

@@ -27,7 +27,7 @@ def command(app, action, python, revision, root=ROOT):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("check", "diff", "deploy", "restore-check"))
+    parser.add_argument("action", choices=("check", "diff", "deploy", "smoke", "restore-check"))
     parser.add_argument("--app", required=True)
     parser.add_argument("--python", default="soyspray-venv/bin/python")
     parser.add_argument("--revision", default="HEAD")

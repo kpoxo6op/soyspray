@@ -55,6 +55,7 @@ Boys, autism traits, and ExternalDNS have app command files. Use the Application
 ```sh
 make check APP=boys
 make diff APP=boys
+make smoke APP=boys
 make deploy APP=boys REVISION=YOUR_PUSHED_BRANCH
 make deploy APP=boys
 make full-check
@@ -90,3 +91,8 @@ off-cluster inputs, verifies a completed backup through the restored app, and
 cleans up its own temporary resources. See [Boys recovery](boys/README.md#run-an-isolated-restore).
 Unsupported restore operations report `unknown` with their cause. Restore
 reports do not replace the separate seven-day recovery-point measurements.
+
+`smoke APP=boys` checks the deployed public phone and desktop journey and reports
+authenticated coverage as unknown. See [Boys](boys/README.md#check-the-live-public-journey).
+Other apps report an unsupported operation with its cause until their smoke
+procedure is maintained.

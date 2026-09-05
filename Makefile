@@ -47,7 +47,7 @@ KUSTOMIZATIONS := \
 	playbooks/argocd/applications/media/dispatcharr \
 	playbooks/argocd/applications/media/jellyfin
 
-.PHONY: help setup act check full-check app-command diff deploy restore-check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
+.PHONY: help setup act check full-check app-command diff deploy smoke restore-check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
 	test render go autism-traits boys vaultwarden live-tv voice-assistant voice-pe-render \
 	voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
 	apps status backup-status external-dns list-apps node0 node1 node2 master worker1 worker2 worker3 clean
@@ -89,6 +89,9 @@ diff: ## Compare APP's local deployment with the live resources
 
 deploy: ## Run APP's standard Ansible path (REVISION=HEAD by default)
 	$(MAKE) --no-print-directory app-command COMMAND=deploy
+
+smoke: ## Check APP's deployed user journey and report evidence gaps
+	$(MAKE) --no-print-directory app-command COMMAND=smoke
 
 restore-check: ## Restore APP in isolation and check its data through the standard Ansible path
 	$(MAKE) --no-print-directory app-command COMMAND=restore-check
