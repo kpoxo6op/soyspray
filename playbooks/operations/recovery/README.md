@@ -214,7 +214,7 @@ the SQLite database and any WAL files without concurrent app writes:
 
 ```bash
 install -d -m 700 ~/.local/state/soyspray/restores/boys-initial-20260905
-kubectl -n restore-boys-initial-20260905 cp inspect:/data \
+kubectl -n restore-boys-initial-20260905 cp --retries=3 inspect:/data \
   ~/.local/state/soyspray/restores/boys-initial-20260905/data
 ```
 
