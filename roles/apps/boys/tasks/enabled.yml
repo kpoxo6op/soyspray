@@ -1,16 +1,8 @@
 ---
-- name: Bootstrap the boys runtime secret
-  ansible.builtin.include_role:
-    name: app-secret
+- name: Bootstrap the Boys access identities
+  ansible.builtin.import_tasks: "{{ role_path }}/../../../apps/boys/bootstrap-tasks.yml"
   vars:
-    secret_name: boys-runtime
-    secret_namespace: boys
-    create_namespace: true
-    secret_data:
-      - key: pin
-        env_var: BOYS_PIN
-      - key: session-key
-        env_var: BOYS_SESSION_KEY
+    boys_bootstrap_root: "{{ role_path }}/../../.."
 
 - name: Read the boys runtime secret version
   kubernetes.core.k8s_info:
@@ -21,16 +13,6 @@
     kubeconfig: "{{ kubeconfig_path }}"
   register: boys_runtime_secret
   no_log: true
-
-- name: Bootstrap the boys Cloudflare Tunnel token
-  ansible.builtin.include_role:
-    name: app-secret
-  vars:
-    secret_name: boys-cloudflared-token
-    secret_namespace: boys
-    secret_data:
-      - key: token
-        env_var: BOYS_CLOUDFLARED_TOKEN
 
 - name: Apply the boys Argo project
   kubernetes.core.k8s:
