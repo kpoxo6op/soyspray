@@ -32,6 +32,11 @@ def resource(resources: list[dict], kind: str, name: str = "vaultwarden") -> dic
 def test_vaultwarden_uses_one_restricted_persistent_replica() -> None:
     resources = render_package()
     deployment = resource(resources, "Deployment")
+    namespace = resource(resources, "Namespace")
+    assert set(
+        namespace["metadata"]["annotations"]["argocd.argoproj.io/sync-options"].split(",")
+    ) == {"Prune=false", "Delete=false"}
+    assert namespace["metadata"]["labels"]["pod-security.kubernetes.io/enforce"] == "restricted"
     pvc = resource(resources, "PersistentVolumeClaim", "vaultwarden-data")
     pod = deployment["spec"]["template"]["spec"]
     server = pod["containers"][0]

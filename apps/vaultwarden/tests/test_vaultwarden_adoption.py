@@ -10,6 +10,12 @@ from ansible.template import Templar
 APP = Path(__file__).resolve().parents[1]
 PLAY = yaml.safe_load((APP / "adopt.yml").read_text())[0]
 SPEC = yaml.safe_load((APP / "argocd/application.yaml").read_text())["spec"]
+LEGACY = yaml.safe_load(
+    (
+        APP.parents[1]
+        / "playbooks/argocd/applications/security/vaultwarden/vaultwarden-application.yaml"
+    ).read_text()
+)["spec"]
 
 
 @pytest.mark.parametrize(
@@ -17,7 +23,7 @@ SPEC = yaml.safe_load((APP / "argocd/application.yaml").read_text())["spec"]
     [
         (lambda obj: None, True),
         (
-            lambda obj: obj["spec"]["syncPolicy"]["managedNamespaceMetadata"].pop("annotations"),
+            lambda obj: obj.update(spec=copy.deepcopy(LEGACY)),
             True,
         ),
         (lambda obj: obj["spec"]["source"].update(targetRevision="another-preview"), False),
