@@ -13,3 +13,6 @@ diff:
 
 deploy:
 	$(MAKE) --no-print-directory -f Makefile APP= autism-traits AUTISM_TRAITS_ENABLED=true AUTISM_TRAITS_REVISION=$(REVISION)
+
+.DEFAULT:
+	@printf 'unknown: autism-traits has no maintained %s operation.\n' '$@'; exit 2
