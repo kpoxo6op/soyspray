@@ -24,8 +24,14 @@
     - name: Require a pinned stock Vaultwarden image
       ansible.builtin.assert:
         that:
-          - recovery_vaultwarden_image | default('') is match('^ghcr.io/dani-garcia/vaultwarden(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$')
+          - recovery_vaultwarden_image | default('') is match('^ghcr[.]io/dani-garcia/vaultwarden(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$')
       when: recovery_app == 'vaultwarden'
+
+    - name: Require a pinned stock CouchDB image
+      ansible.builtin.assert:
+        that:
+          - recovery_couchdb_image | default('') is match('^(?:docker[.]io/library/)?couchdb(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$')
+      when: recovery_app == 'obsidian'
 
     - name: Read the scratch namespace
       kubernetes.core.k8s_info:

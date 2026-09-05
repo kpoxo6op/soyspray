@@ -191,7 +191,7 @@ def main():
             image = container["image"]
             require(
                 re.fullmatch(
-                    r"ghcr.io/dani-garcia/vaultwarden(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}",
+                    r"ghcr[.]io/dani-garcia/vaultwarden(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}",
                     image,
                 )
                 and running.get("ready")
