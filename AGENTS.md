@@ -5,6 +5,19 @@ This repo manages a kubespray-provisioned Kubernetes cluster and its workloads
 (Ansible + Argo CD apps). Work often includes cluster operations, logs/alerts,
 and backup/retention checks.
 
+## Operator interface
+
+- `make apps` lists Applications and ownership from native metadata.
+- `make status APP=boys FORMAT=json` reports source, health, access, and recovery evidence.
+- `make check APP=boys`, `make diff APP=boys`, and `make deploy APP=boys` use the app's maintained commands.
+- `make backup-status FORMAT=json` reports native backup and restore evidence.
+- `make restore-check APP=boys` runs the isolated recovery procedure.
+- Use the app README for supported operations and their limits. Missing evidence
+  must be unknown with its cause. `make full-check` runs the full repository gate.
+
+Use [operate-soyspray](.agents/skills/operate-soyspray/SKILL.md) for operations and
+[change-soyspray-app](.agents/skills/change-soyspray-app/SKILL.md) for app changes.
+
 ## Tools
 - `kubectl`: Inspect cluster resources, pods, logs, and CRs.
 - `aws` CLI: Check backup objects and IAM policies/permissions when S3 is
@@ -39,14 +52,35 @@ and backup/retention checks.
 - Activate the venv via `make act` before running Ansible.
 - For non-interactive runs, use:
   `source soyspray-venv/bin/activate && ansible-playbook ...`.
-- When deploying a branch before merge, temporarily point the Argo app
-  `targetRevision` at that branch, then revert to `HEAD` after merge.
-- When creating PRs, ensure any temporary Argo `targetRevision` changes are
-  set back to `HEAD`.
+- For an adopted app, keep committed Git sources at `HEAD` and use the native
+  root preview procedure to select one pushed branch. Return the root to `HEAD`
+  after merge and verify the exact child comparison. Legacy apps still use their
+  documented revision input until adoption; do not leave temporary branches live.
 - When work creates or changes a feature folder, add or update a short,
   human-centered `README.md` in that folder. Explain its purpose, normal human
   use, important commands, checks, and limits. Keep shared indexes concise.
-- Prefer explicit confirmations before destructive cluster actions.
+- Use specific Ansible operations for destructive changes. Confirm scope when
+  it is not already authorized; preserve shared resources and access.
+- Keep tests that protect behavior, data, ownership, and deployment safety.
+  Tests need not precede implementation. Do not enforce prose or file counts.
+
+## Application and data protection
+
+- Keep app manifests, configuration, source, tests, and a short README under
+  `apps/NAME/`. Use upstream charts or Kustomize and explicit native Argo children.
+- Build custom runtime code into immutable GHCR images. Source changes open a
+  separate digest promotion PR; source-only merges must not change running code.
+- Establish backups and isolated restores before moving stateful ownership.
+  Preserve names, PVCs, database identities, hostnames, sessions, and keys.
+- Adopt and verify replacement paths before deleting old definitions. Check every
+  live Application source and referenced values path before cleanup.
+- Keep root pruning and cascading deletion disabled. Protect durable resources
+  from pruning and Application deletion. Parking retains data; retirement is an
+  explicit Ansible operation.
+- Use Ansible Vault and documented private bootstrap inputs. Keep recovery keys
+  outside the cluster. Preserve existing credentials during retries.
+- Each backup tool owns retention. Do not apply generic S3 expiry to active backup
+  repositories. A schedule alone does not prove the recovery target.
 
 ## Pull Request Standard
 - Organize commits for review before opening or substantially updating a PR.
@@ -65,6 +99,9 @@ and backup/retention checks.
 - Write the PR description in simple, neutral English. Lead with the outcome
   and safety facts, then include a review map, exact operating commands,
   verification evidence, and rollback instructions when relevant.
+- List every commit from oldest to newest with a direct GitHub commit link.
+- Run affected-app CI and shared checks. Cancel superseded runs; preserve an
+  explicit full-repository check.
 - For a large PR, group commit ranges by area and place the complete commit list
   in a collapsible section so the main description stays readable.
 - Add line-anchored PR comments where code is hard or non-obvious. Explain the

@@ -1,16 +1,13 @@
-# Engineering skills
+# Soyspray skills
 
-These skills give coding agents repeatable review and implementation guidance.
-Open the matching `SKILL.md` before using a skill.
+Open the matching skill before operating the cluster or changing an app.
 
-## Project-owned skills
+- [Operate Soyspray](operate-soyspray/SKILL.md): commands, deployment, recovery,
+  ownership, and retirement.
+- [Change a Soyspray app](change-soyspray-app/SKILL.md): app layout, native Argo
+  adoption, image promotion, compatibility, and useful checks.
 
-| Skill | Purpose |
-| --- | --- |
-| [`ansible-application-role`](ansible-application-role/) | Safe, idempotent Ansible application roles |
-| [`argocd-kubernetes-application`](argocd-kubernetes-application/) | Complete Argo CD and Kubernetes application design |
-
-The remaining skill folders are pinned copies of upstream packages. Their
-versions and licences are listed in [`SOURCES.md`](SOURCES.md). Internal folders
-such as `agents`, `assets`, `references`, and `scripts` belong to the skill
-package rather than the Soyspray application layout.
+These two skills are maintained with the repository. Shared browser, security,
+debugging, and verification skills belong in the operator's shared skill location,
+not in app source. On the current laptop that location is `~/.codex/skills`.
+Its `SOURCES.md` records the moved upstream packages and their licenses.

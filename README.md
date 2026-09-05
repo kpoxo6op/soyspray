@@ -40,6 +40,5 @@ route. Secrets and login details are not stored in this repository.
 - Run `make go` before deployment.
 - Add tests and a rollback path for behaviour changes.
 
-Reusable engineering workflows live under `.agents/skills`. They cover
-Ansible application roles, Argo/Kubernetes architecture, browser
-testing, security, debugging, and completion verification.
+The [two repo skills](.agents/skills/README.md) cover operating Soyspray and
+changing an application. Shared laptop skills are maintained outside the repo.
