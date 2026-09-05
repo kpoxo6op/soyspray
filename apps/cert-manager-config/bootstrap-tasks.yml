@@ -1,0 +1,63 @@
+---
+- name: Read the foundation certificate namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: cert-manager
+    kubeconfig: '{{ kubeconfig_path }}'
+  register: cert_manager_namespace
+
+- name: Require the Kubespray certificate installation
+  ansible.builtin.assert:
+    that: cert_manager_namespace.resources | length == 1
+    fail_msg: Restore the Kubespray cert-manager installation before its provider input.
+
+- name: Read the existing certificate provider identity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: cert-manager
+    name: cloudflare-api-token
+    kubeconfig: '{{ kubeconfig_path }}'
+  register: cert_manager_existing_token
+  no_log: true
+
+- name: Decode only the existing provider token
+  ansible.builtin.set_fact:
+    cert_manager_existing_value: >-
+      {{ (cert_manager_existing_token.resources | first | default({})).data['api-token'] | default('') | b64decode }}
+  no_log: true
+
+- name: Select the encrypted input or preserve the existing token
+  ansible.builtin.set_fact:
+    cert_manager_bootstrap_token: '{{ cert_manager_cloudflare_api_token | default(cert_manager_existing_value) }}'
+  no_log: true
+
+- name: Check the provider identity before any write
+  ansible.builtin.set_fact:
+    cert_manager_token_available: >-
+      {{ (cert_manager_cloudflare_api_token | default('') is string) and
+         cert_manager_bootstrap_token is string and cert_manager_bootstrap_token | trim | length > 0 }}
+    cert_manager_token_matches: >-
+      {{ cert_manager_existing_token.resources | length == 0 or cert_manager_bootstrap_token == cert_manager_existing_value }}
+  no_log: true
+
+- name: Require an existing provider identity or encrypted recovery input
+  ansible.builtin.assert:
+    that: cert_manager_token_available | bool
+    fail_msg: Restore cloudflare-api-token or supply cert_manager_cloudflare_api_token through Ansible Vault.
+
+- name: Preserve the existing provider token
+  ansible.builtin.assert:
+    that: cert_manager_token_matches | bool
+    fail_msg: The supplied token differs from the existing identity. This bootstrap cannot rotate credentials.
+
+- name: Create only the missing certificate provider Secret
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, '{{ kubeconfig_path }}', create, -f, '-']
+    stdin: >-
+      {{ {'apiVersion': 'v1', 'kind': 'Secret', 'metadata': {'name': 'cloudflare-api-token', 'namespace': 'cert-manager'},
+      'type': 'Opaque', 'stringData': {'api-token': cert_manager_bootstrap_token}} | to_json }}
+  changed_when: true
+  no_log: true
+  when: cert_manager_existing_token.resources | length == 0 and not ansible_check_mode
