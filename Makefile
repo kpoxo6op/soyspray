@@ -43,7 +43,7 @@ KUSTOMIZATIONS := \
 	playbooks/argocd/applications/media/dispatcharr \
 	playbooks/argocd/applications/media/jellyfin
 
-.PHONY: help setup act check autism-traits-check lint validate validate-skills status-page-check \
+.PHONY: help setup act check boys-check autism-traits-check lint validate validate-skills status-page-check \
 	test render go autism-traits boys vaultwarden live-tv voice-assistant voice-pe-render \
 	voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
 	list-apps node0 node1 node2 master worker1 worker2 worker3 clean
@@ -56,19 +56,23 @@ setup: ## Create the venv and install local tooling
 	test -d $(VENV) || python3 -m venv $(VENV)
 	$(VENV)/bin/python -m pip install -r requirements-dev.txt
 	cd $(AUTISM_TRAITS_APP) && npm ci
+	cd kubernetes/boys && npm ci && npx playwright install chromium
 
 act: ## Open a shell in the project venv
 	bash -lc 'source $(VENV)/bin/activate && exec bash -i'
 
-check: lint validate test autism-traits-check ## Run the complete local gate
+check: lint validate test autism-traits-check boys-check ## Run the complete local gate
 	printf '\nLocal gate passed.\n'
+
+boys-check: ## Check Boys save recovery in phone and desktop browsers
+	cd kubernetes/boys && npm test
 
 autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check kubernetes/boys/app scripts tests
-	$(PYTHON) -m ruff format --check kubernetes/boys/app scripts tests
+	$(PYTHON) -m ruff check kubernetes/boys/app kubernetes/boys/tests scripts tests
+	$(PYTHON) -m ruff format --check kubernetes/boys/app kubernetes/boys/tests scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		roles/apps/autism-traits/tasks/*.yml roles/apps/autism-traits/defaults/*.yml \
 		roles/apps/boys/tasks/*.yml roles/apps/boys/defaults/*.yml \

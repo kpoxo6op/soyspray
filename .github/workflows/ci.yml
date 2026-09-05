@@ -37,5 +37,8 @@ jobs:
           cache-dependency-path: requirements-dev.txt
       - name: Install local tooling
         run: python -m pip install -r requirements-dev.txt
+      - name: Install Boys browser checks
+        working-directory: kubernetes/boys
+        run: npm ci
       - name: Run local gate
         run: make check PYTHON=python3
