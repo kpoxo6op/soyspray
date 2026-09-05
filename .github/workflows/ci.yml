@@ -96,12 +96,12 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: kubernetes/boys/package-lock.json
+          cache-dependency-path: apps/boys/package-lock.json
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
       - name: Install Boys browser checks
-        working-directory: kubernetes/boys
+        working-directory: apps/boys
         run: |
           npm ci
           npx playwright install --with-deps chromium
