@@ -55,6 +55,7 @@ help: ## Show the operator commands
 setup: ## Create the venv and install local tooling
 	test -d $(VENV) || python3 -m venv $(VENV)
 	$(VENV)/bin/python -m pip install -r requirements-dev.txt
+	$(VENV)/bin/ansible-galaxy collection install -r requirements-ansible.yml
 	cd $(AUTISM_TRAITS_APP) && npm ci
 	cd kubernetes/boys && npm ci && npx playwright install chromium
 
