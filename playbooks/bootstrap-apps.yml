@@ -6,7 +6,30 @@
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
     argocd_revision: HEAD
+    argocd_preview_application: ""
   tasks:
+    - name: Prepare native root parameters from the committed checkout
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - -m
+          - scripts.argo_preview
+          - --revision
+          - "{{ argocd_revision }}"
+          - --app
+          - "{{ argocd_preview_application }}"
+        chdir: "{{ playbook_dir }}/.."
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      check_mode: false
+      register: argocd_prepared_root
+
+    - name: Read the requested root definition
+      ansible.builtin.set_fact:
+        argocd_root_definition: "{{ (argocd_prepared_root.stdout | from_json).application }}"
+        argocd_expected_revision: "{{ (argocd_prepared_root.stdout | from_json).revision }}"
+
     - name: Read the existing Argo namespace
       kubernetes.core.k8s_info:
         api_version: v1
@@ -55,13 +78,29 @@
         - argocd_existing_root.resources | length == 1
         - existing_finalizers | intersect(cascading_finalizers) | length > 0
 
+    - name: Replace source parameters without retaining an old preview
+      kubernetes.core.k8s_json_patch:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: soyspray
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - op: test
+            path: /spec/source
+            value: "{{ argocd_existing_root.resources[0].spec.source }}"
+          - op: replace
+            path: /spec/source
+            value: "{{ argocd_root_definition.spec.source }}"
+      when:
+        - argocd_existing_root.resources | length == 1
+        - argocd_existing_root.resources[0].spec.source != argocd_root_definition.spec.source
+
     - name: Apply the root Application without cascading deletion
       kubernetes.core.k8s:
         state: present
         kubeconfig: "{{ kubeconfig_path }}"
-        definition: >-
-          {{ lookup('file', playbook_dir + '/../argocd/bootstrap/application.yaml') | from_yaml
-             | combine({'spec': {'source': {'targetRevision': argocd_revision}}}, recursive=true) }}
+        definition: "{{ argocd_root_definition }}"
 
     - name: Wait for the root to reconcile the selected revision
       kubernetes.core.k8s_info:
@@ -73,9 +112,44 @@
       register: argocd_root
       until:
         - argocd_root.resources | length == 1
-        - argocd_root.resources[0].status.sync.comparedTo.source.targetRevision | default('') == argocd_revision
+        - argocd_root.resources[0].status.sync.comparedTo.source | default({}) == argocd_root_definition.spec.source
+        - argocd_root.resources[0].status.sync.revision | default('') == argocd_expected_revision
         - argocd_root.resources[0].status.sync.status | default('') == 'Synced'
         - argocd_root.resources[0].status.health.status | default('') == 'Healthy'
       retries: 60
       delay: 5
       when: not ansible_check_mode
+
+    - name: Wait for the selected child to finish its current comparison
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: "{{ argocd_preview_application }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: argocd_preview_child
+      until:
+        - argocd_preview_child.resources | length == 1
+        - argocd_preview_child.resources[0].status.sync.status | default('') == 'Synced'
+        - argocd_preview_child.resources[0].status.health.status | default('') == 'Healthy'
+        - >-
+          argocd_preview_child.resources[0].spec.source is not defined or
+          argocd_preview_child.resources[0].status.sync.comparedTo.source | default({}) ==
+          argocd_preview_child.resources[0].spec.source | default({})
+        - >-
+          argocd_preview_child.resources[0].spec.sources is not defined or
+          argocd_preview_child.resources[0].status.sync.comparedTo.sources | default([]) ==
+          argocd_preview_child.resources[0].spec.sources | default([])
+        - >-
+          argocd_preview_child.resources[0].status.operationState.phase | default('')
+          not in ['Running', 'Terminating']
+        - >-
+          argocd_root_definition.spec.source.kustomize.patches | default([]) | length == 0 or
+          argocd_expected_revision in
+          ((argocd_preview_child.resources[0].status.sync.revisions | default([])) +
+           [argocd_preview_child.resources[0].status.sync.revision | default('')])
+      retries: 60
+      delay: 5
+      when:
+        - not ansible_check_mode
+        - argocd_preview_application | length > 0

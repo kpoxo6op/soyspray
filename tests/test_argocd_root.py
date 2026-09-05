@@ -53,3 +53,59 @@ def test_children_have_explicit_projects_and_survive_parent_removal():
             project = projects[child["spec"]["project"]]
             assert child["spec"]["destination"] in project["spec"]["destinations"]
             assert child["spec"]["destination"]["namespace"] != "argocd"
+
+
+def test_preview_wait_compares_the_declared_source_form():
+    from ansible.parsing.dataloader import DataLoader
+    from ansible.playbook.conditional import Conditional
+    from ansible.template import Templar
+
+    play = load_yaml("playbooks/bootstrap-apps.yml")[0]
+    conditions = next(
+        task["until"] for task in play["tasks"] if task.get("register") == "argocd_preview_child"
+    )
+    loader = DataLoader()
+    conditional = Conditional(loader=loader)
+    conditional.when = conditions
+
+    def ready(spec, compared, revision="current", patches=True):
+        variables = {
+            "argocd_expected_revision": "current",
+            "argocd_root_definition": {
+                "spec": {"source": {"kustomize": {"patches": [{}] if patches else []}}}
+            },
+            "argocd_preview_child": {
+                "resources": [
+                    {
+                        "spec": spec,
+                        "status": {
+                            "sync": {
+                                "status": "Synced",
+                                "comparedTo": compared,
+                                **(
+                                    {"revisions": [revision]}
+                                    if "sources" in spec
+                                    else {"revision": revision}
+                                ),
+                            },
+                            "health": {"status": "Healthy"},
+                        },
+                    }
+                ]
+            },
+        }
+        return conditional.evaluate_conditional(
+            Templar(loader=loader, variables=variables), variables
+        )
+
+    source = {"repoURL": "https://example.test/app.git", "targetRevision": "preview"}
+    stale = {**source, "targetRevision": "HEAD"}
+    assert ready({"sources": [source]}, {"source": {"repoURL": ""}, "sources": [source]})
+    assert not ready({"sources": [source]}, {"source": {"repoURL": ""}, "sources": [stale]})
+    assert ready({"source": source}, {"source": source})
+    assert not ready({"source": source}, {"source": stale})
+    assert not ready(
+        {"sources": [source]}, {"source": {"repoURL": ""}, "sources": [source]}, "previous"
+    )
+    assert not ready({"source": source}, {"source": source}, "previous")
+    assert ready({"source": source}, {"source": source}, "chart-version", patches=False)

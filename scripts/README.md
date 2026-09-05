@@ -40,6 +40,8 @@ Use `make status-page-check` to validate the external status configuration,
   status through `kubectl`. Use `make apps` or `make status APP=boys FORMAT=json`.
   Missing metadata and evidence appear as `unknown` with a cause. API failures
   return a nonzero exit code. See [application operations](../apps/README.md).
+- `argo_preview.py` prepares native root parameters for a pushed application branch.
+  Use it through [the Argo bootstrap operation](../argocd/README.md#preview-one-adopted-application).
 - `make list-apps` uses native `kubectl` output for Argo sync and health.
 - `backup_status.py` reads native backup records for `make backup-status`.
   See [recovery operations](../playbooks/operations/recovery/README.md#read-backup-status)
