@@ -2,7 +2,7 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 PYTHON ?= soyspray-venv/bin/python
 REVISION ?= HEAD
-.PHONY: check diff deploy
+.PHONY: check diff deploy restore-check
 
 check:
 	$(PYTHON) -m pytest -q apps/obsidian-livesync/tests
@@ -14,6 +14,9 @@ diff:
 
 deploy:
 	$(MAKE) --no-print-directory -f Makefile APP= obsidian-livesync OBSIDIAN_ENABLED=true OBSIDIAN_REVISION=$(REVISION)
+
+restore-check:
+	$(PYTHON) -m apps.obsidian-livesync.restore_check
 
 .DEFAULT:
 	@printf 'unknown: obsidian-livesync has no maintained %s operation yet.\n' "$@" >&2
