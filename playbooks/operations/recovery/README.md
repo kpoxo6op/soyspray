@@ -202,6 +202,12 @@ for a fresh restore. The operation rejects an existing namespace or storage
 class with different ownership or backup identity. Check mode validates the
 source and proposed storage resources; it does not mount data.
 
+The operation waits for Longhorn restore completion before mounting data. It
+stops on a reported scheduling failure or faulted volume. Physical free space
+does not guarantee scheduling capacity: inspect Longhorn disk reservations
+and scheduled volume sizes. Record the failure and clean up that scratch
+workspace before retrying.
+
 Copy the restored directory to a private location outside Git for application
 checks. The inspection container does not run the app, so this copy includes
 the SQLite database and any WAL files without concurrent app writes:

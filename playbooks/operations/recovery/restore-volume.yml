@@ -105,6 +105,36 @@
           - recovery_restored.resources[0].spec.storageClassName == recovery_scratch
       when: not ansible_check_mode
 
+    - name: Wait for native restore completion or a reported storage failure
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Volume
+        name: "{{ recovery_restored.resources[0].spec.volumeName }}"
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_volume
+      until: >-
+        recovery_volume.resources | length == 1 and
+        ((recovery_volume.resources[0].status.robustness | default('') == 'healthy' and
+          not recovery_volume.resources[0].status.restoreRequired | default(true)) or
+         recovery_volume.resources[0].status.robustness | default('') == 'faulted' or
+         (recovery_volume.resources[0].status.conditions | default([])
+          | selectattr('reason', 'equalto', 'ReplicaSchedulingFailure') | list | length > 0))
+      retries: 90
+      delay: 10
+      when: not ansible_check_mode
+
+    - name: Require usable restored data before starting an inspection pod
+      ansible.builtin.assert:
+        that:
+          - recovery_volume.resources[0].status.robustness == 'healthy'
+          - not recovery_volume.resources[0].status.restoreRequired
+        fail_msg: >-
+          Longhorn could not restore the scratch volume. Inspect its conditions and
+          scheduling capacity, then clean up the scratch workspace before retrying.
+          Conditions: {{ recovery_volume.resources[0].status.conditions | default([]) }}
+      when: not ansible_check_mode
+
     - name: Mount only the restored data for inspection
       kubernetes.core.k8s:
         state: present
