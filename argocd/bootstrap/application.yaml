@@ -3,7 +3,6 @@ kind: Application
 metadata:
   name: soyspray
   namespace: argocd
-  finalizers: []
   labels:
     soyspray.vip/owner: platform
   annotations:

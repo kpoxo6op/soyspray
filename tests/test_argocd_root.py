@@ -17,7 +17,7 @@ def rendered_children():
 def test_root_cannot_prune_or_cascade_and_only_manages_argo_objects():
     app = load_yaml("argocd/bootstrap/application.yaml")
     project = load_yaml("argocd/bootstrap/project.yaml")
-    assert app["metadata"]["finalizers"] == []
+    assert app["metadata"].get("finalizers", []) == []
     assert app["spec"]["syncPolicy"]["automated"]["prune"] is False
     assert app["spec"]["syncPolicy"]["automated"]["allowEmpty"] is False
     assert app["spec"]["project"] == project["metadata"]["name"]

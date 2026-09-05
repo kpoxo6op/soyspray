@@ -26,6 +26,35 @@
         kubeconfig: "{{ kubeconfig_path }}"
         definition: "{{ lookup('file', playbook_dir + '/../argocd/bootstrap/project.yaml') | from_yaml }}"
 
+    - name: Read the existing root Application
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: soyspray
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: argocd_existing_root
+
+    - name: Remove existing Argo cascading finalizers
+      vars:
+        cascading_finalizers:
+          - resources-finalizer.argocd.argoproj.io
+          - resources-finalizer.argocd.argoproj.io/background
+        existing_finalizers: "{{ argocd_existing_root.resources[0].metadata.finalizers | default([]) }}"
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: argoproj.io/v1alpha1
+          kind: Application
+          metadata:
+            name: soyspray
+            namespace: argocd
+            finalizers: "{{ existing_finalizers | difference(cascading_finalizers) }}"
+      when:
+        - argocd_existing_root.resources | length == 1
+        - existing_finalizers | intersect(cascading_finalizers) | length > 0
+
     - name: Apply the root Application without cascading deletion
       kubernetes.core.k8s:
         state: present
