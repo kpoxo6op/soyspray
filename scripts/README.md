@@ -24,6 +24,8 @@ scripts/hays-open-submitted-timesheet
   DNS-only CNAME. Its `--fallback` switch activates the hosted Better Stack
   address when the custom hostname must be bypassed.
 - `validate_skills.py` checks the Agent Skills under `.agents/skills`.
+- `check_prometheus.py` checks native monitoring rules and backup behavior with
+  pinned upstream `promtool`. Use `make prometheus-check`.
 - `validate_yaml.py` parses the YAML files used by the local quality gate.
 - `ci_scope.py` selects affected browser checks for GitHub CI. Shared checks
   always run; [manual dispatch](../.github/workflows/README.md) runs all checks.
