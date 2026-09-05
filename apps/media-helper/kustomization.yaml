@@ -8,8 +8,8 @@ resources:
 configMapGenerator:
   - name: media-helper-code
     files:
-      - app.py=app/app.py
-      - channels.json=app/channels.json
+      - app.py=manifests/legacy-app.py
+      - channels.json=manifests/legacy-channels.json
 generatorOptions:
   annotations:
     argocd.argoproj.io/sync-options: ServerSideApply=true
