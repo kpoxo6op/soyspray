@@ -13,6 +13,14 @@
           - recovery_app | default('') in ['vaultwarden', 'obsidian']
           - recovery_check_id | default('') is match('^[a-z0-9][a-z0-9-]{0,23}$')
 
+    - name: Require off-repository TLS inputs for the isolated vault
+      ansible.builtin.assert:
+        that:
+          - recovery_tls_directory | default('') is match('^/')
+          - recovery_tls_directory | realpath != ((playbook_dir ~ '/../../..') | realpath)
+          - not (recovery_tls_directory | realpath).startswith(((playbook_dir ~ '/../../..') | realpath) ~ '/')
+      when: recovery_app == 'vaultwarden'
+
     - name: Read the scratch namespace
       kubernetes.core.k8s_info:
         api_version: v1
