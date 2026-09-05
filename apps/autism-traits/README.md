@@ -31,8 +31,10 @@ not merge or deploy automatically. Review the promotion, run `make go`, and use
 `AUTISM_TRAITS_REVISION=HEAD` and verify the real site.
 
 The current deployment is still in `kubernetes/autism-traits/` during adoption.
-Its committed bundle remains frozen until the first image promotion passes live
-verification. New build output stays local and is not committed. Roll back the
+The native root now owns the existing Application and AppProject declared in
+`argocd/`. Its Application cannot cascade deletion. The first immutable image
+promotion passed live verification; old deployment files remain for the separate
+cleanup step. New build output stays local and is not committed. Roll back the
 digest and compatible configuration together; preserve existing access settings.
 
 ## Access and recovery
@@ -41,6 +43,11 @@ The public route uses the dedicated Cloudflare Tunnel `autism-traits-public`.
 It connects to the existing Service over TLS with hostname verification. The
 private LAN and Tailscale route uses the existing Ingress. Keep the certificate,
 tunnel identity, connector token and network policies during image adoption.
+
+The `platform` operator owns the site. The general legacy deployment no longer
+submits its Application. `make autism-traits` uses the native root operation;
+`AUTISM_TRAITS_ENABLED=false` cannot remove an adopted app. Retirement requires
+an explicit operation after removing its root registration.
 
 The existing [tunnel operating guide](../../kubernetes/autism-traits/README.md)
 describes its DNS, CNI and public isolation checks. Use it until native Argo
