@@ -212,3 +212,37 @@ def test_offline_status_keeps_app_health_when_backup_input_fails(
     assert row["health"]["value"] == "Healthy"
     assert row["recovery"]["last_restore"]["value"][0]["evidence"]["value"] == "unknown"
     assert row["recovery"]["latest_backup"]["value"][0]["backup"]["value"] == "unknown"
+
+
+@pytest.mark.parametrize("command", ["apps", "status"])
+def test_make_entrypoint_runs_with_native_module_imports(tmp_path, app, command):
+    import os
+    import sys
+
+    kubectl = tmp_path / "kubectl"
+    response = json.dumps({"kind": "List", "items": [app]})
+    kubectl.write_text(
+        f"#!{sys.executable}\nimport json, sys\n"
+        f"print({response!r} if any('applications' in arg for arg in sys.argv) else '{{\"items\":[]}}')\n"
+    )
+    kubectl.chmod(0o700)
+    result = subprocess.run(
+        [
+            "make",
+            "--no-print-directory",
+            command,
+            "APP=crew",
+            "FORMAT=json",
+            f"PYTHON={sys.executable}",
+        ],
+        cwd=ROOT,
+        env={**os.environ, "PATH": str(tmp_path) + os.pathsep + os.environ["PATH"]},
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    assert result.returncode == 0, result.stderr
+    report = json.loads(result.stdout)
+    assert report["applications"][0]["name"] == "crew"
+    if command == "status":
+        assert report["applications"][0]["health"]["value"] == "Healthy"
