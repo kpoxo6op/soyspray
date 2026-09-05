@@ -51,7 +51,7 @@ KUSTOMIZATIONS := \
 	$(VAULTWARDEN_PACKAGE) \
 	$(OBSIDIAN_PACKAGE) \
 	playbooks/argocd/applications/home-automation/voice-assistant \
-	playbooks/argocd/applications/media/media-helper \
+	apps/media-helper \
 	playbooks/argocd/applications/media/dispatcharr \
 	playbooks/argocd/applications/media/jellyfin
 
@@ -114,7 +114,7 @@ lint: ## Check Python style and common defects
 	$(PYTHON) -m ruff check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/headlamp/tests apps/media-helper/tests apps/vaultwarden/agent_secret.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
 	$(PYTHON) -m ruff format --check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/headlamp/tests apps/media-helper/tests apps/vaultwarden/agent_secret.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml apps/obsidian-livesync/*.yml apps/media-helper/*.yml \
+		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml apps/obsidian-livesync/*.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml \

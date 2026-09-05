@@ -4,6 +4,8 @@ Each migrated app keeps its Argo definitions, configuration, custom source,
 useful checks, and operating guide in its own folder. The native root lists
 adopted apps in [its Kustomization](../argocd/kustomization.yaml).
 
+- [Media helper](media-helper/README.md): internal channel catalog, playlist and guide.
+- [Obsidian sync](obsidian-livesync/README.md): CouchDB note sync and recovery.
 - [Vaultwarden](vaultwarden/README.md): private human vault and restricted reader.
 - [Domain health](domain-health/README.md): domain checks and Prometheus metrics.
 - [ExternalDNS](external-dns/README.md): maintain ingress DNS through the existing Cloudflare identity.
@@ -63,7 +65,8 @@ replacement before removing its old path.
 
 ## Check, compare, and deploy
 
-Boys, autism traits, ExternalDNS, domain health, and Vaultwarden have app command files. Use the Application name:
+Boys, autism traits, ExternalDNS, domain health, Vaultwarden, Obsidian sync,
+Headlamp, and Media Helper have app command files. Use the Application name:
 
 ```sh
 make check APP=boys
@@ -88,7 +91,8 @@ including runtime patches. It compares local workload changes, not edits to
 Application metadata or bootstrap secrets. Argo omits Secret values. Read the
 native manifests and Ansible check output for those separate changes.
 
-ExternalDNS compares a clean, pushed commit with the live chart deployment. It
+Media Helper compares a clean, pushed single Git source. ExternalDNS and Headlamp
+compare a clean, pushed commit with the live chart deployment. It
 keeps explicit chart versions and resolves Git values to the exact commit. It
 rejects Application setting changes that native revision overrides cannot render.
 See [ExternalDNS](external-dns/README.md) for supported changes and limits.
