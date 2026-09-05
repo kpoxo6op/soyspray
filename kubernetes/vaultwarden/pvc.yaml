@@ -4,7 +4,7 @@ metadata:
   name: vaultwarden-data
   namespace: vaultwarden
   annotations:
-    argocd.argoproj.io/sync-options: Delete=false
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
   accessModes:
     - ReadWriteOnce
