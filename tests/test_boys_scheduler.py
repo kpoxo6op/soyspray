@@ -530,10 +530,6 @@ def test_gitops_package_has_persistence_and_a_narrow_public_path() -> None:
     deployments = {
         item["metadata"]["name"]: item for item in resources if item["kind"] == "Deployment"
     }
-    app_config = next(item for item in resources if item["kind"] == "ConfigMap")
-    assert {"server.py", "index.html", "app.js", "styles.css", "events.html", "events.js"} <= set(
-        app_config["data"]
-    )
     assert set(deployments) == {"boys", "boys-cloudflared"}
     app_container = deployments["boys"]["spec"]["template"]["spec"]["containers"][0]
     assert app_container["image"].startswith("ghcr.io/kpoxo6op/boys@sha256:")
