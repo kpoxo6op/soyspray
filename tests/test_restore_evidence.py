@@ -169,3 +169,34 @@ def test_app_inventory_controls_mapping_and_offline_reads(tmp_path, record):
         app_recovery(app, backup, NOW, tmp_path)["last_restore"]["value"][0]["evidence"]["value"]
         == "unknown"
     )
+
+
+def test_obsidian_report_exposes_incomplete_note_coverage_without_private_content(tmp_path, record):
+    record = {
+        **record,
+        "app": "obsidian-livesync",
+        "data": {
+            "data_checks": "passed",
+            "active_plain_notes": 3,
+            "readable_plain_notes": 2,
+            "unreadable_plain_notes": 1,
+            "pre_existing_missing_chunks": 4,
+            "private_note": "never-output-this",
+            "active_binary_documents": "invalid",
+        },
+    }
+    path = tmp_path / record["app"] / record["check_id"] / "report.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(record))
+    result = read_evidence(record["app"], "claim-1", "pv-1", NOW, tmp_path)["value"][
+        "last_success"
+    ]["value"]
+    assert result["accepted"] is True
+    assert result["data_coverage"]["unreadable_plain_notes"]["value"] == 1
+    assert result["data_coverage"]["readable_plain_notes"]["value"] == 2
+    assert result["data_coverage"]["attachment_recovery"]["value"] == "unknown"
+    assert result["data_coverage"]["active_binary_documents"]["value"] == "unknown"
+    assert result["data_coverage"]["legacy_note_documents"]["value"] == "unknown"
+    assert result["human_login"]["value"] == "unknown"
+    assert "human_personal_pin" not in result
+    assert "never-output-this" not in json.dumps(result)
