@@ -3,7 +3,7 @@ kind: Namespace
 metadata:
   name: boys
   annotations:
-    argocd.argoproj.io/sync-options: Delete=false
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
   labels:
     app.kubernetes.io/part-of: boys
     pod-security.kubernetes.io/enforce: restricted
