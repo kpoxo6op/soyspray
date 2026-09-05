@@ -117,3 +117,15 @@ def test_cached_cli_with_wrong_checksum_is_rejected(tmp_path):
     binary.write_bytes(b"wrong artifact")
     with pytest.raises(ValueError, match="checksum"):
         argocd_cli.verify(binary)
+
+
+def test_unimplemented_app_operation_reports_unknown_without_running_another_action():
+    result = subprocess.run(
+        command("autism-traits", "restore-check", "python3", "HEAD"),
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 2
+    assert result.stdout.startswith("unknown:")
+    assert "restore-check" in result.stdout
