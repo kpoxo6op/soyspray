@@ -1,3 +1,4 @@
+import base64
 from pathlib import Path
 
 import pytest
@@ -7,47 +8,79 @@ from ansible.playbook.conditional import Conditional
 from ansible.template import Templar
 
 PLAY = yaml.safe_load((Path(__file__).resolve().parents[1] / "bootstrap.yml").read_text())[0]
+EXISTING = [{"data": {"token": base64.b64encode(b"existing-token").decode()}}]
 
 
 @pytest.mark.parametrize(
-    "token,resources,available,writes",
+    "token,resources,check_mode,allowed,writes",
     [
-        ("", [{"data": {"token": "existing"}}], True, False),
-        ("", [], False, False),
-        ("", [{"data": {}}], False, False),
-        ("supplied-runtime-input", [], True, True),
-        (None, [{"data": {"token": "existing"}}], False, False),
+        ("", EXISTING, False, True, []),
+        ("existing-token", EXISTING, False, True, []),
+        ("different-token", EXISTING, False, False, []),
+        ("", [], False, False, []),
+        ("", [{"data": {}}], False, False, []),
+        ("supplied-input", [{"data": {}}], False, False, []),
+        ("supplied-input", [], False, True, ["namespace", "secret"]),
+        ("supplied-input", [], True, True, ["namespace"]),
+        (None, EXISTING, False, False, []),
+        (12345, [], False, False, []),
     ],
 )
-def test_bootstrap_preserves_existing_identity_unless_an_input_is_supplied(
-    token, resources, available, writes
+def test_bootstrap_never_replaces_an_existing_tunnel_identity(
+    token, resources, check_mode, allowed, writes
 ):
     loader = DataLoader()
     variables = {
         "autism_traits_existing_token": {"resources": resources},
         "autism_traits_cloudflared_token": token,
+        "ansible_check_mode": check_mode,
+        "kubeconfig_path": "/private/kubeconfig",
     }
-    templar = Templar(loader=loader, variables=variables)
-    fact = next(
-        t["ansible.builtin.set_fact"] for t in PLAY["tasks"] if "ansible.builtin.set_fact" in t
-    )
-    assert templar.template(fact["autism_traits_identity_available"]) is available
-    if not available:
-        return  # The assertion stops the play before any write task.
+    actual = []
+    passed = True
     for task in PLAY["tasks"]:
-        if "kubernetes.core.k8s" not in task:
+        templar = Templar(loader=loader, variables=variables)
+        if "ansible.builtin.set_fact" in task:
+            variables.update(templar.template(task["ansible.builtin.set_fact"]))
+        if "ansible.builtin.assert" in task:
+            condition = Conditional(loader=loader)
+            condition.when = [task["ansible.builtin.assert"]["that"]]
+            if not condition.evaluate_conditional(
+                Templar(loader=loader, variables=variables), variables
+            ):
+                passed = False
+                break
+        if "when" not in task:
             continue
         condition = Conditional(loader=loader)
         condition.when = [task["when"]]
-        assert condition.evaluate_conditional(templar, variables) is writes
-    secret = next(
-        t
-        for t in PLAY["tasks"]
-        if isinstance(t.get("kubernetes.core.k8s", {}).get("definition"), dict)
-        and t["kubernetes.core.k8s"]["definition"].get("kind") == "Secret"
-    )
-    assert secret["no_log"] is True
-    assert secret["kubernetes.core.k8s"]["definition"]["metadata"] == {
-        "name": "autism-traits-cloudflared-token",
-        "namespace": "autism-traits",
-    }
+        if not condition.evaluate_conditional(templar, variables):
+            continue
+        if "kubernetes.core.k8s" in task:
+            actual.append("namespace")
+        if "ansible.builtin.command" in task:
+            command = task["ansible.builtin.command"]
+            assert command["argv"][-3:] == ["create", "-f", "-"]
+            assert task["no_log"] is True
+            definition = yaml.safe_load(templar.template(command["stdin"]))
+            assert definition["metadata"] == {
+                "name": "autism-traits-cloudflared-token",
+                "namespace": "autism-traits",
+            }
+            assert definition["stringData"]["token"] == token
+            actual.append("secret")
+    assert passed is allowed
+    assert actual == writes
+
+
+def test_sensitive_reads_and_processing_suppress_output():
+    for task in PLAY["tasks"]:
+        if any(
+            key in task
+            for key in (
+                "kubernetes.core.k8s_info",
+                "ansible.builtin.set_fact",
+                "ansible.builtin.command",
+            )
+        ):
+            assert task["no_log"] is True
