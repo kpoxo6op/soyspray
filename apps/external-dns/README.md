@@ -20,6 +20,7 @@ Run from the repository root:
 
 ```sh
 make check APP=external-dns
+make diff APP=external-dns
 make deploy APP=external-dns REVISION=YOUR_PUSHED_BRANCH
 make status APP=external-dns FORMAT=json
 ```
@@ -28,9 +29,15 @@ Deployment runs the full local gate and standard Ansible bootstrap and root
 reconciliation. After merge, run `make deploy APP=external-dns` to return to HEAD.
 Verify Argo health, the chart and Git revisions, the original Deployment and RBAC
 identities, the token hash, public DNS answers, and Cloudflare records. An ownership
-cleanup must not change the rendered workload or DNS records. Unsupported Helm
-diff, smoke, and restore operations return unknown with their cause while these
+cleanup must not change the rendered workload or DNS records. Smoke and restore operations return unknown with their cause while these
 operations are added.
+
+The diff command requires a clean, pushed branch. Native Argo renders the pinned
+chart with Git values from that exact commit, without syncing or changing the
+Application. Secrets are omitted. Chart version and values changes are supported.
+Changes to source paths, Helm parameters, destination, project, or sync policy
+return unknown because revision overrides cannot render those settings. Review
+Application metadata and secret bootstrap changes separately.
 
 ## Restore the provider identity
 

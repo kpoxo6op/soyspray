@@ -1,4 +1,4 @@
-"""Compare one app's local YAML with its live state using native Argo rendering."""
+"""Compare application workloads with live state using native Argo rendering."""
 
 import argparse
 import json
@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 from pathlib import Path, PurePosixPath
 
+from scripts.app_diff_sources import pushed_sources
 from scripts.argocd_cli import argocd
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -69,7 +70,10 @@ def compare(app, package, binary):
         )
     )
     source = application["spec"].get("source", {})
-    if "path" not in source or source.get("chart") or application["spec"].get("sources"):
+    revision_args = pushed_sources(app, application, ROOT) if package is None else None
+    if package is not None and (
+        "path" not in source or source.get("chart") or application["spec"].get("sources")
+    ):
         raise ValueError("This operation needs one Git source with a YAML manifest package.")
     config = json.loads(
         subprocess.check_output(
@@ -82,7 +86,17 @@ def compare(app, package, binary):
     with tempfile.TemporaryDirectory(prefix="soyspray-diff-") as directory:
         work = Path(directory)
         checkout = work / "repo"
-        stage_package(package, source["path"], checkout)
+        if package is not None:
+            stage_package(package, source["path"], checkout)
+            revision_args = [
+                "--local",
+                str(checkout),
+                "--server-side-generate",
+                "--local-include",
+                "*.yaml",
+                "--local-include",
+                "*.yml",
+            ]
         kubeconfig = work / "kubeconfig.json"
         kubeconfig.touch(mode=0o600)
         kubeconfig.write_text(json.dumps(config))
@@ -94,7 +108,7 @@ def compare(app, package, binary):
             [*cli, "login", "--core"], env=env, check=True, timeout=30, stdout=subprocess.DEVNULL
         )
         print(
-            "Native Argo comparison of local workload YAML. Secrets are omitted.\n"
+            "Native Argo workload comparison. Secrets are omitted.\n"
             "Removed objects still follow their Argo prune protections; this command does not sync.",
             flush=True,
         )
@@ -105,13 +119,7 @@ def compare(app, package, binary):
                 "app",
                 "diff",
                 app,
-                "--local",
-                str(checkout),
-                "--server-side-generate",
-                "--local-include",
-                "*.yaml",
-                "--local-include",
-                "*.yml",
+                *revision_args,
                 "--diff-exit-code",
                 "10",
             ],
@@ -128,12 +136,16 @@ def compare(app, package, binary):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--app", required=True)
-    parser.add_argument("--package", required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--package", help="Local YAML package for a single Git source")
+    mode.add_argument(
+        "--pushed", action="store_true", help="Clean pushed chart and Git values proposal"
+    )
     args = parser.parse_args()
-    package = (ROOT / args.package).resolve()
-    if not re.fullmatch(
-        r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", args.app
-    ) or not package.is_relative_to(ROOT):
+    package = (ROOT / args.package).resolve() if args.package else None
+    if not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", args.app) or (
+        package is not None and not package.is_relative_to(ROOT)
+    ):
         parser.error("Use an Application name and a package inside this checkout.")
     try:
         compare(args.app, package, argocd())

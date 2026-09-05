@@ -50,7 +50,7 @@ replacement before removing its old path.
 
 ## Check, compare, and deploy
 
-Boys and autism traits have app command files. Use the Application name:
+Boys, autism traits, and ExternalDNS have app command files. Use the Application name:
 
 ```sh
 make check APP=boys
@@ -68,11 +68,16 @@ first. Deployment defaults to `REVISION=HEAD`; use the pushed branch for preview
 and run the default again after merge.
 
 `diff` uses the pinned upstream Argo CLI and the current Kubernetes context.
-It sends YAML files from the app's local manifest folder to Argo for native
+For Boys and autism traits, it sends YAML files from the local manifest folder for native
 rendering and comparison. Argo applies the current Application's source options,
 including runtime patches. It compares local workload changes, not edits to
 Application metadata or bootstrap secrets. Argo omits Secret values. Read the
 native manifests and Ansible check output for those separate changes.
+
+ExternalDNS compares a clean, pushed commit with the live chart deployment. It
+keeps explicit chart versions and resolves Git values to the exact commit. It
+rejects Application setting changes that native revision overrides cannot render.
+See [ExternalDNS](external-dns/README.md) for supported changes and limits.
 
 The comparison does not sync or prune. A removed object in the diff is not proof
 that Argo will delete it: check its `Prune=false` protection and the Application's
