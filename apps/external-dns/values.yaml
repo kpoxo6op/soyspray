@@ -1,4 +1,3 @@
-# playbooks/yaml/argocd-apps/external-dns/values.yaml
 provider:
   name: cloudflare
 

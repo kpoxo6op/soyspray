@@ -4,3 +4,4 @@ resources:
   - ../apps/headlamp/argocd
   - ../apps/autism-traits/argocd
   - ../apps/boys/argocd
+  - ../apps/external-dns/argocd

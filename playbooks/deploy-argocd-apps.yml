@@ -20,7 +20,6 @@
       # Infrastructure
       - { name: Longhorn, role: apps/longhorn }
       - { name: Cert Manager, role: apps/cert-manager }
-      - { name: External DNS, role: apps/external-dns }
 
       # Database
       - { name: CNPG Operator, role: apps/cnpg-operator }

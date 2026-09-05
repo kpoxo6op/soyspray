@@ -1,0 +1,67 @@
+---
+- name: Bootstrap the ExternalDNS provider identity
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Read the existing provider Secret
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: external-dns
+        name: cloudflare-api-token
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: external_dns_existing_token
+      no_log: true
+
+    - name: Check whether the existing or supplied identity can be used
+      ansible.builtin.set_fact:
+        external_dns_identity_available: >-
+          {{ (external_dns_cloudflare_api_token | default('') is string) and
+             ((external_dns_existing_token.resources | length == 1 and
+               external_dns_existing_token.resources[0].data['api-token'] | default('') | length > 0) or
+              (external_dns_existing_token.resources | length == 0 and
+               external_dns_cloudflare_api_token | default('') | trim | length > 0)) }}
+        external_dns_identity_matches: >-
+          {{ external_dns_existing_token.resources | length == 0 or
+             external_dns_cloudflare_api_token | default('') == '' or
+             external_dns_cloudflare_api_token ==
+             (external_dns_existing_token.resources[0].data['api-token'] | default('') | b64decode) }}
+      no_log: true
+
+    - name: Require an existing identity or an encrypted bootstrap input
+      ansible.builtin.assert:
+        that: external_dns_identity_available | bool
+        fail_msg: >-
+          Restore the provider Secret or supply external_dns_cloudflare_api_token through
+          an Ansible Vault variables file. The public provider identity must already exist.
+
+    - name: Keep the existing provider identity unchanged
+      ansible.builtin.assert:
+        that: external_dns_identity_matches | bool
+        fail_msg: The supplied provider token differs from the existing identity. No change was made.
+
+    - name: Apply the declared namespace for a missing identity
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition: "{{ lookup('file', playbook_dir + '/namespace.yaml') | from_yaml }}"
+      when: external_dns_existing_token.resources | length == 0
+
+    - name: Create only the missing provider Secret
+      ansible.builtin.command:
+        argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", create, -f, '-']
+        stdin: |
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: cloudflare-api-token
+            namespace: external-dns
+          type: Opaque
+          stringData:
+            api-token: {{ external_dns_cloudflare_api_token | to_json }}
+      changed_when: true
+      no_log: true
+      when: external_dns_existing_token.resources | length == 0 and not ansible_check_mode

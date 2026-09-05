@@ -2,7 +2,7 @@
 
 The `soyspray` Application is the native Argo root. Its Kustomization lists each
 child package explicitly. Each package contains an Application and AppProject.
-Headlamp, the autism traits site, and Boys use the native root. Other apps keep
+Headlamp, the autism traits site, Boys, and ExternalDNS use the native root. Other apps keep
 the existing Ansible path until their individual migrations pass.
 
 The root manages only Applications and AppProjects in `argocd`. Child projects
