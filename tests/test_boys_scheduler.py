@@ -4,6 +4,7 @@ import importlib.util
 import json
 import re
 import sqlite3
+import sys
 import threading
 import time
 from datetime import date, timedelta
@@ -35,7 +36,11 @@ def load_server_module():
     spec = importlib.util.spec_from_file_location("boys_server", APP / "server.py")
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    sys.path.insert(0, str(APP))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(APP))
     return module
 
 
