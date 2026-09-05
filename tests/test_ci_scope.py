@@ -18,7 +18,12 @@ from scripts import ci_scope
     ],
 )
 def test_boys_changes_select_its_browser_checks(path):
-    assert ci_scope.select([path]) == {"boys": True, "autism": False, "immich": False}
+    assert ci_scope.select([path]) == {
+        "boys": True,
+        "autism": False,
+        "immich": False,
+        "domain_health": False,
+    }
 
 
 def test_shared_only_change_keeps_application_checks_optional():
@@ -26,11 +31,13 @@ def test_shared_only_change_keeps_application_checks_optional():
         "boys": False,
         "autism": False,
         "immich": False,
+        "domain_health": False,
     }
     assert ci_scope.select(["apps/autism-traits/app/src/App.tsx"]) == {
         "boys": False,
         "autism": True,
         "immich": False,
+        "domain_health": False,
     }
 
 
@@ -43,6 +50,7 @@ def test_shared_only_change_keeps_application_checks_optional():
         "scripts/argo_preview.py",
         "scripts/app_command.py",
         "scripts/app_diff.py",
+        "scripts/app_diff_sources.py",
         "scripts/argocd_cli.py",
         "playbooks/bootstrap-apps.yml",
         "playbooks/operations/recovery/restore-volume.yml",
@@ -101,7 +109,12 @@ def test_deleted_and_renamed_paths_are_both_checked(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     paths = ci_scope.changed_paths(base)
     assert set(paths) == {"apps/boys/old name.js", "apps/autism-traits/new.js"}
-    assert ci_scope.select(paths) == {"boys": True, "autism": True, "immich": False}
+    assert ci_scope.select(paths) == {
+        "boys": True,
+        "autism": True,
+        "immich": False,
+        "domain_health": False,
+    }
 
 
 @pytest.mark.parametrize(
@@ -114,18 +127,25 @@ def test_deleted_and_renamed_paths_are_both_checked(tmp_path, monkeypatch):
         "unselected-failed",
         "missing-output",
         "cancelled",
+        "domain-image-failed",
     ],
 )
 def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
     jobs = {
         "scope": {
             "result": "success",
-            "outputs": {"boys": "true", "autism": "false", "immich": "false"},
+            "outputs": {
+                "boys": "true",
+                "autism": "false",
+                "immich": "false",
+                "domain_health": "false",
+            },
         },
         "shared": {"result": "success"},
         "boys": {"result": "success"},
         "autism": {"result": "skipped"},
         "immich": {"result": "skipped"},
+        "domain_health": {"result": "skipped"},
     }
     if failure in {"shared", "scope"}:
         jobs[failure]["result"] = "failure"
@@ -137,6 +157,9 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
         jobs["scope"]["outputs"].pop("boys")
     elif failure == "cancelled":
         jobs["boys"]["result"] = "cancelled"
+    elif failure == "domain-image-failed":
+        jobs["scope"]["outputs"]["domain_health"] = "true"
+        jobs["domain_health"]["result"] = "failure"
     workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
     gate = workflow["jobs"]["check"]["steps"][0]["run"]
     run = subprocess.run(
@@ -153,4 +176,14 @@ def test_immich_recovery_changes_select_native_image_checks():
         "boys": False,
         "autism": False,
         "immich": True,
+        "domain_health": False,
+    }
+
+
+def test_domain_health_changes_select_the_native_image_checks():
+    assert ci_scope.select(["apps/domain-health/app/domain-health-exporter.py"]) == {
+        "boys": False,
+        "autism": False,
+        "immich": False,
+        "domain_health": True,
     }
