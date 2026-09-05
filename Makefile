@@ -5,11 +5,8 @@ SHELL := /bin/bash
 VENV := soyspray-venv
 PYTHON := $(if $(wildcard $(VENV)/bin/python),$(VENV)/bin/python,python3)
 PYTEST := $(PYTHON) -m pytest
-MKDOCS := NO_MKDOCS_2_WARNING=true $(PYTHON) -m mkdocs
 INVENTORY := kubespray/inventory/soycluster/hosts.yml
 ANSIBLE := source $(VENV)/bin/activate && ansible-playbook -i $(INVENTORY) --become --become-user=root --user ubuntu
-DOCS_ADDR ?= 127.0.0.1:8000
-KONG_REVISION ?= HEAD
 AUTISM_TRAITS_APP := kubernetes/autism-traits/app
 AUTISM_TRAITS_ENABLED ?= true
 AUTISM_TRAITS_REVISION ?= HEAD
@@ -38,27 +35,18 @@ NODE1 := 192.168.20.11
 NODE2 := 192.168.20.12
 
 KUSTOMIZATIONS := \
-	platform/kong/gateway-api \
-	platform/kong/network-policies \
-	platform/kong/smoke \
-	apis/synthetic-bank \
-	kubernetes/banklab/security \
-	kubernetes/banklab/tenancy \
-	kubernetes/banklab/governance \
-	kubernetes/banklab/customer-web \
-	kubernetes/banklab/docs-site \
 	kubernetes/autism-traits \
 	kubernetes/boys \
 	$(VAULTWARDEN_PACKAGE) \
 	playbooks/argocd/applications/home-automation/voice-assistant \
 	playbooks/argocd/applications/media/media-helper \
 	playbooks/argocd/applications/media/dispatcharr \
-	playbooks/argocd/applications/media/jellyfin \
-	playbooks/argocd/applications/kong-bank-lab/operator-dashboard
+	playbooks/argocd/applications/media/jellyfin
 
-.PHONY: help setup act check autism-traits-check lint validate validate-skills status-page-check test docs docs-serve \
-	render status smoke go deploy kong-on kong-off autism-traits boys vaultwarden live-tv voice-assistant voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login list-apps node0 node1 node2 \
-	master worker1 worker2 worker3 clean
+.PHONY: help setup act check autism-traits-check lint validate validate-skills status-page-check \
+	test render go autism-traits boys vaultwarden live-tv voice-assistant voice-pe-render \
+	voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
+	list-apps node0 node1 node2 master worker1 worker2 worker3 clean
 
 help: ## Show the operator commands
 	printf 'Soyspray operator commands\n\n'
@@ -72,17 +60,16 @@ setup: ## Create the venv and install local tooling
 act: ## Open a shell in the project venv
 	bash -lc 'source $(VENV)/bin/activate && exec bash -i'
 
-check: lint validate test docs autism-traits-check ## Run the complete local gate
+check: lint validate test autism-traits-check ## Run the complete local gate
 	printf '\nLocal gate passed.\n'
 
 autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check kubernetes/banklab/customer-web/app kubernetes/boys/app scripts tests
-	$(PYTHON) -m ruff format --check kubernetes/banklab/customer-web/app kubernetes/boys/app scripts tests
+	$(PYTHON) -m ruff check kubernetes/boys/app scripts tests
+	$(PYTHON) -m ruff format --check kubernetes/boys/app scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		roles/apps/kong-bank-lab/tasks/*.yml roles/apps/kong-bank-lab/defaults/*.yml \
 		roles/apps/autism-traits/tasks/*.yml roles/apps/autism-traits/defaults/*.yml \
 		roles/apps/boys/tasks/*.yml roles/apps/boys/defaults/*.yml \
 		roles/apps/vaultwarden/tasks/*.yml roles/apps/vaultwarden/defaults/*.yml \
@@ -90,9 +77,8 @@ lint: ## Check Python style and common defects
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml
 
-validate: validate-skills status-page-check ## Validate YAML, OpenAPI, and rendered manifests
+validate: validate-skills status-page-check ## Validate YAML and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py
-	$(PYTHON) scripts/validate_openapi_specs.py
 	for path in $(KUSTOMIZATIONS); do \
 		printf 'Rendered %s\n' "$$path"; \
 		kubectl kustomize "$$path" >/dev/null; \
@@ -107,42 +93,19 @@ status-page-check:
 test: ## Run the focused test suite
 	$(PYTEST) -q tests
 
-docs: ## Build the operator guide in strict mode
-	$(MKDOCS) build --strict --site-dir .build/mkdocs
-
-docs-serve: ## Preview docs with live reload
-	$(MKDOCS) serve --dev-addr $(DOCS_ADDR)
-
 render: ## Render all managed Kustomize packages
 	for path in $(KUSTOMIZATIONS); do \
 		printf '\n--- %s ---\n' "$$path"; \
 		kubectl kustomize "$$path"; \
 	done
 
-status: ## Show cluster and bank-lab Argo health
-	$(PYTHON) scripts/banklab_status.py
-
-smoke: ## Run read-only Kong and customer checks
-	$(PYTHON) scripts/banklab_smoke.py
-
 go: check ## Run the deployment preflight
 	branch="$$(git branch --show-current)"; \
 	test -n "$$branch" && test "$$branch" != main || { echo 'Deploy from a topic branch, not main.' >&2; exit 1; }
 	test -z "$$(git status --porcelain)" || { echo 'Commit the working tree before deployment.' >&2; exit 1; }
 	git merge-base --is-ancestor HEAD '@{upstream}' || { echo 'Push the current commit before deployment.' >&2; exit 1; }
-	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --syntax-check --tags authentik,live-tv,kong_bank_lab,autism_traits,boys,vaultwarden,voice_assistant
-	$(PYTHON) scripts/banklab_status.py || printf '\nBank-lab applications need reconciliation.\n'
+	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --syntax-check --tags authentik,live-tv,autism_traits,boys,vaultwarden,voice_assistant
 	printf '\nDeployment preflight passed.\n'
-
-deploy: go ## Apply bank-lab Argo definitions through Ansible
-	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags kong_bank_lab
-
-kong-on: go ## Start the Kong bank lab
-	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags kong_bank_lab \
-		-e kong_bank_lab_enabled=true -e kong_bank_lab_target_revision=$(KONG_REVISION)
-
-kong-off: go ## Stop the Kong bank lab
-	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags kong_bank_lab -e kong_bank_lab_enabled=false
 
 autism-traits: go ## Reconcile or remove the autism traits site
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags autism_traits \
@@ -210,4 +173,4 @@ worker3: node2
 
 clean: ## Remove generated local output
 	rm -rf .build .pytest_cache
-	find apis kubernetes scripts tests -type d -name __pycache__ -prune -exec rm -rf {} +
+	find kubernetes scripts tests -type d -name __pycache__ -prune -exec rm -rf {} +
