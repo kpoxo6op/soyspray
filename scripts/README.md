@@ -32,7 +32,11 @@ Use `make status-page-check` to validate the external status configuration,
 ## Cluster utilities
 
 - `ansible-completion.bash` provides Ansible tag completion.
-- `argocd-list.sh` lists Argo CD applications for `make list-apps`.
+- `app_status.py` reads Application ownership, source revisions, and available
+  status through `kubectl`. Use `make apps` or `make status APP=boys FORMAT=json`.
+  Missing metadata and evidence appear as `unknown` with a cause. API failures
+  return a nonzero exit code. See [application operations](../apps/README.md).
+- `make list-apps` uses native `kubectl` output for Argo sync and health.
 - `check-ha-stretch.sh` checks the one-node-loss stretch configuration.
 
 ```sh
