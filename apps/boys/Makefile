@@ -5,8 +5,8 @@ REVISION ?= HEAD
 .PHONY: check diff deploy restore-check
 
 check:
-	$(PYTHON) -m pytest -q apps/boys/tests kubernetes/boys/tests
-	cd kubernetes/boys && npm test
+	$(PYTHON) -m pytest -q apps/boys/tests
+	cd apps/boys && npm test
 
 diff:
 	$(PYTHON) -m scripts.app_diff --app boys --package apps/boys/manifests
