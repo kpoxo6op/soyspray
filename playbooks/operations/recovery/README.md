@@ -238,7 +238,28 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
 kubectl -n restore-obsidian-initial-20260905 port-forward pod/app 15985:5984
 ```
 
-For Vaultwarden, select `recovery_app=vaultwarden` and forward `18080:8080`.
+For Vaultwarden, create a temporary RSA certificate outside Git. The current
+Bitwarden CLI requires HTTPS. This certificate is for the isolated loopback
+test and is not added to the system trust store:
+
+```bash
+restore_tls_dir="${HOME}/.local/state/soyspray/restores/vault-tls"
+install -d -m 700 "$restore_tls_dir"
+umask 077
+openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=localhost \
+  -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1' \
+  -addext 'basicConstraints=critical,CA:TRUE' \
+  -addext 'keyUsage=critical,digitalSignature,keyEncipherment,keyCertSign' \
+  -keyout "$restore_tls_dir/key.pem" -out "$restore_tls_dir/cert.pem"
+```
+
+Select `recovery_app=vaultwarden`, pass
+`-e recovery_tls_directory="$restore_tls_dir"` to `start-restored-app.yml`, and
+forward `18443:8443`. Point the separate test CLI data directory at
+`https://localhost:18443`. Set `NODE_EXTRA_CA_CERTS="$restore_tls_dir/cert.pem"`
+only for that CLI process. TLS uses Vaultwarden's native `ROCKET_TLS` setting.
+Keep certificate verification enabled.
+
 Use a separate Bitwarden CLI data directory for the test login. Read real
 notes, attachment chunks, and vault records. Keep private data out
 of logs, screenshots, and Git. Record the backup recovery point, restore
@@ -247,6 +268,12 @@ duration, results, and any unknown checks outside the repository.
 The volume restore alone is not acceptance evidence. Do not move stateful
 ownership until application checks pass. Keep production claims, credentials,
 and offsite backups during this operation.
+
+To stop a scratch server before copying its files or changing its pod
+configuration, run `stop-restored-app.yml` with the same app and check ID. It
+deletes only that verified app pod and retains the inspector and restored
+claim. A failed or interrupted file copy is not a recovery candidate. Retry
+the copy after the app stops, and check the complete result before using it.
 
 After saving the results, remove only that disposable workspace:
 
