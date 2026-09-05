@@ -45,9 +45,6 @@
       - { name: Zigbee2MQTT, role: apps/zigbee2mqtt }
       - { name: Home Assistant, role: apps/homeassistant }
       - { name: Home Assistant Voice, role: apps/voice-assistant }
-
-      # Web applications
-      - { name: Boys Calendar, role: apps/boys }
   tasks:
     - name: "Include {{ item.name }}"
       ansible.builtin.include_role:

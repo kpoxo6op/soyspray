@@ -102,7 +102,7 @@ lint: ## Check Python style and common defects
 	$(PYTHON) -m ruff check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/boys/tests apps/immich scripts tests
 	$(PYTHON) -m ruff format --check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/boys/tests apps/immich scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml \
+		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/boys/adopt.yml \
 		roles/apps/boys/tasks/*.yml roles/apps/boys/defaults/*.yml \
 		roles/apps/vaultwarden/tasks/*.yml roles/apps/vaultwarden/defaults/*.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
@@ -152,10 +152,11 @@ autism-traits: go ## Reconcile the autism traits site through the native Argo ro
 	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(AUTISM_TRAITS_REVISION) \
 		-e argocd_preview_application=$(if $(filter HEAD,$(AUTISM_TRAITS_REVISION)),,autism-traits)
 
-boys: go
-	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags boys \
-		-e boys_enabled=$(BOYS_ENABLED) \
-		-e boys_target_revision=$(BOYS_REVISION)
+boys: go ## Reconcile Boys through the native Argo root
+	test "$(BOYS_ENABLED)" = true || { echo 'Retire an adopted app through an explicit operation; this command only deploys.' >&2; exit 1; }
+	$(ANSIBLE) apps/boys/bootstrap.yml
+	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(BOYS_REVISION) \
+		-e argocd_preview_application=$(if $(filter HEAD,$(BOYS_REVISION)),,boys)
 
 vaultwarden: go
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags vaultwarden \

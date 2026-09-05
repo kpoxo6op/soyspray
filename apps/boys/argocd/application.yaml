@@ -1,0 +1,42 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: boys
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: boys
+    soyspray.vip/owner: crew
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-url: https://boys.soyspray.vip
+    soyspray.vip/access-method: Crew claim PIN, then personal PIN; Cloudflare Tunnel,
+      LAN, and Tailscale
+    soyspray.vip/data: boys/boys-data; /data/boys.sqlite3; original runtime signing
+      key
+    soyspray.vip/backup: 'Longhorn critical: every 30 minutes, 48 recent and 30 daily;
+      three replicas'
+    soyspray.vip/backup-cause: SQLite data and access identity require an isolated
+      restore and off-cluster Vault inputs.
+spec:
+  project: boys
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: HEAD
+    path: kubernetes/boys
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: boys
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - PruneLast=true
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: boys
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: v1.35
+        pod-security.kubernetes.io/warn: restricted
+        pod-security.kubernetes.io/warn-version: v1.35

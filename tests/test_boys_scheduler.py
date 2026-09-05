@@ -17,8 +17,8 @@ from conftest import ROOT
 
 PACKAGE = ROOT / "kubernetes/boys"
 APP = PACKAGE / "app"
-APPLICATION = ROOT / "playbooks/argocd/applications/web/boys/boys-application.yaml"
-PROJECT = ROOT / "playbooks/argocd/applications/web/boys/boys-project.yaml"
+APPLICATION = ROOT / "apps/boys/argocd/application.yaml"
+PROJECT = ROOT / "apps/boys/argocd/project.yaml"
 CREW = [
     "Boris K",
     "Sergey Kiktev",
@@ -505,39 +505,15 @@ def test_gitops_package_has_persistence_and_a_narrow_public_path() -> None:
     assert len([item for item in resources if item["kind"] == "HostEndpoint"]) == 3
 
 
-def test_argocd_role_owns_secrets_and_revision_selection() -> None:
+def test_native_boys_ownership_preserves_access_and_storage_boundaries() -> None:
     application = yaml.safe_load(APPLICATION.read_text())
     project = yaml.safe_load(PROJECT.read_text())
-    enabled = (ROOT / "roles/apps/boys/tasks/enabled.yml").read_text()
-    disabled = (ROOT / "roles/apps/boys/tasks/disabled.yml").read_text()
-    defaults = (ROOT / "roles/apps/boys/defaults/main.yml").read_text()
-    makefile = (ROOT / "Makefile").read_text()
-    playbook = (ROOT / "playbooks/deploy-argocd-apps.yml").read_text()
-
     assert application["spec"]["source"] == {
         "repoURL": "https://github.com/kpoxo6op/soyspray.git",
         "targetRevision": "HEAD",
         "path": "kubernetes/boys",
-        "kustomize": {
-            "patches": [
-                {
-                    "target": {"kind": "Deployment", "name": "boys"},
-                    "patch": (
-                        "apiVersion: apps/v1\n"
-                        "kind: Deployment\n"
-                        "metadata:\n"
-                        "  name: boys\n"
-                        "spec:\n"
-                        "  template:\n"
-                        "    metadata:\n"
-                        "      annotations:\n"
-                        "        soyspray.vip/runtime-secret-resource-version: "
-                        '"BOYS_RUNTIME_SECRET_RESOURCE_VERSION"'
-                    ),
-                }
-            ]
-        },
     }
+    assert not application["metadata"].get("finalizers")
     assert application["spec"]["project"] == "boys"
     assert project["spec"]["destinations"] == [
         {"server": "https://kubernetes.default.svc", "namespace": "boys"}
@@ -545,23 +521,9 @@ def test_argocd_role_owns_secrets_and_revision_selection() -> None:
     allowed_kinds = {item["kind"] for item in project["spec"]["namespaceResourceWhitelist"]}
     assert "PersistentVolumeClaim" in allowed_kinds
     assert "Secret" not in allowed_kinds
-
-    assert "boys_enabled: true" in defaults
-    assert "boys_target_revision: HEAD" in defaults
-    assert "boys_runtime_secret" in enabled
-    assert "BOYS_RUNTIME_SECRET_RESOURCE_VERSION" in enabled
-    assert "resourceVersion" in enabled
-    assert "targetRevision" in enabled
-    assert disabled.index("Quiesce the boys Argo application") < disabled.index(
-        "Remove the boys runtime secrets"
-    )
-    assert disabled.index("Remove the boys runtime secrets") < disabled.index(
-        "Remove the boys Argo application"
-    )
-    assert "role: apps/boys" in playbook
-    assert "BOYS_REVISION ?= HEAD" in makefile
-    assert "boys: go" in makefile
-    assert "--tags boys" in makefile
+    for item in (application, project):
+        options = item["metadata"]["annotations"]["argocd.argoproj.io/sync-options"].split(",")
+        assert {"Prune=false", "Delete=false"} <= set(options)
 
 
 @pytest.fixture

@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - ../apps/headlamp/argocd
   - ../apps/autism-traits/argocd
+  - ../apps/boys/argocd
