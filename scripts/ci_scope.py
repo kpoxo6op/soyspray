@@ -30,6 +30,9 @@ SHARED_CONTROLS = {
     "ruff.toml",
     "scripts/ci_scope.py",
     "scripts/argo_preview.py",
+    "scripts/app_command.py",
+    "scripts/app_diff.py",
+    "scripts/argocd_cli.py",
     "playbooks/bootstrap-apps.yml",
 }
 
