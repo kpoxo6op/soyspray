@@ -61,25 +61,42 @@ the private initial seed from encrypted input. It does not replace the current
 trip database. Keep `boys-data`, the database path, and the session key together
 through restores so existing dates, personal PIN hashes, and sessions survive.
 
-## Check a restored data copy
+## Run an isolated restore
 
-`check_restore.py` checks a restored `boys.sqlite3` with its WAL files present.
-It uses SQLite's backup API to make a second disposable database before starting
-the app or testing claims. The supplied restore remains unchanged. The app binds
-only to an ephemeral loopback port.
+```sh
+make restore-check APP=boys
+```
 
-Give the checker `--database /private/restore/boys.sqlite3` and
-`--runtime /private/copied-app`. The runtime directory must contain `/app` copied
-from the selected deployed image. Pass a JSON object with `boys_pin` and
-`boys_session_key` on standard input from the encrypted recovery archive. Keep
-this transfer out of shell history and logs. The checker prints only counts,
-check results, and evidence gaps, and returns a nonzero code on failure.
+The command runs the full gate and preflight. It selects the newest completed
+backup of the bound `boys-data` volume on `critical-s3`. It checks completion,
+errors, and the snapshot start time, then uses the existing Ansible operations
+to restore a separate volume. Source claim and backup UIDs must match before
+restoration and cleanup.
 
-The checks cover SQLite integrity and foreign keys, unchanged records at startup,
-authenticated calendar/history/trip reads, legacy session format, preserved PIN
-hashes, and concurrent claims on the disposable copy. A fully claimed crew has no
-unclaimed identity for the race check; this result remains unknown with its cause.
-The checker does not guess a human PIN or claim that a saved browser cookie was
-tested. It does not prove that the backup is recent or perform the volume restore.
-Use the [isolated Longhorn restore operation](../../playbooks/operations/recovery/README.md#inspect-an-isolated-volume-restore)
-for that step. Run `make check APP=boys` for synthetic recovery checks.
+Inputs default to `~/.config/soyspray/recovery/boys-runtime.vault.yml` and
+`~/.config/soyspray/recovery/vault-password`. The archived PIN and signing key
+must match the live identity. Set `ANSIBLE_VAULT_PASSWORD_FILE` for a different
+password file. To select another encrypted file or completed backup, use
+`python -m apps.boys.restore_check --vault-file /private/runtime.vault.yml
+--backup backup-NAME` in the activated project venv. This path runs the same gate.
+
+The command copies the entire restored directory, including SQLite WAL files,
+and `/app` from the pinned running image into private temporary storage.
+`check_restore.py` creates a second database with SQLite's backup API before
+starting the app on loopback or testing claims. It checks integrity, saved dates,
+history, trip data, legacy session format, and preserved PIN hashes. Personal-PIN
+and saved-browser-cookie checks remain unknown; no PIN is guessed.
+
+Cleanup removes only scratch resources with the selected backup UID, including
+after a failed data check. A cleanup failure fails the operation and keeps its
+cause in the report. Temporary local data and kubeconfig copies are removed.
+Private logs and `report.json` remain under
+`~/.local/state/soyspray/restores/boys/<check-id>/`, or under `XDG_STATE_HOME`.
+Reports contain counts, resource identities, the image digest, recovery-point
+age, and evidence gaps. They contain no private trip content or credentials.
+
+A passed restore report proves that one selected backup passed these checks.
+It does not prove seven days of recovery-point coverage. The command does not
+change the live workload or its data. Use the report's check ID and backup UID
+with the guarded [cleanup operation](../../playbooks/operations/recovery/README.md)
+if an interrupted check leaves scratch resources behind.

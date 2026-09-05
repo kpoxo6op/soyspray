@@ -204,6 +204,13 @@ prove that the application can be restored.
 
 ## Inspect an isolated volume restore
 
+For Boys, `make restore-check APP=boys` runs the full isolated workflow and data
+checks with automatic guarded cleanup. See the [app guide](../../../apps/boys/README.md#run-an-isolated-restore)
+for encrypted inputs, report paths, and evidence limits. The operations below
+remain available for deliberate inspection. Automated callers can supply
+`recovery_expected_claim_uid` and `recovery_expected_backup_uid` to bind the
+restore to prior observations. Cleanup also checks the supplied backup UID.
+
 `restore-volume.yml` restores one completed critical backup into a new
 Longhorn claim. It checks the source claim and backup identity first. The
 scratch namespace denies ingress and egress. Its inspection container has no

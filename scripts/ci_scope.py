@@ -34,6 +34,8 @@ SHARED_CONTROLS = {
     "scripts/app_diff.py",
     "scripts/argocd_cli.py",
     "playbooks/bootstrap-apps.yml",
+    "playbooks/operations/recovery/restore-volume.yml",
+    "playbooks/operations/recovery/cleanup-restore.yml",
 }
 
 

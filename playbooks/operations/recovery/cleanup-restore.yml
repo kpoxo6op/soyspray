@@ -31,6 +31,9 @@
           - item.metadata.labels['soyspray.vip/app'] | default('') == recovery_app
           - item.metadata.labels['soyspray.vip/check-id'] | default('') == recovery_check_id
           - item.metadata.annotations['soyspray.vip/backup-uid'] | default('') | length > 0
+          - >-
+            item.metadata.annotations['soyspray.vip/backup-uid'] ==
+            recovery_expected_backup_uid | default(item.metadata.annotations['soyspray.vip/backup-uid'])
       loop: "{{ recovery_existing.results | map(attribute='resources') | flatten }}"
       loop_control:
         label: "{{ item.kind }}/{{ item.metadata.name }}"

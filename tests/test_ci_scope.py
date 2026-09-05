@@ -45,6 +45,8 @@ def test_shared_only_change_keeps_application_checks_optional():
         "scripts/app_diff.py",
         "scripts/argocd_cli.py",
         "playbooks/bootstrap-apps.yml",
+        "playbooks/operations/recovery/restore-volume.yml",
+        "playbooks/operations/recovery/cleanup-restore.yml",
     ],
 )
 def test_shared_deployment_controls_and_full_checks_select_all_apps(path):
