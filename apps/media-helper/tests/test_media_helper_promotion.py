@@ -43,7 +43,7 @@ def test_source_and_catalog_wait_for_a_coupled_image_promotion(tmp_path):
     ]
     container = pod["containers"][0]
     container["image"] = IMAGE
-    container.pop("command")
+    container.pop("command", None)
     container["readinessProbe"]["httpGet"]["path"] = "/ready"
     container["volumeMounts"] = [m for m in container["volumeMounts"] if m["name"] != "code"]
     pod["volumes"] = [v for v in pod["volumes"] if v["name"] != "code"]
@@ -88,11 +88,11 @@ def test_unknown_transitions_stop_before_either_document_changes(tmp_path, chang
     elif change in ("command", "args"):
         container[change] = ["unexpected"]
     elif change == "mount":
-        container["volumeMounts"][0]["mountPath"] = "/other"
+        container["volumeMounts"].append({"name": "code", "mountPath": "/other"})
     elif change == "volume":
-        pod["volumes"][0]["configMap"]["name"] = "other"
+        pod["volumes"].append({"name": "code", "configMap": {"name": "other"}})
     elif change == "generator":
-        root["configMapGenerator"][0]["files"] = ["app.py=app/app.py"]
+        root["configMapGenerator"] = [{"name": "media-helper-code", "files": ["app.py=app/app.py"]}]
     elif change == "namespace":
         root["namespace"] = "other"
     elif change == "readiness":

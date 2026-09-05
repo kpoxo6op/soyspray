@@ -79,6 +79,7 @@ def promote(image, app):
     elif (
         not re.fullmatch(IMAGE, container["image"])
         or container.get("command")
+        or container.get("readinessProbe") != {"httpGet": {"path": "/ready", "port": "http"}}
         or code_mounts
         or code_volumes
         or code_generators

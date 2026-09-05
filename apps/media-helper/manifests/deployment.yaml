@@ -20,36 +20,39 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: media-helper
-          image: python:3.13-alpine@sha256:540c7d91f98ff6880174c40e99067bf5941eb54d818a7a5e094d188b196a934d
-          command: [python, /app/app.py]
-          env:
-            - name: MEDIA_HELPER_URL
-              value: http://media-helper.media.svc.cluster.local:8080
-          ports:
-            - name: http
-              containerPort: 8080
-          readinessProbe:
-            httpGet: {path: /healthz, port: http}
-          livenessProbe:
-            httpGet: {path: /healthz, port: http}
-            initialDelaySeconds: 10
-          resources:
-            requests: {cpu: 20m, memory: 32Mi}
-            limits: {cpu: 250m, memory: 128Mi}
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities: {drop: [ALL]}
-          volumeMounts:
-            - {name: code, mountPath: /app, readOnly: true}
-            - {name: tmp, mountPath: /tmp}
-      volumes:
-        - name: code
-          configMap:
-            name: media-helper-code
-            items:
-              - {key: app.py, path: app.py}
-              - {key: channels.json, path: channels.json}
+      - name: media-helper
+        image: ghcr.io/kpoxo6op/media-helper@sha256:dbe9a20d6ac91f469c6393dc512d0f6af4dd3c1a67e6eba619b8b03ed064749f
+        env:
+        - name: MEDIA_HELPER_URL
+          value: http://media-helper.media.svc.cluster.local:8080
+        ports:
+        - name: http
+          containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: http
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 10
+        resources:
+          requests:
+            cpu: 20m
+            memory: 32Mi
+          limits:
+            cpu: 250m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
         - name: tmp
-          emptyDir: {}
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}

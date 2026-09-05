@@ -79,13 +79,6 @@ def test_media_packages_render(name: str) -> None:
     assert "@sha256:" in result.stdout
 
 
-def test_media_helper_uses_server_side_apply_for_its_large_code_configmap() -> None:
-    kustomization = yaml.safe_load((HELPER / "kustomization.yaml").read_text())
-    assert kustomization["generatorOptions"]["annotations"] == {
-        "argocd.argoproj.io/sync-options": "ServerSideApply=true"
-    }
-
-
 def test_jellyfin_storage_and_hardware_contract() -> None:
     deployment = yaml.safe_load(
         (ROOT / "playbooks/argocd/applications/media/jellyfin/deployment.yaml").read_text()
