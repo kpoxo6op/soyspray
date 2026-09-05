@@ -32,6 +32,30 @@ The dedicated connector can reach only NodeLocal DNS, the boys web pod, and
 Cloudflare Tunnel endpoints. The web pod has no network egress. The private
 Ingress remains available through LAN and Tailscale split DNS.
 
+## Runtime image
+
+`Dockerfile` packages the Python server and static assets without runtime
+installation. It uses the existing pinned Python base and runs as UID 1000.
+The build context includes only the listed application files.
+
+The Boys image workflow checks pull requests in an isolated container. A
+successful main-branch build publishes an immutable GHCR digest and opens a
+draft promotion PR. The PR changes the deployment image; add any configuration
+that requires that source revision before deploying it. The first promotion
+must also remove the old source ConfigMap and its mount. The existing PVC,
+database path, runtime Secret, session key, and single-writer deployment stay
+in place. Source-only changes can no longer change the running app after this
+first image adoption.
+
+The workflow does not merge or deploy. GitHub can require approval before
+running checks on a workflow-created PR. Review and approve those checks, then
+use the normal Ansible deployment path. Keep the prior digest for rollback.
+
+`test-image.py` checks readiness, authentication, claim and personal-PIN login,
+sessions, and static assets against a fresh isolated image. It has no cluster
+access or real account data. The full application tests remain in
+`tests/test_boys_scheduler.py`.
+
 ## Deploy
 
 Add these values to the ignored repository `.env` file:
