@@ -1,0 +1,54 @@
+---
+- name: Prepare the existing Domain Health Application for native adoption
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    domain_health_cascading_finalizers:
+      - resources-finalizer.argocd.argoproj.io
+      - resources-finalizer.argocd.argoproj.io/background
+  tasks:
+    - name: Read the existing Application
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: domain-health
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: domain_health_existing_app
+
+    - name: Require the known source and ownership before removing cascading deletion
+      vars:
+        domain_health_legacy_spec: >-
+          {{ (lookup('file', playbook_dir + '/../../playbooks/argocd/applications/observability/' +
+              'domain-health/domain-health-application.yaml') | from_yaml).spec |
+              combine({'syncPolicy': {'automated': {'prune': true, 'selfHeal': true},
+                      'syncOptions': ['CreateNamespace=true', 'PruneLast=true']}}) }}
+        domain_health_native_spec: "{{ (lookup('file', playbook_dir + '/argocd/application.yaml') | from_yaml).spec }}"
+      ansible.builtin.assert:
+        that:
+          - domain_health_existing_app.resources | length == 1
+          - domain_health_existing_app.resources[0].spec in [domain_health_legacy_spec, domain_health_native_spec]
+          - domain_health_existing_app.resources[0].metadata.deletionTimestamp is not defined
+          - >-
+            domain_health_existing_app.resources[0].status.operationState.phase | default('')
+            not in ['Running', 'Terminating']
+
+    - name: Remove only the Argo cascading finalizers from the observed Application
+      vars:
+        domain_health_finalizers: "{{ domain_health_existing_app.resources[0].metadata.finalizers | default([]) }}"
+      kubernetes.core.k8s_json_patch:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: domain-health
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - op: test
+            path: /metadata/resourceVersion
+            value: "{{ domain_health_existing_app.resources[0].metadata.resourceVersion }}"
+          - op: replace
+            path: /metadata/finalizers
+            value: "{{ domain_health_finalizers | difference(domain_health_cascading_finalizers) }}"
+      when: domain_health_finalizers | intersect(domain_health_cascading_finalizers) | length > 0
