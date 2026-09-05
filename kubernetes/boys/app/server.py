@@ -10,11 +10,13 @@ import hmac
 import ipaddress
 import json
 import os
+import re
 import sqlite3
 import ssl
 import threading
 import time
 import unicodedata
+from contextlib import nullcontext
 from datetime import date, timedelta
 from http import HTTPStatus
 from http.cookies import CookieError, SimpleCookie
@@ -125,6 +127,14 @@ def decode_token(token: str, key: bytes) -> dict | None:
         json.JSONDecodeError,
     ):
         return None
+
+
+class EditConflict(ValueError):
+    pass
+
+
+def availability_revision(dates: set[str]) -> str:
+    return hashlib.sha256("\n".join(sorted(dates)).encode()).hexdigest()
 
 
 class BoysApp:
@@ -368,8 +378,8 @@ class BoysApp:
             ).fetchone()
         return session if row and row[0] is not None else None
 
-    def availability(self, me: str) -> dict:
-        with self.connect() as connection:
+    def availability(self, me: str, connection: sqlite3.Connection | None = None) -> dict:
+        with nullcontext(connection) if connection is not None else self.connect() as connection:
             rows = connection.execute(
                 """
                 SELECT participants.name, participants.pin_hash IS NOT NULL, availability.day
@@ -391,7 +401,12 @@ class BoysApp:
         participants = [
             item[1] for item in sorted(grouped.items(), key=lambda item: item[0].casefold())
         ]
-        return {"me": me, "participants": participants}
+        mine = next((item["dates"] for item in participants if item["name"] == me), [])
+        return {
+            "me": me,
+            "participants": participants,
+            "revision": availability_revision(set(mine)),
+        }
 
     def events(self) -> list[dict]:
         with self.connect() as connection:
@@ -418,7 +433,15 @@ class BoysApp:
             result.append(event)
         return result
 
-    def save_availability(self, session: dict, values: object) -> dict:
+    def save_availability(
+        self, session: dict, values: object, expected_revision: str | None = None
+    ) -> dict:
+        if not isinstance(expected_revision, str) or not re.fullmatch(
+            r"[0-9a-f]{64}", expected_revision
+        ):
+            raise EditConflict(
+                "Reload your dates before saving. Your local changes have not been saved."
+            )
         if not isinstance(values, list) or len(values) > 366:
             raise ValueError("Send a list with no more than 366 dates.")
         today = date.today()
@@ -431,7 +454,7 @@ class BoysApp:
                 parsed = date.fromisoformat(value)
             except ValueError as error:
                 raise ValueError("Select dates from today through the next year.") from error
-            if parsed < today or parsed > last_day or value != parsed.isoformat():
+            if parsed > last_day or value != parsed.isoformat():
                 raise ValueError("Select dates from today through the next year.")
             selected.add(value)
 
@@ -444,6 +467,14 @@ class BoysApp:
                     (session["name_key"],),
                 )
             }
+            if expected_revision != availability_revision(existing):
+                raise EditConflict(
+                    "Your dates changed in another window. Review the newer dates before saving."
+                )
+            historical = {day for day in existing if day < today.isoformat()}
+            if any(day < today.isoformat() and day not in historical for day in selected):
+                raise ValueError("Select dates from today through the next year.")
+            selected |= historical
             if selected != existing:
                 connection.execute(
                     "DELETE FROM availability WHERE name_key = ?", (session["name_key"],)
@@ -459,7 +490,8 @@ class BoysApp:
                     """,
                     (session["name_key"], len(selected)),
                 )
-        return self.availability(session["name"])
+            # Return the revision from this transaction, before another writer can change it.
+            return self.availability(session["name"], connection)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -664,12 +696,15 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             payload = self.read_json()
+            revision = payload.get("expected_revision")
             self.send_json(
                 HTTPStatus.OK,
-                self.app.save_availability(session, payload.get("dates")),
+                self.app.save_availability(session, payload.get("dates"), revision),
             )
         except TypeError as error:
             self.send_json(HTTPStatus.UNSUPPORTED_MEDIA_TYPE, {"error": str(error)})
+        except EditConflict as error:
+            self.send_json(HTTPStatus.CONFLICT, {"error": str(error)})
         except ValueError as error:
             self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error)})
         except sqlite3.Error as error:

@@ -8,6 +8,9 @@ on:
       - kubernetes/boys/Dockerfile
       - kubernetes/boys/.dockerignore
       - kubernetes/boys/test-image.py
+      - kubernetes/boys/tests/**
+      - kubernetes/boys/package*.json
+      - kubernetes/boys/playwright.config.js
       - .github/workflows/boys-image.yml
   pull_request:
     paths:
@@ -15,6 +18,9 @@ on:
       - kubernetes/boys/Dockerfile
       - kubernetes/boys/.dockerignore
       - kubernetes/boys/test-image.py
+      - kubernetes/boys/tests/**
+      - kubernetes/boys/package*.json
+      - kubernetes/boys/playwright.config.js
       - .github/workflows/boys-image.yml
   workflow_dispatch:
 
@@ -26,7 +32,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: kubernetes/boys/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Check phone and desktop save recovery
+        working-directory: kubernetes/boys
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm test
   build:
+    needs: browser
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -99,7 +125,7 @@ jobs:
 
           Image: \`$BOYS_IMAGE_REF\`.
 
-          The image passed the isolated HTTP check. Review configuration required by this source revision in this PR before deployment. The first image adoption must also remove the old source ConfigMap and its mount. Keep the existing PVC, database path, runtime Secret, and single-writer deployment.
+          The image passed the isolated HTTP check. Review configuration required by this source revision in this PR before deployment. Keep the existing PVC, database path, runtime Secret, and single-writer deployment.
 
           Run \`make check\` and \`make go\`, then use the standard Ansible deployment path. Verify the deployed user journey before merge. Roll back by restoring the prior digest and its compatible configuration. This workflow does not merge or deploy.
 

@@ -138,6 +138,14 @@
           <div id="calendar-grid" class="calendar-grid" role="grid" aria-labelledby="month-label"></div>
         </section>
 
+        <section id="save-conflict" class="save-conflict" aria-labelledby="conflict-title" hidden>
+          <h2 id="conflict-title">Review changed dates</h2>
+          <p>Saved in another window: <span id="remote-dates"></span></p>
+          <p>Your current draft: <span id="draft-dates"></span></p>
+          <button id="reapply-dates" class="button" type="button">Apply my edits to these saved dates</button>
+          <button id="use-remote-dates" class="text-button" type="button">Discard my draft and use saved dates</button>
+        </section>
+
         <footer class="calendar-footer">
           <div>
             <p id="calendar-summary" class="summary"></p>
@@ -145,6 +153,7 @@
           </div>
           <div class="save-panel">
             <p>Dates are not converted between time zones.</p>
+            <p id="save-status" role="status" aria-live="polite"></p>
             <button id="save-button" class="button button-primary" type="button">Save dates</button>
           </div>
         </footer>

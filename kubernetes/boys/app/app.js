@@ -7,6 +7,13 @@ const state = {
   selected: new Set(),
   month: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
   dirty: false,
+  saved: new Set(),
+  revision: "",
+  saving: false,
+  generation: 0,
+  conflict: null,
+  saveError: "",
+  refreshing: false,
 };
 
 const participantColorClasses = {
@@ -42,6 +49,8 @@ const calendarGrid = document.querySelector("#calendar-grid");
 const summary = document.querySelector("#calendar-summary");
 const legend = document.querySelector("#legend");
 const saveButton = document.querySelector("#save-button");
+const saveStatus = document.querySelector("#save-status");
+const conflictPanel = document.querySelector("#save-conflict");
 const previousButton = document.querySelector("#previous-month");
 const nextButton = document.querySelector("#next-month");
 const toast = document.querySelector("#toast");
@@ -66,18 +75,25 @@ function isSameMonth(first, second) {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(path, {
-    credentials: "same-origin",
-    ...options,
-    headers: options.body ? { "Content-Type": "application/json" } : {},
-  });
-  const payload = await response.json();
-  if (!response.ok) {
-    const error = new Error(payload.error || "The request failed.");
-    error.status = response.status;
-    throw error;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(path, {
+      credentials: "same-origin",
+      ...options,
+      signal: controller.signal,
+      headers: options.body ? { "Content-Type": "application/json" } : {},
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      const error = new Error(payload.error || "The request failed.");
+      error.status = response.status;
+      throw error;
+    }
+    return payload;
+  } finally {
+    clearTimeout(timeout);
   }
-  return payload;
 }
 
 function selectedCrewMember() {
@@ -173,6 +189,12 @@ async function showAccess() {
   state.me = "";
   state.participants = [];
   state.selected = new Set();
+  state.saved = new Set();
+  state.dirty = false;
+  state.saving = false;
+  state.conflict = null;
+  state.saveError = "";
+  state.generation += 1;
   nameForm.reset();
   loginForm.reset();
   crewPinForm.reset();
@@ -186,7 +208,12 @@ function openCalendar(payload) {
   state.participants = payload.participants;
   const mine = state.participants.find((participant) => participant.name === state.me);
   state.selected = new Set(mine?.dates || []);
+  state.saved = new Set(state.selected);
+  state.revision = payload.revision;
   state.dirty = false;
+  state.saveError = "";
+  state.conflict = null;
+  state.generation += 1;
   accessView.hidden = true;
   calendarView.hidden = false;
   document.querySelector("#signed-in-label").textContent = state.me;
@@ -209,6 +236,7 @@ function renderDay(value, outside) {
   const people = peopleForDate(key);
   const button = document.createElement("button");
   button.type = "button";
+  button.dataset.date = key;
   button.className = "calendar-day";
   button.setAttribute("role", "gridcell");
   button.setAttribute("aria-pressed", state.selected.has(key) ? "true" : "false");
@@ -252,7 +280,7 @@ function renderDay(value, outside) {
     button.addEventListener("click", () => {
       if (state.selected.has(key)) state.selected.delete(key);
       else state.selected.add(key);
-      state.dirty = true;
+      updateDirty();
       render();
     });
   }
@@ -260,6 +288,7 @@ function renderDay(value, outside) {
 }
 
 function renderCalendar() {
+  const focused = calendarGrid.contains(document.activeElement) ? document.activeElement.dataset.date : null;
   monthLabel.textContent = state.month.toLocaleDateString(undefined, {
     month: "long",
     year: "numeric",
@@ -274,6 +303,8 @@ function renderCalendar() {
     value.setDate(gridStart.getDate() + index);
     calendarGrid.append(renderDay(value, !isSameMonth(value, state.month)));
   }
+
+  if (focused) calendarGrid.querySelector(`[data-date="${focused}"]`)?.focus({ preventScroll: true });
 
   const currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const finalMonth = new Date(lastSelectableDay.getFullYear(), lastSelectableDay.getMonth(), 1);
@@ -312,8 +343,17 @@ function render() {
   const participantCount = visibleParticipants().length;
   const selectedCount = state.selected.size;
   summary.textContent = `${participantCount} boys · ${selectedCount} of your dates selected`;
-  saveButton.textContent = state.dirty ? "Save changes" : "Dates saved";
-  saveButton.disabled = !state.dirty;
+  saveButton.textContent = state.saving ? "Saving…" : state.dirty ? "Save changes" : "Dates saved";
+  saveButton.disabled = state.saving || !state.dirty || !!state.conflict;
+  document.querySelector("#logout-button").disabled = state.saving;
+  saveStatus.textContent = state.saving
+    ? "Saving the submitted dates. New edits remain unsaved."
+    : state.saveError || (state.dirty ? "You have unsaved changes." : "All displayed dates are saved.");
+  conflictPanel.hidden = !state.conflict;
+  if (state.conflict) {
+    document.querySelector("#remote-dates").textContent = editableDates(mineFrom(state.conflict)).join(", ") || "No future dates";
+    document.querySelector("#draft-dates").textContent = editableDates(state.selected).join(", ") || "No future dates";
+  }
 }
 
 function showToast(message) {
@@ -442,22 +482,129 @@ personalPinForm.addEventListener("submit", async (event) => {
   }
 });
 
+function sameDates(first, second) {
+  return first.size === second.size && [...first].every((day) => second.has(day));
+}
+
+function updateDirty() {
+  state.dirty = !sameDates(state.selected, state.saved);
+}
+
+function editableDates(dates) {
+  return [...dates].filter((day) => day >= dateKey(new Date())).sort();
+}
+
+function mineFrom(payload) {
+  return new Set(payload.participants.find((person) => person.name === state.me)?.dates || []);
+}
+
+function acceptRefresh(payload) {
+  state.participants = payload.participants;
+  const remote = mineFrom(payload);
+  if (!state.dirty || sameDates(remote, state.selected)) {
+    state.selected = remote;
+    state.saved = new Set(remote);
+    state.revision = payload.revision;
+    state.conflict = null;
+    state.saveError = "";
+    updateDirty();
+  } else if (payload.revision !== state.revision) {
+    state.conflict = payload;
+    state.saveError = "Your dates changed in another window. Compare the dates below.";
+  }
+  render();
+}
+
+async function refreshAvailability() {
+  if (!state.me || state.saving || state.refreshing) return;
+  const generation = state.generation;
+  state.refreshing = true;
+  try {
+    const payload = await api("/api/availability");
+    if (generation === state.generation && !state.saving) acceptRefresh(payload);
+  } catch (error) {
+    if (generation === state.generation) {
+      state.saveError = error.status === 401
+        ? "Your session expired. Sign in in another window, then retry. Your draft is kept here."
+        : "Could not refresh other members’ dates. Your draft is kept here.";
+      render();
+    }
+  } finally {
+    state.refreshing = false;
+  }
+}
+
 saveButton.addEventListener("click", async () => {
-  saveButton.disabled = true;
-  saveButton.textContent = "Saving…";
+  if (state.saving || !state.dirty || state.conflict) return;
+  const submitted = new Set(state.selected);
+  const generation = ++state.generation;
+  state.saving = true;
+  state.saveError = "";
+  render();
+  let conflict = false;
   try {
     const payload = await api("/api/availability", {
       method: "PUT",
-      body: JSON.stringify({ dates: [...state.selected].sort() }),
+      body: JSON.stringify({ dates: editableDates(submitted), expected_revision: state.revision }),
     });
+    if (generation !== state.generation) return;
     state.participants = payload.participants;
-    state.dirty = false;
-    render();
-    showToast("Your dates are saved.");
+    state.saved = mineFrom(payload);
+    state.revision = payload.revision;
+    // Keep changes made while this exact snapshot was in flight.
+    updateDirty();
+    showToast(state.dirty ? "Submitted dates saved. Your newer edits are not saved yet." : "Your dates are saved.");
   } catch (error) {
-    if (error.status === 401) showAccess();
-    else showToast(error.message);
+    if (generation !== state.generation) return;
+    conflict = error.status === 409;
+    state.saveError = error.status === 401
+      ? "Your session expired. Sign in in another window, then retry. Your draft is kept here."
+      : "Save failed. Your draft is kept here. " + error.message;
+  } finally {
+    if (generation === state.generation) {
+      state.saving = false;
+      render();
+      if (conflict) await refreshAvailability();
+    }
   }
+});
+
+document.querySelector("#reapply-dates").addEventListener("click", () => {
+  if (!state.conflict) return;
+  const remote = mineFrom(state.conflict);
+  const merged = new Set(remote);
+  // Reapply only this window's additions and removals to the reviewed remote state.
+  for (const day of state.selected) if (!state.saved.has(day)) merged.add(day);
+  for (const day of state.saved) if (!state.selected.has(day)) merged.delete(day);
+  state.saved = remote;
+  state.selected = merged;
+  state.revision = state.conflict.revision;
+  state.conflict = null;
+  state.saveError = "";
+  updateDirty();
+  render();
+});
+
+document.querySelector("#use-remote-dates").addEventListener("click", () => {
+  if (!state.conflict) return;
+  state.dirty = false;
+  acceptRefresh(state.conflict);
+});
+
+window.addEventListener("focus", refreshAvailability);
+setInterval(() => {
+  if (!document.hidden) refreshAvailability();
+}, 30000);
+window.addEventListener("beforeunload", (event) => {
+  if (state.dirty || state.saving) {
+    event.preventDefault();
+    event.returnValue = "";
+  }
+});
+document.addEventListener("click", (event) => {
+  const link = event.target.closest("a[href]");
+  if (link && link.target !== "_blank" && (state.dirty || state.saving)
+      && !window.confirm("Leave without saving your changes?")) event.preventDefault();
 });
 
 previousButton.addEventListener("click", () => {
@@ -471,6 +618,8 @@ nextButton.addEventListener("click", () => {
 });
 
 document.querySelector("#logout-button").addEventListener("click", async () => {
+  if (state.saving) return;
+  if (state.dirty && !window.confirm("Exit without saving your changes?")) return;
   try {
     await api("/api/logout", { method: "POST", body: "{}" });
   } finally {
