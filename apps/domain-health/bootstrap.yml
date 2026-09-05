@@ -1,0 +1,10 @@
+---
+- name: Bootstrap the existing domain health identities
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Prepare existing provider and independent check identities
+      ansible.builtin.import_tasks: bootstrap-tasks.yml
