@@ -2,89 +2,16 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: autism-traits
 resources:
-  - namespace.yaml
-  - deployment.yaml
-  - cloudflared-deployment.yaml
-  - service.yaml
-  - ingress.yaml
-  - networkpolicy.yaml
-  - cloudflared-calico-networkpolicy.yaml
-  - cloudflared-host-boundary.yaml
+- namespace.yaml
+- deployment.yaml
+- cloudflared-deployment.yaml
+- service.yaml
+- ingress.yaml
+- networkpolicy.yaml
+- cloudflared-calico-networkpolicy.yaml
+- cloudflared-host-boundary.yaml
 transformers:
-  - cluster-scope-transformer.yaml
+- cluster-scope-transformer.yaml
 labels:
-  - pairs:
-      app.kubernetes.io/instance: autism-traits
-configMapGenerator:
-  - name: autism-traits-nginx
-    files:
-      - nginx.conf=config/nginx.conf
-    options:
-      labels:
-        app.kubernetes.io/name: autism-traits
-        app.kubernetes.io/part-of: autism-traits
-  - name: autism-traits-site-core
-    files:
-      - index.html=app/dist/index.html
-      - app.js=app/dist/assets/app.js
-      - app.css=app/dist/assets/app.css
-    options:
-      annotations:
-        argocd.argoproj.io/sync-options: ServerSideApply=true
-      labels:
-        app.kubernetes.io/name: autism-traits
-        app.kubernetes.io/part-of: autism-traits
-  - name: autism-traits-site-images-a
-    files:
-      - bamboo-window.webp=app/dist/images/bamboo-window.webp
-      - moonrise.webp=app/dist/images/moonrise.webp
-      - wheat-field.webp=app/dist/images/wheat-field.webp
-    options:
-      annotations:
-        argocd.argoproj.io/sync-options: ServerSideApply=true
-      labels:
-        app.kubernetes.io/name: autism-traits
-        app.kubernetes.io/part-of: autism-traits
-  - name: autism-traits-site-images-b
-    files:
-      - hokusai-wave.webp=app/dist/images/hokusai-wave.webp
-      - irises.webp=app/dist/images/irises.webp
-    options:
-      annotations:
-        argocd.argoproj.io/sync-options: ServerSideApply=true
-      labels:
-        app.kubernetes.io/name: autism-traits
-        app.kubernetes.io/part-of: autism-traits
-  - name: autism-traits-site-images-c
-    files:
-      - calm-sea.webp=app/dist/images/calm-sea.webp
-      - old-trees.webp=app/dist/images/old-trees.webp
-      - oxbow.webp=app/dist/images/oxbow.webp
-    options:
-      annotations:
-        argocd.argoproj.io/sync-options: ServerSideApply=true
-      labels:
-        app.kubernetes.io/name: autism-traits
-        app.kubernetes.io/part-of: autism-traits
-  - name: autism-traits-site-images-d
-    files:
-      - le-gray-wave.webp=app/dist/images/le-gray-wave.webp
-      - water-pitcher.webp=app/dist/images/water-pitcher.webp
-    options:
-      annotations:
-        argocd.argoproj.io/sync-options: ServerSideApply=true
-      labels:
-        app.kubernetes.io/name: autism-traits
-        app.kubernetes.io/part-of: autism-traits
-  - name: autism-traits-site-images-e
-    files:
-      - celestial-globe.webp=app/dist/images/celestial-globe.webp
-      - ottoman-calligraphy.webp=app/dist/images/ottoman-calligraphy.webp
-      - the-thinker.webp=app/dist/images/the-thinker.webp
-      - wari-tunic.webp=app/dist/images/wari-tunic.webp
-    options:
-      annotations:
-        argocd.argoproj.io/sync-options: ServerSideApply=true
-      labels:
-        app.kubernetes.io/name: autism-traits
-        app.kubernetes.io/part-of: autism-traits
+- pairs:
+    app.kubernetes.io/instance: autism-traits

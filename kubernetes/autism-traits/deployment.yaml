@@ -32,111 +32,62 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: web
-          image: nginxinc/nginx-unprivileged:1.30-alpine@sha256:ee7b7bc02a4af72c98d4365151f92d9b380c482c48d8c84bbbe44bd3192ba463
-          imagePullPolicy: IfNotPresent
-          command:
-            - nginx
-          args:
-            - -c
-            - /config/nginx.conf
-            - -g
-            - daemon off;
-          ports:
-            - name: http
-              containerPort: 8080
-            - name: https
-              containerPort: 8443
-          startupProbe:
-            httpGet:
-              path: /index.html
-              port: http
-            periodSeconds: 2
-            failureThreshold: 30
-          readinessProbe:
-            httpGet:
-              path: /index.html
-              port: http
-            periodSeconds: 5
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: http
-            periodSeconds: 15
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              cpu: 100m
-              memory: 64Mi
-          securityContext:
-            runAsUser: 101
-            runAsGroup: 101
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop:
-                - ALL
-          volumeMounts:
-            - name: site
-              mountPath: /site
-              readOnly: true
-            - name: nginx-config
-              mountPath: /config
-              readOnly: true
-            - name: tls
-              mountPath: /tls
-              readOnly: true
-            - name: tmp
-              mountPath: /tmp
-      volumes:
-        - name: site
-          projected:
-            defaultMode: 0444
-            sources:
-              - configMap:
-                  name: autism-traits-site-core
-                  items:
-                    - {key: index.html, path: index.html}
-                    - {key: app.js, path: assets/app.js}
-                    - {key: app.css, path: assets/app.css}
-              - configMap:
-                  name: autism-traits-site-images-a
-                  items:
-                    - {key: bamboo-window.webp, path: images/bamboo-window.webp}
-                    - {key: moonrise.webp, path: images/moonrise.webp}
-                    - {key: wheat-field.webp, path: images/wheat-field.webp}
-              - configMap:
-                  name: autism-traits-site-images-b
-                  items:
-                    - {key: hokusai-wave.webp, path: images/hokusai-wave.webp}
-                    - {key: irises.webp, path: images/irises.webp}
-              - configMap:
-                  name: autism-traits-site-images-c
-                  items:
-                    - {key: calm-sea.webp, path: images/calm-sea.webp}
-                    - {key: old-trees.webp, path: images/old-trees.webp}
-                    - {key: oxbow.webp, path: images/oxbow.webp}
-              - configMap:
-                  name: autism-traits-site-images-d
-                  items:
-                    - {key: le-gray-wave.webp, path: images/le-gray-wave.webp}
-                    - {key: water-pitcher.webp, path: images/water-pitcher.webp}
-              - configMap:
-                  name: autism-traits-site-images-e
-                  items:
-                    - {key: celestial-globe.webp, path: images/celestial-globe.webp}
-                    - {key: ottoman-calligraphy.webp, path: images/ottoman-calligraphy.webp}
-                    - {key: the-thinker.webp, path: images/the-thinker.webp}
-                    - {key: wari-tunic.webp, path: images/wari-tunic.webp}
-        - name: nginx-config
-          configMap:
-            name: autism-traits-nginx
-            defaultMode: 0444
+      - name: web
+        image: ghcr.io/kpoxo6op/autism-traits@sha256:a21556ece19f39cd786a6051dffbd3cdae914bb0b9efab2d58821f246e9cdfdc
+        imagePullPolicy: IfNotPresent
+        command:
+        - nginx
+        args:
+        - -c
+        - /config/nginx.conf
+        - -g
+        - daemon off;
+        ports:
+        - name: http
+          containerPort: 8080
+        - name: https
+          containerPort: 8443
+        startupProbe:
+          httpGet:
+            path: /index.html
+            port: http
+          periodSeconds: 2
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /index.html
+            port: http
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 15
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        securityContext:
+          runAsUser: 101
+          runAsGroup: 101
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
         - name: tls
-          secret:
-            secretName: autism-traits-tls
-            defaultMode: 0440
+          mountPath: /tls
+          readOnly: true
         - name: tmp
-          emptyDir: {}
+          mountPath: /tmp
+      volumes:
+      - name: tls
+        secret:
+          secretName: autism-traits-tls
+          defaultMode: 288
+      - name: tmp
+        emptyDir: {}
