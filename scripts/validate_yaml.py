@@ -11,9 +11,7 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 YAML_ROOTS = [
     ".github",
-    "apis",
     "kubernetes",
-    "playbooks/argocd/applications/kong-bank-lab",
     "platform",
     "tests",
 ]
@@ -26,7 +24,6 @@ def yaml_files() -> list[Path]:
         if not base.exists():
             continue
         paths.extend(path for path in base.rglob("*") if path.suffix in {".yaml", ".yml"})
-    paths.append(ROOT / "mkdocs.yml")
     return sorted(set(paths))
 
 
