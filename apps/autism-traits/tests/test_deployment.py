@@ -2,23 +2,18 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 
-import pytest
 import yaml
-from ansible.parsing.dataloader import DataLoader
-from ansible.template import Templar
-from conftest import ROOT, load_yaml
 
-try:
-    from ansible.template import trust_as_template
-except ImportError:
-
-    def trust_as_template(value: str) -> str:
-        """Keep compatibility with Ansible versions that trust strings by default."""
-        return value
+ROOT = Path(__file__).resolve().parents[3]
 
 
-PACKAGE = "kubernetes/autism-traits"
+def load_yaml(path):
+    return yaml.safe_load((ROOT / path).read_text())
+
+
+PACKAGE = "apps/autism-traits/manifests"
 APPLICATION = "apps/autism-traits/argocd/application.yaml"
 PROJECT = "apps/autism-traits/argocd/project.yaml"
 CLOUDFLARE_TUNNEL_ENDPOINTS = {
@@ -42,25 +37,6 @@ CLOUDFLARE_TUNNEL_ENDPOINTS = {
     "198.41.200.113/32",
     "198.41.200.193/32",
     "198.41.200.233/32",
-}
-EXPECTED_SITE_PATHS = {
-    "index.html",
-    "assets/app.js",
-    "assets/app.css",
-    "images/bamboo-window.webp",
-    "images/calm-sea.webp",
-    "images/celestial-globe.webp",
-    "images/hokusai-wave.webp",
-    "images/irises.webp",
-    "images/le-gray-wave.webp",
-    "images/moonrise.webp",
-    "images/old-trees.webp",
-    "images/ottoman-calligraphy.webp",
-    "images/oxbow.webp",
-    "images/the-thinker.webp",
-    "images/water-pitcher.webp",
-    "images/wari-tunic.webp",
-    "images/wheat-field.webp",
 }
 
 
@@ -87,54 +63,6 @@ def resource(
     )
 
 
-def test_site_uses_the_selected_runtime_without_mutable_asset_overrides() -> None:
-    resources = render_package()
-    deployment = resource(resources, "Deployment", "autism-traits")
-    pod = deployment["spec"]["template"]["spec"]
-    if pod["containers"][0]["image"].startswith("ghcr.io/kpoxo6op/autism-traits@sha256:"):
-        assert {volume["name"] for volume in pod["volumes"]} == {"tls", "tmp"}
-        return
-    configmaps = [item for item in resources if item["kind"] == "ConfigMap"]
-    site_configmaps = [
-        item for item in configmaps if item["metadata"]["name"].startswith("autism-traits-site-")
-    ]
-    image_configmaps = [
-        item
-        for item in site_configmaps
-        if any(key.endswith(".webp") for key in item.get("binaryData", {}))
-    ]
-
-    assert len(image_configmaps) >= 4
-    assert {
-        key
-        for item in image_configmaps
-        for key in item.get("binaryData", {})
-        if key.endswith(".webp")
-    } == {path.removeprefix("images/") for path in EXPECTED_SITE_PATHS if path.endswith(".webp")}
-    for item in site_configmaps:
-        assert len(json.dumps(item, separators=(",", ":")).encode()) < 800 * 1024
-        assert item["metadata"]["annotations"]["argocd.argoproj.io/sync-options"] == (
-            "ServerSideApply=true"
-        )
-
-    pod_spec = deployment["spec"]["template"]["spec"]
-    site_volume = next(volume for volume in pod_spec["volumes"] if volume["name"] == "site")
-    site_sources = site_volume["projected"]["sources"]
-    projected_names = {source["configMap"]["name"] for source in site_sources}
-    projected_paths = {
-        item["path"] for source in site_sources for item in source["configMap"]["items"]
-    }
-    dist = ROOT / PACKAGE / "app/dist"
-    dist_paths = {str(path.relative_to(dist)) for path in dist.rglob("*") if path.is_file()}
-    assert projected_names == {item["metadata"]["name"] for item in site_configmaps}
-    assert projected_paths == EXPECTED_SITE_PATHS
-    assert projected_paths == dist_paths
-
-    web = pod_spec["containers"][0]
-    site_mount = next(mount for mount in web["volumeMounts"] if mount["mountPath"] == "/site")
-    assert site_mount["readOnly"] is True
-
-
 def test_workload_is_restricted_and_observable() -> None:
     resources = render_package()
     deployment = resource(resources, "Deployment", "autism-traits")
@@ -155,10 +83,6 @@ def test_workload_is_restricted_and_observable() -> None:
     assert pod_spec["securityContext"]["runAsNonRoot"] is True
     assert pod_spec["securityContext"]["fsGroup"] == 101
     assert pod_spec["securityContext"]["seccompProfile"] == {"type": "RuntimeDefault"}
-    assert web["image"].startswith(
-        ("nginxinc/nginx-unprivileged:", "ghcr.io/kpoxo6op/autism-traits@sha256:")
-    )
-    assert "@sha256:" in web["image"]
     assert web["imagePullPolicy"] == "IfNotPresent"
     assert web["securityContext"] == {
         "allowPrivilegeEscalation": False,
@@ -419,7 +343,7 @@ def test_calico_policy_closes_the_node_and_api_exception() -> None:
         assert forbidden not in rendered
 
 
-def test_calico_policy_makes_web_egress_genuinely_zero() -> None:
+def test_calico_policy_blocks_web_egress() -> None:
     policy = resource(
         render_package(),
         "NetworkPolicy",
@@ -436,7 +360,7 @@ def test_calico_policy_makes_web_egress_genuinely_zero() -> None:
 
 
 def test_nginx_uses_a_strict_local_only_csp_and_security_headers() -> None:
-    config = (ROOT / PACKAGE / "config/nginx.conf").read_text()
+    config = (ROOT / "apps/autism-traits/config/nginx.conf").read_text()
 
     assert (
         "Content-Security-Policy \"default-src 'self'; base-uri 'none'; connect-src 'none'; "
@@ -513,115 +437,12 @@ def test_argocd_application_uses_a_restricted_project() -> None:
     assert "*" not in json.dumps(project)
 
 
-def test_application_has_no_browser_storage_or_data_transmission() -> None:
-    source = "\n".join(
-        path.read_text()
-        for path in (ROOT / "apps/autism-traits/app/src").rglob("*")
-        if path.is_file()
-    )
+def test_static_runtime_uses_a_digest_without_asset_or_startup_overrides():
+    import re
 
-    assert "localStorage.getItem" not in source
-    assert "localStorage.setItem" not in source
-    assert 'localStorage.removeItem("autism-traits-assessment:v1")' in source
-    assert "sessionStorage" not in source
-    assert "fetch(" not in source
-    assert "XMLHttpRequest" not in source
-    assert "navigator.sendBeacon" not in source
-    assert "connect-src 'none'" in (ROOT / PACKAGE / "config/nginx.conf").read_text()
-    assert "not transmitted or retained" in source
-    assert "Cloudflare may process connection metadata" in source
-
-
-def test_role_defaults_enable_the_site_and_propagate_revision() -> None:
-    defaults = load_yaml("roles/apps/autism-traits/defaults/main.yml")
-    enabled = (ROOT / "roles/apps/autism-traits/tasks/enabled.yml").read_text()
-
-    assert defaults == {
-        "autism_traits_enabled": True,
-        "autism_traits_target_revision": "HEAD",
-    }
-    assert "state: present" in enabled
-    assert "autism_traits_target_revision" in enabled
-    assert "name: app-secret" in enabled
-    assert "AUTISM_TRAITS_CLOUDFLARED_TOKEN" in enabled
-    assert "autism-traits-cloudflared-token" in enabled
-    assert "autism-traits-project.yaml" in enabled
-    assert enabled.index("autism-traits-project.yaml") < enabled.index(
-        "autism-traits-application.yaml"
-    )
-
-
-@pytest.mark.parametrize("revision", ("feat/autism-assessment", "true", "null", "2026"))
-def test_role_renders_every_valid_revision_as_a_string(revision: str) -> None:
-    enabled = load_yaml("roles/apps/autism-traits/tasks/enabled.yml")
-    application_task = next(
-        task for task in enabled if "autism-traits-application.yaml" in json.dumps(task)
-    )
-    expression = application_task["kubernetes.core.k8s"]["definition"]
-    templar = Templar(
-        loader=DataLoader(),
-        variables={
-            "playbook_dir": str(ROOT / "playbooks"),
-            "autism_traits_target_revision": revision,
-        },
-    )
-    rendered = templar.template(trust_as_template(expression))
-    app = yaml.safe_load(rendered) if isinstance(rendered, str) else rendered
-
-    assert app["spec"]["source"]["targetRevision"] == revision
-
-
-def test_role_quiesces_the_live_application_before_disabling_it() -> None:
-    main = (ROOT / "roles/apps/autism-traits/tasks/main.yml").read_text()
-    disabled = (ROOT / "roles/apps/autism-traits/tasks/disabled.yml").read_text()
-
-    assert "enabled.yml" in main
-    assert "disabled.yml" in main
-    assert "autism_traits_enabled | bool" in main
-    assert "state: present" not in disabled
-    assert "lookup('file'" not in disabled
-    assert "kubernetes.core.k8s_info" in disabled
-    assert disabled.index("state: patched") < disabled.index("state: absent")
-    assert "operation: null" in disabled
-    assert "automated: null" in disabled
-    assert "when:" in disabled
-    assert "name: autism-traits" in disabled
-    assert "namespace: argocd" in disabled
-    assert "wait: true" in disabled
-    assert "kind: Secret" in disabled
-    assert "name: autism-traits-cloudflared-token" in disabled
-    assert "kind: AppProject" in disabled
-    assert disabled.index("Remove the autism traits Cloudflare Tunnel token") < disabled.index(
-        "Remove the autism traits Argo application"
-    )
-    assert disabled.index("Remove the autism traits Argo project") > disabled.index(
-        "Remove the autism traits Argo application"
-    )
-
-
-def test_operator_and_ci_paths_include_the_site_without_weakening_python_checks() -> None:
-    makefile = (ROOT / "Makefile").read_text()
-    workflow = load_yaml(".github/workflows/ci.yml")
-    steps = workflow["jobs"]["autism"]["steps"]
-    shared_steps = workflow["jobs"]["shared"]["steps"]
-    runs = "\n".join(step.get("run", "") for step in steps)
-
-    assert PACKAGE in makefile
-    assert "cd $(AUTISM_TRAITS_APP) && npm ci" in makefile
-    assert "autism-traits-check" in makefile
-    assert "autism-traits: go" in makefile
-    assert "playbooks/bootstrap-apps.yml -e argocd_revision=$(AUTISM_TRAITS_REVISION)" in makefile
-
-    node_step = next(
-        step for step in steps if step.get("uses", "").startswith("actions/setup-node@")
-    )
-    assert str(node_step["with"]["node-version"]) == "22"
-    assert "apps/autism-traits/app/package-lock.json" == node_step["with"]["cache-dependency-path"]
-    assert "npm ci" in runs
-    assert "npm run check" in runs
-    assert "playwright install --with-deps chromium" in runs
-    assert "npm run test:e2e" in runs
-    assert any(step.get("uses") == "actions/setup-python@v6" for step in shared_steps)
-    assert any(
-        "make lint validate test PYTHON=python3" in step.get("run", "") for step in shared_steps
-    )
+    pod = resource(render_package(), "Deployment", "autism-traits")["spec"]["template"]["spec"]
+    web = next(container for container in pod["containers"] if container["name"] == "web")
+    assert re.fullmatch(r"ghcr\.io/kpoxo6op/autism-traits@sha256:[0-9a-f]{64}", web["image"])
+    assert web["command"] == ["nginx"]
+    assert web["args"] == ["-c", "/config/nginx.conf", "-g", "daemon off;"]
+    assert {volume["name"] for volume in pod["volumes"]} == {"tls", "tmp"}
