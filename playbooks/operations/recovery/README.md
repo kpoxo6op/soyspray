@@ -3,6 +3,32 @@
 Use these operations before changing ownership of durable applications. Keep
 the existing backup stores until the replacement has passed a real restore.
 
+## Read backup status
+
+```sh
+make backup-status
+make backup-status FORMAT=json
+```
+
+This reads Longhorn volumes, completed backups, backup groups, targets, and CNPG
+backup records. It does not read Secrets or change the cluster. Longhorn age starts
+at the snapshot time. PostgreSQL base-backup age starts at the backup start time;
+it does not show the latest recoverable WAL point. A continuous-archiving condition
+does not prove WAL age.
+
+Schedule coverage and successful-backup coverage are separate. Retired claims are
+excluded. A failed, unfinished, or incomplete Longhorn backup cannot replace the
+last completed backup in this view. Failure counts cover only retained native
+records. Target availability and observation times show the backup system's view;
+the command does not independently inspect S3 objects.
+
+Restic snapshot observations, restore evidence, and seven-day proof remain
+`unknown` until their observation sources are connected. Missing native API data
+also appears as `unknown`, with its cause. Exit code 0 means the native observations
+were read; it does not mean all data meets the recovery target. Exit code 2 means
+an observation source failed or could not be read. For offline checks, use
+`python -m scripts.backup_status --input saved-observations.json --format json`.
+
 ## Create the S3 store
 
 `provision-s3.yml` creates one private S3 bucket and one IAM user. The user can
