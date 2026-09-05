@@ -209,7 +209,10 @@ and scheduled volume sizes. Record the failure and clean up that scratch
 workspace before retrying.
 
 Copy the restored directory to a private location outside Git for application
-checks. The inspection container does not run the app, so this copy includes
+checks. The Boys inspector uses UID 1000, the same user as the application,
+so it can read private pre-migration backup files without extra capabilities.
+If a check used an older inspector, clean up that scratch workspace and use a
+new check identifier. The inspection container does not run the app, so the copy includes
 the SQLite database and any WAL files without concurrent app writes:
 
 ```bash
