@@ -532,7 +532,8 @@ def test_gitops_package_has_persistence_and_a_narrow_public_path() -> None:
     )
     assert set(deployments) == {"boys", "boys-cloudflared"}
     app_container = deployments["boys"]["spec"]["template"]["spec"]["containers"][0]
-    assert app_container["image"].startswith("python:3.13-alpine@sha256:")
+    assert app_container["image"].startswith("ghcr.io/kpoxo6op/boys@sha256:")
+    assert not any(mount["mountPath"] == "/app" for mount in app_container["volumeMounts"])
     assert {item["name"] for item in app_container["env"]} == {
         "BOYS_DATABASE",
         "BOYS_PIN",
