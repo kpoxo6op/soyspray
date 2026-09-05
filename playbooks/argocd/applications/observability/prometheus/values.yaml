@@ -325,6 +325,7 @@ kube-state-metrics:
               state: [status, state]
               progress: [status, progress]
               backup_error: [status, error]
+              backup_reconcile_error: [status, messages, error]
             metrics:
               - name: backup_snapshot_timestamp_seconds
                 help: Unix time of the source snapshot; not backup completion time.
@@ -361,8 +362,11 @@ kube-state-metrics:
           - action: drop
             sourceLabels: [__name__, backup_error]
             regex: 'soyspray_longhorn_backup_snapshot_timestamp_seconds;.+'
+          - action: drop
+            sourceLabels: [__name__, backup_reconcile_error]
+            regex: 'soyspray_longhorn_backup_snapshot_timestamp_seconds;.+'
           - action: labeldrop
-            regex: backup_error
+            regex: 'backup_(reconcile_)?error'
   resources:
     requests:
       cpu: 50m
