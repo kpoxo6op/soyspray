@@ -28,7 +28,6 @@
       - { name: Immich Database B, role: apps/immich-db-b }
       - { name: Immich Database B Restore, role: apps/immich-db-b-restore }
       - { name: Redis, role: apps/redis }
-      - { name: Obsidian, role: apps/obsidian }
 
       # Media
       - { name: qBittorrent, role: apps/qbittorrent }
