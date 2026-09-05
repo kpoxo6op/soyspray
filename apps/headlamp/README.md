@@ -12,19 +12,27 @@ Authentik's bootstrap owns the `headlamp-oidc` Secret. Headlamp stores no durabl
 application data. The old Application submit role and old values path were removed
 after adoption preserved the live resources and Authentik access.
 
-Checks:
+Normal commands:
 
 ```sh
-kubectl kustomize argocd
-soyspray-venv/bin/python -m pytest -q tests/test_argocd_root.py tests/test_sso_headlamp.py
-kubectl -n argocd get application headlamp
-kubectl -n headlamp get deployment,service,ingress
+make check APP=headlamp
+make status APP=headlamp FORMAT=json
+make diff APP=headlamp
+make deploy APP=headlamp REVISION=YOUR_PUSHED_BRANCH
+make deploy APP=headlamp
 ```
 
-Use [the root Ansible procedure](../../argocd/README.md) for deployment. Verify the
-chart and Git revisions, then sign in and open the workload list. A successful
+Deployment runs the full checks and [native root Ansible procedure](../../argocd/README.md).
+The chart is pinned to the existing `0.35.0` release. Diff compares the clean,
+pushed Git commit and this exact chart through native Argo revision overrides.
+After preview and merge, run the default deployment command to return to HEAD.
+Verify the chart and Git revisions, then sign in and open the workload list. A successful
 HTTP response alone does not prove OIDC or Kubernetes authorization.
 
 Recovery reinstalls the chart and recreates its identity through Authentik's
 bootstrap. The complete off-cluster recovery check for that identity is still
 unknown. Root removal does not retire Headlamp or its shared group binding.
+
+`smoke` and `restore-check` remain unknown until maintained commands cover the
+authenticated journey and Authentik identity recovery. Deployment does not rotate
+or recreate the OIDC Secret or change Kubernetes group access.
