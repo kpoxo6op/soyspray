@@ -20,7 +20,7 @@ gh workflow run ci.yml --ref main
 ```
 
 Manual CI dispatch always runs both browser suites, native Immich recovery tests,
-and shared checks. For a local
+and shared checks. It does not publish an Immich image. For a local
 scope check, use `python -m scripts.ci_scope --base origin/main` after committing
 the change. The helper selects tests; the app inventory still comes from Argo
 Application metadata. Add a new browser suite to this workflow when an app needs
@@ -41,3 +41,9 @@ The [autism image workflow](autism-image.yml) builds the static site with pinned
 upstream images and checks the running image with phone and desktop browsers.
 Source merges open a draft digest and configuration promotion. The running site
 changes only when that promotion is deployed. See the [app guide](../../apps/autism-traits/README.md).
+
+`immich-backup-image.yml` is called by the affected Immich CI job. It builds the
+script bundle and runs the PostgreSQL/Restic recovery tests against the packaged
+files. Only runtime changes merged to main publish an image and open a draft
+Kustomize digest promotion. Manual checks do not publish unless `publish=true`
+is requested on this image workflow. No cluster or backup credentials enter CI.
