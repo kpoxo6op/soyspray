@@ -4,10 +4,10 @@ const eventError = document.querySelector("#event-error");
 
 function eventAction(event) {
   if (event.action === "claimed" || (event.action === "baseline" && event.days === 0)) {
-    return "Claimed name";
+    return "Закрепил имя";
   }
-  if (event.days === 0) return "Cleared available days";
-  return `Set ${event.days} available ${event.days === 1 ? "day" : "days"}`;
+  if (event.days === 0) return "Убрал отметки свободных дней";
+  return `Отметил свободных дней: ${event.days}`;
 }
 
 function renderEvent(event) {
@@ -25,10 +25,10 @@ function renderEvent(event) {
   const time = document.createElement(event.action === "baseline" ? "span" : "time");
   time.className = "event-time";
   if (event.action === "baseline") {
-    time.textContent = "Before log";
+    time.textContent = "До начала истории";
   } else {
     time.dateTime = event.at;
-    time.textContent = new Intl.DateTimeFormat(undefined, {
+    time.textContent = new Intl.DateTimeFormat("ru-RU", {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(new Date(event.at));
@@ -46,11 +46,11 @@ async function loadEvents() {
       return;
     }
     const payload = await response.json();
-    if (!response.ok) throw new Error(payload.error || "Could not load events.");
+    if (!response.ok) throw new Error(payload.error || "Не удалось загрузить историю.");
     eventList.replaceChildren(...payload.events.map(renderEvent));
     eventEmpty.hidden = payload.events.length !== 0;
   } catch (error) {
-    eventError.textContent = error.message;
+    eventError.textContent = "Не удалось загрузить историю. Повторим попытку автоматически.";
   }
 }
 
