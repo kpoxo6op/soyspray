@@ -1,168 +1,35 @@
-# OpenClaw Operations
+# Node-0 OpenClaw retirement
 
-Runbooks for OpenClaw installation, runtime control, and Gmail/webhook integration.
+OpenClaw runs on the laptop. The old node-0 removal entry point now imports
+`../retirement/node0-openclaw.yml`. It no longer removes shared dependencies.
+Do not use the old installation or maintenance playbooks during retirement.
 
-## Canonical entrypoints
-
-- `openclaw-install.yml` - one-command bootstrap: preflight → host/dependency install → baseline config → kubeconfig → enable gateway boot-start → final status
-- `openclaw-remove.yml` - one-command teardown: disable boot-start → remove install-mode config → remove kubeconfig → remove dependencies → remove host/user and service
-- `openclaw-enable-tools.yml` - enable optional tool capabilities in one pass (`file`, `exec`, `browser`)
-- `openclaw-disable-tools.yml` - disable optional tool capabilities in one pass (`browser`, `exec`, `file`)
-- `configure-openclaw-oauth-token.yml` - reconfigure OpenClaw OAuth auth token non-interactively from env vars (`OPENCLAW_OAUTH_ACCESS_TOKEN`, optional `OPENCLAW_OAUTH_REFRESH_TOKEN`, optional `OPENCLAW_OAUTH_EXPIRES_IN`)
-
-To force a CLI refresh/upgrade on an existing host run:
-
-- `ansible-playbook playbooks/operations/openclaw/openclaw-install.yml -e "openclaw_upgrade=true"`
-
-`install-openclaw-host.yml` now treats `/usr/local/bin/openclaw` as the managed
-installation path and removes a legacy duplicate install if it still exists at
-`/usr/bin/openclaw` backed by `/usr/lib/node_modules/openclaw`.
-
-You can also limit scope to the host step with tags:
-
-- `ansible-playbook playbooks/operations/openclaw/openclaw-install.yml -t openclaw-host -e "openclaw_upgrade=true"`
-
-Use tags to narrow a tool pass:
-
-- `-t openclaw-tools-file` for `group:fs`
-- `-t openclaw-tools-exec` for `exec`
-- `-t openclaw-tools-browser` for `browser`/Playwright stack
-
-## Legacy one-purpose playbooks
-
-Kept for direct targeting and rollback scripting:
-
-- `audit-openclaw-security.yml`
-- `configure-openclaw-exec-tool.yml`
-- `configure-openclaw-file-tool.yml`
-- `configure-openclaw-full-web-browsing.yml`
-- `configure-openclaw-installation-mode.yml`
-- `configure-openclaw-kubeconfig.yml`
-- `disable-openclaw-exec-tool.yml`
-- `disable-openclaw-file-tool.yml`
-- `disable-openclaw-full-web-browsing.yml`
-- `disable-openclaw-gateway-autostart.yml`
-- `enable-openclaw-gateway-autostart.yml`
-- `install-openclaw-dependencies.yml`
-- `install-openclaw-host.yml`
-- `remove-openclaw-dependencies.yml`
-- `remove-openclaw-host.yml`
-- `remove-openclaw-installation-mode.yml`
-- `remove-openclaw-kubeconfig.yml`
-- `show-openclaw-installation-mode-status.yml`
-- `show-openclaw-preflight.yml`
-
-## One-liner for OAuth refresh token update
+Push the branch and run `make go`. Then check the exact node-0 operation:
 
 ```bash
-OPENCLAW_OAUTH_ACCESS_TOKEN='<new-access-token>' \
-OPENCLAW_OAUTH_REFRESH_TOKEN='<new-refresh-token>' \
-OPENCLAW_OAUTH_EXPIRES_IN='30d' \
+source soyspray-venv/bin/activate
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
-  playbooks/operations/openclaw/configure-openclaw-oauth-token.yml
+  playbooks/operations/retirement/node0-openclaw.yml --check
 ```
 
-## One-liner bootstrap with optional OAuth token refresh
+Omit `--check` to apply. The playbook checks the host name, dedicated account,
+service owner, cron scope, module package names, binary targets, and old state
+folders first. It stops if those facts differ from the inspected installation.
 
-```bash
-OPENCLAW_OAUTH_ACCESS_TOKEN='<new-access-token>' \
-OPENCLAW_OAUTH_REFRESH_TOKEN='<new-refresh-token>' \
-OPENCLAW_OAUTH_EXPIRES_IN='30d' \
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
-  --become --become-user=root --user ubuntu \
-  playbooks/operations/openclaw/openclaw-install.yml
-```
+It removes the dedicated cron and native jobs, stops and disables gateway
+services, removes the whole system unit and drop-in directory, disables linger,
+and removes the account, home, copied kubeconfig, credentials, browser state,
+and verified OpenClaw modules. It stops the dedicated user manager without
+killing processes by UID across Kubernetes containers.
 
-When `OPENCLAW_OAUTH_ACCESS_TOKEN` is set, the installer writes the value into
-`~/.openclaw/agents/main/agent/auth-profiles.json` for `openai-codex` and restarts the gateway in the same run.
+The final audit requires no OpenClaw processes, services, schedules, or
+listeners. It compares the protected tool files and the Tailscale service and
+process before and after. Node.js, npm, Kubernetes tools, Chrome, Playwright,
+and `/etc/kubernetes/admin.conf` stay in place. Credentials are not revoked or
+rotated. The laptop installation is outside the target inventory.
 
-If no token is provided, the runbook now skips token reconfiguration without failing.
-
-### If onboarding reports `health check failed: gateway closed`
-
-That message usually means the onboarding flow could not keep a daemon running in this host environment. Fix it by letting the OpenClaw systemd gateway service own startup:
-
-```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
-  --become --become-user=root --user ubuntu \
-  playbooks/operations/openclaw/enable-openclaw-gateway-autostart.yml
-```
-
-Then verify:
-
-```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
-  --become --become-user=root --user ubuntu \
-  playbooks/operations/openclaw/show-openclaw-installation-mode-status.yml
-```
-
-For jobs that need Facebook web scraping, also enable browser tooling before running tasks:
-
-```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
-  --become --become-user=root --user ubuntu \
-  playbooks/operations/openclaw/openclaw-enable-tools.yml
-```
-
-## Expose gateway UI from another device on your home LAN
-
-Keep your current token auth, but bind the gateway to LAN interfaces:
-
-```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
-  --become --become-user=root --user ubuntu \
-  playbooks/operations/openclaw/configure-openclaw-installation-mode.yml \
-  -e openclaw_gateway_bind=lan \
-  -e openclaw_gateway_port=18789
-
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
-  --become --become-user=root --user ubuntu \
-  playbooks/operations/openclaw/enable-openclaw-gateway-autostart.yml \
-  -e openclaw_gateway_bind=lan \
-  -e openclaw_gateway_port=18789
-```
-
-Then open from your PC:
-
-```bash
-http://<node-ip>:18789
-```
-
-If you want to keep token mode, preserve the generated token suffix from the
-Control UI/dashboard URL and append it as `#token=...`.
-
-## How to fetch the OAuth token for OpenAI
-
-Run the interactive OAuth flow once on a machine where a browser is available:
-
-```bash
-sudo su - openclaw
-openclaw onboard --auth-choice openai-codex
-```
-
-`openclaw models auth login --provider openai-codex` is no longer supported in
-current 2026.3.2 builds because provider plugins are optional and not bundled for
-`openai-codex`.
-
-If your host supports persistent daemon install, you can run:
-
-```bash
-sudo su - openclaw
-openclaw onboard --install-daemon --auth-choice openai-codex
-```
-
-If onboarding still shows `gateway closed`, keep using the non-daemon flow above and
-recover the gateway using the Ansible recovery block in the section above.
-
-Then extract the access token:
-
-```bash
-sudo -n su - openclaw -c "jq -r '.profiles[\"openai-codex:default\"].access' ~/.openclaw/agents/main/agent/auth-profiles.json"
-```
-
-Copy that value into `OPENCLAW_OAUTH_ACCESS_TOKEN` and rerun the playbook command above.
-
-If you see `refresh_token_reused` in gateway logs, the token was invalidated by a
-previous re-auth attempt and must be replaced. Re-run the browser OAuth flow to
-generate a fresh code and paste the resulting `openai-codex:default` token again.
+After verified absence, delete the obsolete node-0 installation and maintenance
+files. Keep the retirement playbook through the migration window. A completed
+retirement can be checked and applied again. Reinstallation needs a separate
+reviewed operation; this playbook does not recreate the host installation.
