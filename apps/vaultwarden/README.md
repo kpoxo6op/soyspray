@@ -7,7 +7,9 @@ explains normal use, client setup, and the existing Hays helper.
 The native root owns the existing Application and AppProject. It preserves the
 namespace, `vaultwarden-data` claim, `/data` directory, server keys, host, and pinned
 stock image. Application, project, namespace, and PVC protections retain data
-when the app is parked. Retirement needs a separate explicit Ansible operation.
+when the app is parked. The namespace has an explicit manifest, so its protection
+annotations are applied as resource settings. Retirement needs a separate explicit
+Ansible operation.
 
 ```sh
 make check APP=vaultwarden
