@@ -511,7 +511,7 @@ def test_native_boys_ownership_preserves_access_and_storage_boundaries() -> None
     assert application["spec"]["source"] == {
         "repoURL": "https://github.com/kpoxo6op/soyspray.git",
         "targetRevision": "HEAD",
-        "path": "kubernetes/boys",
+        "path": "apps/boys/manifests",
     }
     assert not application["metadata"].get("finalizers")
     assert application["spec"]["project"] == "boys"

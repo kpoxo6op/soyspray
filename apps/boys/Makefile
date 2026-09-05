@@ -9,7 +9,7 @@ check:
 	cd kubernetes/boys && npm test
 
 diff:
-	$(PYTHON) -m scripts.app_diff --app boys --package kubernetes/boys
+	$(PYTHON) -m scripts.app_diff --app boys --package apps/boys/manifests
 
 deploy:
 	$(MAKE) --no-print-directory -f Makefile APP= boys BOYS_ENABLED=true BOYS_REVISION=$(REVISION)
