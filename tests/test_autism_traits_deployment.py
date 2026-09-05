@@ -19,8 +19,8 @@ except ImportError:
 
 
 PACKAGE = "kubernetes/autism-traits"
-APPLICATION = "playbooks/argocd/applications/web/autism-traits/autism-traits-application.yaml"
-PROJECT = "playbooks/argocd/applications/web/autism-traits/autism-traits-project.yaml"
+APPLICATION = "apps/autism-traits/argocd/application.yaml"
+PROJECT = "apps/autism-traits/argocd/project.yaml"
 CLOUDFLARE_TUNNEL_ENDPOINTS = {
     "198.41.192.7/32",
     "198.41.192.27/32",
@@ -473,7 +473,7 @@ def test_argocd_application_uses_a_restricted_project() -> None:
 
     assert app["metadata"]["name"] == "autism-traits"
     assert app["metadata"]["namespace"] == "argocd"
-    assert app["metadata"]["finalizers"] == ["resources-finalizer.argocd.argoproj.io"]
+    assert app["metadata"].get("finalizers", []) == []
     assert app["spec"]["project"] == "autism-traits"
     assert app["spec"]["source"] == {
         "repoURL": "https://github.com/kpoxo6op/soyspray.git",
@@ -491,7 +491,8 @@ def test_argocd_application_uses_a_restricted_project() -> None:
     assert namespace_labels["pod-security.kubernetes.io/enforce"] == "restricted"
     assert namespace_labels["pod-security.kubernetes.io/enforce-version"] == "v1.35"
 
-    assert project["metadata"] == {"name": "autism-traits", "namespace": "argocd"}
+    assert project["metadata"]["name"] == "autism-traits"
+    assert project["metadata"]["namespace"] == "argocd"
     assert project["spec"]["sourceRepos"] == ["https://github.com/kpoxo6op/soyspray.git"]
     assert project["spec"]["destinations"] == [
         {"server": "https://kubernetes.default.svc", "namespace": "autism-traits"}
@@ -600,7 +601,6 @@ def test_role_quiesces_the_live_application_before_disabling_it() -> None:
 
 def test_operator_and_ci_paths_include_the_site_without_weakening_python_checks() -> None:
     makefile = (ROOT / "Makefile").read_text()
-    playbook = load_yaml("playbooks/deploy-argocd-apps.yml")[0]
     workflow = load_yaml(".github/workflows/ci.yml")
     steps = workflow["jobs"]["autism"]["steps"]
     shared_steps = workflow["jobs"]["shared"]["steps"]
@@ -610,11 +610,7 @@ def test_operator_and_ci_paths_include_the_site_without_weakening_python_checks(
     assert "cd $(AUTISM_TRAITS_APP) && npm ci" in makefile
     assert "autism-traits-check" in makefile
     assert "autism-traits: go" in makefile
-    assert "--tags autism_traits" in makefile
-    assert "autism_traits_target_revision=$(AUTISM_TRAITS_REVISION)" in makefile
-    assert any(
-        item["role"] == "apps/autism-traits" for item in playbook["vars"]["argocd_app_roles"]
-    )
+    assert "playbooks/bootstrap-apps.yml -e argocd_revision=$(AUTISM_TRAITS_REVISION)" in makefile
 
     node_step = next(
         step for step in steps if step.get("uses", "").startswith("actions/setup-node@")
