@@ -119,6 +119,7 @@ def app_status(app):
         result["last_successful_sync"] = unknown("Argo has no successful deployment history.")
     declared_url = app.get("metadata", {}).get("annotations", {}).get(PREFIX + "access-url")
     urls = [declared_url] if declared_url else state.get("summary", {}).get("externalURLs")
+    result["runtime"] = unknown("No Kubernetes workload observations were read.")
     result["access"] = {
         "urls": observed(urls, "Neither Application metadata nor Argo reports an access URL."),
         "method": annotation(app, "access-method"),
@@ -185,6 +186,10 @@ def main(argv=None):
     parser.add_argument("--format", choices=("text", "json"), default="text")
     parser.add_argument("--input", help="Read a saved kubectl JSON response for an offline check.")
     parser.add_argument(
+        "--runtime-input",
+        help="Read a saved Kubernetes workload list for offline image observations.",
+    )
+    parser.add_argument(
         "--backup-input", help="Read saved native backup observations for an offline status check."
     )
     parser.add_argument(
@@ -210,7 +215,37 @@ def main(argv=None):
             app_status(app) if args.command == "status" else inventory(app) for app in apps
         ]
         if args.command == "status":
-            from scripts import backup_status
+            from scripts import app_runtime, backup_status
+
+            try:
+                runtime = (
+                    json.loads(Path(args.runtime_input).read_text())
+                    if args.runtime_input
+                    else None
+                    if args.input
+                    else app_runtime.read_workloads(apps)
+                )
+                for app, row in zip(apps, report["applications"], strict=True):
+                    row["runtime"] = (
+                        unknown(
+                            "Offline Application input has no workload observations; supply --runtime-input."
+                        )
+                        if runtime is None
+                        else app_runtime.runtime_status(app, runtime)
+                    )
+            except (
+                OSError,
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                subprocess.TimeoutExpired,
+            ):
+                for row in report["applications"]:
+                    row["runtime"] = unknown(
+                        "Workload observations are unavailable or invalid; check API access or the supplied runtime input."
+                    )
+                code = 2
             from scripts.app_recovery import app_recovery
 
             now = datetime.now(timezone.utc)
