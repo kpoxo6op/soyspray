@@ -4,7 +4,6 @@ Project-owned skills:
 
 - `ansible-application-role`
 - `argocd-kubernetes-application`
-- `demo-lab-experience`
 
 Vendored from [openai/skills](https://github.com/openai/skills) at commit
 `49f948faa9258a0c61caceaf225e179651397431`:

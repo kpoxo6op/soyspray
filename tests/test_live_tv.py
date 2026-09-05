@@ -518,7 +518,7 @@ def test_live_tv_prepares_secrets_before_it_changes_argo_revisions() -> None:
 
 def test_make_go_checks_authentik_and_live_tv_syntax() -> None:
     makefile = (ROOT / "Makefile").read_text()
-    assert "--tags authentik,live-tv,kong_bank_lab" in makefile
+    assert "--tags authentik,live-tv" in makefile
 
 
 def test_live_tv_start_reconciles_authentik_from_the_same_revision() -> None:

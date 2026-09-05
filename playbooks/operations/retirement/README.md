@@ -1,38 +1,34 @@
-# Banking lab retirement
+# Node-0 OpenClaw retirement
 
-This operation removes the remaining resources of the parked banking lab.
-Merge the change that removes the lab from general deployment registration
-first. The operation checks that registration and requires the runtime
-Applications to be absent. It stops if another Application uses the lab
-project or a named lab namespace contains a claim.
+OpenClaw runs on the laptop. `node0-openclaw.yml` removes only the verified
+old installation on node-0. Keep this operation through the migration window.
 
-Push the branch and run `make go`. Check the retirement, then omit `--check`
-to apply:
+Push the branch and run `make go`. Then check the exact node-0 operation:
 
 ```bash
 source soyspray-venv/bin/activate
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
-  playbooks/operations/retirement/bank-lab.yml --check
+  playbooks/operations/retirement/node0-openclaw.yml --check
 ```
 
-The operation verifies the CRD Application's complete resource scope. It
-checks all Kong resource types before removing the Application, removes its
-Argo deletion finalizer to prevent cascading deletion, and checks every Kong
-type again before deleting the twelve explicitly named definitions. It uses
-UID preconditions for deletions.
+Omit `--check` to apply. The playbook checks the host name, dedicated account,
+service owner, cron scope, module package names, binary targets, and old state
+folders first. It stops if those facts differ from the inspected installation.
 
-Only named namespaces with both synthetic-data and lab-environment labels
-can be removed. The shared monitoring namespace is excluded. All
-`gateway.networking.k8s.io` definitions stay in place, and their UIDs are
-checked after retirement. The external autism status-page integration is
-outside this operation.
+It removes the dedicated cron and native jobs, stops and disables gateway
+services, removes the whole system unit and drop-in directory, disables linger,
+and removes the account, home, copied kubeconfig, credentials, browser state,
+and verified OpenClaw modules. It stops the dedicated user manager without
+killing processes by UID across Kubernetes containers.
 
-Do not use `make kong-off` for retirement. That older parking path is not this
-operation. After application, project, namespace, and Kong CRD absence is
-verified, remove the obsolete lab source and deployment targets in a separate
-PR. Retain the verification results outside Git.
+The final audit requires no OpenClaw processes, services, schedules, or
+listeners. It compares the protected tool files and the Tailscale service and
+process before and after. Node.js, npm, Kubernetes tools, Chrome, Playwright,
+and `/etc/kubernetes/admin.conf` stay in place. Credentials are not revoked or
+rotated. The laptop installation is outside the target inventory.
 
-There is no automatic recreation rollback. Reintroducing the lab requires a
-deliberate new deployment with reviewed definitions. A retry of this operation
-keeps unrelated resources and skips resources that are already absent.
+After verified absence, delete the obsolete node-0 installation and maintenance
+files. Keep the retirement playbook through the migration window. A completed
+retirement can be checked and applied again. Reinstallation needs a separate
+reviewed operation; this playbook does not recreate the host installation.

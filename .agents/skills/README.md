@@ -9,7 +9,6 @@ Open the matching `SKILL.md` before using a skill.
 | --- | --- |
 | [`ansible-application-role`](ansible-application-role/) | Safe, idempotent Ansible application roles |
 | [`argocd-kubernetes-application`](argocd-kubernetes-application/) | Complete Argo CD and Kubernetes application design |
-| [`demo-lab-experience`](demo-lab-experience/) | Clear setup, demo, verification, and shutdown journeys |
 
 The remaining skill folders are pinned copies of upstream packages. Their
 versions and licences are listed in [`SOURCES.md`](SOURCES.md). Internal folders
