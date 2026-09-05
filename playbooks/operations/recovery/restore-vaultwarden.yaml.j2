@@ -1,4 +1,14 @@
 apiVersion: v1
+kind: Secret
+metadata:
+  name: restore-tls
+  namespace: {{ recovery_scratch }}
+type: kubernetes.io/tls
+data:
+  tls.crt: {{ lookup('file', recovery_tls_directory ~ '/cert.pem') | b64encode | to_json }}
+  tls.key: {{ lookup('file', recovery_tls_directory ~ '/key.pem') | b64encode | to_json }}
+---
+apiVersion: v1
 kind: Pod
 metadata:
   name: app
@@ -21,14 +31,15 @@ spec:
     - name: app
       image: ghcr.io/dani-garcia/vaultwarden:testing@sha256:93a29083d81bab3b29a34252662cd50d8191eeb248e2d9f9573ba455b4367934
       env:
-        - {name: DOMAIN, value: 'http://127.0.0.1:18080'}
+        - {name: DOMAIN, value: 'https://localhost:18443'}
         - {name: ROCKET_ADDRESS, value: '0.0.0.0'}
-        - {name: ROCKET_PORT, value: '8080'}
+        - {name: ROCKET_PORT, value: '8443'}
+        - {name: ROCKET_TLS, value: '{certs="/tls/tls.crt",key="/tls/tls.key"}'}
         - {name: SIGNUPS_ALLOWED, value: 'false'}
         - {name: INVITATIONS_ALLOWED, value: 'false'}
         - {name: PUSH_ENABLED, value: 'false'}
       readinessProbe:
-        httpGet: {path: /alive, port: 8080}
+        httpGet: {path: /alive, port: 8443, scheme: HTTPS}
       securityContext:
         allowPrivilegeEscalation: false
         readOnlyRootFilesystem: true
@@ -39,8 +50,11 @@ spec:
       volumeMounts:
         - {name: data, mountPath: /data}
         - {name: tmp, mountPath: /tmp}
+        - {name: tls, mountPath: /tls, readOnly: true}
   volumes:
     - name: data
       persistentVolumeClaim: {claimName: restored-data}
     - name: tmp
       emptyDir: {}
+    - name: tls
+      secret: {secretName: restore-tls}
