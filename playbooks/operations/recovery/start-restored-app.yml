@@ -21,6 +21,12 @@
           - not (recovery_tls_directory | realpath).startswith(((playbook_dir ~ '/../../..') | realpath) ~ '/')
       when: recovery_app == 'vaultwarden'
 
+    - name: Require a pinned stock Vaultwarden image
+      ansible.builtin.assert:
+        that:
+          - recovery_vaultwarden_image | default('') is match('^ghcr.io/dani-garcia/vaultwarden(?::[A-Za-z0-9._-]+)?@sha256:[0-9a-f]{64}$')
+      when: recovery_app == 'vaultwarden'
+
     - name: Read the scratch namespace
       kubernetes.core.k8s_info:
         api_version: v1

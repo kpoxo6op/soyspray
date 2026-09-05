@@ -29,7 +29,7 @@ spec:
     seccompProfile: {type: RuntimeDefault}
   containers:
     - name: app
-      image: ghcr.io/dani-garcia/vaultwarden:testing@sha256:93a29083d81bab3b29a34252662cd50d8191eeb248e2d9f9573ba455b4367934
+      image: {{ recovery_vaultwarden_image | to_json }}
       env:
         - {name: DOMAIN, value: 'https://localhost:18443'}
         - {name: ROCKET_ADDRESS, value: '0.0.0.0'}
