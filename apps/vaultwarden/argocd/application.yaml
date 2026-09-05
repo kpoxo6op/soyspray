@@ -23,7 +23,7 @@ spec:
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
     targetRevision: HEAD
-    path: kubernetes/vaultwarden
+    path: apps/vaultwarden/manifests
   destination:
     server: https://kubernetes.default.svc
     namespace: vaultwarden
