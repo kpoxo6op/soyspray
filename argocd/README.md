@@ -55,8 +55,10 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
 The selected Application must be declared in the native root. Its branch on GitHub
 must match this clean checkout. Root definitions still come from the whole branch,
 so keep unrelated child-definition changes out of a single-app preview. Ansible
-waits for the root's complete source comparison and the selected child's sync and
-health. Check resource identity, access, and the actual user journey separately.
+waits for the root's complete source comparison and resolved Git commit. The
+selected child must be synced and healthy at that Git commit when its source was
+overridden. A cached comparison from an earlier commit does not pass. Check resource
+identity, access, and the actual user journey separately.
 
 After merge, run the bootstrap command with `argocd_revision=HEAD` and omit
 `argocd_preview_application`. The operation replaces the root source parameters,
