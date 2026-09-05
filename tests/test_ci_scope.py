@@ -18,17 +18,19 @@ from scripts import ci_scope
     ],
 )
 def test_boys_changes_select_its_browser_checks(path):
-    assert ci_scope.select([path]) == {"boys": True, "autism": False}
+    assert ci_scope.select([path]) == {"boys": True, "autism": False, "immich": False}
 
 
 def test_shared_only_change_keeps_application_checks_optional():
     assert ci_scope.select(["scripts/backup_status.py", "tests/test_backup_status.py"]) == {
         "boys": False,
         "autism": False,
+        "immich": False,
     }
     assert ci_scope.select(["apps/autism-traits/app/src/App.tsx"]) == {
         "boys": False,
         "autism": True,
+        "immich": False,
     }
 
 
@@ -87,7 +89,7 @@ def test_deleted_and_renamed_paths_are_both_checked(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     paths = ci_scope.changed_paths(base)
     assert set(paths) == {"kubernetes/boys/old name.js", "apps/autism-traits/new.js"}
-    assert all(ci_scope.select(paths).values())
+    assert ci_scope.select(paths) == {"boys": True, "autism": True, "immich": False}
 
 
 @pytest.mark.parametrize(
@@ -104,10 +106,14 @@ def test_deleted_and_renamed_paths_are_both_checked(tmp_path, monkeypatch):
 )
 def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
     jobs = {
-        "scope": {"result": "success", "outputs": {"boys": "true", "autism": "false"}},
+        "scope": {
+            "result": "success",
+            "outputs": {"boys": "true", "autism": "false", "immich": "false"},
+        },
         "shared": {"result": "success"},
         "boys": {"result": "success"},
         "autism": {"result": "skipped"},
+        "immich": {"result": "skipped"},
     }
     if failure in {"shared", "scope"}:
         jobs[failure]["result"] = "failure"
@@ -128,3 +134,11 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
         text=True,
     )
     assert (run.returncode == 0) is (failure is None)
+
+
+def test_immich_recovery_changes_select_native_image_checks():
+    assert ci_scope.select(["apps/immich/backup/dump.sql"]) == {
+        "boys": False,
+        "autism": False,
+        "immich": True,
+    }
