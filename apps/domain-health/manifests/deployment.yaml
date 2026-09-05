@@ -16,62 +16,62 @@ spec:
         app.kubernetes.io/name: domain-health
     spec:
       containers:
-        - name: exporter
-          image: python:3.12-slim
-          imagePullPolicy: IfNotPresent
-          command:
-            - python3
-            - /app/domain-health-exporter.py
-          ports:
-            - name: metrics
-              containerPort: 8080
-          env:
-            - name: DOMAIN_NAME
-              value: soyspray.vip
-            - name: CHECK_INTERVAL_SECONDS
-              value: "21600"
-            - name: HTTP_PORT
-              value: "8080"
-            - name: CLOUDFLARE_API_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: cloudflare-api-token
-                  key: api-token
-            - name: HEALTHCHECKS_PING_URL
-              valueFrom:
-                secretKeyRef:
-                  name: domain-health-config
-                  key: healthchecks-ping-url
-            - name: EXPECTED_NAMESERVERS
-              valueFrom:
-                secretKeyRef:
-                  name: domain-health-config
-                  key: expected-nameservers
-          volumeMounts:
-            - name: exporter-script
-              mountPath: /app
-              readOnly: true
-          readinessProbe:
-            httpGet:
-              path: /healthz
-              port: metrics
-            initialDelaySeconds: 10
-            periodSeconds: 30
-          livenessProbe:
-            httpGet:
-              path: /healthz
-              port: metrics
-            initialDelaySeconds: 30
-            periodSeconds: 60
-          resources:
-            requests:
-              cpu: 25m
-              memory: 64Mi
-            limits:
-              cpu: 100m
-              memory: 128Mi
-      volumes:
-        - name: exporter-script
-          configMap:
-            name: domain-health-exporter
-            defaultMode: 0555
+      - name: exporter
+        image: ghcr.io/kpoxo6op/domain-health@sha256:c238a451a51399aeb7a7185e2adf33b9c7baff9fa977af8ba431fcd77fa3cedb
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: metrics
+          containerPort: 8080
+        env:
+        - name: DOMAIN_NAME
+          value: soyspray.vip
+        - name: CHECK_INTERVAL_SECONDS
+          value: '21600'
+        - name: HTTP_PORT
+          value: '8080'
+        - name: CLOUDFLARE_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-api-token
+              key: api-token
+        - name: HEALTHCHECKS_PING_URL
+          valueFrom:
+            secretKeyRef:
+              name: domain-health-config
+              key: healthchecks-ping-url
+        - name: EXPECTED_NAMESERVERS
+          valueFrom:
+            secretKeyRef:
+              name: domain-health-config
+              key: expected-nameservers
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: metrics
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: metrics
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 1000
+          runAsGroup: 1000
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+      automountServiceAccountToken: false
