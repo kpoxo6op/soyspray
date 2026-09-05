@@ -7,3 +7,4 @@ resources:
   - ../apps/external-dns/argocd
   - ../apps/domain-health/argocd
   - ../apps/vaultwarden/argocd
+  - ../apps/obsidian-livesync/argocd

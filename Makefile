@@ -17,8 +17,11 @@ DOMAIN_HEALTH_REVISION ?= HEAD
 VOICE_ASSISTANT_REVISION ?= HEAD
 VOICE_ASSISTANT_ENABLED ?= true
 VAULTWARDEN_PACKAGE := apps/vaultwarden/manifests
+OBSIDIAN_PACKAGE := playbooks/argocd/applications/database/obsidian-livesync
 VAULTWARDEN_ENABLED ?= true
 VAULTWARDEN_REVISION ?= HEAD
+OBSIDIAN_REVISION ?= HEAD
+OBSIDIAN_ENABLED ?= true
 FORMAT ?= text
 REVISION ?= HEAD
 LIVE_TV_ENABLED ?= false
@@ -44,13 +47,14 @@ KUSTOMIZATIONS := \
 	apps/boys/manifests \
 	apps/domain-health \
 	$(VAULTWARDEN_PACKAGE) \
+	$(OBSIDIAN_PACKAGE) \
 	playbooks/argocd/applications/home-automation/voice-assistant \
 	playbooks/argocd/applications/media/media-helper \
 	playbooks/argocd/applications/media/dispatcharr \
 	playbooks/argocd/applications/media/jellyfin
 
 .PHONY: help setup act check full-check app-command diff deploy smoke restore-check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
-	test render go autism-traits boys vaultwarden live-tv voice-assistant voice-pe-render \
+	test render go autism-traits boys vaultwarden obsidian-livesync live-tv voice-assistant voice-pe-render \
 	voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
 	apps status backup-status external-dns domain-health list-apps node0 node1 node2 master worker1 worker2 worker3 clean
 
@@ -105,10 +109,10 @@ autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/vaultwarden/agent_secret.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
-	$(PYTHON) -m ruff format --check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/vaultwarden/agent_secret.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
+	$(PYTHON) -m ruff check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/vaultwarden/agent_secret.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
+	$(PYTHON) -m ruff format --check apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/vaultwarden/agent_secret.py apps/domain-health/app apps/domain-health/*.py apps/immich scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml \
+		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml apps/obsidian-livesync/*.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml \
@@ -134,7 +138,7 @@ status-page-check:
 	$(PYTHON) scripts/configure_status_page.py --check
 
 test: ## Run the focused test suite
-	$(PYTEST) -q tests apps/autism-traits/tests apps/boys/tests apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests
+	$(PYTEST) -q tests apps/autism-traits/tests apps/boys/tests apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests
 
 render: ## Render all managed Kustomize packages
 	for path in $(KUSTOMIZATIONS); do \
@@ -172,6 +176,12 @@ domain-health: go ## Reconcile domain checks through the native Argo root
 	$(ANSIBLE) apps/domain-health/bootstrap.yml
 	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(DOMAIN_HEALTH_REVISION) \
 		-e argocd_preview_application=$(if $(filter HEAD,$(DOMAIN_HEALTH_REVISION)),,domain-health)
+
+obsidian-livesync: go ## Reconcile Obsidian through the native Argo root
+	test "$(OBSIDIAN_ENABLED)" = true || { echo 'Retire an adopted app through an explicit operation; this command only deploys.' >&2; exit 1; }
+	$(ANSIBLE) apps/obsidian-livesync/bootstrap.yml
+	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(OBSIDIAN_REVISION) \
+		-e argocd_preview_application=$(if $(filter HEAD,$(OBSIDIAN_REVISION)),,obsidian-livesync)
 
 vaultwarden: go ## Reconcile Vaultwarden through the native Argo root
 	test "$(VAULTWARDEN_ENABLED)" = true || { echo 'Retire an adopted app through an explicit operation; this command only deploys.' >&2; exit 1; }

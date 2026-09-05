@@ -1,0 +1,103 @@
+---
+- name: Read the existing Obsidian CouchDB identity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: obsidian
+    name: obsidian-livesync-couchdb
+    kubeconfig: '{{ kubeconfig_path }}'
+  register: obsidian_existing_couchdb
+  no_log: true
+- name: Read the existing Obsidian offsite identity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: obsidian
+    name: obsidian-offsite-writer
+    kubeconfig: '{{ kubeconfig_path }}'
+  register: obsidian_existing_offsite
+  no_log: true
+- name: Decode only the existing Obsidian bootstrap values
+  ansible.builtin.set_fact:
+    obsidian_existing_couchdb_values:
+      adminUsername: >-
+        {{ (obsidian_existing_couchdb.resources | first | default({})).data['adminUsername'] | default('') | b64decode }}
+      adminPassword: >-
+        {{ (obsidian_existing_couchdb.resources | first | default({})).data['adminPassword'] | default('') | b64decode }}
+      cookieAuthSecret: >-
+        {{ (obsidian_existing_couchdb.resources | first | default({})).data['cookieAuthSecret'] | default('') | b64decode
+        }}
+      erlangCookie: >-
+        {{ (obsidian_existing_couchdb.resources | first | default({})).data['erlangCookie'] | default('') | b64decode }}
+    obsidian_existing_offsite_values:
+      AWS_ACCESS_KEY_ID: >-
+        {{ (obsidian_existing_offsite.resources | first | default({})).data['AWS_ACCESS_KEY_ID'] | default('') | b64decode
+        }}
+      AWS_SECRET_ACCESS_KEY: >-
+        {{ (obsidian_existing_offsite.resources | first | default({})).data['AWS_SECRET_ACCESS_KEY'] | default('') | b64decode
+        }}
+      AWS_REGION: >-
+        {{ (obsidian_existing_offsite.resources | first | default({})).data['AWS_REGION'] | default('') | b64decode }}
+      BUCKET_NAME: >-
+        {{ (obsidian_existing_offsite.resources | first | default({})).data['BUCKET_NAME'] | default('') | b64decode }}
+      BACKUP_PREFIX: >-
+        {{ (obsidian_existing_offsite.resources | first | default({})).data['BACKUP_PREFIX'] | default('') | b64decode }}
+  no_log: true
+- name: Select encrypted inputs or preserve the existing identities
+  ansible.builtin.set_fact:
+    obsidian_bootstrap_couchdb: '{{ obsidian_couchdb_identity | default(obsidian_existing_couchdb_values) }}'
+    obsidian_bootstrap_offsite: '{{ obsidian_offsite_identity | default(obsidian_existing_offsite_values) }}'
+  no_log: true
+- name: Validate complete and unchanged Obsidian identities
+  ansible.builtin.set_fact:
+    obsidian_bootstrap_available: >-
+      {{ (obsidian_bootstrap_couchdb is mapping and obsidian_bootstrap_couchdb.keys() | list | sort == ['adminPassword', 'adminUsername',
+      'cookieAuthSecret', 'erlangCookie'] and obsidian_bootstrap_couchdb.values() | select("string") | list | length == 4
+      and obsidian_bootstrap_couchdb.values() | map("trim") | reject("equalto", "") | list | length == 4) and (obsidian_bootstrap_offsite
+      is mapping and obsidian_bootstrap_offsite.keys() | list | sort == ['AWS_ACCESS_KEY_ID', 'AWS_REGION', 'AWS_SECRET_ACCESS_KEY',
+      'BACKUP_PREFIX', 'BUCKET_NAME'] and obsidian_bootstrap_offsite.values() | select("string") | list | length == 5 and
+      obsidian_bootstrap_offsite.values() | map("trim") | reject("equalto", "") | list | length == 5) }}
+    obsidian_bootstrap_matches: >-
+      {{ (obsidian_existing_couchdb.resources | length == 0 or obsidian_bootstrap_couchdb == obsidian_existing_couchdb_values)
+      and (obsidian_existing_offsite.resources | length == 0 or obsidian_bootstrap_offsite == obsidian_existing_offsite_values)
+      }}
+  no_log: true
+- name: Require complete existing identities or encrypted recovery inputs
+  ansible.builtin.assert:
+    that: obsidian_bootstrap_available | bool
+    fail_msg: >-
+      Restore the existing CouchDB and offsite writer Secrets, or supply obsidian_couchdb_identity and obsidian_offsite_identity
+      through Ansible Vault. Use the documented native Secret keys.
+- name: Refuse to replace existing Obsidian credentials or backup settings
+  ansible.builtin.assert:
+    that: obsidian_bootstrap_matches | bool
+    fail_msg: >-
+      The supplied inputs differ from the existing Obsidian identities. Use matching recovery inputs. This bootstrap cannot
+      rotate credentials or change the backup destination.
+- name: Apply the protected namespace before restoring a missing identity
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: '{{ kubeconfig_path }}'
+    definition: >-
+      {{ lookup('file', playbook_dir + '/../../playbooks/argocd/applications/database/obsidian-livesync/namespace.yaml') |
+      from_yaml }}
+  when: >-
+    obsidian_existing_couchdb.resources | length == 0 or obsidian_existing_offsite.resources | length == 0
+- name: Restore only the missing Obsidian CouchDB Secret
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, '{{ kubeconfig_path }}', create, -f, '-']
+    stdin: >-
+      {{ {'apiVersion': 'v1', 'kind': 'Secret', 'metadata': {'name': 'obsidian-livesync-couchdb', 'namespace': 'obsidian'},
+      'type': 'Opaque', 'stringData': obsidian_bootstrap_couchdb} | to_json }}
+  changed_when: true
+  no_log: true
+  when: obsidian_existing_couchdb.resources | length == 0 and not ansible_check_mode
+- name: Restore only the missing Obsidian offsite Secret
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, '{{ kubeconfig_path }}', create, -f, '-']
+    stdin: >-
+      {{ {'apiVersion': 'v1', 'kind': 'Secret', 'metadata': {'name': 'obsidian-offsite-writer', 'namespace': 'obsidian'},
+      'type': 'Opaque', 'stringData': obsidian_bootstrap_offsite} | to_json }}
+  changed_when: true
+  no_log: true
+  when: obsidian_existing_offsite.resources | length == 0 and not ansible_check_mode
