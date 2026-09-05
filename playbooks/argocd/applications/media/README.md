@@ -4,7 +4,7 @@ This folder contains the private media stack. Jellyfin provides cartoons and Liv
 
 - [Jellyfin](jellyfin/README.md)
 - [Dispatcharr](dispatcharr/README.md)
-- [Media Helper](media-helper/README.md)
+- [Media Helper](../../../../apps/media-helper/README.md)
 - [qBittorrent](qbittorrent/README.md)
 - [LazyLibrarian](lazylibrarian/README.md)
 - [Booklore](booklore/README.md)
@@ -19,7 +19,7 @@ Use stock Jellyfin Web at `https://tv.soyspray.vip` for administration, browser 
 ## Checks
 
 ```bash
-kubectl kustomize playbooks/argocd/applications/media/media-helper
+make check APP=media-helper
 kubectl kustomize playbooks/argocd/applications/media/dispatcharr
 kubectl kustomize playbooks/argocd/applications/media/jellyfin
 source soyspray-venv/bin/activate
@@ -39,4 +39,5 @@ LIVE_TV_ENABLED=true LIVE_TV_REVISION="$(git branch --show-current)" make live-t
 LIVE_TV_ENABLED=false LIVE_TV_REVISION=HEAD make live-tv
 ```
 
+The native root manages Media Helper separately with `make deploy APP=media-helper`.
 Shutdown keeps the Jellyfin and Dispatcharr configuration claims and shared media files. Roll back through a reverted, pushed Git revision.
