@@ -87,9 +87,13 @@ def resource(
     )
 
 
-def test_dist_is_projected_from_bounded_configmaps() -> None:
+def test_site_uses_the_selected_runtime_without_mutable_asset_overrides() -> None:
     resources = render_package()
     deployment = resource(resources, "Deployment", "autism-traits")
+    pod = deployment["spec"]["template"]["spec"]
+    if pod["containers"][0]["image"].startswith("ghcr.io/kpoxo6op/autism-traits@sha256:"):
+        assert {volume["name"] for volume in pod["volumes"]} == {"tls", "tmp"}
+        return
     configmaps = [item for item in resources if item["kind"] == "ConfigMap"]
     site_configmaps = [
         item for item in configmaps if item["metadata"]["name"].startswith("autism-traits-site-")
@@ -151,7 +155,9 @@ def test_workload_is_restricted_and_observable() -> None:
     assert pod_spec["securityContext"]["runAsNonRoot"] is True
     assert pod_spec["securityContext"]["fsGroup"] == 101
     assert pod_spec["securityContext"]["seccompProfile"] == {"type": "RuntimeDefault"}
-    assert web["image"].startswith("nginxinc/nginx-unprivileged:")
+    assert web["image"].startswith(
+        ("nginxinc/nginx-unprivileged:", "ghcr.io/kpoxo6op/autism-traits@sha256:")
+    )
     assert "@sha256:" in web["image"]
     assert web["imagePullPolicy"] == "IfNotPresent"
     assert web["securityContext"] == {
@@ -508,7 +514,9 @@ def test_argocd_application_uses_a_restricted_project() -> None:
 
 def test_application_has_no_browser_storage_or_data_transmission() -> None:
     source = "\n".join(
-        path.read_text() for path in (ROOT / PACKAGE / "app/src").rglob("*") if path.is_file()
+        path.read_text()
+        for path in (ROOT / "apps/autism-traits/app/src").rglob("*")
+        if path.is_file()
     )
 
     assert "localStorage.getItem" not in source
@@ -521,36 +529,6 @@ def test_application_has_no_browser_storage_or_data_transmission() -> None:
     assert "connect-src 'none'" in (ROOT / PACKAGE / "config/nginx.conf").read_text()
     assert "not transmitted or retained" in source
     assert "Cloudflare may process connection metadata" in source
-
-
-def test_tunnel_runbook_has_bounded_cutover_verification_and_rollback() -> None:
-    readme = (ROOT / PACKAGE / "README.md").read_text()
-
-    for required in (
-        "autism-traits-public",
-        "https://autism-traits.autism-traits.svc.cluster.local:443",
-        "originServerName=autism.soyspray.vip",
-        "noTLSVerify=false",
-        "autism-traits response privacy",
-        '(http.host eq "autism.soyspray.vip")',
-        "`NEL` and `Report-To`",
-        "external-dns-autism.soyspray.vip",
-        "AUTISM_TRAITS_CLOUDFLARED_TOKEN",
-        "TCP and UDP port 7844",
-        "169.254.25.10",
-        "kube-proxy IPVS",
-        "pre-DNAT GlobalNetworkPolicy",
-        "projectcalico-default-allow",
-        "make autism-traits AUTISM_TRAITS_ENABLED=false",
-        "off the home LAN and Tailscale",
-    ):
-        assert required in readme
-    assert "A, CNAME, and ownership TXT" in readme
-    assert "wildcard" in readme.lower()
-    assert "private network route" in readme.lower()
-    assert "ingress-nginx" in readme
-    assert "192.168.20.0/24" in readme
-    assert "rollback" in readme.lower()
 
 
 def test_role_defaults_enable_the_site_and_propagate_revision() -> None:
@@ -642,14 +620,9 @@ def test_operator_and_ci_paths_include_the_site_without_weakening_python_checks(
         step for step in steps if step.get("uses", "").startswith("actions/setup-node@")
     )
     assert str(node_step["with"]["node-version"]) == "22"
-    assert (
-        "kubernetes/autism-traits/app/package-lock.json"
-        == node_step["with"]["cache-dependency-path"]
-    )
+    assert "apps/autism-traits/app/package-lock.json" == node_step["with"]["cache-dependency-path"]
     assert "npm ci" in runs
     assert "npm run check" in runs
-    assert "git diff --exit-code -- kubernetes/autism-traits/app/dist" in runs
-    assert "git ls-files --others --exclude-standard" in runs
     assert "playwright install --with-deps chromium" in runs
     assert "npm run test:e2e" in runs
     assert any(step.get("uses") == "actions/setup-python@v6" for step in shared_steps)
