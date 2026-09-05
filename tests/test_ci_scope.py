@@ -35,7 +35,14 @@ def test_shared_only_change_keeps_application_checks_optional():
 
 
 @pytest.mark.parametrize(
-    "path", ["Makefile", ".github/workflows/ci.yml", "argocd/kustomization.yaml"]
+    "path",
+    [
+        "Makefile",
+        ".github/workflows/ci.yml",
+        "argocd/kustomization.yaml",
+        "scripts/argo_preview.py",
+        "playbooks/bootstrap-apps.yml",
+    ],
 )
 def test_shared_deployment_controls_and_full_checks_select_all_apps(path):
     assert all(ci_scope.select([path]).values())

@@ -34,6 +34,8 @@ SHARED_CONTROLS = {
     "requirements-ansible.yml",
     "ruff.toml",
     "scripts/ci_scope.py",
+    "scripts/argo_preview.py",
+    "playbooks/bootstrap-apps.yml",
 }
 
 
