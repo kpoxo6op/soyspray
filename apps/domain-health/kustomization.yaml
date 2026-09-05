@@ -3,7 +3,7 @@ kind: Kustomization
 configMapGenerator:
 - name: domain-health-exporter
   files:
-  - domain-health-exporter.py=app/domain-health-exporter.py
+  - domain-health-exporter.py=manifests/legacy-exporter.py
   options:
     disableNameSuffixHash: true
 resources:

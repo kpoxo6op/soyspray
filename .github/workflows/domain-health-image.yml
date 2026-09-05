@@ -1,0 +1,139 @@
+name: Domain health image
+
+on:
+  workflow_call:
+    inputs:
+      publish:
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a tested image and open a draft promotion from main
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: domain-health-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    env:
+      IMAGE: ghcr.io/kpoxo6op/domain-health
+      IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Detect a runtime change before publishing
+        id: runtime
+        env:
+          BEFORE: ${{ github.event.before }}
+          REQUEST_PUBLISH: ${{ inputs.publish }}
+        run: |
+          changed=false
+          if [ "$REQUEST_PUBLISH" = true ]; then
+            if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+              changed=true
+            elif [ "$GITHUB_EVENT_NAME" = push ]; then
+              git cat-file -e "$BEFORE^{commit}"
+              git diff --name-only "$BEFORE" "$GITHUB_SHA" -- \
+                apps/domain-health/app apps/domain-health/Dockerfile \
+                apps/domain-health/.dockerignore > "$RUNNER_TEMP/domain-health-runtime-files"
+              if [ -s "$RUNNER_TEMP/domain-health-runtime-files" ]; then changed=true; fi
+            fi
+          fi
+          printf 'changed=%s\n' "$changed" >> "$GITHUB_OUTPUT"
+      - name: Build the immutable runtime
+        run: |
+          docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" \
+            --tag "$IMAGE:$IMAGE_TAG" apps/domain-health
+      - name: Check the packaged runtime without external network access
+        run: |
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --env DOMAIN_HEALTH_SOURCE=/app/domain-health-exporter.py \
+            --mount "type=bind,source=$PWD/apps/domain-health/tests/test_domain_health_runtime.py,target=/checks/test_runtime.py,readonly" \
+            --entrypoint python3 "$IMAGE:$IMAGE_TAG" /checks/test_runtime.py
+      - name: Check the real entrypoint with disposable inputs
+        run: |
+          docker run --detach --name domain-health-image-check --network none --read-only \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --env DOMAIN_NAME=example.test --env CLOUDFLARE_API_TOKEN=synthetic \
+            --env HEALTHCHECKS_PING_URL=https://healthchecks.example/test \
+            --env EXPECTED_NAMESERVERS=a.ns.example,b.ns.example "$IMAGE:$IMAGE_TAG"
+          docker exec -i domain-health-image-check python3 - <<'PY'
+          import os, time, urllib.request, urllib.error
+          assert os.geteuid() == 1000
+          for attempt in range(30):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:8080/metrics', timeout=2) as response:
+                      assert response.status == 200
+                  break
+              except urllib.error.URLError:
+                  if attempt == 29: raise
+                  time.sleep(1)
+          try:
+              urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2)
+              raise AssertionError('No external check can succeed on the isolated network.')
+          except urllib.error.HTTPError as error:
+              assert error.code == 503
+          print('The unprivileged entrypoint serves metrics and reports unavailable upstream checks.')
+          PY
+      - name: Remove the isolated test container
+        if: always()
+        run: docker rm --force domain-health-image-check || true
+      - name: Publish the tested image
+        if: github.ref == 'refs/heads/main' && steps.runtime.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE:$IMAGE_TAG"
+          digest="$(docker image inspect "$IMAGE:$IMAGE_TAG" --format '{{index .RepoDigests 0}}')"
+          printf 'DOMAIN_HEALTH_IMAGE_REF=%s\n' "$digest" >> "$GITHUB_ENV"
+          printf 'Tested image: `%s`\nSource: `%s`\n' "$digest" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - name: Open a draft digest and configuration promotion
+        if: github.ref == 'refs/heads/main' && steps.runtime.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m pip install PyYAML==6.0.3
+          branch="promote/domain-health-${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git switch -c "$branch"
+          python apps/domain-health/promote-image.py "$DOMAIN_HEALTH_IMAGE_REF"
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/domain-health/manifests/deployment.yaml apps/domain-health/kustomization.yaml
+          git commit -m 'Promote the tested domain health runtime image'
+          git push origin "$branch"
+          promotion_commit="$(git rev-parse HEAD)"
+          cat > "$RUNNER_TEMP/promotion.md" <<BODY
+          Promote domain health built from [source $GITHUB_SHA](https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA).
+
+          Image: \`$DOMAIN_HEALTH_IMAGE_REF\`.
+
+          The image passed standard-library runtime checks and entrypoint checks with no external network, an unprivileged user, a read-only filesystem, and no capabilities. Initial promotion replaces the frozen script ConfigMap mount with the packaged runtime and removes the unused service-account token. Provider identities, workload names, probes, and metrics are preserved.
+
+          Run \`make go\` and deploy through the standard Ansible path. Verify provider results and the Prometheus scrape before merge. Roll back the image and dependent configuration together. Keep the frozen source until the image is deployed and verified. This workflow never merges or deploys.
+
+          Commits, oldest first:
+
+          - [Promote the tested domain health runtime image](https://github.com/$GITHUB_REPOSITORY/commit/$promotion_commit)
+          BODY
+          gh pr create --draft --base main --head "$branch" \
+            --title 'Promote the tested domain health runtime image' --body-file "$RUNNER_TEMP/promotion.md"
