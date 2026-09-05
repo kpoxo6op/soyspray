@@ -17,6 +17,7 @@ VOICE_ASSISTANT_ENABLED ?= true
 VAULTWARDEN_PACKAGE := kubernetes/vaultwarden
 VAULTWARDEN_ENABLED ?= true
 VAULTWARDEN_REVISION ?= HEAD
+FORMAT ?= text
 LIVE_TV_ENABLED ?= false
 LIVE_TV_REVISION ?= HEAD
 ifeq ($(LIVE_TV_ENABLED),true)
@@ -47,11 +48,17 @@ KUSTOMIZATIONS := \
 .PHONY: help setup act check boys-check autism-traits-check lint validate validate-skills status-page-check \
 	test render go autism-traits boys vaultwarden live-tv voice-assistant voice-pe-render \
 	voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
-	list-apps node0 node1 node2 master worker1 worker2 worker3 clean
+	apps status list-apps node0 node1 node2 master worker1 worker2 worker3 clean
 
 help: ## Show the operator commands
 	printf 'Soyspray operator commands\n\n'
 	awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+apps: ## List Applications and their declared owners (FORMAT=json is supported)
+	$(PYTHON) scripts/app_status.py apps --format "$(FORMAT)"
+
+status: ## Read desired/running revisions and evidence gaps for APP (FORMAT=json is supported)
+	$(PYTHON) scripts/app_status.py status --app "$(APP)" --format "$(FORMAT)"
 
 setup: ## Create the venv and install local tooling
 	test -d $(VENV) || python3 -m venv $(VENV)
@@ -163,7 +170,7 @@ argo-login: ## Log in to the home Argo CD instance
 	argocd login argocd.soyspray.vip --username admin --grpc-web
 
 list-apps: ## List Argo CD applications
-	./scripts/argocd-list.sh "$(COLS)"
+	kubectl --request-timeout=10s -n argocd get applications
 
 node0: ## SSH to node-0
 	ssh ubuntu@$(NODE0)
