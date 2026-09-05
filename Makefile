@@ -42,6 +42,7 @@ KUSTOMIZATIONS := \
 	argocd \
 	apps/autism-traits/manifests \
 	apps/boys/manifests \
+	apps/domain-health \
 	$(VAULTWARDEN_PACKAGE) \
 	playbooks/argocd/applications/home-automation/voice-assistant \
 	playbooks/argocd/applications/media/media-helper \
