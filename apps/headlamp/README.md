@@ -9,8 +9,10 @@ release name, namespace, OIDC Secret, and cluster role bindings.
 
 During adoption, chart values remain in
 [`playbooks/argocd/applications/infrastructure/headlamp/values.yaml`](../../playbooks/argocd/applications/infrastructure/headlamp/values.yaml).
-Move that file only after the ownership check passes. Authentik's bootstrap owns
-the `headlamp-oidc` Secret. Headlamp stores no durable application data.
+The old Application submission role has been removed after live adoption.
+Authentik's bootstrap owns the `headlamp-oidc` Secret. Headlamp stores no durable
+application data. Values can move in a separate change that verifies the rendered
+chart before it removes the old path.
 
 Checks:
 
