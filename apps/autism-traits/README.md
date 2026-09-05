@@ -1,60 +1,80 @@
 # Autism traits assessment
 
 Open <https://autism.soyspray.vip>, choose a length, and answer the questions.
-Results describe traits and include their sources. Answers and scoring stay in
-browser memory. Closing or refreshing the page removes the answers.
+Results describe traits and link to their sources. Answers and scoring stay in
+browser memory. Refreshing or closing the page clears the answers.
 
-The site sends no answers, analytics or third-party script requests. Cloudflare
-still processes connection metadata to deliver the public site. Nginx keeps
-`connect-src 'none'`, accepts only GET and HEAD, and does not set cookies.
+The site sends no answers, analytics, or third-party script requests. Cloudflare
+processes connection metadata to deliver the public site. Nginx accepts only GET
+and HEAD, sets no cookies, and keeps `connect-src 'none'`.
 
-## Change and check the site
+## Change and check
 
-Source, images, scoring checks and browser checks are in `app/`. Nginx configuration
-is in `config/`. Both upstream image versions are pinned in `Dockerfile`.
+The `platform` operator owns this app. Source and browser checks are in `app/`;
+Nginx configuration is in `config/`; deployment and boundary checks are in `tests/`.
+The native root owns the existing Application and AppProject in `argocd/` and reads
+`manifests/` directly. Application deletion leaves the workloads in place.
 
 ```sh
-cd apps/autism-traits/app
-npm ci
-npm run check
-npm run test:e2e
+make check
+soyspray-venv/bin/python -m pytest -q apps/autism-traits/tests
+soyspray-venv/bin/python apps/autism-traits/test-image.py --url https://autism.soyspray.vip
 ```
 
-Run `make check` from the repository root for the full local gate. CI also builds
-the image, checks its HTTP and TLS service, compares the served images with the
+For frontend work, run `npm ci`, `npm run check`, and `npm run test:e2e` in `app/`.
+CI also checks the built image over HTTP and TLS, compares served images with the
 source files, and runs phone and desktop browsers against that image.
 
-A source merge builds a GHCR image and opens a draft promotion PR. The promotion
-contains its digest and the deployment configuration needed by the image. It does
-not merge or deploy automatically. Review the promotion, run `make go`, and use
-`make autism-traits AUTISM_TRAITS_REVISION=<pushed-branch>`. After merge, reconcile
-`AUTISM_TRAITS_REVISION=HEAD` and verify the real site.
+A source merge builds an immutable GHCR image and opens a draft promotion PR.
+The promotion changes the image digest in `manifests/deployment.yaml`. A source-only
+merge does not change the running image. Build output stays local.
 
-The current deployment is still in `kubernetes/autism-traits/` during adoption.
-The native root now owns the existing Application and AppProject declared in
-`argocd/`. Its Application cannot cascade deletion. The first immutable image
-promotion passed live verification; old deployment files remain for the separate
-cleanup step. New build output stays local and is not committed. Roll back the
-digest and compatible configuration together; preserve existing access settings.
+Commit and push, then preview the deployment:
+
+```sh
+make autism-traits AUTISM_TRAITS_REVISION=YOUR_PUSHED_BRANCH
+```
+
+After merge, run `make autism-traits AUTISM_TRAITS_REVISION=HEAD`. This uses the
+standard Ansible bootstrap and native root operation. Check `make status
+APP=autism-traits FORMAT=json`, public and private access, and the actual browser
+journey. `AUTISM_TRAITS_ENABLED=false` cannot delete an adopted app. Retirement
+requires an explicit operation after removing its root registration.
 
 ## Access and recovery
 
 The public route uses the dedicated Cloudflare Tunnel `autism-traits-public`.
-It connects to the existing Service over TLS with hostname verification. The
-private LAN and Tailscale route uses the existing Ingress. Keep the certificate,
-tunnel identity, connector token and network policies during image adoption.
+The connector verifies the origin certificate and hostname over TLS. The private
+LAN and Tailscale route uses the existing Ingress. Preserve the tunnel identity,
+`autism-traits-cloudflared-token`, `autism-traits-tls`, and the public hostname.
+Cert-manager owns certificate issuance; this bootstrap does not replace its key.
 
-The `platform` operator owns the site. The general legacy deployment no longer
-submits its Application. `make autism-traits` uses the native root operation;
-`AUTISM_TRAITS_ENABLED=false` cannot remove an adopted app. Retirement requires
-an explicit operation after removing its root registration.
+`bootstrap.yml` keeps the existing token when no input is supplied. To restore a
+missing token, put `autism_traits_cloudflared_token` in an Ansible Vault variables
+file outside the checkout. Use the saved token from the off-cluster runtime backup;
+do not create a new tunnel or commit the token. Run from the repository root:
 
-The existing [tunnel operating guide](../../kubernetes/autism-traits/README.md)
-describes its DNS, CNI and public isolation checks. Use it until native Argo
-adoption consolidates those deployment definitions here. Preserve the independent
-external status-page integration.
+```sh
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu apps/autism-traits/bootstrap.yml \
+  --ask-vault-pass -e @/private/path/autism-traits.vault.yml
+```
 
-There is no server-side answer database to restore. Rebuild the pinned source and
-supply the backed-up tunnel token and certificate through the bootstrap procedure.
-A successful HTTP response alone does not prove that the public tunnel or browser
-privacy boundary works.
+There is no server-side answer database to restore. Recovery reinstalls the pinned
+image and restores the access identity. Keep the Vault password outside the cluster.
+Roll back the image digest and any configuration required by that image together.
+
+The network policies allow the connector only DNS, the web service, and the
+specified Cloudflare tunnel endpoints. Calico also closes the host and local IPVS
+exceptions; the web container has no egress. Preserve the three declared host
+endpoints when changing networking. Useful checks:
+
+```sh
+kubectl -n autism-traits get deployment,service,ingress,networkpolicy
+kubectl -n autism-traits logs deployment/autism-traits-cloudflared --since=10m
+dig @1.1.1.1 autism.soyspray.vip A +short
+```
+
+Check the public route through public DNS, not the private split-DNS address.
+The existing independent external status-page integration remains in use.

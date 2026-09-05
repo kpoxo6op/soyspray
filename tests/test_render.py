@@ -7,7 +7,7 @@ import yaml
 from conftest import ROOT
 
 PACKAGES = (
-    "kubernetes/autism-traits",
+    "apps/autism-traits/manifests",
     "kubernetes/boys",
 )
 
@@ -28,7 +28,7 @@ def test_kustomize_package_renders(path: str) -> None:
 @pytest.mark.parametrize(
     "path",
     (
-        "kubernetes/autism-traits",
+        "apps/autism-traits/manifests",
         "kubernetes/boys",
     ),
 )
@@ -60,7 +60,7 @@ def test_application_workloads_use_the_restricted_baseline(path: str) -> None:
 
 def test_application_namespaces_enforce_restricted_pod_security() -> None:
     paths = (
-        "kubernetes/autism-traits",
+        "apps/autism-traits/manifests",
         "kubernetes/boys",
     )
     namespaces = {}

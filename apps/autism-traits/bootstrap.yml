@@ -1,0 +1,56 @@
+---
+- name: Bootstrap the autism traits tunnel identity
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Read the existing tunnel Secret
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: autism-traits
+        name: autism-traits-cloudflared-token
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: autism_traits_existing_token
+      no_log: true
+
+    - name: Check whether the tunnel identity can be used
+      ansible.builtin.set_fact:
+        autism_traits_identity_available: >-
+          {{ (autism_traits_cloudflared_token | default('') is string) and
+             ((autism_traits_cloudflared_token | default('') | trim | length > 0) or
+              (autism_traits_existing_token.resources | length == 1 and
+               autism_traits_existing_token.resources[0].data.token | default('') | length > 0)) }}
+      no_log: true
+
+    - name: Require an existing identity or an encrypted bootstrap input
+      ansible.builtin.assert:
+        that: autism_traits_identity_available | bool
+        fail_msg: >-
+          Restore the tunnel Secret or supply autism_traits_cloudflared_token through
+          an Ansible Vault variables file. The public tunnel identity must already exist.
+
+    - name: Apply the declared namespace for a supplied bootstrap input
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition: "{{ lookup('file', playbook_dir + '/manifests/namespace.yaml') | from_yaml }}"
+      when: autism_traits_cloudflared_token | default('') | trim | length > 0
+
+    - name: Apply the supplied tunnel token without changing its identity
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: autism-traits-cloudflared-token
+            namespace: autism-traits
+          type: Opaque
+          stringData:
+            token: "{{ autism_traits_cloudflared_token }}"
+      no_log: true
+      when: autism_traits_cloudflared_token | default('') | trim | length > 0

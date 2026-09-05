@@ -1,10 +1,12 @@
 import copy
 import runpy
 import shutil
+from pathlib import Path
 
 import pytest
 import yaml
-from conftest import ROOT
+
+ROOT = Path(__file__).resolve().parents[3]
 
 promote = runpy.run_path(ROOT / "apps/autism-traits/promote-image.py")["promote"]
 IMAGE = "ghcr.io/kpoxo6op/autism-traits@sha256:" + "a" * 64
@@ -14,20 +16,18 @@ def read(path):
     return yaml.safe_load(path.read_text())
 
 
-def test_promotion_adopts_embedded_files_and_preserves_access(tmp_path):
+def test_promotion_changes_only_the_image_and_is_retryable(tmp_path):
     for name in ("deployment.yaml", "kustomization.yaml"):
-        shutil.copy(ROOT / "kubernetes/autism-traits" / name, tmp_path / name)
+        shutil.copy(ROOT / "apps/autism-traits/manifests" / name, tmp_path / name)
     before = read(tmp_path / "deployment.yaml")
-    prior_resources = read(tmp_path / "kustomization.yaml")["resources"]
+    prior_kustomization = (tmp_path / "kustomization.yaml").read_bytes()
     expected = copy.deepcopy(before)
     pod = expected["spec"]["template"]["spec"]
     web = pod["containers"][0]
     web["image"] = IMAGE
-    web["volumeMounts"] = [m for m in web["volumeMounts"] if m["name"] in {"tls", "tmp"}]
-    pod["volumes"] = [v for v in pod["volumes"] if v["name"] in {"tls", "tmp"}]
     promote(IMAGE, tmp_path)
     assert read(tmp_path / "deployment.yaml") == expected
-    assert read(tmp_path / "kustomization.yaml")["resources"] == prior_resources
+    assert (tmp_path / "kustomization.yaml").read_bytes() == prior_kustomization
     first = {p.name: p.read_bytes() for p in tmp_path.iterdir()}
     promote(IMAGE, tmp_path)
     assert {p.name: p.read_bytes() for p in tmp_path.iterdir()} == first

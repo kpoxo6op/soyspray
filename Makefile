@@ -37,7 +37,7 @@ NODE2 := 192.168.20.12
 
 KUSTOMIZATIONS := \
 	argocd \
-	kubernetes/autism-traits \
+	apps/autism-traits/manifests \
 	kubernetes/boys \
 	$(VAULTWARDEN_PACKAGE) \
 	playbooks/argocd/applications/home-automation/voice-assistant \
@@ -83,10 +83,10 @@ autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/immich scripts tests
-	$(PYTHON) -m ruff format --check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/immich scripts tests
+	$(PYTHON) -m ruff check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/immich scripts tests
+	$(PYTHON) -m ruff format --check kubernetes/boys/app kubernetes/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/immich scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		roles/apps/autism-traits/tasks/*.yml roles/apps/autism-traits/defaults/*.yml \
+		apps/autism-traits/bootstrap.yml \
 		roles/apps/boys/tasks/*.yml roles/apps/boys/defaults/*.yml \
 		roles/apps/vaultwarden/tasks/*.yml roles/apps/vaultwarden/defaults/*.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
@@ -112,7 +112,7 @@ status-page-check:
 	$(PYTHON) scripts/configure_status_page.py --check
 
 test: ## Run the focused test suite
-	$(PYTEST) -q tests kubernetes/boys/tests
+	$(PYTEST) -q tests apps/autism-traits/tests kubernetes/boys/tests
 
 render: ## Render all managed Kustomize packages
 	for path in $(KUSTOMIZATIONS); do \
@@ -130,6 +130,7 @@ go: check ## Run the deployment preflight
 
 autism-traits: go ## Reconcile the autism traits site through the native Argo root
 	test "$(AUTISM_TRAITS_ENABLED)" = true || { echo 'Retire an adopted app through an explicit operation; this command only deploys.' >&2; exit 1; }
+	$(ANSIBLE) apps/autism-traits/bootstrap.yml
 	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(AUTISM_TRAITS_REVISION) \
 		-e argocd_preview_application=$(if $(filter HEAD,$(AUTISM_TRAITS_REVISION)),,autism-traits)
 

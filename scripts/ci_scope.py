@@ -21,12 +21,7 @@ APP_PATHS = {
         "roles/apps/boys/",
         "playbooks/argocd/applications/web/boys/",
     ),
-    "autism": (
-        "kubernetes/autism-traits/",
-        "apps/autism-traits/",
-        "roles/apps/autism-traits/",
-        "playbooks/argocd/applications/web/autism-traits/",
-    ),
+    "autism": ("apps/autism-traits/",),
 }
 SHARED_CONTROLS = {
     "Makefile",
