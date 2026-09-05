@@ -111,12 +111,13 @@ jobs:
   immich:
     needs: scope
     if: needs.scope.outputs.immich == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v7
-      - name: Test paired backup and isolated recovery with native images
-        run: python3 apps/immich/tests/test_backup.py
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    uses: ./.github/workflows/immich-backup-image.yml
+    with:
+      publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
   check:
     needs: [scope, shared, autism, boys, immich]

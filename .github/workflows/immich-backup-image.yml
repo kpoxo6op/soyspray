@@ -1,0 +1,105 @@
+name: Immich backup image
+
+on:
+  workflow_call:
+    inputs:
+      publish:
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a tested image and open a draft promotion from main
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    env:
+      IMAGE: ghcr.io/kpoxo6op/immich-backup-scripts
+      IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Detect a runtime change before publishing
+        id: runtime
+        env:
+          BEFORE: ${{ github.event.before }}
+          REQUEST_PUBLISH: ${{ inputs.publish }}
+        run: |
+          changed=false
+          if [ "$REQUEST_PUBLISH" = true ]; then
+            if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+              changed=true
+            elif [ "$GITHUB_EVENT_NAME" = push ]; then
+              git cat-file -e "$BEFORE^{commit}"
+              git diff --name-only "$BEFORE" "$GITHUB_SHA" -- \
+                apps/immich/backup/Dockerfile apps/immich/backup/.dockerignore \
+                apps/immich/backup/dump.sh apps/immich/backup/dump.sql \
+                apps/immich/backup/backup.sh > "$RUNNER_TEMP/immich-runtime-files"
+              if [ -s "$RUNNER_TEMP/immich-runtime-files" ]; then changed=true; fi
+            fi
+          fi
+          printf 'changed=%s\n' "$changed" >> "$GITHUB_OUTPUT"
+      - name: Build the immutable script bundle
+        run: |
+          docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" \
+            --tag "$IMAGE:$IMAGE_TAG" apps/immich/backup
+      - name: Test the packaged scripts with native PostgreSQL and Restic
+        env:
+          IMMICH_SCRIPT_IMAGE: ${{ env.IMAGE }}:${{ env.IMAGE_TAG }}
+        run: python3 apps/immich/tests/test_backup.py
+      - name: Publish the tested image
+        if: github.ref == 'refs/heads/main' && steps.runtime.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE:$IMAGE_TAG"
+          digest="$(docker image inspect "$IMAGE:$IMAGE_TAG" --format '{{index .RepoDigests 0}}')"
+          printf 'IMMICH_IMAGE_REF=%s\n' "$digest" >> "$GITHUB_ENV"
+          printf 'Tested image: `%s`\nSource: `%s`\n' "$digest" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - name: Open a draft image promotion
+        if: github.ref == 'refs/heads/main' && steps.runtime.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m pip install PyYAML==6.0.3
+          branch="promote/immich-backup-${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git switch -c "$branch"
+          python apps/immich/backup/promote-image.py "$IMMICH_IMAGE_REF"
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/immich/backup/kustomization.yaml
+          git commit -m 'Promote the tested Immich recovery script image'
+          git push origin "$branch"
+          promotion_commit="$(git rev-parse HEAD)"
+          cat > "$RUNNER_TEMP/promotion.md" <<BODY
+          Promote the Immich recovery scripts built from [source $GITHUB_SHA](https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA).
+
+          Image: \`$IMMICH_IMAGE_REF\`.
+
+          The packaged scripts passed native PostgreSQL and Restic recovery tests, including a photo and album fixture restore, concurrent database edits, and failed or incomplete backups. The digest is recorded in native Kustomize configuration. Include any deployment configuration that requires this script version in this promotion before applying it.
+
+          Run \`make go\` before the Ansible deployment path. Verify the real backup and isolated restore before enabling or accepting the schedule. Roll back the digest and any dependent configuration together. This workflow never merges or deploys. The initial package has no registered Job; its first promotion only records the tested image.
+
+          Commits, oldest first:
+
+          - [Promote the tested Immich recovery script image](https://github.com/$GITHUB_REPOSITORY/commit/$promotion_commit)
+          BODY
+          gh pr create --draft --base main --head "$branch" \
+            --title 'Promote the tested Immich recovery script image' --body-file "$RUNNER_TEMP/promotion.md"
