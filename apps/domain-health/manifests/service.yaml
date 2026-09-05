@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: domain-health
+  namespace: domain-health
+  labels:
+    app.kubernetes.io/name: domain-health
+spec:
+  selector:
+    app.kubernetes.io/name: domain-health
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: metrics
