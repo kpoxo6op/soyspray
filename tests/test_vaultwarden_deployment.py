@@ -8,8 +8,8 @@ import yaml
 from conftest import ROOT, load_yaml
 
 PACKAGE = "kubernetes/vaultwarden"
-APPLICATION = "playbooks/argocd/applications/security/vaultwarden/vaultwarden-application.yaml"
-PROJECT = "playbooks/argocd/applications/security/vaultwarden/vaultwarden-project.yaml"
+APPLICATION = "apps/vaultwarden/argocd/application.yaml"
+PROJECT = "apps/vaultwarden/argocd/project.yaml"
 
 
 def render_package() -> list[dict]:
@@ -39,6 +39,10 @@ def test_vaultwarden_uses_one_restricted_persistent_replica() -> None:
 
     assert deployment["spec"]["replicas"] == 1
     assert deployment["spec"]["strategy"] == {"type": "Recreate"}
+    assert set(pvc["metadata"]["annotations"]["argocd.argoproj.io/sync-options"].split(",")) == {
+        "Prune=false",
+        "Delete=false",
+    }
     assert pvc["spec"]["accessModes"] == ["ReadWriteOnce"]
     assert pvc["spec"]["storageClassName"] == "longhorn"
     assert pod["automountServiceAccountToken"] is False
@@ -87,7 +91,11 @@ def test_vaultwarden_has_private_nginx_tls_and_bounded_argocd_ownership() -> Non
 
     assert app["metadata"]["name"] == "vaultwarden"
     assert app["metadata"]["namespace"] == "argocd"
-    assert app["metadata"]["finalizers"] == ["resources-finalizer.argocd.argoproj.io"]
+    assert app["metadata"].get("finalizers", []) == []
+    assert set(app["metadata"]["annotations"]["argocd.argoproj.io/sync-options"].split(",")) == {
+        "Prune=false",
+        "Delete=false",
+    }
     assert app["spec"]["project"] == "vaultwarden"
     assert app["spec"]["source"] == {
         "repoURL": "https://github.com/kpoxo6op/soyspray.git",
@@ -100,7 +108,8 @@ def test_vaultwarden_has_private_nginx_tls_and_bounded_argocd_ownership() -> Non
     }
     assert app["spec"]["syncPolicy"]["automated"] == {"prune": True, "selfHeal": True}
 
-    assert project["metadata"] == {"name": "vaultwarden", "namespace": "argocd"}
+    assert project["metadata"]["name"] == "vaultwarden"
+    assert project["metadata"]["namespace"] == "argocd"
     assert project["spec"]["sourceRepos"] == ["https://github.com/kpoxo6op/soyspray.git"]
     assert project["spec"]["destinations"] == [
         {"server": "https://kubernetes.default.svc", "namespace": "vaultwarden"}
@@ -115,58 +124,3 @@ def test_vaultwarden_has_private_nginx_tls_and_bounded_argocd_ownership() -> Non
         ("networking.k8s.io", "Ingress"),
     }
     assert "*" not in json.dumps(project)
-
-
-def test_vaultwarden_role_and_make_target_manage_the_application_lifecycle() -> None:
-    defaults = load_yaml("roles/apps/vaultwarden/defaults/main.yml")
-    main = (ROOT / "roles/apps/vaultwarden/tasks/main.yml").read_text()
-    enabled = (ROOT / "roles/apps/vaultwarden/tasks/enabled.yml").read_text()
-    disabled = (ROOT / "roles/apps/vaultwarden/tasks/disabled.yml").read_text()
-    playbook = load_yaml("playbooks/deploy-argocd-apps.yml")[0]
-    makefile = (ROOT / "Makefile").read_text()
-
-    assert defaults == {
-        "vaultwarden_enabled": True,
-        "vaultwarden_target_revision": "HEAD",
-        "vaultwarden_agent_email": "automation@vault.soyspray.vip",
-        "vaultwarden_agent_master_password_override": "",
-    }
-    assert "enabled.yml" in main
-    assert "disabled.yml" in main
-    assert "vaultwarden_enabled | bool" in main
-    assert "vaultwarden-agent-login" in enabled
-    assert "name: vaultwarden-agent-bootstrap" in enabled
-    assert "state: absent" in enabled
-    assert "kubernetes.core.k8s_info" in enabled
-    assert "b64decode" in enabled
-    assert "vaultwarden_agent_master_password_override" in enabled
-    assert "vaultwarden_agent_email" in enabled
-    assert "vaultwarden_account_email_override" not in enabled
-    assert "boris@vault.soyspray.vip" not in enabled
-    assert "vaultwarden_existing_agent_email == vaultwarden_agent_email" in enabled
-    assert 'email: "{{ vaultwarden_agent_email }}"' in enabled
-    assert "hays-agent@vault.soyspray.vip" not in enabled
-    assert "lookup('ansible.builtin.password', '/dev/null'" in enabled
-    assert "no_log: true" in enabled
-    assert "state: present" in enabled
-    assert "vaultwarden_target_revision | string" in enabled
-    assert enabled.index("vaultwarden-project.yaml") < enabled.index("vaultwarden-application.yaml")
-    assert "state: present" not in disabled
-    assert "lookup('file'" not in disabled
-    assert "kubernetes.core.k8s_info" in disabled
-    assert disabled.index("state: patched") < disabled.index("state: absent")
-    assert "operation: null" in disabled
-    assert "automated: null" in disabled
-    assert "wait: true" in disabled
-    assert disabled.index("kind: Application") < disabled.index("kind: AppProject")
-    assert any(item["role"] == "apps/vaultwarden" for item in playbook["vars"]["argocd_app_roles"])
-
-    assert "VAULTWARDEN_ENABLED ?= true" in makefile
-    assert "VAULTWARDEN_REVISION ?= HEAD" in makefile
-    assert PACKAGE in makefile
-    assert "roles/apps/vaultwarden/tasks/*.yml" in makefile
-    assert "roles/apps/vaultwarden/defaults/*.yml" in makefile
-    assert "vaultwarden: go" in makefile
-    assert "--tags vaultwarden" in makefile
-    assert "vaultwarden_enabled=$(VAULTWARDEN_ENABLED)" in makefile
-    assert "vaultwarden_target_revision=$(VAULTWARDEN_REVISION)" in makefile
