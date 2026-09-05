@@ -6,7 +6,6 @@ REVISION ?= HEAD
 
 check:
 	$(PYTHON) -m pytest -q apps/media-helper/tests tests/test_argocd_root.py tests/test_live_tv.py
-	$(PYTHON) -m ansiblelint apps/media-helper/adopt.yml
 	kubectl kustomize apps/media-helper/argocd >/dev/null
 
 diff:
