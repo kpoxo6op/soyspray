@@ -1,5 +1,9 @@
 # Autism traits assessment
 
+Source and image builds now live in [apps/autism-traits](../../apps/autism-traits/README.md).
+The manifests and frozen bundle remain here until image adoption is verified.
+
+
 This package serves the static assessment at `https://autism.soyspray.vip`.
 The assessment has no server API. Answers and scoring stay in browser memory.
 A refresh or closed page removes them. The application does not send them to
@@ -64,7 +68,7 @@ and [Calico pre-DNAT policy](https://docs.tigera.io/calico/latest/reference/host
 Build the bundle before you commit deployment changes:
 
 ```bash
-cd kubernetes/autism-traits/app
+cd apps/autism-traits/app
 npm ci
 npm run check
 npx playwright install chromium

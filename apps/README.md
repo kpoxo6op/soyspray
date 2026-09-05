@@ -5,6 +5,7 @@ useful checks, and operating guide in its own folder. The native root lists
 adopted apps in [its Kustomization](../argocd/kustomization.yaml).
 
 - [Headlamp](headlamp/README.md): browse the cluster through Authentik OIDC.
+- [Autism traits](autism-traits/README.md): static assessment with scoring in the browser.
 
 Read the current cluster inventory and an app's status:
 
