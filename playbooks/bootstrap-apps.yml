@@ -1,0 +1,52 @@
+---
+- name: Bootstrap the native Argo root
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    argocd_revision: HEAD
+  tasks:
+    - name: Read the existing Argo namespace
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Namespace
+        name: argocd
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: argocd_namespace
+
+    - name: Require the existing foundation installation
+      ansible.builtin.assert:
+        that: argocd_namespace.resources | length == 1
+        fail_msg: Bootstrap Argo through the foundation procedure first.
+
+    - name: Apply the root project
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition: "{{ lookup('file', playbook_dir + '/../argocd/bootstrap/project.yaml') | from_yaml }}"
+
+    - name: Apply the root Application without cascading deletion
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition: >-
+          {{ lookup('file', playbook_dir + '/../argocd/bootstrap/application.yaml') | from_yaml
+             | combine({'spec': {'source': {'targetRevision': argocd_revision}}}, recursive=true) }}
+
+    - name: Wait for the root to reconcile the selected revision
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: soyspray
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: argocd_root
+      until:
+        - argocd_root.resources | length == 1
+        - argocd_root.resources[0].status.sync.comparedTo.source.targetRevision | default('') == argocd_revision
+        - argocd_root.resources[0].status.sync.status | default('') == 'Synced'
+        - argocd_root.resources[0].status.health.status | default('') == 'Healthy'
+      retries: 60
+      delay: 5
+      when: not ansible_check_mode
