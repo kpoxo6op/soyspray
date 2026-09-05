@@ -58,3 +58,26 @@ We will create a high-performance storage solution for Prometheus using Longhorn
 For detailed implementation plans, performance benchmarks, and configuration parameters, see:
 
 - [Prometheus Storage Implementation Plan](docs/prometheus-storage.md)
+
+## Observe storage and backup state
+
+The upstream chart enables a ServiceMonitor labelled for the existing Prometheus
+stack. It scrapes Longhorn managers every 60 seconds. This provides storage,
+replica, backup-state and backup-size metrics without another exporter. The native
+backup metrics do not include the snapshot time, so they do not prove backup age.
+Use `make backup-status FORMAT=json` for recovery-point observations.
+
+To check a pushed configuration branch through the standard Ansible path, run
+`make go`, activate the project venv, then run:
+
+```sh
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/deploy-argocd-apps.yml --tags longhorn \
+  -e longhorn_target_revision=<pushed-branch>
+```
+
+After merge, repeat with `longhorn_target_revision=HEAD`. Verify the Application,
+ServiceMonitor, Prometheus target health, and existing volume identities and
+replica counts. Disabling the ServiceMonitor stops telemetry; it does not stop
+Longhorn or change storage.
