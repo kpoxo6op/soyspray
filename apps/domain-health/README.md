@@ -7,9 +7,9 @@ receives its scheduled result. Keep these checks independent of laptop diagnosis
 The native root owns the existing Application and a dedicated AppProject. The app
 keeps its manifests in `manifests/` and source in `app/`. Its Service, Deployment,
 ConfigMap, namespace, and two Secret identities stay in place. The app-local
-Kustomize package preserves the active workload. Immutable image packaging is a
-separate change; the existing script ConfigMap stays until that replacement is
-deployed and verified.
+Kustomize package preserves the active workload. During image migration, it reads
+the frozen `manifests/legacy-exporter.py`. Source edits under `app/` build an image
+and open a separate digest promotion; they do not change the running exporter.
 
 ```sh
 make check APP=domain-health
@@ -40,3 +40,22 @@ The app has no persistent volume. Preserve its private bootstrap inputs for
 recovery. A full recreation and independent delivery check remain unknown.
 Rollback restores the reviewed Application source and project through Ansible;
 do not delete the app, namespace, or identities as a rollback step.
+
+## Build and promote the runtime
+
+The Dockerfile uses the exact upstream Python base digest previously observed
+on the live exporter. The image contains only the standard-library runtime,
+runs as UID 1000, and installs no startup patches. GitHub checks the image without
+external network access, including its real entrypoint and HTTP failure state.
+
+A source merge publishes a tested GHCR image and opens a draft promotion. The
+promotion changes the digest and removes the old script command, mount, volume,
+and ConfigMap generator together. It preserves environment Secret references,
+selectors, resources, ports, and probes. Do not merge or deploy automatically.
+Remove the frozen source only after the image and live domain checks are verified.
+
+Run `make check APP=domain-health` locally and review the image workflow result.
+Docker is needed only for the native image checks; GitHub runs them when it is
+unavailable locally. Roll back the digest and dependent configuration together.
+For the initial transition, restore the previous script configuration and use
+the upstream Python digest recorded in the Dockerfile if rollback is needed.

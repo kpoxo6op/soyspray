@@ -47,3 +47,12 @@ script bundle and runs the PostgreSQL/Restic recovery tests against the packaged
 files. Only runtime changes merged to main publish an image and open a draft
 Kustomize digest promotion. Manual checks do not publish unless `publish=true`
 is requested on this image workflow. No cluster or backup credentials enter CI.
+
+`domain-health-image.yml` is called by affected-app CI and full manual CI. It
+builds the standard-library exporter on a pinned
+upstream Python image. It tests runtime behavior and the real entrypoint without
+external network access. Source merges publish a tested image and open a draft
+digest/configuration promotion. A source-only merge leaves the frozen active
+runtime unchanged. Manual image checks publish only when `publish=true` is
+requested on the image workflow. The aggregate gate requires this image job when
+selected. The workflow does not merge or deploy.

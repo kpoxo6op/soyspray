@@ -5,6 +5,8 @@ Cloudflare zone state, and public nameservers. It exposes `/metrics` and
 `/healthz` on port 8080 and reports each scheduled run to the existing Healthchecks
 identity. Read the [app README](../README.md) for deployment and private inputs.
 
-The current Kustomize package still supplies this exact script through its
-existing ConfigMap. Immutable image packaging follows as a separate change.
-Do not change checks or metrics while moving the runtime source.
+The Dockerfile packages this source. Source merges build an image and open a
+separate digest promotion. During the initial transition, Kustomize reads the
+frozen copy in `manifests/legacy-exporter.py`, so new source cannot change the
+running ConfigMap. The same standard-library runtime tests run locally and
+inside the image.
