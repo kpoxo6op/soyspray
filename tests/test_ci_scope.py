@@ -41,6 +41,9 @@ def test_shared_only_change_keeps_application_checks_optional():
         ".github/workflows/ci.yml",
         "argocd/kustomization.yaml",
         "scripts/argo_preview.py",
+        "scripts/app_command.py",
+        "scripts/app_diff.py",
+        "scripts/argocd_cli.py",
         "playbooks/bootstrap-apps.yml",
     ],
 )
