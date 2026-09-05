@@ -7,8 +7,11 @@ The `platform` operator owns this app. The native root manages its existing
 `headlamp` Application and a dedicated AppProject. It uses the same upstream chart,
 release name, namespace, OIDC Secret, and cluster role bindings.
 
-During adoption, chart values remain in
+The chart values are prepared in [`values.yaml`](values.yaml). The running
+Application still reads
 [`playbooks/argocd/applications/infrastructure/headlamp/values.yaml`](../../playbooks/argocd/applications/infrastructure/headlamp/values.yaml).
+Keep both copies equivalent until the Application adopts the new path. This lets
+the path exist on `main` before a reviewed Application change selects it.
 The old Application submission role has been removed after live adoption.
 Authentik's bootstrap owns the `headlamp-oidc` Secret. Headlamp stores no durable
 application data. Values can move in a separate change that verifies the rendered
