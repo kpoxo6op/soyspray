@@ -71,7 +71,12 @@ private reports stay under `~/.local/state/soyspray/restores/vaultwarden/`.
 check: inspect its private log and retry the guarded cleanup procedure.
 Repeat monthly. Attachment presence does not prove human attachment decryption,
 and this check does not compare an older snapshot with later live edits.
-Upgrade the testing image in a separate reviewed change.
+Upgrade the testing image in a separate reviewed change. The current pinned build
+is `1.37.2-fa2566d1`. It includes the upstream
+[password-change compatibility fix](https://github.com/dani-garcia/vaultwarden/commit/fa2566d14fc745937ce104011475eca9e6c7a6f6)
+for newer web clients. Stable 1.37.2 predates that fix. Select a stable release that
+includes it, then test that image against an isolated restored vault before
+promotion. Replacing the current pin with stable 1.37.2 would remove this behavior.
 
 ## Restricted reader
 
