@@ -17,6 +17,7 @@ jobs:
   scope:
     runs-on: ubuntu-latest
     outputs:
+      immich: ${{ steps.scope.outputs.immich }}
       boys: ${{ steps.scope.outputs.boys }}
       autism: ${{ steps.scope.outputs.autism }}
     steps:
@@ -107,8 +108,18 @@ jobs:
       - name: Check Boys phone and desktop browsers
         run: make boys-check PYTHON=python3
 
+  immich:
+    needs: scope
+    if: needs.scope.outputs.immich == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test paired backup and isolated recovery with native images
+        run: python3 apps/immich/tests/test_backup.py
+
   check:
-    needs: [scope, shared, autism, boys]
+    needs: [scope, shared, autism, boys, immich]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -121,7 +132,7 @@ jobs:
           jobs = json.loads(os.environ['RESULTS'])
           for job in ('scope', 'shared'):
               assert jobs[job]['result'] == 'success', f'{job} did not pass'
-          for app in ('autism', 'boys'):
+          for app in ('autism', 'boys', 'immich'):
               selected = jobs['scope']['outputs'].get(app)
               assert selected in ('true', 'false'), f'{app} scope is missing'
               expected = 'success' if selected == 'true' else 'skipped'
