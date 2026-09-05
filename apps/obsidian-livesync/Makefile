@@ -10,7 +10,7 @@ check:
 	kubectl kustomize apps/obsidian-livesync/argocd >/dev/null
 
 diff:
-	$(PYTHON) -m scripts.app_diff --app obsidian-livesync --package playbooks/argocd/applications/database/obsidian-livesync
+	$(PYTHON) -m scripts.app_diff --app obsidian-livesync --package apps/obsidian-livesync/manifests
 
 deploy:
 	$(MAKE) --no-print-directory -f Makefile APP= obsidian-livesync OBSIDIAN_ENABLED=true OBSIDIAN_REVISION=$(REVISION)
