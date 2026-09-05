@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       immich: ${{ steps.scope.outputs.immich }}
+      domain_health: ${{ steps.scope.outputs.domain_health }}
       boys: ${{ steps.scope.outputs.boys }}
       autism: ${{ steps.scope.outputs.autism }}
     steps:
@@ -119,8 +120,19 @@ jobs:
     with:
       publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
+  domain_health:
+    needs: scope
+    if: needs.scope.outputs.domain_health == 'true'
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    uses: ./.github/workflows/domain-health-image.yml
+    with:
+      publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
   check:
-    needs: [scope, shared, autism, boys, immich]
+    needs: [scope, shared, autism, boys, immich, domain_health]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -133,7 +145,7 @@ jobs:
           jobs = json.loads(os.environ['RESULTS'])
           for job in ('scope', 'shared'):
               assert jobs[job]['result'] == 'success', f'{job} did not pass'
-          for app in ('autism', 'boys', 'immich'):
+          for app in ('autism', 'boys', 'immich', 'domain_health'):
               selected = jobs['scope']['outputs'].get(app)
               assert selected in ('true', 'false'), f'{app} scope is missing'
               expected = 'success' if selected == 'true' else 'skipped'

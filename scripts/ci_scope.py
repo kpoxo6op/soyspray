@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 
 APP_PATHS = {
+    "domain_health": ("apps/domain-health/",),
     "immich": (
         "apps/immich/",
         "roles/apps/immich/",
@@ -27,6 +28,7 @@ SHARED_CONTROLS = {
     "scripts/argo_preview.py",
     "scripts/app_command.py",
     "scripts/app_diff.py",
+    "scripts/app_diff_sources.py",
     "scripts/argocd_cli.py",
     "playbooks/bootstrap-apps.yml",
     "playbooks/operations/recovery/restore-volume.yml",
