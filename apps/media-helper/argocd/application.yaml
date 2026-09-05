@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: media-helper
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '2'
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-method: Internal playlist and guide for Dispatcharr and Jellyfin
+    soyspray.vip/data: none
+    soyspray.vip/backup: Git channel catalog; no persistent volume
+    soyspray.vip/backup-cause: Guide cache is rebuilt from upstream; provider availability is external.
+  labels:
+    soyspray.vip/owner: media
+spec:
+  project: media-helper
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: HEAD
+    path: playbooks/argocd/applications/media/media-helper
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: media
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - PruneLast=true
