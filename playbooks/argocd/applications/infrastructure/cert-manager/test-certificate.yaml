@@ -1,6 +1,8 @@
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
   name: test-cert
   namespace: cert-manager
 spec:
