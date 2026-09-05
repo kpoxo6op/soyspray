@@ -68,19 +68,31 @@ def test_preview_wait_compares_the_declared_source_form():
     conditional = Conditional(loader=loader)
     conditional.when = conditions
 
-    def ready(spec, compared):
+    def ready(spec, compared, revision="current", patches=True):
         variables = {
+            "argocd_expected_revision": "current",
+            "argocd_root_definition": {
+                "spec": {"source": {"kustomize": {"patches": [{}] if patches else []}}}
+            },
             "argocd_preview_child": {
                 "resources": [
                     {
                         "spec": spec,
                         "status": {
-                            "sync": {"status": "Synced", "comparedTo": compared},
+                            "sync": {
+                                "status": "Synced",
+                                "comparedTo": compared,
+                                **(
+                                    {"revisions": [revision]}
+                                    if "sources" in spec
+                                    else {"revision": revision}
+                                ),
+                            },
                             "health": {"status": "Healthy"},
                         },
                     }
                 ]
-            }
+            },
         }
         return conditional.evaluate_conditional(
             Templar(loader=loader, variables=variables), variables
@@ -92,3 +104,8 @@ def test_preview_wait_compares_the_declared_source_form():
     assert not ready({"sources": [source]}, {"source": {"repoURL": ""}, "sources": [stale]})
     assert ready({"source": source}, {"source": source})
     assert not ready({"source": source}, {"source": stale})
+    assert not ready(
+        {"sources": [source]}, {"source": {"repoURL": ""}, "sources": [source]}, "previous"
+    )
+    assert not ready({"source": source}, {"source": source}, "previous")
+    assert ready({"source": source}, {"source": source}, "chart-version", patches=False)
