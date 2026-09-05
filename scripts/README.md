@@ -37,6 +37,9 @@ Use `make status-page-check` to validate the external status configuration,
   Missing metadata and evidence appear as `unknown` with a cause. API failures
   return a nonzero exit code. See [application operations](../apps/README.md).
 - `make list-apps` uses native `kubectl` output for Argo sync and health.
+- `backup_status.py` reads native backup records for `make backup-status`.
+  See [recovery operations](../playbooks/operations/recovery/README.md#read-backup-status)
+  for coverage and evidence limits.
 - `check-ha-stretch.sh` checks the one-node-loss stretch configuration.
 
 ```sh

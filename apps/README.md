@@ -13,6 +13,7 @@ make apps
 make apps FORMAT=json
 make status APP=boys FORMAT=json
 make list-apps
+make backup-status FORMAT=json
 ```
 
 These commands use the current `kubectl` context. Inventory comes from Application
@@ -30,6 +31,8 @@ that a later partial deployment completed.
 Missing fields appear as `unknown` with a cause. Access URLs and declared backup
 policies are not proof of a successful user journey or recovery. Backup age and
 restore evidence remain unknown until their observation sources are connected.
+Use [backup status](../playbooks/operations/recovery/README.md#read-backup-status)
+for native Longhorn and CNPG observations while per-app recovery mapping is added.
 An API failure returns an unknown inventory and a nonzero exit code, not an empty
 healthy result. `scripts/app_status.py --help` also describes saved JSON input for
 offline checks. The old `COLS` list format is replaced by native `kubectl` output
