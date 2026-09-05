@@ -1,13 +1,20 @@
-# playbooks/yaml/argocd-apps/headlamp/headlamp-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: headlamp
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: soyspray
+    soyspray.vip/owner: platform
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-url: https://headlamp.soyspray.vip
+    soyspray.vip/access-method: Authentik OIDC
+    soyspray.vip/data: none
+    soyspray.vip/backup: not-required
+    soyspray.vip/backup-cause: Headlamp stores no app data; Authentik owns its identity.
 spec:
-  project: default
+  project: headlamp
   sources:
     - repoURL: https://kubernetes-sigs.github.io/headlamp/
       chart: headlamp

@@ -35,6 +35,7 @@ NODE1 := 192.168.20.11
 NODE2 := 192.168.20.12
 
 KUSTOMIZATIONS := \
+	argocd \
 	kubernetes/autism-traits \
 	kubernetes/boys \
 	$(VAULTWARDEN_PACKAGE) \
@@ -82,6 +83,7 @@ lint: ## Check Python style and common defects
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml \
 		playbooks/operations/boys/*.yml
+	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint playbooks/bootstrap-apps.yml
 
 validate: validate-skills status-page-check ## Validate YAML and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py

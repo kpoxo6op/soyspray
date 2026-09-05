@@ -4,6 +4,8 @@ import subprocess
 from pathlib import Path
 
 import yaml
+from ansible.parsing.dataloader import DataLoader
+from ansible.template import Templar
 from conftest import ROOT, load_all, load_yaml
 
 BLUEPRINT = ROOT / (
@@ -290,5 +292,26 @@ def test_authentik_role_mounts_and_deploys_legacy_proxy_configuration() -> None:
         "qbittorrent-application.yaml",
     ):
         assert manifest in tasks
-    assert tasks.count("authentik_target_revision") >= 6
-    assert "loop_var: authentik_legacy_application" in tasks
+    apply_task = next(
+        task
+        for task in load_yaml("roles/apps/authentik/tasks/main.yml")
+        if task.get("loop_control", {}).get("loop_var") == "authentik_legacy_application"
+    )
+    for path in apply_task["loop"]:
+        rendered = Templar(
+            loader=DataLoader(),
+            variables={
+                "playbook_dir": str(ROOT / "playbooks"),
+                "authentik_legacy_application": path,
+                "authentik_target_revision": "test-sso-branch",
+            },
+        ).template(apply_task["kubernetes.core.k8s"]["definition"])
+        app = yaml.safe_load(rendered)
+        sources = app["spec"].get("sources", [app["spec"].get("source", {})])
+        git_sources = [
+            source
+            for source in sources
+            if source.get("repoURL") == "https://github.com/kpoxo6op/soyspray.git"
+        ]
+        assert git_sources
+        assert all(source["targetRevision"] == "test-sso-branch" for source in git_sources)

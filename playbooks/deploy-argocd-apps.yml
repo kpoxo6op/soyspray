@@ -21,7 +21,6 @@
       - { name: Longhorn, role: apps/longhorn }
       - { name: Cert Manager, role: apps/cert-manager }
       - { name: External DNS, role: apps/external-dns }
-      - { name: Headlamp, role: apps/headlamp }
 
       # Database
       - { name: CNPG Operator, role: apps/cnpg-operator }
