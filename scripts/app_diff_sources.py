@@ -1,4 +1,4 @@
-"""Resolve pushed native chart and Git values revisions without changing an Application."""
+"""Resolve pushed native Git and chart revisions without changing an Application."""
 
 import copy
 import re
@@ -10,6 +10,25 @@ import yaml
 def revision_arguments(live, desired, repo, commit):
     """Revision overrides cannot change value paths, parameters, or deployment policy."""
     before, after = copy.deepcopy(live["spec"]), copy.deepcopy(desired["spec"])
+    if before.get("source") and after.get("source"):
+        old, new = before["source"], after["source"]
+        if (
+            before.get("sources")
+            or after.get("sources")
+            or new.get("repoURL") != repo
+            or not new.get("path")
+            or new.get("chart")
+            or new.get("targetRevision") != "HEAD"
+        ):
+            raise ValueError("Single-source comparison needs this repository's Git path at HEAD.")
+        old.pop("targetRevision", None)
+        new.pop("targetRevision", None)
+        if before != after:
+            raise ValueError(
+                "Application settings changed; revision-only comparison cannot apply new "
+                "source paths, parameters, destination, project, or policy. Review these separately."
+            )
+        return ["--revision", commit]
     old_sources, new_sources = before.get("sources", []), after.get("sources", [])
     if before.get("source") or after.get("source") or len(new_sources) < 2:
         raise ValueError("Pushed comparison needs native chart and Git values sources.")
@@ -56,16 +75,14 @@ def pushed_sources(app, live, root):
         return subprocess.check_output(["git", *args], cwd=root, text=True, timeout=30).strip()
 
     if git("status", "--porcelain"):
-        raise ValueError("Commit and push the working tree before comparing chart values.")
+        raise ValueError("Commit and push the working tree before comparing workloads.")
     commit = git("rev-parse", "HEAD")
     branch = git("symbolic-ref", "--short", "HEAD")
     declaration = yaml.safe_load((root / "argocd/bootstrap/application.yaml").read_text())
     repo = declaration["spec"]["source"]["repoURL"]
     remote = git("ls-remote", "--exit-code", "--heads", repo, f"refs/heads/{branch}")
     if remote != f"{commit}\trefs/heads/{branch}":
-        raise ValueError(
-            "Push this exact commit to the current branch before comparing chart values."
-        )
+        raise ValueError("Push this exact commit to the current branch before comparing workloads.")
     rendered = subprocess.check_output(
         ["kubectl", "kustomize", str(root / "argocd")], text=True, timeout=30
     )
@@ -78,7 +95,7 @@ def pushed_sources(app, live, root):
         raise ValueError("The Application must be uniquely declared in the native root.")
     args = revision_arguments(live, matches[0], repo, commit)
     print(
-        f"Compare pushed Git values at {commit} with the declared pinned chart versions.",
+        f"Compare pushed Git content at {commit}; declared chart versions stay explicit.",
         flush=True,
     )
     return args
