@@ -475,11 +475,18 @@ def test_gitops_package_has_persistence_and_a_narrow_public_path() -> None:
     app_container = deployments["boys"]["spec"]["template"]["spec"]["containers"][0]
     assert app_container["image"].startswith("ghcr.io/kpoxo6op/boys@sha256:")
     assert not any(mount["mountPath"] == "/app" for mount in app_container["volumeMounts"])
-    assert {item["name"] for item in app_container["env"]} == {
-        "BOYS_DATABASE",
-        "BOYS_PIN",
-        "BOYS_SESSION_KEY",
-    }
+    env = {item["name"]: item for item in app_container["env"]}
+    assert env["BOYS_DATABASE"]["value"] == "/data/boys.sqlite3"
+    for name, key in (("BOYS_PIN", "pin"), ("BOYS_SESSION_KEY", "session-key")):
+        assert env[name]["valueFrom"]["secretKeyRef"] == {"name": "boys-runtime", "key": key}
+        assert "value" not in env[name]
+    assert env["BOYS_TRIP_SEED_FILE"]["value"] == "/run/trip/seed.json"
+    seed_mount = next(item for item in app_container["volumeMounts"] if item["name"] == "trip-seed")
+    assert seed_mount["mountPath"] == "/run/trip" and seed_mount["readOnly"] is True
+    pod = deployments["boys"]["spec"]["template"]["spec"]
+    seed_volume = next(item for item in pod["volumes"] if item["name"] == "trip-seed")
+    assert seed_volume["secret"] == {"secretName": "boys-trip-seed", "defaultMode": 0o440}
+    assert pod["securityContext"]["fsGroup"] == 1000
     assert deployments["boys"]["spec"]["strategy"]["type"] == "Recreate"
 
     for deployment in deployments.values():
