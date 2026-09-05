@@ -16,8 +16,9 @@ The native root owns the existing Application and AppProject in `argocd/` and re
 `manifests/` directly. Application deletion leaves the workloads in place.
 
 ```sh
-make check
-soyspray-venv/bin/python -m pytest -q apps/autism-traits/tests
+make check APP=autism-traits
+make diff APP=autism-traits
+make full-check
 soyspray-venv/bin/python apps/autism-traits/test-image.py --url https://autism.soyspray.vip
 ```
 
@@ -32,10 +33,10 @@ merge does not change the running image. Build output stays local.
 Commit and push, then preview the deployment:
 
 ```sh
-make autism-traits AUTISM_TRAITS_REVISION=YOUR_PUSHED_BRANCH
+make deploy APP=autism-traits REVISION=YOUR_PUSHED_BRANCH
 ```
 
-After merge, run `make autism-traits AUTISM_TRAITS_REVISION=HEAD`. This uses the
+After merge, run `make deploy APP=autism-traits`. This uses the
 standard Ansible bootstrap and native root operation. Check `make status
 APP=autism-traits FORMAT=json`, public and private access, and the actual browser
 journey. `AUTISM_TRAITS_ENABLED=false` cannot delete an adopted app. Retirement

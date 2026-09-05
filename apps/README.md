@@ -4,6 +4,7 @@ Each migrated app keeps its Argo definitions, configuration, custom source,
 useful checks, and operating guide in its own folder. The native root lists
 adopted apps in [its Kustomization](../argocd/kustomization.yaml).
 
+- [Boys](boys/README.md): shared calendar and accommodation links.
 - [Headlamp](headlamp/README.md): browse the cluster through Authentik OIDC.
 - [Autism traits](autism-traits/README.md): static assessment with scoring in the browser.
 
@@ -43,3 +44,34 @@ Migration is incremental. The existing `kubernetes/` and
 `playbooks/argocd/applications/` paths remain authoritative for apps that have not
 yet been adopted. Follow [the root procedure](../argocd/README.md) and verify each
 replacement before removing its old path.
+
+## Check, compare, and deploy
+
+Boys and autism traits have app command files. Use the Application name:
+
+```sh
+make check APP=boys
+make diff APP=boys
+make deploy APP=boys REVISION=YOUR_PUSHED_BRANCH
+make deploy APP=boys
+make full-check
+```
+
+`check APP=...` runs that app's maintained local checks. `make check` without
+APP and `make full-check` run the full repository gate. Every deployment still
+runs the full gate and Ansible preflight, even when APP is set. Push the branch
+first. Deployment defaults to `REVISION=HEAD`; use the pushed branch for preview
+and run the default again after merge.
+
+`diff` uses the pinned upstream Argo CLI and the current Kubernetes context.
+It sends YAML files from the app's local manifest folder to Argo for native
+rendering and comparison. Argo applies the current Application's source options,
+including runtime patches. It compares local workload changes, not edits to
+Application metadata or bootstrap secrets. Argo omits Secret values. Read the
+native manifests and Ansible check output for those separate changes.
+
+The comparison does not sync or prune. A removed object in the diff is not proof
+that Argo will delete it: check its `Prune=false` protection and the Application's
+sync policy. An Application without a maintained operation file reports `unknown`
+with its cause. The native app Makefiles are command entrypoints; they do not
+replace the Application metadata inventory.
