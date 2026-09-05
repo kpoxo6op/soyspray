@@ -40,6 +40,10 @@ Use `make status-page-check` to validate the external status configuration,
   status through `kubectl`. Use `make apps` or `make status APP=boys FORMAT=json`.
   Missing metadata and evidence appear as `unknown` with a cause. API failures
   return a nonzero exit code. See [application operations](../apps/README.md).
+- `app_command.py` runs each app's native Makefile for local checks, diff, and
+  standard Ansible deployment. `app_diff.py` uses the checksum-pinned upstream
+  Argo CLI through the current Kubernetes context. It does not sync or prune.
+  See [application operations](../apps/README.md#check-compare-and-deploy).
 - `argo_preview.py` prepares native root parameters for a pushed application branch.
   Use it through [the Argo bootstrap operation](../argocd/README.md#preview-one-adopted-application).
 - `make list-apps` uses native `kubectl` output for Argo sync and health.
