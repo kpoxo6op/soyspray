@@ -1,0 +1,111 @@
+name: Boys image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - kubernetes/boys/app/**
+      - kubernetes/boys/Dockerfile
+      - kubernetes/boys/.dockerignore
+      - kubernetes/boys/test-image.py
+      - .github/workflows/boys-image.yml
+  pull_request:
+    paths:
+      - kubernetes/boys/app/**
+      - kubernetes/boys/Dockerfile
+      - kubernetes/boys/.dockerignore
+      - kubernetes/boys/test-image.py
+      - .github/workflows/boys-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: boys-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    env:
+      IMAGE: ghcr.io/kpoxo6op/boys
+      IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Build the pinned runtime
+        run: |
+          docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" \
+            --tag "$IMAGE:$IMAGE_TAG" kubernetes/boys
+      - name: Check the image without cluster access
+        run: |
+          docker run --detach --name boys-check --network none --read-only \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /data:rw,size=16m,uid=1000,gid=1000 --tmpfs /tmp:rw,size=16m \
+            --env BOYS_PIN=1234 --env BOYS_COOKIE_SECURE=false \
+            --env BOYS_SESSION_KEY=image-test-key-with-no-production-access \
+            "$IMAGE:$IMAGE_TAG"
+          docker exec -i boys-check python - < kubernetes/boys/test-image.py
+      - name: Remove the isolated test container
+        if: always()
+        run: docker rm --force boys-check || true
+      - name: Publish the tested image
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE:$IMAGE_TAG"
+          digest="$(docker image inspect "$IMAGE:$IMAGE_TAG" --format '{{index .RepoDigests 0}}')"
+          printf 'BOYS_IMAGE_REF=%s\n' "$digest" >> "$GITHUB_ENV"
+          printf 'Tested image: `%s`\nSource: `%s`\n' "$digest" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - name: Open a draft digest promotion
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="promote/boys-${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git switch -c "$branch"
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          image = os.environ['BOYS_IMAGE_REF']
+          if not re.fullmatch(r'ghcr.io/kpoxo6op/boys@sha256:[0-9a-f]{64}', image):
+              raise SystemExit('The published image reference is not a digest')
+          path = Path('kubernetes/boys/deployment.yaml')
+          text = path.read_text()
+          pattern = r'(?m)^          image: (?:python:3\.13-alpine|ghcr\.io/kpoxo6op/boys)@sha256:[0-9a-f]{64}$'
+          text, count = re.subn(pattern, '          image: ' + image, text)
+          if count != 1:
+              raise SystemExit('Expected exactly one Boys runtime image to promote')
+          path.write_text(text)
+          PY
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add kubernetes/boys/deployment.yaml
+          git commit -m 'Promote the tested Boys image digest'
+          git push origin "$branch"
+          promotion_commit="$(git rev-parse HEAD)"
+          cat > "$RUNNER_TEMP/promotion.md" <<EOF
+          Promote the tested Boys image built from [source $GITHUB_SHA](https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA).
+
+          Image: \`$BOYS_IMAGE_REF\`.
+
+          The image passed the isolated HTTP check. Review configuration required by this source revision in this PR before deployment. The first image adoption must also remove the old source ConfigMap and its mount. Keep the existing PVC, database path, runtime Secret, and single-writer deployment.
+
+          Run \`make check\` and \`make go\`, then use the standard Ansible deployment path. Verify the deployed user journey before merge. Roll back by restoring the prior digest and its compatible configuration. This workflow does not merge or deploy.
+
+          Commits, oldest first:
+
+          - [Promote the tested Boys image digest](https://github.com/$GITHUB_REPOSITORY/commit/$promotion_commit)
+          EOF
+          gh pr create --draft --base main --head "$branch" \
+            --title 'Promote the tested Boys image' --body-file "$RUNNER_TEMP/promotion.md"

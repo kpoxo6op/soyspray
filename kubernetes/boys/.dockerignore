@@ -1,0 +1,9 @@
+*
+!Dockerfile
+!app/
+!app/server.py
+!app/index.html
+!app/app.js
+!app/events.html
+!app/events.js
+!app/styles.css
