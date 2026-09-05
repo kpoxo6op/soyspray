@@ -217,8 +217,24 @@ Use SQLite's backup API on the copied database before test writes. Require
 PIN hashes, sessions, dates, and events against the restored data. Start the
 same app version with the archived runtime inputs, using only a loopback
 endpoint. Verify the restricted Vaultwarden identity can decrypt a record.
-Start CouchDB from its restored data and archived configuration with network
-isolation, then read real notes and attachment chunks. Keep private data out
+For the stock Vaultwarden and CouchDB servers, use `start-restored-app.yml`
+after copying the untouched restore. It uses the same pinned image versions
+as the current deployments. It retains network isolation and mounts only the
+scratch claim. CouchDB needs the encrypted runtime archive:
+
+```bash
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/recovery/start-restored-app.yml \
+  -e recovery_app=obsidian -e recovery_check_id=initial-20260905 \
+  -e @"${HOME}/.config/soyspray/recovery/runtime-20260905.vault.yml" \
+  --vault-password-file ~/.config/soyspray/recovery/vault-password
+kubectl -n restore-obsidian-initial-20260905 port-forward pod/app 15985:5984
+```
+
+For Vaultwarden, select `recovery_app=vaultwarden` and forward `18080:8080`.
+Use a separate Bitwarden CLI data directory for the test login. Read real
+notes, attachment chunks, and vault records. Keep private data out
 of logs, screenshots, and Git. Record the backup recovery point, restore
 duration, results, and any unknown checks outside the repository.
 
