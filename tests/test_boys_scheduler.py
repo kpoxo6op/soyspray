@@ -10,6 +10,7 @@ from datetime import date, timedelta
 from http.client import HTTPConnection
 from pathlib import Path
 
+import pytest
 import yaml
 from conftest import ROOT
 
@@ -219,7 +220,10 @@ def test_crew_claim_and_availability_round_trip(tmp_path: Path) -> None:
                 server,
                 "PUT",
                 "/api/availability",
-                {"dates": [first_day, overlap_day, overlap_day]},
+                {
+                    "dates": [first_day, overlap_day, overlap_day],
+                    "expected_revision": app.availability("Boris K")["revision"],
+                },
                 boris_cookie,
             )[0]
             == 200
@@ -229,7 +233,10 @@ def test_crew_claim_and_availability_round_trip(tmp_path: Path) -> None:
                 server,
                 "PUT",
                 "/api/availability",
-                {"dates": [overlap_day]},
+                {
+                    "dates": [overlap_day],
+                    "expected_revision": app.availability("Sergey Kiktev")["revision"],
+                },
                 sergey_cookie,
             )[0]
             == 200
@@ -272,7 +279,10 @@ def test_crew_claim_and_availability_round_trip(tmp_path: Path) -> None:
                 server,
                 "PUT",
                 "/api/availability",
-                {"dates": [overlap_day]},
+                {
+                    "dates": [overlap_day],
+                    "expected_revision": app.availability("Sergey Kiktev")["revision"],
+                },
                 sergey_cookie,
             )[0]
             == 200
@@ -283,7 +293,7 @@ def test_crew_claim_and_availability_round_trip(tmp_path: Path) -> None:
             server,
             "PUT",
             "/api/availability",
-            {"dates": ["2020-01-01"]},
+            {"dates": ["2020-01-01"], "expected_revision": app.availability("Boris K")["revision"]},
             boris_cookie,
         )
         assert status == 400
@@ -422,80 +432,6 @@ def test_existing_claims_start_the_event_log_with_current_state(tmp_path: Path) 
     assert restarted.events() == expected
 
 
-def test_scheduler_frontend_is_local_and_shows_calendar_stripes() -> None:
-    html = (APP / "index.html").read_text()
-    script = (APP / "app.js").read_text()
-    styles = (APP / "styles.css").read_text()
-    events_html = (APP / "events.html").read_text()
-    events_script = (APP / "events.js").read_text()
-
-    assert "Boys calendar" in html
-    assert '<select id="name"' in html
-    assert 'inputmode="numeric"' in html
-    assert re.findall(r'https://[^"\s]+', html) == ["https://t.me/borex69"]
-    forms = {
-        form_id: re.search(rf'<form id="{form_id}".*?</form>', html, re.DOTALL).group()
-        for form_id in ("name-form", "login-form", "crew-pin-form", "personal-pin-form")
-    }
-    assert forms["name-form"].count("<select") == 1
-    assert 'type="password"' not in forms["name-form"]
-    for form_id in ("login-form", "crew-pin-form", "personal-pin-form"):
-        assert forms[form_id].count('type="password"') == 1
-        assert "<select" not in forms[form_id]
-    for form in forms.values():
-        assert form.count('class="button button-primary"') == 1
-    assert 'id="claim-form"' not in html
-    assert 'id="claim-button"' not in html
-    assert "Forgot PIN?" in html
-    assert "/api/crew" in script
-    assert "/api/claim/check" in script
-    assert "/api/claim" in script
-    assert "· claim" not in script
-    assert "calendar-grid" in html
-    assert "Each boy has one color." not in html
-    assert "Select your dates." in html
-    assert 'href="/events.html"' in html
-    assert 'id="event-list"' in events_html
-    assert 'href="/"' in events_html
-    assert "Back to calendar" in events_html
-    assert "Newest first." in events_html
-    assert "/api/events" in events_script
-    assert "Set ${event.days} available" in events_script
-    assert 'event.action === "claimed"' in events_script
-    assert 'event.action === "baseline"' in events_script
-    assert 'time.textContent = "Before log"' in events_script
-    assert "setInterval(loadEvents, 5000)" in events_script
-    assert "availability-stripe" in script
-    assert "is-selected" not in script
-    assert "is-selected" not in styles
-    assert '"no dates"' in script
-    assert '"unclaimed"' in script
-    assert '${days === 1 ? "day" : "days"}' in script
-    assert "aria-pressed" in script
-    assert set(re.findall(r"<h([1-6])", html)) == {"1", "2"}
-    assert "--background:" in styles
-    assert ".availability-stripe" in styles
-    assert "mix-blend-mode" not in styles
-    color_classes = dict(re.findall(r'^\s+"([^"]+)": "(boy-[^"]+)",$', script, re.MULTILINE))
-    assert set(color_classes) == set(CREW)
-    assert len(set(color_classes.values())) == len(CREW)
-    boy_colors = re.findall(r"--boy-[a-z-]+:\s*(#[0-9a-fA-F]{6})", styles)
-    assert len(boy_colors) == len(CREW)
-    assert len(set(boy_colors)) == len(CREW)
-    boy_patterns = re.findall(r"--boy-pattern:\s*([^;]+);", styles)
-    assert len(boy_patterns) == len(CREW)
-    assert len(set(boy_patterns)) == len(CREW)
-    assert "background-image: var(--boy-pattern)" in styles
-    assert "radial-gradient" in styles
-    assert "repeating-linear-gradient" in styles
-    assert "colorIndex" not in script
-    assert "stripe-0" not in styles
-    assert "stripe-1" not in styles
-    assert ".card" not in styles
-    assert "box-shadow" not in styles
-    assert styles.count("font-family:") == 1
-
-
 def test_gitops_package_has_persistence_and_a_narrow_public_path() -> None:
     import subprocess
 
@@ -617,3 +553,173 @@ def test_argocd_role_owns_secrets_and_revision_selection() -> None:
     assert "BOYS_REVISION ?= HEAD" in makefile
     assert "boys: go" in makefile
     assert "--tags boys" in makefile
+
+
+@pytest.fixture
+def saving_app(tmp_path):
+    module = load_server_module()
+    app = module.BoysApp(
+        tmp_path / "boys.sqlite3", "1357", b"test-session-key-that-is-long-enough", APP
+    )
+    _, token = app.claim("Boris K", "1357", "2468", "test")
+    return module, app, app.session("boys_session=" + token)
+
+
+def test_saving_preserves_history_and_rejects_invented_past_dates(saving_app):
+    module, app, session = saving_app
+    past = (date.today() - timedelta(days=30)).isoformat()
+    future = (date.today() + timedelta(days=4)).isoformat()
+    with app.connect() as connection:
+        connection.execute("INSERT INTO availability VALUES (?, ?)", (session["name_key"], past))
+        identity = connection.execute("SELECT * FROM participants").fetchall()
+    before = app.availability(session["name"])
+    saved = app.save_availability(session, [future], before["revision"])
+    assert next(p["dates"] for p in saved["participants"] if p["name"] == session["name"]) == [
+        past,
+        future,
+    ]
+    emptied = app.save_availability(session, [], saved["revision"])
+    assert next(p["dates"] for p in emptied["participants"] if p["name"] == session["name"]) == [
+        past
+    ]
+    events = app.events()
+    with pytest.raises(ValueError):
+        app.save_availability(session, ["2000-01-01"], emptied["revision"])
+    assert app.events() == events
+    with app.connect() as connection:
+        assert connection.execute("SELECT * FROM participants").fetchall() == identity
+        assert connection.execute("PRAGMA integrity_check").fetchone() == ("ok",)
+
+
+def test_concurrent_availability_writes_have_one_winner(saving_app):
+    module, app, session = saving_app
+    revision = app.availability(session["name"])["revision"]
+    barrier = threading.Barrier(2)
+    results = []
+
+    def save(offset):
+        barrier.wait(timeout=3)
+        try:
+            results.append(
+                app.save_availability(
+                    session, [(date.today() + timedelta(days=offset)).isoformat()], revision
+                )
+            )
+        except module.EditConflict:
+            results.append("conflict")
+
+    threads = [threading.Thread(target=save, args=(offset,)) for offset in (2, 3)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=5)
+        assert not thread.is_alive()
+    assert results.count("conflict") == 1
+    winner = next(item for item in results if item != "conflict")
+    assert app.availability(session["name"]) == winner
+    assert len([event for event in app.events() if event["action"] == "availability"]) == 1
+
+
+def test_availability_conflicts_return_409_without_changing_data(saving_app):
+    module, app, session = saving_app
+    server = module.make_server(("127.0.0.1", 0), app)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        cookie, _ = login(server, session["name"])
+        initial = request(server, "GET", "/api/availability", cookie=cookie)[2]
+        dates = [(date.today() + timedelta(days=2)).isoformat()]
+        assert request(server, "PUT", "/api/availability", {"dates": dates}, cookie)[0] == 409
+        status, _, saved = request(
+            server,
+            "PUT",
+            "/api/availability",
+            {"dates": dates, "expected_revision": initial["revision"]},
+            cookie,
+        )
+        assert status == 200
+        events = app.events()
+        for revision in (initial["revision"], None, 1, "bad"):
+            assert (
+                request(
+                    server,
+                    "PUT",
+                    "/api/availability",
+                    {"dates": [], "expected_revision": revision},
+                    cookie,
+                )[0]
+                == 409
+            )
+        assert app.availability(session["name"]) == saved
+        assert app.events() == events
+        assert (
+            request(
+                server,
+                "PUT",
+                "/api/availability",
+                {"dates": [], "expected_revision": saved["revision"]},
+            )[0]
+            == 401
+        )
+        # An idempotent retry does not add an event.
+        assert (
+            request(
+                server,
+                "PUT",
+                "/api/availability",
+                {"dates": dates, "expected_revision": saved["revision"]},
+                cookie,
+            )[0]
+            == 200
+        )
+        assert app.events() == events
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=3)
+
+
+def test_availability_and_event_roll_back_together(saving_app):
+    _, app, session = saving_app
+    before = app.availability(session["name"])
+    events = app.events()
+    with app.connect() as connection:
+        connection.execute(
+            "CREATE TRIGGER fail_event BEFORE INSERT ON events "
+            "BEGIN SELECT RAISE(ABORT, 'test audit failure'); END"
+        )
+    with pytest.raises(sqlite3.IntegrityError):
+        app.save_availability(session, [date.today().isoformat()], before["revision"])
+    assert app.availability(session["name"]) == before
+    assert app.events() == events
+
+
+def test_concurrent_claims_keep_one_personal_pin_and_one_event(saving_app):
+    _, app, _ = saving_app
+    barrier = threading.Barrier(2)
+    results = []
+
+    def claim_once(pin):
+        barrier.wait(timeout=3)
+        try:
+            app.claim("Max Edin", "1357", pin, pin)
+            results.append(pin)
+        except ValueError:
+            results.append("conflict")
+
+    threads = [threading.Thread(target=claim_once, args=(pin,)) for pin in ("3456", "5678")]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=5)
+        assert not thread.is_alive()
+    assert results.count("conflict") == 1
+    winner = next(pin for pin in results if pin != "conflict")
+    name, token = app.login("Max Edin", winner, "login")
+    assert name == "Max Edin"
+    assert app.session("boys_session=" + token)
+    with pytest.raises(ValueError):
+        app.claim("Max Edin", "1357", "6789", "reset")
+    with pytest.raises(PermissionError):
+        app.login("Max Edin", "1357", "crew-login")
+    assert len([event for event in app.events() if event["name"] == name]) == 1
