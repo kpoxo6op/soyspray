@@ -95,7 +95,20 @@ def main():
             ["kubectl", "kustomize", str(ROOT / "argocd")], text=True
         )
         children = list(yaml.safe_load_all(rendered))
-    print(json.dumps(prepare(root, children, args.revision, args.app)))
+    result = prepare(root, children, args.revision, args.app)
+    reference = "HEAD" if args.revision == "HEAD" else f"refs/heads/{args.revision}"
+    resolved = subprocess.check_output(
+        ["git", "ls-remote", "--exit-code", root["spec"]["source"]["repoURL"], reference],
+        text=True,
+    ).splitlines()
+    commits = [line.split("\t")[0] for line in resolved if line.endswith(f"\t{reference}")]
+    if len(commits) != 1:
+        raise SystemExit("The root revision must resolve to one remote Git commit.")
+    if args.app and commits[0] != head:
+        raise SystemExit(
+            "The remote branch changed while preparing the preview; retry from its current checkout."
+        )
+    print(json.dumps({"application": result, "revision": commits[0]}))
 
 
 if __name__ == "__main__":
