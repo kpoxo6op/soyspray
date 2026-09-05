@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: external-dns
+  namespace: argocd
+  labels:
+    soyspray.vip/owner: platform
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-method: Kubernetes ingress annotations and Cloudflare DNS;
+      no human web interface
+    soyspray.vip/data: none
+    soyspray.vip/backup: Off-cluster Vault input for the existing Cloudflare API token
+    soyspray.vip/backup-cause: No persistent volume; preserve the DNS policy, TXT
+      ownership, and provider identity.
+spec:
+  project: external-dns
+  sources:
+  - repoURL: https://kubernetes-sigs.github.io/external-dns
+    chart: external-dns
+    targetRevision: 1.14.0
+    helm:
+      valueFiles:
+      - $values/apps/external-dns/values.yaml
+  - repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: HEAD
+    ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: external-dns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
