@@ -1,3 +1,0 @@
----
-- name: Retire the verified node-0 OpenClaw installation
-  ansible.builtin.import_playbook: ../retirement/node0-openclaw.yml
