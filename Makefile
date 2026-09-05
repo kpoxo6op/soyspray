@@ -79,7 +79,8 @@ lint: ## Check Python style and common defects
 		roles/apps/vaultwarden/tasks/*.yml roles/apps/vaultwarden/defaults/*.yml \
 		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml
+		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml \
+		playbooks/operations/boys/*.yml
 
 validate: validate-skills status-page-check ## Validate YAML and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py
