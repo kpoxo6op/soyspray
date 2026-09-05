@@ -79,7 +79,7 @@
     state: present
     kubeconfig: '{{ kubeconfig_path }}'
     definition: >-
-      {{ lookup('file', playbook_dir + '/../../playbooks/argocd/applications/database/obsidian-livesync/namespace.yaml') |
+      {{ lookup('file', playbook_dir + '/manifests/namespace.yaml') |
       from_yaml }}
   when: >-
     obsidian_existing_couchdb.resources | length == 0 or obsidian_existing_offsite.resources | length == 0

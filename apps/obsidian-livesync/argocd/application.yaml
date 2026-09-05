@@ -23,7 +23,7 @@ spec:
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
     targetRevision: HEAD
-    path: playbooks/argocd/applications/database/obsidian-livesync
+    path: apps/obsidian-livesync/manifests
   syncPolicy:
     automated:
       prune: true

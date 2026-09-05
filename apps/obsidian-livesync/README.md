@@ -57,13 +57,3 @@ the recovery observation period. Its retirement needs a separate reviewed change
 `make restore-check APP=obsidian-livesync` and `make smoke APP=obsidian-livesync`
 remain unknown until maintained app commands cover these procedures. A successful
 backup schedule or upload does not prove a restore or seven-day recovery-point age.
-
-## One-time native adoption
-
-After a recent restore, record the original claim UID from its recovery evidence.
-Use the standard Ansible inventory and privilege options to run `adopt.yml` with
-`-e obsidian_adoption_claim_uid=VERIFIED_ORIGINAL_UID`, first with `--check`.
-The operation requires the known idle Application, original claim, and matching
-Longhorn binding. It removes only Argo cascading finalizers with a resource-version
-guard. Then deploy the pushed branch and verify the original resources and data.
-Keep old definitions until that verification succeeds.
