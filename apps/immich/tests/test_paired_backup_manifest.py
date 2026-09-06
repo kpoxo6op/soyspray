@@ -21,13 +21,13 @@ SECRET_KEYS = {
 
 
 class PairedBackupManifestTest(unittest.TestCase):
-    def test_job_is_suspended_and_runs_ordered_pinned_stages(self):
+    def test_job_is_scheduled_and_runs_ordered_pinned_stages(self):
         job = yaml.safe_load(MANIFEST.read_text())
         spec = job["spec"]
         pod = spec["jobTemplate"]["spec"]["template"]["spec"]
         init = pod["initContainers"]
 
-        self.assertTrue(spec["suspend"])
+        self.assertFalse(spec["suspend"])
         self.assertEqual(spec["schedule"], "*/30 * * * *")
         self.assertEqual(spec["concurrencyPolicy"], "Forbid")
         self.assertEqual([item["name"] for item in init], ["script-bundle", "pg-dump"])
