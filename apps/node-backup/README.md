@@ -67,3 +67,21 @@ deployment requires a separate digest promotion. Each snapshot includes a
 content manifest with file hashes and the SQLite integrity result. The `pending`
 image reference in the suspended CronJob is a bootstrap value. Replace it with
 the digest from a tested image before any deployment or schedule enablement.
+
+## Operations
+
+Store the restricted `node/` identity in
+`~/.config/soyspray/recovery/node-backup.vault.yml` as `node_backup_credentials`.
+The bootstrap rejects credential mismatches and preserves an existing Secret.
+
+Use `make deploy APP=node-backup REVISION=BRANCH` for the standard branch preview.
+Return to `REVISION=HEAD` after merge. Run `apps/node-backup/run.yml` through the
+standard Ansible inventory with `node_backup_run_id` and a private
+`node_backup_evidence_dir`. It requires a suspended, inactive CronJob and removes
+its temporary Job after saving the log.
+
+Use `make restore-check APP=node-backup SNAPSHOT=ID` to read-check the S3 repository,
+restore the snapshot in a private laptop directory, verify each file against its
+saved hash, and check Jellyfin SQLite integrity and row counts. The command removes
+restored files and retains a private report under `~/.local/state/soyspray/restores`.
+This does not prove playback; check the existing Jellyfin playback command separately.
