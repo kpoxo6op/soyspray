@@ -49,9 +49,6 @@
           - recovery_server_image_digest is match('^ghcr.io/immich-app/immich-server:v2\.3\.1@sha256:[0-9a-f]{64}$')
           - recovery_db_username is match('^[a-z_][a-z0-9_]{0,30}$')
           - recovery_db_password | length >= 16
-          - recovery_expected_asset_count is number
-          - recovery_expected_album_count is number
-          - recovery_expected_user_count is number
           - recovery_storage_size is match('^[1-9][0-9]*(Mi|Gi|Ti)$')
         fail_msg: Supply a new scratch database password and the immutable Immich server digest.
       no_log: true
@@ -255,6 +252,31 @@
           delay: 10
           when: not ansible_check_mode
 
+        - name: Read the verified database restore Pod
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Pod
+            namespace: "{{ recovery_namespace }}"
+            label_selectors: [job-name=database-restore]
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_database_pods
+          when: not ansible_check_mode
+
+        - name: Read actual restored database counts privately
+          kubernetes.core.k8s_log:
+            namespace: "{{ recovery_namespace }}"
+            name: "{{ recovery_database_pods.resources[0].metadata.name }}"
+            container: postgres
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_database_log
+          no_log: true
+          when: not ansible_check_mode
+
+        - name: Record verified restored database counts
+          ansible.builtin.set_fact:
+            recovery_counts: "{{ recovery_database_log.log | regex_findall('database_counts=([0-9]+),([0-9]+),([0-9]+)') | first }}"
+          when: not ansible_check_mode
+
         - name: Start isolated Redis and Immich with no external ingress
           kubernetes.core.k8s:
             state: present
@@ -429,9 +451,9 @@
                 snapshot_id: "{{ recovery_snapshot_id | default('') }}"
                 recovery_point: "{{ recovery_snapshot_time | default('') }}"
               data:
-                asset_count: "{{ recovery_expected_asset_count if recovery_status == 'passed' else 'unknown' }}"
-                album_count: "{{ recovery_expected_album_count if recovery_status == 'passed' else 'unknown' }}"
-                user_count: "{{ recovery_expected_user_count if recovery_status == 'passed' else 'unknown' }}"
+                asset_count: "{{ recovery_counts[0] | int if recovery_status == 'passed' else 'unknown' }}"
+                album_count: "{{ recovery_counts[1] | int if recovery_status == 'passed' else 'unknown' }}"
+                user_count: "{{ recovery_counts[2] | int if recovery_status == 'passed' else 'unknown' }}"
                 originals: "{{ 'Restic restored-file verification passed' if recovery_status == 'passed' else 'unknown' }}"
                 data_checks: "{{ 'passed' if recovery_status == 'passed' else 'failed' }}"
               image: "{{ recovery_server_image_digest }}"

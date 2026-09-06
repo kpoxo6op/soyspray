@@ -22,15 +22,24 @@ spec:
           image: {{ recovery_database_image }}
           command: [/bin/sh, -ec]
           args:
-            - >-
-              export PGPASSWORD="$(cat /run/secrets/db-password/password)";
-              pg_restore --exit-on-error --no-owner --no-acl --clean --if-exists
-              --host immich-db-restore-rw --port 5432 --username {{ recovery_db_username }}
-              --dbname immich /restore/backup/database/immich.dump;
-              counts="$(psql --host immich-db-restore-rw --port 5432 --username {{ recovery_db_username }} --dbname immich --tuples-only --no-align --command
-              'SELECT (SELECT count(*) FROM asset) || chr(44) || (SELECT count(*) FROM album) || chr(44) || (SELECT count(*) FROM public."user");')";
-              test "$counts" = "{{ recovery_expected_asset_count }},{{ recovery_expected_album_count }},{{ recovery_expected_user_count }}";
-              psql --host immich-db-restore-rw --username {{ recovery_db_username }} --dbname immich -v ON_ERROR_STOP=1 --command 'ALTER ROLE {{ recovery_db_username }} NOSUPERUSER';
+            - |
+              export PGPASSWORD="$(cat /run/secrets/db-password/password)"
+              export PGHOST=immich-db-restore-rw PGPORT=5432 PGUSER={{ recovery_db_username }} PGDATABASE=immich
+              pg_restore --exit-on-error --no-owner --no-acl --clean --if-exists --dbname immich /restore/backup/database/immich.dump
+              psql -XAt0 -v ON_ERROR_STOP=1 > /tmp/restored-required.raw <<'SQL'
+              SELECT DISTINCT CASE WHEN path LIKE '/%' THEN path ELSE '/usr/src/app/' || path END
+              FROM (
+                SELECT "originalPath" AS path FROM asset
+                UNION ALL SELECT "sidecarPath" FROM asset
+                UNION ALL SELECT "profileImagePath" FROM public."user"
+              ) AS files WHERE path IS NOT NULL AND path <> '';
+              SQL
+              sort -z /tmp/restored-required.raw > /tmp/restored-required.sorted
+              sort -z /restore/backup/database/required-files.raw > /tmp/backup-required.sorted
+              cmp /tmp/restored-required.sorted /tmp/backup-required.sorted
+              xargs -0 -r -I{} sh -ec 'test -f "/restore$1"' -- {} < /tmp/restored-required.raw
+              counts="$(psql -XAt -v ON_ERROR_STOP=1 --command 'SELECT (SELECT count(*) FROM asset) || chr(44) || (SELECT count(*) FROM album) || chr(44) || (SELECT count(*) FROM public."user");')"
+              psql -X -v ON_ERROR_STOP=1 --command 'ALTER ROLE {{ recovery_db_username }} NOSUPERUSER'
               printf 'database_counts=%s\n' "$counts"
           volumeMounts:
             - {name: restored-data, mountPath: /restore, readOnly: true}
