@@ -160,3 +160,29 @@ def test_schedule_records_interruption_and_allows_guarded_cleanup(tmp_path):
     report = read_schedule_report(tmp_path)
     assert report["status"] == "failed"
     assert report["finished_at"]
+
+
+def test_installer_normalizes_paths_and_validates_units_before_enable():
+    from ansible.parsing.dataloader import DataLoader
+    from ansible.template import Templar
+
+    directory = Path("playbooks/operations/recovery").resolve()
+    play = yaml.safe_load((directory / "install-restore-check-schedule.yml").read_text())[0]
+    templar = Templar(loader=DataLoader(), variables={"playbook_dir": str(directory)})
+    checkout = templar.template(play["vars"]["recovery_schedule_repo"])
+    assert Path(checkout) == directory.parents[2]
+    assert ".." not in Path(checkout).parts
+    tasks = play["tasks"]
+    validation = next(i for i, t in enumerate(tasks) if "ansible.builtin.command" in t)
+    enabling = next(
+        i
+        for i, t in enumerate(tasks)
+        if t.get("ansible.builtin.systemd_service", {}).get("name")
+        == "soyspray-restore-check.timer"
+    )
+    assert validation < enabling
+    assert tasks[validation]["ansible.builtin.command"]["argv"][:3] == [
+        "systemd-analyze",
+        "--user",
+        "verify",
+    ]

@@ -6,7 +6,7 @@
   become: false
   vars:
     recovery_schedule_home: "{{ lookup('env', 'HOME') }}"
-    recovery_schedule_repo: "{{ playbook_dir }}/../../.."
+    recovery_schedule_repo: "{{ (playbook_dir + '/../../..') | realpath }}"
     recovery_schedule_unit_dir: "{{ recovery_schedule_home }}/.config/systemd/user"
   tasks:
     - name: Require the existing Soyspray checkout and user home
@@ -35,6 +35,17 @@
         src: systemd/soyspray-restore-check.timer.j2
         dest: "{{ recovery_schedule_unit_dir }}/soyspray-restore-check.timer"
         mode: "0644"
+
+    - name: Validate installed unit files before enabling the timer
+      ansible.builtin.command:
+        argv:
+          - systemd-analyze
+          - --user
+          - verify
+          - "{{ recovery_schedule_unit_dir }}/soyspray-restore-check.service"
+          - "{{ recovery_schedule_unit_dir }}/soyspray-restore-check.timer"
+      changed_when: false
+      when: not ansible_check_mode
 
     - name: Reload the user systemd manager
       ansible.builtin.systemd_service:
