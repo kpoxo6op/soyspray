@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from pathlib import Path
 
 import yaml
@@ -77,3 +79,57 @@ def test_authentik_preserves_archive_and_replication():
     assert cluster["spec"]["postgresql"]["parameters"]["archive_timeout"] == "5min"
     assert schedule["spec"]["schedule"] == "0 30 3 * * *"
     assert schedule["spec"]["method"] == "plugin"
+
+
+def test_authentik_policy_renders_as_a_mapping_in_ansible(tmp_path):
+    play = yaml.safe_load(
+        (ROOT / "playbooks/operations/recovery/select-authentik-database.yml").read_text()
+    )[0]
+    expression = play["tasks"][2]["kubernetes.core.k8s_json_patch"]["patch"][2]["value"]
+    policy = {
+        "automated": {"prune": True, "selfHeal": True},
+        "syncOptions": ["CreateNamespace=true"],
+    }
+    tasks = []
+    for revision in ["codex/preview", "HEAD"]:
+        expected = policy if revision == "HEAD" else {"syncOptions": ["CreateNamespace=true"]}
+        tasks.extend(
+            [
+                {
+                    "ansible.builtin.set_fact": {"selected_policy": expression},
+                    "vars": {"cnpg_revision": revision},
+                },
+                {
+                    "ansible.builtin.assert": {
+                        "that": ["selected_policy is mapping", "selected_policy == expected"]
+                    },
+                    "vars": {"expected": expected},
+                },
+            ]
+        )
+    path = tmp_path / "policy.yml"
+    path.write_text(
+        yaml.safe_dump(
+            [
+                {
+                    "hosts": "localhost",
+                    "gather_facts": False,
+                    "vars": {"app": {"resources": [{"spec": {"syncPolicy": policy}}]}},
+                    "tasks": tasks,
+                }
+            ]
+        )
+    )
+    result = subprocess.run(
+        [
+            str(Path(sys.executable).with_name("ansible-playbook")),
+            "-i",
+            "localhost,",
+            "-c",
+            "local",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
