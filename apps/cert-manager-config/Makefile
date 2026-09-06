@@ -2,7 +2,7 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 PYTHON ?= soyspray-venv/bin/python
 REVISION ?= HEAD
-.PHONY: check diff deploy
+.PHONY: check diff deploy smoke
 
 check:
 	$(PYTHON) -m pytest -q apps/cert-manager-config/tests tests/test_argocd_root.py
@@ -14,6 +14,9 @@ diff:
 
 deploy:
 	$(MAKE) --no-print-directory -f Makefile APP= cert-manager-config CERT_MANAGER_CONFIG_REVISION=$(REVISION)
+
+smoke:
+	@$(PYTHON) -m apps.cert-manager-config.smoke
 
 .DEFAULT:
 	@printf 'unknown: cert-manager-config has no maintained %s operation yet.\n' "$@" >&2
