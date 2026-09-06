@@ -1,0 +1,103 @@
+---
+- name: Validate restored database files with their deployed native runtime
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    recovery_scratch: "restore-{{ recovery_app }}-{{ recovery_check_id }}"
+  tasks:
+    - name: Read the isolated inspector and claim
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api | default('v1') }}"
+        kind: "{{ item.kind }}"
+        namespace: "{{ recovery_scratch }}"
+        name: "{{ item.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop:
+        - {kind: Pod, name: inspect}
+        - {kind: PersistentVolumeClaim, name: restored-data}
+        - {kind: Namespace, name: "{{ recovery_scratch }}"}
+        - {kind: NetworkPolicy, name: isolate, api: networking.k8s.io/v1}
+      register: durable_workspace
+
+    - name: Require this operation's disposable data and pinned image
+      ansible.builtin.assert:
+        that:
+          - recovery_app in ['booklore-mariadb', 'dispatcharr-data', 'redis-data-redis-master-0', 'mosquitto-data']
+          - recovery_native_image is match('^[a-zA-Z0-9./:_-]+@sha256:[0-9a-f]{64}$')
+          - durable_workspace.results[0].resources | length == 1
+          - durable_workspace.results[1].resources | length == 1
+          - durable_workspace.results[1].resources[0].spec.storageClassName == recovery_scratch
+          - durable_workspace.results[1].resources[0].spec.volumeName != recovery_original_volume
+          - durable_workspace.results[2].resources[0].metadata.labels['soyspray.vip/check-id'] == recovery_check_id
+          - durable_workspace.results[2].resources[0].metadata.labels['soyspray.vip/purpose'] == 'restore-check'
+          - durable_workspace.results[3].resources[0].spec.podSelector == {}
+          - durable_workspace.results[3].resources[0].spec.ingress | default([]) == []
+          - durable_workspace.results[3].resources[0].spec.egress | default([]) == []
+          - durable_workspace.results[3].resources[0].spec.policyTypes | sort == ['Egress', 'Ingress']
+
+    - name: Run the native checker on the restored volume only
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: native-check
+            namespace: "{{ recovery_scratch }}"
+          spec:
+            backoffLimit: 0
+            activeDeadlineSeconds: 600
+            template:
+              spec:
+                nodeName: "{{ durable_workspace.results[0].resources[0].spec.nodeName }}"
+                automountServiceAccountToken: false
+                restartPolicy: Never
+                securityContext: >-
+                  {{ {'runAsUser': 1883 if recovery_app == 'mosquitto-data' else 1001 if recovery_app == 'redis-data-redis-master-0' else 1000,
+                      'runAsGroup': 1883 if recovery_app == 'mosquitto-data' else 1001 if recovery_app == 'redis-data-redis-master-0' else 1000,
+                      'seccompProfile': {'type': 'RuntimeDefault'}} }}
+                containers:
+                  - name: check
+                    image: "{{ recovery_native_image }}"
+                    command: [sh, -ec, "{{ lookup('file', 'validators/' ~ recovery_app ~ '.sh') }}"]
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      readOnlyRootFilesystem: true
+                      capabilities: {drop: [ALL]}
+                    resources:
+                      requests: {cpu: 50m, memory: 128Mi}
+                      limits: {cpu: '1', memory: 1Gi}
+                    volumeMounts:
+                      - {name: data, mountPath: /data}
+                      - {name: temporary, mountPath: /tmp}
+                volumes:
+                  - name: data
+                    persistentVolumeClaim: {claimName: restored-data}
+                  - name: temporary
+                    emptyDir: {}
+      when: not ansible_check_mode
+
+    - name: Wait for native validation
+      kubernetes.core.k8s_info:
+        api_version: batch/v1
+        kind: Job
+        name: native-check
+        namespace: "{{ recovery_scratch }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: durable_native_result
+      until: >-
+        durable_native_result.resources | length == 1 and
+        (durable_native_result.resources[0].status.conditions | default([])
+         | selectattr('type', 'in', ['Complete', 'Failed'])
+         | selectattr('status', 'equalto', 'True') | list | length > 0)
+      retries: 65
+      delay: 10
+      when: not ansible_check_mode
+
+    - name: Require successful native validation
+      ansible.builtin.assert:
+        that: durable_native_result.resources[0].status.succeeded | default(0) == 1
+      when: not ansible_check_mode
