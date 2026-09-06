@@ -128,3 +128,39 @@ def test_failed_restore_runs_guarded_cleanup_and_identity_check(tmp_path):
     assert calls == ["restore.yml", "cleanup.yml"]
     assert operation.report["cleanup"] == "completed"
     assert operation.report["original_resources"] == "unchanged"
+
+
+def test_ansible_preserves_restored_count_list(tmp_path):
+    import subprocess
+
+    tasks = yaml.safe_load((RECOVERY / "restore.yml").read_text())[0]["tasks"]
+    block = next(task["block"] for task in tasks if "block" in task)
+    fact = next(
+        task["ansible.builtin.set_fact"]
+        for task in block
+        if "recovery_counts" in task.get("ansible.builtin.set_fact", {})
+    )
+    play = [
+        {
+            "hosts": "localhost",
+            "connection": "local",
+            "gather_facts": False,
+            "vars": {"recovery_database_log": {"log": "ALTER ROLE\ndatabase_counts=0,0,1\n"}},
+            "tasks": [
+                {"ansible.builtin.set_fact": fact},
+                {"ansible.builtin.assert": {"that": ["recovery_counts == ['0', '0', '1']"]}},
+            ],
+        }
+    ]
+    path = tmp_path / "counts.yml"
+    path.write_text(yaml.safe_dump(play))
+    subprocess.run(
+        [
+            str(RECOVERY.parents[2] / "soyspray-venv/bin/ansible-playbook"),
+            "-i",
+            "localhost,",
+            str(path),
+        ],
+        check=True,
+        capture_output=True,
+    )
