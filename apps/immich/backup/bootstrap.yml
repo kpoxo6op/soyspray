@@ -1,0 +1,61 @@
+---
+- name: Bootstrap the paired Immich backup identity
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Read the authoritative application connection
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        namespace: immich
+        name: immich-server
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: immich_backup_application
+      no_log: true
+
+    - name: Read the existing database identity
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: postgresql
+        name: immich-app-secret-a
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: immich_backup_database
+      no_log: true
+
+    - name: Read the existing backup identity
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: immich
+        name: immich-paired-backup
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: immich_backup_existing
+      no_log: true
+
+    - name: Validate the database connection and preserved backup credentials
+      ansible.builtin.command:
+        argv: [python3, -c, "{{ lookup('file', playbook_dir + '/credentials.py') }}"]
+        stdin: >-
+          {{ {'restic': immich_restic_credentials | default({}),
+              'deployment': immich_backup_application.resources | first | default({}),
+              'database_secret': immich_backup_database.resources | first | default({}),
+              'existing': immich_backup_existing.resources} | to_json }}
+      check_mode: false
+      changed_when: false
+      register: immich_backup_validated
+      no_log: true
+
+    - name: Create only the missing paired backup Secret
+      ansible.builtin.command:
+        argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", create, -f, '-']
+        stdin: >-
+          {{ {'apiVersion': 'v1', 'kind': 'Secret', 'type': 'Opaque',
+              'metadata': {'name': 'immich-paired-backup', 'namespace': 'immich'},
+              'stringData': immich_backup_validated.stdout | from_json} | to_json }}
+      when: immich_backup_existing.resources | length == 0 and not ansible_check_mode
+      changed_when: true
+      no_log: true

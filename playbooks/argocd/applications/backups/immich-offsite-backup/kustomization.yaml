@@ -7,4 +7,4 @@ resources:
   - sa.yaml
   - configmap-scripts.yaml
   - cronjob-media-sync.yaml
-
+  - ../../../../../apps/immich/backup

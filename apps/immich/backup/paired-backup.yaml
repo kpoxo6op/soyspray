@@ -1,0 +1,146 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: immich-paired-backup
+spec:
+  schedule: "*/30 * * * *"
+  timeZone: UTC
+  suspend: true
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 3600
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 7200
+      ttlSecondsAfterFinished: 86400
+      template:
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          terminationGracePeriodSeconds: 30
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            fsGroup: 1000
+          affinity:
+            podAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                - labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/instance: immich
+                      app.kubernetes.io/name: server
+                  topologyKey: kubernetes.io/hostname
+          initContainers:
+            - name: script-bundle
+              image: immich-backup-scripts
+              imagePullPolicy: IfNotPresent
+              command: ["/bin/sh", "-c"]
+              args: ["cp -R /scripts/. /work/"]
+              volumeMounts:
+                - name: scripts
+                  mountPath: /work
+            - name: pg-dump
+              image: postgres:16.10-bookworm@sha256:38471f330eb885e04de130b768d6db4e10469e2311879c7e5c699f6d2d8a1c74
+              imagePullPolicy: IfNotPresent
+              command: ["/scripts/dump.sh"]
+              securityContext:
+                runAsUser: 1000
+                runAsGroup: 1000
+                allowPrivilegeEscalation: false
+              env:
+                - name: PGHOST
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-paired-backup
+                      key: PGHOST
+                - name: PGPORT
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-paired-backup
+                      key: PGPORT
+                - name: PGDATABASE
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-paired-backup
+                      key: PGDATABASE
+                - name: PGUSER
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-paired-backup
+                      key: PGUSER
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-paired-backup
+                      key: PGPASSWORD
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: backup
+                  mountPath: /backup
+          containers:
+            - name: restic-backup
+              image: restic/restic:0.18.1@sha256:39d9072fb5651c80d75c7a811612eb60b4c06b32ffe87c2e9f3c7222e1797e76
+              imagePullPolicy: IfNotPresent
+              command: ["/scripts/backup.sh"]
+              securityContext:
+                runAsUser: 1000
+                runAsGroup: 1000
+                allowPrivilegeEscalation: false
+              env:
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-paired-backup
+                      key: AWS_ACCESS_KEY_ID
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-paired-backup
+                      key: AWS_SECRET_ACCESS_KEY
+                - name: AWS_DEFAULT_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-paired-backup
+                      key: AWS_DEFAULT_REGION
+                - name: RESTIC_REPOSITORY
+                  valueFrom:
+                    secretKeyRef:
+                      name: immich-paired-backup
+                      key: RESTIC_REPOSITORY
+                - name: RESTIC_CACHE_DIR
+                  value: /backup/cache
+                - name: RESTIC_PASSWORD_FILE
+                  value: /run/secrets/restic-password
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: backup
+                  mountPath: /backup
+                - name: library
+                  mountPath: /usr/src/app/upload
+                  readOnly: true
+                - name: restic-password
+                  mountPath: /run/secrets/restic-password
+                  subPath: RESTIC_PASSWORD
+                  readOnly: true
+          volumes:
+            - name: scripts
+              emptyDir: {}
+            - name: backup
+              emptyDir: {}
+            - name: library
+              persistentVolumeClaim:
+                claimName: immich-library
+                readOnly: true
+            - name: restic-password
+              secret:
+                secretName: immich-paired-backup
+                items:
+                  - key: RESTIC_PASSWORD
+                    path: RESTIC_PASSWORD
