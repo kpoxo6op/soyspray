@@ -8,7 +8,9 @@ on:
   push:
     branches: [main]
     paths:
-      - "apps/node-backup/**"
+      - "apps/node-backup/Dockerfile"
+      - "apps/node-backup/.dockerignore"
+      - "apps/node-backup/scripts/**"
       - ".github/workflows/node-backup-image.yml"
   workflow_dispatch:
 
