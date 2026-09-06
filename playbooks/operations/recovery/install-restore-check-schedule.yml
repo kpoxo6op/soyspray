@@ -1,0 +1,75 @@
+---
+- name: Install the native laptop restore-check schedule
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    recovery_schedule_home: "{{ lookup('env', 'HOME') }}"
+    recovery_schedule_repo: "{{ (playbook_dir + '/../../..') | realpath }}"
+    recovery_schedule_unit_dir: "{{ recovery_schedule_home }}/.config/systemd/user"
+  tasks:
+    - name: Require the existing Soyspray checkout and user home
+      ansible.builtin.assert:
+        that:
+          - recovery_schedule_home is directory
+          - recovery_schedule_repo is directory
+          - (recovery_schedule_repo + '/scripts/restore_schedule.py') is file
+          - (recovery_schedule_repo + '/playbooks/operations/recovery/systemd/soyspray-restore-check.service.j2') is file
+          - (recovery_schedule_repo + '/playbooks/operations/recovery/systemd/soyspray-restore-check.timer.j2') is file
+
+    - name: Create the user unit directory
+      ansible.builtin.file:
+        path: "{{ recovery_schedule_unit_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Install the restore-check service
+      ansible.builtin.template:
+        src: systemd/soyspray-restore-check.service.j2
+        dest: "{{ recovery_schedule_unit_dir }}/soyspray-restore-check.service"
+        mode: "0644"
+
+    - name: Install the restore-check timer
+      ansible.builtin.template:
+        src: systemd/soyspray-restore-check.timer.j2
+        dest: "{{ recovery_schedule_unit_dir }}/soyspray-restore-check.timer"
+        mode: "0644"
+
+    - name: Validate installed unit files before enabling the timer
+      ansible.builtin.command:
+        argv:
+          - systemd-analyze
+          - --user
+          - verify
+          - "{{ recovery_schedule_unit_dir }}/soyspray-restore-check.service"
+          - "{{ recovery_schedule_unit_dir }}/soyspray-restore-check.timer"
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Reload the user systemd manager
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+        scope: user
+
+    - name: Set the requested monthly restore-check timer state
+      ansible.builtin.systemd_service:
+        name: soyspray-restore-check.timer
+        enabled: "{{ recovery_schedule_enabled | default(true) | bool }}"
+        state: "{{ 'started' if recovery_schedule_enabled | default(true) | bool else 'stopped' }}"
+        scope: user
+
+    - name: Start one requested schedule verification without blocking installation
+      ansible.builtin.systemd_service:
+        name: soyspray-restore-check.service
+        state: started
+        scope: user
+        no_block: true
+      when: recovery_schedule_run_now | default(false) | bool
+
+    - name: Stop the restore service when disabling its schedule
+      ansible.builtin.systemd_service:
+        name: soyspray-restore-check.service
+        state: stopped
+        scope: user
+      when: not (recovery_schedule_enabled | default(true) | bool)

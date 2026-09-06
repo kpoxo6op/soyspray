@@ -6,17 +6,12 @@ import hashlib
 import json
 import os
 import re
-import secrets
 import subprocess
 import sys
-import tempfile
-from datetime import datetime, timezone
 from pathlib import Path
 
-import yaml
-
 from scripts.backup_status import timestamp
-from scripts.restore_common import identity, require, save_report
+from scripts.restore_common import identity, require, run_restore
 from scripts.restore_common import select_backup as select_backup
 from scripts.restore_common import verify_binding as verify_binding
 
@@ -51,265 +46,125 @@ def main():
     )
     args = parser.parse_args()
     os.umask(0o077)
-    started = datetime.now(timezone.utc)
-    check_id = started.strftime("%Y%m%d%H%M%S") + "-" + secrets.token_hex(2)
-    state = (
-        Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
-        / "soyspray/restores/boys"
-    )
-    output = state / check_id
-    report = {
-        "schema_version": 1,
-        "app": "boys",
-        "check_id": check_id,
-        "started_at": started.isoformat(),
-        "status": "running",
-        "cleanup": "not started",
-    }
-    created_output = False
-    operation_started = False
-    stage = "preflight"
-    try:
-        require(
-            not output.resolve().is_relative_to(ROOT),
-            "Restore evidence must stay outside the checkout.",
+
+    def worker(operation):
+        operation.stage = "backup and identity selection"
+        claim = operation.kube("-n", "boys", "get", "pvc", "boys-data")
+        volume = operation.kube("get", "pv", claim["spec"]["volumeName"])
+        verify_binding(claim, volume)
+        backup = select_backup(
+            operation.kube("-n", "longhorn-system", "get", "backups.longhorn.io")["items"],
+            claim["spec"]["volumeName"],
+            operation.now(),
+            args.backup,
         )
-        output.mkdir(mode=0o700, parents=True)
-        created_output = True
-        state.chmod(0o700)
-        save_report(output, report)
-        print(f"Checking Boys recovery. Private logs: {output}", flush=True)
-        with (output / "preflight.log").open("w") as log:
-            subprocess.run(
-                ["make", "go"],
-                cwd=ROOT,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                check=True,
-                timeout=1200,
-            )
-        report["git_revision"] = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True
-        ).strip()
-        for path in (args.vault_file, args.vault_password_file):
+        point = timestamp(backup["status"]["snapshotCreatedAt"])
+        operation.report["backup"] = {
+            "name": backup["metadata"]["name"],
+            "uid": backup["metadata"]["uid"],
+            "recovery_point": point.isoformat(),
+            "age_at_selection_seconds": int((operation.now() - point).total_seconds()),
+        }
+        operation.report["source_claim_uid"] = claim["metadata"]["uid"]
+        operation.report["source_volume_uid"] = volume["metadata"]["uid"]
+        runtime_secret = operation.kube("-n", "boys", "get", "secret", "boys-runtime")
+        inputs = runtime_values(operation.vault(), runtime_secret)
+        secret_hash = hashlib.sha256(
+            json.dumps(runtime_secret["data"], sort_keys=True).encode()
+        ).hexdigest()
+        deployment = operation.kube("-n", "boys", "get", "deployment", "boys")
+        require(
+            deployment["spec"].get("replicas") == 1
+            and deployment["spec"].get("strategy", {}).get("type") == "Recreate",
+            "Boys must retain its single-writer deployment.",
+        )
+        pods = operation.kube("-n", "boys", "get", "pods", "-l", "boys-component=web")["items"]
+        require(
+            len(pods) == 1 and not pods[0]["metadata"].get("deletionTimestamp"),
+            "Boys has no single stable runtime pod.",
+        )
+        pod = pods[0]
+        container = next(item for item in pod["spec"]["containers"] if item["name"] == "web")
+        running = next(item for item in pod["status"]["containerStatuses"] if item["name"] == "web")
+        image = container["image"]
+        require(
+            re.fullmatch(r"ghcr.io/kpoxo6op/boys@sha256:[0-9a-f]{64}", image)
+            and running.get("ready")
+            and running.get("imageID", "").endswith(image.split("@", 1)[1]),
+            "The Boys pod has not confirmed its pinned running image.",
+        )
+        operation.report["image"] = image
+        namespace = "restore-boys-" + operation.check_id
+        variables = {
+            "recovery_app": "boys",
+            "recovery_check_id": operation.check_id,
+            "recovery_backup_name": backup["metadata"]["name"],
+            "recovery_expected_claim_uid": claim["metadata"]["uid"],
+            "recovery_expected_backup_uid": backup["metadata"]["uid"],
+        }
+        with operation.isolated_restore(namespace, variables):
+            operation.stage = "isolated Longhorn restore"
+            operation.ansible("restore-volume.yml", variables, "restore.log")
+            restored = operation.kube("-n", namespace, "get", "pvc", "restored-data")
             require(
-                path.is_file() and not path.resolve().is_relative_to(ROOT),
-                "Use existing off-cluster Vault inputs and password files outside this checkout.",
+                restored["metadata"]["uid"] != claim["metadata"]["uid"]
+                and restored["spec"]["volumeName"] != claim["spec"]["volumeName"],
+                "The restore did not use an isolated claim and volume.",
             )
-        require(
-            args.vault_file.read_bytes().startswith(b"$ANSIBLE_VAULT;"),
-            "The Boys input file must use Ansible Vault encryption.",
-        )
-        with tempfile.TemporaryDirectory(prefix="working-", dir=output) as directory:
-            work = Path(directory)
-            config = subprocess.check_output(
-                ["kubectl", "config", "view", "--raw", "--minify", "--flatten", "-o", "json"],
-                timeout=20,
-                stderr=subprocess.PIPE,
-            )
-            kubeconfig = work / "kubeconfig.json"
-            kubeconfig.write_bytes(config)
-            env = {**os.environ, "KUBECONFIG": str(kubeconfig)}
-
-            def kube(*args):
-                return json.loads(
-                    subprocess.check_output(
-                        ["kubectl", "--request-timeout=15s", *args, "-o", "json"],
-                        env=env,
-                        stderr=subprocess.PIPE,
-                        timeout=30,
-                    )
-                )
-
-            stage = "backup and identity selection"
-            claim = kube("-n", "boys", "get", "pvc", "boys-data")
-            volume = kube("get", "pv", claim["spec"]["volumeName"])
-            verify_binding(claim, volume)
-            backup = select_backup(
-                kube("-n", "longhorn-system", "get", "backups.longhorn.io")["items"],
-                claim["spec"]["volumeName"],
-                datetime.now(timezone.utc),
-                args.backup,
-            )
-            point = timestamp(backup["status"]["snapshotCreatedAt"])
-            report["backup"] = {
-                "name": backup["metadata"]["name"],
-                "uid": backup["metadata"]["uid"],
-                "recovery_point": point.isoformat(),
-                "age_at_selection_seconds": int(
-                    (datetime.now(timezone.utc) - point).total_seconds()
-                ),
-            }
-            report["source_claim_uid"] = claim["metadata"]["uid"]
-            report["source_volume_uid"] = volume["metadata"]["uid"]
-            runtime_secret = kube("-n", "boys", "get", "secret", "boys-runtime")
-            archived = yaml.safe_load(
-                subprocess.check_output(
-                    [
-                        str(ROOT / "soyspray-venv/bin/ansible-vault"),
-                        "view",
-                        "--vault-password-file",
-                        str(args.vault_password_file.resolve()),
-                        str(args.vault_file.resolve()),
-                    ],
+            operation.report["restored_claim_uid"] = restored["metadata"]["uid"]
+            operation.stage = "copy restored data and deployed runtime"
+            for source, target, container_name in (
+                (f"{namespace}/inspect:/data", operation.work / "data", "inspect"),
+                (f"boys/{pod['metadata']['name']}:/app", operation.work / "runtime", "web"),
+            ):
+                operation.run(
+                    ["kubectl", "cp", "--retries=3", "-c", container_name, source, str(target)],
+                    stdout=subprocess.DEVNULL,
                     stderr=subprocess.PIPE,
-                    timeout=30,
+                    check=True,
+                    timeout=300,
                 )
+            operation.stage = "restored application data checks"
+            checked = operation.run(
+                [
+                    sys.executable,
+                    str(ROOT / "apps/boys/check_restore.py"),
+                    "--database",
+                    str(operation.work / "data/boys.sqlite3"),
+                    "--runtime",
+                    str(operation.work / "runtime"),
+                ],
+                input=json.dumps(inputs),
+                capture_output=True,
+                text=True,
+                timeout=120,
             )
-            inputs = runtime_values(archived, runtime_secret)
-            secret_hash = hashlib.sha256(
-                json.dumps(runtime_secret["data"], sort_keys=True).encode()
-            ).hexdigest()
-            deployment = kube("-n", "boys", "get", "deployment", "boys")
+            operation.report["data"] = json.loads(checked.stdout)
             require(
-                deployment["spec"].get("replicas") == 1
-                and deployment["spec"].get("strategy", {}).get("type") == "Recreate",
-                "Boys must retain its single-writer deployment.",
+                checked.returncode == 0 and operation.report["data"].get("data_checks") == "passed",
+                "The restored application data check failed.",
             )
-            pods = kube("-n", "boys", "get", "pods", "-l", "boys-component=web")["items"]
+            operation.stage = "original resource verification"
             require(
-                len(pods) == 1 and not pods[0]["metadata"].get("deletionTimestamp"),
-                "Boys has no single stable runtime pod.",
+                identity(operation.kube("-n", "boys", "get", "pvc", "boys-data")) == identity(claim)
+                and identity(operation.kube("get", "pv", claim["spec"]["volumeName"]))
+                == identity(volume)
+                and identity(operation.kube("-n", "boys", "get", "deployment", "boys"))
+                == identity(deployment),
+                "The original Boys claim, volume, or deployment changed during the check.",
             )
-            pod = pods[0]
-            container = next(item for item in pod["spec"]["containers"] if item["name"] == "web")
-            running = next(
-                item for item in pod["status"]["containerStatuses"] if item["name"] == "web"
-            )
-            image = container["image"]
+            current_secret = operation.kube("-n", "boys", "get", "secret", "boys-runtime")
             require(
-                re.fullmatch(r"ghcr.io/kpoxo6op/boys@sha256:[0-9a-f]{64}", image)
-                and running.get("ready")
-                and running.get("imageID", "").endswith(image.split("@", 1)[1]),
-                "The Boys pod has not confirmed its pinned running image.",
+                current_secret["metadata"]["uid"] == runtime_secret["metadata"]["uid"]
+                and hashlib.sha256(
+                    json.dumps(current_secret["data"], sort_keys=True).encode()
+                ).hexdigest()
+                == secret_hash,
+                "The Boys runtime identity changed during the check.",
             )
-            report["image"] = image
-            namespace = "restore-boys-" + check_id
-            variables = {
-                "recovery_app": "boys",
-                "recovery_check_id": check_id,
-                "recovery_backup_name": backup["metadata"]["name"],
-                "recovery_expected_claim_uid": claim["metadata"]["uid"],
-                "recovery_expected_backup_uid": backup["metadata"]["uid"],
-            }
+            operation.report["original_resources"] = "unchanged"
 
-            def ansible(playbook, log_name):
-                with (output / log_name).open("w") as log:
-                    subprocess.run(
-                        [
-                            str(ROOT / "soyspray-venv/bin/ansible-playbook"),
-                            "-i",
-                            "kubespray/inventory/soycluster/hosts.yml",
-                            "--become",
-                            "--become-user=root",
-                            "--user",
-                            "ubuntu",
-                            "playbooks/operations/recovery/" + playbook,
-                            "-e",
-                            json.dumps(variables),
-                        ],
-                        cwd=ROOT,
-                        stdout=log,
-                        stderr=subprocess.STDOUT,
-                        check=True,
-                        timeout=3600,
-                    )
-
-            try:
-                stage = "isolated Longhorn restore"
-                operation_started = True
-                report["scratch_namespace"] = namespace
-                report["cleanup"] = "pending"
-                save_report(output, report)
-                print(f"Restoring {report['backup']['name']} into {namespace}.", flush=True)
-                ansible("restore-volume.yml", "restore.log")
-                restored = kube("-n", namespace, "get", "pvc", "restored-data")
-                require(
-                    restored["metadata"]["uid"] != claim["metadata"]["uid"]
-                    and restored["spec"]["volumeName"] != claim["spec"]["volumeName"],
-                    "The restore did not use an isolated claim and volume.",
-                )
-                report["restored_claim_uid"] = restored["metadata"]["uid"]
-                stage = "copy restored data and deployed runtime"
-                for source, target, container_name in (
-                    (f"{namespace}/inspect:/data", work / "data", "inspect"),
-                    (f"boys/{pod['metadata']['name']}:/app", work / "runtime", "web"),
-                ):
-                    subprocess.run(
-                        ["kubectl", "cp", "--retries=3", "-c", container_name, source, str(target)],
-                        env=env,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.PIPE,
-                        check=True,
-                        timeout=300,
-                    )
-                stage = "restored application data checks"
-                checked = subprocess.run(
-                    [
-                        sys.executable,
-                        str(ROOT / "apps/boys/check_restore.py"),
-                        "--database",
-                        str(work / "data/boys.sqlite3"),
-                        "--runtime",
-                        str(work / "runtime"),
-                    ],
-                    input=json.dumps(inputs),
-                    capture_output=True,
-                    text=True,
-                    timeout=120,
-                )
-                report["data"] = json.loads(checked.stdout)
-                require(
-                    checked.returncode == 0 and report["data"].get("data_checks") == "passed",
-                    "The restored application data check failed.",
-                )
-                stage = "original resource verification"
-                require(
-                    identity(kube("-n", "boys", "get", "pvc", "boys-data")) == identity(claim)
-                    and identity(kube("get", "pv", claim["spec"]["volumeName"])) == identity(volume)
-                    and identity(kube("-n", "boys", "get", "deployment", "boys"))
-                    == identity(deployment),
-                    "The original Boys claim, volume, or deployment changed during the check.",
-                )
-                current_secret = kube("-n", "boys", "get", "secret", "boys-runtime")
-                require(
-                    current_secret["metadata"]["uid"] == runtime_secret["metadata"]["uid"]
-                    and hashlib.sha256(
-                        json.dumps(current_secret["data"], sort_keys=True).encode()
-                    ).hexdigest()
-                    == secret_hash,
-                    "The Boys runtime identity changed during the check.",
-                )
-                report["original_resources"] = "unchanged"
-            finally:
-                if operation_started:
-                    try:
-                        ansible("cleanup-restore.yml", "cleanup.log")
-                        report["cleanup"] = "completed"
-                    except Exception:
-                        stage = "isolated resource cleanup"
-                        report["cleanup"] = "failed - inspect the guarded cleanup log"
-                        raise
-        report["status"] = "passed"
-    except Exception as error:
-        report["status"] = "failed"
-        report["failed_stage"] = stage
-        if isinstance(error, ValueError):
-            report["cause"] = str(error)
-        elif isinstance(error, subprocess.CalledProcessError):
-            report["cause"] = f"{Path(error.cmd[0]).name} failed with exit {error.returncode}."
-        elif isinstance(error, subprocess.TimeoutExpired):
-            report["cause"] = f"{Path(error.cmd[0]).name} exceeded its time limit."
-        elif isinstance(error, OSError):
-            report["cause"] = error.strerror
-        else:
-            report["cause"] = "The operation did not complete because of an unexpected local error."
-    report["finished_at"] = datetime.now(timezone.utc).isoformat()
-    report["duration_seconds"] = int((datetime.now(timezone.utc) - started).total_seconds())
-    if created_output:
-        save_report(output, report)
-    print(json.dumps(report, indent=2))
-    return 0 if report["status"] == "passed" else 2
+    return run_restore("boys", ROOT, args.vault_file, args.vault_password_file, worker)
 
 
 if __name__ == "__main__":

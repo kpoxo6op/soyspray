@@ -140,3 +140,5 @@ No response bodies, screenshots, traces, cookies, or personal names are saved.
 Use the installed app browser dependencies from `make setup`. The existing local
 and image tests verify writes and claim races against disposable data; they do
 not prove an existing human session works against the live service.
+
+Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. The [monthly restore schedule](../../playbooks/operations/recovery/README.md) runs the same maintained command and validates its report.

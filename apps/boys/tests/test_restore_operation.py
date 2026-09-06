@@ -130,16 +130,21 @@ def test_native_operations_reject_changed_identities_before_restore_or_cleanup(p
         ) is (value == "expected")
 
 
-@pytest.mark.parametrize("failure", [None, "preflight", "restore", "data", "original", "cleanup"])
+@pytest.mark.parametrize(
+    "failure",
+    [None, "preflight", "restore", "interrupt", "sigterm", "data", "original", "cleanup"],
+)
 def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_success(
     tmp_path, monkeypatch, capsys, failure
 ):
     import json
     import os
+    import signal
     import subprocess
     import sys
 
     from apps.boys import restore_check
+    from scripts import restore_common
 
     root = tmp_path / "checkout"
     root.mkdir()
@@ -231,11 +236,19 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
             if failure == "preflight":
                 raise subprocess.CalledProcessError(2, args)
         elif str(args[0]).endswith("ansible-playbook"):
-            variables = json.loads(args[-1])
+            assert Path(kwargs["env"]["KUBECONFIG"]).is_file()
+            assert args[-1].startswith("@")
+            private = Path(args[-1][1:])
+            assert private.stat().st_mode & 0o777 == 0o600
+            variables = json.loads(private.read_text())
             assert variables["recovery_expected_claim_uid"] == "claim-uid"
             assert variables["recovery_expected_backup_uid"] == "backup-uid"
             action = "cleanup" if "cleanup-restore.yml" in args[-3] else "restore"
             operations.append(action)
+            if failure == "interrupt" and action == "restore":
+                raise KeyboardInterrupt
+            if failure == "sigterm" and action == "restore":
+                os.kill(os.getpid(), signal.SIGTERM)
             if failure == action:
                 raise subprocess.CalledProcessError(2, args)
         elif args[0] == sys.executable:
@@ -252,8 +265,8 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
             assert args[:2] == ["kubectl", "cp"]
         return subprocess.CompletedProcess(args, 0)
 
-    monkeypatch.setattr(restore_check.subprocess, "check_output", read)
-    monkeypatch.setattr(restore_check.subprocess, "run", run)
+    monkeypatch.setattr(restore_common, "capture_output", read)
+    monkeypatch.setattr(restore_common, "run_process", run)
     old_umask = os.umask(0o077)
     try:
         code = restore_check.main()
@@ -275,6 +288,57 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
     )
     assert not list(reports[0].parent.glob("working-*"))
     assert "synthetic-identity-with-no-live-access" not in capsys.readouterr().out
+
+
+def test_run_process_timeout_stops_the_child_process_group(tmp_path):
+    import os
+    import subprocess
+    import sys
+    import time
+
+    from scripts import restore_common
+
+    pid_file = tmp_path / "child.pid"
+    script = (
+        "import pathlib, subprocess, sys, time; "
+        f"child = subprocess.Popen([sys.executable, '-c', "
+        "'import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)']); "
+        f"pathlib.Path({str(pid_file)!r}).write_text(str(child.pid)); "
+        "time.sleep(60)"
+    )
+    with pytest.raises(subprocess.TimeoutExpired):
+        restore_common.run_process([sys.executable, "-c", script], timeout=1)
+    child_pid = int(pid_file.read_text())
+    for _ in range(40):
+        try:
+            os.kill(child_pid, 0)
+        except ProcessLookupError:
+            break
+        time.sleep(0.05)
+    else:
+        pytest.fail("The child process survived timeout cleanup.")
+
+
+def test_finish_reports_workspace_cleanup_failure_and_closes_lock(tmp_path):
+    from scripts import restore_common
+
+    operation = restore_common.RestoreOperation("boys", tmp_path, tmp_path / "vault", tmp_path)
+    operation.output = tmp_path / "report"
+    operation.output.mkdir(mode=0o700)
+    operation.created_output = True
+    lock_path = operation.output / ".lock"
+    operation.lock = lock_path.open("a+")
+
+    class FailedWorkspace:
+        def cleanup(self):
+            raise RuntimeError("synthetic workspace cleanup failure")
+
+    operation.workspace = FailedWorkspace()
+    assert operation.finish() == 2
+    report = yaml.safe_load((operation.output / "report.json").read_text())
+    assert report["status"] == "failed"
+    assert report["failed_stage"] == "private workspace cleanup"
+    assert operation.lock.closed
 
 
 @pytest.mark.parametrize(

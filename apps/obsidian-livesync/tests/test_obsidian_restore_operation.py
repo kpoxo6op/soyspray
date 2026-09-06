@@ -8,7 +8,7 @@ import yaml
 
 
 @pytest.mark.parametrize(
-    "failure", [None, "preflight", "restore", "data", "start", "original", "cleanup"]
+    "failure", [None, "preflight", "restore", "interrupt", "data", "start", "original", "cleanup"]
 )
 def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_success(
     tmp_path, monkeypatch, capsys, failure
@@ -19,6 +19,7 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
     import sys
 
     restore_check = importlib.import_module("apps.obsidian-livesync.restore_check")
+    from scripts import restore_common
 
     root = tmp_path / "checkout"
     root.mkdir()
@@ -132,6 +133,7 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
             if failure == "preflight":
                 raise subprocess.CalledProcessError(2, args)
         elif str(args[0]).endswith("ansible-playbook"):
+            assert Path(kwargs["env"]["KUBECONFIG"]).is_file()
             assert args[-1].startswith("@")
             private = Path(args[-1][1:])
             assert private.stat().st_mode & 0o777 == 0o600
@@ -148,6 +150,8 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
                 else "restore"
             )
             operations.append(action)
+            if failure == "interrupt" and action == "restore":
+                raise KeyboardInterrupt
             if failure == action:
                 raise subprocess.CalledProcessError(2, args)
         return subprocess.CompletedProcess(args, 0)
@@ -159,8 +163,8 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
         return {"couchdb_authenticated_read": True, "readable_plain_notes": 1}
 
     monkeypatch.setattr(restore_check, "check_restored_notes", check_notes)
-    monkeypatch.setattr(restore_check.subprocess, "check_output", read)
-    monkeypatch.setattr(restore_check.subprocess, "run", run)
+    monkeypatch.setattr(restore_common, "capture_output", read)
+    monkeypatch.setattr(restore_common, "run_process", run)
     old_umask = os.umask(0o077)
     try:
         code = restore_check.main()
@@ -176,7 +180,7 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
         []
         if failure == "preflight"
         else ["restore", "cleanup"]
-        if failure == "restore"
+        if failure in {"restore", "interrupt"}
         else ["restore", "start", "cleanup"]
     )
     assert report["cleanup"] == (

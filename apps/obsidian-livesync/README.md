@@ -88,3 +88,5 @@ the guarded cleanup operation with the report's check ID.
 `make smoke APP=obsidian-livesync` remains unknown until a maintained command
 covers the client sync journey. A successful upload or isolated database read
 does not prove two-client sync, attachment recovery, or seven-day recovery-point age.
+
+Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. The [monthly restore schedule](../../playbooks/operations/recovery/README.md) runs the same maintained command and validates its report.
