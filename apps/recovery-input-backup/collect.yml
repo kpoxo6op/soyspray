@@ -1,0 +1,20 @@
+---
+- name: Collect the explicit node configuration files without changing them
+  hosts: kube_node
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Require the intended nodes and private local destination
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname in ['node-0', 'node-1', 'node-2']
+          - recovery_input_stage is match('^/home/boris/.local/state/soyspray/recovery-input-backup/')
+
+    - name: Fetch the declared configuration files
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "{{ recovery_input_stage }}/nodes/{{ inventory_hostname }}/{{ item | basename }}"
+        flat: true
+        validate_checksum: true
+      loop: [/etc/fstab, /etc/hostname, /etc/hosts, /etc/netplan/50-cloud-init.yaml]
+      no_log: true

@@ -1,0 +1,67 @@
+---
+- name: Install the native daily recovery-input backup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    recovery_inputs_checkout: "{{ (playbook_dir + '/../..') | realpath }}"
+    recovery_inputs_home: "{{ lookup('env', 'HOME') }}"
+    recovery_inputs_run_now: false
+  tasks:
+    - name: Create the private state and user service directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0700'
+      loop:
+        - "{{ recovery_inputs_home }}/.local/state/soyspray/recovery-input-backup"
+        - "{{ recovery_inputs_home }}/.config/systemd/user"
+
+    - name: Install the bounded backup service
+      ansible.builtin.copy:
+        dest: "{{ recovery_inputs_home }}/.config/systemd/user/soyspray-recovery-input-backup.service"
+        mode: '0600'
+        content: |
+          [Unit]
+          Description=Back up and restore-check Soyspray node configuration and unique voice models
+          [Service]
+          Type=oneshot
+          WorkingDirectory={{ recovery_inputs_checkout }}
+          ExecStart=/usr/bin/flock --nonblock \
+            {{ recovery_inputs_home }}/.local/state/soyspray/recovery-input-backup/.lock \
+            {{ recovery_inputs_checkout }}/soyspray-venv/bin/python \
+            {{ recovery_inputs_checkout }}/apps/recovery-input-backup/backup.py
+          TimeoutStartSec=30min
+          KillMode=control-group
+          UMask=0077
+          NoNewPrivileges=true
+
+    - name: Install the daily persistent timer
+      ansible.builtin.copy:
+        dest: "{{ recovery_inputs_home }}/.config/systemd/user/soyspray-recovery-input-backup.timer"
+        mode: '0600'
+        content: |
+          [Unit]
+          Description=Daily Soyspray recovery-input backup
+          [Timer]
+          OnCalendar=*-*-* 03:15:00 Pacific/Auckland
+          Persistent=true
+          [Install]
+          WantedBy=timers.target
+
+    - name: Enable the daily timer
+      ansible.builtin.systemd_service:
+        name: soyspray-recovery-input-backup.timer
+        scope: user
+        daemon_reload: true
+        enabled: true
+        state: started
+      when: not ansible_check_mode
+
+    - name: Run the maintained service now when requested
+      ansible.builtin.systemd_service:
+        name: soyspray-recovery-input-backup.service
+        scope: user
+        state: started
+      when: recovery_inputs_run_now | bool and not ansible_check_mode
