@@ -52,3 +52,14 @@ python3 playbooks/argocd/applications/database/cnpg/plugin-barman-cloud/tests/te
 The ObjectStores and their CRD use `Prune=false,Delete=false`. Removing the
 Application or a Git path must not cascade through the archive configuration.
 The upstream manifest stays unchanged; Kustomize adds the CRD protection.
+
+Deploy the pushed plugin branch with the standard inventory and privilege
+options, after `make go`:
+
+```sh
+ansible-playbook playbooks/deploy-argocd-apps.yml --tags cnpg-operator \
+  -e cnpg_operator_revision=codex/cnpg-barman-plugin
+```
+
+After merge, run the same command with `cnpg_operator_revision=HEAD`. Verify
+both source revisions and plugin health. Database migrations are separate.
