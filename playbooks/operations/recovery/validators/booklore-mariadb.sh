@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-mariadbd --no-defaults --datadir=/data/databases --socket=/tmp/mysql.sock --pid-file=/tmp/mysql.pid --skip-networking --skip-grant-tables --log-error=/tmp/mysql.log &
+mariadbd --no-defaults --datadir=/data/databases --socket=/tmp/mysql.sock --pid-file=/tmp/mysql.pid --skip-networking --skip-grant-tables &
 pid=$!
 trap 'kill "$pid" 2>/dev/null || true; wait "$pid" || true' EXIT
 for n in $(seq 1 60); do mariadb-admin --no-defaults --socket=/tmp/mysql.sock ping >/dev/null 2>&1 && break; kill -0 "$pid"; sleep 2; done
