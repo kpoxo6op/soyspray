@@ -138,7 +138,8 @@ def test_native_restore_accepts_only_pinned_stock_images(image, accepted):
 
 
 @pytest.mark.parametrize(
-    "failure", [None, "preflight", "restore", "data", "start", "login", "original", "cleanup"]
+    "failure",
+    [None, "preflight", "restore", "interrupt", "data", "start", "login", "original", "cleanup"],
 )
 def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_success(
     tmp_path, monkeypatch, capsys, failure
@@ -149,6 +150,7 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
     import sys
 
     from apps.vaultwarden import restore_check
+    from scripts import restore_common
 
     root = tmp_path / "checkout"
     root.mkdir()
@@ -254,7 +256,11 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
             if failure == "preflight":
                 raise subprocess.CalledProcessError(2, args)
         elif str(args[0]).endswith("ansible-playbook"):
-            variables = json.loads(args[-1])
+            assert Path(kwargs["env"]["KUBECONFIG"]).is_file()
+            assert args[-1].startswith("@")
+            private = Path(args[-1][1:])
+            assert private.stat().st_mode & 0o777 == 0o600
+            variables = json.loads(private.read_text())
             assert variables["recovery_expected_claim_uid"] == "claim-uid"
             assert variables["recovery_expected_backup_uid"] == "backup-uid"
             action = (
@@ -265,6 +271,8 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
                 else "restore"
             )
             operations.append(action)
+            if failure == "interrupt" and action == "restore":
+                raise KeyboardInterrupt
             if failure == action:
                 raise subprocess.CalledProcessError(2, args)
         elif args[0] == "openssl":
@@ -285,8 +293,8 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
 
     monkeypatch.setattr(restore_check, "check_data", data)
     monkeypatch.setattr(restore_check, "check_login", login)
-    monkeypatch.setattr(restore_check.subprocess, "check_output", read)
-    monkeypatch.setattr(restore_check.subprocess, "run", run)
+    monkeypatch.setattr(restore_common, "capture_output", read)
+    monkeypatch.setattr(restore_common, "run_process", run)
     old_umask = os.umask(0o077)
     try:
         code = restore_check.main()
@@ -302,7 +310,7 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
         []
         if failure == "preflight"
         else ["restore", "cleanup"]
-        if failure in {"restore", "data"}
+        if failure in {"restore", "interrupt", "data"}
         else ["restore", "start", "cleanup"]
     )
     assert report["cleanup"] == (
