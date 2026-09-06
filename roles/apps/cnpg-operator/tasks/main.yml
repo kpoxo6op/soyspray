@@ -1,8 +1,13 @@
 ---
+- name: Read the CNPG Application source
+  ansible.builtin.set_fact:
+    cnpg_operator_application: "{{ lookup('file', playbook_dir + '/argocd/applications/database/cnpg/cnpg-operator-application.yaml') | from_yaml }}"
+  tags: cnpg-operator
+
 - name: Apply CNPG Operator
   kubernetes.core.k8s:
     state: present
     kubeconfig: "{{ kubeconfig_path }}"
     namespace: argocd
-    definition: "{{ lookup('file', playbook_dir + '/argocd/applications/database/cnpg/cnpg-operator-application.yaml') }}"
+    definition: "{{ cnpg_operator_application | combine({'spec': {'sources': [cnpg_operator_application.spec.sources[0], cnpg_operator_application.spec.sources[1] | combine({'targetRevision': cnpg_operator_revision | default('HEAD')})]}}, recursive=True) }}"
   tags: cnpg-operator
