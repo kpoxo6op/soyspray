@@ -30,6 +30,7 @@ spec:
               counts="$(psql --host immich-db-restore-rw --port 5432 --username {{ recovery_db_username }} --dbname immich --tuples-only --no-align --command
               'SELECT (SELECT count(*) FROM asset) || chr(44) || (SELECT count(*) FROM album) || chr(44) || (SELECT count(*) FROM public."user");')";
               test "$counts" = "{{ recovery_expected_asset_count }},{{ recovery_expected_album_count }},{{ recovery_expected_user_count }}";
+              psql --host immich-db-restore-rw --username {{ recovery_db_username }} --dbname immich -v ON_ERROR_STOP=1 --command 'ALTER ROLE {{ recovery_db_username }} NOSUPERUSER';
               printf 'database_counts=%s\n' "$counts"
           volumeMounts:
             - {name: restored-data, mountPath: /restore, readOnly: true}

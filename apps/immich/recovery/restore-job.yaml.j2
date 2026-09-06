@@ -25,15 +25,15 @@ spec:
             - >-
               set -eu;
               mkdir -p /restore/backup;
-              snapshot="$(restic snapshots --json --host {{ recovery_snapshot_host }} --tag {{ recovery_snapshot_tag }} --latest 1)";
-              id="$(printf '%s' "$snapshot" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')";
-              snapshot_time="$(printf '%s' "$snapshot" | sed -n 's/.*"time"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')";
-              test -n "$id";
-              test -n "$snapshot_time";
+              snapshot="$(restic snapshots --json --host {{ recovery_snapshot_host }} --tag {{ recovery_snapshot_tag }} | jq -ec '[.[] | select((.tags | index("pending")) == null)] | sort_by(.time) | last | select(. != null)')";
+              id="$(printf '%s' "$snapshot" | jq -er .id)";
+              snapshot_time="$(printf '%s' "$snapshot" | jq -er .time)";
               restic restore --verify "$id" --target /restore;
               test -s /restore/backup/database/immich.dump;
               test -s /restore/backup/database/started-at;
               for path in upload library profile; do test -d "/restore/usr/src/app/upload/$path"; done;
+              dump_time="$(cat /restore/backup/database/started-at | tr ' ' T)Z";
+              test "$snapshot_time" = "$dump_time";
               printf 'snapshot_id=%s snapshot_time=%s\n' "$id" "$snapshot_time"
           env:
             - {name: AWS_ACCESS_KEY_ID, valueFrom: {secretKeyRef: {name: immich-restore-inputs, key: AWS_ACCESS_KEY_ID}}}
