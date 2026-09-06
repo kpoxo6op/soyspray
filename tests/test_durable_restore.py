@@ -96,3 +96,14 @@ def test_daily_inspector_reads_mixed_owners_without_changing_critical_pods(app, 
         {"drop": ["ALL"], "add": ["DAC_READ_SEARCH"]} if read_only else {"drop": ["ALL"]}
     )
     assert mount["readOnly"] is read_only
+
+
+def test_mariadb_uses_the_writable_temporary_mount():
+    import shlex
+
+    command = (
+        (ROOT / "playbooks/operations/recovery/validators/booklore-mariadb.sh")
+        .read_text()
+        .splitlines()[2]
+    )
+    assert "--tmpdir=/tmp" in shlex.split(command)
