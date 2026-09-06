@@ -1,0 +1,46 @@
+recovery_claims:
+  boys:
+    namespace: boys
+    claim: boys-data
+  vaultwarden:
+    namespace: vaultwarden
+    claim: vaultwarden-data
+  obsidian:
+    namespace: obsidian
+    claim: obsidian-livesync-couchdb-rescue-longhorn
+  dispatcharr-data:
+    namespace: media
+    claim: dispatcharr-data
+  zigbee2mqtt-data:
+    namespace: home-automation
+    claim: zigbee2mqtt-data
+  booklore-data:
+    namespace: media
+    claim: booklore-data
+  home-assistant-config:
+    namespace: home-automation
+    claim: home-assistant-config
+  booklore-config:
+    namespace: media
+    claim: booklore-config
+  qbittorrent-config:
+    namespace: media
+    claim: qbittorrent-config
+  booklore-mariadb:
+    namespace: media
+    claim: booklore-mariadb
+  mosquitto-data:
+    namespace: home-automation
+    claim: mosquitto-data
+  jellyfin-config-v2:
+    namespace: media
+    claim: jellyfin-config-v2
+  redis-data-redis-master-0:
+    namespace: redis
+    claim: redis-data-redis-master-0
+  lazylibrarian-books:
+    namespace: media
+    claim: lazylibrarian-books
+  lazylibrarian-config:
+    namespace: media
+    claim: lazylibrarian-config

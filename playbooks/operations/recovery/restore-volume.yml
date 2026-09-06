@@ -3,12 +3,9 @@
   hosts: kube_control_plane[0]
   gather_facts: false
   become: true
+  vars_files: [recovery-claims.yml]
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
-    recovery_claims:
-      boys: boys-data
-      vaultwarden: vaultwarden-data
-      obsidian: obsidian-livesync-couchdb-rescue-longhorn
     recovery_scratch: "restore-{{ recovery_app }}-{{ recovery_check_id }}"
     recovery_labels:
       soyspray.vip/purpose: restore-check
@@ -26,8 +23,8 @@
       kubernetes.core.k8s_info:
         api_version: v1
         kind: PersistentVolumeClaim
-        namespace: "{{ recovery_app }}"
-        name: "{{ recovery_claims[recovery_app] }}"
+        namespace: "{{ recovery_claims[recovery_app].namespace }}"
+        name: "{{ recovery_claims[recovery_app].claim }}"
         kubeconfig: "{{ kubeconfig_path }}"
       register: recovery_original
 
@@ -169,12 +166,14 @@
                 securityContext:
                   allowPrivilegeEscalation: false
                   readOnlyRootFilesystem: true
-                  capabilities: {drop: [ALL]}
+                  capabilities: >-
+                    {{ {'drop': ['ALL']} | combine(
+                       {'add': ['DAC_READ_SEARCH']} if recovery_app not in ['boys', 'vaultwarden', 'obsidian'] else {}) }}
                 resources:
                   requests: {cpu: 10m, memory: 32Mi}
                   limits: {cpu: 500m, memory: 256Mi}
                 volumeMounts:
-                  - {name: data, mountPath: /data}
+                  - "{{ {'name': 'data', 'mountPath': '/data', 'readOnly': recovery_app not in ['boys', 'vaultwarden', 'obsidian']} }}"
             volumes:
               - name: data
                 persistentVolumeClaim: {claimName: restored-data}
