@@ -15,8 +15,9 @@ The procedure selects the newest Restic snapshot with host `immich` and tag
 `restore-candidate`. It runs `restic restore --verify` into a new Longhorn PVC
 and checks the dump plus the `upload`, `library`, and `profile` trees. It
 restores the dump into a fresh CNPG database with a dedicated owner that can
-create the required extensions, then checks the real `asset`, `album`, and
-`user` counts. The isolated server uses the production database image and
+create the required extensions, then compares the restored database file references with the paired manifest
+and checks that every referenced file exists. The report records actual asset,
+album, and user counts. The isolated server uses the production database image and
 Immich `v2.3.1`, plus Redis `8.2.1`.
 
 The playbook records production Deployment, PVC, database Service, CNPG
@@ -33,6 +34,5 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
 ```
 
 A successful isolated check does not authorize an application restore, a
-production claim change, or a database cutover. The maintained runner pins the server digest and generates a new scratch password. Current paired-backup
-evidence is 0 assets, 0 albums, and 1 user; use different counts only for a
-snapshot with verified source evidence.
+production claim change, or a database cutover. The maintained runner pins the server digest and generates a new scratch password. The initial snapshot has 0 assets, 0 albums, and 1 user. Its historical files
+are preserved; an empty asset table does not prove photo recovery.
