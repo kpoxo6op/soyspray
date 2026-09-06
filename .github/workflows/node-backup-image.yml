@@ -38,7 +38,8 @@ jobs:
       - name: Run the SQLite and Restic recovery tests
         run: |
           python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
-          docker run --rm --entrypoint python3 -v "$PWD/apps/node-backup:/app:ro" \
+          docker run --rm --read-only --tmpfs /work -e TMPDIR=/work \
+            --entrypoint python3 -v "$PWD/apps/node-backup:/app:ro" \
             soyspray-node-backup:test /app/tests/test_backup.py
           python3 -m unittest discover -s apps/node-backup/tests -p 'test_manifest.py'
       - name: Publish the tested source image
