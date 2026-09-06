@@ -47,3 +47,11 @@
         enabled: true
         state: started
         scope: user
+
+    - name: Start one requested schedule verification without blocking installation
+      ansible.builtin.systemd_service:
+        name: soyspray-restore-check.service
+        state: started
+        scope: user
+        no_block: true
+      when: recovery_schedule_run_now | default(false) | bool
