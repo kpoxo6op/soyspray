@@ -577,6 +577,7 @@ def test_model_downloads_use_checksums() -> None:
 def test_ansible_creates_the_voice_secret_and_argocd_app() -> None:
     defaults = load_yaml("roles/apps/voice-assistant/defaults/main.yml")
     tasks = (ROOT / "roles/apps/voice-assistant/tasks/main.yml").read_text()
+    enabled = load_yaml("roles/apps/voice-assistant/tasks/enabled.yml")
     enabled_tasks = (ROOT / "roles/apps/voice-assistant/tasks/enabled.yml").read_text()
     disabled_tasks = (ROOT / "roles/apps/voice-assistant/tasks/disabled.yml").read_text()
     playbook = load_yaml("playbooks/deploy-argocd-apps.yml")
@@ -601,9 +602,21 @@ def test_ansible_creates_the_voice_secret_and_argocd_app() -> None:
     assert "base64.b64decode" in enabled_tasks
     assert "voice_assistant_gi_model_live_checksum.stdout" in enabled_tasks
     assert "voice_assistant_gi_model_retired_configmaps" in enabled_tasks
-    assert enabled_tasks.index("Do not delete the selected GI model") < enabled_tasks.index(
-        "Apply the Home Assistant voice app"
+    model_guard_index = next(
+        index
+        for index, task in enumerate(enabled)
+        if "ansible.builtin.assert" in task
+        and "voice_assistant_gi_model_configmap_name not in voice_assistant_gi_model_retired_configmaps"
+        in task["ansible.builtin.assert"]["that"]
     )
+    argo_apply_index = next(
+        index
+        for index, task in enumerate(enabled)
+        if task.get("kubernetes.core.k8s", {}).get("state") == "present"
+        and task["kubernetes.core.k8s"].get("namespace") == "argocd"
+        and "voice-assistant-application.yaml" in task["kubernetes.core.k8s"].get("definition", "")
+    )
+    assert model_guard_index < argo_apply_index
     assert "no_log: true" in enabled_tasks
     assert "voice_assistant_target_revision" in enabled_tasks
     assert "voice-assistant-application.yaml" in enabled_tasks
