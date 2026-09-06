@@ -195,10 +195,15 @@ def test_native_app_tasks_keep_local_accounts_and_link_existing_users() -> None:
 def test_immich_admin_password_reset_is_explicit_and_private() -> None:
     document = yaml.safe_load(TASKS.read_text())
     configure = document[0]
-    reset = next(
-        task
-        for task in configure["block"]
-        if task["name"] == "Reset the Immich administrator password"
+    reset_index, reset = next(
+        (index, task)
+        for index, task in enumerate(configure["block"])
+        if task.get("when")
+        == [
+            "authentik_reset_immich_admin_password | default(false) | bool",
+            "not ansible_check_mode",
+        ]
+        and any("kubernetes.core.k8s_exec" in item for item in task.get("block", []))
     )
     query, execute = reset["block"]
 
@@ -230,23 +235,36 @@ def test_immich_admin_password_reset_is_explicit_and_private() -> None:
     assert "rc != 0" in execute["failed_when"]
     assert "The admin password has been updated." in execute["failed_when"]
 
-    names = [task["name"] for task in configure["block"]]
-    assert names.index("Reset the Immich administrator password") < names.index(
-        "Log in to Immich with the local administrator"
+    login_index, login = next(
+        (index, task)
+        for index, task in enumerate(configure["block"])
+        if task.get("ansible.builtin.uri", {}).get("url")
+        == "https://immich.soyspray.vip/api/auth/login"
+        and task["ansible.builtin.uri"].get("method") == "POST"
     )
-
-    login = next(
-        task
-        for task in configure["block"]
-        if task["name"] == "Log in to Immich with the local administrator"
-    )
+    assert reset_index < login_index
     assert login["ansible.builtin.uri"]["status_code"] == 201
 
 
 def test_authentik_role_mounts_and_runs_native_app_configuration() -> None:
-    tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+    task_text = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+    tasks = yaml.safe_load(task_text)
+    apply_index = next(
+        index
+        for index, task in enumerate(tasks)
+        if task.get("kubernetes.core.k8s", {}).get("state") == "present"
+        and "authentik-application.yaml" in task["kubernetes.core.k8s"].get("definition", "")
+    )
+    native_index = next(
+        index
+        for index, task in enumerate(tasks)
+        if task.get("ansible.builtin.include_tasks") == "native-apps.yml"
+    )
 
-    assert "IMMICH_OIDC_CLIENT_SECRET" in tasks
-    assert "native-apps.yaml" in tasks
-    assert "include_tasks: native-apps.yml" in tasks
-    assert tasks.index("Apply Authentik") < tasks.index("include_tasks: native-apps.yml")
+    assert any("IMMICH_OIDC_CLIENT_SECRET" in str(task) for task in tasks)
+    assert any(
+        "native-apps.yaml" in task["kubernetes.core.k8s"].get("definition", {}).get("data", {})
+        for task in tasks
+        if "kubernetes.core.k8s" in task
+    )
+    assert apply_index < native_index

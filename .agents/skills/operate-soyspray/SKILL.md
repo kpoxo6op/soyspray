@@ -44,3 +44,7 @@ migration window, and preserve shared credentials and Tailscale.
 Use Ansible Vault and documented private inputs. Keep recovery keys outside the
 cluster. Do not print secret values or use regex edits of plaintext credentials.
 Report the checks actually completed and each remaining evidence gap.
+
+Legacy live TV, voice, firmware, and status-page aliases forward to their app
+Makefiles. Use the root aliases for deployment or firmware upload so the full
+check and deployment preflight run. Their deployment ownership is unchanged.

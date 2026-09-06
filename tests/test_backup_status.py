@@ -246,3 +246,9 @@ def test_private_restore_reports_attach_only_through_application_metadata(data, 
     data["applications"] = {"value": "unknown", "cause": "API unavailable"}
     status.attach_restore_evidence(report, data, NOW, tmp_path)
     assert report["restore_evidence"]["value"] == "unknown"
+
+
+def test_native_unknown_volume_health_keeps_the_source_cause(data):
+    data["volumes"]["items"][0]["status"]["robustness"] = "unknown"
+    health = status.longhorn_report(data, NOW)["value"]["claims"][0]["volume_health"]
+    assert health == {"value": "unknown", "cause": "Longhorn reports volume health as unknown."}

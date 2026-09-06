@@ -42,12 +42,16 @@ def test_home_assistant_uses_authentik_and_keeps_native_recovery() -> None:
 def test_authentik_deploys_home_assistant_from_the_tested_revision() -> None:
     defaults = load_yaml("roles/apps/homeassistant/defaults/main.yml")
     tasks = (ROOT / "roles/apps/homeassistant/tasks/main.yml").read_text()
-    authentik_tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+    authentik_tasks = load_yaml("roles/apps/authentik/tasks/main.yml")
 
     assert defaults["homeassistant_target_revision"] == "HEAD"
     assert "home-assistant/homeassistant-application.yaml" in tasks
     assert "homeassistant_target_revision" in tasks
-    assert "- name: Apply Home Assistant SSO" not in authentik_tasks
+    assert not any(
+        "home-assistant-application.yaml"
+        in task.get("kubernetes.core.k8s", {}).get("definition", "")
+        for task in authentik_tasks
+    )
 
 
 def test_qbittorrent_accepts_authentik_basic_auth_and_keeps_native_api() -> None:

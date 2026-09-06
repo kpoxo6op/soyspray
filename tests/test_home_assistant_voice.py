@@ -577,6 +577,7 @@ def test_model_downloads_use_checksums() -> None:
 def test_ansible_creates_the_voice_secret_and_argocd_app() -> None:
     defaults = load_yaml("roles/apps/voice-assistant/defaults/main.yml")
     tasks = (ROOT / "roles/apps/voice-assistant/tasks/main.yml").read_text()
+    enabled = load_yaml("roles/apps/voice-assistant/tasks/enabled.yml")
     enabled_tasks = (ROOT / "roles/apps/voice-assistant/tasks/enabled.yml").read_text()
     disabled_tasks = (ROOT / "roles/apps/voice-assistant/tasks/disabled.yml").read_text()
     playbook = load_yaml("playbooks/deploy-argocd-apps.yml")
@@ -601,9 +602,21 @@ def test_ansible_creates_the_voice_secret_and_argocd_app() -> None:
     assert "base64.b64decode" in enabled_tasks
     assert "voice_assistant_gi_model_live_checksum.stdout" in enabled_tasks
     assert "voice_assistant_gi_model_retired_configmaps" in enabled_tasks
-    assert enabled_tasks.index("Do not delete the selected GI model") < enabled_tasks.index(
-        "Apply the Home Assistant voice app"
+    model_guard_index = next(
+        index
+        for index, task in enumerate(enabled)
+        if "ansible.builtin.assert" in task
+        and "voice_assistant_gi_model_configmap_name not in voice_assistant_gi_model_retired_configmaps"
+        in task["ansible.builtin.assert"]["that"]
     )
+    argo_apply_index = next(
+        index
+        for index, task in enumerate(enabled)
+        if task.get("kubernetes.core.k8s", {}).get("state") == "present"
+        and task["kubernetes.core.k8s"].get("namespace") == "argocd"
+        and "voice-assistant-application.yaml" in task["kubernetes.core.k8s"].get("definition", "")
+    )
+    assert model_guard_index < argo_apply_index
     assert "no_log: true" in enabled_tasks
     assert "voice_assistant_target_revision" in enabled_tasks
     assert "voice-assistant-application.yaml" in enabled_tasks
@@ -614,28 +627,6 @@ def test_ansible_creates_the_voice_secret_and_argocd_app() -> None:
     assert any(
         item["role"] == "apps/voice-assistant" for item in playbook[0]["vars"]["argocd_app_roles"]
     )
-
-    makefile = (ROOT / "Makefile").read_text()
-    assert "VOICE_ASSISTANT_REVISION ?= HEAD" in makefile
-    assert "VOICE_ASSISTANT_ENABLED ?= true" in makefile
-    assert PACKAGE in makefile
-    assert "roles/apps/voice-assistant/tasks/*.yml" in makefile
-    assert "roles/apps/voice-assistant/defaults/*.yml" in makefile
-    assert "voice-assistant: go" in makefile
-    assert "--tags voice_assistant" in makefile
-    assert "voice_assistant_target_revision=$(VOICE_ASSISTANT_REVISION)" in makefile
-    assert "voice_assistant_enabled=$(VOICE_ASSISTANT_ENABLED)" in makefile
-    for target in (
-        "voice-pe-render:",
-        "voice-pe-check:",
-        "voice-pe-compile:",
-        "voice-pe-upload:",
-    ):
-        assert target in makefile
-    assert "esphome==2025.5.1" in makefile
-    assert "scripts/render_gi_voice_pe.py" in makefile
-    assert "voice-pe-upload: voice-pe-compile" in makefile
-    assert "\t$(MAKE) go\n" in makefile
 
 
 def test_home_assistant_has_local_voice_settings() -> None:

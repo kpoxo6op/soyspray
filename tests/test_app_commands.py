@@ -248,3 +248,103 @@ def test_unimplemented_app_operation_reports_unknown_without_running_another_act
     assert result.returncode == 2
     assert result.stdout.startswith("unknown:")
     assert action in result.stdout
+
+
+def operation_spy(tmp_path, monkeypatch):
+    log = tmp_path / "calls.jsonl"
+    spy = tmp_path / "spy.py"
+    spy.write_text(
+        "import json, os, pathlib, sys\n"
+        "with pathlib.Path(os.environ['OPERATION_LOG']).open('a') as f:\n"
+        "    f.write(json.dumps(sys.argv[1:]) + '\\n')\n"
+    )
+    monkeypatch.setenv("OPERATION_LOG", str(log))
+    return log, f"{sys.executable} {spy}"
+
+
+@pytest.mark.parametrize(
+    "app,enabled", [("live-tv", "true"), ("live-tv", "false"), ("voice-assistant", "true")]
+)
+def test_legacy_alias_preserves_ansible_arguments(tmp_path, monkeypatch, app, enabled):
+    log, spy = operation_spy(tmp_path, monkeypatch)
+    prefix = "LIVE_TV" if app == "live-tv" else "VOICE_ASSISTANT"
+    subprocess.run(
+        [
+            "make",
+            "-o",
+            "go",
+            app,
+            f"ANSIBLE={spy}",
+            f"{prefix}_ENABLED={enabled}",
+            f"{prefix}_REVISION=codex/test",
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    )
+    tags = (
+        "authentik,live-tv"
+        if app == "live-tv" and enabled == "true"
+        else ("live-tv" if app == "live-tv" else "voice_assistant")
+    )
+    args = ["playbooks/deploy-argocd-apps.yml", "--tags", tags]
+    if app == "live-tv":
+        if enabled == "true":
+            args += ["-e", "authentik_target_revision=codex/test"]
+        args += ["-e", f"live_tv_enabled={enabled}", "-e", "live_tv_target_revision=codex/test"]
+    else:
+        args += [
+            "-e",
+            "voice_assistant_target_revision=codex/test",
+            "-e",
+            f"voice_assistant_enabled={enabled}",
+        ]
+    assert [json.loads(line) for line in log.read_text().splitlines()] == [args]
+
+
+def test_firmware_upload_keeps_render_validate_compile_upload_order(tmp_path, monkeypatch):
+    log, spy = operation_spy(tmp_path, monkeypatch)
+    subprocess.run(
+        [
+            "make",
+            "-o",
+            "go",
+            "voice-pe-upload",
+            f"PYTHON={spy}",
+            f"ESPHOME={spy}",
+            "VOICE_PE_HOST=test-device",
+        ],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+    )
+    config = ".build/voice-pe/gi-voice-pe.yaml"
+    assert [json.loads(line) for line in log.read_text().splitlines()] == [
+        ["scripts/render_gi_voice_pe.py", "--output", config],
+        ["config", config],
+        ["compile", config],
+        ["upload", config, "--device", "test-device"],
+    ]
+
+
+@pytest.mark.parametrize(
+    "target,expected",
+    [("status-page", [[]]), ("status-page-fallback", [["--check"], ["--fallback"]])],
+)
+def test_status_alias_preserves_script_arguments(tmp_path, monkeypatch, target, expected):
+    log, spy = operation_spy(tmp_path, monkeypatch)
+    subprocess.run(
+        ["make", "-o", "go", target, f"PYTHON={spy}"], cwd=ROOT, check=True, capture_output=True
+    )
+    assert [json.loads(line) for line in log.read_text().splitlines()] == [
+        ["scripts/configure_status_page.py", *args] for args in expected
+    ]
+
+
+@pytest.mark.parametrize("target", ["live-tv", "voice-assistant", "voice-pe-upload", "status-page"])
+def test_legacy_mutation_alias_keeps_full_check_and_preflight(target):
+    result = subprocess.run(
+        ["make", "-n", target], cwd=ROOT, check=True, capture_output=True, text=True
+    )
+    assert "make --no-print-directory full-check" in result.stdout
+    assert "playbooks/deploy-argocd-apps.yml --syntax-check" in result.stdout

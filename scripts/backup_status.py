@@ -169,8 +169,12 @@ def longhorn_report(data, now):
             "replicas": observed(
                 volume["spec"].get("numberOfReplicas"), "Replica count is missing."
             ),
-            "volume_health": observed(
-                volume.get("status", {}).get("robustness"), "Volume health is missing."
+            "volume_health": (
+                unknown("Longhorn reports volume health as unknown.")
+                if volume.get("status", {}).get("robustness") == "unknown"
+                else observed(
+                    volume.get("status", {}).get("robustness"), "Volume health is missing."
+                )
             ),
             "failed_backups": failures,
             "unfinished_backups": [
