@@ -1,0 +1,47 @@
+---
+- name: Reconcile the existing Immich backup Application from a pushed revision
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    immich_backup_revision: HEAD
+    immich_backup_path: playbooks/argocd/applications/backups/immich-offsite-backup
+  tasks:
+    - name: Read the existing backup Application
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        name: immich-offsite-backup
+        namespace: argocd
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: immich_backup_app
+
+    - name: Preserve the existing deployment source and ownership
+      ansible.builtin.assert:
+        that:
+          - immich_backup_app.resources | length == 1
+          - immich_backup_app.resources[0].spec.source.repoURL == 'https://github.com/kpoxo6op/soyspray.git'
+          - immich_backup_app.resources[0].spec.source.path == immich_backup_path
+          - immich_backup_app.resources[0].metadata.ownerReferences | default([]) | length == 0
+          - immich_backup_app.resources[0].metadata.deletionTimestamp is not defined
+          - immich_backup_app.resources[0].operation | default(none) == none
+
+    - name: Select only the pushed backup source revision
+      kubernetes.core.k8s_json_patch:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        name: immich-offsite-backup
+        namespace: argocd
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - op: test
+            path: /metadata/uid
+            value: "{{ immich_backup_app.resources[0].metadata.uid }}"
+          - op: test
+            path: /spec/source
+            value: "{{ immich_backup_app.resources[0].spec.source }}"
+          - op: replace
+            path: /spec/source/targetRevision
+            value: "{{ immich_backup_revision }}"
+      when: immich_backup_app.resources[0].spec.source.targetRevision != immich_backup_revision
