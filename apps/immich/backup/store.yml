@@ -1,0 +1,5 @@
+---
+recovery_user: soyspray-immich-backup
+recovery_prefix: immich/
+recovery_policy_name: immich-store
+recovery_purpose: immich-backup

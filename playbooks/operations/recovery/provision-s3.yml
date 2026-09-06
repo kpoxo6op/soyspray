@@ -1,5 +1,5 @@
 ---
-- name: Prepare the S3 store for Longhorn recovery
+- name: Prepare a restricted S3 backup identity
   hosts: localhost
   connection: local
   gather_facts: false
@@ -9,6 +9,8 @@
     recovery_bucket: "soyspray-recovery-au2-{{ recovery_account }}"
     recovery_user: soyspray-longhorn-backup
     recovery_prefix: longhorn/
+    recovery_policy_name: longhorn-store
+    recovery_purpose: longhorn-backup
   tasks:
     - name: Require the account and credential export paths
       ansible.builtin.assert:
@@ -17,6 +19,9 @@
           - recovery_account | string is match('^[0-9]{12}$')
           - recovery_public_key is defined
           - recovery_sealed_credentials is defined
+          - recovery_user is match('^soyspray-[a-z0-9-]+-backup$')
+          - recovery_prefix is match('^[a-z0-9][a-z0-9/-]*/$')
+          - recovery_policy_name is match('^[a-z0-9-]+$')
 
     - name: Verify the credential recipient before creating a key
       ansible.builtin.command:
@@ -125,22 +130,22 @@
                 Bool:
                   aws:SecureTransport: 'false'
 
-    - name: Create the dedicated Longhorn identity
+    - name: Create the dedicated backup identity
       amazon.aws.iam_user:
         name: "{{ recovery_user }}"
         state: present
         tags:
           Project: soyspray
-          Purpose: longhorn-backup
+          Purpose: "{{ recovery_purpose }}"
       register: recovery_identity
 
-    - name: Limit Longhorn to its backup prefix and store metadata
+    - name: Limit the identity to its backup prefix and store metadata
       # The AWS module cannot preview a policy for a user created only in check mode.
       when: not ansible_check_mode or not recovery_identity.changed
       amazon.aws.iam_policy:
         iam_type: user
         iam_name: "{{ recovery_user }}"
-        policy_name: longhorn-store
+        policy_name: "{{ recovery_policy_name }}"
         state: present
         policy_json: "{{ recovery_policy | to_json }}"
       vars:
@@ -176,7 +181,7 @@
         path: "{{ recovery_sealed_credentials }}"
       register: recovery_export
 
-    - name: Read the existing Longhorn access keys
+    - name: Read the existing backup access keys
       amazon.aws.iam_access_key_info:
         user_name: "{{ recovery_user }}"
       register: recovery_keys
@@ -198,7 +203,7 @@
         - not recovery_export.stat.exists
       no_log: true
       block:
-        - name: Create one Longhorn access key
+        - name: Create one backup access key
           amazon.aws.iam_access_key:
             user_name: "{{ recovery_user }}"
             state: present
