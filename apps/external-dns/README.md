@@ -42,7 +42,7 @@ Application metadata and secret bootstrap changes separately.
 
 ## Restore the provider identity
 
-Normal bootstrap preserves the existing token. Matching input makes no change;
+Bootstrap uses `apps/bootstrap-secret-tasks.yml` and preserves the existing token. Matching input makes no change;
 a different supplied value stops before writing. A missing Secret is created
 through the native API, which rejects a competing creation. Check mode validates
 inputs and skips Secret creation.
