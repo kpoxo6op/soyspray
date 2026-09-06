@@ -445,3 +445,17 @@ Set `-e recovery_schedule_enabled=false` on the installer to disable the timer a
 Each scheduled runner checks the saved successful full-check report against its
 Git revision before reusing that result. It still runs deployment preflight.
 Standalone restore commands run the full check normally.
+
+## Backup-age observations
+
+Install the laptop's two-minute observation timer with
+`ansible-playbook playbooks/operations/recovery/install-evidence-schedule.yml`.
+It reads the critical backup recording rule, completed Immich Restic snapshots,
+and private restore reports. Records append to
+`~/.local/state/soyspray/evidence/operations.jsonl`. Missing or stale sources
+remain unknown with a cause. Immich age starts at the paired database dump.
+
+The timer uses no model. It does not backfill laptop downtime. Seven full days
+of actual observations are required for release review. Inspect failures with
+`journalctl --user -u soyspray-operations-evidence.service`; disable with the
+same installer and `-e evidence_enabled=false`. The model review remains paused.

@@ -1,0 +1,11 @@
+[Unit]
+Description=Observe Soyspray backups every two minutes
+
+[Timer]
+OnBootSec=30s
+OnCalendar=*-*-* *:0/2:00
+AccuracySec=1s
+Persistent=false
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,44 @@
+---
+- name: Install deterministic laptop backup observations
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    evidence_repo: "{{ (playbook_dir + '/../../..') | realpath }}"
+    evidence_python: /home/boris/code/soyspray/soyspray-venv/bin/python
+    evidence_unit_dir: "{{ lookup('env', 'HOME') }}/.config/systemd/user"
+  tasks:
+    - name: Require the maintained collector and Python runtime
+      ansible.builtin.assert:
+        that:
+          - (evidence_repo + '/scripts/operations_evidence.py') is file
+          - evidence_python is file
+    - name: Create the user unit directory
+      ansible.builtin.file:
+        path: "{{ evidence_unit_dir }}"
+        state: directory
+        mode: '0700'
+    - name: Install the observation service and timer
+      ansible.builtin.template:
+        src: "systemd/soyspray-operations-evidence.{{ item }}.j2"
+        dest: "{{ evidence_unit_dir }}/soyspray-operations-evidence.{{ item }}"
+        mode: '0644'
+      loop: [service, timer]
+    - name: Validate the observation units
+      ansible.builtin.command:
+        argv:
+          - systemd-analyze
+          - --user
+          - verify
+          - "{{ evidence_unit_dir }}/soyspray-operations-evidence.service"
+          - "{{ evidence_unit_dir }}/soyspray-operations-evidence.timer"
+      changed_when: false
+      when: not ansible_check_mode
+    - name: Enable the deterministic observation timer
+      ansible.builtin.systemd_service:
+        name: soyspray-operations-evidence.timer
+        scope: user
+        daemon_reload: true
+        enabled: "{{ evidence_enabled | default(true) | bool }}"
+        state: "{{ 'started' if evidence_enabled | default(true) | bool else 'stopped' }}"
