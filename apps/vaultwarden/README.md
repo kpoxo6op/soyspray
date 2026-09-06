@@ -108,3 +108,5 @@ viewing. Complete registration with its private runtime input, compare member
 fingerprints, and confirm membership from the human account. Share only
 `hays-online-timesheets`, close invitations, and run the silent check above.
 Restore an existing identity from backup before considering new enrollment.
+
+Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. The [monthly restore schedule](../../playbooks/operations/recovery/README.md) runs the same maintained command and validates its report.
