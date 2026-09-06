@@ -466,7 +466,8 @@ same installer and `-e evidence_enabled=false`. The model review remains paused.
 Barman plugin in one guarded API request. It checks the database UID, PostgreSQL
 system ID, destination and retention, waits for health, and creates a named base
 backup. Use `-e cnpg_database=immich -e cnpg_backup_id=NAME` with the standard
-inventory and privilege options. Run check mode first to validate against the API.
+inventory and privilege options. Run check mode first. With an old Kubernetes client on the node, this check
+is local. Use an explicit server dry run for API admission validation.
 
 Push the matching database manifests before applying. Immich has no automatic
 sync. After the migration and base backup pass, run
