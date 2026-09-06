@@ -21,7 +21,9 @@ def fake_runner(state_home, calls, failures=None):
         calls.append(command)
         assert kwargs["env"]["XDG_STATE_HOME"] == str(state_home)
         if "full-check" in command:
+            assert "SOYSPRAY_RESTORE_SCHEDULE_RUN_ID" not in kwargs["env"]
             return subprocess.CompletedProcess(command, 0, stdout="gate\n", stderr="")
+        assert kwargs["env"]["SOYSPRAY_RESTORE_SCHEDULE_RUN_ID"]
         app = command[-1].split("=", 1)[1]
         status, cleanup, returncode = failures.get(app, ("passed", "completed", 0))
         check_id = f"check-{app}"

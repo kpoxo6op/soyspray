@@ -152,8 +152,8 @@ def run_schedule(root, state_home, runner=run_process):
             env = {
                 **os.environ,
                 "XDG_STATE_HOME": str(state_home),
-                "SOYSPRAY_RESTORE_SCHEDULE_RUN_ID": run_id,
             }
+            env.pop("SOYSPRAY_RESTORE_SCHEDULE_RUN_ID", None)
             gate_revision = revision(root)
             report["git_revision"] = gate_revision
             gate_command = ["make", "--no-print-directory", "full-check"]
@@ -174,6 +174,7 @@ def run_schedule(root, state_home, runner=run_process):
                 return report, 2
 
             save_report(report_path, report)
+            env["SOYSPRAY_RESTORE_SCHEDULE_RUN_ID"] = run_id
             for app in APPS:
                 if revision(root) != gate_revision:
                     report.update(
