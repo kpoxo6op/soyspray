@@ -1,0 +1,49 @@
+---
+- name: Install the native laptop restore-check schedule
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    recovery_schedule_home: "{{ lookup('env', 'HOME') }}"
+    recovery_schedule_repo: "{{ playbook_dir }}/../../.."
+    recovery_schedule_unit_dir: "{{ recovery_schedule_home }}/.config/systemd/user"
+  tasks:
+    - name: Require the existing Soyspray checkout and user home
+      ansible.builtin.assert:
+        that:
+          - recovery_schedule_home is directory
+          - recovery_schedule_repo is directory
+          - (recovery_schedule_repo + '/scripts/restore_schedule.py') is file
+          - (recovery_schedule_repo + '/playbooks/operations/recovery/systemd/soyspray-restore-check.service.j2') is file
+          - (recovery_schedule_repo + '/playbooks/operations/recovery/systemd/soyspray-restore-check.timer.j2') is file
+
+    - name: Create the user unit directory
+      ansible.builtin.file:
+        path: "{{ recovery_schedule_unit_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Install the restore-check service
+      ansible.builtin.template:
+        src: systemd/soyspray-restore-check.service.j2
+        dest: "{{ recovery_schedule_unit_dir }}/soyspray-restore-check.service"
+        mode: "0644"
+
+    - name: Install the restore-check timer
+      ansible.builtin.template:
+        src: systemd/soyspray-restore-check.timer.j2
+        dest: "{{ recovery_schedule_unit_dir }}/soyspray-restore-check.timer"
+        mode: "0644"
+
+    - name: Reload the user systemd manager
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+        scope: user
+
+    - name: Enable and start the monthly restore-check timer
+      ansible.builtin.systemd_service:
+        name: soyspray-restore-check.timer
+        enabled: true
+        state: started
+        scope: user
