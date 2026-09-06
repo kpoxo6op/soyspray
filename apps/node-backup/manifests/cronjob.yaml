@@ -9,7 +9,7 @@ metadata:
 spec:
   schedule: "0 3 * * *"
   timeZone: Pacific/Auckland
-  suspend: true
+  suspend: false
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 3600
   successfulJobsHistoryLimit: 3

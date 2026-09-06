@@ -1,4 +1,4 @@
-"""Protect the suspended schedule and the explicit node-local input boundary."""
+"""Protect the daily schedule and the explicit node-local input boundary."""
 
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ class NodeBackupManifest(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.manifest = yaml.safe_load((ROOT / "manifests/cronjob.yaml").read_text())
 
-    def test_schedule_stays_suspended_until_live_restore_verification(self) -> None:
+    def test_daily_schedule_preserves_single_runner(self) -> None:
         spec = self.manifest["spec"]
-        self.assertTrue(spec["suspend"])
+        self.assertFalse(spec["suspend"])
         self.assertEqual(spec["concurrencyPolicy"], "Forbid")
         self.assertEqual(spec["schedule"], "0 3 * * *")
         self.assertEqual(spec["timeZone"], "Pacific/Auckland")
