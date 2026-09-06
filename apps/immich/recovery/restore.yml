@@ -314,6 +314,16 @@
           no_log: true
           when: not ansible_check_mode
 
+        - name: Re-read the production PV after the check
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: PersistentVolume
+            name: "{{ recovery_production_before.results[1].resources[0].spec.volumeName }}"
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_source_volume_after
+          no_log: true
+          when: not ansible_check_mode
+
         - name: Require unchanged production identities
           ansible.builtin.assert:
             that:
@@ -327,6 +337,8 @@
               - recovery_production_after.results[2].resources[0].spec.externalName == 'immich-db-a-rw.postgresql.svc.cluster.local'
               - recovery_production_after.results[3].resources[0].metadata.uid == recovery_production_before.results[3].resources[0].metadata.uid
               - recovery_production_after.results[3].resources[0].spec.imageName == recovery_database_image
+              - recovery_source_volume_after.resources | length == 1
+              - recovery_source_volume_after.resources[0].metadata.uid == recovery_source_volume.resources[0].metadata.uid
           when: not ansible_check_mode
 
         - name: Mark the isolated restore passed

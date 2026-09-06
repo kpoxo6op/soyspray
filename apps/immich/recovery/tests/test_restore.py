@@ -18,6 +18,7 @@ def test_preflight_uses_live_a_database_and_alias_target() -> None:
     assert "name: immich-db-a" in text
     assert "immich-db-a-rw.postgresql.svc.cluster.local" in text
     assert "kind: Cluster, namespace: postgresql, name: immich-db}" not in text
+    assert "recovery_source_volume_after.resources[0].metadata.uid" in text
 
 
 def test_workspace_denies_cluster_egress_before_workloads() -> None:
