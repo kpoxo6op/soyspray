@@ -48,3 +48,4 @@ Report the checks actually completed and each remaining evidence gap.
 Legacy live TV, voice, firmware, and status-page aliases forward to their app
 Makefiles. Use the root aliases for deployment or firmware upload so the full
 check and deployment preflight run. Their deployment ownership is unchanged.
+For scheduled critical restores, use `playbooks/operations/recovery/install-restore-check-schedule.yml`. The native user timer runs the maintained commands and validates private reports. Read the recovery README before enabling it. Keep model polling out of scheduled backup and restore evidence collection.

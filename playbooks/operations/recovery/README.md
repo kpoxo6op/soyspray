@@ -399,9 +399,43 @@ prove a human login, current runtime behavior, or seven days of RPO coverage.
 Reports stay on the operator machine and are not uploaded into the cluster.
 Keep the off-cluster recovery keys separately.
 
+## Schedule monthly isolated restore checks
+
+The laptop can run the three maintained restore checks from one native systemd
+user timer. The timer runs on the first day of each month at 03:00 and uses
+`Persistent=true`, so a powered-off laptop runs the missed check after it
+starts. It uses the existing encrypted files under
+`~/.config/soyspray/recovery/`; it does not create credentials or use a model.
+
+Install the user units only after reviewing the service and timer templates:
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  playbooks/operations/recovery/install-restore-check-schedule.yml
+systemctl --user status soyspray-restore-check.timer
+```
+
+The service runs one shared repository gate, then invokes
+`make restore-check APP=boys`, `APP=vaultwarden`, and
+`APP=obsidian-livesync` in that order. It validates the JSON report after each
+command. A result is accepted only when the report belongs to that app and
+schedule run, has `status: passed`, and has `cleanup: completed`. A failed app
+with completed cleanup does not block the other apps. A missing report or
+incomplete cleanup stops the schedule with a nonzero result and retains all
+reports for inspection.
+
+The schedule summary stays under
+`~/.local/state/soyspray/restores/schedule/<run-id>/report.json`; command logs
+are private files in the same folder. The scheduler serializes monthly runs
+with a private lock. Use `journalctl --user -u soyspray-restore-check.service`
+and the summary report to inspect a run.
+
 For offline checks, `scripts.app_status` accepts `--input` for Applications and
 `--backup-input` for saved native backup observations. `scripts.backup_status`
 accepts an observation bundle through `--input`. Offline checks make no cluster
 requests and do not scan private reports unless `--restore-dir` is supplied.
 Saved observations establish the recorded storage identities, not the current
 cluster binding. Use live commands to check current bindings.
+
+The monthly runner checks one exact Git revision with the full gate. Each app then runs `make -o check restore-check APP=...`, which retains its Git and Ansible preflight without repeating the full gate. A changed revision stops the run. On interruption, the runner allows fifteen minutes for the active restore to finish guarded cleanup.
