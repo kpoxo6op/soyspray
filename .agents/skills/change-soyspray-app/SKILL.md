@@ -45,3 +45,7 @@ Follow the
 GitHub draft, commit, review, and exact-head verification rules in AGENTS.md.
 Keep source and promotion PRs separate. Report local, CI, and deployed evidence
 separately; mark unverified user journeys and restores unknown with a cause.
+
+Legacy live TV, voice, firmware, and status-page aliases forward to their app
+Makefiles. Use the root aliases for deployment or firmware upload so the full
+check and deployment preflight run. Their deployment ownership is unchanged.
