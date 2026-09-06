@@ -80,10 +80,11 @@ make restore-check APP=boys
 ```
 
 `check APP=...` runs that app's maintained local checks. `make check` without
-APP and `make full-check` run the full repository gate. Every deployment still
-runs the full gate and Ansible preflight, even when APP is set. Push the branch
-first. Deployment defaults to `REVISION=HEAD`; use the pushed branch for preview
-and run the default again after merge.
+APP and `make full-check` run the full repository gate. A normal
+`make deploy APP=...` runs the shared checks and the selected app check before
+the native Ansible operation. Use `make full-check` for the final all-app gate.
+App Makefiles share command settings in `apps/common.mk`. Push the branch first. Deployment defaults to `REVISION=HEAD`; use the pushed
+branch for preview and run the default again after merge.
 
 `diff` uses the pinned upstream Argo CLI and the current Kubernetes context.
 For Boys and autism traits, it sends YAML files from the local manifest folder for native
