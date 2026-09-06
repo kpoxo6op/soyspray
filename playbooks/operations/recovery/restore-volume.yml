@@ -157,8 +157,8 @@
             activeDeadlineSeconds: 14400
             securityContext: >-
               {{ {'seccompProfile': {'type': 'RuntimeDefault'},
-                  'runAsUser': 1000 if recovery_app == 'boys' else recovery_claims[recovery_app].uid | default(0),
-                  'runAsGroup': 1000 if recovery_app == 'boys' else recovery_claims[recovery_app].uid | default(0)} }}
+                  'runAsUser': 1000 if recovery_app == 'boys' else 0,
+                  'runAsGroup': 1000 if recovery_app == 'boys' else 0} }}
             containers:
               - name: inspect
                 image: python:3.13-alpine@sha256:399babc8b49529dabfd9c922f2b5eea81d611e4512e3ed250d75bd2e7683f4b0
@@ -166,12 +166,14 @@
                 securityContext:
                   allowPrivilegeEscalation: false
                   readOnlyRootFilesystem: true
-                  capabilities: {drop: [ALL]}
+                  capabilities: >-
+                    {{ {'drop': ['ALL']} | combine(
+                       {'add': ['DAC_READ_SEARCH']} if recovery_app not in ['boys', 'vaultwarden', 'obsidian'] else {}) }}
                 resources:
                   requests: {cpu: 10m, memory: 32Mi}
                   limits: {cpu: 500m, memory: 256Mi}
                 volumeMounts:
-                  - {name: data, mountPath: /data}
+                  - "{{ {'name': 'data', 'mountPath': '/data', 'readOnly': recovery_app not in ['boys', 'vaultwarden', 'obsidian']} }}"
             volumes:
               - name: data
                 persistentVolumeClaim: {claimName: restored-data}
