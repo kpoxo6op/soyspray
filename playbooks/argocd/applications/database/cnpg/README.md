@@ -86,3 +86,17 @@ cd immich-db/overlays/initdb && \
 
 **S3**: `s3://immich-offsite-archive-au2/immich/db/` (writer/restorer secrets)
 **Extensions**: vectors, cube, earthdistance + custom search_path
+
+## Active archive writer
+
+The existing `immich-db-a-initdb` source now uses Barman Cloud plugin v0.15.0.
+Its ObjectStore is `postgresql/immich-offsite`; its archive server remains
+`immich-db-a-post-ssd-20260506`. Daily bases run at 04:47 UTC, WAL archiving
+uses five minutes, and retention remains 60 days. The active alias still points
+to `immich-db-a-rw.postgresql.svc.cluster.local`.
+
+Use the Ansible migration and reconciliation commands in the
+[recovery README](../../../../operations/recovery/README.md). Do not use the
+historical imperative examples above for production changes. The completed
+initial backup hook and forced-recreate environment setting are retired after
+the plugin base backup and archive continuity checks passed.
