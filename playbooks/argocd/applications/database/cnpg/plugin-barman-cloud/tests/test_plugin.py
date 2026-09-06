@@ -25,6 +25,9 @@ class BarmanPluginTests(unittest.TestCase):
 
     def test_operator_application_keeps_helm_and_adds_git_plugin_source(self):
         application = yaml.safe_load(APPLICATION.read_text())
+        options = application["spec"]["syncPolicy"]["syncOptions"]
+        self.assertIn("ServerSideApply=true", options)
+        self.assertIn("DisableClientSideApplyMigration=true", options)
         sources = application["spec"]["sources"]
         self.assertEqual(sources[0]["chart"], "cloudnative-pg")
         self.assertEqual(sources[0]["targetRevision"], "0.26.0")
