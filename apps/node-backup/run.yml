@@ -5,11 +5,13 @@
   become: true
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
+    node_backup_operation: backup
     node_backup_job: "node-backup-{{ node_backup_run_id }}"
   tasks:
     - name: Require a private evidence directory and unique identifier
       ansible.builtin.assert:
         that:
+          - node_backup_operation in ['backup', 'check']
           - node_backup_run_id is match('^[a-z0-9][a-z0-9-]{0,23}$')
           - node_backup_evidence_dir is match('^/')
           - not (node_backup_evidence_dir | realpath).startswith((playbook_dir | realpath) + '/')
@@ -36,6 +38,14 @@
           - node_backup_existing.results[0].resources[0].spec.jobTemplate.spec.template.spec.containers[0].image
             is match('^ghcr.io/kpoxo6op/node-backup@sha256:[0-9a-f]{64}$')
 
+    - name: Select the maintained backup or repository check
+      ansible.builtin.set_fact:
+        node_backup_job_spec: >-
+          {{ node_backup_existing.results[0].resources[0].spec.jobTemplate.spec |
+             combine({'template': {'spec': {'containers':
+               [node_backup_existing.results[0].resources[0].spec.jobTemplate.spec.template.spec.containers[0] |
+                combine({'command': ['restic', 'check']} if node_backup_operation == 'check' else {})]}}}, recursive=True) }}
+
     - name: Run the backup and retain private evidence
       when: not ansible_check_mode
       block:
@@ -50,7 +60,7 @@
                 name: "{{ node_backup_job }}"
                 namespace: media
                 labels: {soyspray.vip/purpose: node-backup-check}
-              spec: "{{ node_backup_existing.results[0].resources[0].spec.jobTemplate.spec }}"
+              spec: "{{ node_backup_job_spec }}"
           register: node_backup_created
 
         - name: Wait for completion or failure
