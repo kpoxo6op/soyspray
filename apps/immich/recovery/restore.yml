@@ -46,7 +46,7 @@
           - recovery_source_db_user == 'immich'
           - recovery_database_image == 'ghcr.io/tensorchord/cloudnative-pgvecto.rs:16-v0.3.0'
           - recovery_server_image == 'ghcr.io/immich-app/immich-server:v2.3.1'
-          - recovery_server_image_digest is match('^ghcr.io/immich-app/immich-server:v2\\.3\\.1@sha256:[0-9a-f]{64}$')
+          - recovery_server_image_digest is match('^ghcr.io/immich-app/immich-server:v2\.3\.1@sha256:[0-9a-f]{64}$')
           - recovery_db_username is match('^[a-z_][a-z0-9_]{0,30}$')
           - recovery_db_password | length >= 16
           - recovery_expected_asset_count is number
@@ -157,6 +157,9 @@
             name: restic-restore
             kubeconfig: "{{ kubeconfig_path }}"
           register: recovery_restic_job
+          failed_when: >-
+            recovery_restic_job.resources | length == 1 and
+            (recovery_restic_job.resources[0].status.failed | default(0) | int) > 0
           until:
             - recovery_restic_job.resources | length == 1
             - >-
@@ -189,8 +192,8 @@
 
         - name: Require a recovery point from the verified snapshot
           ansible.builtin.set_fact:
-            recovery_snapshot_id: "{{ (recovery_restic_log.stdout | regex_search('snapshot_id=([^ ]+)', '\\1')) | default('', true) }}"
-            recovery_snapshot_time: "{{ (recovery_restic_log.stdout | regex_search('snapshot_time=([^ ]+)', '\\1')) | default('', true) }}"
+            recovery_snapshot_id: "{{ (recovery_restic_log.log | regex_findall('snapshot_id=([0-9a-f]+)') | first) | default('', true) }}"
+            recovery_snapshot_time: "{{ (recovery_restic_log.log | regex_findall('snapshot_time=([^\\s]+)') | first) | default('', true) }}"
           when: not ansible_check_mode
 
         - name: Require a non-empty verified recovery point
@@ -239,6 +242,9 @@
             name: database-restore
             kubeconfig: "{{ kubeconfig_path }}"
           register: recovery_database_job
+          failed_when: >-
+            recovery_database_job.resources | length == 1 and
+            (recovery_database_job.resources[0].status.failed | default(0) | int) > 0
           until:
             - recovery_database_job.resources | length == 1
             - >-
@@ -288,6 +294,9 @@
             name: app-health
             kubeconfig: "{{ kubeconfig_path }}"
           register: recovery_health_job
+          failed_when: >-
+            recovery_health_job.resources | length == 1 and
+            (recovery_health_job.resources[0].status.failed | default(0) | int) > 0
           until:
             - recovery_health_job.resources | length == 1
             - >-
@@ -390,6 +399,21 @@
             - not ansible_check_mode
             - recovery_namespace_result.resources | length == 1
 
+        - name: Require deletion of every scratch persistent volume
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: PersistentVolume
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_remaining_volumes
+          until: >-
+            recovery_remaining_volumes.resources
+            | selectattr('spec.claimRef', 'defined')
+            | selectattr('spec.claimRef.namespace', 'equalto', recovery_namespace)
+            | list | length == 0
+          retries: 60
+          delay: 5
+          when: not ansible_check_mode
+
         - name: Build the private validated restore report
           ansible.builtin.set_fact:
             recovery_report:
@@ -402,12 +426,26 @@
               source_claim_uid: "{{ recovery_production_before.results[1].resources[0].metadata.uid }}"
               source_volume_uid: "{{ recovery_source_volume.resources[0].metadata.uid }}"
               backup:
+                snapshot_id: "{{ recovery_snapshot_id | default('') }}"
                 recovery_point: "{{ recovery_snapshot_time | default('') }}"
               data:
+                asset_count: "{{ recovery_expected_asset_count if recovery_status == 'passed' else 'unknown' }}"
+                album_count: "{{ recovery_expected_album_count if recovery_status == 'passed' else 'unknown' }}"
+                user_count: "{{ recovery_expected_user_count if recovery_status == 'passed' else 'unknown' }}"
+                originals: "{{ 'Restic restored-file verification passed' if recovery_status == 'passed' else 'unknown' }}"
                 data_checks: "{{ 'passed' if recovery_status == 'passed' else 'failed' }}"
               image: "{{ recovery_server_image_digest }}"
               original_resources: "{{ 'unchanged' if recovery_status == 'passed' else 'unknown' }}"
               cleanup: completed
+          when: not ansible_check_mode
+
+        - name: Create the private report directory
+          ansible.builtin.file:
+            path: "{{ lookup('env', 'HOME') }}/.local/state/soyspray/restores/immich/{{ recovery_check_id }}"
+            state: directory
+            mode: '0700'
+          delegate_to: localhost
+          become: false
           when: not ansible_check_mode
 
         - name: Write the private validated restore report
@@ -417,6 +455,7 @@
             mode: '0600'
             directory_mode: '0700'
           delegate_to: localhost
+          become: false
           no_log: true
           when: not ansible_check_mode
 
