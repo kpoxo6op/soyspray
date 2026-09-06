@@ -24,20 +24,17 @@ spec:
       memory: 1Gi
   monitoring:
     enablePodMonitor: true
+  postgresql:
+    parameters:
+      archive_timeout: 5min
   backup:
-    retentionPolicy: "30d"
-    barmanObjectStore:
-      destinationPath: s3://immich-offsite-archive-au2/authentik/postgresql/
-      s3Credentials:
-        accessKeyId:
-          name: authentik-offsite-writer
-          key: AWS_ACCESS_KEY_ID
-        secretAccessKey:
-          name: authentik-offsite-writer
-          key: AWS_SECRET_ACCESS_KEY
-        region:
-          name: authentik-offsite-writer
-          key: AWS_REGION
+    target: prefer-standby
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: authentik-offsite
+        serverName: authentik-postgresql
 ---
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
@@ -47,5 +44,9 @@ metadata:
 spec:
   schedule: "0 30 3 * * *"
   backupOwnerReference: self
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  target: prefer-standby
   cluster:
     name: authentik-postgresql
