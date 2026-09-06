@@ -236,6 +236,12 @@ def run() -> int:
                 _run_restic(["ls", "--json", snapshot_id], environment), snapshot_id
             )
             report["snapshot"] = {"id": snapshot_id, "saved_paths": saved_paths}
+            _run_restic(
+                ["forget", "--retry-lock", "5m", "--host",
+                 environment.get("RESTIC_HOST", "soyspray-node-0"),
+                 "--tag", "node-local", "--group-by", "host", "--keep-daily", "30", "--prune"],
+                environment,
+            )
             report["result"] = "passed"
     except Exception as error:  # The report must survive every ordinary failure.
         report["error"] = {"type": type(error).__name__, "message": str(error)}

@@ -75,6 +75,8 @@ elif sys.argv[1] == "ls":
         "/temporary/books",
     ):
         print(json.dumps({"struct_type": "node", "type": "file", "path": path}))
+elif sys.argv[1] == "forget":
+    pass
 else:
     raise SystemExit(2)
 """
