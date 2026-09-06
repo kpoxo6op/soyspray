@@ -14,6 +14,9 @@ spec:
     - repoURL: "https://cloudnative-pg.github.io/charts"
       chart: cloudnative-pg
       targetRevision: "0.26.0"
+    - repoURL: "https://github.com/kpoxo6op/soyspray.git"
+      targetRevision: "HEAD"
+      path: playbooks/argocd/applications/database/cnpg/plugin-barman-cloud
   syncPolicy:
     automated:
       prune: true

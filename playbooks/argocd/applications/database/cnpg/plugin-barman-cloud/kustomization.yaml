@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - manifest.yaml
+  - objectstores.yaml
+
+images:
+  - name: ghcr.io/cloudnative-pg/plugin-barman-cloud
+    newName: ghcr.io/cloudnative-pg/plugin-barman-cloud
+    digest: sha256:563c680fe7fda3466ca2b1f55a1397ed2ddc9e760360107dd7724f1959c1a536
+
+patches:
+  - path: sidecar-image-patch.yaml
+    target:
+      group: ""
+      version: v1
+      kind: Secret
+      name: plugin-barman-cloud-2b4mtt7m69

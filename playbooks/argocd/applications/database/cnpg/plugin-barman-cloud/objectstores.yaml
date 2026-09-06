@@ -1,0 +1,39 @@
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: immich-offsite
+  namespace: postgresql
+spec:
+  configuration:
+    destinationPath: s3://immich-offsite-archive-au2/immich/db/
+    s3Credentials:
+      accessKeyId:
+        name: immich-offsite-writer
+        key: AWS_ACCESS_KEY_ID
+      secretAccessKey:
+        name: immich-offsite-writer
+        key: AWS_SECRET_ACCESS_KEY
+      region:
+        name: immich-offsite-writer
+        key: AWS_REGION
+  retentionPolicy: 60d
+---
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: authentik-offsite
+  namespace: authentik
+spec:
+  configuration:
+    destinationPath: s3://immich-offsite-archive-au2/authentik/postgresql/
+    s3Credentials:
+      accessKeyId:
+        name: authentik-offsite-writer
+        key: AWS_ACCESS_KEY_ID
+      secretAccessKey:
+        name: authentik-offsite-writer
+        key: AWS_SECRET_ACCESS_KEY
+      region:
+        name: authentik-offsite-writer
+        key: AWS_REGION
+  retentionPolicy: 30d
