@@ -50,6 +50,7 @@ credentials. Keep this operator session separate from backup credentials:
 
 ```sh
 aws login --profile soyspray-operator --region ap-southeast-2
+aws configure set region ap-southeast-2 --profile soyspray-operator
 aws configure set credential_process 'aws configure export-credentials --profile soyspray-operator' --profile soyspray-operator-sdk
 aws configure set region ap-southeast-2 --profile soyspray-operator-sdk
 export AWS_PROFILE=soyspray-operator-sdk
