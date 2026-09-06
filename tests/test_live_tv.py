@@ -185,13 +185,28 @@ def test_live_tv_role_propagates_its_deployment_tag() -> None:
 
 def test_live_tv_prepares_secrets_before_it_changes_argo_revisions() -> None:
     tasks = yaml.safe_load((ROOT / "roles/apps/live_tv/tasks/enabled.yml").read_text())
-    names = [task["name"] for task in tasks]
-    assert names.index("Require the Jellyfin OIDC client secret") < names.index(
-        "Apply the live TV Argo applications"
+    oidc_check = next(
+        index
+        for index, task in enumerate(tasks)
+        if "ansible.builtin.assert" in task
+        and "live_tv_authentik_secret.resources | length == 1"
+        in task["ansible.builtin.assert"]["that"]
     )
-    assert names.index("Create the stable Jellyfin secret") < names.index(
-        "Apply the live TV Argo applications"
+    jellyfin_secret = next(
+        index
+        for index, task in enumerate(tasks)
+        if task.get("kubernetes.core.k8s", {}).get("definition", {}).get("metadata", {}).get("name")
+        == "jellyfin-secrets"
     )
+    argo_apply = next(
+        index
+        for index, task in enumerate(tasks)
+        if task.get("kubernetes.core.k8s", {}).get("state") == "present"
+        and task.get("loop") == ["dispatcharr", "jellyfin"]
+        and "live_tv_application" in task["kubernetes.core.k8s"]["definition"]
+    )
+    assert oidc_check < argo_apply
+    assert jellyfin_secret < argo_apply
 
 
 def test_make_go_checks_authentik_and_live_tv_syntax() -> None:
@@ -214,11 +229,26 @@ def test_live_tv_applications_use_controlled_cascade(name: str) -> None:
     assert application["metadata"]["finalizers"] == ["resources-finalizer.argocd.argoproj.io"]
 
     disabled = yaml.safe_load((ROOT / "roles/apps/live_tv/tasks/disabled.yml").read_text())
-    quiesce = next(task for task in disabled if task["name"] == "Quiesce live TV Argo applications")
+    quiesce = next(
+        task
+        for task in disabled
+        if task.get("kubernetes.core.k8s", {}).get("state") == "patched"
+        and task["kubernetes.core.k8s"]
+        .get("definition", {})
+        .get("spec", {})
+        .get("syncPolicy", {})
+        .get("automated")
+        is None
+    )
     assert quiesce["kubernetes.core.k8s"]["definition"]["metadata"]["finalizers"] == [
         "resources-finalizer.argocd.argoproj.io"
     ]
-    removal = next(task for task in disabled if task["name"] == "Remove live TV Argo applications")
+    removal = next(
+        task
+        for task in disabled
+        if task.get("kubernetes.core.k8s", {}).get("state") == "absent"
+        and "delete_options" in task["kubernetes.core.k8s"]
+    )
     assert removal["kubernetes.core.k8s"]["delete_options"] == {"propagationPolicy": "Foreground"}
 
 
