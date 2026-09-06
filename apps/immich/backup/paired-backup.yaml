@@ -5,7 +5,7 @@ metadata:
 spec:
   schedule: "*/30 * * * *"
   timeZone: UTC
-  suspend: true
+  suspend: false
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 3

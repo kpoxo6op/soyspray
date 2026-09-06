@@ -6,10 +6,11 @@ when changing deployment ownership.
 
 ## Paired recovery backup
 
-The backup operation is packaged from `backup/`. Its CronJob is initially
-suspended. Use the [backup runbook](backup/README.md) to validate credentials,
-initialize the repository, and run a paired backup. The current application and
-nightly S3 copy continue to use their existing definitions.
+The paired backup runs every 30 minutes through the existing
+`immich-offsite-backup` Application. It replaces the nightly media-only copy.
+Run `make restore-check APP=immich` for an isolated recovery check. The initial
+real source has zero assets, zero albums, and one user. Its ten historical files
+were restored and verified; this does not establish photo recovery.
 
 The operation exports a database snapshot and its required original-file paths,
 then backs up the dump with `upload`, `library`, and `profile`. The path list and
