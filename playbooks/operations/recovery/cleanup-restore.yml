@@ -3,6 +3,7 @@
   hosts: kube_control_plane[0]
   gather_facts: false
   become: true
+  vars_files: [recovery-claims.yml]
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
     recovery_scratch: "restore-{{ recovery_app }}-{{ recovery_check_id }}"
@@ -10,7 +11,7 @@
     - name: Require the app and check identifier
       ansible.builtin.assert:
         that:
-          - recovery_app | default('') in ['boys', 'vaultwarden', 'obsidian']
+          - recovery_app | default('') in recovery_claims
           - recovery_check_id | default('') is match('^[a-z0-9][a-z0-9-]{0,23}$')
 
     - name: Read the named scratch resources before deletion
