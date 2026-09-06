@@ -1,0 +1,72 @@
+---
+- name: Reconcile the preserved Immich database and alias Applications
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    cnpg_revision: HEAD
+    cnpg_sets:
+      - name: immich-db
+        application: immich-db-a-initdb
+        resources:
+          - {group: postgresql.cnpg.io, kind: Cluster, name: immich-db-a}
+          - {group: postgresql.cnpg.io, kind: ScheduledBackup, name: immich-db-daily-a}
+          - {group: '', kind: Secret, name: immich-app-secret-a}
+      - name: immich-db-alias
+        application: immich-db-active-a
+        resources:
+          - {group: '', kind: Service, name: immich-db-active}
+  tasks:
+    - name: Select the pushed revision in each owning ApplicationSet
+      kubernetes.core.k8s_json_patch:
+        api_version: argoproj.io/v1alpha1
+        kind: ApplicationSet
+        namespace: argocd
+        name: "{{ item.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - op: test
+            path: /spec/template/spec/sources/0/repoURL
+            value: https://github.com/kpoxo6op/soyspray.git
+          - op: replace
+            path: /spec/template/spec/sources/0/targetRevision
+            value: "{{ cnpg_revision }}"
+      loop: "{{ cnpg_sets }}"
+    - name: Wait for generated Applications to select that revision
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: "{{ item.application }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: cnpg_apps
+      until:
+        - cnpg_apps.resources[0].spec.sources[0].targetRevision == cnpg_revision
+        - cnpg_apps.resources[0].operation | default(none) == none
+      retries: 60
+      delay: 5
+      loop: "{{ cnpg_sets }}"
+      when: not ansible_check_mode
+    - name: Sync only existing database resources without hooks or pruning
+      kubernetes.core.k8s_json_patch:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: "{{ item.item.application }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - op: test
+            path: /metadata/resourceVersion
+            value: "{{ item.resources[0].metadata.resourceVersion }}"
+          - op: add
+            path: /operation
+            value:
+              initiatedBy:
+                username: ansible
+              sync:
+                revisions: ["{{ cnpg_revision }}"]
+                prune: false
+                resources: "{{ item.item.resources }}"
+      loop: "{{ cnpg_apps.results | default([]) }}"
+      when: not ansible_check_mode

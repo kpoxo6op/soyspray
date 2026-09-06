@@ -459,3 +459,17 @@ The timer uses no model. It does not backfill laptop downtime. Seven full days
 of actual observations are required for release review. Inspect failures with
 `journalctl --user -u soyspray-operations-evidence.service`; disable with the
 same installer and `-e evidence_enabled=false`. The model review remains paused.
+
+## PostgreSQL archive migration
+
+`migrate-cnpg-backup.yml` switches the selected existing database to the installed
+Barman plugin in one guarded API request. It checks the database UID, PostgreSQL
+system ID, destination and retention, waits for health, and creates a named base
+backup. Use `-e cnpg_database=immich -e cnpg_backup_id=NAME` with the standard
+inventory and privilege options. Run check mode first to validate against the API.
+
+Push the matching database manifests before applying. Immich has no automatic
+sync. After the migration and base backup pass, run
+`reconcile-immich-database.yml -e cnpg_revision=BRANCH` to sync its existing
+resources without hooks or pruning. After merge, repeat with `cnpg_revision=HEAD`.
+Verify archive continuity and production access before closing the migration.

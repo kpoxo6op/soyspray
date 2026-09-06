@@ -1,0 +1,148 @@
+---
+- name: Migrate one existing database archive writer
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    cnpg_plugin: barman-cloud.cloudnative-pg.io
+    cnpg_targets:
+      immich:
+        namespace: postgresql
+        cluster: immich-db-a
+        uid: 3636ad88-1e60-4a24-8d64-d82509dc00b5
+        system_id: '7636716030165340184'
+        store: immich-offsite
+        server: immich-db-a-post-ssd-20260506
+        destination: s3://immich-offsite-archive-au2/immich/db/
+        retention: 60d
+        schedule: immich-db-daily-a
+        cron: '0 47 4 * * *'
+  tasks:
+    - name: Require an explicit database and backup identifier
+      ansible.builtin.assert:
+        that:
+          - cnpg_database | default('') in cnpg_targets
+          - cnpg_backup_id | default('') is match('^[a-z0-9][a-z0-9-]{0,40}$')
+    - name: Select the preserved database identity
+      ansible.builtin.set_fact:
+        db: "{{ cnpg_targets[cnpg_database] }}"
+    - name: Read the production database
+      kubernetes.core.k8s_info:
+        api_version: postgresql.cnpg.io/v1
+        kind: Cluster
+        namespace: "{{ db.namespace }}"
+        name: "{{ db.cluster }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: before
+    - name: Read the installed archive configuration
+      kubernetes.core.k8s_info:
+        api_version: barmancloud.cnpg.io/v1
+        kind: ObjectStore
+        namespace: "{{ db.namespace }}"
+        name: "{{ db.store }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: store
+    - name: Require the preserved database and archive
+      ansible.builtin.assert:
+        that:
+          - before.resources | length == 1
+          - before.resources[0].metadata.uid == db.uid
+          - before.resources[0].status.systemID == db.system_id
+          - before.resources[0].status.phase == 'Cluster in healthy state'
+          - store.resources | length == 1
+          - store.resources[0].spec.configuration.destinationPath == db.destination
+          - store.resources[0].spec.retentionPolicy == db.retention
+          - before.resources[0].spec.backup.barmanObjectStore.destinationPath | default(db.destination) == db.destination
+          - before.resources[0].spec.backup.barmanObjectStore.serverName | default(db.server) == db.server
+    - name: Switch the archive writer in one guarded API request
+      kubernetes.core.k8s_json_patch:
+        api_version: postgresql.cnpg.io/v1
+        kind: Cluster
+        namespace: "{{ db.namespace }}"
+        name: "{{ db.cluster }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - op: test
+            path: /metadata/resourceVersion
+            value: "{{ before.resources[0].metadata.resourceVersion }}"
+          - op: replace
+            path: /spec/backup
+            value:
+              target: prefer-standby
+          - op: add
+            path: /spec/plugins
+            value:
+              - name: "{{ cnpg_plugin }}"
+                isWALArchiver: true
+                parameters:
+                  barmanObjectName: "{{ db.store }}"
+                  serverName: "{{ db.server }}"
+      when: before.resources[0].spec.backup.barmanObjectStore is defined
+    - name: Wait for the plugin rollout and a healthy database
+      kubernetes.core.k8s_info:
+        api_version: postgresql.cnpg.io/v1
+        kind: Cluster
+        namespace: "{{ db.namespace }}"
+        name: "{{ db.cluster }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: after
+      until:
+        - after.resources[0].status.phase == 'Cluster in healthy state'
+        - after.resources[0].status.readyInstances == after.resources[0].spec.instances
+        - after.resources[0].status.pluginStatus | default([]) | selectattr('name', 'equalto', cnpg_plugin) | list | length == 1
+      retries: 120
+      delay: 10
+      when: not ansible_check_mode
+    - name: Preserve the daily base backup schedule through the plugin
+      kubernetes.core.k8s:
+        state: patched
+        api_version: postgresql.cnpg.io/v1
+        kind: ScheduledBackup
+        namespace: "{{ db.namespace }}"
+        name: "{{ db.schedule }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          spec:
+            method: plugin
+            pluginConfiguration:
+              name: "{{ cnpg_plugin }}"
+            target: prefer-standby
+            schedule: "{{ db.cron }}"
+    - name: Create a named plugin base backup
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: postgresql.cnpg.io/v1
+          kind: Backup
+          metadata:
+            name: "{{ cnpg_backup_id }}"
+            namespace: "{{ db.namespace }}"
+          spec:
+            cluster:
+              name: "{{ db.cluster }}"
+            method: plugin
+            pluginConfiguration:
+              name: "{{ cnpg_plugin }}"
+            target: prefer-standby
+    - name: Wait for the new base backup
+      kubernetes.core.k8s_info:
+        api_version: postgresql.cnpg.io/v1
+        kind: Backup
+        namespace: "{{ db.namespace }}"
+        name: "{{ cnpg_backup_id }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: backup
+      until: backup.resources[0].status.phase | default('') in ['completed', 'failed']
+      retries: 120
+      delay: 10
+      when: not ansible_check_mode
+    - name: Verify the preserved identity and completed backup
+      ansible.builtin.assert:
+        that:
+          - after.resources[0].metadata.uid == db.uid
+          - after.resources[0].status.systemID == db.system_id
+          - after.resources[0].spec.postgresql.parameters.archive_timeout == '5min'
+          - backup.resources[0].status.phase == 'completed'
+      when: not ansible_check_mode

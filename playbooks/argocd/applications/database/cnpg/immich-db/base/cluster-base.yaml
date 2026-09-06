@@ -29,6 +29,3 @@ spec:
       - "vectors.so"
   monitoring:
     enablePodMonitor: true
-  env:
-    - name: FORCE_RECREATE
-      value: "4"
