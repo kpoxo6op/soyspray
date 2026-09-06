@@ -58,9 +58,9 @@ def test_schedule_runs_gate_and_all_apps_in_order(tmp_path):
     assert code == 0
     assert calls == [
         ["make", "--no-print-directory", "full-check"],
-        ["make", "--no-print-directory", "-o", "check", "restore-check", "APP=boys"],
-        ["make", "--no-print-directory", "-o", "check", "restore-check", "APP=vaultwarden"],
-        ["make", "--no-print-directory", "-o", "check", "restore-check", "APP=obsidian-livesync"],
+        ["make", "--no-print-directory", "restore-check", "APP=boys"],
+        ["make", "--no-print-directory", "restore-check", "APP=vaultwarden"],
+        ["make", "--no-print-directory", "restore-check", "APP=obsidian-livesync"],
     ]
     assert report["status"] == "passed"
     assert [item["app"] for item in report["apps"]] == list(restore_schedule.APPS)
@@ -96,7 +96,7 @@ def test_schedule_stops_when_cleanup_evidence_is_missing(tmp_path):
     assert len(report["apps"]) == 1
     assert calls == [
         ["make", "--no-print-directory", "full-check"],
-        ["make", "--no-print-directory", "-o", "check", "restore-check", "APP=boys"],
+        ["make", "--no-print-directory", "restore-check", "APP=boys"],
     ]
 
 
@@ -186,3 +186,40 @@ def test_installer_normalizes_paths_and_validates_units_before_enable():
         "--user",
         "verify",
     ]
+
+
+@pytest.mark.parametrize(
+    "gate,revision,accepted",
+    [("passed", "checked", True), ("failed", "checked", False), ("passed", "other", False)],
+)
+def test_runner_reuses_only_the_successful_schedule_check_for_its_revision(
+    tmp_path, monkeypatch, gate, revision, accepted
+):
+    from scripts import restore_common
+
+    state = tmp_path / "restores/boys"
+    run_id = "20260906050000-abcd"
+    path = state.parent / "schedule" / run_id / "report.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        json.dumps(
+            {
+                "run_id": run_id,
+                "status": "running",
+                "git_revision": revision,
+                "shared_gate": {"status": gate},
+            }
+        )
+    )
+    monkeypatch.setattr(restore_common, "capture_output", lambda *args, **kwargs: "checked\n")
+    assert restore_common.preflight_command(tmp_path, state, None) == ["make", "go"]
+    if accepted:
+        assert restore_common.preflight_command(tmp_path, state, run_id) == [
+            "make",
+            "-o",
+            "check",
+            "go",
+        ]
+    else:
+        with pytest.raises(ValueError, match="did not pass"):
+            restore_common.preflight_command(tmp_path, state, run_id)

@@ -173,6 +173,7 @@ def run_schedule(root, state_home, runner=run_process):
                 save_report(report_path, report)
                 return report, 2
 
+            save_report(report_path, report)
             for app in APPS:
                 if revision(root) != gate_revision:
                     report.update(
@@ -183,8 +184,6 @@ def run_schedule(root, state_home, runner=run_process):
                 command = [
                     "make",
                     "--no-print-directory",
-                    "-o",
-                    "check",
                     "restore-check",
                     f"APP={app}",
                 ]

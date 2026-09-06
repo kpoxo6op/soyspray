@@ -4,6 +4,7 @@ import contextlib
 import fcntl
 import json
 import os
+import re
 import secrets
 import signal
 import subprocess
@@ -167,6 +168,22 @@ def _handle_sigterm(signum, frame):
     raise RestoreInterrupted
 
 
+def preflight_command(root, state, run_id):
+    if not run_id:
+        return ["make", "go"]
+    require(bool(re.fullmatch(r"[0-9]{14}-[0-9a-f]{4}", run_id)), "Invalid schedule run ID.")
+    report = json.loads((state.parent / "schedule" / run_id / "report.json").read_text())
+    require(
+        report.get("run_id") == run_id
+        and report.get("status") == "running"
+        and report.get("shared_gate", {}).get("status") == "passed"
+        and report.get("git_revision")
+        == capture_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
+        "The scheduled full check did not pass for this revision.",
+    )
+    return ["make", "-o", "check", "go"]
+
+
 class RestoreOperation:
     """Own the private workspace and common isolated restore lifecycle."""
 
@@ -220,7 +237,9 @@ class RestoreOperation:
         with preflight_log.open("w") as log:
             preflight_log.chmod(0o600)
             run_process(
-                ["make", "go"],
+                preflight_command(
+                    self.root, self.state, os.environ.get("SOYSPRAY_RESTORE_SCHEDULE_RUN_ID")
+                ),
                 cwd=self.root,
                 stdout=log,
                 stderr=subprocess.STDOUT,
