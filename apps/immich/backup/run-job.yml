@@ -1,0 +1,147 @@
+---
+- name: Run one declared paired backup operation
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    immich_backup_operation: backup
+    immich_backup_job_name: "immich-{{ immich_backup_operation }}-{{ immich_backup_run_id }}"
+  tasks:
+    - name: Require a unique operation identifier
+      ansible.builtin.assert:
+        that:
+          - immich_backup_operation in ['initialize', 'backup']
+          - immich_backup_evidence_dir | default('') is match('^/')
+          - not immich_backup_evidence_dir.startswith((playbook_dir + '/../../..') | realpath)
+          - immich_backup_run_id | default('') is match('^[a-z0-9][a-z0-9-]{0,23}$')
+
+    - name: Read the deployed paired backup template
+      kubernetes.core.k8s_info:
+        api_version: batch/v1
+        kind: CronJob
+        namespace: immich
+        name: immich-paired-backup
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: immich_backup_cron
+
+    - name: Read a colliding operation identifier
+      kubernetes.core.k8s_info:
+        api_version: batch/v1
+        kind: Job
+        namespace: immich
+        name: "{{ immich_backup_job_name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: immich_backup_existing_job
+
+    - name: Require the declared backup template and an unused operation name
+      ansible.builtin.assert:
+        that:
+          - immich_backup_cron.resources | length == 1
+          - immich_backup_existing_job.resources | length == 0
+          - immich_backup_cron.resources[0].spec.concurrencyPolicy == 'Forbid'
+          - immich_backup_cron.resources[0].spec.suspend | bool
+          - immich_backup_cron.resources[0].status.active | default([]) | length == 0
+          - immich_backup_cron.resources[0].spec.jobTemplate.spec.template.spec.volumes
+            | selectattr('name', 'equalto', 'library') | map(attribute='persistentVolumeClaim.claimName') | list == ['immich-library']
+
+    - name: Select the declared pod settings
+      ansible.builtin.set_fact:
+        immich_backup_pod: "{{ immich_backup_cron.resources[0].spec.jobTemplate.spec.template.spec }}"
+
+    - name: Select repository initialization without running a database export
+      ansible.builtin.set_fact:
+        immich_backup_pod: >-
+          {{ immich_backup_pod | combine({
+             'initContainers': [immich_backup_pod.initContainers[0]],
+             'containers': [immich_backup_pod.containers[0] | combine({'command': ['restic', 'init']})]}) }}
+      when: immich_backup_operation == 'initialize'
+
+    - name: Run the isolated operation and remove its temporary Job
+      when: not ansible_check_mode
+      block:
+        - name: Create the named backup operation
+          kubernetes.core.k8s:
+            state: present
+            kubeconfig: "{{ kubeconfig_path }}"
+            definition:
+              apiVersion: batch/v1
+              kind: Job
+              metadata:
+                name: "{{ immich_backup_job_name }}"
+                namespace: immich
+                labels:
+                  soyspray.vip/purpose: immich-backup-operation
+                  soyspray.vip/run-id: "{{ immich_backup_run_id }}"
+              spec:
+                backoffLimit: 0
+                activeDeadlineSeconds: 1200
+                template:
+                  spec: "{{ immich_backup_pod }}"
+          register: immich_backup_created_job
+
+        - name: Wait for a terminal Job condition
+          kubernetes.core.k8s_info:
+            api_version: batch/v1
+            kind: Job
+            name: "{{ immich_backup_job_name }}"
+            namespace: immich
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: immich_backup_result
+          until: >-
+            immich_backup_result.resources | length == 1 and
+            (immich_backup_result.resources[0].status.conditions | default([])
+             | selectattr('type', 'in', ['Complete', 'Failed']) | selectattr('status', 'equalto', 'True') | list | length > 0)
+          retries: 125
+          delay: 10
+
+        - name: Require successful completion
+          ansible.builtin.assert:
+            that:
+              - immich_backup_result.resources[0].status.conditions | default([])
+                | selectattr('type', 'equalto', 'Complete') | selectattr('status', 'equalto', 'True') | list | length == 1
+      always:
+        - name: Preserve evidence and always clean up the temporary Job
+          block:
+            - name: Collect private operation logs before cleanup
+              ansible.builtin.command:
+                argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", -n, immich, logs,
+                       "job/{{ immich_backup_job_name }}", --all-containers=true, --prefix=true]
+              changed_when: false
+              failed_when: false
+              register: immich_backup_private_log
+              no_log: true
+
+            - name: Create the private evidence directory
+              ansible.builtin.file:
+                path: "{{ immich_backup_evidence_dir }}"
+                state: directory
+                mode: '0700'
+              delegate_to: localhost
+              become: false
+
+            - name: Save the private operation logs
+              ansible.builtin.copy:
+                content: "{{ immich_backup_private_log.stdout | default('') }}\n{{ immich_backup_private_log.stderr | default('') }}"
+                dest: "{{ immich_backup_evidence_dir }}/{{ immich_backup_job_name }}.log"
+                mode: '0600'
+              delegate_to: localhost
+              become: false
+              no_log: true
+
+          always:
+            - name: Remove only the Job created by this operation
+              kubernetes.core.k8s:
+                state: absent
+                api_version: batch/v1
+                kind: Job
+                name: "{{ immich_backup_job_name }}"
+                namespace: immich
+                kubeconfig: "{{ kubeconfig_path }}"
+                delete_options:
+                  propagationPolicy: Foreground
+                  preconditions:
+                    uid: "{{ immich_backup_created_job.result.metadata.uid }}"
+                wait: true
+                wait_timeout: 120
+              when: immich_backup_created_job.result.metadata.uid is defined
