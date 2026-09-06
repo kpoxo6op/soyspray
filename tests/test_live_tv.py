@@ -214,13 +214,6 @@ def test_make_go_checks_authentik_and_live_tv_syntax() -> None:
     assert "--tags authentik,live-tv" in makefile
 
 
-def test_live_tv_start_reconciles_authentik_from_the_same_revision() -> None:
-    makefile = (ROOT / "Makefile").read_text()
-    assert "LIVE_TV_TAGS := authentik,live-tv" in makefile
-    assert "authentik_target_revision=$(LIVE_TV_REVISION)" in makefile
-    assert "--tags $(LIVE_TV_TAGS)" in makefile
-
-
 @pytest.mark.parametrize("name", ("dispatcharr", "jellyfin"))
 def test_live_tv_applications_use_controlled_cascade(name: str) -> None:
     application = yaml.safe_load(

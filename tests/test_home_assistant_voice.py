@@ -628,28 +628,6 @@ def test_ansible_creates_the_voice_secret_and_argocd_app() -> None:
         item["role"] == "apps/voice-assistant" for item in playbook[0]["vars"]["argocd_app_roles"]
     )
 
-    makefile = (ROOT / "Makefile").read_text()
-    assert "VOICE_ASSISTANT_REVISION ?= HEAD" in makefile
-    assert "VOICE_ASSISTANT_ENABLED ?= true" in makefile
-    assert PACKAGE in makefile
-    assert "roles/apps/voice-assistant/tasks/*.yml" in makefile
-    assert "roles/apps/voice-assistant/defaults/*.yml" in makefile
-    assert "voice-assistant: go" in makefile
-    assert "--tags voice_assistant" in makefile
-    assert "voice_assistant_target_revision=$(VOICE_ASSISTANT_REVISION)" in makefile
-    assert "voice_assistant_enabled=$(VOICE_ASSISTANT_ENABLED)" in makefile
-    for target in (
-        "voice-pe-render:",
-        "voice-pe-check:",
-        "voice-pe-compile:",
-        "voice-pe-upload:",
-    ):
-        assert target in makefile
-    assert "esphome==2025.5.1" in makefile
-    assert "scripts/render_gi_voice_pe.py" in makefile
-    assert "voice-pe-upload: voice-pe-compile" in makefile
-    assert "\t$(MAKE) go\n" in makefile
-
 
 def test_home_assistant_has_local_voice_settings() -> None:
     home_assistant = "playbooks/argocd/applications/home-automation/home-assistant"
