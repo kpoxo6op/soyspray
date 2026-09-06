@@ -3,6 +3,7 @@
 import json
 import os
 import tarfile
+import traceback
 from pathlib import Path
 
 import yaml
@@ -86,8 +87,13 @@ def main():
                         stderr=errors,
                         timeout=900,
                     )
-                with tarfile.open(archive) as source:
-                    source.extractall(destination, filter="data")
+                operation.stage = app + " private archive extraction"
+                try:
+                    with tarfile.open(archive) as source:
+                        source.extractall(destination, filter="data")
+                except Exception:
+                    (operation.output / (app + "-extract.log")).write_text(traceback.format_exc())
+                    raise
                 archive.unlink()
                 operation.stage = app + " data verification"
                 result = operation.run(
