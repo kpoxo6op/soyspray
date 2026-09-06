@@ -11,7 +11,6 @@ on:
       - "apps/node-backup/Dockerfile"
       - "apps/node-backup/.dockerignore"
       - "apps/node-backup/scripts/**"
-      - ".github/workflows/node-backup-image.yml"
   workflow_dispatch:
 
 permissions:
