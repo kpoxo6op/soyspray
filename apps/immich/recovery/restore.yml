@@ -285,7 +285,7 @@
 
         - name: Record verified restored database counts
           ansible.builtin.set_fact:
-            recovery_counts: "{{ recovery_database_log.log | regex_findall('database_counts=([0-9]+),([0-9]+),([0-9]+)') | first }}"
+            recovery_counts: "{{ recovery_database_log.log | regex_findall('database_counts=([0-9]+),([0-9]+),([0-9]+)') | first | list }}"
           when: not ansible_check_mode
 
         - name: Start isolated Redis and Immich with no external ingress
