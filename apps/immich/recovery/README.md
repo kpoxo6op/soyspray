@@ -36,3 +36,10 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
 A successful isolated check does not authorize an application restore, a
 production claim change, or a database cutover. The maintained runner pins the server digest and generates a new scratch password. The initial snapshot has 0 assets, 0 albums, and 1 user. Its historical files
 are preserved; an empty asset table does not prove photo recovery.
+
+Scratch file consumers use native affinity to the production server's node.
+This reuses its exact cached image and avoids moving the scratch RWO claim
+between jobs. Production claims are not mounted. The restore creates empty
+marker files only for omitted generated folders (`thumbs`, `encoded-video`,
+`backups`), as documented by [Immich](https://docs.immich.app/administration/system-integrity/#missing-immich-files).
+These folders are initialized; their contents are not claimed as recovered.
