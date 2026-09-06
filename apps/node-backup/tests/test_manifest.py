@@ -33,6 +33,7 @@ class NodeBackupManifest(unittest.TestCase):
     def test_credentials_use_the_documented_secret_contract(self) -> None:
         container = self.manifest["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"][0]
         names = {entry["name"] for entry in container["env"]}
+        self.assertIn({"name": "TMPDIR", "value": "/work"}, container["env"])
         self.assertTrue(
             {
                 "RESTIC_REPOSITORY",
