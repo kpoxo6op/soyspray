@@ -2,7 +2,7 @@
 
 This package creates a daily Restic snapshot from the durable node-local paths
 that were verified on `node-0`. The CronJob is committed with `spec.suspend:
-true`. Root must promote the tested image digest, create the credential Secret,
+true`. The operator must promote the tested image digest, create the credential Secret,
 run one real backup and isolated restore, then deliberately enable the schedule.
 
 The backup runs on `node-0` and reads these paths through read-only host mounts:
@@ -59,6 +59,9 @@ repository. They verify the restored database integrity and the absence of the
 original WAL and shared-memory files. The test is local only. It does not use
 cluster mounts or upload to an off-cluster repository.
 
-The dedicated workflow builds the image and runs these tests. The `pending`
+The dedicated workflow builds the image and runs these tests with the packaged
+Python and Restic binaries. A main-branch run publishes the tested image;
+deployment requires a separate digest promotion. Each snapshot includes a
+content manifest with file hashes and the SQLite integrity result. The `pending`
 image reference in the suspended CronJob is a bootstrap value. Replace it with
 the digest from a tested image before any deployment or schedule enablement.
