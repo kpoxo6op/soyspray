@@ -25,6 +25,7 @@ class BarmanPluginTests(unittest.TestCase):
 
     def test_operator_application_keeps_helm_and_adds_git_plugin_source(self):
         application = yaml.safe_load(APPLICATION.read_text())
+        self.assertEqual(application["metadata"]["annotations"]["argocd.argoproj.io/compare-options"], "ServerSideDiff=true")
         options = application["spec"]["syncPolicy"]["syncOptions"]
         self.assertIn("ServerSideApply=true", options)
         self.assertIn("DisableClientSideApplyMigration=true", options)

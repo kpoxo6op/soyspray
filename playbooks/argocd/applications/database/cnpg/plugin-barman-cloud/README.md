@@ -63,3 +63,8 @@ ansible-playbook playbooks/deploy-argocd-apps.yml --tags cnpg-operator \
 
 After merge, run the same command with `cnpg_operator_revision=HEAD`. Verify
 both source revisions and plugin health. Database migrations are separate.
+
+The Application uses server-side apply for large CNPG schemas. Server-side
+diff lets the Kubernetes API compare fields that the older Argo schema does
+not recognize. Client-side apply migration is disabled to avoid the large
+last-applied annotation.
