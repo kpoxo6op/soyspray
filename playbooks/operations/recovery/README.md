@@ -32,7 +32,7 @@ an observation source failed or could not be read. For offline checks, use
 ## Create the S3 store
 
 `provision-s3.yml` creates one private S3 bucket and one IAM user. The user can
-manage only the `longhorn/` prefix. The bucket has no versioning, archive rule,
+manage only its selected prefix (`longhorn/` by default). The bucket has no versioning, archive rule,
 or expiry rule. Longhorn owns backup retention. The operation rejects an
 existing bucket with versioning or lifecycle rules and never rotates a key.
 
@@ -44,6 +44,21 @@ python3 -m venv recovery-venv
 source recovery-venv/bin/activate
 python -m pip install ansible-core==2.18.18 boto3==1.43.62
 ```
+
+On the laptop, AWS CLI v2 can use the existing console session with temporary
+credentials. Keep this operator session separate from backup credentials:
+
+```sh
+aws login --profile soyspray-operator --region ap-southeast-2
+aws configure set credential_process 'aws configure export-credentials --profile soyspray-operator' --profile soyspray-operator-sdk
+aws configure set region ap-southeast-2 --profile soyspray-operator-sdk
+export AWS_PROFILE=soyspray-operator-sdk
+aws sts get-caller-identity
+```
+
+Use the SDK profile for Ansible. It invokes the installed CLI to obtain temporary
+credentials. Backup workloads use only the dedicated encrypted export. The
+operator session can expire without stopping backups.
 
 Install the collection listed in `requirements.yml` as shown below. An initial
 `--check` run verifies the account and recipient but skips bucket creation and
@@ -81,6 +96,13 @@ outside the cluster and retain a separate recovery copy.
 A retry uses the existing key and encrypted export. If key creation succeeded
 but export failed, the operation stops. Inspect that incomplete bootstrap;
 do not replace a key that a running backup may already use.
+
+For Immich, pass `-e @apps/immich/backup/store.yml` and a separate
+`recovery_sealed_credentials` path to the same operation. This creates an identity
+limited to `immich/` in the recovery bucket. It does not change Longhorn's policy
+or the historical archive buckets. Decrypt its export directly into Ansible Vault
+with the existing private recovery key. Verify allowed object read/write/delete
+and rejected access outside the prefix before deploying a backup workload.
 
 ## Check and rollback
 
