@@ -1,19 +1,18 @@
-SHELL := /bin/bash
-.SHELLFLAGS := -eu -o pipefail -c
-PYTHON ?= soyspray-venv/bin/python
-REVISION ?= HEAD
+include $(dir $(lastword $(MAKEFILE_LIST)))../common.mk
 .PHONY: check diff deploy
 
 check:
-	$(PYTHON) -m pytest -q apps/external-dns/tests
-	$(PYTHON) -m ansiblelint apps/external-dns/*.yml
-	kubectl kustomize apps/external-dns/argocd >/dev/null
+	cd $(ROOT) && $(PYTHON) -m pytest -q apps/external-dns/tests
+	cd $(ROOT) && $(PYTHON) -m ansiblelint apps/external-dns/*.yml
+	cd $(ROOT) && kubectl kustomize apps/external-dns/argocd >/dev/null
 
 diff:
-	$(PYTHON) -m scripts.app_diff --app external-dns --pushed
+	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app external-dns --pushed
 
 deploy:
-	$(MAKE) --no-print-directory -f Makefile APP= external-dns EXTERNAL_DNS_REVISION=$(REVISION)
+	cd $(ROOT) && $(ANSIBLE) apps/external-dns/bootstrap.yml
+	cd $(ROOT) && $(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(REVISION) \
+		-e argocd_preview_application=$(if $(filter HEAD,$(REVISION)),,external-dns)
 
 .DEFAULT:
 	@printf 'unknown: ExternalDNS has no maintained %s operation yet.\n' "$@" >&2
