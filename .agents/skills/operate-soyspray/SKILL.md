@@ -41,6 +41,10 @@ reuse an old disable path that recreates resources or deletes shared access.
 OpenClaw runs on the laptop. Keep its node-0 retirement verifier through the
 migration window, and preserve shared credentials and Tailscale.
 
+For node-local data, use `make restore-check APP=node-backup SNAPSHOT=ID`.
+It verifies restored files and SQLite in a private local workspace. Check Jellyfin
+playback separately before accepting the recovery release.
+
 Use Ansible Vault and documented private inputs. Keep recovery keys outside the
 cluster. Do not print secret values or use regex edits of plaintext credentials.
 Report the checks actually completed and each remaining evidence gap.

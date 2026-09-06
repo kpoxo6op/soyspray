@@ -1,0 +1,118 @@
+---
+- name: Run and collect one suspended node backup
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    node_backup_operation: backup
+    node_backup_job: "node-backup-{{ node_backup_run_id }}"
+  tasks:
+    - name: Require a private evidence directory and unique identifier
+      ansible.builtin.assert:
+        that:
+          - node_backup_operation in ['backup', 'check']
+          - node_backup_run_id is match('^[a-z0-9][a-z0-9-]{0,23}$')
+          - node_backup_evidence_dir is match('^/')
+          - not (node_backup_evidence_dir | realpath).startswith((playbook_dir | realpath) + '/')
+
+    - name: Read the declared backup and any existing operation
+      kubernetes.core.k8s_info:
+        api_version: batch/v1
+        kind: "{{ item.kind }}"
+        name: "{{ item.name }}"
+        namespace: media
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop:
+        - {kind: CronJob, name: node-backup}
+        - {kind: Job, name: "{{ node_backup_job }}"}
+      register: node_backup_existing
+
+    - name: Require the inactive suspended template and an unused Job name
+      ansible.builtin.assert:
+        that:
+          - node_backup_existing.results[0].resources | length == 1
+          - node_backup_existing.results[1].resources | length == 0
+          - node_backup_existing.results[0].resources[0].spec.suspend | bool
+          - node_backup_existing.results[0].resources[0].status.active | default([]) | length == 0
+          - node_backup_existing.results[0].resources[0].spec.jobTemplate.spec.template.spec.containers[0].image
+            is match('^ghcr.io/kpoxo6op/node-backup@sha256:[0-9a-f]{64}$')
+
+    - name: Select the maintained backup or repository check
+      ansible.builtin.set_fact:
+        node_backup_job_spec: >-
+          {{ node_backup_existing.results[0].resources[0].spec.jobTemplate.spec |
+             combine({'template': {'spec': {'containers':
+               [node_backup_existing.results[0].resources[0].spec.jobTemplate.spec.template.spec.containers[0] |
+                combine({'command': ['restic', 'check']} if node_backup_operation == 'check' else {})]}}}, recursive=True) }}
+
+    - name: Run the backup and retain private evidence
+      when: not ansible_check_mode
+      block:
+        - name: Create the temporary backup Job
+          kubernetes.core.k8s:
+            state: present
+            kubeconfig: "{{ kubeconfig_path }}"
+            definition:
+              apiVersion: batch/v1
+              kind: Job
+              metadata:
+                name: "{{ node_backup_job }}"
+                namespace: media
+                labels: {soyspray.vip/purpose: node-backup-check}
+              spec: "{{ node_backup_job_spec }}"
+          register: node_backup_created
+
+        - name: Wait for completion or failure
+          kubernetes.core.k8s_info:
+            api_version: batch/v1
+            kind: Job
+            name: "{{ node_backup_job }}"
+            namespace: media
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: node_backup_result
+          until: >-
+            node_backup_result.resources | length == 1 and
+            (node_backup_result.resources[0].status.conditions | default([])
+             | selectattr('type', 'in', ['Complete', 'Failed'])
+             | selectattr('status', 'equalto', 'True') | list | length > 0)
+          retries: 240
+          delay: 15
+
+        - name: Require successful backup completion
+          ansible.builtin.assert:
+            that:
+              - node_backup_result.resources[0].status.succeeded | default(0) == 1
+      always:
+        - name: Collect the private Job log
+          ansible.builtin.command:
+            argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", -n, media, logs, "job/{{ node_backup_job }}"]
+          changed_when: false
+          failed_when: false
+          register: node_backup_log
+          no_log: true
+
+        - name: Save the private Job evidence
+          ansible.builtin.copy:
+            content: "{{ node_backup_log.stdout | default('') }}"
+            dest: "{{ node_backup_evidence_dir }}/{{ node_backup_job }}.log"
+            mode: '0600'
+          delegate_to: localhost
+          become: false
+          no_log: true
+          ignore_errors: true
+
+        - name: Delete only this operation's Job
+          kubernetes.core.k8s:
+            state: absent
+            api_version: batch/v1
+            kind: Job
+            namespace: media
+            name: "{{ node_backup_job }}"
+            kubeconfig: "{{ kubeconfig_path }}"
+            delete_options:
+              propagationPolicy: Foreground
+              preconditions: {uid: "{{ node_backup_created.result.metadata.uid }}"}
+            wait: true
+            wait_timeout: 180
+          when: node_backup_created.result.metadata.uid is defined

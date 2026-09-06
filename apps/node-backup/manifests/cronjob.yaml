@@ -9,7 +9,7 @@ metadata:
 spec:
   schedule: "0 3 * * *"
   timeZone: Pacific/Auckland
-  suspend: true
+  suspend: false
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 3600
   successfulJobsHistoryLimit: 3
@@ -33,9 +33,11 @@ spec:
               type: RuntimeDefault
           containers:
             - name: node-backup
-              image: ghcr.io/kpoxo6op/node-backup:pending
+              image: ghcr.io/kpoxo6op/node-backup@sha256:8d25c8d2789eba03120298b71694a3c22177be76d630b054b457cfab61d6da04
               imagePullPolicy: IfNotPresent
               env:
+                - name: TMPDIR
+                  value: /work
                 - name: BACKUP_WORKDIR
                   value: /work
                 - name: JELLYFIN_SOURCE
