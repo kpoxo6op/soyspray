@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   image:
@@ -30,8 +31,20 @@ jobs:
       - name: Check the packaged entrypoint
         run: |
           docker run --rm --network none --read-only --entrypoint python3 \
-            soyspray-node-backup:test -m py_compile /scripts/backup.py
+            soyspray-node-backup:test -c "import ast; ast.parse(open('/scripts/backup.py').read())"
       - name: Run the SQLite and Restic recovery tests
         run: |
           python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
-          python3 -m unittest discover -s apps/node-backup/tests -p 'test_*.py'
+          docker run --rm --entrypoint python3 -v "$PWD/apps/node-backup:/app:ro" \
+            soyspray-node-backup:test /app/tests/test_backup.py
+          python3 -m unittest discover -s apps/node-backup/tests -p 'test_manifest.py'
+      - name: Publish the tested source image
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          image="ghcr.io/kpoxo6op/node-backup:$GITHUB_SHA"
+          docker tag soyspray-node-backup:test "$image"
+          docker push "$image"
+          docker image inspect "$image" --format '{{index .RepoDigests 0}}' >> "$GITHUB_STEP_SUMMARY"
