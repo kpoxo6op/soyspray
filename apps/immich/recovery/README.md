@@ -6,18 +6,10 @@ It reads the production A identities (`immich-db-a` and the
 Immich server. It never mounts `immich-library` or creates an external Service
 or Ingress.
 
-Run a check from the repository root with a new short identifier:
-
-```sh
-source soyspray-venv/bin/activate
-apps/immich/recovery/run.sh 20260906-a \
-  -i kubespray/inventory/soycluster/hosts.yml \
-  --become --become-user=root --user ubuntu \
-  -e recovery_db_password='use-a-private-password' \
-  -e recovery_server_image_digest='ghcr.io/immich-app/immich-server:v2.3.1@sha256:...' \
-  -e recovery_expected_asset_count=0 -e recovery_expected_album_count=0 \
-  -e recovery_expected_user_count=1
-```
+Run `make restore-check APP=immich` from the pushed repository checkout.
+The shared runner checks deployment prerequisites, takes a private lock, creates
+a unique check ID and scratch password, and saves private logs. It uses the
+existing off-cluster Immich Vault inputs. Do not pass passwords on the command line.
 
 The procedure selects the newest Restic snapshot with host `immich` and tag
 `restore-candidate`. It runs `restic restore --verify` into a new Longhorn PVC
@@ -41,7 +33,6 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
 ```
 
 A successful isolated check does not authorize an application restore, a
-production claim change, or a database cutover. The server image digest and a
-new scratch database password are mandatory inputs. Current paired-backup
+production claim change, or a database cutover. The maintained runner pins the server digest and generates a new scratch password. Current paired-backup
 evidence is 0 assets, 0 albums, and 1 user; use different counts only for a
 snapshot with verified source evidence.
