@@ -6,7 +6,10 @@ metadata:
 spec:
   schedule: "0 47 4 * * *"
   backupOwnerReference: self
-  method: barmanObjectStore
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+  target: prefer-standby
   cluster:
     name: immich-db
 
