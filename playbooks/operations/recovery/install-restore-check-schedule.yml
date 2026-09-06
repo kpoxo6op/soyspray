@@ -41,11 +41,11 @@
         daemon_reload: true
         scope: user
 
-    - name: Enable and start the monthly restore-check timer
+    - name: Set the requested monthly restore-check timer state
       ansible.builtin.systemd_service:
         name: soyspray-restore-check.timer
-        enabled: true
-        state: started
+        enabled: "{{ recovery_schedule_enabled | default(true) | bool }}"
+        state: "{{ 'started' if recovery_schedule_enabled | default(true) | bool else 'stopped' }}"
         scope: user
 
     - name: Start one requested schedule verification without blocking installation
@@ -55,3 +55,10 @@
         scope: user
         no_block: true
       when: recovery_schedule_run_now | default(false) | bool
+
+    - name: Stop the restore service when disabling its schedule
+      ansible.builtin.systemd_service:
+        name: soyspray-restore-check.service
+        state: stopped
+        scope: user
+      when: not (recovery_schedule_enabled | default(true) | bool)

@@ -439,3 +439,5 @@ Saved observations establish the recorded storage identities, not the current
 cluster binding. Use live commands to check current bindings.
 
 The monthly runner checks one exact Git revision with the full gate. Each app then runs `make -o check restore-check APP=...`, which retains its Git and Ansible preflight without repeating the full gate. A changed revision stops the run. On interruption, the runner allows fifteen minutes for the active restore to finish guarded cleanup.
+
+Set `-e recovery_schedule_enabled=false` on the installer to disable the timer and stop its service with guarded cleanup. Use `-e recovery_schedule_run_now=true` to verify the installed service once.
