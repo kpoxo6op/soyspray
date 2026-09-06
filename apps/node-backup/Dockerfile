@@ -14,4 +14,4 @@ RUN apk add --no-cache bzip2 \
 
 COPY --chmod=0555 scripts/backup.py /scripts/backup.py
 USER 0:0
-ENTRYPOINT ["/usr/bin/python3", "/scripts/backup.py"]
+ENTRYPOINT ["/usr/local/bin/python3", "/scripts/backup.py"]

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -164,6 +165,7 @@ def run() -> int:
     report: dict[str, Any] = {
         "schema": "soyspray.node-backup/v1",
         "run_id": uuid.uuid4().hex,
+        "started_at": datetime.now(timezone.utc).isoformat(),
         "result": "failed",
         "inputs": {
             "jellyfin_directories": list(JELLYFIN_DIRS),
@@ -191,15 +193,17 @@ def run() -> int:
             stage_jellyfin = stage / "jellyfin"
             stage_books = stage / "books"
             stage_jellyfin.mkdir()
+            report["sqlite"] = _snapshot_sqlite(
+                database_source, stage / "jellyfin.db"
+            )
             for directory in JELLYFIN_DIRS:
                 _copy_tree(jellyfin_source / directory, stage_jellyfin / directory)
-            report["sqlite"] = _snapshot_sqlite(
-                database_source, stage_jellyfin / "data" / "jellyfin.db"
-            )
+            shutil.move(stage / "jellyfin.db", stage_jellyfin / "data" / "jellyfin.db")
             _copy_tree(books_source, stage_books)
             report["files"] = _file_report(stage_jellyfin, "jellyfin") + _file_report(
                 stage_books, "books"
             )
+            _write_report(stage / "content-manifest.json", report)
             backup_output = _run_restic(
                 [
                     "backup",
@@ -214,6 +218,7 @@ def run() -> int:
                     "node-local",
                     str(stage_jellyfin),
                     str(stage_books),
+                    str(stage / "content-manifest.json"),
                 ],
                 environment,
             )
@@ -235,7 +240,7 @@ def run() -> int:
     except Exception as error:  # The report must survive every ordinary failure.
         report["error"] = {"type": type(error).__name__, "message": str(error)}
     _write_report(report_path, report)
-    print(json.dumps(report, indent=2, sort_keys=True))
+    print(json.dumps({key: value for key, value in report.items() if key != "files"}, sort_keys=True))
     return 0 if report["result"] == "passed" else 1
 
 
