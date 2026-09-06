@@ -485,3 +485,17 @@ After both writer migrations, update backup metric consumers through
 `deploy-argocd-apps.yml --tags prometheus-source -e prometheus_target_revision=BRANCH`.
 This selects only the existing monitoring Application source. Verify the Barman
 backup timestamp queries, then return its revision to `HEAD` after merge.
+
+## Daily small-volume restore checks
+
+Run `python -m scripts.restore_durable` from the repository venv. The command runs
+one full preflight, then restores each declared daily small-volume backup in
+sequence. It uses the existing isolated volume and guarded cleanup commands.
+It checks file readability, SQLite integrity and real table counts, JSON, XML,
+and book archives. MariaDB, PostgreSQL, Redis, and Mosquitto also use their pinned
+running image to validate the restored files in an isolated namespace.
+
+Production claims and volumes must keep their identities. The command stops on
+failure and retains a private report under `~/.local/state/soyspray/restores/durable`.
+An empty volume is reported as empty. No fixtures are added to a restored volume.
+The command does not replace the separate critical application restore checks.
