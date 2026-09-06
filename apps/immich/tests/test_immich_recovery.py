@@ -132,6 +132,7 @@ def test_failed_restore_runs_guarded_cleanup_and_identity_check(tmp_path):
 
 def test_ansible_preserves_restored_count_list(tmp_path):
     import subprocess
+    import sys
 
     tasks = yaml.safe_load((RECOVERY / "restore.yml").read_text())[0]["tasks"]
     block = next(task["block"] for task in tasks if "block" in task)
@@ -156,7 +157,7 @@ def test_ansible_preserves_restored_count_list(tmp_path):
     path.write_text(yaml.safe_dump(play))
     subprocess.run(
         [
-            str(RECOVERY.parents[2] / "soyspray-venv/bin/ansible-playbook"),
+            str(Path(sys.executable).with_name("ansible-playbook")),
             "-i",
             "localhost,",
             str(path),
