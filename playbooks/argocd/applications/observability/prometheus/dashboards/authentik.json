@@ -1733,7 +1733,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "time() - max(cnpg_collector_last_available_backup_timestamp{namespace=\"authentik\", job=\"authentik/authentik-postgresql\"})",
+          "expr": "time() - max(barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{namespace=\"authentik\", job=\"authentik/authentik-postgresql\"})",
           "instant": true,
           "legendFormat": "age",
           "range": false,
