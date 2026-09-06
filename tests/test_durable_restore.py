@@ -69,3 +69,30 @@ def test_native_restore_security_context_keeps_numeric_uid(app, uid):
     assert type(context["runAsUser"]) is int
     assert context["runAsUser"] == context["runAsGroup"] == uid
     assert job["spec"]["template"]["spec"]["automountServiceAccountToken"] is False
+
+
+@pytest.mark.parametrize(
+    "app,read_only",
+    [("boys", False), ("vaultwarden", False), ("obsidian", False), ("dispatcharr-data", True)],
+)
+def test_daily_inspector_reads_mixed_owners_without_changing_critical_pods(app, read_only):
+    from ansible.parsing.dataloader import DataLoader
+    from ansible.template import Templar
+
+    play = yaml.safe_load((ROOT / "playbooks/operations/recovery/restore-volume.yml").read_text())[
+        0
+    ]
+    pod = next(
+        t["kubernetes.core.k8s"]["definition"]
+        for t in play["tasks"]
+        if isinstance(t.get("kubernetes.core.k8s", {}).get("definition"), dict)
+        and t["kubernetes.core.k8s"]["definition"].get("kind") == "Pod"
+    )
+    container = pod["spec"]["containers"][0]
+    template = Templar(loader=DataLoader(), variables={"recovery_app": app})
+    caps = template.template(container["securityContext"]["capabilities"])
+    mount = template.template(container["volumeMounts"])[0]
+    assert caps == (
+        {"drop": ["ALL"], "add": ["DAC_READ_SEARCH"]} if read_only else {"drop": ["ALL"]}
+    )
+    assert mount["readOnly"] is read_only

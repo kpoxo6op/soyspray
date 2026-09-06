@@ -2,7 +2,6 @@
 
 import json
 import os
-import subprocess
 import tarfile
 from pathlib import Path
 
@@ -61,7 +60,11 @@ def main():
                 operation.ansible("restore-volume.yml", variables, app + "-restore.log")
                 destination = operation.work / app
                 archive = operation.work / (app + ".tar")
-                with archive.open("wb") as output:
+                operation.stage = app + " restored file copy"
+                with (
+                    archive.open("wb") as output,
+                    (operation.output / (app + "-copy.log")).open("wb") as errors,
+                ):
                     operation.run(
                         [
                             "kubectl",
@@ -80,7 +83,7 @@ def main():
                         ],
                         check=True,
                         stdout=output,
-                        stderr=subprocess.PIPE,
+                        stderr=errors,
                         timeout=900,
                     )
                 with tarfile.open(archive) as source:
@@ -93,10 +96,15 @@ def main():
                         str(ROOT / "scripts/check_durable_data.py"),
                         str(destination),
                     ],
-                    check=True,
+                    check=False,
                     capture_output=True,
                     text=True,
                     timeout=900,
+                )
+                (operation.output / (app + "-data-errors.log")).write_text(result.stderr)
+                require(
+                    result.returncode == 0,
+                    "The restored data check failed; inspect its private error log.",
                 )
                 data = json.loads(result.stdout)
                 require(
