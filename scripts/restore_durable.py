@@ -1,5 +1,6 @@
 """Restore the daily small-volume backups through the shared isolated runner."""
 
+import argparse
 import json
 import os
 from pathlib import Path
@@ -28,6 +29,14 @@ def main():
         for key, value in claims.items()
         if key not in {"boys", "vaultwarden", "obsidian"}
     }
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--app", nargs="+", choices=sorted(targets), help="Check only these daily volumes"
+    )
+    args = parser.parse_args()
+    if args.app:
+        targets = {name: targets[name] for name in dict.fromkeys(args.app)}
 
     def worker(operation):
         operation.report["volumes"] = []

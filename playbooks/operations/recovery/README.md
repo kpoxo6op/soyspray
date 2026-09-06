@@ -499,3 +499,7 @@ Production claims and volumes must keep their identities. The command stops on
 failure and retains a private report under `~/.local/state/soyspray/restores/durable`.
 An empty volume is reported as empty. No fixtures are added to a restored volume.
 The command does not replace the separate critical application restore checks.
+
+To retry selected daily volumes, use `python -m scripts.restore_durable --app
+booklore-mariadb mosquitto-data`. Keep earlier successful reports as evidence;
+each selected run still performs preflight and guarded cleanup.
