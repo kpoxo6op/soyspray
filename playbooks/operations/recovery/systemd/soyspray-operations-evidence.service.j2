@@ -1,0 +1,12 @@
+[Unit]
+Description=Record Soyspray backup and restore evidence
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ evidence_repo }}
+ExecStart={{ evidence_python }} -m scripts.operations_evidence --once
+Environment=PATH=/home/boris/.local/bin:/usr/local/bin:/usr/bin:/bin
+UMask=0077
+TimeoutStartSec=150
+KillMode=control-group
+NoNewPrivileges=true
