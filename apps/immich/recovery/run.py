@@ -6,7 +6,7 @@ import os
 import secrets
 from pathlib import Path
 
-from scripts.restore_common import identity, require, run_restore
+from scripts.restore_common import identity, require, run_restore, save_report
 
 ROOT = Path(__file__).resolve().parents[3]
 PRIVATE = Path.home() / ".config/soyspray/recovery"
@@ -50,6 +50,7 @@ def restore(operation):
 
     operation.report["cleanup"] = "pending"
     operation.report["scratch_namespace"] = "immich-recovery-" + operation.check_id
+    save_report(operation.output, operation.report)
     operation.stage = "isolated restore"
     try:
         playbook("restore.yml", "restore.log")
@@ -57,11 +58,11 @@ def restore(operation):
         require(report.get("status") == "passed", "The isolated restore did not pass.")
         operation.report.update(report)
     finally:
-        operation.stage = "isolated resource cleanup"
         try:
             playbook("cleanup.yml", "cleanup.log")
             operation.report["cleanup"] = "completed"
         except BaseException:
+            operation.stage = "isolated resource cleanup"
             operation.report["cleanup"] = "failed - inspect cleanup.log"
             raise
         finally:

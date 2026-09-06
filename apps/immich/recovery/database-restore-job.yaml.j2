@@ -16,6 +16,7 @@ spec:
         soyspray.vip/component: database-restore
     spec:
       automountServiceAccountToken: false
+      securityContext: {runAsUser: 0}
       restartPolicy: Never
       containers:
         - name: postgres
