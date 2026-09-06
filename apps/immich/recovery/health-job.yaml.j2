@@ -1,0 +1,34 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: app-health
+  namespace: {{ recovery_namespace }}
+  labels: {{ recovery_labels | to_json }}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        soyspray.vip/purpose: immich-restore-check
+        soyspray.vip/app: immich
+        soyspray.vip/check-id: {{ recovery_check_id }}
+        soyspray.vip/component: app-health
+    spec:
+      affinity: {{ recovery_pod_affinity | to_json }}
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      containers:
+        - name: curl
+          image: {{ recovery_probe_image }}
+          command: [/bin/sh, -ec]
+          args:
+            - >-
+              curl --fail --silent --show-error http://immich-server:2283/api/server/ping |
+              grep -F '"res":"pong"';
+              version="$(curl --fail --silent --show-error http://immich-server:2283/api/server/version | tr -d '[:space:]')";
+              test "$version" = '{"major":2,"minor":3,"patch":1}';
+              for endpoint in http://immich-db-active.postgresql.svc.cluster.local:5432 https://1.1.1.1; do
+                peer="$(curl --silent --connect-timeout 3 --max-time 3 --output /dev/null --write-out '%{remote_ip}' "$endpoint" || true)";
+                test -z "$peer";
+              done

@@ -1,0 +1,64 @@
+---
+- name: Remove one owned Immich restore workspace
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    recovery_check_id: ""
+    recovery_namespace: "immich-recovery-{{ recovery_check_id }}"
+
+  tasks:
+    - name: Require an isolated recovery identifier
+      ansible.builtin.assert:
+        that:
+          - recovery_check_id is match('^[a-z0-9][a-z0-9-]{0,23}$')
+          - recovery_namespace != 'immich'
+        fail_msg: Supply the recovery_check_id used by the isolated restore.
+
+    - name: Read the requested recovery namespace
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Namespace
+        name: "{{ recovery_namespace }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_namespace_result
+
+    - name: Require the recovery namespace ownership labels
+      ansible.builtin.assert:
+        that:
+          - recovery_namespace_result.resources[0].metadata.labels['soyspray.vip/purpose'] == 'immich-restore-check'
+          - recovery_namespace_result.resources[0].metadata.labels['soyspray.vip/app'] == 'immich'
+          - recovery_namespace_result.resources[0].metadata.labels['soyspray.vip/check-id'] == recovery_check_id
+        fail_msg: Refusing cleanup because the namespace has different ownership labels.
+      when: recovery_namespace_result.resources | length == 1
+
+    - name: Delete only the verified recovery namespace
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Namespace
+        name: "{{ recovery_namespace }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        delete_options:
+          preconditions:
+            uid: "{{ recovery_namespace_result.resources[0].metadata.uid }}"
+        wait: true
+        wait_timeout: 300
+
+      when: recovery_namespace_result.resources | length == 1
+
+    - name: Require deletion of every scratch persistent volume
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolume
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_remaining_volumes
+      until: >-
+        recovery_remaining_volumes.resources
+        | selectattr('spec.claimRef', 'defined')
+        | selectattr('spec.claimRef.namespace', 'equalto', recovery_namespace)
+        | list | length == 0
+      retries: 60
+      delay: 5
+      when: not ansible_check_mode

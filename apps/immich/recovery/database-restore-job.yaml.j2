@@ -1,0 +1,57 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: database-restore
+  namespace: {{ recovery_namespace }}
+  labels: {{ recovery_labels | to_json }}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 7200
+  template:
+    metadata:
+      labels:
+        soyspray.vip/purpose: immich-restore-check
+        soyspray.vip/app: immich
+        soyspray.vip/check-id: {{ recovery_check_id }}
+        soyspray.vip/component: database-restore
+    spec:
+      affinity: {{ recovery_pod_affinity | to_json }}
+      automountServiceAccountToken: false
+      securityContext: {runAsUser: 0}
+      restartPolicy: Never
+      containers:
+        - name: postgres
+          image: {{ recovery_database_image }}
+          command: [/bin/sh, -ec]
+          args:
+            - |
+              export PGPASSWORD="$(cat /run/secrets/db-password/password)"
+              export PGHOST=immich-db-restore-rw PGPORT=5432 PGUSER={{ recovery_db_username }} PGDATABASE=immich
+              pg_restore --exit-on-error --no-owner --no-acl --clean --if-exists --dbname immich /restore/backup/database/immich.dump
+              psql -XAt0 -v ON_ERROR_STOP=1 > /tmp/restored-required.raw <<'SQL'
+              SELECT DISTINCT CASE WHEN path LIKE '/%' THEN path ELSE '/usr/src/app/' || path END
+              FROM (
+                SELECT "originalPath" AS path FROM asset
+                UNION ALL SELECT "sidecarPath" FROM asset
+                UNION ALL SELECT "profileImagePath" FROM public."user"
+              ) AS files WHERE path IS NOT NULL AND path <> '';
+              SQL
+              sort -z /tmp/restored-required.raw > /tmp/restored-required.sorted
+              sort -z /restore/backup/database/required-files.raw > /tmp/backup-required.sorted
+              cmp /tmp/restored-required.sorted /tmp/backup-required.sorted
+              xargs -0 -r -I{} sh -ec 'test -f "/restore$1"' -- {} < /tmp/restored-required.raw
+              counts="$(psql -XAt -v ON_ERROR_STOP=1 --command 'SELECT (SELECT count(*) FROM asset) || chr(44) || (SELECT count(*) FROM album) || chr(44) || (SELECT count(*) FROM public."user");')"
+              psql -X -v ON_ERROR_STOP=1 --command 'ALTER ROLE {{ recovery_db_username }} NOSUPERUSER'
+              printf 'database_counts=%s\n' "$counts"
+          volumeMounts:
+            - {name: restored-data, mountPath: /restore, readOnly: true}
+            - {name: db-password, mountPath: /run/secrets/db-password, readOnly: true}
+          env:
+            - {name: PGUSER, value: {{ recovery_db_username | quote }}}
+      volumes:
+        - name: restored-data
+          persistentVolumeClaim: {claimName: restored-data}
+        - name: db-password
+          secret:
+            secretName: immich-db-credentials
+            items: [{key: password, path: password}]

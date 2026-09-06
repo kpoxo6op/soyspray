@@ -1,0 +1,27 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: immich-db-restore
+  namespace: {{ recovery_namespace }}
+  labels: {{ recovery_labels | to_json }}
+spec:
+  instances: 1
+  imageName: {{ recovery_database_image }}
+  storage:
+    size: {{ recovery_database_storage_size }}
+    storageClass: longhorn
+  bootstrap:
+    initdb:
+      database: immich
+      owner: {{ recovery_db_username }}
+      secret:
+        name: immich-db-credentials
+      postInitApplicationSQL:
+        - ALTER ROLE {{ recovery_db_username }} SUPERUSER;
+        - CREATE EXTENSION IF NOT EXISTS cube;
+        - CREATE EXTENSION IF NOT EXISTS earthdistance;
+        - CREATE EXTENSION IF NOT EXISTS vectors;
+        - ALTER SCHEMA vectors OWNER TO {{ recovery_db_username }};
+        - ALTER DATABASE immich SET search_path TO "$user", public, vectors;
+  postgresql:
+    shared_preload_libraries: [vectors.so]

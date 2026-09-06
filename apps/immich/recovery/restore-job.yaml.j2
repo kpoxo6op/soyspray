@@ -1,0 +1,58 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: restic-restore
+  namespace: {{ recovery_namespace }}
+  labels: {{ recovery_labels | to_json }}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 7200
+  template:
+    metadata:
+      labels:
+        soyspray.vip/purpose: immich-restore-check
+        soyspray.vip/app: immich
+        soyspray.vip/check-id: {{ recovery_check_id }}
+        soyspray.vip/component: restic-restore
+    spec:
+      affinity: {{ recovery_pod_affinity | to_json }}
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      containers:
+        - name: restic
+          image: {{ recovery_restic_image }}
+          command: [/bin/sh, -ec]
+          args:
+            - >-
+              set -eu;
+              mkdir -p /restore/backup;
+              snapshot="$(restic snapshots --json --host {{ recovery_snapshot_host }} --tag {{ recovery_snapshot_tag }} | jq -ec '[.[] | select((.tags | index("pending")) == null)] | sort_by(.time) | last | select(. != null)')";
+              id="$(printf '%s' "$snapshot" | jq -er .id)";
+              snapshot_time="$(printf '%s' "$snapshot" | jq -er .time)";
+              restic restore --verify "$id" --target /restore;
+              test -s /restore/backup/database/immich.dump;
+              test -s /restore/backup/database/started-at;
+              for path in upload library profile; do test -d "/restore/usr/src/app/upload/$path"; done;
+              for path in thumbs encoded-video backups; do
+                mkdir -p "/restore/usr/src/app/upload/$path";
+                touch "/restore/usr/src/app/upload/$path/.immich";
+              done;
+              dump_time="$(cat /restore/backup/database/started-at | tr ' ' T)Z";
+              test "$snapshot_time" = "$dump_time";
+              printf 'snapshot_id=%s snapshot_time=%s\n' "$id" "$snapshot_time"
+          env:
+            - {name: AWS_ACCESS_KEY_ID, valueFrom: {secretKeyRef: {name: immich-restore-inputs, key: AWS_ACCESS_KEY_ID}}}
+            - {name: AWS_SECRET_ACCESS_KEY, valueFrom: {secretKeyRef: {name: immich-restore-inputs, key: AWS_SECRET_ACCESS_KEY}}}
+            - {name: AWS_DEFAULT_REGION, valueFrom: {secretKeyRef: {name: immich-restore-inputs, key: AWS_DEFAULT_REGION}}}
+            - {name: RESTIC_REPOSITORY, valueFrom: {secretKeyRef: {name: immich-restore-inputs, key: RESTIC_REPOSITORY}}}
+            - {name: RESTIC_PASSWORD_FILE, value: /run/secrets/restic-password/RESTIC_PASSWORD}
+          volumeMounts:
+            - {name: restored-data, mountPath: /restore}
+            - {name: restic-password, mountPath: /run/secrets/restic-password, readOnly: true}
+      volumes:
+        - name: restored-data
+          persistentVolumeClaim: {claimName: restored-data}
+        - name: restic-password
+          secret:
+            secretName: immich-restore-inputs
+            items: [{key: RESTIC_PASSWORD, path: RESTIC_PASSWORD}]

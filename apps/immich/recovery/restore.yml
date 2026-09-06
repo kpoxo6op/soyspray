@@ -1,0 +1,500 @@
+---
+- name: Verify one isolated Immich Restic restore
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    recovery_check_id: ""
+    recovery_namespace: "immich-recovery-{{ recovery_check_id }}"
+    recovery_storage_size: 5Gi
+    recovery_database_storage_size: 5Gi
+    recovery_source_secret: immich-paired-backup
+    recovery_snapshot_host: immich
+    recovery_snapshot_tag: restore-candidate
+    recovery_restic_image: restic/restic:0.18.1@sha256:39d9072fb5651c80d75c7a811612eb60b4c06b32ffe87c2e9f3c7222e1797e76
+    recovery_database_image: ghcr.io/tensorchord/cloudnative-pgvecto.rs:16-v0.3.0
+    recovery_server_image: ghcr.io/immich-app/immich-server:v2.3.1
+    recovery_server_image_digest: ""
+    recovery_redis_image: bitnamilegacy/redis:8.2.1-debian-12-r0
+    recovery_probe_image: curlimages/curl:8.14.1@sha256:9a1ed35addb45476afa911696297f8e115993df459278ed036182dd2cd22b67b
+    recovery_db_username: recovery_immich
+    recovery_db_password: ""
+    recovery_expected_asset_count: 0
+    recovery_expected_album_count: 0
+    recovery_expected_user_count: 1
+    recovery_source_db_host: immich-db-active.postgresql.svc.cluster.local
+    recovery_source_db_name: immich
+    recovery_source_db_user: immich
+    recovery_pod_affinity:
+      podAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/instance: immich
+                app.kubernetes.io/name: server
+            namespaces: [immich]
+            topologyKey: kubernetes.io/hostname
+    recovery_labels:
+      soyspray.vip/purpose: immich-restore-check
+      soyspray.vip/app: immich
+      soyspray.vip/check-id: "{{ recovery_check_id }}"
+
+  tasks:
+    - name: Record the restore start time
+      ansible.builtin.set_fact:
+        recovery_started_at: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+        recovery_status: running
+
+    - name: Require private scratch credentials and pinned runtime images
+      ansible.builtin.assert:
+        that:
+          - recovery_check_id is match('^[a-z0-9][a-z0-9-]{0,23}$')
+          - recovery_namespace != 'immich'
+          - recovery_source_db_host == 'immich-db-active.postgresql.svc.cluster.local'
+          - recovery_source_db_name == 'immich'
+          - recovery_source_db_user == 'immich'
+          - recovery_database_image == 'ghcr.io/tensorchord/cloudnative-pgvecto.rs:16-v0.3.0'
+          - recovery_server_image == 'ghcr.io/immich-app/immich-server:v2.3.1'
+          - recovery_server_image_digest is match('^ghcr.io/immich-app/immich-server:v2\.3\.1@sha256:[0-9a-f]{64}$')
+          - recovery_db_username is match('^[a-z_][a-z0-9_]{0,30}$')
+          - recovery_db_password | length >= 16
+          - recovery_database_storage_size is match('^[1-9][0-9]*(Mi|Gi|Ti)$')
+          - recovery_storage_size is match('^[1-9][0-9]*(Mi|Gi|Ti)$')
+        fail_msg: Supply a new scratch database password and the immutable Immich server digest.
+      no_log: true
+
+    - name: Read production identities before the check
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api }}"
+        kind: "{{ item.kind }}"
+        namespace: "{{ item.namespace }}"
+        name: "{{ item.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop:
+        - {api: apps/v1, kind: Deployment, namespace: immich, name: immich-server}
+        - {api: v1, kind: PersistentVolumeClaim, namespace: immich, name: immich-library}
+        - {api: v1, kind: Service, namespace: postgresql, name: immich-db-active}
+        - {api: postgresql.cnpg.io/v1, kind: Cluster, namespace: postgresql, name: immich-db-a}
+      register: recovery_production_before
+      no_log: true
+
+    - name: Read the source volume identity
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolume
+        name: "{{ recovery_production_before.results[1].resources[0].spec.volumeName }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_source_volume
+      no_log: true
+
+    - name: Require the production A database and unchanged source contract
+      ansible.builtin.assert:
+        that:
+          - recovery_production_before.results | map(attribute='resources') | map('length') | list == [1, 1, 1, 1]
+          - recovery_production_before.results[2].resources[0].spec.externalName == 'immich-db-a-rw.postgresql.svc.cluster.local'
+          - recovery_production_before.results[3].resources[0].metadata.name == 'immich-db-a'
+          - recovery_production_before.results[3].resources[0].spec.imageName == recovery_database_image
+          - recovery_source_volume.resources | length == 1
+          - recovery_production_before.results[1].resources[0].status.phase == 'Bound'
+        fail_msg: Production Immich A or its storage identity changed.
+      no_log: true
+
+    - name: Read the paired backup Secret without exposing values
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: immich
+        name: "{{ recovery_source_secret }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_source_secret_result
+      no_log: true
+
+    - name: Require the complete paired backup input contract
+      ansible.builtin.assert:
+        that:
+          - recovery_source_secret_result.resources | length == 1
+          - >-
+            ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_DEFAULT_REGION',
+             'RESTIC_REPOSITORY', 'RESTIC_PASSWORD', 'PGHOST', 'PGPORT',
+             'PGDATABASE', 'PGUSER', 'PGPASSWORD']
+            | difference(recovery_source_secret_result.resources[0].data.keys() | list)
+            | length == 0
+          - recovery_source_secret_result.resources[0].data.PGHOST | b64decode == recovery_source_db_host
+          - recovery_source_secret_result.resources[0].data.PGDATABASE | b64decode == recovery_source_db_name
+          - recovery_source_secret_result.resources[0].data.PGUSER | b64decode == recovery_source_db_user
+        fail_msg: The paired backup Secret is missing keys or has the wrong source database.
+      no_log: true
+
+    - name: Refuse to reuse an existing recovery namespace
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Namespace
+        name: "{{ recovery_namespace }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: recovery_existing_namespace
+
+    - name: Require a new recovery namespace
+      ansible.builtin.assert:
+        that: recovery_existing_namespace.resources | length == 0
+        fail_msg: The requested recovery namespace already exists. Choose a new recovery_check_id.
+
+    - name: Run the isolated restore and always clean its owned namespace
+      block:
+        - name: Create the isolated namespace, policies, PVC, and private Secrets
+          kubernetes.core.k8s:
+            state: present
+            kubeconfig: "{{ kubeconfig_path }}"
+            definition: "{{ lookup('template', 'workspace.yaml.j2') | from_yaml_all | list }}"
+          no_log: true
+          when: not ansible_check_mode
+
+        - name: Restore and verify the newest completed tagged snapshot
+          kubernetes.core.k8s:
+            state: present
+            kubeconfig: "{{ kubeconfig_path }}"
+            definition: "{{ lookup('template', 'restore-job.yaml.j2') | from_yaml }}"
+          no_log: true
+          when: not ansible_check_mode
+
+        - name: Wait for Restic restore verification
+          kubernetes.core.k8s_info:
+            api_version: batch/v1
+            kind: Job
+            namespace: "{{ recovery_namespace }}"
+            name: restic-restore
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_restic_job
+          failed_when: >-
+            recovery_restic_job.resources | length == 1 and
+            (recovery_restic_job.resources[0].status.failed | default(0) | int) > 0
+          until:
+            - recovery_restic_job.resources | length == 1
+            - >-
+              recovery_restic_job.resources[0].status.conditions | default([])
+              | selectattr('type', 'equalto', 'Complete')
+              | selectattr('status', 'equalto', 'True') | list | length == 1
+          retries: 360
+          delay: 10
+          when: not ansible_check_mode
+
+        - name: Read the Restic recovery point from the verified Job
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Pod
+            namespace: "{{ recovery_namespace }}"
+            label_selectors: [job-name=restic-restore]
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_restic_pods
+          when: not ansible_check_mode
+
+        - name: Read the Restic verification output without logging credentials
+          kubernetes.core.k8s_log:
+            namespace: "{{ recovery_namespace }}"
+            name: "{{ recovery_restic_pods.resources[0].metadata.name }}"
+            container: restic
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_restic_log
+          no_log: true
+          when: not ansible_check_mode
+
+        - name: Require a recovery point from the verified snapshot
+          ansible.builtin.set_fact:
+            recovery_snapshot_id: "{{ (recovery_restic_log.log | regex_findall('snapshot_id=([0-9a-f]+)') | first) | default('', true) }}"
+            recovery_snapshot_time: "{{ (recovery_restic_log.log | regex_findall('snapshot_time=([^\\s]+)') | first) | default('', true) }}"
+          when: not ansible_check_mode
+
+        - name: Require a non-empty verified recovery point
+          ansible.builtin.assert:
+            that:
+              - recovery_snapshot_id | length > 0
+              - recovery_snapshot_time is match('^20[0-9]{2}-[0-9]{2}-[0-9]{2}T')
+          when: not ansible_check_mode
+
+        - name: Create the isolated database with restore-capable ownership
+          kubernetes.core.k8s:
+            state: present
+            kubeconfig: "{{ kubeconfig_path }}"
+            definition: "{{ lookup('template', 'database.yaml.j2') | from_yaml }}"
+          no_log: true
+          when: not ansible_check_mode
+
+        - name: Wait for the isolated database to become ready
+          kubernetes.core.k8s_info:
+            api_version: postgresql.cnpg.io/v1
+            kind: Cluster
+            namespace: "{{ recovery_namespace }}"
+            name: immich-db-restore
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_database
+          until:
+            - recovery_database.resources | length == 1
+            - recovery_database.resources[0].status.phase | default('') == 'Cluster in healthy state'
+          retries: 180
+          delay: 10
+          when: not ansible_check_mode
+
+        - name: Restore the dump and compare its real database counts
+          kubernetes.core.k8s:
+            state: present
+            kubeconfig: "{{ kubeconfig_path }}"
+            definition: "{{ lookup('template', 'database-restore-job.yaml.j2') | from_yaml }}"
+          no_log: true
+          when: not ansible_check_mode
+
+        - name: Wait for database restore and count checks
+          kubernetes.core.k8s_info:
+            api_version: batch/v1
+            kind: Job
+            namespace: "{{ recovery_namespace }}"
+            name: database-restore
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_database_job
+          failed_when: >-
+            recovery_database_job.resources | length == 1 and
+            (recovery_database_job.resources[0].status.failed | default(0) | int) > 0
+          until:
+            - recovery_database_job.resources | length == 1
+            - >-
+              recovery_database_job.resources[0].status.conditions | default([])
+              | selectattr('type', 'equalto', 'Complete')
+              | selectattr('status', 'equalto', 'True') | list | length == 1
+          retries: 360
+          delay: 10
+          when: not ansible_check_mode
+
+        - name: Read the verified database restore Pod
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Pod
+            namespace: "{{ recovery_namespace }}"
+            label_selectors: [job-name=database-restore]
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_database_pods
+          when: not ansible_check_mode
+
+        - name: Read actual restored database counts privately
+          kubernetes.core.k8s_log:
+            namespace: "{{ recovery_namespace }}"
+            name: "{{ recovery_database_pods.resources[0].metadata.name }}"
+            container: postgres
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_database_log
+          no_log: true
+          when: not ansible_check_mode
+
+        - name: Record verified restored database counts
+          ansible.builtin.set_fact:
+            recovery_counts: "{{ recovery_database_log.log | regex_findall('database_counts=([0-9]+),([0-9]+),([0-9]+)') | first | list }}"
+          when: not ansible_check_mode
+
+        - name: Start isolated Redis and Immich with no external ingress
+          kubernetes.core.k8s:
+            state: present
+            kubeconfig: "{{ kubeconfig_path }}"
+            definition: "{{ lookup('template', 'runtime.yaml.j2') | from_yaml_all | list }}"
+          no_log: true
+          when: not ansible_check_mode
+
+        - name: Wait for the isolated Immich server
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Pod
+            namespace: "{{ recovery_namespace }}"
+            name: immich-server
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_server
+          until:
+            - recovery_server.resources | length == 1
+            - recovery_server.resources[0].status.phase | default('') == 'Running'
+            - recovery_server.resources[0].status.containerStatuses[0].ready | default(false)
+          retries: 180
+          delay: 10
+          when: not ansible_check_mode
+
+        - name: Run internal Immich health and version checks
+          kubernetes.core.k8s:
+            state: present
+            kubeconfig: "{{ kubeconfig_path }}"
+            definition: "{{ lookup('template', 'health-job.yaml.j2') | from_yaml }}"
+          when: not ansible_check_mode
+
+        - name: Wait for the internal application checks
+          kubernetes.core.k8s_info:
+            api_version: batch/v1
+            kind: Job
+            namespace: "{{ recovery_namespace }}"
+            name: app-health
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_health_job
+          failed_when: >-
+            recovery_health_job.resources | length == 1 and
+            (recovery_health_job.resources[0].status.failed | default(0) | int) > 0
+          until:
+            - recovery_health_job.resources | length == 1
+            - >-
+              recovery_health_job.resources[0].status.conditions | default([])
+              | selectattr('type', 'equalto', 'Complete')
+              | selectattr('status', 'equalto', 'True') | list | length == 1
+          retries: 30
+          delay: 10
+          when: not ansible_check_mode
+
+        - name: Re-read production identities after the check
+          kubernetes.core.k8s_info:
+            api_version: "{{ item.api }}"
+            kind: "{{ item.kind }}"
+            namespace: "{{ item.namespace }}"
+            name: "{{ item.name }}"
+            kubeconfig: "{{ kubeconfig_path }}"
+          loop:
+            - {api: apps/v1, kind: Deployment, namespace: immich, name: immich-server}
+            - {api: v1, kind: PersistentVolumeClaim, namespace: immich, name: immich-library}
+            - {api: v1, kind: Service, namespace: postgresql, name: immich-db-active}
+            - {api: postgresql.cnpg.io/v1, kind: Cluster, namespace: postgresql, name: immich-db-a}
+          register: recovery_production_after
+          no_log: true
+          when: not ansible_check_mode
+
+        - name: Re-read the production PV after the check
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: PersistentVolume
+            name: "{{ recovery_production_before.results[1].resources[0].spec.volumeName }}"
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_source_volume_after
+          no_log: true
+          when: not ansible_check_mode
+
+        - name: Require unchanged production identities
+          ansible.builtin.assert:
+            that:
+              - recovery_production_after.results | map(attribute='resources') | map('length') | list == [1, 1, 1, 1]
+              - recovery_production_after.results[0].resources[0].metadata.uid == recovery_production_before.results[0].resources[0].metadata.uid
+              - recovery_production_after.results[1].resources[0].metadata.uid == recovery_production_before.results[1].resources[0].metadata.uid
+              - >-
+                recovery_production_after.results[1].resources[0].spec.volumeName ==
+                recovery_production_before.results[1].resources[0].spec.volumeName
+              - recovery_production_after.results[2].resources[0].metadata.uid == recovery_production_before.results[2].resources[0].metadata.uid
+              - recovery_production_after.results[2].resources[0].spec.externalName == 'immich-db-a-rw.postgresql.svc.cluster.local'
+              - recovery_production_after.results[3].resources[0].metadata.uid == recovery_production_before.results[3].resources[0].metadata.uid
+              - recovery_production_after.results[3].resources[0].spec.imageName == recovery_database_image
+              - recovery_source_volume_after.resources | length == 1
+              - recovery_source_volume_after.resources[0].metadata.uid == recovery_source_volume.resources[0].metadata.uid
+          when: not ansible_check_mode
+
+        - name: Mark the isolated restore passed
+          ansible.builtin.set_fact:
+            recovery_status: passed
+          when: not ansible_check_mode
+      rescue:
+        - name: Mark the isolated restore failed
+          ansible.builtin.set_fact:
+            recovery_status: failed
+      always:
+        - name: Read the recovery namespace for ownership-guarded cleanup
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Namespace
+            name: "{{ recovery_namespace }}"
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_namespace_result
+          when: not ansible_check_mode
+
+        - name: Require matching ownership before cleanup
+          ansible.builtin.assert:
+            that:
+              - >-
+                recovery_namespace_result.resources | length == 0 or
+                recovery_namespace_result.resources[0].metadata.labels['soyspray.vip/purpose'] == 'immich-restore-check'
+              - >-
+                recovery_namespace_result.resources | length == 0 or
+                recovery_namespace_result.resources[0].metadata.labels['soyspray.vip/app'] == 'immich'
+              - >-
+                recovery_namespace_result.resources | length == 0 or
+                recovery_namespace_result.resources[0].metadata.labels['soyspray.vip/check-id'] == recovery_check_id
+            fail_msg: Refusing cleanup because the namespace ownership labels do not match.
+          when: not ansible_check_mode
+
+        - name: Remove the owned scratch namespace after every real check
+          kubernetes.core.k8s:
+            state: absent
+            api_version: v1
+            kind: Namespace
+            name: "{{ recovery_namespace }}"
+            kubeconfig: "{{ kubeconfig_path }}"
+            delete_options:
+              preconditions:
+                uid: "{{ recovery_namespace_result.resources[0].metadata.uid }}"
+            wait: true
+            wait_timeout: 300
+          when:
+            - not ansible_check_mode
+            - recovery_namespace_result.resources | length == 1
+
+        - name: Require deletion of every scratch persistent volume
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: PersistentVolume
+            kubeconfig: "{{ kubeconfig_path }}"
+          register: recovery_remaining_volumes
+          until: >-
+            recovery_remaining_volumes.resources
+            | selectattr('spec.claimRef', 'defined')
+            | selectattr('spec.claimRef.namespace', 'equalto', recovery_namespace)
+            | list | length == 0
+          retries: 60
+          delay: 5
+          when: not ansible_check_mode
+
+        - name: Build the private validated restore report
+          ansible.builtin.set_fact:
+            recovery_report:
+              schema_version: 1
+              app: immich
+              check_id: "{{ recovery_check_id }}"
+              status: "{{ recovery_status }}"
+              started_at: "{{ recovery_started_at }}"
+              finished_at: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
+              source_claim_uid: "{{ recovery_production_before.results[1].resources[0].metadata.uid }}"
+              source_volume_uid: "{{ recovery_source_volume.resources[0].metadata.uid }}"
+              backup:
+                snapshot_id: "{{ recovery_snapshot_id | default('') }}"
+                recovery_point: "{{ recovery_snapshot_time | default('') }}"
+              data:
+                asset_count: "{{ recovery_counts[0] | int if recovery_status == 'passed' else 'unknown' }}"
+                album_count: "{{ recovery_counts[1] | int if recovery_status == 'passed' else 'unknown' }}"
+                user_count: "{{ recovery_counts[2] | int if recovery_status == 'passed' else 'unknown' }}"
+                originals: "{{ 'Restic restored-file verification passed' if recovery_status == 'passed' else 'unknown' }}"
+                data_checks: "{{ 'passed' if recovery_status == 'passed' else 'failed' }}"
+              image: "{{ recovery_server_image_digest }}"
+              original_resources: "{{ 'unchanged' if recovery_status == 'passed' else 'unknown' }}"
+              cleanup: completed
+          when: not ansible_check_mode
+
+        - name: Create the private report directory
+          ansible.builtin.file:
+            path: "{{ lookup('env', 'HOME') }}/.local/state/soyspray/restores/immich/{{ recovery_check_id }}"
+            state: directory
+            mode: '0700'
+          delegate_to: localhost
+          become: false
+          when: not ansible_check_mode
+
+        - name: Write the private validated restore report
+          ansible.builtin.copy:
+            content: "{{ recovery_report | to_nice_json }}\n"
+            dest: "{{ lookup('env', 'HOME') }}/.local/state/soyspray/restores/immich/{{ recovery_check_id }}/report.json"
+            mode: '0600'
+            directory_mode: '0700'
+          delegate_to: localhost
+          become: false
+          no_log: true
+          when: not ansible_check_mode
+
+    - name: Refuse to report a failed or incomplete restore
+      ansible.builtin.fail:
+        msg: The isolated Immich restore did not pass all checks; its owned namespace was removed.
+      when:
+        - not ansible_check_mode
+        - recovery_status != 'passed'
