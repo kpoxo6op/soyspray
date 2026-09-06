@@ -48,7 +48,8 @@ Use [operate-soyspray](.agents/skills/operate-soyspray/SKILL.md) for operations 
   topic branch) and keep `main` untouched. Exception: markdown and comments.
 - For PR work: check out the PR branch, make changes there, push, then deploy.
 - Push changes to the remote before running any deploys or cluster actions.
-- Run `make go` before deploying changes (humans can run this interactively).
+- Normal `make deploy APP=NAME` runs shared checks, affected-app checks, and
+  deployment preflight. Run `make go` for shared changes and final verification.
 - Activate the venv via `make act` before running Ansible.
 - For non-interactive runs, use:
   `source soyspray-venv/bin/activate && ansible-playbook ...`.

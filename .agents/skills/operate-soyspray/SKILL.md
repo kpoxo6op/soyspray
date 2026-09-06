@@ -14,8 +14,11 @@ Use `make apps`, `make status APP=NAME FORMAT=json`, and
 app README for limits; an unsupported command must not fall back to deployment.
 
 Run cluster changes through committed, pushed Ansible. The three-node inventory
-and standard privilege escalation are in AGENTS.md. `make go` runs the full gate
-and deployment preflight. Keep Kubespray's foundation ownership, MetalLB, and
+and standard privilege escalation are in AGENTS.md. Normal `make deploy APP=NAME`
+runs shared checks, affected-app checks, and deployment preflight. Use `make go`
+for shared changes and final verification. App Makefiles own their Ansible
+recipes; use the root operator interface to run their checks first.
+Keep Kubespray's foundation ownership, MetalLB, and
 shared node access separate from app operations.
 
 For a preview, use the [native root procedure](../../../argocd/README.md).
