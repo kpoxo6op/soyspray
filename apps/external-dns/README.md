@@ -25,8 +25,9 @@ make deploy APP=external-dns REVISION=YOUR_PUSHED_BRANCH
 make status APP=external-dns FORMAT=json
 ```
 
-Deployment runs the full local gate and standard Ansible bootstrap and root
-reconciliation. After merge, run `make deploy APP=external-dns` to return to HEAD.
+Normal deployment runs the shared checks, the ExternalDNS check, and the
+standard Ansible bootstrap and root reconciliation. After merge, run
+`make deploy APP=external-dns` to return to HEAD.
 Verify Argo health, the chart and Git revisions, the original Deployment and RBAC
 identities, the token hash, public DNS answers, and Cloudflare records. An ownership
 cleanup must not change the rendered workload or DNS records. Smoke and restore operations return unknown with their cause while these

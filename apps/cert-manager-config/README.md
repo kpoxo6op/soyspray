@@ -21,7 +21,7 @@ Application deletion does not cascade. Deliberate retirement needs a separate
 Ansible operation. Keep DNS-01 challenge access and existing client hostnames.
 
 Manifests and operating checks now live together in this app folder. Deployment
-uses the native root after the full gate and pushed-commit preflight. For a branch
+uses the native root after the shared checks, app check, and pushed-commit preflight. For a branch
 preview, use the command above. After merge, run `make deploy APP=cert-manager-config`
 and verify the exact HEAD comparison and health. The old source and one-time
 adoption operation have been removed after identity verification.

@@ -17,7 +17,8 @@ make deploy APP=domain-health REVISION=YOUR_PUSHED_BRANCH
 make status APP=domain-health FORMAT=json
 ```
 
-Deployment runs the full gate and standard Ansible bootstrap and root procedure.
+Normal deployment runs the shared checks, the domain health check, and the
+standard Ansible bootstrap and root procedure.
 After merge, run `make deploy APP=domain-health` to return to HEAD. Verify the
 exact Argo comparison, running image digest, resource identities, Secret hashes,
 metrics scrape, recent successful checks, and the independent check identity.
