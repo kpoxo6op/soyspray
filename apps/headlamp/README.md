@@ -22,7 +22,8 @@ make deploy APP=headlamp REVISION=YOUR_PUSHED_BRANCH
 make deploy APP=headlamp
 ```
 
-Deployment runs the full checks and [native root Ansible procedure](../../argocd/README.md).
+Normal deployment runs the shared checks, the Headlamp check, and the [native
+root Ansible procedure](../../argocd/README.md).
 The chart is pinned to the existing `0.35.0` release. Diff compares the clean,
 pushed Git commit and this exact chart through native Argo revision overrides.
 After preview and merge, run the default deployment command to return to HEAD.
