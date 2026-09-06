@@ -1,0 +1,116 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: node-backup
+  namespace: media
+  labels:
+    app.kubernetes.io/name: node-backup
+    app.kubernetes.io/component: recovery
+spec:
+  schedule: "0 3 * * *"
+  timeZone: Pacific/Auckland
+  suspend: true
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 3600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      activeDeadlineSeconds: 14400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: node-backup
+            app.kubernetes.io/component: recovery
+        spec:
+          automountServiceAccountToken: false
+          nodeSelector:
+            kubernetes.io/hostname: node-0
+          restartPolicy: Never
+          securityContext:
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: node-backup
+              image: ghcr.io/kpoxo6op/node-backup:pending
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: BACKUP_WORKDIR
+                  value: /work
+                - name: JELLYFIN_SOURCE
+                  value: /source/jellyfin
+                - name: DOWNLOADS_SOURCE
+                  value: /source/downloads
+                - name: RESTIC_HOST
+                  value: soyspray-node-0
+                - name: RESTIC_REPOSITORY
+                  valueFrom:
+                    secretKeyRef:
+                      name: node-backup-credentials
+                      key: RESTIC_REPOSITORY
+                - name: RESTIC_PASSWORD_FILE
+                  value: /run/node-backup-secrets/restic-password
+                - name: AWS_ACCESS_KEY_ID
+                  valueFrom:
+                    secretKeyRef:
+                      name: node-backup-credentials
+                      key: AWS_ACCESS_KEY_ID
+                - name: AWS_SECRET_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: node-backup-credentials
+                      key: AWS_SECRET_ACCESS_KEY
+                - name: AWS_REGION
+                  valueFrom:
+                    secretKeyRef:
+                      name: node-backup-credentials
+                      key: AWS_REGION
+                - name: AWS_EC2_METADATA_DISABLED
+                  value: "true"
+              securityContext:
+                runAsUser: 0
+                runAsGroup: 0
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
+                  ephemeral-storage: 3Gi
+                limits:
+                  cpu: "2"
+                  memory: 1Gi
+                  ephemeral-storage: 5Gi
+              volumeMounts:
+                - name: jellyfin-data
+                  mountPath: /source/jellyfin
+                  readOnly: true
+                - name: media-downloads
+                  mountPath: /source/downloads
+                  readOnly: true
+                - name: work
+                  mountPath: /work
+                - name: credentials
+                  mountPath: /run/node-backup-secrets
+                  readOnly: true
+          volumes:
+            - name: jellyfin-data
+              hostPath:
+                path: /srv/media/jellyfin-data
+                type: Directory
+            - name: media-downloads
+              hostPath:
+                path: /srv/media/downloads
+                type: Directory
+            - name: work
+              emptyDir: {}
+            - name: credentials
+              secret:
+                secretName: node-backup-credentials
+                defaultMode: 0400
+                items:
+                  - key: RESTIC_PASSWORD
+                    path: restic-password
