@@ -473,3 +473,9 @@ sync. After the migration and base backup pass, run
 `reconcile-immich-database.yml -e cnpg_revision=BRANCH` to sync its existing
 resources without hooks or pruning. After merge, repeat with `cnpg_revision=HEAD`.
 Verify archive continuity and production access before closing the migration.
+
+For Authentik, first use `select-authentik-database.yml -e cnpg_revision=BRANCH`.
+It pauses database self-heal so the archive switch remains atomic. Then run
+`migrate-cnpg-backup.yml -e cnpg_database=authentik -e cnpg_backup_id=NAME`.
+After verification, select the branch again with `-e cnpg_sync=true`. After
+merge, select `HEAD`; this restores the existing automatic sync policy.
