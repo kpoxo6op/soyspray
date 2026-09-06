@@ -18,6 +18,17 @@
         retention: 60d
         schedule: immich-db-daily-a
         cron: '0 47 4 * * *'
+      authentik:
+        namespace: authentik
+        cluster: authentik-postgresql
+        uid: 629a6348-e4cf-4c11-bb1c-bf3abd536a2d
+        system_id: '7671630058247364631'
+        store: authentik-offsite
+        server: authentik-postgresql
+        destination: s3://immich-offsite-archive-au2/authentik/postgresql/
+        retention: 30d
+        schedule: authentik-postgresql-daily
+        cron: '0 30 3 * * *'
   tasks:
     - name: Require an explicit database and backup identifier
       ansible.builtin.assert:
