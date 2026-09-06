@@ -2,8 +2,6 @@
 
 import json
 import os
-import tarfile
-import traceback
 from pathlib import Path
 
 import yaml
@@ -60,41 +58,23 @@ def main():
                 operation.stage = app + " isolated restore"
                 operation.ansible("restore-volume.yml", variables, app + "-restore.log")
                 destination = operation.work / app
-                archive = operation.work / (app + ".tar")
                 operation.stage = app + " restored file copy"
-                with (
-                    archive.open("wb") as output,
-                    (operation.output / (app + "-copy.log")).open("wb") as errors,
-                ):
+                with (operation.output / (app + "-copy.log")).open("wb") as log:
                     operation.run(
                         [
                             "kubectl",
-                            "-n",
-                            scratch,
-                            "exec",
+                            "cp",
+                            "--retries=3",
+                            "-c",
                             "inspect",
-                            "--",
-                            "tar",
-                            "--exclude=lost+found",
-                            "-C",
-                            "/data",
-                            "-cf",
-                            "-",
-                            ".",
+                            scratch + "/inspect:/data",
+                            str(destination),
                         ],
                         check=True,
-                        stdout=output,
-                        stderr=errors,
+                        stdout=log,
+                        stderr=log,
                         timeout=900,
                     )
-                operation.stage = app + " private archive extraction"
-                try:
-                    with tarfile.open(archive) as source:
-                        source.extractall(destination, filter="data")
-                except Exception:
-                    (operation.output / (app + "-extract.log")).write_text(traceback.format_exc())
-                    raise
-                archive.unlink()
                 operation.stage = app + " data verification"
                 result = operation.run(
                     [
