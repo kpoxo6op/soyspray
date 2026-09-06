@@ -1,0 +1,43 @@
+---
+- name: Preserve the node backup credentials from Ansible Vault
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars_files:
+    - "{{ lookup('env', 'HOME') }}/.config/soyspray/recovery/node-backup.vault.yml"
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Read the existing backup identity
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        name: node-backup-credentials
+        namespace: media
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node_backup_secret
+      no_log: true
+
+    - name: Require the complete recovery identity and reject mismatches
+      ansible.builtin.assert:
+        that:
+          - node_backup_credentials[item] | default('') | length > 0
+          - node_backup_secret.resources | length == 0 or
+            node_backup_secret.resources[0].data[item] | default('') | b64decode == node_backup_credentials[item]
+      loop: [AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, RESTIC_REPOSITORY, RESTIC_PASSWORD]
+      no_log: true
+
+    - name: Create only the missing backup identity
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: node-backup-credentials
+            namespace: media
+          type: Opaque
+          stringData: "{{ node_backup_credentials }}"
+      when: node_backup_secret.resources | length == 0
+      no_log: true
