@@ -26,6 +26,15 @@
     recovery_source_db_host: immich-db-active.postgresql.svc.cluster.local
     recovery_source_db_name: immich
     recovery_source_db_user: immich
+    recovery_pod_affinity:
+      podAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/instance: immich
+                app.kubernetes.io/name: server
+            namespaces: [immich]
+            topologyKey: kubernetes.io/hostname
     recovery_labels:
       soyspray.vip/purpose: immich-restore-check
       soyspray.vip/app: immich

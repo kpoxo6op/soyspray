@@ -15,6 +15,7 @@ spec:
         soyspray.vip/check-id: {{ recovery_check_id }}
         soyspray.vip/component: app-health
     spec:
+      affinity: {{ recovery_pod_affinity | to_json }}
       automountServiceAccountToken: false
       restartPolicy: Never
       containers:

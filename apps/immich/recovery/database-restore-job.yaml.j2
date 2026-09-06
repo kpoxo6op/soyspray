@@ -15,6 +15,7 @@ spec:
         soyspray.vip/check-id: {{ recovery_check_id }}
         soyspray.vip/component: database-restore
     spec:
+      affinity: {{ recovery_pod_affinity | to_json }}
       automountServiceAccountToken: false
       securityContext: {runAsUser: 0}
       restartPolicy: Never
