@@ -50,7 +50,7 @@ LAN and Tailscale route uses the existing Ingress. Preserve the tunnel identity,
 `autism-traits-cloudflared-token`, `autism-traits-tls`, and the public hostname.
 Cert-manager owns certificate issuance; this bootstrap does not replace its key.
 
-`bootstrap.yml` preserves an existing token. A different supplied value stops
+`bootstrap.yml` uses the shared `apps/bootstrap-secret-tasks.yml` procedure and preserves an existing token. A different supplied value stops
 before any write. A matching value makes no change. The operation creates only
 a missing Secret; native create rejects a competing creation instead of replacing
 it. Check mode validates inputs and skips Secret creation. To restore a
