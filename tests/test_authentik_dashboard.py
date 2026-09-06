@@ -111,7 +111,7 @@ def test_authentik_dashboard_covers_live_authentik_and_cnpg_metrics() -> None:
         "kube_pod_container_status_restarts_total",
         "cnpg_collector_up",
         "cnpg_pg_replication_lag",
-        "cnpg_collector_last_available_backup_timestamp",
+        "barman_cloud_cloudnative_pg_io_last_available_backup_timestamp",
         "cnpg_pg_database_size_bytes",
         "cnpg_pg_stat_archiver_seconds_since_last_archival",
         "cnpg_pg_stat_archiver_failed_count",
@@ -129,7 +129,11 @@ def test_authentik_dashboard_covers_live_authentik_and_cnpg_metrics() -> None:
         for expression in expressions
     )
 
-    cnpg_expressions = [expression for expression in expressions if "cnpg_" in expression]
+    cnpg_expressions = [
+        expression
+        for expression in expressions
+        if "cnpg_" in expression or "barman_cloud_" in expression
+    ]
     assert cnpg_expressions
     assert all('namespace="authentik"' in expression for expression in cnpg_expressions)
     assert all(
@@ -226,7 +230,7 @@ def test_authentik_alerts_are_product_specific_and_actionable() -> None:
     assert "authentik_tasks_queued" in alert_queries
     assert 'version_matched="False"' in alert_queries
     assert "authentik_outpost_connection" in alert_queries
-    assert "cnpg_collector_last_available_backup_timestamp" in alert_queries
+    assert "barman_cloud_cloudnative_pg_io_last_available_backup_timestamp" in alert_queries
     assert "cnpg_pg_replication_lag" in alert_queries
     assert "cnpg_pg_stat_archiver_seconds_since_last_archival" in alert_queries
     assert "cnpg_pg_stat_archiver_failed_count" in alert_queries
