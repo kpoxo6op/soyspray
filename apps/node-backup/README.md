@@ -80,7 +80,7 @@ standard Ansible inventory with `node_backup_run_id` and a private
 `node_backup_evidence_dir`. It requires a suspended, inactive CronJob and removes
 its temporary Job after saving the log.
 
-Use `make restore-check APP=node-backup SNAPSHOT=ID` to read-check the S3 repository,
+Use `make restore-check APP=node-backup SNAPSHOT=ID` to check the S3 repository structure,
 restore the snapshot in a private laptop directory, verify each file against its
 saved hash, and check Jellyfin SQLite integrity and row counts. The command removes
 restored files and retains a private report under `~/.local/state/soyspray/restores`.

@@ -29,7 +29,7 @@ def run():
         env = {**os.environ, **yaml.safe_load(values)['node_backup_credentials']}
         with tempfile.TemporaryDirectory(dir=output) as temporary:
             destination = Path(temporary)
-            for command in (['check', '--read-data'], ['restore', args.snapshot, '--target', str(destination)]):
+            for command in (['check'], ['restore', args.snapshot, '--target', str(destination)]):
                 subprocess.run([str(Path.home() / '.local/bin/restic'), *command], env=env, check=True, capture_output=True, timeout=3600)
             manifests = list(destination.rglob('content-manifest.json'))
             if len(manifests) != 1:
