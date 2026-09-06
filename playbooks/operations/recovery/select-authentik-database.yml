@@ -38,8 +38,8 @@
             path: /spec/source/targetRevision
             value: "{{ cnpg_revision }}"
           - op: add
-            path: /spec/syncPolicy/automated
-            value: "{{ {'prune': true, 'selfHeal': true} if cnpg_revision == 'HEAD' else none }}"
+            path: /spec/syncPolicy
+            value: "{{ app.resources[0].spec.syncPolicy | combine({'automated': {'prune': true, 'selfHeal': true}}) if cnpg_revision == 'HEAD' else app.resources[0].spec.syncPolicy | dict2items | rejectattr('key', 'equalto', 'automated') | items2dict }}"
     - name: Re-read the Application before the optional explicit sync
       kubernetes.core.k8s_info:
         api_version: argoproj.io/v1alpha1
