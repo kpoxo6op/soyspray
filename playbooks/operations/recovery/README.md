@@ -479,3 +479,8 @@ It pauses database self-heal so the archive switch remains atomic. Then run
 `migrate-cnpg-backup.yml -e cnpg_database=authentik -e cnpg_backup_id=NAME`.
 After verification, select the branch again with `-e cnpg_sync=true`. After
 merge, select `HEAD`; this restores the existing automatic sync policy.
+
+After both writer migrations, update backup metric consumers through
+`deploy-argocd-apps.yml --tags prometheus-source -e prometheus_target_revision=BRANCH`.
+This selects only the existing monitoring Application source. Verify the Barman
+backup timestamp queries, then return its revision to `HEAD` after merge.

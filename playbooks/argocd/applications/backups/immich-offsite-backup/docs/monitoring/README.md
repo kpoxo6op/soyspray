@@ -42,7 +42,7 @@ spec:
 **What this does**:
 - Enables CNPG's built-in Prometheus exporter on port 9187
 - Creates a PodMonitor resource automatically
-- Exposes metrics including `cnpg_collector_last_available_backup_timestamp`
+- Exposes metrics including `barman_cloud_cloudnative_pg_io_last_available_backup_timestamp`
 
 **Verify PodMonitor exists**:
 ```bash
@@ -111,7 +111,7 @@ spec:
         - alert: CNPGBackupStale
           expr: |
             time() - max by (cluster) (
-              cnpg_collector_last_available_backup_timestamp{cluster="immich-db"}
+              barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{cluster="immich-db"}
             ) > 36 * 60 * 60
           for: 15m
           labels:
@@ -164,7 +164,7 @@ curl -sk "https://prometheus.soyspray.vip/api/v1/query?query=(time()-kube_cronjo
   jq -r '.data.result[] | "Media backup age: \(.value[1]) hours"'
 
 # Database backup age in hours
-curl -sk "https://prometheus.soyspray.vip/api/v1/query?query=(time()-cnpg_collector_last_available_backup_timestamp{cluster=\"immich-db\"})/3600" | \
+curl -sk "https://prometheus.soyspray.vip/api/v1/query?query=(time()-barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{cluster=\"immich-db\"})/3600" | \
   jq -r '.data.result[] | "Database backup age: \(.value[1]) hours"'
 ```
 
@@ -220,7 +220,7 @@ spec:
 CNPG exposes metrics on port 9187 of each PostgreSQL pod.
 
 **Key Metrics**:
-- `cnpg_collector_last_available_backup_timestamp` - Unix timestamp of last successful backup
+- `barman_cloud_cloudnative_pg_io_last_available_backup_timestamp` - Unix timestamp of last successful backup
 - `cnpg_collector_last_failed_backup_timestamp` - Unix timestamp of last failed backup
 - `cnpg_collector_first_recoverability_point` - First point in time for recovery
 - `cnpg_collector_pg_wal_archive_status` - WAL archive status
@@ -228,7 +228,7 @@ CNPG exposes metrics on port 9187 of each PostgreSQL pod.
 **Query CNPG backup timestamp**:
 ```bash
 # Via Prometheus API
-curl -s "https://prometheus.soyspray.vip/api/v1/query?query=cnpg_collector_last_available_backup_timestamp" | \
+curl -s "https://prometheus.soyspray.vip/api/v1/query?query=barman_cloud_cloudnative_pg_io_last_available_backup_timestamp" | \
   jq '.data.result[] | {cluster: .metric.cluster, timestamp: .value[1], readable: (.value[1] | tonumber | strftime("%Y-%m-%d %H:%M:%S"))}'
 
 # Expected output:
@@ -246,7 +246,7 @@ curl -s "https://prometheus.soyspray.vip/api/v1/label/__name__/values" | \
   jq '.data[] | select(startswith("cnpg_"))'
 
 # Query specific metric with labels
-curl -s "https://prometheus.soyspray.vip/api/v1/query?query=cnpg_collector_last_available_backup_timestamp{cluster=\"immich-db\"}" | jq '.'
+curl -s "https://prometheus.soyspray.vip/api/v1/query?query=barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{cluster=\"immich-db\"}" | jq '.'
 ```
 
 ### CronJob Metrics
@@ -325,7 +325,7 @@ curl -s "https://prometheus.soyspray.vip/api/v1/query?query=(time()-kube_cronjob
   jq '.data.result[] | {hours_since_backup: .value[1]}'
 
 # Check how long since last DB backup (in hours)
-curl -s "https://prometheus.soyspray.vip/api/v1/query?query=(time()-cnpg_collector_last_available_backup_timestamp{cluster=\"immich-db\"})/3600" | \
+curl -s "https://prometheus.soyspray.vip/api/v1/query?query=(time()-barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{cluster=\"immich-db\"})/3600" | \
   jq '.data.result[] | {hours_since_backup: .value[1]}'
 ```
 
@@ -372,7 +372,7 @@ curl -s "https://prometheus.soyspray.vip/api/v1/query?query=(time()-cnpg_collect
 3. **Check metrics are available**:
    ```bash
    # CNPG metrics
-   curl -s "https://prometheus.soyspray.vip/api/v1/query?query=cnpg_collector_last_available_backup_timestamp" | jq '.data.result'
+   curl -s "https://prometheus.soyspray.vip/api/v1/query?query=barman_cloud_cloudnative_pg_io_last_available_backup_timestamp" | jq '.data.result'
 
    # CronJob metrics
    curl -s "https://prometheus.soyspray.vip/api/v1/query?query=kube_cronjob_status_last_successful_time{namespace=\"immich\"}" | jq '.data.result'
@@ -390,7 +390,7 @@ curl -s "https://prometheus.soyspray.vip/api/v1/query?query=(time()-cnpg_collect
 
 ### CNPG Metrics Not Appearing
 
-**Problem**: `cnpg_collector_last_available_backup_timestamp` returns no data
+**Problem**: `barman_cloud_cloudnative_pg_io_last_available_backup_timestamp` returns no data
 
 **Checks**:
 1. Verify PodMonitor exists:
@@ -488,11 +488,11 @@ promtool query instant http://prometheus.soyspray.vip \
 
 ```bash
 # Pretty-print all backup-related metrics
-curl -s "https://prometheus.soyspray.vip/api/v1/query?query=cnpg_collector_last_available_backup_timestamp" | \
+curl -s "https://prometheus.soyspray.vip/api/v1/query?query=barman_cloud_cloudnative_pg_io_last_available_backup_timestamp" | \
   jq -r '.data.result[] | "\(.metric.cluster // "no-cluster"): \(.value[1] | tonumber | strftime("%Y-%m-%d %H:%M:%S"))"'
 
 # Get time series data (last 1 hour)
-curl -s "https://prometheus.soyspray.vip/api/v1/query_range?query=cnpg_collector_last_available_backup_timestamp&start=$(date -u -d '1 hour ago' +%s)&end=$(date -u +%s)&step=300" | \
+curl -s "https://prometheus.soyspray.vip/api/v1/query_range?query=barman_cloud_cloudnative_pg_io_last_available_backup_timestamp&start=$(date -u -d '1 hour ago' +%s)&end=$(date -u +%s)&step=300" | \
   jq '.data.result[0].values | map([.[0] | strftime("%H:%M"), .[1]])'
 ```
 
