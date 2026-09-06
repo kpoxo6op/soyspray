@@ -48,6 +48,8 @@ def restore(operation):
         )
         operation.ansible(path, variables, log)
 
+    operation.report["cleanup"] = "pending"
+    operation.report["scratch_namespace"] = "immich-recovery-" + operation.check_id
     operation.stage = "isolated restore"
     try:
         playbook("restore.yml", "restore.log")

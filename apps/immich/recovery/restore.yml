@@ -7,7 +7,8 @@
     kubeconfig_path: /etc/kubernetes/admin.conf
     recovery_check_id: ""
     recovery_namespace: "immich-recovery-{{ recovery_check_id }}"
-    recovery_storage_size: 100Gi
+    recovery_storage_size: 5Gi
+    recovery_database_storage_size: 5Gi
     recovery_source_secret: immich-paired-backup
     recovery_snapshot_host: immich
     recovery_snapshot_tag: restore-candidate
@@ -49,6 +50,7 @@
           - recovery_server_image_digest is match('^ghcr.io/immich-app/immich-server:v2\.3\.1@sha256:[0-9a-f]{64}$')
           - recovery_db_username is match('^[a-z_][a-z0-9_]{0,30}$')
           - recovery_db_password | length >= 16
+          - recovery_database_storage_size is match('^[1-9][0-9]*(Mi|Gi|Ti)$')
           - recovery_storage_size is match('^[1-9][0-9]*(Mi|Gi|Ti)$')
         fail_msg: Supply a new scratch database password and the immutable Immich server digest.
       no_log: true
