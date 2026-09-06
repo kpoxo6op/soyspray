@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the monthly isolated Soyspray restore checks
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ recovery_schedule_repo }}
+ExecStart={{ recovery_schedule_repo }}/soyspray-venv/bin/python -m scripts.restore_schedule
+Environment=ANSIBLE_NOCOLOR=1
+KillMode=mixed
+TimeoutStartSec=20h
+TimeoutStopSec=20min
