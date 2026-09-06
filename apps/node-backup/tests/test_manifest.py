@@ -42,7 +42,7 @@ class NodeBackupManifest(unittest.TestCase):
                 "AWS_REGION",
             }.issubset(names)
         )
-        self.assertEqual(container["image"], "ghcr.io/kpoxo6op/node-backup:pending")
+        self.assertRegex(container["image"], r"^ghcr.io/kpoxo6op/node-backup@sha256:[0-9a-f]{64}$")
 
 
 if __name__ == "__main__":
