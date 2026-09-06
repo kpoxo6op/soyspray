@@ -6,9 +6,10 @@ when changing deployment ownership.
 
 ## Paired recovery backup
 
-The backup operation is packaged from `backup/`. It is not registered for
-scheduled deployment yet. The current application and nightly S3 copy continue
-to use their existing definitions.
+The backup operation is packaged from `backup/`. Its CronJob is initially
+suspended. Use the [backup runbook](backup/README.md) to validate credentials,
+initialize the repository, and run a paired backup. The current application and
+nightly S3 copy continue to use their existing definitions.
 
 The operation exports a database snapshot and its required original-file paths,
 then backs up the dump with `upload`, `library`, and `profile`. The path list and
