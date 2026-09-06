@@ -20,6 +20,8 @@ are never copied. The Python SQLite backup API writes a consistent shadow
 and writes `/work/reports/report.json`. A failed Restic command leaves a failed
 report and returns a non-zero status.
 
+Restic retains 30 daily snapshots, grouped by host.
+
 The backup does not include caches, transcodes, reproducible voice models,
 large media trees, or broad host configuration such as `/etc`. The two unique
 voice models are on the laptop pCloud path and require a separate local backup
