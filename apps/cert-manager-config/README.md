@@ -7,6 +7,7 @@ cainjector, CRDs, and namespace. Keep those foundation resources in Kubespray.
 ```sh
 make status APP=cert-manager-config FORMAT=json
 make check APP=cert-manager-config
+make smoke APP=cert-manager-config
 make diff APP=cert-manager-config
 make deploy APP=cert-manager-config REVISION=YOUR_PUSHED_BRANCH
 kubectl get clusterissuer
@@ -54,6 +55,11 @@ bootstrap passed live identity and repeat checks.
 
 Verify both issuers and certificates are Ready, their revisions and expiry dates
 are unchanged, reflector and foundation pods keep their identities, and retained
-HTTPS hosts still validate. Certificate identity recovery and a dedicated app
-smoke command remain unknown until maintained checks cover them. Keep encrypted
-recovery inputs outside the cluster. Ingress migration is a separate change.
+HTTPS hosts still validate. `make smoke APP=cert-manager-config` reads current issuer and certificate
+readiness and validity dates. It validates trusted TLS with hostname checks for
+Vaultwarden, Obsidian, and Headlamp. It reads no Secrets and uses no app credentials.
+JSON output records each result and cause; exit codes are 0 for passed, 1 for
+failed, and 2 for unknown. Missing API observations and network failures remain
+unknown. This checks current TLS access; it does not prove renewal, identity
+recovery, app login, or every reflected namespace. Keep encrypted recovery inputs
+outside the cluster. Ingress migration is a separate change.

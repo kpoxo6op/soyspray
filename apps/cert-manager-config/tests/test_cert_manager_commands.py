@@ -44,7 +44,7 @@ def test_cert_manager_deployment_prepares_identity_before_native_root(tmp_path, 
     ]
 
 
-@pytest.mark.parametrize("action", ["smoke", "restore-check"])
+@pytest.mark.parametrize("action", ["restore-check"])
 def test_unsupported_cert_manager_operations_do_not_fall_back_to_deployment(action):
     result = subprocess.run(
         ["make", "--no-print-directory", "-f", "apps/cert-manager-config/Makefile", action],
