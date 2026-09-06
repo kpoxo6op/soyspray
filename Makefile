@@ -14,8 +14,6 @@ BOYS_ENABLED ?= true
 BOYS_REVISION ?= HEAD
 EXTERNAL_DNS_REVISION ?= HEAD
 DOMAIN_HEALTH_REVISION ?= HEAD
-VOICE_ASSISTANT_REVISION ?= HEAD
-VOICE_ASSISTANT_ENABLED ?= true
 VAULTWARDEN_PACKAGE := apps/vaultwarden/manifests
 OBSIDIAN_PACKAGE := apps/obsidian-livesync/manifests
 VAULTWARDEN_ENABLED ?= true
@@ -27,18 +25,6 @@ OBSIDIAN_REVISION ?= HEAD
 OBSIDIAN_ENABLED ?= true
 FORMAT ?= text
 REVISION ?= HEAD
-LIVE_TV_ENABLED ?= false
-LIVE_TV_REVISION ?= HEAD
-ifeq ($(LIVE_TV_ENABLED),true)
-LIVE_TV_TAGS := authentik,live-tv
-LIVE_TV_AUTHENTIK_ARGS := -e authentik_target_revision=$(LIVE_TV_REVISION)
-else
-LIVE_TV_TAGS := live-tv
-LIVE_TV_AUTHENTIK_ARGS :=
-endif
-VOICE_PE_HOST ?= home-assistant-voice-0a9b95.local
-VOICE_PE_CONFIG := .build/voice-pe/gi-voice-pe.yaml
-ESPHOME := uvx --from esphome==2025.5.1 esphome
 
 NODE0 := 192.168.20.10
 NODE1 := 192.168.20.11
@@ -147,7 +133,7 @@ prometheus-check: ## Check monitoring rules and backup alert behavior with pinne
 	$(PYTHON) scripts/check_prometheus.py
 
 status-page-check:
-	$(PYTHON) scripts/configure_status_page.py --check
+	$(MAKE) --no-print-directory -f apps/status-page/Makefile check
 
 test: ## Run the focused test suite
 	$(PYTEST) -q tests apps/immich/tests --ignore=apps/immich/tests/test_backup.py apps/autism-traits/tests apps/boys/tests apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests
@@ -201,33 +187,28 @@ vaultwarden: go ## Reconcile Vaultwarden through the native Argo root
 		ENABLED=$(VAULTWARDEN_ENABLED) REVISION=$(VAULTWARDEN_REVISION)
 
 live-tv: go
-	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags $(LIVE_TV_TAGS) $(LIVE_TV_AUTHENTIK_ARGS) \
-		-e live_tv_enabled=$(LIVE_TV_ENABLED) \
-		-e live_tv_target_revision=$(LIVE_TV_REVISION)
+	$(MAKE) --no-print-directory -f apps/live-tv/Makefile deploy
 
 voice-assistant: go
-	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags voice_assistant \
-		-e voice_assistant_target_revision=$(VOICE_ASSISTANT_REVISION) \
-		-e voice_assistant_enabled=$(VOICE_ASSISTANT_ENABLED)
+	$(MAKE) --no-print-directory -f apps/voice-assistant/Makefile deploy
 
 voice-pe-render:
-	$(PYTHON) scripts/render_gi_voice_pe.py --output $(VOICE_PE_CONFIG)
+	$(MAKE) --no-print-directory -f apps/voice-assistant/Makefile voice-pe-render
 
-voice-pe-check: voice-pe-render
-	$(ESPHOME) config $(VOICE_PE_CONFIG) >/dev/null
+voice-pe-check:
+	$(MAKE) --no-print-directory -f apps/voice-assistant/Makefile voice-pe-check
 
-voice-pe-compile: voice-pe-check
-	$(ESPHOME) compile $(VOICE_PE_CONFIG)
+voice-pe-compile:
+	$(MAKE) --no-print-directory -f apps/voice-assistant/Makefile voice-pe-compile
 
-voice-pe-upload: voice-pe-compile
-	$(MAKE) go
-	$(ESPHOME) upload $(VOICE_PE_CONFIG) --device $(VOICE_PE_HOST)
+voice-pe-upload: go
+	$(MAKE) --no-print-directory -f apps/voice-assistant/Makefile voice-pe-upload
 
 status-page: go
-	$(PYTHON) scripts/configure_status_page.py
+	$(MAKE) --no-print-directory -f apps/status-page/Makefile deploy
 
-status-page-fallback: status-page-check
-	$(PYTHON) scripts/configure_status_page.py --fallback
+status-page-fallback:
+	$(MAKE) --no-print-directory -f apps/status-page/Makefile fallback
 
 argo-login: ## Log in to the home Argo CD instance
 	argocd login argocd.soyspray.vip --username admin --grpc-web
