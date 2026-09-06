@@ -1,0 +1,37 @@
+name: Node-local backup image
+
+on:
+  pull_request:
+    paths:
+      - "apps/node-backup/**"
+      - ".github/workflows/node-backup-image.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/node-backup/**"
+      - ".github/workflows/node-backup-image.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+      - name: Build the immutable backup image
+        run: |
+          docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" \
+            --tag soyspray-node-backup:test apps/node-backup
+      - name: Check the packaged entrypoint
+        run: |
+          docker run --rm --network none --read-only --entrypoint python3 \
+            soyspray-node-backup:test -m py_compile /scripts/backup.py
+      - name: Run the SQLite and Restic recovery tests
+        run: |
+          python3 -m pip install --disable-pip-version-check PyYAML==6.0.3
+          python3 -m unittest discover -s apps/node-backup/tests -p 'test_*.py'

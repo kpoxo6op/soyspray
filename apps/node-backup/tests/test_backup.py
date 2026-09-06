@@ -9,6 +9,7 @@ import sqlite3
 import subprocess
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -101,11 +102,12 @@ else:
             with sqlite3.connect(self.database, timeout=30) as database:
                 database.execute("PRAGMA journal_mode=WAL")
                 writer_started.set()
-                for n in range(200):
-                    database.execute("UPDATE item SET value=? WHERE id=?", (f"changed-{n}", n + 1))
+                for n in range(2000):
+                    database.execute("UPDATE item SET value=? WHERE id=?", (f"changed-{n}", n % 1000 + 1))
                     database.commit()
                     if stop_writer.is_set():
                         break
+                    time.sleep(0.001)
 
         with sqlite3.connect(self.database) as database:
             database.execute("PRAGMA journal_mode=WAL")
