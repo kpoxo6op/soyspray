@@ -1,9 +1,8 @@
 # Node-local recovery backup
 
 This package creates a daily Restic snapshot from the durable node-local paths
-that were verified on `node-0`. The CronJob is committed with `spec.suspend:
-true`. The operator must promote the tested image digest, create the credential Secret,
-run one real backup and isolated restore, then deliberately enable the schedule.
+that were verified on `node-0`. The daily CronJob is enabled at 03:00 Auckland time after a real
+backup and isolated restore passed. It uses a tested immutable image digest.
 
 The backup runs on `node-0` and reads these paths through read-only host mounts:
 
@@ -64,9 +63,7 @@ cluster mounts or upload to an off-cluster repository.
 The dedicated workflow builds the image and runs these tests with the packaged
 Python and Restic binaries. A main-branch run publishes the tested image;
 deployment requires a separate digest promotion. Each snapshot includes a
-content manifest with file hashes and the SQLite integrity result. The `pending`
-image reference in the suspended CronJob is a bootstrap value. Replace it with
-the digest from a tested image before any deployment or schedule enablement.
+content manifest with file hashes and the SQLite integrity result. Image changes require a separate tested digest promotion.
 
 ## Operations
 
@@ -77,7 +74,7 @@ The bootstrap rejects credential mismatches and preserves an existing Secret.
 Use `make deploy APP=node-backup REVISION=BRANCH` for the standard branch preview.
 Return to `REVISION=HEAD` after merge. Run `apps/node-backup/run.yml` through the
 standard Ansible inventory with `node_backup_run_id` and a private
-`node_backup_evidence_dir`. It requires a suspended, inactive CronJob and removes
+`node_backup_evidence_dir`. It requires an inactive CronJob temporarily suspended through Git and removes
 its temporary Job after saving the log.
 
 Use `make restore-check APP=node-backup SNAPSHOT=ID` to check the S3 repository structure,
@@ -85,3 +82,7 @@ restore the snapshot in a private laptop directory, verify each file against its
 saved hash, and check Jellyfin SQLite integrity and row counts. The command removes
 restored files and retains a private report under `~/.local/state/soyspray/restores`.
 This does not prove playback; check the existing Jellyfin playback command separately.
+
+The first real restore verified 9,562 files, all saved hashes, and Jellyfin SQLite
+integrity and row counts. Operator evidence is private. A successful backup log
+and its snapshot ID must be retained with each manually accepted restore.

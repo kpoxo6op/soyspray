@@ -9,7 +9,7 @@ metadata:
     soyspray.vip/access-method: Private daily node-local recovery reports
     soyspray.vip/data: Jellyfin metadata and database; books
     soyspray.vip/backup: Restic node prefix in the off-cluster S3 recovery bucket
-    soyspray.vip/backup-cause: Restore evidence is required before enabling the schedule.
+    soyspray.vip/backup-cause: Private restore reports are kept under ~/.local/state/soyspray/restores/node-backup; use a named snapshot for a fresh check.
   labels:
     soyspray.vip/owner: platform
 spec:
