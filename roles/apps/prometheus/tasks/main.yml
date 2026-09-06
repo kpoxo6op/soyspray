@@ -93,4 +93,4 @@
       {{ lookup('file', playbook_dir + '/argocd/applications/observability/prometheus/prometheus-application.yaml')
          | from_yaml
          | combine({'spec': {'source': {'targetRevision': prometheus_target_revision | default('HEAD') | string}}}, recursive=true) }}
-  tags: prometheus
+  tags: [prometheus, prometheus-source]
