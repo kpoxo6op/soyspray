@@ -56,3 +56,24 @@ def test_immich_sync_selects_existing_resources_without_pruning():
     assert all(
         r["kind"] != "Backup" for group in play["vars"]["cnpg_sets"] for r in group["resources"]
     )
+
+
+def test_authentik_preserves_archive_and_replication():
+    resources = list(
+        yaml.safe_load_all(
+            (
+                ROOT / "playbooks/argocd/applications/security/authentik/database/cluster.yaml"
+            ).read_text()
+        )
+    )
+    cluster, schedule = resources
+    assert cluster["spec"]["instances"] == 2
+    assert cluster["spec"]["imageName"] == "ghcr.io/cloudnative-pg/postgresql:17.5"
+    assert cluster["spec"]["plugins"][0]["parameters"] == {
+        "barmanObjectName": "authentik-offsite",
+        "serverName": "authentik-postgresql",
+    }
+    assert cluster["spec"]["backup"] == {"target": "prefer-standby"}
+    assert cluster["spec"]["postgresql"]["parameters"]["archive_timeout"] == "5min"
+    assert schedule["spec"]["schedule"] == "0 30 3 * * *"
+    assert schedule["spec"]["method"] == "plugin"
