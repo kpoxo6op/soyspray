@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: node-backup
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '2'
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-method: Private daily node-local recovery reports
+    soyspray.vip/data: Jellyfin metadata and database; books
+    soyspray.vip/backup: Restic node prefix in the off-cluster S3 recovery bucket
+    soyspray.vip/backup-cause: Restore evidence is required before enabling the schedule.
+  labels:
+    soyspray.vip/owner: platform
+spec:
+  project: node-backup
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: HEAD
+    path: apps/node-backup
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: media
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - PruneLast=true
