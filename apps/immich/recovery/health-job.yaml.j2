@@ -25,4 +25,9 @@ spec:
             - >-
               curl --fail --silent --show-error http://immich-server:2283/api/server/ping |
               grep -F '"res":"pong"';
-              curl --fail --silent --show-error http://immich-server:2283/api/server/version
+              version="$(curl --fail --silent --show-error http://immich-server:2283/api/server/version | tr -d '[:space:]')";
+              test "$version" = '{"major":2,"minor":3,"patch":1}';
+              for endpoint in http://immich-db-active.postgresql.svc.cluster.local:5432 https://1.1.1.1; do
+                peer="$(curl --silent --connect-timeout 3 --max-time 3 --output /dev/null --write-out '%{remote_ip}' "$endpoint" || true)";
+                test -z "$peer";
+              done
