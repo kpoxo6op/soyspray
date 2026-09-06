@@ -17,18 +17,18 @@ spec:
         - alert: ImmichMediaBackupStale
           expr: |
             time() - max by (namespace, cronjob) (
-              kube_cronjob_status_last_successful_time{namespace="immich", cronjob="immich-media-offsite-sync"}
+              kube_cronjob_status_last_successful_time{namespace="immich", cronjob="immich-paired-backup"}
             ) > 36 * 60 * 60
           for: 15m
           labels:
             severity: warning
           annotations:
-            summary: "Media backup stale (immich-media-offsite-sync)"
+            summary: "Media backup stale (immich-paired-backup)"
             description: "Last successful CronJob run is older than 36h in namespace=immich."
         - alert: CNPGBackupStale
           expr: |
-            time() - max by (cluster) (
-              cnpg_collector_last_available_backup_timestamp{cluster="immich-db-a"}
+            time() - max by (namespace, job) (
+              barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{namespace="postgresql", job="postgresql/immich-db-a"}
             ) > 36 * 60 * 60
           for: 15m
           labels:

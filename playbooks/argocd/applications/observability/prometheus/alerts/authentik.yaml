@@ -86,12 +86,12 @@ spec:
 
         - alert: AuthentikPostgreSQLBackupStale
           expr: |
-            max(cnpg_collector_last_available_backup_timestamp{
+            max(barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{
               namespace="authentik",
               job="authentik/authentik-postgresql"
             }) == 0
             or
-            time() - max(cnpg_collector_last_available_backup_timestamp{
+            time() - max(barman_cloud_cloudnative_pg_io_last_available_backup_timestamp{
               namespace="authentik",
               job="authentik/authentik-postgresql"
             }) > 93600

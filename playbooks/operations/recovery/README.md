@@ -466,10 +466,22 @@ same installer and `-e evidence_enabled=false`. The model review remains paused.
 Barman plugin in one guarded API request. It checks the database UID, PostgreSQL
 system ID, destination and retention, waits for health, and creates a named base
 backup. Use `-e cnpg_database=immich -e cnpg_backup_id=NAME` with the standard
-inventory and privilege options. Run check mode first to validate against the API.
+inventory and privilege options. Run check mode first. With an old Kubernetes client on the node, this check
+is local. Use an explicit server dry run for API admission validation.
 
 Push the matching database manifests before applying. Immich has no automatic
 sync. After the migration and base backup pass, run
 `reconcile-immich-database.yml -e cnpg_revision=BRANCH` to sync its existing
 resources without hooks or pruning. After merge, repeat with `cnpg_revision=HEAD`.
 Verify archive continuity and production access before closing the migration.
+
+For Authentik, first use `select-authentik-database.yml -e cnpg_revision=BRANCH`.
+It pauses database self-heal so the archive switch remains atomic. Then run
+`migrate-cnpg-backup.yml -e cnpg_database=authentik -e cnpg_backup_id=NAME`.
+After verification, select the branch again with `-e cnpg_sync=true`. After
+merge, select `HEAD`; this restores the existing automatic sync policy.
+
+After both writer migrations, update backup metric consumers through
+`deploy-argocd-apps.yml --tags prometheus-source -e prometheus_target_revision=BRANCH`.
+This selects only the existing monitoring Application source. Verify the Barman
+backup timestamp queries, then return its revision to `HEAD` after merge.

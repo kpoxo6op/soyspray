@@ -1,0 +1,75 @@
+---
+- name: Select only the Authentik database source for an archive migration
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    cnpg_revision: HEAD
+  tasks:
+    - name: Read the existing database Application
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: authentik-postgresql
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: app
+    - name: Require the existing idle database source
+      ansible.builtin.assert:
+        that:
+          - app.resources | length == 1
+          - app.resources[0].operation | default(none) == none
+          - app.resources[0].spec.source.repoURL == 'https://github.com/kpoxo6op/soyspray.git'
+          - app.resources[0].spec.source.path == 'playbooks/argocd/applications/security/authentik/database'
+          - app.resources[0].metadata.ownerReferences | default([]) | length == 0
+    - name: Select the pushed source and pause self-heal only during preview
+      kubernetes.core.k8s_json_patch:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: authentik-postgresql
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - op: test
+            path: /metadata/resourceVersion
+            value: "{{ app.resources[0].metadata.resourceVersion }}"
+          - op: replace
+            path: /spec/source/targetRevision
+            value: "{{ cnpg_revision }}"
+          - op: add
+            path: /spec/syncPolicy
+            value: "{{ app.resources[0].spec.syncPolicy | combine({'automated': {'prune': true, 'selfHeal': true}}) if cnpg_revision == 'HEAD' else app.resources[0].spec.syncPolicy | dict2items | rejectattr('key', 'equalto', 'automated') | items2dict }}"
+    - name: Re-read the Application before the optional explicit sync
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: authentik-postgresql
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: selected
+      when:
+        - cnpg_sync | default(false) | bool
+        - not ansible_check_mode
+    - name: Sync the migrated database without pruning
+      kubernetes.core.k8s_json_patch:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: authentik-postgresql
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - op: test
+            path: /metadata/resourceVersion
+            value: "{{ selected.resources[0].metadata.resourceVersion }}"
+          - op: add
+            path: /operation
+            value:
+              initiatedBy:
+                username: ansible
+              sync:
+                revision: "{{ cnpg_revision }}"
+                prune: false
+      when:
+        - cnpg_sync | default(false) | bool
+        - not ansible_check_mode
