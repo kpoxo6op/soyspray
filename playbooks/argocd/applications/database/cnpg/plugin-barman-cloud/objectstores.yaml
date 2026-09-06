@@ -1,6 +1,8 @@
 apiVersion: barmancloud.cnpg.io/v1
 kind: ObjectStore
 metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
   name: immich-offsite
   namespace: postgresql
 spec:
@@ -21,6 +23,8 @@ spec:
 apiVersion: barmancloud.cnpg.io/v1
 kind: ObjectStore
 metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
   name: authentik-offsite
   namespace: authentik
 spec:
