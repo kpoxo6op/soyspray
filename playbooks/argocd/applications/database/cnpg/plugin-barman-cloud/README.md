@@ -48,3 +48,7 @@ Validate locally:
 kubectl kustomize playbooks/argocd/applications/database/cnpg/plugin-barman-cloud
 python3 playbooks/argocd/applications/database/cnpg/plugin-barman-cloud/tests/test_plugin.py
 ```
+
+The ObjectStores and their CRD use `Prune=false,Delete=false`. Removing the
+Application or a Git path must not cascade through the archive configuration.
+The upstream manifest stays unchanged; Kustomize adds the CRD protection.

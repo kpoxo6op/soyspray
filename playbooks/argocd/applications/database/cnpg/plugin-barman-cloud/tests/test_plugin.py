@@ -72,6 +72,10 @@ class BarmanPluginTests(unittest.TestCase):
     def test_render_pins_controller_and_sidecar_images_and_contains_only_objectstores(self):
         rendered = subprocess.check_output(["kubectl", "kustomize", str(ROOT)], text=True)
         resources = list(yaml.safe_load_all(rendered))
+        protected = [item for item in resources if item['kind'] in {'CustomResourceDefinition', 'ObjectStore'}]
+        self.assertEqual(len(protected), 3)
+        for item in protected:
+            self.assertEqual(item['metadata']['annotations']['argocd.argoproj.io/sync-options'], 'Prune=false,Delete=false')
         deployments = [item for item in resources if item.get("kind") == "Deployment"]
         self.assertEqual(len(deployments), 1)
         image = deployments[0]["spec"]["template"]["spec"]["containers"][0]["image"]
