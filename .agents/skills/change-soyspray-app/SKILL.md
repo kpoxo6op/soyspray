@@ -38,7 +38,10 @@ wording, or absence of retired files. For browser changes, check phone and deskt
 layouts, keyboard use, failed saves, in-flight edits, conflicts, refresh, and
 unsaved navigation. Compare real rendered workloads before deployment.
 
-Run affected-app checks and the full local gate before deployment. Follow the
+Use `make deploy APP=NAME` for affected-app and shared checks before deployment.
+Run `make full-check` and `make go` for shared changes and final verification.
+Keep deployment recipes in the app Makefile without calling back into the root.
+Follow the
 GitHub draft, commit, review, and exact-head verification rules in AGENTS.md.
 Keep source and promotion PRs separate. Report local, CI, and deployed evidence
 separately; mark unverified user journeys and restores unknown with a cause.

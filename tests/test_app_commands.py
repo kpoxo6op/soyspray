@@ -1,4 +1,7 @@
+import json
+import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -7,6 +10,62 @@ from scripts import app_diff, argocd_cli
 from scripts.app_command import command
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.mark.parametrize(
+    "app,bootstrap",
+    [
+        (name, name not in {"headlamp", "media-helper"})
+        for name in (
+            "autism-traits",
+            "boys",
+            "cert-manager-config",
+            "domain-health",
+            "external-dns",
+            "headlamp",
+            "media-helper",
+            "obsidian-livesync",
+            "vaultwarden",
+        )
+    ],
+)
+def test_native_app_deployment_passes_exact_bootstrap_and_preview_arguments(
+    tmp_path, app, bootstrap
+):
+    log = tmp_path / "calls.jsonl"
+    runner = tmp_path / "ansible.py"
+    runner.write_text(
+        "import json, os, pathlib, sys\n"
+        "with pathlib.Path(os.environ['ANSIBLE_CALL_LOG']).open('a') as f:\n"
+        "    f.write(json.dumps({'cwd': os.getcwd(), 'args': sys.argv[1:]}) + '\\n')\n"
+    )
+    result = subprocess.run(
+        [
+            "make",
+            "--no-print-directory",
+            "-C",
+            str(ROOT / "apps" / app),
+            "deploy",
+            "REVISION=codex/preview",
+            f"ANSIBLE={sys.executable} {runner}",
+        ],
+        env={**os.environ, "ANSIBLE_CALL_LOG": str(log)},
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    calls = [json.loads(line) for line in log.read_text().splitlines()]
+    expected = [[f"apps/{app}/bootstrap.yml"]] if bootstrap else []
+    expected.append(
+        [
+            "playbooks/bootstrap-apps.yml",
+            "-e",
+            "argocd_revision=codex/preview",
+            "-e",
+            f"argocd_preview_application={app}",
+        ]
+    )
+    assert calls == [{"cwd": str(ROOT), "args": args} for args in expected]
 
 
 @pytest.mark.parametrize("app", ["", "..", "../boys", "boys/other", "-f", "boys;true"])
@@ -40,6 +99,65 @@ def test_go_keeps_the_full_gate_when_app_is_set():
     assert "make --no-print-directory full-check" in result.stdout
     assert "-m scripts.app_command" not in result.stdout
     assert "ansible-playbook" in result.stdout
+
+
+def test_deploy_runs_shared_check_app_check_preflight_and_native_deploy_in_order(tmp_path):
+    log = tmp_path / "calls.log"
+    runner = tmp_path / "make-runner"
+    runner.write_text(
+        "#! /usr/bin/env python3\n"
+        "import os, pathlib, sys\n"
+        "pathlib.Path(os.environ['MAKE_CALL_LOG']).open('a').write(' '.join(sys.argv[1:]) + '\\n')\n"
+    )
+    runner.chmod(0o700)
+    result = subprocess.run(
+        ["make", "--no-print-directory", "deploy", "APP=boys", f"MAKE={runner}"],
+        cwd=ROOT,
+        env={**os.environ, "MAKE_CALL_LOG": str(log)},
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    calls = log.read_text().splitlines()
+    assert calls == [
+        "--no-print-directory shared-check",
+        "--no-print-directory check APP=boys",
+        "--no-print-directory deploy-preflight",
+        "--no-print-directory app-command COMMAND=deploy",
+    ]
+
+
+@pytest.mark.parametrize("failure", ["shared-check", "check", "deploy-preflight", "app-command"])
+def test_deploy_stops_when_a_stage_fails(tmp_path, failure):
+    log = tmp_path / "calls.log"
+    runner = tmp_path / "make-runner"
+    runner.write_text(
+        "#! /usr/bin/env python3\n"
+        "import os, pathlib, sys\n"
+        "args = sys.argv[1:]\n"
+        "pathlib.Path(os.environ['MAKE_CALL_LOG']).open('a').write(' '.join(args) + '\\n')\n"
+        "if os.environ['MAKE_FAIL_STAGE'] in args: raise SystemExit(23)\n"
+    )
+    runner.chmod(0o700)
+    result = subprocess.run(
+        ["make", "--no-print-directory", "deploy", "APP=boys", f"MAKE={runner}"],
+        cwd=ROOT,
+        env={
+            **os.environ,
+            "MAKE_CALL_LOG": str(log),
+            "MAKE_FAIL_STAGE": failure,
+        },
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    calls = log.read_text().splitlines()
+    stages = ["shared-check", "check", "deploy-preflight", "app-command"]
+    assert len(calls) == stages.index(failure) + 1
+    assert all(
+        stage in call
+        for stage, call in zip(stages[: stages.index(failure) + 1], calls, strict=True)
+    )
 
 
 def test_operation_file_cannot_link_outside_checkout(tmp_path):

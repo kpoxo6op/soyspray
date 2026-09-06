@@ -1,19 +1,18 @@
-SHELL := /bin/bash
-.SHELLFLAGS := -eu -o pipefail -c
-PYTHON ?= soyspray-venv/bin/python
-REVISION ?= HEAD
+include $(dir $(lastword $(MAKEFILE_LIST)))../common.mk
 .PHONY: check diff deploy
 
 check:
-	$(PYTHON) -m pytest -q apps/domain-health/tests
-	$(PYTHON) -m ansiblelint apps/domain-health/*.yml
-	kubectl kustomize apps/domain-health/argocd >/dev/null
+	cd $(ROOT) && $(PYTHON) -m pytest -q apps/domain-health/tests
+	cd $(ROOT) && $(PYTHON) -m ansiblelint apps/domain-health/*.yml
+	cd $(ROOT) && kubectl kustomize apps/domain-health/argocd >/dev/null
 
 diff:
-	$(PYTHON) -m scripts.app_diff --app domain-health --package apps/domain-health
+	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app domain-health --package apps/domain-health
 
 deploy:
-	$(MAKE) --no-print-directory -f Makefile APP= domain-health DOMAIN_HEALTH_REVISION=$(REVISION)
+	cd $(ROOT) && $(ANSIBLE) apps/domain-health/bootstrap.yml
+	cd $(ROOT) && $(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(REVISION) \
+		-e argocd_preview_application=$(if $(filter HEAD,$(REVISION)),,domain-health)
 
 .DEFAULT:
 	@printf 'unknown: domain-health has no maintained %s operation yet.\n' "$@" >&2

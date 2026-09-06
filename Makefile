@@ -56,7 +56,7 @@ KUSTOMIZATIONS := \
 	playbooks/argocd/applications/media/dispatcharr \
 	playbooks/argocd/applications/media/jellyfin
 
-.PHONY: help setup act check full-check app-command diff deploy smoke restore-check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
+.PHONY: help setup act check shared-test shared-check full-check deploy-preflight app-command diff deploy smoke restore-check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
 	test render go autism-traits boys vaultwarden obsidian-livesync headlamp live-tv voice-assistant voice-pe-render \
 	voice-pe-check voice-pe-compile voice-pe-upload media-helper cert-manager-config status-page status-page-fallback argo-login \
 	apps status backup-status external-dns domain-health list-apps node0 node1 node2 master worker1 worker2 worker3 clean
@@ -87,6 +87,11 @@ act: ## Open a shell in the project venv
 check: ## Run app checks with APP, or the complete local gate without APP
 	$(if $(strip $(APP)),$(MAKE) --no-print-directory app-command COMMAND=check,$(MAKE) --no-print-directory full-check)
 
+shared-test:
+	$(PYTEST) -q tests
+
+shared-check: lint validate shared-test ## Run checks shared by every application deployment
+
 full-check: lint validate test autism-traits-check boys-check ## Run the full repository gate explicitly
 	printf '\nLocal gate passed.\n'
 
@@ -97,6 +102,10 @@ diff: ## Compare APP's local deployment with the live resources
 	$(MAKE) --no-print-directory app-command COMMAND=diff
 
 deploy: ## Run APP's standard Ansible path (REVISION=HEAD by default)
+	test -n "$(strip $(APP))" || { printf 'unknown: deploy requires APP=APPLICATION.\n' >&2; exit 2; }
+	$(MAKE) --no-print-directory shared-check
+	$(MAKE) --no-print-directory check APP="$(APP)"
+	$(MAKE) --no-print-directory deploy-preflight
 	$(MAKE) --no-print-directory app-command COMMAND=deploy
 
 smoke: ## Check APP's deployed user journey and report evidence gaps
@@ -150,7 +159,9 @@ render: ## Render all managed Kustomize packages
 	done
 
 go: override APP :=
-go: check ## Run the full gate and deployment preflight even when APP is set
+go: check deploy-preflight ## Run the full gate and deployment preflight even when APP is set
+
+deploy-preflight:
 	branch="$$(git branch --show-current)"; \
 	test -n "$$branch" && test "$$branch" != main || { echo 'Deploy from a topic branch, not main.' >&2; exit 1; }
 	test -z "$$(git status --porcelain)" || { echo 'Commit the working tree before deployment.' >&2; exit 1; }
@@ -159,51 +170,35 @@ go: check ## Run the full gate and deployment preflight even when APP is set
 	printf '\nDeployment preflight passed.\n'
 
 autism-traits: go ## Reconcile the autism traits site through the native Argo root
-	test "$(AUTISM_TRAITS_ENABLED)" = true || { echo 'Retire an adopted app through an explicit operation; this command only deploys.' >&2; exit 1; }
-	$(ANSIBLE) apps/autism-traits/bootstrap.yml
-	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(AUTISM_TRAITS_REVISION) \
-		-e argocd_preview_application=$(if $(filter HEAD,$(AUTISM_TRAITS_REVISION)),,autism-traits)
+	$(MAKE) --no-print-directory -f apps/autism-traits/Makefile deploy \
+		ENABLED=$(AUTISM_TRAITS_ENABLED) REVISION=$(AUTISM_TRAITS_REVISION)
 
 boys: go ## Reconcile Boys through the native Argo root
-	test "$(BOYS_ENABLED)" = true || { echo 'Retire an adopted app through an explicit operation; this command only deploys.' >&2; exit 1; }
-	$(ANSIBLE) apps/boys/bootstrap.yml
-	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(BOYS_REVISION) \
-		-e argocd_preview_application=$(if $(filter HEAD,$(BOYS_REVISION)),,boys)
+	$(MAKE) --no-print-directory -f apps/boys/Makefile deploy \
+		ENABLED=$(BOYS_ENABLED) REVISION=$(BOYS_REVISION)
 
 external-dns: go ## Reconcile ExternalDNS through the native Argo root
-	$(ANSIBLE) apps/external-dns/bootstrap.yml
-	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(EXTERNAL_DNS_REVISION) \
-		-e argocd_preview_application=$(if $(filter HEAD,$(EXTERNAL_DNS_REVISION)),,external-dns)
+	$(MAKE) --no-print-directory -f apps/external-dns/Makefile deploy REVISION=$(EXTERNAL_DNS_REVISION)
 
 domain-health: go ## Reconcile domain checks through the native Argo root
-	$(ANSIBLE) apps/domain-health/bootstrap.yml
-	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(DOMAIN_HEALTH_REVISION) \
-		-e argocd_preview_application=$(if $(filter HEAD,$(DOMAIN_HEALTH_REVISION)),,domain-health)
+	$(MAKE) --no-print-directory -f apps/domain-health/Makefile deploy REVISION=$(DOMAIN_HEALTH_REVISION)
 
 media-helper: go ## Reconcile the media helper through the native Argo root
-	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(MEDIA_HELPER_REVISION) \
-		-e argocd_preview_application=$(if $(filter HEAD,$(MEDIA_HELPER_REVISION)),,media-helper)
+	$(MAKE) --no-print-directory -f apps/media-helper/Makefile deploy REVISION=$(MEDIA_HELPER_REVISION)
 
 cert-manager-config: go ## Reconcile the certificate configuration through the native Argo root
-	$(ANSIBLE) apps/cert-manager-config/bootstrap.yml
-	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(CERT_MANAGER_CONFIG_REVISION) \
-		-e argocd_preview_application=$(if $(filter HEAD,$(CERT_MANAGER_CONFIG_REVISION)),,cert-manager-config)
+	$(MAKE) --no-print-directory -f apps/cert-manager-config/Makefile deploy REVISION=$(CERT_MANAGER_CONFIG_REVISION)
 
 headlamp: go ## Reconcile Headlamp through the native Argo root
-	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(HEADLAMP_REVISION) \
-		-e argocd_preview_application=$(if $(filter HEAD,$(HEADLAMP_REVISION)),,headlamp)
+	$(MAKE) --no-print-directory -f apps/headlamp/Makefile deploy REVISION=$(HEADLAMP_REVISION)
 
 obsidian-livesync: go ## Reconcile Obsidian through the native Argo root
-	test "$(OBSIDIAN_ENABLED)" = true || { echo 'Retire an adopted app through an explicit operation; this command only deploys.' >&2; exit 1; }
-	$(ANSIBLE) apps/obsidian-livesync/bootstrap.yml
-	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(OBSIDIAN_REVISION) \
-		-e argocd_preview_application=$(if $(filter HEAD,$(OBSIDIAN_REVISION)),,obsidian-livesync)
+	$(MAKE) --no-print-directory -f apps/obsidian-livesync/Makefile deploy \
+		ENABLED=$(OBSIDIAN_ENABLED) REVISION=$(OBSIDIAN_REVISION)
 
 vaultwarden: go ## Reconcile Vaultwarden through the native Argo root
-	test "$(VAULTWARDEN_ENABLED)" = true || { echo 'Retire an adopted app through an explicit operation; this command only deploys.' >&2; exit 1; }
-	$(ANSIBLE) apps/vaultwarden/bootstrap.yml
-	$(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(VAULTWARDEN_REVISION) \
-		-e argocd_preview_application=$(if $(filter HEAD,$(VAULTWARDEN_REVISION)),,vaultwarden)
+	$(MAKE) --no-print-directory -f apps/vaultwarden/Makefile deploy \
+		ENABLED=$(VAULTWARDEN_ENABLED) REVISION=$(VAULTWARDEN_REVISION)
 
 live-tv: go
 	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --tags $(LIVE_TV_TAGS) $(LIVE_TV_AUTHENTIK_ARGS) \
