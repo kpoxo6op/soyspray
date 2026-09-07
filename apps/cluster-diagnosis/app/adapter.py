@@ -16,6 +16,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -126,7 +127,19 @@ def fetch_alerts(url: str, timeout: float = 20.0) -> list[dict[str, Any]]:
     return value
 
 
-def _run_process_group(argv: list[str], *, timeout: float, input: str = "", **kwargs: Any) -> Any:
+class UsageStopped(RuntimeError):
+    """The account allowance cannot support continued unattended work."""
+
+
+def _run_process_group(
+    argv: list[str],
+    *,
+    timeout: float,
+    input: str = "",
+    stop: Callable[[], bool] | None = None,
+    poll_interval: float = 30,
+    **kwargs: Any,
+) -> Any:
     """Run a child process and kill its complete process group on timeout."""
     process = subprocess.Popen(
         argv,
@@ -137,10 +150,35 @@ def _run_process_group(argv: list[str], *, timeout: float, input: str = "", **kw
         text=True,
         **{key: value for key, value in kwargs.items() if key in {"cwd", "env"}},
     )
+    deadline = time.monotonic() + timeout
     try:
-        stdout, stderr = process.communicate(input=input, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        os.killpg(process.pid, signal.SIGKILL)
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(argv, timeout)
+            try:
+                stdout, stderr = process.communicate(
+                    input=input, timeout=min(remaining, poll_interval) if stop else remaining
+                )
+                break
+            except subprocess.TimeoutExpired:
+                input = None
+                if stop:
+                    try:
+                        exhausted = stop()
+                    except Exception:
+                        exhausted = True
+                    if exhausted:
+                        raise UsageStopped(
+                            "Account usage is unavailable or at its stop limit"
+                        ) from None
+                if time.monotonic() >= deadline:
+                    raise
+    except (subprocess.TimeoutExpired, UsageStopped):
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
         process.communicate()
         raise
     return subprocess.CompletedProcess(argv, process.returncode, stdout, stderr)
@@ -168,7 +206,9 @@ def _rpc(process: subprocess.Popen[str], request: dict[str, Any], timeout: float
     raise TimeoutError("Codex app-server response timed out")
 
 
-def read_usage_limit(codex: str, timeout: float = 10.0) -> int | None:
+def read_usage_limit(
+    codex: str, timeout: float = 10.0, codex_home: str | None = None
+) -> int | None:
     """Read the account rate limit through app-server; return None when unavailable."""
     process: subprocess.Popen[str] | None = None
     try:
@@ -179,6 +219,7 @@ def read_usage_limit(codex: str, timeout: float = 10.0) -> int | None:
             stderr=subprocess.DEVNULL,
             start_new_session=True,
             text=True,
+            env={**os.environ, **({"CODEX_HOME": codex_home} if codex_home else {})},
         )
         _rpc(
             process,
@@ -296,7 +337,7 @@ def _send_telegram(openclaw: str, target: str, message: str, run: Callable[..., 
         raise RuntimeError("Telegram delivery failed")
 
 
-def _prompt(alert: dict[str, Any]) -> str:
+def _prompt(alert: dict[str, Any], evidence: dict | None = None) -> str:
     safe_alert = {
         "fingerprint": alert.get("fingerprint", ""),
         "labels": _safe_map(alert.get("labels", {})),
@@ -324,6 +365,7 @@ def _prompt(alert: dict[str, Any]) -> str:
     }
     safe_alert.pop("fingerprint", None)
     safe_alert.pop("startsAt", None)
+    safe_alert["read_only_metrics"] = evidence or {"status": "unavailable"}
     encoded = _json(safe_alert)
     if len(encoded.encode()) > MAX_ALERT_BYTES:
         encoded = encoded.encode()[:MAX_ALERT_BYTES].decode("utf-8", "ignore")
@@ -336,10 +378,14 @@ cluster resources, merge code, deploy code, or send messages. If a code change w
 help, prepare a minimal draft only in the isolated worktree and report its path.
 
 Return concise incident, evidence, likely cause, safe next step, and draft-fix path.
+Empty metric series are unknown, not healthy. Do not spawn other agents.
 Discard sensitive command output. The live Immich DB_URL contains a password; do not
 print it or any equivalent value. Do not claim evidence that was not available.
 
-Only selected resource labels are supplied. Free-text annotations, workload bodies,
+Source code, when supplied, is read-only at /source. Write a proposed fix.patch
+only in /workspace. Never claim that it was applied.
+
+Only selected resource labels and numeric metrics are supplied. Free-text annotations, workload bodies,
 logs, and Kubernetes credentials are unavailable. State these evidence limits.
 
 Sanitized Alert JSON:
@@ -437,6 +483,14 @@ def _sandbox_argv(
         "CODEX_HOME",
         "/home/diagnosis/.codex",
     ]
+    source = os.environ.get("CLUSTER_DIAGNOSIS_SOURCE")
+    if source:
+        if not Path(source).is_dir() or (Path(source) / ".git").exists():
+            return None
+        argv += ["--ro-bind", source, "/source"]
+    helper = Path(codex_path).with_name("codex-code-mode-host")
+    if helper.is_file():
+        argv += ["--ro-bind", str(helper), "/opt/diagnosis/codex-code-mode-host"]
     argv += [
         "/opt/diagnosis/codex",
         "exec",
@@ -461,6 +515,73 @@ def _sandbox_argv(
     return argv
 
 
+METRIC_QUERIES = {
+    "nodes_ready": 'max by (node) (kube_node_status_condition{condition="Ready",status="true"})',
+    "application_health": "max by (name,health_status,sync_status) (argocd_app_info)",
+    "storage": "max by (pvc,pvc_namespace) (longhorn_volume_robustness)",
+    "critical_backup_age_seconds": "max by (app_namespace,pvc) (soyspray:critical_backup_age_seconds)",
+    "database_backup_age_seconds": "time() - max by (namespace,job) (barman_cloud_cloudnative_pg_io_last_available_backup_timestamp)",
+}
+
+
+def metric_evidence() -> dict:
+    """Read fixed Prometheus queries without exposing an SSH identity to the model."""
+    script = "import json,urllib.request,urllib.parse\nresult={}\n"
+    script += "queries=" + repr(METRIC_QUERIES) + "\n"
+    script += """for name,query in queries.items():
+ d=json.load(urllib.request.urlopen('http://10.233.4.158:9090/api/v1/query?'+urllib.parse.urlencode({'query':query}),timeout=5))
+ result[name]=d.get('data',{}).get('result',[])
+print(json.dumps(result))
+"""
+    try:
+        result = _run_process_group(
+            [
+                "ssh",
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "ConnectTimeout=5",
+                "ubuntu@192.168.20.10",
+                "python3",
+                "-",
+            ],
+            timeout=30,
+            input=script,
+        )
+        if result.returncode:
+            return {"status": "unavailable", "cause": "Prometheus query failed"}
+        data = json.loads(result.stdout)
+        selected = {}
+        allowed = {
+            "node",
+            "name",
+            "health_status",
+            "sync_status",
+            "pvc",
+            "pvc_namespace",
+            "app_namespace",
+            "namespace",
+            "job",
+        }
+        for name in METRIC_QUERIES:
+            selected[name] = []
+            for row in data.get(name, [])[:64]:
+                sample, value = map(float, row["value"])
+                if not math.isfinite(value) or not 0 <= datetime.now().timestamp() - sample <= 300:
+                    continue
+                labels = {
+                    k: v
+                    for k, v in row.get("metric", {}).items()
+                    if k in allowed
+                    and isinstance(v, str)
+                    and re.fullmatch(r"[a-zA-Z0-9_.:/-]{1,253}", v)
+                }
+                selected[name].append({"labels": labels, "value": value})
+        return {"status": "observed", "series": selected}
+    except (OSError, ValueError, KeyError, TypeError, subprocess.TimeoutExpired):
+        return {"status": "unavailable", "cause": "Prometheus evidence could not be read"}
+
+
 def _diagnose(
     alert: dict[str, Any],
     codex: str,
@@ -468,6 +589,8 @@ def _diagnose(
     kubeconfig: str | None,
     codex_home: str | None,
 ) -> str:
+    workspace.mkdir(parents=True, exist_ok=True, mode=0o700)
+    workspace = Path(tempfile.mkdtemp(prefix="incident-", dir=workspace))
     output_path = workspace / ".diagnosis-output"
     try:
         output_path.unlink()
@@ -476,8 +599,20 @@ def _diagnose(
     argv = _sandbox_argv(codex, workspace, output_path, kubeconfig, codex_home)
     if argv is None:
         return "sandbox-unavailable"
+
+    def usage_exhausted():
+        used = read_usage_limit(codex, timeout=2, codex_home=codex_home)
+        return used is None or used >= 65
+
     try:
-        result = _run_process_group(argv, timeout=MODEL_TIMEOUT_SECONDS, input=_prompt(alert))
+        result = _run_process_group(
+            argv,
+            timeout=MODEL_TIMEOUT_SECONDS - 10,
+            input=_prompt(alert, metric_evidence()),
+            stop=usage_exhausted,
+        )
+    except UsageStopped:
+        return "usage-stopped"
     except subprocess.TimeoutExpired:
         return "timeout"
     if result.returncode != 0:
@@ -491,7 +626,7 @@ def _diagnose(
             output_path.unlink()
         except FileNotFoundError:
             pass
-    return message or "model-failed"
+    return message.replace("/workspace", str(workspace)) or "model-failed"
 
 
 def run_once(
@@ -565,7 +700,9 @@ def run_once(
                 record["last_result"] = "daily-limit"
                 outcomes.append("daily-limit")
                 continue
-            used_percent = usage_gate() if usage_gate else read_usage_limit(codex)
+            used_percent = (
+                usage_gate() if usage_gate else read_usage_limit(codex, codex_home=codex_home)
+            )
             if used_percent is None:
                 record["pending_hash"] = current_hash
                 record["last_result"] = "usage-unavailable"
@@ -594,14 +731,20 @@ def run_once(
             )
             record["last_result"] = result
             store.save(state)
-            if result not in {"timeout", "model-failed", "sandbox-unavailable"}:
+            if result not in {"timeout", "model-failed", "sandbox-unavailable", "usage-stopped"}:
                 record["delivery_pending"] = result
                 store.save(state)
                 _send_telegram(openclaw, telegram_target, result, run)
                 record.pop("delivery_pending")
                 outcomes.append("diagnosed")
             else:
+                record["delivery_pending"] = "Cluster diagnosis stopped: " + result
+                store.save(state)
+                _send_telegram(openclaw, telegram_target, record["delivery_pending"], run)
+                record.pop("delivery_pending")
                 outcomes.append(result)
+            # One attempt keeps each scheduler invocation inside its timeout.
+            break
         store.save(state)
         return ",".join(outcomes) if outcomes else "unchanged"
 
