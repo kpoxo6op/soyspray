@@ -87,6 +87,40 @@ class EvidenceTests(unittest.TestCase):
             with self.assertRaises(OSError):
                 evidence.append_record(link, {})
 
+    def test_saved_metrics_reject_incomplete_restore_schedules(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            directory = root / "schedule" / "test-run"
+            directory.mkdir(parents=True)
+            report = {
+                "schema_version": 1,
+                "run_id": "test-run",
+                "status": "passed",
+                "finished_at": "2026-09-06T05:10:39+00:00",
+                "shared_gate": {"status": "passed", "returncode": 0},
+                "apps": [
+                    {
+                        "app": name,
+                        "passed": True,
+                        "cleanup": "completed",
+                        "command_returncode": 0,
+                        "report_status": "passed",
+                    }
+                    for name in ("boys", "vaultwarden", "obsidian-livesync")
+                ],
+            }
+            path = directory / "report.json"
+            report["apps"][0]["cleanup"] = "failed"
+            path.write_text(json.dumps(report))
+            text = evidence.saved_metrics(root / "absent.jsonl", root)
+            self.assertNotIn("soyspray_critical_restore_last_success_timestamp_seconds 17", text)
+            self.assertIn("soyspray_critical_restore_observed 0", text)
+            report["apps"][0]["cleanup"] = "completed"
+            path.write_text(json.dumps(report))
+            text = evidence.saved_metrics(root / "absent.jsonl", root)
+            self.assertIn("soyspray_critical_restore_observed 1", text)
+            self.assertIn("soyspray_critical_restore_last_success_timestamp_seconds 17", text)
+
 
 if __name__ == "__main__":
     unittest.main()
