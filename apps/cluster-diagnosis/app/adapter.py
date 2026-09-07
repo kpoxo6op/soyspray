@@ -316,6 +316,7 @@ class StateStore:
 
 
 def _send_telegram(openclaw: str, target: str, message: str, run: Callable[..., Any]) -> None:
+    message = message.encode()[:3500].decode("utf-8", "ignore")
     result = run(
         [
             openclaw,

@@ -353,6 +353,10 @@ class AdapterTests(unittest.TestCase):
                 poll_interval=0.01,
             )
 
+    def test_telegram_output_fits_the_message_limit(self):
+        adapter._send_telegram("openclaw", "12345", "x" * 10000, self.run)
+        self.assertLessEqual(len(self.run.call_args.args[0][-1].encode()), 3500)
+
     def test_scheduler_runs_only_one_model_per_invocation(self):
         diagnosis = Mock(return_value="diagnosed")
         self.assertEqual(
