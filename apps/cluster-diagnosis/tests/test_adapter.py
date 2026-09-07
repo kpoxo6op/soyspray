@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -90,7 +91,8 @@ class AdapterTests(unittest.TestCase):
 
     def test_daily_limit_pending_alert_retries_next_day(self):
         alerts = [alert(fingerprint=f"incident-{index}") for index in range(3)]
-        self.assertEqual(self.call(alerts), "diagnosed,diagnosed,diagnosed")
+        for item in alerts:
+            self.assertEqual(self.call([item]), "diagnosed")
         self.assertEqual(self.call([alert(fingerprint="incident-4")]), "daily-limit")
         self.assertEqual(
             self.call(
@@ -298,6 +300,66 @@ class AdapterTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "Telegram delivery failed"):
             self.call([], fetch=lambda _: (_ for _ in ()).throw(URLError("offline")))
         self.assertFalse(self.state.exists())
+
+    def test_metrics_use_fixed_queries_and_exclude_extra_labels(self):
+        payload = {
+            "nodes_ready": [
+                {
+                    "metric": {"node": "node-0", "password": "private-value"},
+                    "value": [time.time(), "1"],
+                }
+            ]
+        }
+        with patch.object(
+            adapter,
+            "_run_process_group",
+            return_value=SimpleNamespace(returncode=0, stdout=json.dumps(payload)),
+        ) as run:
+            result = adapter.metric_evidence()
+        self.assertEqual(result["series"]["nodes_ready"][0]["value"], 1)
+        self.assertNotIn("private-value", json.dumps(result))
+        self.assertEqual(run.call_args.args[0][-2:], ["python3", "-"])
+
+    def test_native_timeout_removes_children_that_start_a_new_session(self):
+        if not shutil.which("bwrap"):
+            self.skipTest("bubblewrap unavailable")
+        root = Path(self.tmp.name)
+        (root / "auth.json").write_text("{}")
+        workspace = root / "workspace"
+        workspace.mkdir()
+        argv = adapter._sandbox_argv(
+            sys.executable, workspace, workspace / "output", None, str(root)
+        )
+        end = len(argv) - 1 - argv[::-1].index("/opt/diagnosis/codex")
+        with self.assertRaises(subprocess.TimeoutExpired):
+            adapter._run_process_group(
+                argv[:end]
+                + [
+                    "/bin/sh",
+                    "-c",
+                    "setsid /bin/sh -c 'sleep 0.3; touch /workspace/orphan' & wait",
+                ],
+                timeout=0.1,
+            )
+        time.sleep(0.4)
+        self.assertFalse((workspace / "orphan").exists())
+
+    def test_active_process_stops_when_usage_check_closes(self):
+        with self.assertRaises(adapter.UsageStopped):
+            adapter._run_process_group(
+                ["/bin/sh", "-c", "sleep 60 & wait"],
+                timeout=2,
+                stop=lambda: True,
+                poll_interval=0.01,
+            )
+
+    def test_scheduler_runs_only_one_model_per_invocation(self):
+        diagnosis = Mock(return_value="diagnosed")
+        self.assertEqual(
+            self.call([alert(fingerprint="one"), alert(fingerprint="two")], diagnose=diagnosis),
+            "diagnosed",
+        )
+        diagnosis.assert_called_once()
 
 
 if __name__ == "__main__":
