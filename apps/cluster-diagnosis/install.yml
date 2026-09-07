@@ -129,9 +129,17 @@
       changed_when: true
       register: diagnosis_created
 
+    - name: Read the installed native job identity
+      ansible.builtin.command:
+        argv: [openclaw, cron, list, --all, --json]
+      register: diagnosis_installed
+      changed_when: false
+
     - name: Select the installed job identity
       ansible.builtin.set_fact:
-        diagnosis_job_id: "{{ diagnosis_matches[0].id if diagnosis_matches | length else (diagnosis_created.stdout | from_json).id }}"
+        diagnosis_job_id: >-
+          {{ ((diagnosis_installed.stdout | from_json).jobs
+              | selectattr('name', 'equalto', 'cluster-diagnosis') | first).id }}
 
     - name: Apply the requested command job state
       ansible.builtin.command:
