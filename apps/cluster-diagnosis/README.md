@@ -16,13 +16,14 @@ The adapter permits three attempts per Auckland calendar day. It checks both
 Codex allowance windows before each attempt. Unknown usage prevents a model
 call. At 55% usage, new diagnosis stops; at 60%, it reports the usage limit.
 These unattended limits are independent of a human-approved interactive run.
-The adapter never consumes a reset or buys credits.
+Active model runs check usage every 30 seconds and stop at 65% or when usage
+cannot be read. The adapter never consumes a reset or buys credits.
 
 ## Execution boundary
 
 Bubblewrap hides the laptop home, host processes, private temporary files,
-and deployment credentials. The native Codex executable runs in its own PID
-namespace. Its temporary home contains only the selected profile's auth file.
+and deployment credentials. The native Codex executable and its installed code execution helper run in their
+own PID namespace. Its temporary home contains only the selected profile's auth file.
 The npm JavaScript launcher is resolved to its installed native executable.
 Codex uses its workspace-write sandbox, without automatic approval or user
 configuration. Each model process has a 20-minute timeout. The outer process
@@ -30,23 +31,43 @@ group and PID namespace provide child cleanup.
 
 No Kubernetes credential is mounted. A supplied kubeconfig is rejected because
 read-only Pod and Deployment access can disclose inline passwords. The model
-receives only selected resource labels from the incident. Free-text annotations,
+receives selected resource labels and numeric Prometheus readings. Fixed queries
+run outside the model sandbox through the existing node-0 SSH route. Neither
+alert text nor model commands enter that SSH command. Free-text annotations,
 workload bodies, logs, URLs, and arbitrary labels are excluded from its prompt.
 The model must state these evidence limits. Prompt instructions are not the
 credential boundary.
 
 Use a dedicated, credential-free draft directory. Do not use the operational
 checkout or a Git worktree with a link to the main repository's Git directory.
-Only the draft directory is writable. The adapter cannot merge or deploy a fix.
+Each attempt gets a new private draft directory. A committed source archive is
+mounted read-only at `/source`, without a shared Git directory. Only the draft
+directory is writable. The adapter cannot merge or deploy a fix.
 A human must review any suggested patch and test it through normal repository
 commands.
 
 ## Setup and checks
 
-The adapter is not enabled by this source change. Before enabling a command job,
-verify the chosen account, native model execution, denial of tool network access,
-timeout cleanup, Telegram delivery, and the evidence needed for useful diagnosis.
-The Grafana operations view and full task acceptance remain separate work.
+Use the installer from a committed, pushed topic branch after `make go`:
+
+```sh
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  apps/cluster-diagnosis/install.yml -e diagnosis_telegram_target=RECIPIENT
+```
+
+The installer creates a disabled native job, seeds a separate account profile
+without overwriting refreshed credentials, and archives committed source. It
+also installs the metrics endpoint for Grafana's Soyspray Operations view.
+The existing evidence collector timer is unchanged. Keep this checkout while
+the installed job and endpoint reference it.
+
+Before enabling, verify the selected account, native model execution, tool
+network denial, timeout cleanup, Telegram delivery, and the live metrics.
+Repeat the installer with `-e diagnosis_enabled=true` after acceptance. Stop the
+job with `-e diagnosis_enabled=false`. To change its subscription, disable the
+job and sign in with `CODEX_HOME=~/.local/state/soyspray/cluster-diagnosis/profile
+codex login`; verify usage before enabling it again.
 
 Run the focused checks:
 
