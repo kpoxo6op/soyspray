@@ -116,3 +116,18 @@ Run `make prometheus-check` for native Prometheus rule checks and recovery behav
 tests. The full local and shared CI checks include this command. It uses Prometheus
 3.6.0's upstream `promtool`, cached locally after a SHA-256 checked download.
 Fixtures are in `tests/critical-backups.yaml` beside this application's manifests.
+
+## Operations view
+
+Open Grafana's **Soyspray Operations** dashboard (`/d/soyspray-operations`). It
+shows node availability, Argo health and sync, Longhorn robustness, backup age,
+and the latest recorded successful critical restore schedule. Missing samples
+are unknown. Historical restore success does not prove current human access.
+
+The existing laptop collector continues to record evidence every two minutes.
+The separate `soyspray-evidence-metrics.service` serves only saved numeric
+evidence at `192.168.20.50:9910/metrics`; it does not run another collector or
+restore. The diagnosis installer maintains this endpoint. Keep its checkout
+until the service is repointed. Update the bind address and scrape target
+together if the laptop LAN address changes. A collection age over five minutes
+is stale. Existing direct alerts and external checks remain independent.
