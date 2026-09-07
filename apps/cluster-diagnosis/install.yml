@@ -1,0 +1,165 @@
+---
+- name: Install the laptop diagnosis command job
+  hosts: localhost
+  connection: local
+  become: false
+  gather_facts: false
+  vars:
+    diagnosis_repo: "{{ (playbook_dir + '/../..') | realpath }}"
+    diagnosis_home: "{{ lookup('env', 'HOME') }}"
+    diagnosis_state: "{{ diagnosis_home }}/.local/state/soyspray/cluster-diagnosis"
+    diagnosis_codex: "{{ diagnosis_home }}/.local/bin/codex"
+    diagnosis_enabled: false
+  tasks:
+    - name: Require an explicit private Telegram recipient and existing account
+      ansible.builtin.assert:
+        that:
+          - diagnosis_telegram_target | default('') | string | length > 0
+          - (diagnosis_home + '/.codex/auth.json') is file
+          - (diagnosis_repo + '/apps/cluster-diagnosis/app/adapter.py') is file
+
+    - name: Require the reviewed pushed checkout
+      ansible.builtin.command:
+        argv: [make, deploy-preflight]
+        chdir: "{{ diagnosis_repo }}"
+      changed_when: false
+
+    - name: Read the source revision
+      ansible.builtin.command:
+        argv: [git, rev-parse, HEAD]
+        chdir: "{{ diagnosis_repo }}"
+      register: diagnosis_revision
+      changed_when: false
+
+    - name: Create private diagnosis directories
+      ansible.builtin.file:
+        path: "{{ diagnosis_state }}/{{ item }}"
+        state: directory
+        mode: '0700'
+      loop:
+        - profile
+        - drafts
+        - "source-{{ diagnosis_revision.stdout }}"
+
+    - name: Seed the dedicated account without replacing a refreshed profile
+      ansible.builtin.copy:
+        src: "{{ diagnosis_home }}/.codex/auth.json"
+        dest: "{{ diagnosis_state }}/profile/auth.json"
+        remote_src: true
+        force: false
+        mode: '0600'
+      no_log: true
+
+    - name: Archive only committed source for model reads
+      ansible.builtin.command:
+        argv:
+          - git
+          - archive
+          - "--output={{ diagnosis_state }}/source-{{ diagnosis_revision.stdout }}.tar"
+          - HEAD
+        chdir: "{{ diagnosis_repo }}"
+        creates: "{{ diagnosis_state }}/source-{{ diagnosis_revision.stdout }}.tar"
+
+    - name: Extract the source without a shared Git directory
+      ansible.builtin.unarchive:
+        src: "{{ diagnosis_state }}/source-{{ diagnosis_revision.stdout }}.tar"
+        dest: "{{ diagnosis_state }}/source-{{ diagnosis_revision.stdout }}"
+        remote_src: true
+        creates: "{{ diagnosis_state }}/source-{{ diagnosis_revision.stdout }}/AGENTS.md"
+
+    - name: Read native OpenClaw jobs
+      ansible.builtin.command:
+        argv: [openclaw, cron, list, --all, --json]
+      register: diagnosis_jobs
+      changed_when: false
+
+    - name: Select this declared job
+      ansible.builtin.set_fact:
+        diagnosis_matches: >-
+          {{ (diagnosis_jobs.stdout | from_json).jobs
+             | selectattr('declarationKey', 'defined')
+             | selectattr('declarationKey', 'equalto', 'soyspray:cluster-diagnosis') | list }}
+
+    - name: Reject duplicate or conflicting job identities
+      ansible.builtin.assert:
+        that:
+          - diagnosis_matches | length <= 1
+          - >-
+            (diagnosis_jobs.stdout | from_json).jobs | selectattr('name', 'equalto', 'cluster-diagnosis')
+            | list | length == diagnosis_matches | length
+
+    - name: Prepare the native command arguments
+      ansible.builtin.set_fact:
+        diagnosis_job_options:
+          - --name
+          - cluster-diagnosis
+          - --cron
+          - '*/2 * * * *'
+          - --tz
+          - Pacific/Auckland
+          - --exact
+          - --no-deliver
+          - --timeout-seconds
+          - '1260'
+          - --no-output-timeout-seconds
+          - '1260'
+          - --command-cwd
+          - "{{ diagnosis_repo }}"
+          - --command-argv
+          - >-
+            {{ ['python3', diagnosis_repo + '/apps/cluster-diagnosis/app/adapter.py',
+                '--state', diagnosis_state + '/state.json', '--lock', diagnosis_state + '/lock'] | to_json }}
+          - --command-env
+          - ALERTMANAGER_URL=http://192.168.20.35:9093
+          - --command-env
+          - "TELEGRAM_TARGET={{ diagnosis_telegram_target }}"
+          - --command-env
+          - "CODEX_BIN={{ diagnosis_codex }}"
+          - --command-env
+          - "CLUSTER_DIAGNOSIS_CODEX_HOME={{ diagnosis_state }}/profile"
+          - --command-env
+          - "CLUSTER_DIAGNOSIS_WORKSPACE={{ diagnosis_state }}/drafts"
+          - --command-env
+          - "CLUSTER_DIAGNOSIS_SOURCE={{ diagnosis_state }}/source-{{ diagnosis_revision.stdout }}"
+
+    - name: Create the disabled command job
+      ansible.builtin.command:
+        argv: "{{ ['openclaw', 'cron', 'add', '--declaration-key', 'soyspray:cluster-diagnosis', '--disabled'] + diagnosis_job_options }}"
+      when: diagnosis_matches | length == 0
+      changed_when: true
+      register: diagnosis_created
+
+    - name: Select the installed job identity
+      ansible.builtin.set_fact:
+        diagnosis_job_id: "{{ diagnosis_matches[0].id if diagnosis_matches | length else (diagnosis_created.stdout | from_json).id }}"
+
+    - name: Apply the requested command job state
+      ansible.builtin.command:
+        argv: "{{ ['openclaw', 'cron', 'edit', diagnosis_job_id, '--enable' if diagnosis_enabled | bool else '--disable'] + diagnosis_job_options }}"
+      changed_when: true
+
+    - name: Install the numeric evidence endpoint without changing the collector timer
+      ansible.builtin.copy:
+        dest: "{{ diagnosis_home }}/.config/systemd/user/soyspray-evidence-metrics.service"
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Serve saved Soyspray numeric recovery evidence
+          [Service]
+          WorkingDirectory={{ diagnosis_repo }}
+          ExecStart={{ diagnosis_repo }}/soyspray-venv/bin/python -m scripts.operations_evidence --serve-only --bind 192.168.20.50
+          Restart=on-failure
+          RestartSec=30
+          NoNewPrivileges=true
+          UMask=0077
+          [Install]
+          WantedBy=default.target
+      register: diagnosis_metrics_unit
+
+    - name: Enable the saved evidence endpoint
+      ansible.builtin.systemd_service:
+        name: soyspray-evidence-metrics.service
+        scope: user
+        daemon_reload: "{{ diagnosis_metrics_unit.changed }}"
+        enabled: true
+        state: "{{ 'restarted' if diagnosis_metrics_unit.changed else 'started' }}"
