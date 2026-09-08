@@ -136,7 +136,6 @@
     kubeconfig: "{{ kubeconfig_path }}"
   loop: [server, worker]
   register: authentik_runtime_consumers
-  when: authentik_runtime_secret_apply.changed
   tags: authentik
 
 - name: Restart existing Authentik consumers when the runtime secret changes
@@ -157,7 +156,6 @@
                 {{ authentik_runtime_values | to_json | hash('sha256') }}
   loop: "{{ authentik_runtime_consumers.results | default([]) }}"
   when:
-    - authentik_runtime_secret_apply.changed
     - item.resources | length == 1
   no_log: true
   tags: authentik
