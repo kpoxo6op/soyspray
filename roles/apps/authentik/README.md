@@ -34,6 +34,7 @@ or the Authentik database. See the [Authentik application guide](../../../playbo
 for access groups, live checks, limits, and rollback details.
 
 For launcher names, icons, or display groups, use `--tags authentik-blueprints`
-after pushing and checking the branch. This publishes only the blueprint
-ConfigMap. It does not update runtime secrets or native client settings. Use
+after pushing and checking the branch. This publishes the blueprint ConfigMap,
+waits for matching files, and applies them through the ready worker. Check mode
+skips the worker commands. It does not update runtime secrets or native client settings. Use
 the application guide's identity and access checks before accepting the change.

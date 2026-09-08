@@ -44,8 +44,10 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
   --tags authentik-blueprints
 ```
 
-The existing worker reconciles the ConfigMap. Check the launcher after it loads
-the new blueprints. Compare application IDs, provider links, and policy bindings
+The command waits for matching file hashes in the ready worker, then runs
+Authentik's `apply_blueprint` command. This avoids the hourly discovery delay
+when the file watcher misses a ConfigMap update. Check mode skips this step.
+Check the launcher after application. Compare application IDs, provider links, and policy bindings
 before and after. Check an existing signed-in session and an affected app.
 This command does not retarget either Argo Application or configure native apps.
 For rollback, use the same command from a pushed branch with the prior blueprints.
