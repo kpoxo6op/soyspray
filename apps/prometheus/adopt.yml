@@ -1,0 +1,110 @@
+---
+- name: Adopt the existing Prometheus Applications
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    prometheus_revision: HEAD
+    prometheus_applications:
+      - name: kube-prometheus-stack
+        uid: "{{ prometheus_stack_uid }}"
+      - name: prometheus-crds
+        uid: "{{ prometheus_crds_uid }}"
+  tasks:
+    - name: Read the existing Prometheus Applications
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: "{{ item.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ prometheus_applications }}"
+      register: prometheus_existing_applications
+
+    - name: Require the expected Prometheus Application identities and ownership
+      vars:
+        application: "{{ item.resources | first | default({}) }}"
+        source: "{{ application.spec.source | default({}) }}"
+        legacy_stack: >-
+          {{ application.spec.project | default('') == 'default' and
+             source.repoURL | default('') == 'https://github.com/kpoxo6op/soyspray.git' and
+             source.path | default('') == 'playbooks/argocd/applications/observability/prometheus' and
+             source.targetRevision | default('') == 'HEAD' }}
+        adopted_stack: >-
+          {{ application.spec.project | default('') == 'prometheus-stack' and
+             source.repoURL | default('') == 'https://github.com/kpoxo6op/soyspray.git' and
+             source.path | default('') == 'apps/prometheus' and
+             source.targetRevision | default('') in ['HEAD', prometheus_revision] }}
+        legacy_crds: >-
+          {{ application.spec.project | default('') == 'default' and
+             source.repoURL | default('') == 'https://prometheus-community.github.io/helm-charts' and
+             source.chart | default('') == 'prometheus-operator-crds' and
+             source.targetRevision | default('') == '16.0.1' }}
+        adopted_crds: >-
+          {{ application.spec.project | default('') == 'prometheus-crds' and
+             source.repoURL | default('') == 'https://prometheus-community.github.io/helm-charts' and
+             source.chart | default('') == 'prometheus-operator-crds' and
+             source.targetRevision | default('') == '16.0.1' }}
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+          - application.metadata.uid | default('') == item.item.uid
+          - application.metadata.deletionTimestamp | default(none) == none
+          - application.spec.destination.server | default('') == 'https://kubernetes.default.svc'
+          - application.spec.destination.namespace | default('') == 'monitoring'
+          - >-
+            (item.item.name == 'kube-prometheus-stack' and (legacy_stack or adopted_stack)) or
+            (item.item.name == 'prometheus-crds' and (legacy_crds or adopted_crds))
+        fail_msg: >-
+          {{ item.item.name }} does not match its expected identity, source, destination, or ownership.
+      loop: "{{ prometheus_existing_applications.results }}"
+
+    - name: Remove only cascading deletion finalizers
+      vars:
+        application: "{{ item.resources | first }}"
+        existing_finalizers: "{{ application.metadata.finalizers | default([]) }}"
+        cascading_finalizers:
+          - resources-finalizer.argocd.argoproj.io
+          - resources-finalizer.argocd.argoproj.io/background
+      kubernetes.core.k8s_json_patch:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: "{{ item.item.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - op: test
+            path: /metadata/resourceVersion
+            value: "{{ application.metadata.resourceVersion }}"
+          - op: replace
+            path: /metadata/finalizers
+            value: "{{ existing_finalizers | difference(cascading_finalizers) }}"
+      when: existing_finalizers | intersect(cascading_finalizers) | length > 0
+      loop: "{{ prometheus_existing_applications.results }}"
+
+    - name: Read the adopted Prometheus Applications
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: "{{ item.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ prometheus_applications }}"
+      register: prometheus_adopted_applications
+
+    - name: Verify the adopted Prometheus Application identities
+      vars:
+        application: "{{ item.resources | first | default({}) }}"
+        cascading_finalizers:
+          - resources-finalizer.argocd.argoproj.io
+          - resources-finalizer.argocd.argoproj.io/background
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+          - application.metadata.uid | default('') == item.item.uid
+          - application.metadata.deletionTimestamp | default(none) == none
+          - >-
+            application.metadata.finalizers | default([]) | intersect(cascading_finalizers) | length == 0
+      loop: "{{ prometheus_adopted_applications.results }}"
+      when: not ansible_check_mode

@@ -1,10 +1,9 @@
 # Prometheus monitoring
 
-This package prepares the existing Prometheus, Alertmanager, and Grafana stack
-for native Argo ownership. It also contains the Prometheus Operator custom
-resource definitions (CRDs). No deployment has occurred. Adoption remains blocked
-until a completed Longhorn backup and an isolated time-series database (TSDB)
-restore provide recovery evidence.
+This package defines native Argo ownership for the existing Prometheus,
+Alertmanager, and Grafana stack and the Prometheus Operator CRDs. Prometheus
+metrics are disposable on this toy cluster. The deployment does not require
+backup or restore evidence.
 
 The package keeps these Application identities and versions:
 
@@ -53,8 +52,9 @@ Read the primary Application, runtime, storage, and recovery evidence:
 make status APP=prometheus FORMAT=json
 ```
 
-`make deploy APP=prometheus` is blocked because the Prometheus claim has no
-completed Longhorn backup or isolated TSDB restore evidence.
+`make deploy APP=prometheus REVISION=BRANCH` preserves the alert identity, checks
+the existing Application identities, removes their cascading deletion finalizers,
+and previews the pushed branch through the native root.
 `make restore-check APP=prometheus` reports that no maintained isolated TSDB
 restore check exists.
 
@@ -80,35 +80,34 @@ Vault password outside Git.
 Authentik owns the existing `grafana-oidc` Secret. Use the Authentik procedure to
 recover or change that identity.
 
-## Data protection and adoption
+## Data and adoption
 
 Prometheus retains 15 days of metrics in this claim:
 
 `monitoring/prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0`
 
-The claim is a 20 GiB Longhorn volume. Do not change its name, claim binding, or
-Prometheus identity during adoption.
+The claim is a 20 GiB Longhorn volume. Adoption does not intentionally change the
+claim name, binding, or Prometheus identity. Loss of metrics history is accepted.
+Recovery is not verified.
 
-This first stage keeps the legacy package and Ansible submission path until
-native adoption succeeds and has been verified. Before adoption, complete these
-checks:
+The adoption operation checks the two existing Application UIDs, sources,
+destinations, ownership, and deletion state before it changes either Application.
+It uses each Application resource version to reject a concurrent change. It
+removes only Argo cascading deletion finalizers and preserves unrelated
+finalizers.
 
-1. Create a backup of the current Prometheus volume and confirm that it completed.
-2. Restore that backup into an isolated claim.
-3. Verify that Prometheus can read the restored TSDB.
-4. Record the original Application, claim, volume, and Secret identities.
-5. Compare the server-rendered workloads, including all dashboards.
+The native definitions disable automated pruning and protect both Applications
+from root pruning and deletion. The monitoring namespace and Prometheus claim are
+not added to native ownership.
 
-During controlled adoption, check each Application UID and confirm that neither
-Application has a `deletionTimestamp`. Remove the cascading finalizers from both
-existing Applications. Then apply the native root from the pushed branch.
+The legacy package and Ansible submission path remain available until deployment
+checks pass. Remove them only after the native Applications are healthy and their
+identities are unchanged.
 
-After adoption, verify both Application UIDs, the claim and volume bindings,
-metrics history, both access paths, alert delivery, the external watchdog, and all
-eight operations panels. Return the native root and the stack source to `HEAD`.
-
-Remove the legacy package, submission role, revision controls, and resolved repair
-tasks only in the reviewed cleanup stage.
+After adoption, verify both Application UIDs, sources, projects, and health. Check
+the claim and volume identities without treating them as recovery evidence. Check
+both access paths, Alertmanager, the external watchdog, and all eight operations
+panels. After merge, return the native root and the stack source to `HEAD`.
 
 ## Monitoring limits
 
@@ -126,3 +125,4 @@ saved numeric evidence only. It does not run a backup or restore.
 Rollback keeps both Applications and all workloads. Restore the previous
 Application source and ownership definition through the retained Ansible path.
 Do not delete an Application, CRD, claim, volume, namespace, or Secret as rollback.
+Rollback does not recover lost Prometheus metrics.

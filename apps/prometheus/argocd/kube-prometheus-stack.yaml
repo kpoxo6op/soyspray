@@ -1,4 +1,3 @@
-# playbooks/yaml/argocd-apps/prometheus/application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -14,8 +13,8 @@ metadata:
     soyspray.vip/access-method: Authentik OIDC for Grafana; Authentik forward auth for Prometheus
     soyspray.vip/data-claims: monitoring/prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
     soyspray.vip/data: Prometheus metrics history with 15-day retention
-    soyspray.vip/backup: blocked; no completed Longhorn backup or isolated TSDB restore
-    soyspray.vip/backup-cause: Native adoption must wait for a completed backup and an isolated TSDB recovery check.
+    soyspray.vip/backup: unsupported
+    soyspray.vip/backup-cause: Prometheus metrics are disposable on this toy cluster; recovery is not verified.
 spec:
   project: prometheus-stack
   source:
