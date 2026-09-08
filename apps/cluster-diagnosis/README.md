@@ -59,7 +59,11 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
 The installer creates a disabled native job, seeds a separate account profile
 without overwriting refreshed credentials, and archives committed source. It
 also installs the metrics endpoint for Grafana's Soyspray Operations view.
-The existing evidence collector timer is unchanged. Keep this checkout while
+The existing evidence collector timer is unchanged. The root-owned
+`soyspray-evidence-route.service` keeps only TCP port 9910 replies to the LAN on
+the local route. It does not change shared Tailscale settings. The endpoint
+binds to `192.168.20.50`; update its bind, reply rule, and Prometheus target
+together if this address changes. Keep this checkout while
 the installed job and endpoint reference it.
 
 Before enabling, verify the selected account, native model execution, tool
