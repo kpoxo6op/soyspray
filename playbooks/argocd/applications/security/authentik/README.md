@@ -22,6 +22,36 @@ Connect. LAN and Tailscale source restrictions remain separate from Authentik
 authorization. Media Helper has no ingress or user interface. Its internal
 service uses network rules instead of interactive SSO.
 
+## Application launcher
+
+Open `https://auth.soyspray.vip/if/user/`. Application cards are grouped under
+Media, Home, and Cluster. Names describe their use and retain the product name.
+Icons use Authentik's built-in [Font Awesome support](https://docs.goauthentik.io/customize/file-picker/).
+No external icon host or uploaded asset is required.
+
+The application `group` field is a display category. It does not grant access.
+The separate policy bindings still control `media-users` and `cluster-admins`.
+Keep application slugs, provider IDs, launch URLs, keys, and bindings unchanged
+when changing presentation.
+
+After pushing the reviewed branch and running `make go`, publish only the
+blueprints with:
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml \
+  --tags authentik-blueprints
+```
+
+The command waits for matching file hashes in the ready worker, then runs
+Authentik's `apply_blueprint` command. This avoids the hourly discovery delay
+when the file watcher misses a ConfigMap update. Check mode skips this step.
+Check the launcher after application. Compare application IDs, provider links, and policy bindings
+before and after. Check an existing signed-in session and an affected app.
+This command does not retarget either Argo Application or configure native apps.
+For rollback, use the same command from a pushed branch with the prior blueprints.
+
 ## Commands and checks
 
 Run the local checks before deployment:

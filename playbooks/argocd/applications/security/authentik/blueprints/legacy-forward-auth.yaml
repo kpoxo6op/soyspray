@@ -44,7 +44,9 @@ entries:
     identifiers:
       slug: longhorn
     attrs:
-      name: Longhorn
+      name: Storage (Longhorn)
+      group: Cluster
+      meta_icon: fa://fa-hdd
       provider: !KeyOf longhorn-proxy-provider
       meta_launch_url: https://longhorn.soyspray.vip
       policy_engine_mode: all
@@ -72,7 +74,9 @@ entries:
     identifiers:
       slug: prometheus
     attrs:
-      name: Prometheus
+      name: Metrics (Prometheus)
+      group: Cluster
+      meta_icon: fa://fa-chart-bar
       provider: !KeyOf prometheus-proxy-provider
       meta_launch_url: https://prometheus.soyspray.vip
       policy_engine_mode: all
@@ -100,7 +104,9 @@ entries:
     identifiers:
       slug: zigbee2mqtt
     attrs:
-      name: Zigbee2MQTT
+      name: Zigbee devices (Zigbee2MQTT)
+      group: Home
+      meta_icon: fa://fa-broadcast-tower
       provider: !KeyOf zigbee2mqtt-proxy-provider
       meta_launch_url: https://zigbee2mqtt.soyspray.vip
       policy_engine_mode: all
@@ -129,7 +135,9 @@ entries:
     identifiers:
       slug: lazylibrarian
     attrs:
-      name: LazyLibrarian
+      name: Library manager (LazyLibrarian)
+      group: Media
+      meta_icon: fa://fa-book-reader
       provider: !KeyOf lazylibrarian-proxy-provider
       meta_launch_url: https://lazylibrarian.soyspray.vip
       policy_engine_mode: all
@@ -162,7 +170,9 @@ entries:
     identifiers:
       slug: qbittorrent
     attrs:
-      name: qBittorrent
+      name: Downloads (qBittorrent)
+      group: Media
+      meta_icon: fa://fa-download
       provider: !KeyOf qbittorrent-proxy-provider
       meta_launch_url: https://torrent.soyspray.vip
       policy_engine_mode: all
@@ -189,7 +199,9 @@ entries:
     id: dispatcharr-proxy-application
     identifiers: {slug: dispatcharr}
     attrs:
-      name: Dispatcharr
+      name: TV sources (Dispatcharr)
+      group: Media
+      meta_icon: fa://fa-satellite-dish
       provider: !KeyOf dispatcharr-proxy-provider
       meta_launch_url: https://dispatcharr.soyspray.vip
       policy_engine_mode: all
@@ -215,11 +227,3 @@ entries:
         - !KeyOf lazylibrarian-proxy-provider
         - !KeyOf qbittorrent-proxy-provider
         - !KeyOf dispatcharr-proxy-provider
-
-  - model: authentik_core.application
-    state: absent
-    identifiers: {slug: tv-wall}
-
-  - model: authentik_providers_proxy.proxyprovider
-    state: absent
-    identifiers: {name: TV wall forward auth}

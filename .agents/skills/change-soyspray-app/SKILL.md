@@ -49,3 +49,9 @@ separately; mark unverified user journeys and restores unknown with a cause.
 Legacy live TV, voice, firmware, and status-page aliases forward to their app
 Makefiles. Use the root aliases for deployment or firmware upload so the full
 check and deployment preflight run. Their deployment ownership is unchanged.
+
+Authentik launcher names, built-in icons, and display groups belong in its
+existing blueprints. Display groups are not access groups. Preserve slugs,
+provider links, launch URLs, credentials, and policy bindings. Publish these
+changes with the narrow blueprint operation in the Authentik README; do not
+repeat native-client setup for a presentation change.

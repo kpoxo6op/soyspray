@@ -5,6 +5,24 @@ from conftest import ROOT, load_all, load_yaml
 AUTHENTIK_DIR = ROOT / "playbooks/argocd/applications/security/authentik"
 
 
+def test_explicit_blueprint_apply_waits_for_published_files_and_skips_check_mode() -> None:
+    tasks = load_yaml("roles/apps/authentik/tasks/main.yml")
+    apply = next(
+        t for t in tasks if t.get("ansible.builtin.import_tasks") == "apply-blueprints.yml"
+    )
+    assert "not ansible_check_mode" in apply["when"]
+    assert "'authentik-blueprints' in ansible_run_tags" in apply["when"]
+    steps = load_yaml("roles/apps/authentik/tasks/apply-blueprints.yml")
+    wait = next(t for t in steps if "loop" in t)
+    assert set(wait["loop"]) == {"cluster-sso.yaml", "native-apps.yaml", "legacy-forward-auth.yaml"}
+    assert "hash('sha256')" in wait["until"]
+    assert wait["changed_when"] is False
+    command = steps[-1]["kubernetes.core.k8s_exec"]["command"].split()
+    assert command[:2] == ["ak", "apply_blueprint"]
+    assert set(command[2:]) == {f"mounted/cm-authentik-blueprints/{name}" for name in wait["loop"]}
+    assert steps[-1]["no_log"] is True
+
+
 def test_authentik_uses_pinned_official_chart_and_external_database() -> None:
     app = load_yaml("playbooks/argocd/applications/security/authentik/authentik-application.yaml")
     chart = app["spec"]["sources"][0]
