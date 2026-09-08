@@ -155,7 +155,7 @@
           Description=Serve saved Soyspray numeric recovery evidence
           [Service]
           WorkingDirectory={{ diagnosis_repo }}
-          ExecStart={{ diagnosis_repo }}/soyspray-venv/bin/python -m scripts.operations_evidence --serve-only --bind 192.168.20.50
+          ExecStart={{ diagnosis_repo }}/soyspray-venv/bin/python -m scripts.operations_evidence --serve-only --bind 100.102.53.9
           Restart=on-failure
           RestartSec=30
           NoNewPrivileges=true
