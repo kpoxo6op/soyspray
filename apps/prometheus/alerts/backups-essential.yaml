@@ -1,4 +1,3 @@
-# playbooks/yaml/argocd-apps/prometheus/alerts/backups-essential.yaml
 # Minimal backup alerts: 1) Media CronJob stale; 2) CNPG last available backup stale
 # No S3 requests; relies on kube-state-metrics and CNPG exporter; 36h thresholds
 # Assumes Prometheus Operator CRDs and monitoring namespace 'monitoring'

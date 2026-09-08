@@ -122,7 +122,9 @@ restore or continuous seven-day recovery coverage.
 The laptop evidence collector remains separate. Its metrics endpoint reports
 saved numeric evidence only. It does not run a backup or restore.
 
-Rollback keeps both Applications and all workloads. Restore the previous
-Application source and ownership definition through the retained Ansible path.
-Do not delete an Application, CRD, claim, volume, namespace, or Secret as rollback.
-Rollback does not recover lost Prometheus metrics.
+Revert the faulty change in Git and push the correction branch. Run
+`make deploy APP=prometheus REVISION=CORRECTION_BRANCH` to preview the correction
+through the native root. Verify both Applications are Synced and Healthy. After
+merge, run `make deploy APP=prometheus REVISION=HEAD`. Do not delete Applications,
+CRDs, claims, volumes, namespaces, or Secrets during rollback. Backup and restore
+are unsupported; rollback cannot recover lost metrics.

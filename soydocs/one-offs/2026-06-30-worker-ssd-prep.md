@@ -230,7 +230,7 @@ Kong/lab sizing docs need to be adjusted.
 The SSD install and Longhorn disk reconciliation are complete. Remaining work:
 
 - Add the new worker SSD by-id paths to
-  `playbooks/argocd/applications/observability/prometheus/smartctl-exporter-daemonset.yaml`
+  `apps/prometheus/smartctl-exporter-daemonset.yaml`
   if the exporter can tolerate per-node missing devices, or split the exporter
   into node-specific device args.
 - Reconcile GitOps drift by merging the branch containing the Longhorn
