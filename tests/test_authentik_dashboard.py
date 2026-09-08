@@ -4,11 +4,9 @@ import json
 
 from conftest import ROOT, load_yaml
 
-DASHBOARD_PATH = ROOT / (
-    "playbooks/argocd/applications/observability/prometheus/dashboards/authentik.json"
-)
-ALERTS_PATH = "playbooks/argocd/applications/observability/prometheus/alerts/authentik.yaml"
-KUSTOMIZATION_PATH = "playbooks/argocd/applications/observability/prometheus/kustomization.yaml"
+DASHBOARD_PATH = ROOT / "apps/prometheus/dashboards/authentik.json"
+ALERTS_PATH = "apps/prometheus/alerts/authentik.yaml"
+KUSTOMIZATION_PATH = "apps/prometheus/kustomization.yaml"
 PROMETHEUS = {"type": "prometheus", "uid": "${datasource}"}
 
 

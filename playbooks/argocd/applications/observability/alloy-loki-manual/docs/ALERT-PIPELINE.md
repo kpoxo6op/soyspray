@@ -227,7 +227,7 @@
 - `loki-statefulset.yaml` - Uses projected volume to mount both rule ConfigMaps
 
 ### 3. Alertmanager Configuration
-**Location**: `playbooks/yaml/argocd-apps/prometheus/`
+**Location**: `apps/prometheus/`
 - `values.yaml` - Lines 145-184
   - Telegram bot token mount
   - Route configuration
@@ -444,4 +444,3 @@ Metrics ───────────► Prometheus ─────┘
 - **3 alert rules**: Errors, crashes, storage failures
 - **1 notification channel**: Telegram
 - **100% GitOps**: All config in this repo
-

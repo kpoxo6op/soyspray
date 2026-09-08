@@ -12,7 +12,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-PACKAGE = ROOT / "playbooks/argocd/applications/observability/prometheus"
+PACKAGE = ROOT / "apps/prometheus"
 VERSION = "3.6.0"
 SHA256 = "2002ef4a55a64161affccd2786c7081d4e3b3a8d08786a98b3bb110971414916"
 

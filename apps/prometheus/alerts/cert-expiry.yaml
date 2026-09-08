@@ -1,4 +1,4 @@
-# playbooks/argocd/applications/observability/prometheus/alerts/cert-expiry.yaml
+# apps/prometheus/alerts/cert-expiry.yaml
 # Alert when cert-manager certificates are within 10 days of expiry
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule

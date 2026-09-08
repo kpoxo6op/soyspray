@@ -1,19 +1,26 @@
-# playbooks/yaml/argocd-apps/prometheus/application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: kube-prometheus-stack
   namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: prometheus
+    soyspray.vip/owner: platform
   annotations:
     argocd.argoproj.io/sync-wave: "1"
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-url: https://grafana.soyspray.vip
+    soyspray.vip/access-method: Authentik OIDC for Grafana; Authentik forward auth for Prometheus
+    soyspray.vip/data-claims: monitoring/prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0
+    soyspray.vip/data: Prometheus metrics history with 15-day retention
+    soyspray.vip/backup: unsupported
+    soyspray.vip/backup-cause: Prometheus metrics are disposable on this toy cluster; recovery is not verified.
 spec:
-  project: default
+  project: prometheus-stack
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
     targetRevision: "HEAD"
-    path: playbooks/argocd/applications/observability/prometheus
+    path: apps/prometheus
   destination:
     server: "https://kubernetes.default.svc"
     namespace: monitoring
@@ -24,7 +31,7 @@ spec:
         - /spec/enableOTLPReceiver
   syncPolicy:
       automated:
-        prune: true
+        prune: false
         selfHeal: true
       retry:
         limit: 5

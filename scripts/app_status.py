@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 PREFIX = "soyspray.vip/"
+APP_ALIASES = {"prometheus": "kube-prometheus-stack"}
 
 
 def unknown(cause):
@@ -208,7 +209,8 @@ def main(argv=None):
     try:
         apps = read_applications(args.input)
         if args.app:
-            apps = [app for app in apps if app["metadata"]["name"] == args.app]
+            name = APP_ALIASES.get(args.app, args.app)
+            apps = [app for app in apps if app["metadata"]["name"] == name]
             if not apps:
                 raise ValueError(f"Argo returned no Application named {args.app}.")
         report["applications"] = [

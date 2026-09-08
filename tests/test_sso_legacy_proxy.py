@@ -21,7 +21,7 @@ APPLICATIONS = {
         "service": "authentik-server-longhorn",
     },
     "prometheus": {
-        "directory": "playbooks/argocd/applications/observability/prometheus",
+        "directory": "apps/prometheus",
         "host": "prometheus.soyspray.vip",
         "namespace": "monitoring",
         "config_map": "auth-proxy-set-headers-prometheus",
@@ -252,9 +252,7 @@ def test_zigbee2mqtt_keeps_its_live_immutable_selector() -> None:
 
 
 def test_prometheus_and_qbittorrent_have_no_direct_web_load_balancer_bypass() -> None:
-    prometheus = load_yaml("playbooks/argocd/applications/observability/prometheus/values.yaml")[
-        "prometheus"
-    ]["service"]
+    prometheus = load_yaml("apps/prometheus/values.yaml")["prometheus"]["service"]
     qbittorrent = load_yaml("playbooks/argocd/applications/media/qbittorrent/service.yaml")["spec"]
 
     assert prometheus == {"type": "ClusterIP"}

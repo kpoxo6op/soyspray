@@ -481,10 +481,10 @@ It pauses database self-heal so the archive switch remains atomic. Then run
 After verification, select the branch again with `-e cnpg_sync=true`. After
 merge, select `HEAD`; this restores the existing automatic sync policy.
 
-After both writer migrations, update backup metric consumers through
-`deploy-argocd-apps.yml --tags prometheus-source -e prometheus_target_revision=BRANCH`.
-This selects only the existing monitoring Application source. Verify the Barman
-backup timestamp queries, then return its revision to `HEAD` after merge.
+After both writer migrations, run `make deploy APP=prometheus REVISION=BRANCH` to
+update the backup metric consumers. This selects the Prometheus Application for
+branch preview through the native root. Verify the Barman backup timestamp
+queries. After merge, return the native root and Prometheus source to `HEAD`.
 
 ## Daily small-volume restore checks
 

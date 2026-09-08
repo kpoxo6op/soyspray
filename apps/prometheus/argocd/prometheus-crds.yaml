@@ -1,15 +1,19 @@
-# playbooks/yaml/argocd-apps/prometheus/prometheus-crds-application.yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: prometheus-crds
   namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+  labels:
+    app.kubernetes.io/part-of: prometheus
+    soyspray.vip/owner: platform
   annotations:
     argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/data: none
+    soyspray.vip/backup: not-required
+    soyspray.vip/backup-cause: CRDs contain schemas; the Prometheus stack owns the custom resources.
 spec:
-  project: default
+  project: prometheus-crds
   source:
     repoURL: "https://prometheus-community.github.io/helm-charts"
     chart: prometheus-operator-crds
@@ -19,7 +23,7 @@ spec:
     namespace: monitoring
   syncPolicy:
     automated:
-      prune: true
+      prune: false
       selfHeal: true
     syncOptions:
       - Replace=true

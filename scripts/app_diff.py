@@ -39,7 +39,7 @@ def stage_package(package, source_path, destination):
     count = 0
     for name in set(filter(None, files)):
         file = ROOT / name
-        if file.suffix not in (".yaml", ".yml") or not file.exists():
+        if file.suffix not in (".json", ".yaml", ".yml") or not file.exists():
             continue
         if not file.resolve().is_relative_to(package):
             raise ValueError("A manifest links outside this app's package.")
@@ -96,6 +96,8 @@ def compare(app, package, binary):
                 "*.yaml",
                 "--local-include",
                 "*.yml",
+                "--local-include",
+                "*.json",
             ]
         kubeconfig = work / "kubeconfig.json"
         kubeconfig.touch(mode=0o600)

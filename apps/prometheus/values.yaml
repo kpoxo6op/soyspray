@@ -1,4 +1,3 @@
-# playbooks/yaml/argocd-apps/prometheus/values.yaml
 # kubectl exec -n monitoring alertmanager-kube-prometheus-stack-alertmanager-0 -c alertmanager -- cat /etc/alertmanager/config/soy-telegram.tmpl
 namespaceOverride: monitoring
 
