@@ -58,7 +58,9 @@ entries:
     identifiers:
       slug: immich
     attrs:
-      name: Immich
+      name: Photos (Immich)
+      group: Media
+      meta_icon: fa://fa-camera
       provider: !KeyOf immich-provider
       meta_launch_url: https://immich.soyspray.vip
       policy_engine_mode: all
@@ -107,7 +109,9 @@ entries:
     identifiers:
       slug: booklore
     attrs:
-      name: BookLore
+      name: Books (BookLore)
+      group: Media
+      meta_icon: fa://fa-book
       provider: !KeyOf booklore-provider
       meta_launch_url: https://booklore.soyspray.vip
       policy_engine_mode: all
@@ -147,6 +151,8 @@ entries:
       slug: home-assistant
     attrs:
       name: Home Assistant
+      group: Home
+      meta_icon: fa://fa-home
       provider: !KeyOf home-assistant-provider
       meta_launch_url: https://homeassistant.soyspray.vip
       policy_engine_mode: all
@@ -187,7 +193,9 @@ entries:
     identifiers:
       slug: jellyfin
     attrs:
-      name: Jellyfin
+      name: TV and films (Jellyfin)
+      group: Media
+      meta_icon: fa://fa-play-circle
       provider: !KeyOf jellyfin-provider
       meta_launch_url: https://tv.soyspray.vip/sso/OID/start/authentik
       policy_engine_mode: any
