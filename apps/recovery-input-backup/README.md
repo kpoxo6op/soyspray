@@ -2,13 +2,16 @@
 
 This laptop service collects four explicit files from each existing node:
 `/etc/fstab`, `/etc/hostname`, `/etc/hosts`, and `/etc/netplan/50-cloud-init.yaml`.
-It also collects `gi-v7.tflite` and the rollback model `gi-v2.tflite` from
-`~/pCloudDrive/docs/soyspray/home-assistant-voice`.
+It also collects the active `gi-v7.tflite` and rollback `gi-v2.tflite` models
+from `~/.config/soyspray/recovery/voice-models`. The installer seeds that
+mode-0700 directory from the two immutable live ConfigMaps and then requires
+their declared hashes on every run. The backup does not use pCloud.
 
 The service uses the restricted `node/` Restic repository and the existing
 `node-backup.vault.yml` credentials. It verifies node names and model headers,
 backs up the files, restores them into a private local workspace, and compares
-all hashes and sizes. Restic retains 30 daily snapshots for this host and tag.
+the live, stable, staged, and restored model hashes plus all file sizes. Restic
+retains 30 daily snapshots for this host and tag.
 It does not collect broad configuration directories or reproducible voice models.
 
 Install through the repository venv:

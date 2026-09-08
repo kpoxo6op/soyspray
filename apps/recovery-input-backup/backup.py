@@ -1,5 +1,7 @@
 """Back up and restore-check explicit node configuration and unique voice models."""
 
+import argparse
+import base64
 import hashlib
 import json
 import os
@@ -13,7 +15,16 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
-MODELS = ("gi-v7.tflite", "gi-v2.tflite")
+MODELS = {
+    "gi-v7.tflite": (
+        "openwakeword-gi-model-v7b",
+        "e61dd9f2880f226b05b8f9885c053fa7ec7805170c3f3b4d56427c6294cb4be0",
+    ),
+    "gi-v2.tflite": (
+        "openwakeword-gi-model-v2",
+        "4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739",
+    ),
+}
 
 
 def digest(path):
@@ -25,9 +36,55 @@ def interrupted(signum, frame):
     raise InterruptedError("The backup was interrupted")
 
 
+def live_model(configmap):
+    value = subprocess.check_output(
+        [
+            "kubectl",
+            "-n",
+            "home-automation",
+            "get",
+            "configmap",
+            configmap,
+            "-o",
+            "json",
+        ],
+        stderr=subprocess.PIPE,
+        timeout=30,
+    )
+    return base64.b64decode(json.loads(value)["binaryData"]["gi.tflite"], validate=True)
+
+
+def stable_models(seed=False):
+    directory = Path.home() / ".config/soyspray/recovery/voice-models"
+    if seed:
+        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    hashes = {}
+    for name, (configmap, expected) in MODELS.items():
+        active = live_model(configmap)
+        if hashlib.sha256(active).hexdigest() != expected or active[4:8] != b"TFL3":
+            raise ValueError(f"The live {name} model does not match its preservation contract")
+        path = directory / name
+        if seed and not path.exists():
+            temporary = path.with_suffix(".tmp")
+            temporary.write_bytes(active)
+            temporary.chmod(0o600)
+            temporary.replace(path)
+        if not path.is_file() or digest(path) != expected:
+            raise ValueError(f"The stable {name} recovery model is missing or differs")
+        hashes[name] = {"active": expected, "stable": digest(path)}
+    return directory, hashes
+
+
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--seed-models", action="store_true")
+    args = parser.parse_args()
     signal.signal(signal.SIGTERM, interrupted)
     os.umask(0o077)
+    model_source, model_hashes = stable_models(seed=args.seed_models)
+    if args.seed_models:
+        print(json.dumps({"model_hashes": model_hashes, "status": "passed"}))
+        return 0
     started = datetime.now(timezone.utc)
     state = Path.home() / ".local/state/soyspray/recovery-input-backup"
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -85,14 +142,14 @@ def main():
             )
             voice = stage / "voice"
             voice.mkdir()
-            source = Path.home() / "pCloudDrive/docs/soyspray/home-assistant-voice"
             for name in MODELS:
-                original = source / name
+                original = model_source / name
                 if original.read_bytes()[4:8] != b"TFL3":
                     raise ValueError("Expected the existing TFLite model format")
                 shutil.copyfile(original, voice / name)
                 if digest(original) != digest(voice / name):
                     raise ValueError("The model changed while being collected")
+                model_hashes[name]["backed_up"] = digest(voice / name)
             for node in ("node-0", "node-1", "node-2"):
                 if (stage / "nodes" / node / "hostname").read_text().strip() != node:
                     raise ValueError("The collected node identity differs")
@@ -133,6 +190,10 @@ def main():
                 path = base / name
                 if digest(path) != expected["sha256"] or path.stat().st_size != expected["bytes"]:
                     raise ValueError("Restored input differs")
+            for name in MODELS:
+                model_hashes[name]["restored"] = digest(base / "voice" / name)
+                if len(set(model_hashes[name].values())) != 1:
+                    raise ValueError(f"The active, stable, backed-up, and restored {name} hashes differ")
             restic(
                 "forget",
                 "--retry-lock",
@@ -148,7 +209,11 @@ def main():
                 "--prune",
             )
             report.update(
-                status="passed", snapshot=snapshot, verified_files=files, restored_real_content=True
+                status="passed",
+                snapshot=snapshot,
+                verified_files=files,
+                model_hashes=model_hashes,
+                restored_real_content=True,
             )
         report["cleanup"] = "completed"
     except BaseException as error:

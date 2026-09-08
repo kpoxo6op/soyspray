@@ -16,7 +16,17 @@
         mode: '0700'
       loop:
         - "{{ recovery_inputs_home }}/.local/state/soyspray/recovery-input-backup"
+        - "{{ recovery_inputs_home }}/.config/soyspray/recovery/voice-models"
         - "{{ recovery_inputs_home }}/.config/systemd/user"
+
+    - name: Preserve the live active and rollback GI models outside Git
+      ansible.builtin.command:
+        argv:
+          - "{{ recovery_inputs_checkout }}/soyspray-venv/bin/python"
+          - "{{ recovery_inputs_checkout }}/apps/recovery-input-backup/backup.py"
+          - --seed-models
+      changed_when: false
+      when: not ansible_check_mode
 
     - name: Install the bounded backup service
       ansible.builtin.copy:
@@ -24,7 +34,7 @@
         mode: '0600'
         content: |
           [Unit]
-          Description=Back up and restore-check Soyspray node configuration and unique voice models
+          Description=Back up and restore-check Soyspray node configuration and preserved GI models
           [Service]
           Type=oneshot
           WorkingDirectory={{ recovery_inputs_checkout }}
