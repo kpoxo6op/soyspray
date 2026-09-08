@@ -15,9 +15,7 @@ from conftest import load_yaml
     ],
 )
 def test_failed_backup_timestamps_are_not_ingested(error, reconcile_error, retained):
-    settings = load_yaml("playbooks/argocd/applications/observability/prometheus/values.yaml")[
-        "kube-state-metrics"
-    ]
+    settings = load_yaml("apps/prometheus/values.yaml")["kube-state-metrics"]
     labels = {
         "__name__": "soyspray_longhorn_backup_snapshot_timestamp_seconds",
         "backup_error": error,

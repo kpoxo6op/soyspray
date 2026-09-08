@@ -104,7 +104,7 @@ def test_argocd_restarts_when_the_oidc_config_changes() -> None:
 
 
 def test_grafana_uses_authentik_and_disables_anonymous_access() -> None:
-    values = load_yaml("playbooks/argocd/applications/observability/prometheus/values.yaml")
+    values = load_yaml("apps/prometheus/values.yaml")
     grafana = values["grafana"]
     oauth = grafana["grafana.ini"]["auth.generic_oauth"]
 
@@ -117,9 +117,7 @@ def test_grafana_uses_authentik_and_disables_anonymous_access() -> None:
 
 
 def test_prometheus_application_returns_to_the_reviewed_head_revision() -> None:
-    app = load_yaml(
-        "playbooks/argocd/applications/observability/prometheus/prometheus-application.yaml"
-    )
+    app = load_yaml("apps/prometheus/argocd/kube-prometheus-stack.yaml")
 
     assert app["spec"]["source"]["targetRevision"] == "HEAD"
     assert app["spec"]["source"].get("kustomize", {}) == {}
