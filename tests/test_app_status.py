@@ -145,6 +145,19 @@ def test_inventory_comes_from_application_metadata(tmp_path, capsys, app):
     )
 
 
+def test_prometheus_package_status_resolves_the_existing_stack_name(tmp_path, capsys, app):
+    app["metadata"]["name"] = "kube-prometheus-stack"
+    saved = tmp_path / "applications.json"
+    saved.write_text(json.dumps({"kind": "List", "items": [app]}))
+
+    assert (
+        status.main(["status", "--app", "prometheus", "--format", "json", "--input", str(saved)])
+        == 0
+    )
+    report = json.loads(capsys.readouterr().out)
+    assert [item["name"] for item in report["applications"]] == ["kube-prometheus-stack"]
+
+
 @pytest.mark.parametrize("failure", ["unavailable", "timeout", "invalid-json"])
 def test_failed_inventory_read_is_an_error_with_unknown_status(monkeypatch, capsys, failure):
     def fake_run(command, **kwargs):
