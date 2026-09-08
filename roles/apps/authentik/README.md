@@ -32,3 +32,8 @@ The role has no disabled path. Keep Authentik running when an application is
 stopped. Roll back with a pushed Git revision; do not delete generated secrets
 or the Authentik database. See the [Authentik application guide](../../../playbooks/argocd/applications/security/authentik/README.md)
 for access groups, live checks, limits, and rollback details.
+
+For launcher names, icons, or display groups, use `--tags authentik-blueprints`
+after pushing and checking the branch. This publishes only the blueprint
+ConfigMap. It does not update runtime secrets or native client settings. Use
+the application guide's identity and access checks before accepting the change.
