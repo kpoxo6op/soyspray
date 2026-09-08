@@ -60,7 +60,7 @@ prometheus:
         scrape_interval: 60s
         scrape_timeout: 10s
         static_configs:
-          - targets: ['100.102.53.9:9910']
+          - targets: ['192.168.20.50:9910']
 
   additionalServiceMonitors:
     - name: cert-manager
