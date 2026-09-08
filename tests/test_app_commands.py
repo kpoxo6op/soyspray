@@ -183,10 +183,12 @@ def test_staging_preserves_local_changes_without_copying_ignored_credentials(tmp
     (package / ".gitignore").write_text("private.yaml\n")
     (package / "private.yaml").write_text("secret")
     (package / "new.yml").write_text("new local manifest")
+    (package / "dashboard.json").write_text('{"title":"local dashboard"}')
     staged = tmp_path / "staged"
     app_diff.stage_package(package, "old/app/path", staged)
     assert (staged / "old/app/path/deployment.yaml").read_text() == "local draft"
     assert (staged / "old/app/path/new.yml").read_text() == "new local manifest"
+    assert (staged / "old/app/path/dashboard.json").read_text() == ('{"title":"local dashboard"}')
     assert not (staged / "old/app/path/private.yaml").exists()
     with pytest.raises(ValueError, match="inside the temporary"):
         app_diff.stage_package(package, "../../escape", staged)
