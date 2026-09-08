@@ -24,16 +24,18 @@
     kubeconfig: "{{ kubeconfig_path }}"
     namespace: authentik
     pod: "{{ authentik_blueprint_workers.resources[0].metadata.name }}"
-    command: "sha256sum /blueprints/mounted/cm-authentik-blueprints/{{ item }}"
+    command: "sha256sum /blueprints/mounted/cm-authentik-blueprints/{{ authentik_blueprint_name }}"
   loop:
     - cluster-sso.yaml
     - native-apps.yaml
     - legacy-forward-auth.yaml
+  loop_control:
+    loop_var: authentik_blueprint_name
   register: authentik_blueprint_file
   until: >-
     authentik_blueprint_file.rc == 0 and
     authentik_blueprint_file.stdout.split()[0] ==
-    (lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/' + item) | hash('sha256'))
+    (lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/' + authentik_blueprint_name) | hash('sha256'))
   retries: 30
   delay: 5
   changed_when: false
