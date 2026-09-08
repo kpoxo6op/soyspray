@@ -100,9 +100,8 @@ The native definitions disable automated pruning and protect both Applications
 from root pruning and deletion. The monitoring namespace and Prometheus claim are
 not added to native ownership.
 
-The legacy package and Ansible submission path remain available until deployment
-checks pass. Remove them only after the native Applications are healthy and their
-identities are unchanged.
+The legacy package and Ansible submission path were removed after native deployment
+checks passed. Use `make deploy APP=prometheus` for subsequent deployments.
 
 After adoption, verify both Application UIDs, sources, projects, and health. Check
 the claim and volume identities without treating them as recovery evidence. Check
