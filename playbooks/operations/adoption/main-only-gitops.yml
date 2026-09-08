@@ -47,7 +47,9 @@
           - >-
             adoption_root.resources[0].spec.source == main_source or
             adoption_root.resources[0].spec.source == adoption_source
-          - adoption_root.resources[0].spec.syncPolicy.automated.prune == false
+          - >-
+            adoption_root.resources[0].spec.syncPolicy.automated.prune |
+            default(false) == false
       vars:
         main_source:
           repoURL: "{{ soyspray_repo }}"
