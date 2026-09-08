@@ -18,9 +18,13 @@ def test_stable_models_are_seeded_from_the_live_immutable_models(tmp_path, monke
         for name, (configmap, _) in backup.MODELS.items()
     }
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
-    monkeypatch.setattr(backup, "live_model", lambda configmap: models[next(
-        name for name, (candidate, _) in backup.MODELS.items() if candidate == configmap
-    )])
+    monkeypatch.setattr(
+        backup,
+        "live_model",
+        lambda configmap: models[
+            next(name for name, (candidate, _) in backup.MODELS.items() if candidate == configmap)
+        ],
+    )
 
     directory, hashes = backup.stable_models(seed=True)
 

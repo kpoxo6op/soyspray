@@ -35,7 +35,10 @@ def home_assistant_state(root):
         }
     if not result["assist_pipeline.pipelines"]["records"]:
         raise ValueError("Restored Home Assistant has no saved Assist pipeline")
-    if not result["core.device_registry"]["records"] or not result["core.entity_registry"]["records"]:
+    if (
+        not result["core.device_registry"]["records"]
+        or not result["core.entity_registry"]["records"]
+    ):
         raise ValueError("Restored Home Assistant has no saved device or entity registry")
     return result
 
