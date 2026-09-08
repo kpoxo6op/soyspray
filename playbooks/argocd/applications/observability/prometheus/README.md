@@ -126,8 +126,9 @@ are unknown. Historical restore success does not prove current human access.
 
 The existing laptop collector continues to record evidence every two minutes.
 The separate `soyspray-evidence-metrics.service` serves only saved numeric
-evidence at `192.168.20.50:9910/metrics`; it does not run another collector or
+evidence at `100.102.53.9:9910/metrics`; it does not run another collector or
 restore. The diagnosis installer maintains this endpoint. Keep its checkout
 until the service is repointed. Update the bind address and scrape target
-together if the laptop LAN address changes. A collection age over five minutes
+together if the laptop Tailscale address changes. The node scrape uses the
+existing Tailscale path because accepted subnet routes make LAN replies asymmetric. A collection age over five minutes
 is stale. Existing direct alerts and external checks remain independent.
