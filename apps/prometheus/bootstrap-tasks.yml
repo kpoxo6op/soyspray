@@ -1,0 +1,74 @@
+---
+- name: Read the existing monitoring namespace
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Namespace
+    name: monitoring
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: prometheus_namespace
+
+- name: Require the existing monitoring installation
+  ansible.builtin.assert:
+    that: prometheus_namespace.resources | length == 1
+    fail_msg: Restore the existing monitoring installation before restoring its Telegram token.
+
+- name: Read the existing Alertmanager Telegram identity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: monitoring
+    name: alertmanager-telegram-secret
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: prometheus_existing_telegram
+  no_log: true
+
+- name: Decode only the existing Telegram token
+  ansible.builtin.set_fact:
+    prometheus_existing_telegram_token: >-
+      {{ (prometheus_existing_telegram.resources | first | default({})).data['PROMETHEUS_TELEGRAM_BOT_TOKEN']
+         | default('') | b64decode }}
+  no_log: true
+
+- name: Select the encrypted input or preserve the existing token
+  ansible.builtin.set_fact:
+    prometheus_bootstrap_telegram_token: >-
+      {{ prometheus_telegram_bot_token | default(prometheus_existing_telegram_token) }}
+  no_log: true
+
+- name: Check the alert identity before any write
+  ansible.builtin.set_fact:
+    prometheus_telegram_token_available: >-
+      {{ prometheus_telegram_bot_token | default('') is string and
+         prometheus_bootstrap_telegram_token is string and
+         prometheus_bootstrap_telegram_token | trim | length > 0 }}
+    prometheus_telegram_token_matches: >-
+      {{ prometheus_existing_telegram.resources | length == 0 or
+         prometheus_bootstrap_telegram_token == prometheus_existing_telegram_token }}
+  no_log: true
+
+- name: Require the existing alert identity or encrypted recovery input
+  ansible.builtin.assert:
+    that: prometheus_telegram_token_available | bool
+    fail_msg: >-
+      Restore alertmanager-telegram-secret or supply prometheus_telegram_bot_token
+      through an Ansible Vault variables file.
+
+- name: Preserve the existing alert identity
+  ansible.builtin.assert:
+    that: prometheus_telegram_token_matches | bool
+    fail_msg: >-
+      The supplied token differs from the existing Telegram token. This bootstrap
+      cannot rotate or replace the existing token.
+
+- name: Create only the missing Alertmanager Telegram Secret
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", create, -f, "-"]
+    stdin: >-
+      {{ {'apiVersion': 'v1', 'kind': 'Secret',
+          'metadata': {'name': 'alertmanager-telegram-secret', 'namespace': 'monitoring'},
+          'type': 'Opaque',
+          'stringData': {'PROMETHEUS_TELEGRAM_BOT_TOKEN': prometheus_bootstrap_telegram_token}}
+         | to_json }}
+  changed_when: true
+  no_log: true
+  when: prometheus_existing_telegram.resources | length == 0 and not ansible_check_mode
