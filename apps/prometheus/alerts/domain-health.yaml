@@ -1,0 +1,93 @@
+# Domain health alerts for soyspray.vip RDAP and Cloudflare DNS state
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: domain-health
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: domain-health
+      rules:
+        - alert: DomainExpiryWarning
+          expr: |
+            domain_health_rdap_expiry_days{domain="soyspray.vip"} < 30
+            and domain_health_rdap_expiry_days{domain="soyspray.vip"} >= 14
+            and on (domain) domain_health_check_success{domain="soyspray.vip", check="rdap"} == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Domain expiry approaching for soyspray.vip"
+            description: "RDAP reports soyspray.vip expires in less than 30 days."
+        - alert: DomainExpiryCritical
+          expr: |
+            domain_health_rdap_expiry_days{domain="soyspray.vip"} < 14
+            and on (domain) domain_health_check_success{domain="soyspray.vip", check="rdap"} == 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Domain expiry is critical for soyspray.vip"
+            description: "RDAP reports soyspray.vip expires in less than 14 days."
+        - alert: CloudflareZoneMissing
+          expr: |
+            domain_health_cloudflare_zone_exists{domain="soyspray.vip"} == 0
+            and on (domain) domain_health_check_success{domain="soyspray.vip", check="cloudflare_zone"} == 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Cloudflare zone missing for soyspray.vip"
+            description: "The Cloudflare API no longer returns a zone for soyspray.vip."
+        - alert: CloudflareZoneInactive
+          expr: |
+            domain_health_cloudflare_zone_active{domain="soyspray.vip"} == 0
+            and on (domain) domain_health_check_success{domain="soyspray.vip", check="cloudflare_zone"} == 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Cloudflare zone inactive for soyspray.vip"
+            description: "The Cloudflare zone exists but is not active."
+        - alert: CloudflareNameserversMismatch
+          expr: |
+            domain_health_cloudflare_nameservers_match{domain="soyspray.vip"} == 0
+            and on (domain) domain_health_check_success{domain="soyspray.vip", check="cloudflare_nameservers"} == 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Cloudflare nameservers mismatch for soyspray.vip"
+            description: "Cloudflare-reported zone nameservers do not match the expected values."
+        - alert: PublicDNSNameserversMismatch
+          expr: |
+            domain_health_public_dns_nameservers_match{domain="soyspray.vip"} == 0
+            and on (domain) domain_health_check_success{domain="soyspray.vip", check="public_dns_nameservers"} == 1
+          for: 15m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Public DNS nameservers mismatch for soyspray.vip"
+            description: "Public DNS NS answers do not match the expected Cloudflare nameservers."
+        - alert: DomainHealthCheckFailing
+          expr: |
+            domain_health_check_success{domain="soyspray.vip", check=~"rdap|cloudflare_zone|cloudflare_nameservers|public_dns_nameservers"} == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Domain health checker is failing"
+            description: "At least one domain-health check has failed for soyspray.vip."
+        - alert: DomainHealthNoRecentSuccess
+          expr: |
+            time() - max by (domain) (
+              domain_health_last_success_timestamp_seconds{domain="soyspray.vip", check="overall"}
+            ) > 12 * 60 * 60
+          for: 30m
+          labels:
+            severity: critical
+          annotations:
+            summary: "No recent successful domain-health run"
+            description: "The in-cluster domain-health exporter has not completed a successful overall run in the last 12 hours."

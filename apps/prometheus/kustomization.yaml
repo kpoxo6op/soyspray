@@ -1,0 +1,112 @@
+# playbooks/yaml/argocd-apps/prometheus/kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+helmCharts:
+  - name: kube-prometheus-stack
+    version: 78.2.0
+    repo: https://prometheus-community.github.io/helm-charts
+    releaseName: kube-prometheus-stack
+    valuesFile: values.yaml
+
+configMapGenerator:
+  - name: grafana-dashboard-soyspray-operations
+    files:
+      - dashboards/soyspray-operations.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+  - name: grafana-dashboard-argocd
+    files:
+      - dashboards/argocd-dashboard.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  - name: grafana-dashboard-cert-manager
+    files:
+      - dashboards/cert-manager-chrede88.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  # Commented out large dashboard (202KB) that may cause "Too long" errors
+  # - name: grafana-dashboard-k8s-leospbru
+  #   files:
+  #     - dashboards/k8s-leospbru.json
+  #   options:
+  #     labels:
+  #       grafana_dashboard: "1"
+  #     annotations:
+  #       kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  - name: grafana-dashboard-longhorn-adegoodyer
+    files:
+      - dashboards/longhorn-dashboard-adegoodyer.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  - name: grafana-dashboard-remote-backup-status
+    files:
+      - dashboards/remote-backup-status.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  - name: grafana-dashboard-domain-health
+    files:
+      - dashboards/domain-health.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  - name: grafana-dashboard-authentik
+    files:
+      - dashboards/authentik.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  - name: grafana-dashboard-node-hardware
+    files:
+      - dashboards/node-hardware.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+      annotations:
+        kustomize.toolkit.fluxcd.io/substitute: disabled
+
+  # Commented out large dashboard that causes "Too long" errors
+  # - name: grafana-dashboard-node-exporter-full
+  #   files:
+  #     - dashboards/node-exporter-full-rfmoz.json
+  #   options:
+  #     labels:
+  #       grafana_dashboard: "1"
+  #     annotations:
+  #       kustomize.toolkit.fluxcd.io/substitute: disabled
+  #     disableNameSuffixHash: true
+
+resources:
+  - authentik-forward-auth.yaml
+  - smartctl-exporter-daemonset.yaml
+  - alerts/backups-essential.yaml
+  - alerts/critical-backups.yaml
+  - alerts/cert-expiry.yaml
+  - alerts/domain-health.yaml
+  - alerts/authentik.yaml
+  - alerts/node-hardware.yaml
