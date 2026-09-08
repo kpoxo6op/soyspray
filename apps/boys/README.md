@@ -23,13 +23,10 @@ make status APP=boys FORMAT=json
 make check APP=boys
 make diff APP=boys
 make smoke APP=boys
-make deploy APP=boys REVISION=YOUR_PUSHED_BRANCH
 ```
 
-After merge, run `make deploy APP=boys`. Deployment uses the existing Ansible
-path, including the full local gate and preflight. Source changes build a
-separate immutable image; deploy its reviewed digest promotion to change the
-running app.
+Merge the pull request to deploy. Source changes build a separate immutable
+image; merge its reviewed digest promotion to change the running app.
 
 The native root owns the existing Boys Application and AppProject. Their
 prune and deletion guards preserve them if removed from the root. The namespace
@@ -45,7 +42,7 @@ data before publishing. It opens a draft promotion and never merges or deploys.
 
 ## Bootstrap and recovery inputs
 
-Normal deployment uses the existing `boys-runtime` and
+Normal operation uses the existing `boys-runtime` and
 `boys-cloudflared-token` Secrets. It does not read `.env` for Boys or rewrite
 those Secrets. A supplied value that differs from an existing identity stops
 the operation before any write.
@@ -65,7 +62,8 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
   --ask-vault-pass -e @/private/path/boys-runtime.vault.yml --check
 ```
 
-Remove `--check` to restore missing identities, then use `make deploy APP=boys`.
+Remove `--check` to restore missing identities. Merge workload changes through
+GitHub.
 The operation creates only missing Secrets. Native create rejects a competing
 creation instead of overwriting it. Secret content uses standard input and
 suppressed task output. No plaintext file is written on the node. Check mode

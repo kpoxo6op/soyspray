@@ -46,14 +46,14 @@ The current private model file is:
 ~/pCloudDrive/docs/soyspray/home-assistant-voice/gi-v7.tflite
 ```
 
-Deploy only when the working tree is clean and `HEAD` is pushed:
+Bootstrap private inputs only when the working tree is clean:
 
 ```bash
 read -rsp 'Home Assistant voice token: ' VOICE_ASSISTANT_HA_TOKEN
 export VOICE_ASSISTANT_HA_TOKEN
 export VOICE_ASSISTANT_GI_MODEL_PATH="${HOME}/pCloudDrive/docs/soyspray/home-assistant-voice/gi-v7.tflite"
 source soyspray-venv/bin/activate
-make voice-assistant VOICE_ASSISTANT_REVISION="$(git rev-parse HEAD)"
+make -f apps/voice-assistant/Makefile bootstrap
 unset VOICE_ASSISTANT_HA_TOKEN VOICE_ASSISTANT_GI_MODEL_PATH
 ```
 
@@ -181,8 +181,7 @@ confirmed false wakes to it.
 For token rotation:
 
 1. Create a replacement token for `GI Speech`.
-2. Store the new token while `VOICE_ASSISTANT_REVISION` still points to the
-   deployed commit.
+2. Store the new token with the input bootstrap command.
 3. Increment `voice.soyspray.vip/token-revision` in `deployments.yaml`.
 4. Push the annotation change.
 5. Wait for the Speech-to-Phrase rollout.
@@ -197,16 +196,8 @@ Keep the stable GI v2 ConfigMap and private file available. Switch to it through
 GitOps if an unwanted activation reaches conversation, a service call, or a
 device action. If an event stops at listening, record it in issue #199.
 
-After this PR merges, run
-`make voice-assistant VOICE_ASSISTANT_REVISION=HEAD`.
+After the pull request merges, verify the Application from `main`.
 
-To remove the voice stack:
-
-```bash
-source soyspray-venv/bin/activate
-make voice-assistant VOICE_ASSISTANT_ENABLED=false
-```
-
-This removes the Argo CD Application, token Secret, selected model ConfigMap,
-and other Kubernetes resources for voice control. It does not edit Home
-Assistant persistent data.
+Retirement must use a separate reviewed operation. Preserve the token Secret,
+selected model ConfigMap, and Home Assistant persistent data unless the
+retirement explicitly includes them.

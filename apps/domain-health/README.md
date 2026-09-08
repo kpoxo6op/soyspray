@@ -13,14 +13,11 @@ namespace, and provider identities are preserved.
 ```sh
 make check APP=domain-health
 make diff APP=domain-health
-make deploy APP=domain-health REVISION=YOUR_PUSHED_BRANCH
 make status APP=domain-health FORMAT=json
 ```
 
-Normal deployment runs the shared checks, the domain health check, and the
-standard Ansible bootstrap and root procedure.
-After merge, run `make deploy APP=domain-health` to return to HEAD. Verify the
-exact Argo comparison, running image digest, resource identities, Secret hashes,
+Merge the pull request to deploy. Verify the `main` Argo comparison, running
+image digest, resource identities, Secret hashes,
 metrics scrape, recent successful checks, and the independent check identity.
 Smoke and isolated recovery are unknown until maintained operations exist.
 

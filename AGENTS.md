@@ -9,7 +9,7 @@ and backup/retention checks.
 
 - `make apps` lists Applications and ownership from native metadata.
 - `make status APP=boys FORMAT=json` reports source, health, access, and recovery evidence.
-- `make check APP=boys`, `make diff APP=boys`, and `make deploy APP=boys` use the app's maintained commands.
+- `make check APP=boys` and `make diff APP=boys` use the app's maintained commands.
 - `make backup-status FORMAT=json` reports native backup and restore evidence.
 - `make restore-check APP=boys` runs the isolated recovery procedure.
 - Use the app README for supported operations and their limits. Missing evidence
@@ -46,17 +46,16 @@ Use [operate-soyspray](.agents/skills/operate-soyspray/SKILL.md) for operations 
 - Never run imperative commands modifying the cluster. Make changes in code.
 - Never modify `main` directly. Always work in a branch (PR branch or local
   topic branch) and keep `main` untouched. Exception: markdown and comments.
-- For PR work: check out the PR branch, make changes there, push, then deploy.
-- Push changes to the remote before running any deploys or cluster actions.
-- Normal `make deploy APP=NAME` runs shared checks, affected-app checks, and
-  deployment preflight. Run `make go` for shared changes and final verification.
+- For PR work: check out the PR branch, make changes there, push, then merge.
+- Push changes to the remote before running cluster actions.
+- Normal application delivery is a GitHub pull request merged to `main`. Argo
+  CD follows `main`. Run `make go` for final verification.
 - Activate the venv via `make act` before running Ansible.
 - For non-interactive runs, use:
   `source soyspray-venv/bin/activate && ansible-playbook ...`.
-- For an adopted app, keep committed Git sources at `HEAD` and use the native
-  root preview procedure to select one pushed branch. Return the root to `HEAD`
-  after merge and verify the exact child comparison. Legacy apps still use their
-  documented revision input until adoption; do not leave temporary branches live.
+- Keep committed Soyspray Git sources at `main`. Use `make diff APP=NAME` for a
+  read-only comparison when the app supports it. Do not retarget a live
+  Application to a topic branch.
 - When work creates or changes a feature folder, add or update a short,
   human-centered `README.md` in that folder. Explain its purpose, normal human
   use, important commands, checks, and limits. Keep shared indexes concise.

@@ -17,12 +17,10 @@ explicit Ansible operation.
 make check APP=obsidian-livesync
 make status APP=obsidian-livesync FORMAT=json
 make diff APP=obsidian-livesync
-make deploy APP=obsidian-livesync REVISION=YOUR_PUSHED_BRANCH
 ```
 
-Push before deployment. The command runs the full local checks, Ansible bootstrap,
-and native root. After merge, return to HEAD with `make deploy APP=obsidian-livesync`.
-Check the exact Argo comparison, original pod and storage UIDs, database contents,
+Merge the pull request to deploy. Check the `main` Argo comparison, original pod
+and storage UIDs, database contents,
 authenticated access, and client synchronization. Ingress migration and image
 pinning remain separate changes.
 

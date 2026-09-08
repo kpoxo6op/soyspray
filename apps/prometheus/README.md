@@ -52,9 +52,7 @@ Read the primary Application, runtime, storage, and recovery evidence:
 make status APP=prometheus FORMAT=json
 ```
 
-`make deploy APP=prometheus REVISION=BRANCH` preserves the alert identity, checks
-the existing Application identities, removes their cascading deletion finalizers,
-and previews the pushed branch through the native root.
+Merge the pull request to deploy through the native root.
 `make restore-check APP=prometheus` reports that no maintained isolated TSDB
 restore check exists.
 
@@ -90,23 +88,16 @@ The claim is a 20 GiB Longhorn volume. Adoption does not intentionally change th
 claim name, binding, or Prometheus identity. Loss of metrics history is accepted.
 Recovery is not verified.
 
-The adoption operation checks the two existing Application UIDs, sources,
-destinations, ownership, and deletion state before it changes either Application.
-It uses each Application resource version to reject a concurrent change. It
-removes only Argo cascading deletion finalizers and preserves unrelated
-finalizers.
-
 The native definitions disable automated pruning and protect both Applications
 from root pruning and deletion. The monitoring namespace and Prometheus claim are
 not added to native ownership.
 
-The legacy package and Ansible submission path were removed after native deployment
-checks passed. Use `make deploy APP=prometheus` for subsequent deployments.
+The legacy package, adoption operation, and Ansible submission path are removed.
 
 After adoption, verify both Application UIDs, sources, projects, and health. Check
 the claim and volume identities without treating them as recovery evidence. Check
 both access paths, Alertmanager, the external watchdog, and all eight operations
-panels. After merge, return the native root and the stack source to `HEAD`.
+panels. The native root and stack source follow `main`.
 
 ## Monitoring limits
 
@@ -121,9 +112,7 @@ restore or continuous seven-day recovery coverage.
 The laptop evidence collector remains separate. Its metrics endpoint reports
 saved numeric evidence only. It does not run a backup or restore.
 
-Revert the faulty change in Git and push the correction branch. Run
-`make deploy APP=prometheus REVISION=CORRECTION_BRANCH` to preview the correction
-through the native root. Verify both Applications are Synced and Healthy. After
-merge, run `make deploy APP=prometheus REVISION=HEAD`. Do not delete Applications,
+Revert the faulty change through GitHub. Verify both Applications are Synced and
+Healthy after the revert reaches `main`. Do not delete Applications,
 CRDs, claims, volumes, namespaces, or Secrets during rollback. Backup and restore
 are unsupported; rollback cannot recover lost metrics.

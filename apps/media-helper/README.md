@@ -11,14 +11,11 @@ that group does not remove this helper.
 ```sh
 make check APP=media-helper
 make diff APP=media-helper
-make deploy APP=media-helper REVISION=YOUR_PUSHED_BRANCH
 make status APP=media-helper FORMAT=json
 ```
 
-Normal deployment runs the shared checks, the Media Helper check, and the
-native Ansible root operation.
-After merge, deploy with no revision override to return to HEAD. Verify the exact
-Argo comparison and existing resource UIDs. From an allowed consumer, read
+Merge the pull request to deploy. Verify the `main` Argo comparison and existing
+resource UIDs. From an allowed consumer, read
 `/healthz`, `/api/v1/channels`, `/playlist.m3u`, and `/xmltv.xml`. Check playlist
 identities and current guide programmes. End-user playback is a separate Jellyfin
 check. Smoke and restore commands report unknown until maintained operations exist.

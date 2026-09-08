@@ -19,12 +19,10 @@ Ansible operation.
 make check APP=vaultwarden
 make diff APP=vaultwarden
 make status APP=vaultwarden FORMAT=json
-make deploy APP=vaultwarden REVISION=YOUR_PUSHED_BRANCH
 ```
 
-Deployment uses Ansible bootstrap and the native root after the full local checks.
-After merge, run `make deploy APP=vaultwarden` to return to HEAD. Verify the exact
-Argo comparison, unchanged image and resource identities, private access, and
+Merge the pull request to deploy. Verify the `main` Argo comparison, unchanged
+image and resource identities, private access, and
 restricted agent access. An automated human-login smoke check remains unknown.
 
 ## Recovery inputs

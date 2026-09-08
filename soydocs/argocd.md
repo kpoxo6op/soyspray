@@ -28,13 +28,13 @@ This command configures ArgoCD with necessary settings:
 3. Without this setting, ServiceMonitors in applications like Prometheus may fail to find their targets
 4. The ArgoCD server deployment is restarted to apply the changes
 
-## How to Apply Argo CD Applications
+## How to apply applications
 
 ```sh
-cd soyspray
-
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml
+make go
 ```
+
+Merge the GitHub pull request. Argo CD follows `main` and applies the catalog.
 
 ## ArgoCD CLI Management
 

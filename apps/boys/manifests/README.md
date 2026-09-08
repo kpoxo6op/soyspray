@@ -2,7 +2,7 @@
 
 This native Kustomize package preserves the existing single-writer deployment,
 claim, service, ingress, tunnel, and network boundaries. Run `make diff APP=boys`
-and `make deploy APP=boys` from the repository root. Use the
+from the repository root, then merge the pull request. Use the
 [app guide](../README.md) for checks and recovery.
 
 
@@ -37,4 +37,3 @@ this exact expression:
 Remove the `NEL` and `Report-To` response headers. Keep the rule limited to
 this hostname so browsers do not send Cloudflare Network Error Logging reports
 for the calendar.
-

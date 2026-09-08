@@ -85,10 +85,10 @@ Use a new immutable ConfigMap name for a new model.
    `roles/apps/voice-assistant/defaults/main.yml`.
 2. Set `VOICE_ASSISTANT_GI_MODEL_PATH` to the private file whose checksum you
    checked.
-3. Push the branch.
-4. Run `make voice-assistant VOICE_ASSISTANT_REVISION="$(git rev-parse HEAD)"`.
+3. Run `make -f apps/voice-assistant/Makefile bootstrap`.
+4. Push the branch.
 5. Update the Deployment volume and startup-probe checksum.
-6. Push and deploy the second commit.
+6. Push and merge the second commit.
 7. Run the live Voice PE recall and false-wake check.
 
 Ansible creates and checks the new ConfigMap before Argo CD uses it.
@@ -102,7 +102,7 @@ Keep the v2 private file and immutable ConfigMap available. To roll back:
 2. Commit and push one small rollback change.
 3. If the immutable ConfigMap is absent, set
    `VOICE_ASSISTANT_GI_MODEL_PATH` to the private v2 file.
-4. Run `make voice-assistant VOICE_ASSISTANT_REVISION="$(git rev-parse HEAD)"`.
+4. Run `make -f apps/voice-assistant/Makefile bootstrap` if the ConfigMap is absent.
 5. Check that Argo CD reports `Synced` and `Healthy`.
 6. Check that the new pod is Ready with zero restarts.
 7. Confirm the live model checksum.

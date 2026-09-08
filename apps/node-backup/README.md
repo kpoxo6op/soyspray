@@ -71,8 +71,8 @@ Store the restricted `node/` identity in
 `~/.config/soyspray/recovery/node-backup.vault.yml` as `node_backup_credentials`.
 The bootstrap rejects credential mismatches and preserves an existing Secret.
 
-Use `make deploy APP=node-backup REVISION=BRANCH` for the standard branch preview.
-Return to `REVISION=HEAD` after merge. Run `apps/node-backup/run.yml` through the
+Merge the pull request to deploy through Argo from `main`. Run
+`apps/node-backup/run.yml` through the
 standard Ansible inventory with `node_backup_run_id` and a private
 `node_backup_evidence_dir`. It requires an inactive CronJob temporarily suspended through Git and removes
 its temporary Job after saving the log.

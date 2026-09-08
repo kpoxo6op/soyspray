@@ -10,8 +10,9 @@ make setup
 make check
 ```
 
-Use `make help` for the short command list. Cluster-changing work flows through
-Ansible and Argo CD rather than direct changes to live resources.
+Use `make help` for the short command list. Merge reviewed application changes
+to `main`. Argo CD then reconciles them. Use Ansible only for the cluster
+foundation, private inputs, recovery, and deliberate retirement.
 
 ## Cluster services
 
@@ -26,7 +27,8 @@ route. Secrets and login details are not stored in this repository.
 ## Repository map
 
 - [`kubespray/`](kubespray/) contains the pinned cluster provisioner.
-- [`playbooks/`](playbooks/README.md) contains deployment and operations entry
+- [`argocd/`](argocd/README.md) contains the complete application catalog.
+- [`playbooks/`](playbooks/README.md) contains bootstrap and operations entry
   points.
 - [`roles/`](roles/) contains reusable Ansible roles.
 - [`scripts/`](scripts/README.md) contains validation and operator helpers.
@@ -35,9 +37,9 @@ route. Secrets and login details are not stored in this repository.
 
 ## Change rules
 
-- Work on a branch and push it before deployment.
+- Work on a branch. Merge through a GitHub pull request.
 - Change the cluster through Ansible and Argo CD, not ad hoc `kubectl` writes.
-- Run `make go` before deployment.
+- Run `make go` before merge.
 - Add tests and a rollback path for behaviour changes.
 
 The [two repo skills](.agents/skills/README.md) cover operating Soyspray and

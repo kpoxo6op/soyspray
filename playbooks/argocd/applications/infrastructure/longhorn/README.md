@@ -67,17 +67,7 @@ replica, backup-state and backup-size metrics without another exporter. The nati
 backup metrics do not include the snapshot time, so they do not prove backup age.
 Use `make backup-status FORMAT=json` for recovery-point observations.
 
-To check a pushed configuration branch through the standard Ansible path, run
-`make go`, activate the project venv, then run:
-
-```sh
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
-  --become --become-user=root --user ubuntu \
-  playbooks/deploy-argocd-apps.yml --tags longhorn \
-  -e longhorn_target_revision=<pushed-branch>
-```
-
-After merge, repeat with `longhorn_target_revision=HEAD`. Verify the Application,
+Run `make go`, merge the pull request, and let Argo reconcile `main`. Verify the Application,
 ServiceMonitor, Prometheus target health, and existing volume identities and
 replica counts. Disabling the ServiceMonitor stops telemetry; it does not stop
 Longhorn or change storage.

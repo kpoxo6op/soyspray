@@ -38,10 +38,7 @@ The official Web and Android TV clients control their own layouts. This reposito
 
 The SSO plugin is a pinned beta community component. Local login remains the recovery path. The node-local database and render group ID are specific to `node-0`.
 
-## Shutdown and rollback
+## Rollback
 
-```bash
-LIVE_TV_ENABLED=false LIVE_TV_REVISION=HEAD make live-tv
-```
-
-This removes the runtime applications but keeps the configuration and shared media. Roll back by reverting the relevant commits on a topic branch, pushing it, and deploying that revision through `make live-tv`.
+Revert the relevant commit through GitHub. Argo applies the revert from `main`.
+Do not delete the configuration claim or shared media.
