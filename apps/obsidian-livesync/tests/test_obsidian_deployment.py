@@ -59,7 +59,7 @@ def test_native_ownership_has_bounded_permissions_and_storage_metadata():
         == "obsidian/obsidian-livesync-couchdb-rescue-longhorn"
     )
     assert app["spec"]["source"]["path"] == str(PACKAGE.relative_to(ROOT))
-    assert app["spec"]["source"]["targetRevision"] == "HEAD"
+    assert app["spec"]["source"]["targetRevision"] == "main"
     assert app["spec"]["project"] == project["metadata"]["name"] == "obsidian-livesync"
     for obj in [app, project]:
         assert set(

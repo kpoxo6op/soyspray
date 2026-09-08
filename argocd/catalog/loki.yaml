@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+  labels:
+    soyspray.vip/owner: platform
+spec:
+  project: legacy-workloads
+  source:
+    repoURL: "https://github.com/kpoxo6op/soyspray.git"
+    targetRevision: main
+    path: playbooks/argocd/applications/observability/alloy-loki-manual
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      retry:
+        limit: 5
+        backoff:
+          duration: "10s"
+          factor: 2
+          maxDuration: "5m"
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true

@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: legacy-workloads
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-10"
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  description: Existing workloads adopted by the native Soyspray root.
+  sourceRepos:
+    - https://github.com/kpoxo6op/soyspray.git
+    - https://cloudnative-pg.github.io/charts
+    - registry-1.docker.io/bitnamicharts
+    - https://charts.goauthentik.io
+  destinations:
+    - {server: https://kubernetes.default.svc, namespace: authentik}
+    - {server: https://kubernetes.default.svc, namespace: cnpg-system}
+    - {server: https://kubernetes.default.svc, namespace: home-automation}
+    - {server: https://kubernetes.default.svc, namespace: immich}
+    - {server: https://kubernetes.default.svc, namespace: longhorn-system}
+    - {server: https://kubernetes.default.svc, namespace: media}
+    - {server: https://kubernetes.default.svc, namespace: monitoring}
+    - {server: https://kubernetes.default.svc, namespace: obsidian}
+    - {server: https://kubernetes.default.svc, namespace: postgresql}
+    - {server: https://kubernetes.default.svc, namespace: redis}
+  clusterResourceWhitelist:
+    - {group: "*", kind: "*"}
+  namespaceResourceWhitelist:
+    - {group: "*", kind: "*"}

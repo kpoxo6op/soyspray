@@ -14,7 +14,7 @@ def test_upstream_chart_keeps_dns_record_ownership_and_selection():
     assert chart["targetRevision"] == "1.14.0"
     assert chart["helm"]["valueFiles"] == ["$values/apps/external-dns/values.yaml"]
     assert source["ref"] == "values"
-    assert source["targetRevision"] == "HEAD"
+    assert source["targetRevision"] == "main"
     assert values["domainFilters"] == ["soyspray.vip"]
     assert values["policy"] == "upsert-only"
     assert values["registry"] == "txt"

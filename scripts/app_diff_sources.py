@@ -18,9 +18,9 @@ def revision_arguments(live, desired, repo, commit):
             or new.get("repoURL") != repo
             or not new.get("path")
             or new.get("chart")
-            or new.get("targetRevision") != "HEAD"
+            or new.get("targetRevision") != "main"
         ):
-            raise ValueError("Single-source comparison needs this repository's Git path at HEAD.")
+            raise ValueError("Single-source comparison needs this repository's Git path at main.")
         old.pop("targetRevision", None)
         new.pop("targetRevision", None)
         if before != after:
@@ -43,9 +43,9 @@ def revision_arguments(live, desired, repo, commit):
                 raise ValueError("Chart versions must be explicitly pinned.")
             charts += 1
         elif new.get("repoURL") == repo and new.get("ref") and not new.get("path"):
-            if revision != "HEAD":
+            if revision != "main":
                 raise ValueError(
-                    "Declare Git values at HEAD; the comparison uses this pushed commit."
+                    "Declare Git values at main; the comparison uses this pushed commit."
                 )
             revision = commit
             git_sources += 1

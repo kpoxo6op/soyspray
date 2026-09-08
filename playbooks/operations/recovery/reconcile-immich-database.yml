@@ -5,7 +5,7 @@
   become: true
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
-    cnpg_revision: HEAD
+    cnpg_revision: main
     cnpg_sets:
       - name: immich-db
         application: immich-db-a-initdb

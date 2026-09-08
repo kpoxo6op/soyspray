@@ -106,7 +106,7 @@ def test_vaultwarden_has_private_nginx_tls_and_bounded_argocd_ownership() -> Non
     assert app["spec"]["project"] == "vaultwarden"
     assert app["spec"]["source"] == {
         "repoURL": "https://github.com/kpoxo6op/soyspray.git",
-        "targetRevision": "HEAD",
+        "targetRevision": "main",
         "path": PACKAGE,
     }
     assert app["spec"]["destination"] == {

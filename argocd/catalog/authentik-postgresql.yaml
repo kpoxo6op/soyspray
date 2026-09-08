@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: authentik-postgresql
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+  labels:
+    soyspray.vip/owner: platform
+spec:
+  project: legacy-workloads
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: main
+    path: playbooks/argocd/applications/security/authentik/database
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: authentik
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

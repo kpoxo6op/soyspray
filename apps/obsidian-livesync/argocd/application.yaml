@@ -22,7 +22,7 @@ spec:
     namespace: obsidian
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: HEAD
+    targetRevision: main
     path: apps/obsidian-livesync/manifests
   syncPolicy:
     automated:

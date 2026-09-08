@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: authentik
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+  labels:
+    soyspray.vip/owner: platform
+spec:
+  project: legacy-workloads
+  sources:
+    - repoURL: https://charts.goauthentik.io
+      chart: authentik
+      targetRevision: "2026.5.6"
+      helm:
+        releaseName: authentik
+        valueFiles:
+          - $values/playbooks/argocd/applications/security/authentik/values.yaml
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: authentik
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

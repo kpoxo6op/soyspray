@@ -91,8 +91,8 @@ def test_authentik_policy_renders_as_a_mapping_in_ansible(tmp_path):
         "syncOptions": ["CreateNamespace=true"],
     }
     tasks = []
-    for revision in ["codex/preview", "HEAD"]:
-        expected = policy if revision == "HEAD" else {"syncOptions": ["CreateNamespace=true"]}
+    for revision in ["codex/preview", "main"]:
+        expected = policy if revision == "main" else {"syncOptions": ["CreateNamespace=true"]}
         tasks.extend(
             [
                 {

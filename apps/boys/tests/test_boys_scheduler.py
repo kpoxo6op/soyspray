@@ -511,7 +511,7 @@ def test_native_boys_ownership_preserves_access_and_storage_boundaries() -> None
     project = yaml.safe_load(PROJECT.read_text())
     assert application["spec"]["source"] == {
         "repoURL": "https://github.com/kpoxo6op/soyspray.git",
-        "targetRevision": "HEAD",
+        "targetRevision": "main",
         "path": "apps/boys/manifests",
     }
     assert not application["metadata"].get("finalizers")

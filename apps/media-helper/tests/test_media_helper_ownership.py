@@ -44,11 +44,8 @@ def test_project_covers_only_existing_stateless_workload_kinds():
     )
 
 
-def test_legacy_registration_and_shutdown_preserve_native_helper():
-    for name in ("enabled", "disabled"):
-        tasks = yaml.safe_load((ROOT / f"roles/apps/live_tv/tasks/{name}.yml").read_text())
-        for task in tasks:
-            if isinstance(task.get("loop"), list) and any(
-                app in task["loop"] for app in ("dispatcharr", "jellyfin")
-            ):
-                assert set(task["loop"]) == {"dispatcharr", "jellyfin"}
+def test_live_tv_bootstrap_does_not_manage_the_native_helper_or_applications():
+    tasks = (ROOT / "roles/apps/live_tv/tasks/enabled.yml").read_text()
+    assert "media-helper" not in tasks
+    assert "kind: Application" not in tasks
+    assert "targetRevision" not in tasks

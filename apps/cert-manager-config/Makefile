@@ -1,5 +1,5 @@
 include $(dir $(lastword $(MAKEFILE_LIST)))../common.mk
-.PHONY: check diff deploy smoke
+.PHONY: check diff bootstrap smoke
 
 check:
 	cd $(ROOT) && $(PYTHON) -m pytest -q apps/cert-manager-config/tests tests/test_argocd_root.py
@@ -9,10 +9,8 @@ check:
 diff:
 	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app cert-manager-config --pushed
 
-deploy:
+bootstrap:
 	cd $(ROOT) && $(ANSIBLE) apps/cert-manager-config/bootstrap.yml
-	cd $(ROOT) && $(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(REVISION) \
-		-e argocd_preview_application=$(if $(filter HEAD,$(REVISION)),,cert-manager-config)
 
 smoke:
 	@cd $(ROOT) && $(PYTHON) -m apps.cert-manager-config.smoke

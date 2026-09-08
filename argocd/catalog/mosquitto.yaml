@@ -1,0 +1,26 @@
+# playbooks/argocd/applications/home-automation/mosquitto/mosquitto-application.yaml
+# ArgoCD Application to manage Mosquitto MQTT broker
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mosquitto
+  namespace: argocd
+  labels:
+    soyspray.vip/owner: household
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  project: legacy-workloads
+  source:
+    repoURL: "https://github.com/kpoxo6op/soyspray.git"
+    targetRevision: main
+    path: playbooks/argocd/applications/home-automation/mosquitto
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: home-automation
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

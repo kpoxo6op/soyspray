@@ -1,0 +1,26 @@
+# playbooks/yaml/argocd-apps/longhorn/longhorn-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: longhorn
+  namespace: argocd
+  labels:
+    soyspray.vip/owner: platform
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  project: legacy-workloads
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: main
+    path: playbooks/argocd/applications/infrastructure/longhorn
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: longhorn-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true

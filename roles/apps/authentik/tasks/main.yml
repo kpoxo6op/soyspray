@@ -127,6 +127,41 @@
   no_log: true
   tags: authentik
 
+- name: Read Authentik deployments that consume the runtime secret
+  kubernetes.core.k8s_info:
+    api_version: apps/v1
+    kind: Deployment
+    name: "authentik-{{ item }}"
+    namespace: authentik
+    kubeconfig: "{{ kubeconfig_path }}"
+  loop: [server, worker]
+  register: authentik_runtime_consumers
+  when: authentik_runtime_secret_apply.changed
+  tags: authentik
+
+- name: Restart existing Authentik consumers when the runtime secret changes
+  kubernetes.core.k8s:
+    state: patched
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: "{{ item.resources[0].metadata.name }}"
+        namespace: authentik
+      spec:
+        template:
+          metadata:
+            annotations:
+              soyspray.vip/runtime-secret-hash: >-
+                {{ authentik_runtime_values | to_json | hash('sha256') }}
+  loop: "{{ authentik_runtime_consumers.results | default([]) }}"
+  when:
+    - authentik_runtime_secret_apply.changed
+    - item.resources | length == 1
+  no_log: true
+  tags: authentik
+
 - name: Create the Authentik PostgreSQL application secret
   kubernetes.core.k8s:
     state: present
@@ -328,44 +363,6 @@
   ansible.builtin.import_tasks: certificate.yml
   tags: authentik
 
-- name: Apply the Authentik PostgreSQL application
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_path }}"
-    definition: >-
-      {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/database/authentik-postgresql-application.yaml')
-         | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
-  tags: authentik
-
-- name: Apply Authentik
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_path }}"
-    definition: >-
-      {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/authentik-application.yaml')
-         | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"')
-         | replace(
-             'AUTHENTIK_RUNTIME_SECRET_RESOURCE_VERSION',
-             authentik_runtime_secret_apply.result.metadata.resourceVersion
-           ) }}
-  tags: authentik
-
 - name: Configure native application SSO
   ansible.builtin.include_tasks: native-apps.yml
-  tags: authentik
-
-- name: Apply legacy forward-auth applications
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_path }}"
-    definition: >-
-      {{ lookup('file', playbook_dir + '/argocd/applications/' + authentik_legacy_application)
-         | replace('targetRevision: "HEAD"', 'targetRevision: "' + authentik_target_revision + '"') }}
-  loop:
-    - infrastructure/longhorn/longhorn-application.yaml
-    - home-automation/zigbee2mqtt/zigbee2mqtt-application.yaml
-    - media/lazylibrarian/lazylibrarian-application.yaml
-    - media/qbittorrent/qbittorrent-application.yaml
-  loop_control:
-    loop_var: authentik_legacy_application
   tags: authentik

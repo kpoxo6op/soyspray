@@ -1,40 +1,18 @@
-# Authentik application role
+# Authentik input role
 
-This role creates stable Authentik secrets, publishes the blueprints, and
-applies the Authentik and PostgreSQL Argo CD applications. It also configures
-the supported native OIDC clients and forward-auth applications.
+This role preserves runtime credentials, publishes Authentik blueprints, and
+configures native OIDC clients. Argo CD owns the Authentik, PostgreSQL, and
+forward-auth Application definitions.
 
-`defaults/main.yml` selects the pushed Git revision. `tasks/main.yml` preserves
-runtime credentials and applies the applications. `tasks/native-apps.yml`
-configures application settings that cannot come from an Authentik blueprint.
-`tasks/certificate.yml` waits for the wildcard TLS Secret from the native
-[certificate app](../../../apps/cert-manager-config/README.md). Deploy that app
-first. Authentik does not retarget its Application or write its Certificate;
-the existing reflector creates the Authentik TLS mirror.
+Run it only when credentials, blueprints, or native client settings need work:
 
-Run the role from the repository root after `make go` and after you push the
-branch:
-
-```bash
+```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml --tags authentik -e authentik_target_revision="$(git branch --show-current)"
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/bootstrap-app-inputs.yml --tags authentik
 ```
 
-Check the role and SSO contracts with:
-
-```bash
-source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml playbooks/deploy-argocd-apps.yml --syntax-check --tags authentik
-pytest -q tests/test_sso.py tests/test_sso_headlamp.py tests/test_sso_legacy_proxy.py tests/test_sso_native_apps.py
-```
-
-The role has no disabled path. Keep Authentik running when an application is
-stopped. Roll back with a pushed Git revision; do not delete generated secrets
-or the Authentik database. See the [Authentik application guide](../../../playbooks/argocd/applications/security/authentik/README.md)
-for access groups, live checks, limits, and rollback details.
-
-For launcher names, icons, or display groups, use `--tags authentik-blueprints`
-after pushing and checking the branch. This publishes the blueprint ConfigMap,
-waits for matching files, and applies them through the ready worker. Check mode
-skips the worker commands. It does not update runtime secrets or native client settings. Use
-the application guide's identity and access checks before accepting the change.
+Use `--tags authentik-blueprints` for an explicit blueprint publish. The role
+has no disabled path. Do not delete generated secrets or the Authentik database
+for rollback.

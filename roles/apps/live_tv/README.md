@@ -1,10 +1,12 @@
-# Live TV role
+# Live TV input role
 
-This role creates runtime secrets and applies the Dispatcharr and Jellyfin Argo CD Applications.
+This role creates and preserves the Dispatcharr and Jellyfin runtime Secrets.
+It does not submit Applications and it does not select a Git revision. Argo CD
+owns both workloads from the catalog.
 
-Set `live_tv_enabled=true` to start the applications. Set it to `false` to stop workloads without deleting claims.
+```sh
+make -f apps/live-tv/Makefile bootstrap
+```
 
-- [Defaults](defaults/README.md)
-- [Tasks](tasks/README.md)
-
-The native root owns Media Helper. Use `make deploy APP=media-helper` for it.
+Stopping or retiring live TV is a separate deliberate operation. Bootstrap
+does not delete workloads, claims, or shared media files.

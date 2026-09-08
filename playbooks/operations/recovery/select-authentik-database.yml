@@ -5,7 +5,7 @@
   become: true
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
-    cnpg_revision: HEAD
+    cnpg_revision: main
   tasks:
     - name: Read the existing database Application
       kubernetes.core.k8s_info:
@@ -39,7 +39,7 @@
             value: "{{ cnpg_revision }}"
           - op: add
             path: /spec/syncPolicy
-            value: "{{ app.resources[0].spec.syncPolicy | combine({'automated': {'prune': true, 'selfHeal': true}}) if cnpg_revision == 'HEAD' else app.resources[0].spec.syncPolicy | dict2items | rejectattr('key', 'equalto', 'automated') | items2dict }}"
+            value: "{{ app.resources[0].spec.syncPolicy | combine({'automated': {'prune': true, 'selfHeal': true}}) if cnpg_revision == 'main' else app.resources[0].spec.syncPolicy | dict2items | rejectattr('key', 'equalto', 'automated') | items2dict }}"
     - name: Re-read the Application before the optional explicit sync
       kubernetes.core.k8s_info:
         api_version: argoproj.io/v1alpha1

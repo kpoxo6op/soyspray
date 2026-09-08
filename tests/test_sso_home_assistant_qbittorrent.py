@@ -39,14 +39,11 @@ def test_home_assistant_uses_authentik_and_keeps_native_recovery() -> None:
     assert "auth_providers:" not in bootstrap
 
 
-def test_authentik_deploys_home_assistant_from_the_tested_revision() -> None:
-    defaults = load_yaml("roles/apps/homeassistant/defaults/main.yml")
-    tasks = (ROOT / "roles/apps/homeassistant/tasks/main.yml").read_text()
+def test_argo_owns_home_assistant_and_authentik_does_not_submit_it() -> None:
+    application = load_yaml("argocd/catalog/home-assistant.yaml")
     authentik_tasks = load_yaml("roles/apps/authentik/tasks/main.yml")
 
-    assert defaults["homeassistant_target_revision"] == "HEAD"
-    assert "home-assistant/homeassistant-application.yaml" in tasks
-    assert "homeassistant_target_revision" in tasks
+    assert application["spec"]["source"]["targetRevision"] == "main"
     assert not any(
         "home-assistant-application.yaml"
         in task.get("kubernetes.core.k8s", {}).get("definition", "")

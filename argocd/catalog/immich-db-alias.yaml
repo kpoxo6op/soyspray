@@ -1,0 +1,38 @@
+# Generates the active alias app only.
+# Edit this list deliberately when flipping Immich to the other database side.
+# These apps must not prune the shared alias Service when a generated app is removed.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: immich-db-alias
+  namespace: argocd
+  labels:
+    soyspray.vip/owner: household
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  syncPolicy:
+    preserveResourcesOnDeletion: true
+  generators:
+    - list:
+        elements:
+          - active: a
+  template:
+    metadata:
+      name: immich-db-active-{{active}}
+      labels:
+        soyspray.vip/owner: household
+      annotations:
+        argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    spec:
+      project: legacy-workloads
+      destination:
+        server: "https://kubernetes.default.svc"
+        namespace: postgresql
+      sources:
+        - repoURL: "https://github.com/kpoxo6op/soyspray.git"
+          targetRevision: main
+          path: playbooks/argocd/applications/database/cnpg/immich-db-active/overlays/active-{{active}}
+      syncPolicy:
+        syncOptions:
+          - CreateNamespace=true

@@ -16,7 +16,7 @@ spec:
   project: node-backup
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: HEAD
+    targetRevision: main
     path: apps/node-backup
   destination:
     server: https://kubernetes.default.svc

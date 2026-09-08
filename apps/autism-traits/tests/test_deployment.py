@@ -401,7 +401,7 @@ def test_argocd_application_uses_a_restricted_project() -> None:
     assert app["spec"]["project"] == "autism-traits"
     assert app["spec"]["source"] == {
         "repoURL": "https://github.com/kpoxo6op/soyspray.git",
-        "targetRevision": "HEAD",
+        "targetRevision": "main",
         "path": PACKAGE,
     }
     assert app["spec"]["destination"] == {

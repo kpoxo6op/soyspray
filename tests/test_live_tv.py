@@ -178,12 +178,16 @@ def test_configuration_claims_are_protected(name: str, claim: str) -> None:
 
 def test_live_tv_role_propagates_its_deployment_tag() -> None:
     tasks = yaml.safe_load((ROOT / "roles/apps/live_tv/tasks/main.yml").read_text())
-    include = tasks[0]["ansible.builtin.include_tasks"]
-    assert include["apply"]["tags"] == ["live-tv"]
-    assert include["file"] == "{{ 'enabled.yml' if (live_tv_enabled | bool) else 'disabled.yml' }}"
+    assert tasks == [
+        {
+            "name": "Bootstrap live TV private inputs",
+            "ansible.builtin.import_tasks": "enabled.yml",
+            "tags": "live-tv",
+        }
+    ]
 
 
-def test_live_tv_prepares_secrets_before_it_changes_argo_revisions() -> None:
+def test_live_tv_bootstrap_only_prepares_secrets() -> None:
     tasks = yaml.safe_load((ROOT / "roles/apps/live_tv/tasks/enabled.yml").read_text())
     oidc_check = next(
         index
@@ -198,51 +202,23 @@ def test_live_tv_prepares_secrets_before_it_changes_argo_revisions() -> None:
         if task.get("kubernetes.core.k8s", {}).get("definition", {}).get("metadata", {}).get("name")
         == "jellyfin-secrets"
     )
-    argo_apply = next(
-        index
-        for index, task in enumerate(tasks)
-        if task.get("kubernetes.core.k8s", {}).get("state") == "present"
-        and task.get("loop") == ["dispatcharr", "jellyfin"]
-        and "live_tv_application" in task["kubernetes.core.k8s"]["definition"]
-    )
-    assert oidc_check < argo_apply
-    assert jellyfin_secret < argo_apply
+    assert oidc_check < jellyfin_secret
+    assert "targetRevision" not in (ROOT / "roles/apps/live_tv/tasks/enabled.yml").read_text()
+    assert "kind: Application" not in (ROOT / "roles/apps/live_tv/tasks/enabled.yml").read_text()
 
 
-def test_make_go_checks_authentik_and_live_tv_syntax() -> None:
+def test_full_gate_checks_the_private_input_playbook() -> None:
     makefile = (ROOT / "Makefile").read_text()
-    assert "--tags authentik,live-tv" in makefile
+    assert "playbooks/bootstrap-app-inputs.yml" in makefile
 
 
 @pytest.mark.parametrize("name", ("dispatcharr", "jellyfin"))
-def test_live_tv_applications_use_controlled_cascade(name: str) -> None:
-    application = yaml.safe_load(
-        (ROOT / f"playbooks/argocd/applications/media/{name}/{name}-application.yaml").read_text()
-    )
-    assert application["metadata"]["finalizers"] == ["resources-finalizer.argocd.argoproj.io"]
-
-    disabled = yaml.safe_load((ROOT / "roles/apps/live_tv/tasks/disabled.yml").read_text())
-    quiesce = next(
-        task
-        for task in disabled
-        if task.get("kubernetes.core.k8s", {}).get("state") == "patched"
-        and task["kubernetes.core.k8s"]
-        .get("definition", {})
-        .get("spec", {})
-        .get("syncPolicy", {})
-        .get("automated")
-        is None
-    )
-    assert quiesce["kubernetes.core.k8s"]["definition"]["metadata"]["finalizers"] == [
-        "resources-finalizer.argocd.argoproj.io"
-    ]
-    removal = next(
-        task
-        for task in disabled
-        if task.get("kubernetes.core.k8s", {}).get("state") == "absent"
-        and "delete_options" in task["kubernetes.core.k8s"]
-    )
-    assert removal["kubernetes.core.k8s"]["delete_options"] == {"propagationPolicy": "Foreground"}
+def test_live_tv_applications_survive_catalog_removal(name: str) -> None:
+    application = yaml.safe_load((ROOT / f"argocd/catalog/{name}.yaml").read_text())
+    assert application["metadata"].get("finalizers", []) == []
+    assert set(
+        application["metadata"]["annotations"]["argocd.argoproj.io/sync-options"].split(",")
+    ) >= {"Prune=false", "Delete=false"}
 
 
 def test_jellyfin_ingress_stays_private_without_forward_auth() -> None:

@@ -4,8 +4,6 @@ import subprocess
 from pathlib import Path
 
 import yaml
-from ansible.parsing.dataloader import DataLoader
-from ansible.template import Templar
 from conftest import ROOT, load_all, load_yaml
 
 BLUEPRINT = ROOT / (
@@ -260,32 +258,13 @@ def test_prometheus_and_qbittorrent_have_no_direct_web_load_balancer_bypass() ->
     assert "loadBalancerIP" not in qbittorrent
 
 
-def test_authentik_role_mounts_and_deploys_legacy_proxy_configuration() -> None:
+def test_authentik_role_mounts_proxy_configuration_and_argo_owns_the_apps() -> None:
     tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
 
     assert "legacy-forward-auth.yaml" in tasks
-    for manifest in (
-        "longhorn-application.yaml",
-        "zigbee2mqtt-application.yaml",
-        "lazylibrarian-application.yaml",
-        "qbittorrent-application.yaml",
-    ):
-        assert manifest in tasks
-    apply_task = next(
-        task
-        for task in load_yaml("roles/apps/authentik/tasks/main.yml")
-        if task.get("loop_control", {}).get("loop_var") == "authentik_legacy_application"
-    )
-    for path in apply_task["loop"]:
-        rendered = Templar(
-            loader=DataLoader(),
-            variables={
-                "playbook_dir": str(ROOT / "playbooks"),
-                "authentik_legacy_application": path,
-                "authentik_target_revision": "test-sso-branch",
-            },
-        ).template(apply_task["kubernetes.core.k8s"]["definition"])
-        app = yaml.safe_load(rendered)
+    assert "kind: Application" not in tasks
+    for name in ("longhorn", "zigbee2mqtt", "lazylibrarian", "qbittorrent"):
+        app = load_yaml(f"argocd/catalog/{name}.yaml")
         sources = app["spec"].get("sources", [app["spec"].get("source", {})])
         git_sources = [
             source
@@ -293,4 +272,4 @@ def test_authentik_role_mounts_and_deploys_legacy_proxy_configuration() -> None:
             if source.get("repoURL") == "https://github.com/kpoxo6op/soyspray.git"
         ]
         assert git_sources
-        assert all(source["targetRevision"] == "test-sso-branch" for source in git_sources)
+        assert all(source["targetRevision"] == "main" for source in git_sources)
