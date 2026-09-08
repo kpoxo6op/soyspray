@@ -27,6 +27,9 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu playbooks/bootstrap-apps.yml
 ```
 
+The bootstrap must grant a new root-project permission before the first root
+sync that needs it. After that transition, the root also manages its own project.
+
 Root pruning and cascading deletion are disabled. Catalog Applications carry
 `Prune=false,Delete=false`. ApplicationSets preserve generated resources on
 deletion. Removing a catalog entry does not retire its workloads or data. Use

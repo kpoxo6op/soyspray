@@ -29,7 +29,18 @@ def test_authentik_restarts_when_runtime_oidc_clients_change() -> None:
     assert "register: authentik_runtime_secret_apply" in tasks
     assert "authentik_runtime_secret_apply.result.metadata.resourceVersion" not in tasks
     assert "soyspray.vip/runtime-secret-hash" in tasks
-    assert "authentik_runtime_secret_apply.changed" in tasks
+    consumer_tasks = [
+        task
+        for task in load_yaml("roles/apps/authentik/tasks/main.yml")
+        if task["name"]
+        in {
+            "Read Authentik deployments that consume the runtime secret",
+            "Restart existing Authentik consumers when the runtime secret changes",
+        }
+    ]
+    assert len(consumer_tasks) == 2
+    assert "when" not in consumer_tasks[0]
+    assert consumer_tasks[1]["when"] == ["item.resources | length == 1"]
 
 
 def test_authentik_worker_probe_allows_blueprint_apply_time() -> None:
