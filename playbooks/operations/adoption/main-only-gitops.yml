@@ -44,12 +44,18 @@
             adoption_project.resources[0].spec.namespaceResourceWhitelist
           - adoption_root.resources | length == 1
           - adoption_root.resources[0].metadata.finalizers | default([]) | length == 0
-          - adoption_root.resources[0].spec.source == expected_source
+          - >-
+            adoption_root.resources[0].spec.source == main_source or
+            adoption_root.resources[0].spec.source == adoption_source
           - adoption_root.resources[0].spec.syncPolicy.automated.prune == false
       vars:
-        expected_source:
+        main_source:
           repoURL: "{{ soyspray_repo }}"
           targetRevision: main
+          path: argocd
+        adoption_source:
+          repoURL: "{{ soyspray_repo }}"
+          targetRevision: "{{ adoption_revision }}"
           path: argocd
 
     - name: Select the pushed catalog with an identity guard
@@ -69,7 +75,9 @@
               repoURL: "{{ soyspray_repo }}"
               targetRevision: "{{ adoption_revision }}"
               path: argocd
-      when: not ansible_check_mode
+      when:
+        - not ansible_check_mode
+        - adoption_root.resources[0].spec.source.targetRevision == 'main'
 
     - name: Wait for the adopted root commit
       kubernetes.core.k8s_info:
@@ -87,4 +95,66 @@
         - adopted_root.resources[0].status.sync.comparedTo.source.targetRevision == adoption_revision
       retries: 60
       delay: 5
+      when: not ansible_check_mode
+
+    - name: Read the adopted Applications
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        kubeconfig: "{{ kubeconfig_path }}"
+        label_selectors:
+          - soyspray.vip/owner
+      register: adopted_apps
+      when: not ansible_check_mode
+
+    - name: Require the complete adopted Application set
+      ansible.builtin.assert:
+        that:
+          - adopted_apps.resources | length == 33
+      when: not ansible_check_mode
+
+    - name: Disable cascading deletion on adopted Applications
+      kubernetes.core.k8s_json_patch:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        name: "{{ item.metadata.name }}"
+        namespace: argocd
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - op: test
+            path: /metadata/resourceVersion
+            value: "{{ item.metadata.resourceVersion }}"
+          - op: replace
+            path: /metadata/finalizers
+            value: []
+      loop: "{{ adopted_apps.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+      when:
+        - not ansible_check_mode
+        - item.metadata.name != 'soyspray'
+        - item.metadata.finalizers | default([]) | length > 0
+
+    - name: Read the protected Applications
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        kubeconfig: "{{ kubeconfig_path }}"
+        label_selectors:
+          - soyspray.vip/owner
+      register: protected_apps
+      when: not ansible_check_mode
+
+    - name: Confirm cascading deletion is disabled
+      ansible.builtin.assert:
+        that:
+          - >-
+            protected_apps.resources |
+            rejectattr('metadata.name', 'equalto', 'soyspray') |
+            selectattr('metadata.finalizers', 'defined') |
+            map(attribute='metadata.finalizers') |
+            flatten |
+            length == 0
       when: not ansible_check_mode
