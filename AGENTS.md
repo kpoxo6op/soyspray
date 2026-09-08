@@ -15,8 +15,6 @@ and backup/retention checks.
 - Use the app README for supported operations and their limits. Missing evidence
   must be unknown with its cause. `make full-check` runs the full repository gate.
 
-Use [operate-soyspray](.agents/skills/operate-soyspray/SKILL.md) for operations and
-[change-soyspray-app](.agents/skills/change-soyspray-app/SKILL.md) for app changes.
 
 ## Tools
 - `kubectl`: Inspect cluster resources, pods, logs, and CRs.
