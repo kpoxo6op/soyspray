@@ -193,7 +193,9 @@ def main():
             for name in MODELS:
                 model_hashes[name]["restored"] = digest(base / "voice" / name)
                 if len(set(model_hashes[name].values())) != 1:
-                    raise ValueError(f"The active, stable, backed-up, and restored {name} hashes differ")
+                    raise ValueError(
+                        f"The active, stable, backed-up, and restored {name} hashes differ"
+                    )
             restic(
                 "forget",
                 "--retry-lock",
