@@ -146,6 +146,33 @@
         argv: "{{ ['openclaw', 'cron', 'edit', diagnosis_job_id, '--enable' if diagnosis_enabled | bool else '--disable'] + diagnosis_job_options }}"
       changed_when: true
 
+    - name: Install the route for numeric endpoint replies only
+      become: true
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/soyspray-evidence-route.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Keep Soyspray metrics replies on the local network
+          After=network-online.target
+          Wants=network-online.target
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=/usr/sbin/ip rule add priority 5191 from 192.168.20.50/32 to 192.168.20.0/24 ipproto tcp sport 9910 lookup main
+          ExecStop=/usr/sbin/ip rule del priority 5191 from 192.168.20.50/32 to 192.168.20.0/24 ipproto tcp sport 9910 lookup main
+          [Install]
+          WantedBy=multi-user.target
+      register: diagnosis_route_unit
+
+    - name: Enable the numeric endpoint reply route
+      become: true
+      ansible.builtin.systemd_service:
+        name: soyspray-evidence-route.service
+        daemon_reload: "{{ diagnosis_route_unit.changed }}"
+        enabled: true
+        state: "{{ 'restarted' if diagnosis_route_unit.changed else 'started' }}"
+
     - name: Install the numeric evidence endpoint without changing the collector timer
       ansible.builtin.copy:
         dest: "{{ diagnosis_home }}/.config/systemd/user/soyspray-evidence-metrics.service"
@@ -155,7 +182,7 @@
           Description=Serve saved Soyspray numeric recovery evidence
           [Service]
           WorkingDirectory={{ diagnosis_repo }}
-          ExecStart={{ diagnosis_repo }}/soyspray-venv/bin/python -m scripts.operations_evidence --serve-only --bind 100.102.53.9
+          ExecStart={{ diagnosis_repo }}/soyspray-venv/bin/python -m scripts.operations_evidence --serve-only --bind 192.168.20.50
           Restart=on-failure
           RestartSec=30
           NoNewPrivileges=true
