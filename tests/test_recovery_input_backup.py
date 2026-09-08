@@ -1,6 +1,7 @@
 import importlib.util
 from pathlib import Path
 
+
 def load_backup():
     path = Path("apps/recovery-input-backup/backup.py")
     spec = importlib.util.spec_from_file_location("recovery_input_backup", path)
