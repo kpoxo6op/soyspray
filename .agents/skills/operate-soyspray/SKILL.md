@@ -55,3 +55,14 @@ check and deployment preflight run. Their deployment ownership is unchanged.
 For scheduled critical restores, use `playbooks/operations/recovery/install-restore-check-schedule.yml`. The native user timer runs the maintained commands and validates private reports. Read the recovery README before enabling it. Keep model polling out of scheduled backup and restore evidence collection.
 
 Use `playbooks/operations/recovery/install-evidence-schedule.yml` for deterministic backup-age recording. Preserve unknown causes and observation gaps; never backfill recovery evidence.
+
+For laptop incident diagnosis, read `apps/cluster-diagnosis/README.md` and use its
+Ansible installer. Keep the installed checkout while the native job and saved
+metrics endpoint reference it. Preserve the separate deterministic collector
+and restore timers. The Grafana Soyspray Operations view shows numeric evidence;
+historical restore success does not prove a current human login. Do not resume
+the separate release-review job implicitly.
+
+For Authentik launcher presentation, the `authentik-blueprints` tag publishes
+only the existing ConfigMap. Compare application IDs, providers, and access
+bindings after reconciliation, then verify the signed-in launcher.
