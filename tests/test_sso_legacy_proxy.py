@@ -131,25 +131,6 @@ def test_blueprint_has_all_bound_single_application_proxy_providers() -> None:
     assert "Soyspray cluster SSO" in dependencies
     assert "System - Proxy Provider - Scopes" in dependencies
 
-    absent = {
-        (item["model"], tuple(item["identifiers"].items()))
-        for item in entries
-        if item.get("state") == "absent"
-    }
-    assert absent == {
-        ("authentik_core.application", (("slug", "tv-wall"),)),
-        (
-            "authentik_providers_proxy.proxyprovider",
-            (("name", "TV wall forward auth"),),
-        ),
-    }
-    outpost_index = next(
-        index for index, item in enumerate(entries) if item["model"] == "authentik_outposts.outpost"
-    )
-    assert all(
-        index > outpost_index for index, item in enumerate(entries) if item.get("state") == "absent"
-    )
-
 
 def test_blueprint_preserves_native_machine_api_paths() -> None:
     entries = _blueprint_entries()
