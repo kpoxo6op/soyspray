@@ -55,7 +55,12 @@ prometheus:
           resources:
             requests:
               storage: 20Gi
-    additionalScrapeConfigs: []
+    additionalScrapeConfigs:
+      - job_name: soyspray-laptop-evidence
+        scrape_interval: 60s
+        scrape_timeout: 10s
+        static_configs:
+          - targets: ['192.168.20.50:9910']
 
   additionalServiceMonitors:
     - name: cert-manager

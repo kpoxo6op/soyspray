@@ -482,6 +482,51 @@ class MetricsHandler(BaseHTTPRequestHandler):
         return
 
 
+def saved_metrics(output: str | Path, restore_root: str | Path = RESTORE_ROOT) -> str:
+    """Expose recorded evidence without running another collector or restore."""
+    from scripts.restore_schedule import APPS
+
+    body = metrics_text(last_record(output))
+    successes = []
+    for path in (Path(restore_root) / "schedule").glob("*/report.json"):
+        try:
+            if path.is_symlink() or path.parent.is_symlink() or path.stat().st_size > 1024 * 1024:
+                continue
+            report = json.loads(path.read_text())
+            finished = timestamp(report.get("finished_at"))
+            apps = report.get("apps", [])
+            if (
+                report.get("schema_version") == 1
+                and report.get("run_id") == path.parent.name
+                and report.get("status") == "passed"
+                and report.get("shared_gate", {}).get("status") == "passed"
+                and report.get("shared_gate", {}).get("returncode") == 0
+                and finished
+                and finished <= iso_now()
+                and len(apps) == len(APPS)
+                and {item.get("app") for item in apps} == set(APPS)
+                and all(
+                    item.get("passed") is True
+                    and item.get("cleanup") == "completed"
+                    and item.get("command_returncode") == 0
+                    and item.get("report_status") == "passed"
+                    for item in apps
+                )
+            ):
+                successes.append(finished.timestamp())
+        except (OSError, ValueError, TypeError, AttributeError):
+            continue
+    body += "# HELP soyspray_critical_restore_last_success_timestamp_seconds Last recorded successful critical restore schedule.\n"
+    body += "# TYPE soyspray_critical_restore_last_success_timestamp_seconds gauge\n"
+    body += _metric("soyspray_critical_restore_observed", int(bool(successes))) + "\n"
+    if successes:
+        body += (
+            _metric("soyspray_critical_restore_last_success_timestamp_seconds", max(successes))
+            + "\n"
+        )
+    return body
+
+
 def run_service(
     *,
     output: str | Path = EVIDENCE_FILE,
@@ -529,6 +574,9 @@ def run_service(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--serve-only", action="store_true", help="Serve saved numeric evidence without collecting."
+    )
     parser.add_argument("--once", action="store_true", help="Collect one record and exit.")
     parser.add_argument(
         "--output", default=os.environ.get("SOYSPRAY_EVIDENCE_OUTPUT", str(EVIDENCE_FILE))
@@ -575,7 +623,16 @@ def main(argv: list[str] | None = None) -> int:
         "vault_password_file": args.vault_password_file,
         "restore_root": args.restore_root,
     }
-    if args.once:
+    if args.serve_only:
+        if args.once:
+            parser.error("--once and --serve-only cannot be combined")
+        server = ThreadingHTTPServer((args.bind, args.port), MetricsHandler)
+        server.metrics_supplier = lambda: saved_metrics(args.output, args.restore_root)
+        try:
+            server.serve_forever()
+        finally:
+            server.server_close()
+    elif args.once:
         append_record(args.output, collect_once(**collector_kwargs))
     else:
         run_service(

@@ -10,6 +10,13 @@ helmCharts:
     valuesFile: values.yaml
 
 configMapGenerator:
+  - name: grafana-dashboard-soyspray-operations
+    files:
+      - dashboards/soyspray-operations.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
   - name: grafana-dashboard-argocd
     files:
       - dashboards/argocd-dashboard.json
