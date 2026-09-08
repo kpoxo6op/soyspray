@@ -11,8 +11,36 @@ from pathlib import Path
 
 import yaml
 
+HOME_ASSISTANT_REGISTRIES = {
+    "core.area_registry": "areas",
+    "core.device_registry": "devices",
+    "core.entity_registry": "entities",
+    "assist_pipeline.pipelines": "items",
+    "homeassistant.exposed_entities": "exposed_entities",
+}
 
-def check(root):
+
+def home_assistant_state(root):
+    storage = root / ".storage"
+    result = {}
+    for name, collection in HOME_ASSISTANT_REGISTRIES.items():
+        path = storage / name
+        value = json.loads(path.read_text())
+        data = value["data"]
+        if collection not in data or not isinstance(data[collection], (list, dict)):
+            raise ValueError(f"Restored Home Assistant {name} has no {collection}")
+        result[name] = {
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "records": len(data[collection]),
+        }
+    if not result["assist_pipeline.pipelines"]["records"]:
+        raise ValueError("Restored Home Assistant has no saved Assist pipeline")
+    if not result["core.device_registry"]["records"] or not result["core.entity_registry"]["records"]:
+        raise ValueError("Restored Home Assistant has no saved device or entity registry")
+    return result
+
+
+def check(root, app=None):
     files = []
     for path in sorted(root.rglob("*")):
         if not path.is_file() or path.is_symlink() or "lost+found" in path.parts:
@@ -71,13 +99,16 @@ def check(root):
                     raise ValueError("Restored ZIP integrity failed")
             item["format"] = "zip"
         files.append(item)
-    return {
+    result = {
         "files": files,
         "file_count": len(files),
         "bytes": sum(item["bytes"] for item in files),
         "content": "restored files" if files else "empty volume",
     }
+    if app == "home-assistant-config":
+        result["home_assistant_private_state"] = home_assistant_state(root)
+    return result
 
 
 if __name__ == "__main__":
-    print(json.dumps(check(Path(sys.argv[1]))))
+    print(json.dumps(check(Path(sys.argv[1]), sys.argv[2] if len(sys.argv) > 2 else None)))

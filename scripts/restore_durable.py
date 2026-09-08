@@ -90,6 +90,7 @@ def main():
                         str(ROOT / "soyspray-venv/bin/python"),
                         str(ROOT / "scripts/check_durable_data.py"),
                         str(destination),
+                        app,
                     ],
                     check=False,
                     capture_output=True,
