@@ -40,7 +40,7 @@ blueprints with:
 ```bash
 source soyspray-venv/bin/activate
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
-  --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml \
+  --become --become-user=root --user ubuntu playbooks/bootstrap-app-inputs.yml \
   --tags authentik-blueprints
 ```
 
@@ -59,15 +59,15 @@ Run the local checks before deployment:
 ```bash
 source soyspray-venv/bin/activate
 pytest -q tests/test_sso.py tests/test_sso_headlamp.py tests/test_sso_legacy_proxy.py tests/test_sso_native_apps.py tests/test_live_tv.py
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml playbooks/deploy-argocd-apps.yml --syntax-check --tags authentik
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml playbooks/bootstrap-app-inputs.yml --syntax-check --tags authentik
 ```
 
-After the branch is pushed, reconcile Authentik from that revision:
+After checks pass, merge the pull request. Use this only for private inputs:
 
 ```bash
 make go
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml --tags authentik -e authentik_target_revision="$(git branch --show-current)"
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/bootstrap-app-inputs.yml --tags authentik
 ```
 
 Check the Argo CD application and workloads:
@@ -91,17 +91,14 @@ Forward auth protects access to an application. It does not add native OIDC to
 an application that does not support it. Local recovery accounts remain enabled
 for Argo CD, Jellyfin, and other applications that need them.
 
-The role preserves generated client secrets. A secret resource-version
-annotation restarts Authentik when those secrets change. Do not edit generated
-secrets in Git.
+The role preserves generated client secrets. It updates a hashed pod annotation
+to restart existing Authentik consumers when those secrets change. Do not edit
+generated secrets in Git.
 
 ## Shutdown and rollback
 
 Authentik has no application-specific shutdown switch. Do not stop identity
-services when you stop Live TV. `LIVE_TV_ENABLED=false` removes the Live TV
-applications and leaves Authentik running.
+services during another application retirement.
 
-To roll back, revert the applicable commits on a topic branch, push the branch,
-and reconcile Authentik with that branch as `authentik_target_revision`. After
-merge, reconcile `HEAD`. The rollback must preserve `authentik-runtime` and the
-PostgreSQL data.
+To roll back, revert the applicable commit through GitHub. Argo applies the
+revert from `main`. Preserve `authentik-runtime` and the PostgreSQL data.

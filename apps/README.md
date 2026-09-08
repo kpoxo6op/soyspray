@@ -1,8 +1,10 @@
 # Applications
 
-Each migrated app keeps its Argo definitions, configuration, custom source,
-useful checks, and operating guide in its own folder. The native root lists
-adopted apps in [its Kustomization](../argocd/kustomization.yaml).
+Each app keeps its workload configuration, useful checks, and operating guide
+near its source. The native root lists every application in
+[its Kustomization](../argocd/kustomization.yaml). Older workload folders stay
+in place to avoid a large path migration. Their Application ownership records
+are in [`argocd/catalog/`](../argocd/catalog/).
 
 - [Certificate configuration](cert-manager-config/README.md): issuers, wildcard certificates and TLS reflection.
 - [Media helper](media-helper/README.md): internal channel catalog, playlist and guide.
@@ -59,12 +61,7 @@ healthy result. `scripts/app_status.py --help` also describes saved JSON input f
 offline checks. The old `COLS` list format is replaced by native `kubectl` output
 in `make list-apps` and structured JSON in `make apps`.
 
-Migration is incremental. The existing `kubernetes/` and
-`playbooks/argocd/applications/` paths remain authoritative for apps that have not
-yet been adopted. Follow [the root procedure](../argocd/README.md) and verify each
-replacement before removing its old path.
-
-## Check, compare, and deploy
+## Check, compare, and merge
 
 Boys, autism traits, ExternalDNS, domain health, Vaultwarden, Obsidian sync,
 Headlamp, and Media Helper have app command files. Use the Application name:
@@ -73,18 +70,14 @@ Headlamp, and Media Helper have app command files. Use the Application name:
 make check APP=boys
 make diff APP=boys
 make smoke APP=boys
-make deploy APP=boys REVISION=YOUR_PUSHED_BRANCH
-make deploy APP=boys
 make full-check
 make restore-check APP=boys
 ```
 
 `check APP=...` runs that app's maintained local checks. `make check` without
-APP and `make full-check` run the full repository gate. A normal
-`make deploy APP=...` runs the shared checks and the selected app check before
-the native Ansible operation. Use `make full-check` for the final all-app gate.
-App Makefiles share command settings in `apps/common.mk`. Push the branch first. Deployment defaults to `REVISION=HEAD`; use the pushed
-branch for preview and run the default again after merge.
+`APP`, `make full-check`, and `make go` run the full repository gate. Merge the
+pull request to deploy. Argo follows `main`. App Makefiles share command
+settings in `apps/common.mk`.
 
 `diff` uses the pinned upstream Argo CLI and the current Kubernetes context.
 For Boys and autism traits, it sends YAML files from the local manifest folder for native
@@ -99,7 +92,9 @@ keeps explicit chart versions and resolves Git values to the exact commit. It
 rejects Application setting changes that native revision overrides cannot render.
 See [ExternalDNS](external-dns/README.md) for supported changes and limits.
 
-The comparison does not sync or prune. A removed object in the diff is not proof
+The comparison does not sync or prune. It uses the pushed commit only for the
+comparison and does not change the live Application. A removed object in the
+diff is not proof
 that Argo will delete it: check its `Prune=false` protection and the Application's
 sync policy. An Application without a maintained operation file reports `unknown`
 with its cause. The native app Makefiles are command entrypoints; they do not

@@ -52,20 +52,8 @@ Telemiks and 25 Region use the live videos embedded by their official pages. The
 
 Media Helper selects only the catalog guide identifiers from IPTVX EPG_LITE. It serves the last complete in-memory snapshot after a refresh failure. Dispatcharr keeps its own guide cache on the protected claim. Do not create a schedule from channel names or expected broadcasts.
 
-## Shutdown and rollback
+## Rollback
 
-Stop the complete Live TV stack from a clean, pushed topic branch:
-
-```bash
-LIVE_TV_ENABLED=false LIVE_TV_REVISION=HEAD make live-tv
-```
-
-The role removes the Argo CD Applications. It does not delete `dispatcharr-data`, Jellyfin configuration, or shared media files.
-
-To roll back Dispatcharr code or settings, revert the applicable commits on a topic branch. Push the branch and run:
-
-```bash
-LIVE_TV_ENABLED=true LIVE_TV_REVISION="$(git branch --show-current)" make live-tv
-```
-
-After merge, run `LIVE_TV_ENABLED=true LIVE_TV_REVISION=HEAD make live-tv`.
+Revert the applicable commit through GitHub. Argo applies the revert from
+`main`. Do not delete `dispatcharr-data`, Jellyfin configuration, or shared
+media files.

@@ -1,5 +1,9 @@
 # Live TV commands
 
-`make live-tv LIVE_TV_ENABLED=true LIVE_TV_REVISION=<pushed-revision>` runs the existing Ansible role after the full deployment check. Enabling it first reconciles Authentik at the same revision. The default remains disabled; use the existing retirement procedure deliberately.
+Use `make check APP=live-tv` to check the workload and input contracts. Use
+`make -f apps/live-tv/Makefile bootstrap` only to create or verify the private
+Dispatcharr and Jellyfin inputs. Merge the pull request to deploy through Argo
+from `main`.
 
-`make check APP=live-tv` checks the role behavior. This folder owns commands only. Application definitions and ownership remain in their existing locations. See [the live TV runbook](../../roles/apps/live_tv/README.md). Unsupported operations report `unknown` with a cause.
+Retirement is a separate deliberate operation. Bootstrap does not stop or
+delete workloads. See [the input role](../../roles/apps/live_tv/README.md).

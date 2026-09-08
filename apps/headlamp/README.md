@@ -18,16 +18,12 @@ Normal commands:
 make check APP=headlamp
 make status APP=headlamp FORMAT=json
 make diff APP=headlamp
-make deploy APP=headlamp REVISION=YOUR_PUSHED_BRANCH
-make deploy APP=headlamp
 ```
 
-Normal deployment runs the shared checks, the Headlamp check, and the [native
-root Ansible procedure](../../argocd/README.md).
+Merge the pull request to deploy through the [native root](../../argocd/README.md).
 The chart is pinned to the existing `0.35.0` release. Diff compares the clean,
 pushed Git commit and this exact chart through native Argo revision overrides.
-After preview and merge, run the default deployment command to return to HEAD.
-Verify the chart and Git revisions, then sign in and open the workload list. A successful
+Verify the chart and `main` Git revision, then sign in and open the workload list. A successful
 HTTP response alone does not prove OIDC or Kubernetes authorization.
 
 Recovery reinstalls the chart and recreates its identity through Authentik's

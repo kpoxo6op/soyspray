@@ -30,17 +30,10 @@ A source merge builds an immutable GHCR image and opens a draft promotion PR.
 The promotion changes the image digest in `manifests/deployment.yaml`. A source-only
 merge does not change the running image. Build output stays local.
 
-Commit and push, then preview the deployment:
-
-```sh
-make deploy APP=autism-traits REVISION=YOUR_PUSHED_BRANCH
-```
-
-After merge, run `make deploy APP=autism-traits`. This uses the
-standard Ansible bootstrap and native root operation. Check `make status
+Merge the reviewed digest promotion to deploy. Argo follows `main`. Check `make status
 APP=autism-traits FORMAT=json`, public and private access, and the actual browser
-journey. `AUTISM_TRAITS_ENABLED=false` cannot delete an adopted app. Retirement
-requires an explicit operation after removing its root registration.
+journey. Retirement requires an explicit operation after removing its root
+registration.
 
 ## Access and recovery
 

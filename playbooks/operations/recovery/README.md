@@ -472,19 +472,17 @@ is local. Use an explicit server dry run for API admission validation.
 Push the matching database manifests before applying. Immich has no automatic
 sync. After the migration and base backup pass, run
 `reconcile-immich-database.yml -e cnpg_revision=BRANCH` to sync its existing
-resources without hooks or pruning. After merge, repeat with `cnpg_revision=HEAD`.
+resources without hooks or pruning. After merge, repeat with `cnpg_revision=main`.
 Verify archive continuity and production access before closing the migration.
 
 For Authentik, first use `select-authentik-database.yml -e cnpg_revision=BRANCH`.
 It pauses database self-heal so the archive switch remains atomic. Then run
 `migrate-cnpg-backup.yml -e cnpg_database=authentik -e cnpg_backup_id=NAME`.
 After verification, select the branch again with `-e cnpg_sync=true`. After
-merge, select `HEAD`; this restores the existing automatic sync policy.
+merge, select `main`; this restores the existing automatic sync policy.
 
-After both writer migrations, run `make deploy APP=prometheus REVISION=BRANCH` to
-update the backup metric consumers. This selects the Prometheus Application for
-branch preview through the native root. Verify the Barman backup timestamp
-queries. After merge, return the native root and Prometheus source to `HEAD`.
+After both writer migrations, merge the Prometheus metric change. Verify the
+Barman backup timestamp queries after Argo reconciles `main`.
 
 ## Daily small-volume restore checks
 

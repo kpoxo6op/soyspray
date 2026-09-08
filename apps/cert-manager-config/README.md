@@ -9,7 +9,6 @@ make status APP=cert-manager-config FORMAT=json
 make check APP=cert-manager-config
 make smoke APP=cert-manager-config
 make diff APP=cert-manager-config
-make deploy APP=cert-manager-config REVISION=YOUR_PUSHED_BRANCH
 kubectl get clusterissuer
 kubectl -n cert-manager get certificate
 ```
@@ -20,11 +19,8 @@ same. Prune/delete protection retains these resources when the app is parked.
 Application deletion does not cascade. Deliberate retirement needs a separate
 Ansible operation. Keep DNS-01 challenge access and existing client hostnames.
 
-Manifests and operating checks now live together in this app folder. Deployment
-uses the native root after the shared checks, app check, and pushed-commit preflight. For a branch
-preview, use the command above. After merge, run `make deploy APP=cert-manager-config`
-and verify the exact HEAD comparison and health. The old source and one-time
-adoption operation have been removed after identity verification.
+Manifests and operating checks live together in this app folder. Merge the pull
+request to deploy, then verify the `main` comparison and health.
 
 Authentik waits for the reflected wildcard Secret in its own namespace. Its
 role does not submit this Application, retarget it to an Authentik branch, or

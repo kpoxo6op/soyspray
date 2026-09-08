@@ -32,12 +32,13 @@ Confirm cartoons, the native Jellyfin Guide, and one selected Live TV channel. T
 
 Jellyfin plays one selected channel per client. Dispatcharr can smooth short upstream gaps, but it cannot repair an offline source or missing segment. Android TV appearance and device automation wait for real hardware.
 
-## Start, shutdown, and rollback
+## Change and rollback
 
 ```bash
-LIVE_TV_ENABLED=true LIVE_TV_REVISION="$(git branch --show-current)" make live-tv
-LIVE_TV_ENABLED=false LIVE_TV_REVISION=HEAD make live-tv
+make check APP=live-tv
+make -f apps/live-tv/Makefile bootstrap
 ```
 
-The native root manages Media Helper separately with `make deploy APP=media-helper`.
-Shutdown keeps the Jellyfin and Dispatcharr configuration claims and shared media files. Roll back through a reverted, pushed Git revision.
+Merge to deploy from `main`. Roll back with a reviewed revert. Removing the
+catalog entries does not delete the Jellyfin and Dispatcharr claims or shared
+media files.

@@ -1,72 +1,41 @@
 # Application management
 
-The `soyspray` Application is the native Argo root. Its Kustomization lists each
-child package explicitly. Each package contains an Application and AppProject.
-Run `make apps` for the current inventory and ownership. Other apps keep the
-existing Ansible path until their individual migrations pass.
+The `soyspray` Application is the single Argo CD root. Its Kustomization lists
+all direct Applications, the two existing Immich ApplicationSets, and their
+AppProjects. All Soyspray Git sources follow `main`.
 
-The root manages only Applications and AppProjects in `argocd`. Child projects
-limit workload sources, namespaces, and resource kinds. Changes here require
-operator review because access to Argo's namespace is an administrative boundary.
+## Normal change
 
-Bootstrap from a pushed topic branch after `make go`:
+1. Change a workload or its Application on a topic branch.
+2. Run `make check APP=NAME` and `make go`.
+3. Use `make diff APP=NAME` when that app has a maintained live comparison.
+4. Merge the GitHub pull request.
+5. Confirm the affected Argo Application is `Synced` and `Healthy`.
 
-```sh
-source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
-  --become --become-user=root --user ubuntu playbooks/bootstrap-apps.yml \
-  -e argocd_revision=YOUR_PUSHED_BRANCH
-```
+There is no branch deployment command and no Ansible Application submission
+path. Merge to `main` is the deployment action. A custom image still needs its
+separate immutable digest promotion pull request.
 
-Run the same command with `-e argocd_revision=HEAD` after merge. Check the root and
-each affected child with `kubectl -n argocd get applications`. Confirm the intended
-revision, resource identities, and the app's user journey. Root health alone does
-not prove child access or recovery.
+## Bootstrap and safety
 
-Bootstrap also registers the existing public Bitnami OCI chart repository from
-`bootstrap/bitnami-oci.yaml`. It contains no credentials and keeps its existing
-Secret name, repository URL, and chart behavior. The general Ansible deployment
-uses the same task through `--tags bitnami-oci`.
-
-Root pruning and cascading deletion are disabled. Child Applications and
-AppProjects also carry `Prune=false,Delete=false`. Removing an entry from the list
-does not retire its resources. Use an explicit Ansible retirement operation.
-Protect every durable claim and its namespace before stateful adoption.
-
-For rollback, revert the reviewed Application change and run the same bootstrap
-path. Keep the child Application and its resources. Do not delete the root or a
-child as a rollback step.
-
-These controls use native [Argo deletion behavior](https://argo-cd.readthedocs.io/en/stable/user-guide/app_deletion/)
-and [sync options](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/).
-
-## Preview one adopted application
-
-The root can use a native inline Kustomize patch to select one child's Git branch.
-Its checked-in Application stays on `HEAD`. Other children and upstream Helm
-versions keep their declared revisions. This lets root self-healing remain on.
-A chart-only child needs no source override; its chart configuration comes from
-the selected root branch.
-
-Commit and push the current checkout, run `make go`, then use:
+`playbooks/bootstrap-apps.yml` installs or repairs the fixed root. It does not
+select a branch. Use it only after the Argo foundation exists:
 
 ```sh
 source soyspray-venv/bin/activate
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
-  --become --become-user=root --user ubuntu playbooks/bootstrap-apps.yml \
-  -e argocd_revision=YOUR_PUSHED_BRANCH -e argocd_preview_application=headlamp
+  --become --become-user=root --user ubuntu playbooks/bootstrap-apps.yml
 ```
 
-The selected Application must be declared in the native root. Its branch on GitHub
-must match this clean checkout. Root definitions still come from the whole branch,
-so keep unrelated child-definition changes out of a single-app preview. Ansible
-waits for the root's complete source comparison and resolved Git commit. The
-selected child must be synced and healthy at that Git commit when its source was
-overridden. A cached comparison from an earlier commit does not pass. Check resource
-identity, access, and the actual user journey separately.
+Root pruning and cascading deletion are disabled. Catalog Applications carry
+`Prune=false,Delete=false`. ApplicationSets preserve generated resources on
+deletion. Removing a catalog entry does not retire its workloads or data. Use
+an explicit Ansible retirement operation.
 
-After merge, run the bootstrap command with `argocd_revision=HEAD` and omit
-`argocd_preview_application`. The operation replaces the root source parameters,
-which removes the temporary patch. A source comparison prevents it from replacing
-a concurrent operator's source change. Run the command again to check idempotency.
-The preview never changes root pruning or deletion controls.
+The catalog does not contain private values. Run
+`playbooks/bootstrap-app-inputs.yml` only when a documented app needs a Secret,
+private model, or other bootstrap input.
+
+For rollback, revert the faulty commit through GitHub. Do not delete an
+Application, namespace, claim, or volume as a rollback step. Root health does
+not prove application access or recovery.
