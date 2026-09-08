@@ -1,0 +1,25 @@
+# playbooks/argocd/applications/media/booklore/booklore-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: booklore
+  namespace: argocd
+  labels:
+    soyspray.vip/owner: media
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  project: legacy-workloads
+  source:
+    repoURL: "https://github.com/kpoxo6op/soyspray.git"
+    targetRevision: main
+    path: playbooks/argocd/applications/media/booklore
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: media
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

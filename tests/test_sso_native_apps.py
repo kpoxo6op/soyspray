@@ -249,12 +249,6 @@ def test_immich_admin_password_reset_is_explicit_and_private() -> None:
 def test_authentik_role_mounts_and_runs_native_app_configuration() -> None:
     task_text = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
     tasks = yaml.safe_load(task_text)
-    apply_index = next(
-        index
-        for index, task in enumerate(tasks)
-        if task.get("kubernetes.core.k8s", {}).get("state") == "present"
-        and "authentik-application.yaml" in task["kubernetes.core.k8s"].get("definition", "")
-    )
     native_index = next(
         index
         for index, task in enumerate(tasks)
@@ -267,4 +261,6 @@ def test_authentik_role_mounts_and_runs_native_app_configuration() -> None:
         for task in tasks
         if "kubernetes.core.k8s" in task
     )
-    assert apply_index < native_index
+    assert native_index > 0
+    assert "authentik-application.yaml" not in task_text
+    assert "kind: Application" not in task_text

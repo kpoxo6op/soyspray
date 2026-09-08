@@ -1,5 +1,5 @@
 include $(dir $(lastword $(MAKEFILE_LIST)))../common.mk
-.PHONY: check diff deploy
+.PHONY: check diff bootstrap
 
 check:
 	cd $(ROOT) && $(PYTHON) -m pytest -q apps/domain-health/tests
@@ -9,10 +9,8 @@ check:
 diff:
 	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app domain-health --package apps/domain-health
 
-deploy:
+bootstrap:
 	cd $(ROOT) && $(ANSIBLE) apps/domain-health/bootstrap.yml
-	cd $(ROOT) && $(ANSIBLE) playbooks/bootstrap-apps.yml -e argocd_revision=$(REVISION) \
-		-e argocd_preview_application=$(if $(filter HEAD,$(REVISION)),,domain-health)
 
 .DEFAULT:
 	@printf 'unknown: domain-health has no maintained %s operation yet.\n' "$@" >&2

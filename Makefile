@@ -8,23 +8,9 @@ PYTEST := $(PYTHON) -m pytest
 INVENTORY := kubespray/inventory/soycluster/hosts.yml
 ANSIBLE := source $(VENV)/bin/activate && ansible-playbook -i $(INVENTORY) --become --become-user=root --user ubuntu
 AUTISM_TRAITS_APP := apps/autism-traits/app
-AUTISM_TRAITS_ENABLED ?= true
-AUTISM_TRAITS_REVISION ?= HEAD
-BOYS_ENABLED ?= true
-BOYS_REVISION ?= HEAD
-EXTERNAL_DNS_REVISION ?= HEAD
-DOMAIN_HEALTH_REVISION ?= HEAD
 VAULTWARDEN_PACKAGE := apps/vaultwarden/manifests
 OBSIDIAN_PACKAGE := apps/obsidian-livesync/manifests
-VAULTWARDEN_ENABLED ?= true
-VAULTWARDEN_REVISION ?= HEAD
-HEADLAMP_REVISION ?= HEAD
-MEDIA_HELPER_REVISION ?= HEAD
-CERT_MANAGER_CONFIG_REVISION ?= HEAD
-OBSIDIAN_REVISION ?= HEAD
-OBSIDIAN_ENABLED ?= true
 FORMAT ?= text
-REVISION ?= HEAD
 
 NODE0 := 192.168.20.10
 NODE1 := 192.168.20.11
@@ -42,10 +28,9 @@ KUSTOMIZATIONS := \
 	playbooks/argocd/applications/media/dispatcharr \
 	playbooks/argocd/applications/media/jellyfin
 
-.PHONY: help setup act check shared-test shared-check full-check deploy-preflight app-command diff deploy smoke restore-check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
-	test render go autism-traits boys vaultwarden obsidian-livesync headlamp live-tv voice-assistant voice-pe-render \
-	voice-pe-check voice-pe-compile voice-pe-upload media-helper cert-manager-config status-page status-page-fallback argo-login \
-	apps status backup-status external-dns domain-health list-apps node0 node1 node2 master worker1 worker2 worker3 clean
+.PHONY: help setup act check shared-test shared-check full-check app-command diff smoke restore-check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
+	test render go voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
+	apps status backup-status list-apps node0 node1 node2 master worker1 worker2 worker3 clean
 
 help: ## Show the operator commands
 	printf 'Soyspray operator commands\n\n'
@@ -82,17 +67,10 @@ full-check: lint validate test autism-traits-check boys-check ## Run the full re
 	printf '\nLocal gate passed.\n'
 
 app-command:
-	$(PYTHON) -m scripts.app_command "$(COMMAND)" --app "$(APP)" --python "$(PYTHON)" --revision "$(REVISION)"
+	$(PYTHON) -m scripts.app_command "$(COMMAND)" --app "$(APP)" --python "$(PYTHON)"
 
 diff: ## Compare APP's local deployment with the live resources
 	$(MAKE) --no-print-directory app-command COMMAND=diff
-
-deploy: ## Run APP's standard Ansible path (REVISION=HEAD by default)
-	test -n "$(strip $(APP))" || { printf 'unknown: deploy requires APP=APPLICATION.\n' >&2; exit 2; }
-	$(MAKE) --no-print-directory shared-check
-	$(MAKE) --no-print-directory check APP="$(APP)"
-	$(MAKE) --no-print-directory deploy-preflight
-	$(MAKE) --no-print-directory app-command COMMAND=deploy
 
 smoke: ## Check APP's deployed user journey and report evidence gaps
 	$(MAKE) --no-print-directory app-command COMMAND=smoke
@@ -116,6 +94,7 @@ lint: ## Check Python style and common defects
 		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml \
 		playbooks/operations/boys/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint playbooks/bootstrap-apps.yml \
+		playbooks/bootstrap-app-inputs.yml \
 		playbooks/operations/recovery/restore-volume.yml playbooks/operations/recovery/cleanup-restore.yml playbooks/operations/recovery/start-restored-app.yml \
 		playbooks/operations/recovery/configure-longhorn.yml playbooks/operations/recovery/backup-daily-now.yml
 
@@ -145,52 +124,7 @@ render: ## Render all managed Kustomize packages
 	done
 
 go: override APP :=
-go: check deploy-preflight ## Run the full gate and deployment preflight even when APP is set
-
-deploy-preflight:
-	branch="$$(git branch --show-current)"; \
-	test -n "$$branch" && test "$$branch" != main || { echo 'Deploy from a topic branch, not main.' >&2; exit 1; }
-	test -z "$$(git status --porcelain)" || { echo 'Commit the working tree before deployment.' >&2; exit 1; }
-	git merge-base --is-ancestor HEAD '@{upstream}' || { echo 'Push the current commit before deployment.' >&2; exit 1; }
-	$(ANSIBLE) playbooks/deploy-argocd-apps.yml --syntax-check --tags authentik,live-tv,autism_traits,boys,vaultwarden,voice_assistant
-	printf '\nDeployment preflight passed.\n'
-
-autism-traits: go ## Reconcile the autism traits site through the native Argo root
-	$(MAKE) --no-print-directory -f apps/autism-traits/Makefile deploy \
-		ENABLED=$(AUTISM_TRAITS_ENABLED) REVISION=$(AUTISM_TRAITS_REVISION)
-
-boys: go ## Reconcile Boys through the native Argo root
-	$(MAKE) --no-print-directory -f apps/boys/Makefile deploy \
-		ENABLED=$(BOYS_ENABLED) REVISION=$(BOYS_REVISION)
-
-external-dns: go ## Reconcile ExternalDNS through the native Argo root
-	$(MAKE) --no-print-directory -f apps/external-dns/Makefile deploy REVISION=$(EXTERNAL_DNS_REVISION)
-
-domain-health: go ## Reconcile domain checks through the native Argo root
-	$(MAKE) --no-print-directory -f apps/domain-health/Makefile deploy REVISION=$(DOMAIN_HEALTH_REVISION)
-
-media-helper: go ## Reconcile the media helper through the native Argo root
-	$(MAKE) --no-print-directory -f apps/media-helper/Makefile deploy REVISION=$(MEDIA_HELPER_REVISION)
-
-cert-manager-config: go ## Reconcile the certificate configuration through the native Argo root
-	$(MAKE) --no-print-directory -f apps/cert-manager-config/Makefile deploy REVISION=$(CERT_MANAGER_CONFIG_REVISION)
-
-headlamp: go ## Reconcile Headlamp through the native Argo root
-	$(MAKE) --no-print-directory -f apps/headlamp/Makefile deploy REVISION=$(HEADLAMP_REVISION)
-
-obsidian-livesync: go ## Reconcile Obsidian through the native Argo root
-	$(MAKE) --no-print-directory -f apps/obsidian-livesync/Makefile deploy \
-		ENABLED=$(OBSIDIAN_ENABLED) REVISION=$(OBSIDIAN_REVISION)
-
-vaultwarden: go ## Reconcile Vaultwarden through the native Argo root
-	$(MAKE) --no-print-directory -f apps/vaultwarden/Makefile deploy \
-		ENABLED=$(VAULTWARDEN_ENABLED) REVISION=$(VAULTWARDEN_REVISION)
-
-live-tv: go
-	$(MAKE) --no-print-directory -f apps/live-tv/Makefile deploy
-
-voice-assistant: go
-	$(MAKE) --no-print-directory -f apps/voice-assistant/Makefile deploy
+go: full-check ## Run every local check before a pull request or merge
 
 voice-pe-render:
 	$(MAKE) --no-print-directory -f apps/voice-assistant/Makefile voice-pe-render

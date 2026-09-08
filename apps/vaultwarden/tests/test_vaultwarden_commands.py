@@ -3,13 +3,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parents[3]
 
 
-@pytest.mark.parametrize("enabled", [True, False])
-def test_standard_deployment_uses_native_bootstrap_and_rejects_retirement(tmp_path, enabled):
+def test_private_input_bootstrap_does_not_submit_an_application(tmp_path):
     calls = tmp_path / "calls.jsonl"
     runner = tmp_path / "ansible"
     runner.write_text(
@@ -20,31 +17,19 @@ def test_standard_deployment_uses_native_bootstrap_and_rejects_retirement(tmp_pa
     result = subprocess.run(
         [
             "make",
-            "-o",
-            "go",
-            "vaultwarden",
+            "--no-print-directory",
+            "-f",
+            "apps/vaultwarden/Makefile",
+            "bootstrap",
             f"ANSIBLE={runner}",
-            f"VAULTWARDEN_ENABLED={str(enabled).lower()}",
-            "VAULTWARDEN_REVISION=reviewed-branch",
         ],
         cwd=ROOT,
         capture_output=True,
         text=True,
         timeout=20,
     )
-    if not enabled:
-        assert result.returncode != 0
-        assert not calls.exists()
-        return
     assert result.returncode == 0, result.stderr
     observed = [json.loads(line) for line in calls.read_text().splitlines()]
     assert observed == [
         ["apps/vaultwarden/bootstrap.yml"],
-        [
-            "playbooks/bootstrap-apps.yml",
-            "-e",
-            "argocd_revision=reviewed-branch",
-            "-e",
-            "argocd_preview_application=vaultwarden",
-        ],
     ]

@@ -1,0 +1,26 @@
+# playbooks/yaml/argocd-apps/immich/immich-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: immich
+  namespace: argocd
+  labels:
+    soyspray.vip/owner: household
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  project: legacy-workloads
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: immich
+  sources:
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: main
+      path: playbooks/argocd/applications/media/immich
+      kustomize:
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

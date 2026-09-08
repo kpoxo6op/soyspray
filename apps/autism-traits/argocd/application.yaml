@@ -17,7 +17,7 @@ spec:
   project: autism-traits
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: HEAD
+    targetRevision: main
     path: apps/autism-traits/manifests
   destination:
     server: https://kubernetes.default.svc

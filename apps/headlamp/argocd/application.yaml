@@ -23,7 +23,7 @@ spec:
         valueFiles:
           - $values/apps/headlamp/values.yaml
     - repoURL: https://github.com/kpoxo6op/soyspray.git
-      targetRevision: "HEAD"
+      targetRevision: main
       ref: values
   destination:
     server: https://kubernetes.default.svc

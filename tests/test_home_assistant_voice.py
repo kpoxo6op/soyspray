@@ -76,10 +76,10 @@ def test_voice_services_have_their_own_kustomize_package() -> None:
         "piper-en-data-v1",
     }
 
-    application = load_yaml(f"{PACKAGE}/voice-assistant-application.yaml")
+    application = load_yaml("argocd/catalog/voice-assistant.yaml")
     assert application["spec"]["source"] == {
         "repoURL": "https://github.com/kpoxo6op/soyspray.git",
-        "targetRevision": "HEAD",
+        "targetRevision": "main",
         "path": PACKAGE,
     }
     assert application["spec"]["syncPolicy"]["automated"] == {
@@ -574,16 +574,15 @@ def test_model_downloads_use_checksums() -> None:
     }
 
 
-def test_ansible_creates_the_voice_secret_and_argocd_app() -> None:
+def test_ansible_bootstraps_voice_private_inputs_only() -> None:
     defaults = load_yaml("roles/apps/voice-assistant/defaults/main.yml")
     tasks = (ROOT / "roles/apps/voice-assistant/tasks/main.yml").read_text()
     enabled = load_yaml("roles/apps/voice-assistant/tasks/enabled.yml")
     enabled_tasks = (ROOT / "roles/apps/voice-assistant/tasks/enabled.yml").read_text()
-    disabled_tasks = (ROOT / "roles/apps/voice-assistant/tasks/disabled.yml").read_text()
-    playbook = load_yaml("playbooks/deploy-argocd-apps.yml")
+    playbook = load_yaml("playbooks/bootstrap-app-inputs.yml")
 
-    assert defaults["voice_assistant_target_revision"] == "HEAD"
-    assert defaults["voice_assistant_enabled"] is True
+    assert "voice_assistant_target_revision" not in defaults
+    assert "voice_assistant_enabled" not in defaults
     assert "VOICE_ASSISTANT_HA_TOKEN" in defaults["voice_assistant_ha_token"]
     assert "VOICE_ASSISTANT_GI_MODEL_PATH" in defaults["voice_assistant_gi_model_path"]
     assert defaults["voice_assistant_gi_model_configmap_name"] == DEPLOYED_GI_MODEL_CONFIGMAP
@@ -591,7 +590,7 @@ def test_ansible_creates_the_voice_secret_and_argocd_app() -> None:
     assert re.fullmatch(r"[0-9a-f]{64}", defaults["voice_assistant_gi_model_sha256"])
     assert defaults["voice_assistant_gi_model_retired_configmaps"] == []
     assert "enabled.yml" in tasks
-    assert "disabled.yml" in tasks
+    assert "disabled.yml" not in tasks
     assert "kubernetes.core.k8s_info" in enabled_tasks
     assert "voice-assistant-ha-token" in enabled_tasks
     assert "voice_assistant_gi_model_path" in enabled_tasks
@@ -609,23 +608,12 @@ def test_ansible_creates_the_voice_secret_and_argocd_app() -> None:
         and "voice_assistant_gi_model_configmap_name not in voice_assistant_gi_model_retired_configmaps"
         in task["ansible.builtin.assert"]["that"]
     )
-    argo_apply_index = next(
-        index
-        for index, task in enumerate(enabled)
-        if task.get("kubernetes.core.k8s", {}).get("state") == "present"
-        and task["kubernetes.core.k8s"].get("namespace") == "argocd"
-        and "voice-assistant-application.yaml" in task["kubernetes.core.k8s"].get("definition", "")
-    )
-    assert model_guard_index < argo_apply_index
+    assert model_guard_index == 0
     assert "no_log: true" in enabled_tasks
-    assert "voice_assistant_target_revision" in enabled_tasks
-    assert "voice-assistant-application.yaml" in enabled_tasks
-    assert "Stop automated sync before removal" in disabled_tasks
-    assert "state: absent" in disabled_tasks
-    assert "voice-assistant" in disabled_tasks
-    assert "voice_assistant_gi_model_configmap_name" in disabled_tasks
+    assert "targetRevision" not in enabled_tasks
+    assert "voice-assistant-application.yaml" not in enabled_tasks
     assert any(
-        item["role"] == "apps/voice-assistant" for item in playbook[0]["vars"]["argocd_app_roles"]
+        item["role"] == "apps/voice-assistant" for item in playbook[0]["vars"]["input_roles"]
     )
 
 

@@ -19,7 +19,7 @@ spec:
   project: domain-health
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: HEAD
+    targetRevision: main
     path: apps/domain-health
   destination:
     server: https://kubernetes.default.svc

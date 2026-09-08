@@ -24,7 +24,7 @@ def test_existing_applications_use_separate_protected_projects():
     assert stack["spec"]["project"] == "prometheus-stack"
     assert stack["spec"]["source"] == {
         "repoURL": "https://github.com/kpoxo6op/soyspray.git",
-        "targetRevision": "HEAD",
+        "targetRevision": "main",
         "path": "apps/prometheus",
     }
     assert stack["spec"]["syncPolicy"]["automated"]["prune"] is False

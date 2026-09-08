@@ -11,7 +11,7 @@ spec:
   project: soyspray
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: HEAD
+    targetRevision: main
     path: argocd
   destination:
     server: https://kubernetes.default.svc

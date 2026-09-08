@@ -1,6 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
+  - catalog/project.yaml
   - ../apps/headlamp/argocd
   - ../apps/autism-traits/argocd
   - ../apps/boys/argocd
@@ -12,3 +13,23 @@ resources:
   - ../apps/cert-manager-config/argocd
   - ../apps/node-backup/argocd
   - ../apps/prometheus/argocd
+  - catalog/authentik.yaml
+  - catalog/authentik-postgresql.yaml
+  - catalog/loki.yaml
+  - catalog/longhorn.yaml
+  - catalog/cnpg-operator.yaml
+  - catalog/immich-db-alias.yaml
+  - catalog/immich-db.yaml
+  - catalog/redis.yaml
+  - catalog/booklore.yaml
+  - catalog/dispatcharr.yaml
+  - catalog/immich.yaml
+  - catalog/jellyfin.yaml
+  - catalog/lazylibrarian.yaml
+  - catalog/qbittorrent.yaml
+  - catalog/immich-offsite-backup.yaml
+  - catalog/obsidian-offsite-backup.yaml
+  - catalog/home-assistant.yaml
+  - catalog/mosquitto.yaml
+  - catalog/voice-assistant.yaml
+  - catalog/zigbee2mqtt.yaml

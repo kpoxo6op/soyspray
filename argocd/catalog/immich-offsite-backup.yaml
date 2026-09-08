@@ -1,0 +1,25 @@
+# ArgoCD Application that deploys this folder; automated sync, namespace creation, and self-heal enabled
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: immich-offsite-backup
+  namespace: argocd
+  labels:
+    soyspray.vip/owner: household
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  project: legacy-workloads
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: main
+    path: playbooks/argocd/applications/backups/immich-offsite-backup
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: immich
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

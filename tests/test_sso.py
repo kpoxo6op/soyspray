@@ -24,7 +24,7 @@ def test_explicit_blueprint_apply_waits_for_published_files_and_skips_check_mode
 
 
 def test_authentik_uses_pinned_official_chart_and_external_database() -> None:
-    app = load_yaml("playbooks/argocd/applications/security/authentik/authentik-application.yaml")
+    app = load_yaml("argocd/catalog/authentik.yaml")
     chart = app["spec"]["sources"][0]
     values = load_yaml("playbooks/argocd/applications/security/authentik/values.yaml")
 
@@ -81,7 +81,7 @@ def test_authentik_role_preserves_generated_secrets() -> None:
     assert "no_log: true" in tasks
     assert "lookup('password'" in tasks
     assert "state: present" in tasks
-    assert "authentik-application.yaml" in tasks
+    assert "kind: Application" not in tasks
 
 
 def test_argocd_uses_authentik_oidc_and_keeps_local_admin() -> None:
@@ -119,7 +119,7 @@ def test_grafana_uses_authentik_and_disables_anonymous_access() -> None:
 def test_prometheus_application_returns_to_the_reviewed_head_revision() -> None:
     app = load_yaml("apps/prometheus/argocd/kube-prometheus-stack.yaml")
 
-    assert app["spec"]["source"]["targetRevision"] == "HEAD"
+    assert app["spec"]["source"]["targetRevision"] == "main"
     assert app["spec"]["source"].get("kustomize", {}) == {}
     assert "retry" not in app["spec"]["syncPolicy"]["automated"]
     assert app["spec"]["syncPolicy"]["retry"]["limit"] == 5

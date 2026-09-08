@@ -1,5 +1,4 @@
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -12,152 +11,60 @@ from scripts.app_command import command
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@pytest.mark.parametrize(
-    "app,bootstrap",
-    [
-        (name, name not in {"headlamp", "media-helper"})
-        for name in (
-            "autism-traits",
-            "boys",
-            "cert-manager-config",
-            "domain-health",
-            "external-dns",
-            "headlamp",
-            "media-helper",
-            "obsidian-livesync",
-            "vaultwarden",
+@pytest.mark.parametrize("app", ["headlamp", "media-helper"])
+def test_git_only_apps_have_no_bootstrap_or_deploy_action(app):
+    for action in ("bootstrap", "deploy"):
+        result = subprocess.run(
+            ["make", "--no-print-directory", "-C", str(ROOT / "apps" / app), action],
+            capture_output=True,
+            text=True,
         )
-    ],
-)
-def test_native_app_deployment_passes_exact_bootstrap_and_preview_arguments(
-    tmp_path, app, bootstrap
-):
-    log = tmp_path / "calls.jsonl"
-    runner = tmp_path / "ansible.py"
-    runner.write_text(
-        "import json, os, pathlib, sys\n"
-        "with pathlib.Path(os.environ['ANSIBLE_CALL_LOG']).open('a') as f:\n"
-        "    f.write(json.dumps({'cwd': os.getcwd(), 'args': sys.argv[1:]}) + '\\n')\n"
-    )
-    result = subprocess.run(
-        [
-            "make",
-            "--no-print-directory",
-            "-C",
-            str(ROOT / "apps" / app),
-            "deploy",
-            "REVISION=codex/preview",
-            f"ANSIBLE={sys.executable} {runner}",
-        ],
-        env={**os.environ, "ANSIBLE_CALL_LOG": str(log)},
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode == 0, result.stderr
-    calls = [json.loads(line) for line in log.read_text().splitlines()]
-    expected = [[f"apps/{app}/bootstrap.yml"]] if bootstrap else []
-    expected.append(
-        [
-            "playbooks/bootstrap-apps.yml",
-            "-e",
-            "argocd_revision=codex/preview",
-            "-e",
-            f"argocd_preview_application={app}",
-        ]
-    )
-    assert calls == [{"cwd": str(ROOT), "args": args} for args in expected]
+        assert result.returncode == 2
+        assert "no maintained" in result.stderr
 
 
 @pytest.mark.parametrize("app", ["", "..", "../boys", "boys/other", "-f", "boys;true"])
 def test_app_names_cannot_select_other_makefiles(tmp_path, app):
     with pytest.raises(ValueError, match="Application name"):
-        command(app, "check", "python3", "HEAD", tmp_path)
+        command(app, "check", "python3", tmp_path)
 
 
 def test_missing_operation_has_an_explicit_cause(tmp_path):
     with pytest.raises(ValueError, match="no maintained operation file"):
-        command("boys", "check", "python3", "HEAD", tmp_path)
+        command("boys", "check", "python3", tmp_path)
 
 
-def test_app_make_receives_the_requested_native_action_and_revision(tmp_path):
+def test_app_make_receives_the_requested_native_action(tmp_path):
     folder = tmp_path / "apps/boys"
     folder.mkdir(parents=True)
-    (folder / "Makefile").write_text('check:\n\t@printf "%s\\n" "$(REVISION)"\n')
+    (folder / "Makefile").write_text('check:\n\t@printf "checked\\n"\n')
     result = subprocess.run(
-        command("boys", "check", "python3", "topic/preview", tmp_path),
+        command("boys", "check", "python3", tmp_path),
         check=True,
         capture_output=True,
         text=True,
     )
-    assert result.stdout == "topic/preview\n"
+    assert result.stdout == "checked\n"
 
 
 def test_go_keeps_the_full_gate_when_app_is_set():
     result = subprocess.run(
         ["make", "-n", "go", "APP=boys"], cwd=ROOT, check=True, capture_output=True, text=True
     )
-    assert "make --no-print-directory full-check" in result.stdout
+    assert "Local gate passed." in result.stdout
     assert "-m scripts.app_command" not in result.stdout
-    assert "ansible-playbook" in result.stdout
+    assert "ansible-playbook" not in result.stdout
 
 
-def test_deploy_runs_shared_check_app_check_preflight_and_native_deploy_in_order(tmp_path):
-    log = tmp_path / "calls.log"
-    runner = tmp_path / "make-runner"
-    runner.write_text(
-        "#! /usr/bin/env python3\n"
-        "import os, pathlib, sys\n"
-        "pathlib.Path(os.environ['MAKE_CALL_LOG']).open('a').write(' '.join(sys.argv[1:]) + '\\n')\n"
-    )
-    runner.chmod(0o700)
+def test_root_has_no_deploy_target():
     result = subprocess.run(
-        ["make", "--no-print-directory", "deploy", "APP=boys", f"MAKE={runner}"],
+        ["make", "--no-print-directory", "deploy", "APP=boys"],
         cwd=ROOT,
-        env={**os.environ, "MAKE_CALL_LOG": str(log)},
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, result.stderr
-    calls = log.read_text().splitlines()
-    assert calls == [
-        "--no-print-directory shared-check",
-        "--no-print-directory check APP=boys",
-        "--no-print-directory deploy-preflight",
-        "--no-print-directory app-command COMMAND=deploy",
-    ]
-
-
-@pytest.mark.parametrize("failure", ["shared-check", "check", "deploy-preflight", "app-command"])
-def test_deploy_stops_when_a_stage_fails(tmp_path, failure):
-    log = tmp_path / "calls.log"
-    runner = tmp_path / "make-runner"
-    runner.write_text(
-        "#! /usr/bin/env python3\n"
-        "import os, pathlib, sys\n"
-        "args = sys.argv[1:]\n"
-        "pathlib.Path(os.environ['MAKE_CALL_LOG']).open('a').write(' '.join(args) + '\\n')\n"
-        "if os.environ['MAKE_FAIL_STAGE'] in args: raise SystemExit(23)\n"
-    )
-    runner.chmod(0o700)
-    result = subprocess.run(
-        ["make", "--no-print-directory", "deploy", "APP=boys", f"MAKE={runner}"],
-        cwd=ROOT,
-        env={
-            **os.environ,
-            "MAKE_CALL_LOG": str(log),
-            "MAKE_FAIL_STAGE": failure,
-        },
-        capture_output=True,
-        text=True,
-    )
-    assert result.returncode != 0
-    calls = log.read_text().splitlines()
-    stages = ["shared-check", "check", "deploy-preflight", "app-command"]
-    assert len(calls) == stages.index(failure) + 1
-    assert all(
-        stage in call
-        for stage, call in zip(stages[: stages.index(failure) + 1], calls, strict=True)
-    )
+    assert result.returncode == 2
+    assert "No rule to make target 'deploy'" in result.stderr
 
 
 def test_operation_file_cannot_link_outside_checkout(tmp_path):
@@ -168,7 +75,7 @@ def test_operation_file_cannot_link_outside_checkout(tmp_path):
     folder.mkdir(parents=True)
     (folder / "Makefile").symlink_to(external)
     with pytest.raises(ValueError, match="no maintained operation file"):
-        command("boys", "check", "python3", "HEAD", root)
+        command("boys", "check", "python3", root)
 
 
 def test_staging_preserves_local_changes_without_copying_ignored_credentials(tmp_path, monkeypatch):
@@ -242,7 +149,7 @@ def test_cached_cli_with_wrong_checksum_is_rejected(tmp_path):
 @pytest.mark.parametrize("action", ["restore-check", "smoke"])
 def test_unimplemented_app_operation_reports_unknown_without_running_another_action(action):
     result = subprocess.run(
-        command("autism-traits", action, "python3", "HEAD"),
+        command("autism-traits", action, "python3"),
         cwd=ROOT,
         capture_output=True,
         text=True,
@@ -265,42 +172,25 @@ def operation_spy(tmp_path, monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "app,enabled", [("live-tv", "true"), ("live-tv", "false"), ("voice-assistant", "true")]
+    "app,tags",
+    [("live-tv", "authentik,live-tv"), ("voice-assistant", "voice_assistant")],
 )
-def test_legacy_alias_preserves_ansible_arguments(tmp_path, monkeypatch, app, enabled):
+def test_private_input_bootstrap_uses_the_input_playbook(tmp_path, monkeypatch, app, tags):
     log, spy = operation_spy(tmp_path, monkeypatch)
-    prefix = "LIVE_TV" if app == "live-tv" else "VOICE_ASSISTANT"
     subprocess.run(
         [
             "make",
-            "-o",
-            "go",
-            app,
+            "--no-print-directory",
+            "-C",
+            str(ROOT / "apps" / app),
+            "bootstrap",
             f"ANSIBLE={spy}",
-            f"{prefix}_ENABLED={enabled}",
-            f"{prefix}_REVISION=codex/test",
         ],
         cwd=ROOT,
         check=True,
         capture_output=True,
     )
-    tags = (
-        "authentik,live-tv"
-        if app == "live-tv" and enabled == "true"
-        else ("live-tv" if app == "live-tv" else "voice_assistant")
-    )
-    args = ["playbooks/deploy-argocd-apps.yml", "--tags", tags]
-    if app == "live-tv":
-        if enabled == "true":
-            args += ["-e", "authentik_target_revision=codex/test"]
-        args += ["-e", f"live_tv_enabled={enabled}", "-e", "live_tv_target_revision=codex/test"]
-    else:
-        args += [
-            "-e",
-            "voice_assistant_target_revision=codex/test",
-            "-e",
-            f"voice_assistant_enabled={enabled}",
-        ]
+    args = ["playbooks/bootstrap-app-inputs.yml", "--tags", tags]
     assert [json.loads(line) for line in log.read_text().splitlines()] == [args]
 
 
@@ -343,10 +233,9 @@ def test_status_alias_preserves_script_arguments(tmp_path, monkeypatch, target, 
     ]
 
 
-@pytest.mark.parametrize("target", ["live-tv", "voice-assistant", "voice-pe-upload", "status-page"])
-def test_legacy_mutation_alias_keeps_full_check_and_preflight(target):
+@pytest.mark.parametrize("target", ["voice-pe-upload", "status-page"])
+def test_external_mutation_alias_keeps_full_check(target):
     result = subprocess.run(
         ["make", "-n", target], cwd=ROOT, check=True, capture_output=True, text=True
     )
-    assert "make --no-print-directory full-check" in result.stdout
-    assert "playbooks/deploy-argocd-apps.yml --syntax-check" in result.stdout
+    assert "Local gate passed." in result.stdout

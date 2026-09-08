@@ -28,6 +28,7 @@ def test_root_cannot_prune_or_cascade_and_only_manages_argo_objects():
     ]
     assert project["spec"]["namespaceResourceWhitelist"] == [
         {"group": "argoproj.io", "kind": "Application"},
+        {"group": "argoproj.io", "kind": "ApplicationSet"},
         {"group": "argoproj.io", "kind": "AppProject"},
     ]
 
@@ -39,7 +40,7 @@ def test_children_have_explicit_projects_and_survive_parent_removal():
     }
     identities = set()
     for child in children:
-        assert child["kind"] in {"Application", "AppProject"}
+        assert child["kind"] in {"Application", "ApplicationSet", "AppProject"}
         metadata = child["metadata"]
         assert metadata["namespace"] == "argocd"
         identity = (child["kind"], metadata["name"])
@@ -54,58 +55,31 @@ def test_children_have_explicit_projects_and_survive_parent_removal():
             assert child["spec"]["destination"] in project["spec"]["destinations"]
             assert child["spec"]["destination"]["namespace"] != "argocd"
 
+        if child["kind"] == "ApplicationSet":
+            template = child["spec"]["template"]
+            assert child["spec"]["syncPolicy"]["preserveResourcesOnDeletion"] is True
+            assert template["metadata"].get("finalizers", []) == []
+            assert template["metadata"]["labels"]["soyspray.vip/owner"]
+            template_options = set(
+                template["metadata"]["annotations"]["argocd.argoproj.io/sync-options"].split(",")
+            )
+            assert {"Prune=false", "Delete=false"} <= template_options
+            project = projects[template["spec"]["project"]]
+            assert template["spec"]["destination"] in project["spec"]["destinations"]
 
-def test_preview_wait_compares_the_declared_source_form():
-    from ansible.parsing.dataloader import DataLoader
-    from ansible.playbook.conditional import Conditional
-    from ansible.template import Templar
 
-    play = load_yaml("playbooks/bootstrap-apps.yml")[0]
-    conditions = next(
-        task["until"] for task in play["tasks"] if task.get("register") == "argocd_preview_child"
-    )
-    loader = DataLoader()
-    conditional = Conditional(loader=loader)
-    conditional.when = conditions
-
-    def ready(spec, compared, revision="current", patches=True):
-        variables = {
-            "argocd_expected_revision": "current",
-            "argocd_root_definition": {
-                "spec": {"source": {"kustomize": {"patches": [{}] if patches else []}}}
-            },
-            "argocd_preview_child": {
-                "resources": [
-                    {
-                        "spec": spec,
-                        "status": {
-                            "sync": {
-                                "status": "Synced",
-                                "comparedTo": compared,
-                                **(
-                                    {"revisions": [revision]}
-                                    if "sources" in spec
-                                    else {"revision": revision}
-                                ),
-                            },
-                            "health": {"status": "Healthy"},
-                        },
-                    }
-                ]
-            },
-        }
-        return conditional.evaluate_conditional(
-            Templar(loader=loader, variables=variables), variables
-        )
-
-    source = {"repoURL": "https://example.test/app.git", "targetRevision": "preview"}
-    stale = {**source, "targetRevision": "HEAD"}
-    assert ready({"sources": [source]}, {"source": {"repoURL": ""}, "sources": [source]})
-    assert not ready({"sources": [source]}, {"source": {"repoURL": ""}, "sources": [stale]})
-    assert ready({"source": source}, {"source": source})
-    assert not ready({"source": source}, {"source": stale})
-    assert not ready(
-        {"sources": [source]}, {"source": {"repoURL": ""}, "sources": [source]}, "previous"
-    )
-    assert not ready({"source": source}, {"source": source}, "previous")
-    assert ready({"source": source}, {"source": source}, "chart-version", patches=False)
+def test_all_soyspray_git_sources_follow_main():
+    root = load_yaml("argocd/bootstrap/application.yaml")
+    assert root["spec"]["source"]["targetRevision"] == "main"
+    for child in rendered_children():
+        if child["kind"] == "Application":
+            specs = child["spec"].get("sources", [child["spec"].get("source", {})])
+        elif child["kind"] == "ApplicationSet":
+            specs = child["spec"]["template"]["spec"].get(
+                "sources", [child["spec"]["template"]["spec"].get("source", {})]
+            )
+        else:
+            continue
+        for source in specs:
+            if source.get("repoURL") == "https://github.com/kpoxo6op/soyspray.git":
+                assert source["targetRevision"] == "main"

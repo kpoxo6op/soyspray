@@ -1,0 +1,28 @@
+---
+- name: Bootstrap private application inputs
+  hosts: kube_control_plane[0]
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    input_roles:
+      - {name: Authentik, role: apps/authentik}
+      - {name: Immich backup, role: apps/immich}
+      - {name: Live TV, role: apps/live_tv}
+      - {name: Home Assistant Voice, role: apps/voice-assistant}
+  pre_tasks:
+    - name: Prepare the certificate provider identity
+      ansible.builtin.import_tasks: ../apps/cert-manager-config/bootstrap-tasks.yml
+      tags: cert-manager
+
+    - name: Prepare public chart repositories
+      ansible.builtin.import_tasks: ../argocd/bootstrap/repositories.yml
+      tags: [cert-manager, bitnami-oci]
+
+  tasks:
+    - name: "Include input role | {{ item.name }}"
+      ansible.builtin.include_role:
+        name: "{{ item.role }}"
+      tags: always
+      loop: "{{ input_roles }}"
+      loop_control:
+        label: "{{ item.role }}"

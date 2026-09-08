@@ -16,7 +16,7 @@ spec:
   project: media-helper
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
-    targetRevision: HEAD
+    targetRevision: main
     path: apps/media-helper
   destination:
     server: https://kubernetes.default.svc

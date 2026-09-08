@@ -1,7 +1,4 @@
 ---
-- name: Reconcile live TV applications
-  ansible.builtin.include_tasks:
-    file: "{{ 'enabled.yml' if (live_tv_enabled | bool) else 'disabled.yml' }}"
-    apply:
-      tags: [live-tv]
+- name: Bootstrap live TV private inputs
+  ansible.builtin.import_tasks: enabled.yml
   tags: live-tv

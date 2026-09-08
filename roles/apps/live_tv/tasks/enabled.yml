@@ -90,15 +90,3 @@
         JELLYFIN_PLAYBACK_PASSWORD: "{{ live_tv_jellyfin_playback_password }}"
         JELLYFIN_OIDC_CLIENT_SECRET: "{{ live_tv_jellyfin_oidc_secret }}"
   no_log: true
-
-- name: Apply the live TV Argo applications
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_path }}"
-    definition: >-
-      {{ lookup('file', playbook_dir + '/argocd/applications/media/' + live_tv_application + '/' + live_tv_application + '-application.yaml')
-         | from_yaml
-         | combine({'spec': {'source': {'targetRevision': live_tv_target_revision | string}}}, recursive=true) }}
-  loop: [dispatcharr, jellyfin]
-  loop_control:
-    loop_var: live_tv_application

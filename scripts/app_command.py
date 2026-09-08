@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def command(app, action, python, revision, root=ROOT):
+def command(app, action, python, root=ROOT):
     if not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", app):
         raise ValueError("APP must be an Application name.")
     makefile = root / "apps" / app / "Makefile"
@@ -21,19 +21,17 @@ def command(app, action, python, revision, root=ROOT):
         str(makefile),
         action,
         f"PYTHON={python}",
-        f"REVISION={revision}",
     ]
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("check", "diff", "deploy", "smoke", "restore-check"))
+    parser.add_argument("action", choices=("check", "diff", "smoke", "restore-check"))
     parser.add_argument("--app", required=True)
     parser.add_argument("--python", default="soyspray-venv/bin/python")
-    parser.add_argument("--revision", default="HEAD")
     args = parser.parse_args()
     try:
-        argv = command(args.app, args.action, args.python, args.revision)
+        argv = command(args.app, args.action, args.python)
     except ValueError as error:
         parser.exit(2, f"unknown: {error}\n")
     os.chdir(ROOT)

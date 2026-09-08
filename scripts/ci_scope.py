@@ -26,12 +26,12 @@ SHARED_CONTROLS = {
     "requirements-ansible.yml",
     "ruff.toml",
     "scripts/ci_scope.py",
-    "scripts/argo_preview.py",
     "scripts/app_command.py",
     "scripts/app_diff.py",
     "scripts/app_diff_sources.py",
     "scripts/argocd_cli.py",
     "playbooks/bootstrap-apps.yml",
+    "playbooks/bootstrap-app-inputs.yml",
     "playbooks/operations/recovery/restore-volume.yml",
     "playbooks/operations/recovery/cleanup-restore.yml",
 }
