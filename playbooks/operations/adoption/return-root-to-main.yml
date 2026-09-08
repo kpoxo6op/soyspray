@@ -1,0 +1,129 @@
+---
+- name: Complete the temporary catalog handoff
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    soyspray_repo: https://github.com/kpoxo6op/soyspray.git
+    adoption_only_resources:
+      - {kind: AppProject, name: legacy-workloads}
+      - {kind: AppProject, name: soyspray}
+      - {kind: Application, name: authentik}
+      - {kind: Application, name: authentik-postgresql}
+      - {kind: Application, name: booklore}
+      - {kind: Application, name: cnpg-operator}
+      - {kind: Application, name: dispatcharr}
+      - {kind: Application, name: home-assistant}
+      - {kind: Application, name: immich}
+      - {kind: Application, name: immich-offsite-backup}
+      - {kind: Application, name: jellyfin}
+      - {kind: Application, name: lazylibrarian}
+      - {kind: Application, name: loki}
+      - {kind: Application, name: longhorn}
+      - {kind: Application, name: mosquitto}
+      - {kind: Application, name: obsidian-offsite-backup}
+      - {kind: Application, name: qbittorrent}
+      - {kind: Application, name: redis}
+      - {kind: Application, name: voice-assistant}
+      - {kind: Application, name: zigbee2mqtt}
+      - {kind: ApplicationSet, name: immich-db}
+      - {kind: ApplicationSet, name: immich-db-alias}
+  tasks:
+    - name: Require the current main commit
+      ansible.builtin.assert:
+        that:
+          - main_commit | default('') is match('^[0-9a-f]{40}$')
+
+    - name: Read the root Application
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        name: soyspray
+        namespace: argocd
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: handoff_root
+
+    - name: Require the protected root on main
+      ansible.builtin.assert:
+        that:
+          - handoff_root.resources | length == 1
+          - handoff_root.resources[0].metadata.finalizers | default([]) | length == 0
+          - handoff_root.resources[0].spec.source == main_source
+          - >-
+            handoff_root.resources[0].spec.syncPolicy.automated.prune |
+            default(false) == false
+      vars:
+        main_source:
+          repoURL: "{{ soyspray_repo }}"
+          targetRevision: main
+          path: argocd
+
+    - name: Read the branch-only resources
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: "{{ item.kind }}"
+        name: "{{ item.name }}"
+        namespace: argocd
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ adoption_only_resources }}"
+      loop_control:
+        label: "{{ item.kind }}/{{ item.name }}"
+      register: handoff_resources
+
+    - name: Require the temporary root tracking identity
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+          - >-
+            item.resources[0].metadata.labels['argocd.argoproj.io/instance'] |
+            default('') == 'soyspray'
+      loop: "{{ handoff_resources.results }}"
+      loop_control:
+        label: "{{ item.item.kind }}/{{ item.item.name }}"
+      no_log: true
+      when: >-
+        item.resources | length == 1 and
+        item.resources[0].metadata.labels['argocd.argoproj.io/instance'] |
+        default('') | length > 0
+
+    - name: Remove temporary root tracking
+      kubernetes.core.k8s_json_patch:
+        api_version: argoproj.io/v1alpha1
+        kind: "{{ item.item.kind }}"
+        name: "{{ item.item.name }}"
+        namespace: argocd
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - op: test
+            path: /metadata/resourceVersion
+            value: "{{ item.resources[0].metadata.resourceVersion }}"
+          - op: remove
+            path: /metadata/labels/argocd.argoproj.io~1instance
+      loop: "{{ handoff_resources.results }}"
+      loop_control:
+        label: "{{ item.item.kind }}/{{ item.item.name }}"
+      when:
+        - not ansible_check_mode
+        - item.resources | length == 1
+        - >-
+          item.resources[0].metadata.labels['argocd.argoproj.io/instance'] |
+          default('') == 'soyspray'
+
+    - name: Wait for the clean main root
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        name: soyspray
+        namespace: argocd
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: clean_root
+      until:
+        - clean_root.resources | length == 1
+        - clean_root.resources[0].status.sync.status | default('') == 'Synced'
+        - clean_root.resources[0].status.health.status | default('') == 'Healthy'
+        - clean_root.resources[0].status.sync.revision | default('') == main_commit
+        - clean_root.resources[0].status.sync.comparedTo.source.targetRevision == 'main'
+      retries: 60
+      delay: 5
+      when: not ansible_check_mode
