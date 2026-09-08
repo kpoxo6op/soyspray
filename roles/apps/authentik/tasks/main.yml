@@ -221,6 +221,13 @@
           {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/legacy-forward-auth.yaml') }}
   tags: [authentik, authentik-blueprints]
 
+- name: Apply the published Authentik blueprints
+  ansible.builtin.import_tasks: apply-blueprints.yml
+  when:
+    - "'authentik-blueprints' in ansible_run_tags"
+    - not ansible_check_mode
+  tags: authentik-blueprints
+
 - name: Create the Grafana SSO and break-glass secret
   kubernetes.core.k8s:
     state: present

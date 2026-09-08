@@ -1,0 +1,52 @@
+---
+- name: Select the ready Authentik worker
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    api_version: v1
+    kind: Pod
+    namespace: authentik
+    label_selectors:
+      - app.kubernetes.io/instance=authentik
+      - app.kubernetes.io/component=worker
+    field_selectors:
+      - status.phase=Running
+  register: authentik_blueprint_workers
+  until: >-
+    (authentik_blueprint_workers.resources | length == 1) and
+    (authentik_blueprint_workers.resources[0].status.conditions
+    | selectattr('type', 'equalto', 'Ready')
+    | selectattr('status', 'equalto', 'True') | list | length == 1)
+  retries: 30
+  delay: 5
+
+- name: Wait for the published blueprint files in the worker
+  kubernetes.core.k8s_exec:
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: authentik
+    pod: "{{ authentik_blueprint_workers.resources[0].metadata.name }}"
+    command: "sha256sum /blueprints/mounted/cm-authentik-blueprints/{{ item }}"
+  loop:
+    - cluster-sso.yaml
+    - native-apps.yaml
+    - legacy-forward-auth.yaml
+  register: authentik_blueprint_file
+  until: >-
+    authentik_blueprint_file.rc == 0 and
+    authentik_blueprint_file.stdout.split()[0] ==
+    (lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/' + item) | hash('sha256'))
+  retries: 30
+  delay: 5
+  changed_when: false
+
+- name: Apply the three published blueprints with Authentik
+  kubernetes.core.k8s_exec:
+    kubeconfig: "{{ kubeconfig_path }}"
+    namespace: authentik
+    pod: "{{ authentik_blueprint_workers.resources[0].metadata.name }}"
+    command: >-
+      ak apply_blueprint
+      mounted/cm-authentik-blueprints/cluster-sso.yaml
+      mounted/cm-authentik-blueprints/native-apps.yaml
+      mounted/cm-authentik-blueprints/legacy-forward-auth.yaml
+  no_log: true
+  changed_when: true
