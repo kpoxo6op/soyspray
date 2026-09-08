@@ -4,8 +4,48 @@ from pathlib import Path
 
 import pytest
 import yaml
+from ansible.parsing.dataloader import DataLoader
+from ansible.playbook.conditional import Conditional
+from ansible.template import Templar
 
 ROOT = Path(__file__).resolve().parents[3]
+STACK_UID = "a58c2137-4482-4926-b659-ad08ab017aed"
+
+
+def adoption_validation_passes(application):
+    play = yaml.safe_load((ROOT / "apps/prometheus/adopt.yml").read_text())[0]
+    task = next(task for task in play["tasks"] if "expected Prometheus" in task["name"])
+    variables = {
+        "item": {
+            "resources": [application],
+            "item": {"name": "kube-prometheus-stack", "uid": STACK_UID},
+        },
+        "prometheus_revision": "HEAD",
+    }
+    loader = DataLoader()
+    for name, expression in task["vars"].items():
+        variables[name] = Templar(loader=loader, variables=variables).template(expression)
+    condition = Conditional(loader=loader)
+    condition.when = task["ansible.builtin.assert"]["that"]
+    return condition.evaluate_conditional(Templar(loader=loader, variables=variables), variables)
+
+
+def adopted_stack():
+    return {
+        "metadata": {"uid": STACK_UID},
+        "spec": {
+            "project": "prometheus-stack",
+            "source": {
+                "repoURL": "https://github.com/kpoxo6op/soyspray.git",
+                "path": "apps/prometheus",
+                "targetRevision": "issue-309-prometheus-native-argo",
+            },
+            "destination": {
+                "server": "https://kubernetes.default.svc",
+                "namespace": "monitoring",
+            },
+        },
+    }
 
 
 def test_deploy_preserves_identity_then_adopts_and_previews():
@@ -58,6 +98,33 @@ def test_adoption_checks_all_applications_before_removing_only_cascading_finaliz
         "path": "/metadata/finalizers",
         "value": "{{ existing_finalizers | difference(cascading_finalizers) }}",
     }
+
+
+def test_adopted_preview_can_return_to_head():
+    assert adoption_validation_passes(adopted_stack())
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        (("metadata", "uid"), "unexpected"),
+        (("metadata", "deletionTimestamp"), "2026-09-09T00:00:00Z"),
+        (("spec", "project"), "default"),
+        (("spec", "source", "repoURL"), "https://example.test/wrong.git"),
+        (("spec", "source", "path"), "apps/wrong"),
+        (("spec", "source", "targetRevision"), ""),
+        (("spec", "source", "targetRevision"), None),
+        (("spec", "destination", "server"), "https://example.test"),
+        (("spec", "destination", "namespace"), "default"),
+    ],
+)
+def test_adopted_preview_rejects_wrong_identity_or_ownership(path, value):
+    application = adopted_stack()
+    selected = application
+    for key in path[:-1]:
+        selected = selected[key]
+    selected[path[-1]] = value
+    assert not adoption_validation_passes(application)
 
 
 @pytest.mark.parametrize("action", ["restore-check", "smoke"])

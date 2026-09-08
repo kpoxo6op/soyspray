@@ -35,7 +35,8 @@
           {{ application.spec.project | default('') == 'prometheus-stack' and
              source.repoURL | default('') == 'https://github.com/kpoxo6op/soyspray.git' and
              source.path | default('') == 'apps/prometheus' and
-             source.targetRevision | default('') in ['HEAD', prometheus_revision] }}
+             source.targetRevision | default('') is string and
+             source.targetRevision | default('') | length > 0 }}
         legacy_crds: >-
           {{ application.spec.project | default('') == 'default' and
              source.repoURL | default('') == 'https://prometheus-community.github.io/helm-charts' and
