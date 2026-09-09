@@ -1,0 +1,52 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: immich-db-a
+spec:
+  instances: 1
+  imageName: ghcr.io/tensorchord/cloudnative-pgvecto.rs:16-v0.3.0
+  storage:
+    size: 20Gi
+    storageClass: longhorn
+  bootstrap:
+    initdb:
+      database: immich
+      owner: immich
+      secret:
+        name: immich-app-secret-a
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS cube;
+        - CREATE EXTENSION IF NOT EXISTS earthdistance;
+        - CREATE EXTENSION IF NOT EXISTS vectors;
+        - ALTER SCHEMA vectors OWNER TO immich;
+        - ALTER DATABASE immich SET search_path TO "$user", public, vectors;
+  externalClusters:
+    - name: immich-db-backup
+      barmanObjectStore:
+        destinationPath: s3://immich-offsite-archive-au2/immich/db/
+        serverName: immich-db-a
+        s3Credentials:
+          accessKeyId:
+            name: immich-offsite-restorer
+            key: AWS_ACCESS_KEY_ID
+          secretAccessKey:
+            name: immich-offsite-restorer
+            key: AWS_SECRET_ACCESS_KEY
+          region:
+            name: immich-offsite-restorer
+            key: AWS_REGION
+  backup:
+    target: prefer-standby
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: immich-offsite
+        serverName: immich-db-a-post-ssd-20260506
+  postgresql:
+    parameters:
+      archive_timeout: 5min
+    shared_preload_libraries:
+      - vectors.so
+  monitoring:
+    enablePodMonitor: true
