@@ -1,4 +1,4 @@
-# playbooks/argocd/applications/home-automation/home-assistant/deployment.yaml
+# apps/home-assistant/manifests/deployment.yaml
 # Deployment for Home Assistant
 apiVersion: apps/v1
 kind: Deployment

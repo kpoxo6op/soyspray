@@ -8,7 +8,7 @@ from hashlib import sha256
 import yaml
 from conftest import ROOT, load_yaml
 
-PACKAGE = "playbooks/argocd/applications/home-automation/voice-assistant"
+PACKAGE = "apps/voice-assistant/manifests"
 
 SPEECH_IMAGE = (
     "rhasspy/wyoming-speech-to-phrase:1.4.3@"
@@ -618,7 +618,7 @@ def test_ansible_bootstraps_voice_private_inputs_only() -> None:
 
 
 def test_home_assistant_has_local_voice_settings() -> None:
-    home_assistant = "playbooks/argocd/applications/home-automation/home-assistant"
+    home_assistant = "apps/home-assistant/manifests"
     bootstrap = load_yaml(f"{home_assistant}/configmap-bootstrap.yaml")["data"][
         "configuration.yaml"
     ]
@@ -629,13 +629,13 @@ def test_home_assistant_has_local_voice_settings() -> None:
         in bootstrap
     )
     deployment = load_yaml(
-        "playbooks/argocd/applications/home-automation/home-assistant/deployment.yaml"
+        "apps/home-assistant/manifests/deployment.yaml"
     )
     assert deployment["spec"]["template"]["metadata"]["annotations"] == {
         "soyspray.vip/bootstrap-config-revision": "2026-08-25-snappy-peanut-v3"
     }
     configmap = load_yaml(
-        "playbooks/argocd/applications/home-automation/home-assistant/configmap-bootstrap.yaml"
+        "apps/home-assistant/manifests/configmap-bootstrap.yaml"
     )
     automations = yaml.safe_load(configmap["data"]["automations.yaml"])
     by_id = {automation["id"]: automation for automation in automations}
@@ -657,7 +657,7 @@ def test_home_assistant_has_local_voice_settings() -> None:
 
 
 def test_home_assistant_has_peanut_light_group() -> None:
-    home_assistant = "playbooks/argocd/applications/home-automation/home-assistant"
+    home_assistant = "apps/home-assistant/manifests"
     bootstrap = load_yaml(f"{home_assistant}/configmap-bootstrap.yaml")["data"][
         "configuration.yaml"
     ]

@@ -23,7 +23,7 @@ KUSTOMIZATIONS := \
 	apps/domain-health \
 	$(VAULTWARDEN_PACKAGE) \
 	$(OBSIDIAN_PACKAGE) \
-	playbooks/argocd/applications/home-automation/voice-assistant \
+	apps/voice-assistant/manifests \
 	apps/media-helper \
 	playbooks/argocd/applications/media/dispatcharr \
 	playbooks/argocd/applications/media/jellyfin

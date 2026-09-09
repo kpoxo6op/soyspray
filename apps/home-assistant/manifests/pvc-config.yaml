@@ -1,4 +1,4 @@
-# playbooks/argocd/applications/home-automation/home-assistant/pvc-config.yaml
+# apps/home-assistant/manifests/pvc-config.yaml
 # PersistentVolumeClaim for Home Assistant configuration
 apiVersion: v1
 kind: PersistentVolumeClaim

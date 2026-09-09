@@ -1,4 +1,4 @@
-# playbooks/argocd/applications/home-automation/home-assistant/configmap-bootstrap.yaml
+# apps/home-assistant/manifests/configmap-bootstrap.yaml
 # Bootstrap configuration for Home Assistant
 apiVersion: v1
 kind: ConfigMap
