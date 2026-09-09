@@ -1,0 +1,120 @@
+name: Publish tested image and open promotion
+description: Publish an already-tested image and open its separate digest promotion.
+
+inputs:
+  publish:
+    description: Allow publication for a main push or explicit manual request.
+    required: true
+  app-slug:
+    description: App directory name and promotion script owner.
+    required: true
+  app-name:
+    description: Human-readable app name used in the promotion body.
+    required: true
+  image:
+    description: GHCR repository without a tag.
+    required: true
+  image-tag:
+    description: Unique tag of the locally tested image.
+    required: true
+  runtime-paths:
+    description: Space-separated paths that require a publication after a main push.
+    required: true
+  manifest:
+    description: Manifest changed by the app promotion script.
+    required: true
+  commit-subject:
+    description: Promotion commit subject.
+    required: true
+  promotion-title:
+    description: Draft promotion PR title.
+    required: true
+  evidence:
+    description: App-specific checks and preserved behavior.
+    required: true
+  verification:
+    description: App-specific checks required before promotion merge.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Detect a runtime change before publishing
+      id: runtime
+      shell: bash
+      env:
+        BEFORE: ${{ github.event.before }}
+        REQUEST_PUBLISH: ${{ inputs.publish }}
+        RUNTIME_PATHS: ${{ inputs.runtime-paths }}
+      run: |
+        changed=false
+        if [ "$REQUEST_PUBLISH" = true ]; then
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            changed=true
+          elif [ "$GITHUB_EVENT_NAME" = push ]; then
+            git cat-file -e "$BEFORE^{commit}"
+            read -r -a paths <<< "$RUNTIME_PATHS"
+            git diff --name-only "$BEFORE" "$GITHUB_SHA" -- "${paths[@]}" \
+              > "$RUNNER_TEMP/runtime-files"
+            if [ -s "$RUNNER_TEMP/runtime-files" ]; then changed=true; fi
+          fi
+        fi
+        printf 'changed=%s\n' "$changed" >> "$GITHUB_OUTPUT"
+
+    - name: Publish the tested image
+      id: publish
+      if: github.ref == 'refs/heads/main' && steps.runtime.outputs.changed == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        IMAGE: ${{ inputs.image }}
+        IMAGE_TAG: ${{ inputs.image-tag }}
+      run: |
+        printf '%s' "$GH_TOKEN" | docker login ghcr.io \
+          --username "$GITHUB_ACTOR" --password-stdin
+        docker push "$IMAGE:$IMAGE_TAG"
+        digest="$(docker image inspect "$IMAGE:$IMAGE_TAG" --format '{{index .RepoDigests 0}}')"
+        printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+        printf 'Tested image: `%s`\nSource: `%s`\n' \
+          "$digest" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Open a separate draft digest promotion
+      if: github.ref == 'refs/heads/main' && steps.runtime.outputs.changed == 'true'
+      shell: bash
+      env:
+        APP_SLUG: ${{ inputs.app-slug }}
+        APP_NAME: ${{ inputs.app-name }}
+        IMAGE_REF: ${{ steps.publish.outputs.digest }}
+        MANIFEST: ${{ inputs.manifest }}
+        COMMIT_SUBJECT: ${{ inputs.commit-subject }}
+        PROMOTION_TITLE: ${{ inputs.promotion-title }}
+        EVIDENCE: ${{ inputs.evidence }}
+        VERIFICATION: ${{ inputs.verification }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        python -m pip install PyYAML==6.0.3
+        branch="promote/${APP_SLUG}-${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+        git switch -c "$branch"
+        python "apps/$APP_SLUG/promote-image.py" "$IMAGE_REF"
+        if git diff --quiet; then exit 0; fi
+        git config user.name 'github-actions[bot]'
+        git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+        git add "$MANIFEST"
+        git commit -m "$COMMIT_SUBJECT"
+        git push origin "$branch"
+        promotion_commit="$(git rev-parse HEAD)"
+        cat > "$RUNNER_TEMP/promotion.md" <<BODY
+        Promote $APP_NAME built from [source $GITHUB_SHA](https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA).
+
+        Image: \`$IMAGE_REF\`.
+
+        The source merge left the running image unchanged. $EVIDENCE
+
+        After this promotion merges, Argo CD follows \`main\` and reconciles the tested digest. $VERIFICATION Roll back through GitHub by reverting this promotion. This workflow never merges the promotion or changes the cluster directly.
+
+        Commits, oldest first:
+
+        - [$COMMIT_SUBJECT](https://github.com/$GITHUB_REPOSITORY/commit/$promotion_commit)
+        BODY
+        gh pr create --draft --base main --head "$branch" \
+          --title "$PROMOTION_TITLE" --body-file "$RUNNER_TEMP/promotion.md"

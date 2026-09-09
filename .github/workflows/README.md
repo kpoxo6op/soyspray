@@ -56,3 +56,12 @@ digest/configuration promotion. A source-only merge leaves the frozen active
 runtime unchanged. Manual image checks publish only when `publish=true` is
 requested on the image workflow. The aggregate gate requires this image job when
 selected. The workflow does not merge or deploy.
+
+Domain health and media helper keep their builds and real runtime checks in
+their own workflows. After those checks pass, both call
+`.github/actions/publish-image-promotion` for runtime-change detection, GHCR
+publication, immutable digest capture, and the separate draft promotion. The
+shared action has no cluster, backup, or personal credentials. Pull requests
+and test-only changes cannot publish. A source merge leaves the running digest
+unchanged until its promotion is reviewed and merged; Argo CD then follows
+`main`.
