@@ -1,9 +1,0 @@
-# Production overlay (no bootstrap); enables backups and daily ScheduledBackup.
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-namespace: postgresql
-resources:
-  - ../../base
-  - scheduledbackup.yaml
-patchesStrategicMerge:
-  - backup-config-patch.yaml
