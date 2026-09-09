@@ -48,12 +48,13 @@ commands.
 
 ## Setup and checks
 
-Use the installer from a committed, pushed topic branch after `make go`:
+Use the shared installed-runtime operation from a committed, pushed revision:
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
-  apps/cluster-diagnosis/install.yml -e diagnosis_telegram_target=RECIPIENT
+ansible-playbook playbooks/operations/runtime/install.yml \
+  -e operations_revision=COMMIT -e diagnosis_telegram_target=RECIPIENT \
+  -e diagnosis_enabled=true
 ```
 
 The installer creates a disabled native job, seeds a separate account profile
@@ -63,8 +64,8 @@ The existing evidence collector timer is unchanged. The root-owned
 `soyspray-evidence-route.service` keeps only TCP port 9910 replies to the LAN on
 the local route. It does not change shared Tailscale settings. The endpoint
 binds to `192.168.20.50`; update its bind, reply rule, and Prometheus target
-together if this address changes. Keep this checkout while
-the installed job and endpoint reference it.
+together if this address changes. The job and endpoint use the pinned
+`~/.local/lib/soyspray-operations/current` checkout.
 
 Before enabling, verify the selected account, native model execution, tool
 network denial, timeout cleanup, Telegram delivery, and the live metrics.

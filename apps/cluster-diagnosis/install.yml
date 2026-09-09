@@ -5,7 +5,7 @@
   become: false
   gather_facts: false
   vars:
-    diagnosis_repo: "{{ (playbook_dir + '/../..') | realpath }}"
+    diagnosis_repo: "{{ operations_checkout | default((playbook_dir + '/../..') | realpath) }}"
     diagnosis_home: "{{ lookup('env', 'HOME') }}"
     diagnosis_state: "{{ diagnosis_home }}/.local/state/soyspray/cluster-diagnosis"
     diagnosis_codex: "{{ diagnosis_home }}/.local/bin/codex"

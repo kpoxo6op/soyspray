@@ -6,7 +6,7 @@
   become: false
   vars:
     recovery_schedule_home: "{{ lookup('env', 'HOME') }}"
-    recovery_schedule_repo: "{{ (playbook_dir + '/../../..') | realpath }}"
+    recovery_schedule_repo: "{{ operations_checkout | default((playbook_dir + '/../../..') | realpath) }}"
     recovery_schedule_unit_dir: "{{ recovery_schedule_home }}/.config/systemd/user"
   tasks:
     - name: Require the existing Soyspray checkout and user home
