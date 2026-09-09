@@ -14,6 +14,7 @@ Use a clean checkout of the reviewed `main` revision. The recovery runtime is
 enough; npm, frontend packages, and browser tools are not required:
 
 ```sh
+git submodule update --init --recursive
 python3 -m venv soyspray-venv
 soyspray-venv/bin/pip install -r requirements-recovery.txt
 soyspray-venv/bin/ansible-galaxy collection install -r requirements-ansible.yml -p collections --force
