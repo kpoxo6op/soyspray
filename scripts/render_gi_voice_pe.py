@@ -19,7 +19,7 @@ VOICE_PE_URL = (
 VOICE_PE_SHA256 = "ccd3188da67597ddf461b3c076b049c2c89e3c64e7219a82048de4c08e00ec31"
 MICRO_WAKE_WORD_MODELS_COMMIT = "05b65922cc433c9df13e98e32a7fe520758c837e"
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-FIRMWARE_ASSET_DIR = ROOT / "playbooks/argocd/applications/home-automation/voice-assistant/firmware"
+FIRMWARE_ASSET_DIR = ROOT / "apps/voice-assistant/manifests/firmware"
 FIRMWARE_ASSETS = {
     "stop.json": "bd13aeb1b83852649dc4fb6135cb160ff68716d14612b06f6a405342c57447aa",
     "stop.tflite": "b5a18c4ad681a89950dfade31011e1631bdcb333e93c84519a1a63ff4f071146",

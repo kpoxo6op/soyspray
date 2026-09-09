@@ -5,8 +5,8 @@ recordings, calculated audio data, and training output stay outside Git.
 
 | Purpose | ConfigMap | Private file | SHA-256 |
 | --- | --- | --- | --- |
-| Current | `openwakeword-gi-model-v7b` | `~/pCloudDrive/docs/soyspray/home-assistant-voice/gi-v7.tflite` | `e61dd9f2880f226b05b8f9885c053fa7ec7805170c3f3b4d56427c6294cb4be0` |
-| Rollback | `openwakeword-gi-model-v2` | `~/pCloudDrive/docs/soyspray/home-assistant-voice/gi-v2.tflite` | `4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739` |
+| Current | `openwakeword-gi-model-v7b` | `~/.config/soyspray/recovery/voice-models/gi-v7.tflite` | `e61dd9f2880f226b05b8f9885c053fa7ec7805170c3f3b4d56427c6294cb4be0` |
+| Rollback | `openwakeword-gi-model-v2` | `~/.config/soyspray/recovery/voice-models/gi-v2.tflite` | `4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739` |
 
 An immutable ConfigMap cannot change after creation. Its checksum annotation
 and the SHA-256 of its decoded `gi.tflite` file must match this table.

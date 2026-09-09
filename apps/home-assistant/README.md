@@ -1,5 +1,12 @@
 # Home Assistant
 
+Use `make check APP=home-assistant` to check the manifests and saved-state
+restore contract. Use `make diff APP=home-assistant` for a read-only live
+comparison. `make restore-check APP=home-assistant` restores the latest
+Longhorn backup in an isolated namespace and privately validates the saved
+pipeline, devices, entities, areas, and Assist exposure settings. Merge to
+`main` for Argo CD delivery.
+
 Home Assistant is an open-source home automation platform that puts local control and privacy first. It integrates with a wide range of smart home devices and services.
 
 ## Features
@@ -36,6 +43,10 @@ Current TP-Link Smart Home entries added through Home Assistant:
 
 The bootstrap ConfigMap keeps HA's declarative automations, scripts, and scenes
 that depend on these entities, including the Tapo Relax light behavior.
+
+The PVC is protected from Argo pruning and Application deletion. Restore checks
+must preserve the production claim and volume identity and remove their scratch
+namespace. A successful synthetic voice check does not prove room recognition.
 
 The Dreame L10s Ultra robot vacuum is visible on the LAN as
 `dreame_vacuum_r2228o` at `192.168.20.170`. Home Assistant does not ship a

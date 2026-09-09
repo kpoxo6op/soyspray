@@ -57,7 +57,7 @@ def test_voice_control_is_out_of_scope() -> None:
     helper_env = helper_deployment["spec"]["template"]["spec"]["containers"][0].get("env", [])
     home_assistant = (
         ROOT
-        / "playbooks/argocd/applications/home-automation/home-assistant/configmap-bootstrap.yaml"
+        / "apps/home-assistant/manifests/configmap-bootstrap.yaml"
     ).read_text()
     live_tv_tasks = (ROOT / "roles/apps/live_tv/tasks/enabled.yml").read_text()
 

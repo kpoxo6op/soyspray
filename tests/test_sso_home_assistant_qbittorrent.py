@@ -5,7 +5,7 @@ from conftest import ROOT, load_yaml
 
 def test_home_assistant_installs_the_pinned_oidc_release() -> None:
     deployment = load_yaml(
-        "playbooks/argocd/applications/home-automation/home-assistant/deployment.yaml"
+        "apps/home-assistant/manifests/deployment.yaml"
     )
     init_containers = {
         item["name"]: item for item in deployment["spec"]["template"]["spec"]["initContainers"]
@@ -22,7 +22,7 @@ def test_home_assistant_installs_the_pinned_oidc_release() -> None:
 
 def test_home_assistant_uses_authentik_and_keeps_native_recovery() -> None:
     bootstrap = load_yaml(
-        "playbooks/argocd/applications/home-automation/home-assistant/configmap-bootstrap.yaml"
+        "apps/home-assistant/manifests/configmap-bootstrap.yaml"
     )["data"]["configuration.yaml"]
 
     assert "auth_oidc:" in bootstrap

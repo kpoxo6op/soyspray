@@ -1,4 +1,4 @@
-# playbooks/argocd/applications/home-automation/home-assistant/service.yaml
+# apps/home-assistant/manifests/service.yaml
 # Service for Home Assistant
 apiVersion: v1
 kind: Service

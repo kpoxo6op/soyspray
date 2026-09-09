@@ -1,4 +1,4 @@
-# playbooks/argocd/applications/home-automation/home-assistant/homeassistant-application.yaml
+# apps/home-assistant/manifests/homeassistant-application.yaml
 # ArgoCD Application to manage Home Assistant
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -14,7 +14,7 @@ spec:
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
     targetRevision: main
-    path: playbooks/argocd/applications/home-automation/home-assistant
+    path: apps/home-assistant/manifests
   destination:
     server: "https://kubernetes.default.svc"
     namespace: home-automation
