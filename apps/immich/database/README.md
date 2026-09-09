@@ -1,116 +1,50 @@
-# CNPG Immich Database A/B Setup
+# Immich production database
 
-## Explicit replacement paths
+This folder declares the existing Immich PostgreSQL database and its stable
+service alias. Argo CD owns both paths as direct, non-pruning Applications.
 
-`production/` renders the existing `immich-db-a`, `immich-app-secret-a`, and
-`immich-db-daily-a` objects without a generated suffix or custom name
-references. `alias/` renders the stable `immich-db-active` Service directly.
-Repository tests compare both paths with the current generated A-side output.
+`production/` renders these existing objects:
 
-These paths are staged for ownership adoption. The live Applications remain
-owned by the two ApplicationSets until the bounded adoption operation removes
-their owner references. Do not delete either ApplicationSet manually. Keep the
-Applications on `main`, preserve their UIDs, and verify the database system ID,
-PVC, ScheduledBackup, archive server, and alias before removing the generator
-paths below.
+- `Cluster/immich-db-a`
+- `Secret/immich-app-secret-a`
+- `ScheduledBackup/immich-db-daily-a`
 
-**Generator-driven layout** with single-copy overlays and ApplicationSet-injected suffixes for A/B failover and PITR restore.
+`alias/` renders `Service/immich-db-active`. It points to
+`immich-db-a-rw.postgresql.svc.cluster.local`.
 
-## Architecture
-- **Base + Overlays**: Shared cluster config + single role overlays (initdb/prod/restore)
-- **ApplicationSets**: Generate the active DB app + active alias app via nameSuffix injection
-- **Alias Service**: `immich-db-active` ExternalName switches A/B
-- **NameRefs**: Backups track generated cluster names
-- **DB Secret**: Managed by DB stack, independent of alias lifecycle
+The production database keeps its current PostgreSQL system identity, image,
+PVC, credentials, Barman archive server, and daily backup schedule. Do not
+rename or recreate these resources during recovery work.
 
-## Operations
-- **Bootstrap**: See `docs/init-bootstrap/README.md`
-- **A/B Restore**: See `docs/restore-exercise/README.md`
-- **Kustomize Validation**: See `docs/kustomize-validation/README.md`
+## Normal checks
 
-**Quick rules:** Generate only the active role by default; edit only targetTime file for restores; keep one prod cluster with backups; delete inactive PVCs before restore.
-**Note:** ApplicationSets disable automation - sync apps explicitly to avoid ownership conflicts.
-Generated apps intentionally omit Argo resource finalizers and set
-`preserveResourcesOnDeletion: true`, so deleting a generated Application does
-not prune CNPG clusters, secrets, backups, or the active alias Service.
+Run the maintained application checks from the repository root:
 
-## Argo Cleanup Safety
-
-Before reducing the generated app matrix, first sync these ApplicationSets and
-confirm the generated Applications no longer carry
-`resources-finalizer.argocd.argoproj.io`:
-
-```bash
-kubectl -n argocd get app \
-  immich-db-a-initdb immich-db-a-prod immich-db-a-restore \
-  immich-db-b-initdb immich-db-b-prod immich-db-b-restore \
-  immich-db-active-a immich-db-active-b \
-  -o json | jq -r '.items[] | [.metadata.name, (.metadata.finalizers // [])] | @tsv'
+```sh
+make status APP=immich FORMAT=json
+make check APP=immich
+make go
 ```
 
-Do not delete or stop generating inactive apps until that check is clean.
+Render the database paths directly when reviewing a manifest change:
 
-The default rendered set is:
-
-```text
-immich-db-a-initdb
-immich-db-active-a
+```sh
+kubectl kustomize apps/immich/database/production
+kubectl kustomize apps/immich/database/alias
 ```
 
-To prepare a B-side restore, temporarily add the needed B-side role to
-`apps/applicationset-immich-db.yaml`, set the restore target time, then sync the
-generated restore app. To flip the alias, change
-`apps/applicationset-immich-alias.yaml` from `active: a` to `active: b` in the
-same reviewed change.
+Normal delivery is a pull request merged to `main`. The two Applications have
+no automated child sync and keep `Prune=false,Delete=false`. Do not delete an
+Application, database object, claim, or volume as a rollback action.
 
-## Key Components
-- `base/`: Shared cluster-base for external CNPG references
-- `immich-db/base/`: DB secret and cluster config (vectors, monitoring, S3 backup)
-- `immich-db/overlays/{initdb,prod,restore}/`: Single-copy overlays per role
-- `immich-db-active/overlays/{active-a,active-b}/`: Alias switching
-- `apps/`: ApplicationSets inject active -a/-b suffixes via kustomize.nameSuffix
-- `docs/`: Bootstrap/restore guides
+## Recovery
 
-## Quick Commands
-```bash
-# Bootstrap
-kubectl apply -f apps/applicationset-*.yaml
-argocd app sync cnpg-operator immich-db-active-a immich-db-a-initdb
+Use [`apps/immich/recovery/`](../recovery/) for the isolated recovery check. It
+restores into a new namespace and a new database. It does not use this folder's
+historical A/B suffix or role overlays, and it does not cut production over to
+a restored database.
 
-# Status
-kubectl -n postgresql get cluster,backup,scheduledbackup
-
-# A→B restore
-$EDITOR immich-db/overlays/restore/target-time.yaml
-# Add letter=b, role=restore to apps/applicationset-immich-db.yaml first.
-argocd app sync immich-db-b-restore immich-db-active-b
-kubectl -n immich rollout restart deployment/immich-server
-
-# Quick validation checks
-kubectl kustomize immich-db/overlays/initdb >/dev/null && echo "✓ initdb"
-kubectl kustomize immich-db/overlays/prod   >/dev/null && echo "✓ prod"
-kubectl kustomize immich-db/overlays/restore>/dev/null && echo "✓ restore"
-
-# Spot-check with suffix (simulate Argo)
-cd immich-db/overlays/initdb && \
-  kustomize edit set namesuffix -- -a && \
-  kubectl kustomize . | grep -E 'name: immich-db-a|kind: (Cluster|Backup|ScheduledBackup)' && \
-  git restore kustomization.yaml
-```
-
-**S3**: `s3://immich-offsite-archive-au2/immich/db/` (writer/restorer secrets)
-**Extensions**: vectors, cube, earthdistance + custom search_path
-
-## Active archive writer
-
-The existing `immich-db-a-initdb` source now uses Barman Cloud plugin v0.15.0.
-Its ObjectStore is `postgresql/immich-offsite`; its archive server remains
-`immich-db-a-post-ssd-20260506`. Daily bases run at 04:47 UTC, WAL archiving
-uses five minutes, and retention remains 60 days. The active alias still points
-to `immich-db-a-rw.postgresql.svc.cluster.local`.
-
-Use the Ansible migration and reconciliation commands in the
-[recovery README](../../../../operations/recovery/README.md). Do not use the
-historical imperative examples above for production changes. The completed
-initial backup hook and forced-recreate environment setting are retired after
-the plugin base backup and archive continuity checks passed.
+The production archive writer uses Barman Cloud plugin v0.15.0 and archive
+server `immich-db-a-post-ssd-20260506`. Daily base backups run at 04:47 UTC,
+WAL archiving uses a five-minute timeout, and retention is owned by the backup
+repository. A schedule alone is not restore evidence.
