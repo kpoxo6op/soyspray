@@ -1,0 +1,225 @@
+---
+- name: Confirm node-2 no longer owns cluster or storage state
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    cleanup_target: node-2
+    node2_repository_root: "{{ (playbook_dir + '/../../..') | realpath }}"
+    etcdctl_bin: "{{ bin_dir | default('/usr/local/bin') }}/etcdctl"
+    etcd_cert_dir: /etc/ssl/etcd/ssl
+    etcdctl_environment:
+      ETCDCTL_API: "3"
+      ETCDCTL_ENDPOINTS: https://127.0.0.1:2379
+      ETCDCTL_CACERT: "{{ etcd_cert_dir }}/ca.pem"
+      ETCDCTL_CERT: "{{ etcd_cert_dir }}/admin-{{ inventory_hostname }}.pem"
+      ETCDCTL_KEY: "{{ etcd_cert_dir }}/admin-{{ inventory_hostname }}-key.pem"
+  tasks:
+    - name: Require the exact cleanup authorization and private plan
+      ansible.builtin.assert:
+        that:
+          - cleanup_target == 'node-2'
+          - node2_baseline_cleanup_authorization | default('') == 'clean-reset-node-2-cluster-state'
+          - node2_evacuation_evidence_file | default('') is match('^/')
+          - node2_recovery_git_revision | default('') is match('^[0-9a-f]{40}$')
+          - node2_recovery_git_revision == lookup('pipe', 'git -C ' + (node2_repository_root | quote) + ' rev-parse HEAD')
+          - node2_recovery_git_revision == lookup('pipe', 'git -C ' + (node2_repository_root | quote) + ' rev-parse origin/main')
+          - lookup('pipe', 'git -C ' + (node2_repository_root | quote) + ' status --porcelain --untracked-files=no') | length == 0
+          - ansible_limit | default('') | length == 0
+          - ansible_run_tags | default(['all']) == ['all']
+          - ansible_skip_tags | default([]) | length == 0
+
+    - name: Load the evacuation plan
+      ansible.builtin.set_fact:
+        node2_evacuation_plan: "{{ lookup('file', node2_evacuation_evidence_file) | from_json }}"
+
+    - name: Check that the Kubernetes node is absent
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Node
+        name: "{{ cleanup_target }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_removed_node
+
+    - name: Check that no Longhorn replica uses node-2
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Replica
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_removed_replicas
+
+    - name: Check that no volume remains attached to node-2
+      kubernetes.core.k8s_info:
+        api_version: storage.k8s.io/v1
+        kind: VolumeAttachment
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_removed_attachments
+
+    - name: Read survivor etcd status
+      ansible.builtin.command:
+        argv: ["{{ etcdctl_bin }}", endpoint, status, --cluster, -w, json]
+      environment: "{{ etcdctl_environment }}"
+      register: node2_survivor_etcd
+      changed_when: false
+      check_mode: false
+
+    - name: Permit cleanup only after native ownership removal
+      ansible.builtin.assert:
+        that:
+          - node2_evacuation_plan.target == cleanup_target
+          - node2_removed_node.resources | length == 0
+          - >-
+            node2_removed_replicas.resources
+            | selectattr('spec.nodeID', 'equalto', cleanup_target)
+            | selectattr('spec.failedAt', 'equalto', '') | list | length == 0
+          - >-
+            node2_removed_attachments.resources
+            | selectattr('spec.nodeName', 'equalto', cleanup_target) | list | length == 0
+          - (node2_survivor_etcd.stdout | from_json) | length == 2
+          - (node2_survivor_etcd.stdout | from_json) | map(attribute='Status.header.cluster_id') | unique | list | length == 1
+        fail_msg: The cluster still owns node-2 state. Refusing host cleanup.
+
+- name: Reach the retained node-2 OS and clean only proven cluster residue
+  hosts: node-2
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  vars:
+    expected_target_ip: 192.168.20.12
+    expected_root_uuid: d3507a31-6115-4f40-affc-ca5164120e50
+    expected_storage_uuid: 49c092f4-dd55-41f5-99c6-854f8b44af4e
+    expected_storage_model: PNY 500GB SATA S
+  tasks:
+    - name: Load the private evacuation plan on the controller
+      ansible.builtin.set_fact:
+        node2_evacuation_plan: "{{ lookup('file', node2_evacuation_evidence_file) | from_json }}"
+        node2_recorded_replica_directories: >-
+          {{ (lookup('file', node2_evacuation_evidence_file) | from_json).volumes
+             | map(attribute='target_data_directories') | flatten | unique | sort | list }}
+
+    - name: Read the retained root filesystem
+      ansible.builtin.command:
+        argv: [findmnt, -J, -o, "SOURCE,TARGET,FSTYPE,UUID", --target, /]
+      register: node2_root_mount
+      changed_when: false
+      check_mode: false
+
+    - name: Read the retained storage filesystem
+      ansible.builtin.command:
+        argv: [findmnt, -J, -o, "SOURCE,TARGET,FSTYPE,UUID", --target, /storage]
+      register: node2_storage_mount
+      changed_when: false
+      check_mode: false
+
+    - name: Read the retained storage device model
+      ansible.builtin.command:
+        argv: [lsblk, -dn, -o, MODEL, /dev/sda]
+      register: node2_storage_model
+      changed_when: false
+      check_mode: false
+
+    - name: Resolve every recorded replica path without following an unsafe boundary
+      ansible.builtin.command:
+        argv: [realpath, --canonicalize-missing, "/storage/replicas/{{ item }}"]
+      loop: "{{ node2_recorded_replica_directories }}"
+      register: node2_replica_realpaths
+      changed_when: false
+      check_mode: false
+
+    - name: Read cluster service states before cleanup
+      ansible.builtin.command:
+        argv: [systemctl, is-active, kubelet.service, containerd.service, etcd.service]
+      register: node2_cluster_services_before
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Require the retained OS, SSH target, filesystem, and exact replica paths
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'node-2'
+          - ansible_host == expected_target_ip
+          - (node2_root_mount.stdout | from_json).filesystems[0].source == '/dev/nvme0n1p2'
+          - (node2_root_mount.stdout | from_json).filesystems[0].fstype == 'ext4'
+          - (node2_root_mount.stdout | from_json).filesystems[0].uuid == expected_root_uuid
+          - (node2_storage_mount.stdout | from_json).filesystems[0].source == '/dev/sda1'
+          - (node2_storage_mount.stdout | from_json).filesystems[0].target == '/storage'
+          - (node2_storage_mount.stdout | from_json).filesystems[0].fstype == 'ext4'
+          - (node2_storage_mount.stdout | from_json).filesystems[0].uuid == expected_storage_uuid
+          - node2_storage_model.stdout | trim == expected_storage_model
+          - node2_evacuation_plan.target == inventory_hostname
+          - >-
+            node2_recorded_replica_directories
+            | reject('match', '^pvc-[0-9a-f-]+-[a-z0-9]+$') | list | length == 0
+          - >-
+            node2_replica_realpaths.results
+            | rejectattr('stdout', 'match', '^/storage/replicas/pvc-[0-9a-f-]+-[a-z0-9]+$')
+            | list | length == 0
+          - node2_cluster_services_before.stdout_lines | select('equalto', 'active') | list | length == 0
+        fail_msg: The retained node or a cleanup path no longer matches the recorded identity.
+
+    - name: Inspect Kubernetes network residue
+      ansible.builtin.script:
+        cmd: cleanup-kubernetes-network.py check
+      register: node2_network_before
+      changed_when: false
+      failed_when: node2_network_before.rc not in [0, 2]
+      check_mode: false
+
+    - name: Show the scoped network cleanup plan
+      ansible.builtin.debug:
+        var: node2_network_before.stdout_lines
+
+    - name: Remove only recorded Longhorn replica directories
+      ansible.builtin.file:
+        path: "/storage/replicas/{{ item }}"
+        state: absent
+      loop: "{{ node2_recorded_replica_directories }}"
+      when: not ansible_check_mode
+    - name: Remove replaceable Longhorn node runtime state
+      ansible.builtin.file:
+        path: /var/lib/longhorn
+        state: absent
+      when: not ansible_check_mode
+
+    - name: Remove only Kubernetes and Calico network objects
+      ansible.builtin.script:
+        cmd: cleanup-kubernetes-network.py apply
+      register: node2_network_cleanup
+      changed_when: node2_network_before.rc == 2
+      when: not ansible_check_mode
+
+    - name: Read removed cluster paths
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /etc/kubernetes
+        - /var/lib/kubelet
+        - /var/lib/etcd
+        - /var/lib/containerd
+        - /etc/cni
+        - /var/lib/cni
+        - /var/lib/longhorn
+      register: node2_removed_paths
+      when: not ansible_check_mode
+
+    - name: Read retained host listeners
+      ansible.builtin.command:
+        argv: [ss, -H, -lntup]
+      register: node2_host_listeners
+      changed_when: false
+      check_mode: false
+      when: not ansible_check_mode
+
+    - name: Require the clean retained-OS baseline
+      ansible.builtin.assert:
+        that:
+          - node2_network_cleanup.rc == 0
+          - node2_removed_paths.results | selectattr('stat.exists') | list | length == 0
+          - node2_cluster_services_before.stdout_lines | select('equalto', 'active') | list | length == 0
+          - node2_host_listeners.stdout is not search(':(2379|2380|6443|10248|10250|10257|10259)\\b')
+        fail_msg: Node-2 still has Kubernetes, etcd, runtime, CNI, or listener residue.
+      when: not ansible_check_mode

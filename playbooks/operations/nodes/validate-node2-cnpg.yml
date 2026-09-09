@@ -1,0 +1,44 @@
+---
+- name: Select the expected CloudNativePG cluster and object store
+  ansible.builtin.set_fact:
+    node2_cnpg_cluster: >-
+      {{ node2_cnpg_clusters.resources
+         | selectattr('metadata.namespace', 'equalto', node2_cnpg_expected.namespace)
+         | selectattr('metadata.name', 'equalto', node2_cnpg_expected.cluster) | list }}
+    node2_cnpg_object_store: >-
+      {{ node2_cnpg_object_stores.resources
+         | selectattr('metadata.namespace', 'equalto', node2_cnpg_expected.namespace)
+         | selectattr('metadata.name', 'equalto', node2_cnpg_expected.object_store) | list }}
+
+- name: Require current ready and continuous-archiving state
+  ansible.builtin.assert:
+    that:
+      - node2_cnpg_cluster | length == 1
+      - node2_cnpg_cluster[0].status.instances | int == node2_cnpg_cluster[0].status.readyInstances | int
+      - >-
+        node2_cnpg_cluster[0].status.conditions
+        | selectattr('type', 'equalto', 'Ready')
+        | selectattr('status', 'equalto', 'True') | list | length == 1
+      - >-
+        node2_cnpg_cluster[0].status.conditions
+        | selectattr('type', 'equalto', 'ContinuousArchiving')
+        | selectattr('status', 'equalto', 'True') | list | length == 1
+      - node2_cnpg_cluster[0].status.firstRecoverabilityPoint | default('') | length > 0
+      - node2_cnpg_object_store | length == 1
+      - node2_cnpg_object_store[0].status.serverRecoveryWindow | dict2items | length == 1
+
+- name: Parse the latest successful CloudNativePG backup time
+  ansible.builtin.set_fact:
+    node2_cnpg_latest_backup_epoch: >-
+      {{ lookup(
+           'pipe',
+           'date --date=' +
+           ((node2_cnpg_object_store[0].status.serverRecoveryWindow | dict2items | first).value.lastSuccessfulBackupTime | quote) +
+           ' +%s') | int }}
+
+- name: Require a current CloudNativePG recovery window
+  ansible.builtin.assert:
+    that:
+      - (lookup('pipe', 'date +%s') | int) - (node2_cnpg_latest_backup_epoch | int) >= -30
+      - (lookup('pipe', 'date +%s') | int) - (node2_cnpg_latest_backup_epoch | int) <= node2_cnpg_backup_max_age_seconds
+    fail_msg: "{{ node2_cnpg_expected.cluster }} lacks current base-backup and WAL-continuity evidence."
