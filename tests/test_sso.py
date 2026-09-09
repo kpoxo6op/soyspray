@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from conftest import ROOT, load_all, load_yaml
 
-AUTHENTIK_DIR = ROOT / "playbooks/argocd/applications/security/authentik"
+AUTHENTIK_DIR = ROOT / "apps/authentik/manifests"
 
 
 def test_explicit_blueprint_apply_waits_for_published_files_and_skips_check_mode() -> None:
-    tasks = load_yaml("roles/apps/authentik/tasks/main.yml")
+    tasks = load_yaml("apps/authentik/bootstrap/tasks/main.yml")
     apply = next(
         t for t in tasks if t.get("ansible.builtin.import_tasks") == "apply-blueprints.yml"
     )
     assert "not ansible_check_mode" in apply["when"]
     assert "'authentik-blueprints' in ansible_run_tags" in apply["when"]
-    steps = load_yaml("roles/apps/authentik/tasks/apply-blueprints.yml")
+    steps = load_yaml("apps/authentik/bootstrap/tasks/apply-blueprints.yml")
     wait = next(t for t in steps if "loop" in t)
     assert set(wait["loop"]) == {"cluster-sso.yaml", "native-apps.yaml", "legacy-forward-auth.yaml"}
     assert "hash('sha256')" in wait["until"]
@@ -26,7 +26,7 @@ def test_explicit_blueprint_apply_waits_for_published_files_and_skips_check_mode
 def test_authentik_uses_pinned_official_chart_and_external_database() -> None:
     app = load_yaml("argocd/catalog/authentik.yaml")
     chart = app["spec"]["sources"][0]
-    values = load_yaml("playbooks/argocd/applications/security/authentik/values.yaml")
+    values = load_yaml("apps/authentik/manifests/values.yaml")
 
     assert chart["repoURL"] == "https://charts.goauthentik.io"
     assert chart["chart"] == "authentik"
@@ -42,7 +42,7 @@ def test_authentik_uses_pinned_official_chart_and_external_database() -> None:
 
 
 def test_authentik_database_is_dedicated_and_monitored() -> None:
-    resources = load_all("playbooks/argocd/applications/security/authentik/database/cluster.yaml")
+    resources = load_all("apps/authentik-postgresql/manifests/cluster.yaml")
     cluster = next(item for item in resources if item["kind"] == "Cluster")
 
     assert cluster["metadata"]["name"] == "authentik-postgresql"
@@ -74,7 +74,7 @@ def test_authentik_blueprint_reads_credentials_from_environment() -> None:
 
 
 def test_authentik_role_preserves_generated_secrets() -> None:
-    tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+    tasks = (ROOT / "apps/authentik/bootstrap/tasks/main.yml").read_text()
 
     assert "kubernetes.core.k8s_info" in tasks
     assert "authentik-runtime" in tasks
@@ -97,7 +97,7 @@ def test_argocd_uses_authentik_oidc_and_keeps_local_admin() -> None:
 
 
 def test_argocd_restarts_when_the_oidc_config_changes() -> None:
-    tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+    tasks = (ROOT / "apps/authentik/bootstrap/tasks/main.yml").read_text()
 
     assert "soyspray.vip/oidc-config-hash" in tasks
     assert "argocd/config/argocd-cm.yaml') | hash('sha256')" in tasks
@@ -126,6 +126,6 @@ def test_prometheus_application_returns_to_the_reviewed_head_revision() -> None:
 
 
 def test_authentik_role_does_not_reuse_the_parent_loop_variable() -> None:
-    tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+    tasks = (ROOT / "apps/authentik/bootstrap/tasks/main.yml").read_text()
 
     assert "loop_var: argocd_config_file" in tasks

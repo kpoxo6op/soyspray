@@ -17,8 +17,7 @@ hostnames on LAN and remotely.
 * MetalLB Torrent Pool: **192.168.1.39**
 * Current DNS: **Pi‑hole in k8s**
 * Target Domain: **soyspray.vip**
-* Repo context for services/apps: ArgoCD apps live under
-  `playbooks/argocd/applications/`.
+* Repo context for services/apps: Argo CD apps live under `apps/NAME/`.
 * Root repo layout reference lives alongside playbooks and Kubespray.
 
 ---

@@ -6,7 +6,7 @@
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
     immich_backup_revision: HEAD
-    immich_backup_path: playbooks/argocd/applications/backups/immich-offsite-backup
+    immich_backup_path: apps/immich-offsite-backup/manifests
   tasks:
     - name: Read the existing backup Application
       kubernetes.core.k8s_info:

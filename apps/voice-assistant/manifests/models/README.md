@@ -82,7 +82,7 @@ that file.
 Use a new immutable ConfigMap name for a new model.
 
 1. Update the model name and checksum in
-   `roles/apps/voice-assistant/defaults/main.yml`.
+   `apps/voice-assistant/bootstrap/defaults/main.yml`.
 2. Set `VOICE_ASSISTANT_GI_MODEL_PATH` to the private file whose checksum you
    checked.
 3. Run `make -f apps/voice-assistant/Makefile bootstrap`.

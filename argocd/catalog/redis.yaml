@@ -18,7 +18,7 @@ spec:
       targetRevision: "22.0.7"
       helm:
         valueFiles:
-          - $values/playbooks/argocd/applications/database/redis/values.yaml
+          - $values/apps/redis/manifests/values.yaml
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
       targetRevision: main
       path: .

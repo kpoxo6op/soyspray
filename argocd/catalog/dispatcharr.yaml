@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
     targetRevision: main
-    path: playbooks/argocd/applications/media/dispatcharr
+    path: apps/dispatcharr/manifests
   destination: {server: https://kubernetes.default.svc, namespace: media}
   syncPolicy:
     automated: {prune: true, selfHeal: true}

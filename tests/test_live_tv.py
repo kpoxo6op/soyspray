@@ -11,7 +11,7 @@ from conftest import ROOT
 
 HELPER = ROOT / "apps/media-helper"
 CATALOG = HELPER / "app/channels.json"
-RECONCILE = ROOT / "playbooks/argocd/applications/media/dispatcharr/reconcile.py"
+RECONCILE = ROOT / "apps/dispatcharr/manifests/reconcile.py"
 
 
 def load_reconcile():
@@ -23,7 +23,7 @@ def load_reconcile():
 
 
 def load_jellyfin_bootstrap_function(name: str):
-    source = (ROOT / "playbooks/argocd/applications/media/jellyfin/bootstrap.py").read_text()
+    source = (ROOT / "apps/jellyfin/manifests/bootstrap.py").read_text()
     function = next(
         node
         for node in ast.parse(source).body
@@ -35,7 +35,7 @@ def load_jellyfin_bootstrap_function(name: str):
 
 
 def test_tv_hostname_keeps_jellyfin_as_its_root_application() -> None:
-    jellyfin = ROOT / "playbooks/argocd/applications/media/jellyfin"
+    jellyfin = ROOT / "apps/jellyfin/manifests"
     ingress = yaml.safe_load((jellyfin / "ingress.yaml").read_text())
 
     assert ingress["spec"]["tls"][0]["hosts"] == ["tv.soyspray.vip"]
@@ -55,11 +55,8 @@ def test_voice_control_is_out_of_scope() -> None:
     helper_source = (HELPER / "app/app.py").read_text()
     helper_deployment = yaml.safe_load((HELPER / "manifests/deployment.yaml").read_text())
     helper_env = helper_deployment["spec"]["template"]["spec"]["containers"][0].get("env", [])
-    home_assistant = (
-        ROOT
-        / "apps/home-assistant/manifests/configmap-bootstrap.yaml"
-    ).read_text()
-    live_tv_tasks = (ROOT / "roles/apps/live_tv/tasks/enabled.yml").read_text()
+    home_assistant = (ROOT / "apps/home-assistant/manifests/configmap-bootstrap.yaml").read_text()
+    live_tv_tasks = (ROOT / "apps/live-tv/bootstrap/tasks/enabled.yml").read_text()
 
     assert all("aliases" not in channel for channel in catalog["channels"])
     assert "play_on_jellyfin" not in helper_source
@@ -71,7 +68,7 @@ def test_voice_control_is_out_of_scope() -> None:
 
 @pytest.mark.parametrize("name", ("media-helper", "dispatcharr", "jellyfin"))
 def test_media_packages_render(name: str) -> None:
-    path = str(HELPER) if name == "media-helper" else f"playbooks/argocd/applications/media/{name}"
+    path = str(HELPER) if name == "media-helper" else f"apps/{name}/manifests"
     result = subprocess.run(
         ["kubectl", "kustomize", path], cwd=ROOT, capture_output=True, text=True
     )
@@ -80,9 +77,7 @@ def test_media_packages_render(name: str) -> None:
 
 
 def test_jellyfin_storage_and_hardware_contract() -> None:
-    deployment = yaml.safe_load(
-        (ROOT / "playbooks/argocd/applications/media/jellyfin/deployment.yaml").read_text()
-    )
+    deployment = yaml.safe_load((ROOT / "apps/jellyfin/manifests/deployment.yaml").read_text())
     pod = deployment["spec"]["template"]["spec"]
     assert pod["nodeSelector"]["kubernetes.io/hostname"] == "node-0"
     assert pod["securityContext"]["supplementalGroups"] == [109]
@@ -126,7 +121,7 @@ def test_jellyfin_bootstrap_enables_qsv_without_losing_unknown_settings() -> Non
 
 
 def test_jellyfin_bootstrap_is_add_only_and_configures_live_tv() -> None:
-    script = (ROOT / "playbooks/argocd/applications/media/jellyfin/bootstrap.py").read_text()
+    script = (ROOT / "apps/jellyfin/manifests/bootstrap.py").read_text()
     assert 'call("GET", "/System/Configuration/livetv"' in script
     assert 'call("GET", "/LiveTv/TunerHosts"' not in script
     assert 'call("GET", "/LiveTv/ListingProviders"' not in script
@@ -139,15 +134,11 @@ def test_jellyfin_bootstrap_is_add_only_and_configures_live_tv() -> None:
     startup_get = script.index('call("GET", "/Startup/User")')
     startup_post = script.index('"/Startup/User",', startup_get)
     assert startup_get < startup_post
-    job = yaml.safe_load(
-        (ROOT / "playbooks/argocd/applications/media/jellyfin/bootstrap-job.yaml").read_text()
-    )
+    job = yaml.safe_load((ROOT / "apps/jellyfin/manifests/bootstrap-job.yaml").read_text())
     assert job["spec"]["activeDeadlineSeconds"] == 1200
     assert job["spec"]["backoffLimit"] == 0
     assert job["spec"]["template"]["spec"]["restartPolicy"] == "Never"
-    policy = yaml.safe_load(
-        (ROOT / "playbooks/argocd/applications/media/jellyfin/network-policy.yaml").read_text()
-    )
+    policy = yaml.safe_load((ROOT / "apps/jellyfin/manifests/network-policy.yaml").read_text())
     ingress = [peer for rule in policy["spec"]["ingress"] for peer in rule["from"]]
     assert {"podSelector": {"matchLabels": {"job-name": "jellyfin-bootstrap"}}} in ingress
 
@@ -157,7 +148,7 @@ def test_jellyfin_bootstrap_is_add_only_and_configures_live_tv() -> None:
 )
 def test_configuration_claims_are_protected(name: str, claim: str) -> None:
     result = subprocess.run(
-        ["kubectl", "kustomize", f"playbooks/argocd/applications/media/{name}"],
+        ["kubectl", "kustomize", f"apps/{name}/manifests"],
         cwd=ROOT,
         check=True,
         capture_output=True,
@@ -177,7 +168,7 @@ def test_configuration_claims_are_protected(name: str, claim: str) -> None:
 
 
 def test_live_tv_role_propagates_its_deployment_tag() -> None:
-    tasks = yaml.safe_load((ROOT / "roles/apps/live_tv/tasks/main.yml").read_text())
+    tasks = yaml.safe_load((ROOT / "apps/live-tv/bootstrap/tasks/main.yml").read_text())
     assert tasks == [
         {
             "name": "Bootstrap live TV private inputs",
@@ -188,7 +179,7 @@ def test_live_tv_role_propagates_its_deployment_tag() -> None:
 
 
 def test_live_tv_bootstrap_only_prepares_secrets() -> None:
-    tasks = yaml.safe_load((ROOT / "roles/apps/live_tv/tasks/enabled.yml").read_text())
+    tasks = yaml.safe_load((ROOT / "apps/live-tv/bootstrap/tasks/enabled.yml").read_text())
     oidc_check = next(
         index
         for index, task in enumerate(tasks)
@@ -203,8 +194,10 @@ def test_live_tv_bootstrap_only_prepares_secrets() -> None:
         == "jellyfin-secrets"
     )
     assert oidc_check < jellyfin_secret
-    assert "targetRevision" not in (ROOT / "roles/apps/live_tv/tasks/enabled.yml").read_text()
-    assert "kind: Application" not in (ROOT / "roles/apps/live_tv/tasks/enabled.yml").read_text()
+    assert "targetRevision" not in (ROOT / "apps/live-tv/bootstrap/tasks/enabled.yml").read_text()
+    assert (
+        "kind: Application" not in (ROOT / "apps/live-tv/bootstrap/tasks/enabled.yml").read_text()
+    )
 
 
 def test_full_gate_checks_the_private_input_playbook() -> None:
@@ -222,9 +215,7 @@ def test_live_tv_applications_survive_catalog_removal(name: str) -> None:
 
 
 def test_jellyfin_ingress_stays_private_without_forward_auth() -> None:
-    ingress = yaml.safe_load(
-        (ROOT / "playbooks/argocd/applications/media/jellyfin/ingress.yaml").read_text()
-    )
+    ingress = yaml.safe_load((ROOT / "apps/jellyfin/manifests/ingress.yaml").read_text())
     annotations = ingress["metadata"]["annotations"]
     assert annotations["nginx.ingress.kubernetes.io/whitelist-source-range"] == (
         "192.168.20.0/24,100.64.0.0/10,10.233.0.0/16"
@@ -240,7 +231,7 @@ def test_dispatcharr_uses_forward_auth_and_jellyfin_keeps_client_api_open() -> N
         "Set-Cookie,Authorization,X-authentik-username,X-authentik-groups,"
         "X-authentik-entitlements,X-authentik-email,X-authentik-name,X-authentik-uid"
     )
-    dispatcharr = ROOT / "playbooks/argocd/applications/media/dispatcharr"
+    dispatcharr = ROOT / "apps/dispatcharr/manifests"
     ingress = yaml.safe_load((dispatcharr / "ingress.yaml").read_text())
     annotations = ingress["metadata"]["annotations"]
     assert annotations["nginx.ingress.kubernetes.io/auth-url"] == auth_url
@@ -258,19 +249,14 @@ def test_dispatcharr_uses_forward_auth_and_jellyfin_keeps_client_api_open() -> N
     headers = next(item for item in forward_auth if item["kind"] == "ConfigMap")
     assert headers["data"] == {"X-Forwarded-Host": "$http_host"}
     assert headers["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"] == "-1"
-    jellyfin = yaml.safe_load(
-        (ROOT / "playbooks/argocd/applications/media/jellyfin/ingress.yaml").read_text()
-    )
+    jellyfin = yaml.safe_load((ROOT / "apps/jellyfin/manifests/ingress.yaml").read_text())
     assert not any("auth" in key for key in jellyfin["metadata"].get("annotations", {}))
-    blueprint = (
-        ROOT
-        / "playbooks/argocd/applications/security/authentik/blueprints/legacy-forward-auth.yaml"
-    ).read_text()
+    blueprint = (ROOT / "apps/authentik/manifests/blueprints/legacy-forward-auth.yaml").read_text()
     assert "Dispatcharr forward auth" in blueprint
 
 
 def test_dispatcharr_owns_its_authentik_outpost_route() -> None:
-    dispatcharr = ROOT / "playbooks/argocd/applications/media/dispatcharr"
+    dispatcharr = ROOT / "apps/dispatcharr/manifests"
     forward_auth = list(
         yaml.safe_load_all((dispatcharr / "authentik-forward-auth.yaml").read_text())
     )
@@ -304,7 +290,7 @@ def test_dispatcharr_owns_its_authentik_outpost_route() -> None:
 
 
 def test_jellyfin_uses_pinned_oidc_plugin_and_declarative_authentik_config() -> None:
-    root = ROOT / "playbooks/argocd/applications/media/jellyfin"
+    root = ROOT / "apps/jellyfin/manifests"
     deployment = yaml.safe_load((root / "deployment.yaml").read_text())
     pod = deployment["spec"]["template"]["spec"]
     installer = next(item for item in pod["initContainers"] if item["name"] == "install-sso")
@@ -351,7 +337,7 @@ def test_jellyfin_uses_pinned_oidc_plugin_and_declarative_authentik_config() -> 
 
 
 def test_jellyfin_bootstrap_refreshes_a_stale_channel_lineup() -> None:
-    root = ROOT / "playbooks/argocd/applications/media/jellyfin"
+    root = ROOT / "apps/jellyfin/manifests"
     lineups_match = load_jellyfin_bootstrap_function("lineups_match")
 
     dispatcharr = [
@@ -376,7 +362,7 @@ def test_jellyfin_bootstrap_refreshes_a_stale_channel_lineup() -> None:
 
 
 def test_jellyfin_refreshes_the_guide_when_channel_artwork_is_missing() -> None:
-    source = (ROOT / "playbooks/argocd/applications/media/jellyfin/bootstrap.py").read_text()
+    source = (ROOT / "apps/jellyfin/manifests/bootstrap.py").read_text()
     functions = [
         node
         for node in ast.parse(source).body
@@ -397,7 +383,7 @@ def test_jellyfin_refreshes_the_guide_when_channel_artwork_is_missing() -> None:
 
 
 def test_jellyfin_starts_guide_refresh_by_task_id() -> None:
-    source = (ROOT / "playbooks/argocd/applications/media/jellyfin/bootstrap.py").read_text()
+    source = (ROOT / "apps/jellyfin/manifests/bootstrap.py").read_text()
     tree = ast.parse(source)
     functions = [
         node
@@ -443,13 +429,11 @@ def test_jellyfin_starts_guide_refresh_by_task_id() -> None:
 
 
 def test_authentik_declares_jellyfin_oidc_and_live_tv_copies_its_secret() -> None:
-    blueprint = (
-        ROOT / "playbooks/argocd/applications/security/authentik/blueprints/native-apps.yaml"
-    ).read_text()
+    blueprint = (ROOT / "apps/authentik/manifests/blueprints/native-apps.yaml").read_text()
     assert "Jellyfin" in blueprint
     assert "JELLYFIN_OIDC_CLIENT_SECRET" in blueprint
     assert "https://tv.soyspray.vip/sso/OID/redirect/authentik" in blueprint
-    tasks = (ROOT / "roles/apps/live_tv/tasks/enabled.yml").read_text()
+    tasks = (ROOT / "apps/live-tv/bootstrap/tasks/enabled.yml").read_text()
     assert "namespace: authentik" in tasks
     assert "JELLYFIN_OIDC_CLIENT_SECRET" in tasks
 
@@ -460,7 +444,7 @@ def test_media_network_policies_allow_nodelocal_dns(name: str) -> None:
         (
             (HELPER / "manifests/network-policy.yaml")
             if name == "media-helper"
-            else (ROOT / f"playbooks/argocd/applications/media/{name}/network-policy.yaml")
+            else (ROOT / f"apps/{name}/manifests/network-policy.yaml")
         ).read_text()
     )
     cidrs = {
@@ -494,9 +478,7 @@ def test_jellyfin_can_read_media_helper_without_reverse_control_access() -> None
         for rule in helper["spec"]["egress"]
         for peer in rule.get("to", [])
     ]
-    jellyfin = yaml.safe_load(
-        (ROOT / "playbooks/argocd/applications/media/jellyfin/network-policy.yaml").read_text()
-    )
+    jellyfin = yaml.safe_load((ROOT / "apps/jellyfin/manifests/network-policy.yaml").read_text())
     jellyfin_ingress = [
         peer.get("podSelector", {}).get("matchLabels", {})
         for rule in jellyfin["spec"]["ingress"]
@@ -508,17 +490,13 @@ def test_jellyfin_can_read_media_helper_without_reverse_control_access() -> None
 
 
 def test_dispatcharr_keeps_the_upstream_entrypoint_capabilities() -> None:
-    deployment = yaml.safe_load(
-        (ROOT / "playbooks/argocd/applications/media/dispatcharr/deployment.yaml").read_text()
-    )
+    deployment = yaml.safe_load((ROOT / "apps/dispatcharr/manifests/deployment.yaml").read_text())
     container = deployment["spec"]["template"]["spec"]["containers"][0]
     assert "securityContext" not in container
 
 
 def test_dispatcharr_reconcile_can_reach_dispatcharr_and_has_a_deadline() -> None:
-    policy = yaml.safe_load(
-        (ROOT / "playbooks/argocd/applications/media/dispatcharr/network-policy.yaml").read_text()
-    )
+    policy = yaml.safe_load((ROOT / "apps/dispatcharr/manifests/network-policy.yaml").read_text())
     selectors = [
         peer.get("podSelector", {}).get("matchLabels", {})
         for rule in policy["spec"]["ingress"]
@@ -526,11 +504,9 @@ def test_dispatcharr_reconcile_can_reach_dispatcharr_and_has_a_deadline() -> Non
     ]
     assert {"job-name": "dispatcharr-reconcile"} in selectors
     assert {"job-name": "jellyfin-bootstrap"} in selectors
-    job = yaml.safe_load(
-        (ROOT / "playbooks/argocd/applications/media/dispatcharr/reconcile-job.yaml").read_text()
-    )
+    job = yaml.safe_load((ROOT / "apps/dispatcharr/manifests/reconcile-job.yaml").read_text())
     assert job["spec"]["activeDeadlineSeconds"] == 600
-    reconcile = (ROOT / "playbooks/argocd/applications/media/dispatcharr/reconcile.py").read_text()
+    reconcile = (ROOT / "apps/dispatcharr/manifests/reconcile.py").read_text()
     assert '"/core/settings/"' in reconcile
     assert '"default_stream_profile": profile["id"]' not in reconcile
     assert '"auto_enable_new_groups_live": True' in reconcile
@@ -931,15 +907,13 @@ def test_dispatcharr_keeps_auto_sync_disabled(monkeypatch) -> None:
 
 
 def test_dispatcharr_has_memory_for_four_relays() -> None:
-    deployment = yaml.safe_load(
-        (ROOT / "playbooks/argocd/applications/media/dispatcharr/deployment.yaml").read_text()
-    )
+    deployment = yaml.safe_load((ROOT / "apps/dispatcharr/manifests/deployment.yaml").read_text())
     resources = deployment["spec"]["template"]["spec"]["containers"][0]["resources"]
     assert resources["limits"] == {"cpu": "2", "memory": "3Gi"}
 
 
 def test_dispatcharr_overrides_okru_metadata_schema_for_live_pages() -> None:
-    root = ROOT / "playbooks/argocd/applications/media/dispatcharr"
+    root = ROOT / "apps/dispatcharr/manifests"
     plugin = (root / "okru.py").read_text()
     assert "validate.any(dict, validate.parse_json())" in plugin
     assert 'validate.optional("metadata"): validate.any(dict, str)' in plugin

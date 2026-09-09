@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
     targetRevision: main
-    path: playbooks/argocd/applications/backups/immich-offsite-backup
+    path: apps/immich-offsite-backup/manifests
   destination:
     server: https://kubernetes.default.svc
     namespace: immich

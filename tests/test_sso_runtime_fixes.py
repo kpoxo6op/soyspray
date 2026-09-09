@@ -5,7 +5,7 @@ from conftest import load_all, load_yaml
 
 def test_cnpg_operator_can_read_authentik_instance_status() -> None:
     policy = load_yaml(
-        "playbooks/argocd/applications/security/authentik/database/networkpolicy.yaml"
+        "apps/authentik-postgresql/manifests/networkpolicy.yaml"
     )
 
     assert policy["spec"]["ingress"] == [
@@ -47,14 +47,14 @@ def test_cnpg_operator_can_read_authentik_instance_status() -> None:
 
 
 def test_authentik_database_has_cpu_for_blueprint_reconciliation() -> None:
-    resources = load_all("playbooks/argocd/applications/security/authentik/database/cluster.yaml")
+    resources = load_all("apps/authentik-postgresql/manifests/cluster.yaml")
     cluster = next(item for item in resources if item["kind"] == "Cluster")
 
     assert cluster["spec"]["resources"]["limits"]["cpu"] == "1"
 
 
 def test_authentik_serializes_blueprint_work_on_one_worker() -> None:
-    values = load_yaml("playbooks/argocd/applications/security/authentik/values.yaml")
+    values = load_yaml("apps/authentik/manifests/values.yaml")
 
     assert values["worker"]["replicas"] == 1
     worker_env = {item["name"]: item["value"] for item in values["worker"]["env"]}

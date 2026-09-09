@@ -6,7 +6,7 @@ check:
 	cd $(ROOT) && $(PYTHON) -m pytest -q tests/test_home_assistant_voice.py tests/test_home_assistant_restore.py
 
 diff:
-	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app home-assistant
+	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app home-assistant --package apps/home-assistant/manifests
 
 restore-check:
 	cd $(ROOT) && $(PYTHON) -m scripts.restore_durable --app home-assistant-config

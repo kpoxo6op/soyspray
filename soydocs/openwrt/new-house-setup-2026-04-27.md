@@ -551,7 +551,7 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
 The full app deploy stopped on an existing missing file reference:
 
 ```text
-playbooks/argocd/applications/database/cnpg/immich-db-active-application.yaml
+apps/immich/database/immich-db-active-application.yaml
 ```
 
 The network-facing app subset was then applied with tags:
@@ -563,7 +563,7 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
   --tags redis,obsidian,plex,jellyfin,prowlarr,qbittorrent,lazylibrarian,booklore,sonarr,threadfin,streamlink,immich,mosquitto,zigbee2mqtt,homeassistant
 ```
 
-Temporary branch deployment:
+Historical temporary branch deployment (removed after the migration):
 
 Live Argo Applications whose repo source was `https://github.com/kpoxo6op/soyspray.git`
 and target revision was `HEAD` were temporarily patched to:

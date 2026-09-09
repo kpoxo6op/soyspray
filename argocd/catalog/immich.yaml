@@ -16,7 +16,7 @@ spec:
   sources:
     - repoURL: https://github.com/kpoxo6op/soyspray.git
       targetRevision: main
-      path: playbooks/argocd/applications/media/immich
+      path: apps/immich/manifests
       kustomize:
   syncPolicy:
     automated:

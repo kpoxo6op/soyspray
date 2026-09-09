@@ -1,4 +1,4 @@
-# playbooks/argocd/applications/home-automation/zigbee2mqtt/zigbee2mqtt-application.yaml
+# apps/zigbee2mqtt/manifests/zigbee2mqtt-application.yaml
 # ArgoCD Application to manage Zigbee2MQTT
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -14,7 +14,7 @@ spec:
   source:
     repoURL: "https://github.com/kpoxo6op/soyspray.git"
     targetRevision: main
-    path: playbooks/argocd/applications/home-automation/zigbee2mqtt
+    path: apps/zigbee2mqtt/manifests
   destination:
     server: "https://kubernetes.default.svc"
     namespace: home-automation

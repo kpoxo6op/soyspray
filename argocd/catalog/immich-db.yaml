@@ -33,7 +33,7 @@ spec:
       sources:
         - repoURL: "https://github.com/kpoxo6op/soyspray.git"
           targetRevision: main
-          path: playbooks/argocd/applications/database/cnpg/immich-db/overlays/{{role}}
+          path: apps/immich/database/immich-db/overlays/{{role}}
           kustomize:
             nameSuffix: -{{letter}}
       syncPolicy:

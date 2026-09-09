@@ -7,6 +7,6 @@ metadata:
   annotations: {argocd.argoproj.io/sync-options: "Prune=false,Delete=false"}
 spec:
   project: legacy-workloads
-  source: {repoURL: https://github.com/kpoxo6op/soyspray.git, targetRevision: main, path: playbooks/argocd/applications/media/jellyfin}
+  source: {repoURL: https://github.com/kpoxo6op/soyspray.git, targetRevision: main, path: apps/jellyfin/manifests}
   destination: {server: https://kubernetes.default.svc, namespace: media}
   syncPolicy: {automated: {prune: true, selfHeal: true}, syncOptions: [CreateNamespace=true]}

@@ -19,9 +19,9 @@ def test_headlamp_uses_an_external_oidc_secret_and_group_rbac() -> None:
 
 
 def test_authentik_restarts_when_runtime_oidc_clients_change() -> None:
-    values = load_yaml("playbooks/argocd/applications/security/authentik/values.yaml")
+    values = load_yaml("apps/authentik/manifests/values.yaml")
     application = load_yaml("argocd/catalog/authentik.yaml")
-    tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+    tasks = (ROOT / "apps/authentik/bootstrap/tasks/main.yml").read_text()
 
     assert "podAnnotations" not in values["server"]
     assert "podAnnotations" not in values["worker"]
@@ -31,7 +31,7 @@ def test_authentik_restarts_when_runtime_oidc_clients_change() -> None:
     assert "soyspray.vip/runtime-secret-hash" in tasks
     consumer_tasks = [
         task
-        for task in load_yaml("roles/apps/authentik/tasks/main.yml")
+        for task in load_yaml("apps/authentik/bootstrap/tasks/main.yml")
         if task["name"]
         in {
             "Read Authentik deployments that consume the runtime secret",
@@ -44,7 +44,7 @@ def test_authentik_restarts_when_runtime_oidc_clients_change() -> None:
 
 
 def test_authentik_worker_probe_allows_blueprint_apply_time() -> None:
-    values = load_yaml("playbooks/argocd/applications/security/authentik/values.yaml")
+    values = load_yaml("apps/authentik/manifests/values.yaml")
 
     for probe_name in ("livenessProbe", "readinessProbe", "startupProbe"):
         assert values["worker"][probe_name]["timeoutSeconds"] == 15
@@ -52,7 +52,7 @@ def test_authentik_worker_probe_allows_blueprint_apply_time() -> None:
 
 def test_authentik_has_a_headlamp_oidc_client() -> None:
     blueprint = (
-        ROOT / "playbooks/argocd/applications/security/authentik/blueprints/cluster-sso.yaml"
+        ROOT / "apps/authentik/manifests/blueprints/cluster-sso.yaml"
     ).read_text()
 
     assert "id: headlamp-provider" in blueprint
@@ -78,7 +78,7 @@ def test_kubernetes_oidc_flags_match_the_headlamp_provider() -> None:
 
 
 def test_authentik_bootstraps_the_existing_headlamp_oidc_secret() -> None:
-    tasks = load_yaml("roles/apps/authentik/tasks/main.yml")
+    tasks = load_yaml("apps/authentik/bootstrap/tasks/main.yml")
     secrets = [
         task
         for task in tasks

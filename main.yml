@@ -22,7 +22,7 @@
 - import_playbook: playbooks/operations/storage/initialize-longhorn-storage.yml
   tags: postinstall
 
-# manual step playbooks/argocd/applications/infrastructure/longhorn/values.yaml flip service monitor to false
+# manual step apps/longhorn/manifests/values.yaml flip service monitor to false
 - import_playbook: playbooks/argocd/playbooks/deploy-apps.yml
   tags: longhorn
 

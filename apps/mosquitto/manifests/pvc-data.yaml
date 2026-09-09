@@ -1,0 +1,15 @@
+# apps/mosquitto/manifests/pvc-data.yaml
+# PersistentVolumeClaim for Mosquitto data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mosquitto-data
+  namespace: home-automation
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+  storageClassName: longhorn
+

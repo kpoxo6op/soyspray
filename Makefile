@@ -25,8 +25,8 @@ KUSTOMIZATIONS := \
 	$(OBSIDIAN_PACKAGE) \
 	apps/voice-assistant/manifests \
 	apps/media-helper \
-	playbooks/argocd/applications/media/dispatcharr \
-	playbooks/argocd/applications/media/jellyfin
+	apps/dispatcharr/manifests \
+	apps/jellyfin/manifests
 
 .PHONY: help setup act check shared-test shared-check full-check app-command diff smoke restore-check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
 	test render go voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
@@ -88,10 +88,10 @@ lint: ## Check Python style and common defects
 	$(PYTHON) -m ruff check apps/cluster-diagnosis apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/cert-manager-config/*.py apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich apps/prometheus/tests scripts tests
 	$(PYTHON) -m ruff format --check apps/cluster-diagnosis apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/cert-manager-config/*.py apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich apps/prometheus/tests scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml apps/obsidian-livesync/*.yml apps/cert-manager-config/*.yml apps/prometheus/*.yml argocd/bootstrap/repositories.yml roles/apps/authentik/tasks/certificate.yml \
-		roles/apps/voice-assistant/tasks/*.yml roles/apps/voice-assistant/defaults/*.yml
+		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml apps/obsidian-livesync/*.yml apps/cert-manager-config/*.yml apps/prometheus/*.yml argocd/bootstrap/repositories.yml apps/authentik/bootstrap/tasks/certificate.yml \
+		apps/voice-assistant/bootstrap/tasks/*.yml apps/voice-assistant/bootstrap/defaults/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		roles/apps/live_tv/tasks/*.yml roles/apps/live_tv/defaults/*.yml \
+		apps/live-tv/bootstrap/tasks/*.yml apps/live-tv/bootstrap/defaults/*.yml \
 		playbooks/operations/boys/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint playbooks/bootstrap-apps.yml \
 		playbooks/bootstrap-app-inputs.yml \
