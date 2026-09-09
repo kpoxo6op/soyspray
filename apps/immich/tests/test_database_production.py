@@ -1,4 +1,3 @@
-import copy
 import subprocess
 from pathlib import Path
 
@@ -23,28 +22,16 @@ def identity(resource: dict) -> tuple[str, str]:
     return resource["kind"], resource["metadata"]["name"]
 
 
-def old_production_with_a_suffix() -> list[dict]:
-    resources = copy.deepcopy(render(DATABASE / "immich-db/overlays/initdb"))
-    for resource in resources:
-        name = resource["metadata"]["name"]
-        resource["metadata"]["name"] = f"{name}-a"
-        if resource["kind"] == "Cluster":
-            resource["spec"]["bootstrap"]["initdb"]["secret"]["name"] += "-a"
-        if resource["kind"] == "ScheduledBackup":
-            resource["spec"]["cluster"]["name"] += "-a"
-    return resources
-
-
-def test_explicit_production_renders_the_generated_a_objects() -> None:
-    old = sorted(old_production_with_a_suffix(), key=identity)
+def test_explicit_production_renders_only_the_existing_objects() -> None:
     explicit = sorted(render(DATABASE / "production"), key=identity)
-
-    assert explicit == old
     assert [identity(resource) for resource in explicit] == [
         ("Cluster", "immich-db-a"),
         ("ScheduledBackup", "immich-db-daily-a"),
         ("Secret", "immich-app-secret-a"),
     ]
+    cluster = next(resource for resource in explicit if resource["kind"] == "Cluster")
+    assert cluster["spec"]["bootstrap"]["initdb"]["secret"]["name"] == ("immich-app-secret-a")
+    assert cluster["spec"]["imageName"] == ("ghcr.io/tensorchord/cloudnative-pgvecto.rs:16-v0.3.0")
 
 
 def test_direct_application_uses_the_explicit_production_path() -> None:

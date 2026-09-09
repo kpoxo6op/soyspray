@@ -19,14 +19,16 @@ def render(path: Path) -> list[dict]:
 
 
 def test_explicit_alias_renders_the_active_a_service() -> None:
-    old = render(DATABASE / "immich-db-active/overlays/active-a")
     explicit = render(DATABASE / "alias")
 
-    assert explicit == old
     assert (explicit[0]["kind"], explicit[0]["metadata"]["name"]) == (
         "Service",
         "immich-db-active",
     )
+    assert explicit[0]["spec"] == {
+        "externalName": "immich-db-a-rw.postgresql.svc.cluster.local",
+        "type": "ExternalName",
+    }
 
 
 def test_direct_application_uses_the_explicit_alias_path() -> None:

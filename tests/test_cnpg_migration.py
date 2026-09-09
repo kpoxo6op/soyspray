@@ -32,8 +32,8 @@ def test_archive_switch_is_one_identity_guarded_patch():
 
 
 def test_immich_preserves_archive_identity_and_daily_schedule():
-    base = ROOT / "apps/immich/database/immich-db/overlays/initdb"
-    spec = yaml.safe_load((base / "backup-config-patch.yaml").read_text())["spec"]
+    base = ROOT / "apps/immich/database/production"
+    spec = yaml.safe_load((base / "cluster.yaml").read_text())["spec"]
     assert spec["plugins"][0]["parameters"] == {
         "barmanObjectName": "immich-offsite",
         "serverName": "immich-db-a-post-ssd-20260506",
