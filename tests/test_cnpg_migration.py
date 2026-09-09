@@ -46,17 +46,53 @@ def test_immich_preserves_archive_identity_and_daily_schedule():
     assert schedule["target"] == "prefer-standby"
 
 
-def test_immich_sync_selects_existing_resources_without_pruning():
+def test_immich_database_apps_are_direct_and_non_pruning():
+    expected = {
+        "immich-db.yaml": ("immich-db-a-initdb", "apps/immich/database/production"),
+        "immich-db-alias.yaml": ("immich-db-active-a", "apps/immich/database/alias"),
+    }
+    for filename, (name, path) in expected.items():
+        app = yaml.safe_load((ROOT / "argocd/catalog" / filename).read_text())
+        assert app["kind"] == "Application"
+        assert app["metadata"]["name"] == name
+        assert app["metadata"]["annotations"]["argocd.argoproj.io/sync-options"] == (
+            "Prune=false,Delete=false"
+        )
+        assert app["spec"]["sources"] == [
+            {
+                "repoURL": "https://github.com/kpoxo6op/soyspray.git",
+                "targetRevision": "main",
+                "path": path,
+            }
+        ]
+        assert "automated" not in app["spec"]["syncPolicy"]
+
+
+def test_immich_adoption_is_exact_guarded_orphan_deletion():
     play = yaml.safe_load(
-        (ROOT / "playbooks/operations/recovery/reconcile-immich-database.yml").read_text()
+        (ROOT / "playbooks/operations/recovery/adopt-immich-database.yml").read_text()
     )[0]
-    task = play["tasks"][-1]["kubernetes.core.k8s_json_patch"]
-    assert task["patch"][0]["path"] == "/metadata/resourceVersion"
-    sync = task["patch"][1]["value"]["sync"]
-    assert sync["prune"] is False
-    assert sync["resources"] == "{{ item.item.resources }}"
-    assert all(
-        r["kind"] != "Backup" for group in play["vars"]["cnpg_sets"] for r in group["resources"]
+    assert play["vars"]["expected_root_revision"] == ""
+    assert [item["uid"] for item in play["vars"]["owning_sets"]] == [
+        "84c8b489-c979-4a50-8896-22ca53aad2e0",
+        "a40af192-fb57-40bc-9275-f27b64296b07",
+    ]
+    deletion = next(
+        task["kubernetes.core.k8s"]
+        for task in play["tasks"]
+        if task["name"].startswith("Orphan the child Applications")
+    )
+    assert deletion["kind"] == "ApplicationSet"
+    assert deletion["state"] == "absent"
+    assert deletion["delete_options"] == {"propagationPolicy": "Orphan"}
+    identity_guard = next(
+        task["ansible.builtin.assert"]["that"]
+        for task in play["tasks"]
+        if task["name"].startswith("Require unchanged resource identity")
+    )
+    assert "item.resources[0].metadata.uid == item.item.uid" in identity_guard
+    assert (
+        "item.resources[0].metadata.ownerReferences | default([]) | length == 0" in identity_guard
     )
 
 
