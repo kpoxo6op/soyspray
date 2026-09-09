@@ -1,0 +1,157 @@
+---
+- name: Install one pinned Soyspray operations runtime
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    operations_home: "{{ lookup('env', 'HOME') }}"
+    operations_install_root: "{{ operations_home }}/.local/lib/soyspray-operations"
+    operations_source_repo: https://github.com/kpoxo6op/soyspray.git
+  tasks:
+    - name: Read the requested revision from the reviewed checkout
+      ansible.builtin.command:
+        argv: [git, rev-parse, "{{ operations_revision | default('HEAD') }}"]
+        chdir: "{{ (playbook_dir + '/../../..') | realpath }}"
+      register: operations_selected_revision
+      changed_when: false
+
+    - name: Require an exact pushed revision and private install path
+      ansible.builtin.assert:
+        that:
+          - operations_selected_revision.stdout is match('^[0-9a-f]{40}$')
+          - operations_install_root.startswith(operations_home + '/.local/lib/')
+
+    - name: Read the revision from GitHub
+      ansible.builtin.command:
+        argv: [git, ls-remote, "{{ operations_source_repo }}"]
+      register: operations_remote_refs
+      changed_when: false
+      check_mode: false
+
+    - name: Require the exact revision to be available remotely
+      ansible.builtin.assert:
+        that: operations_selected_revision.stdout in operations_remote_refs.stdout
+        fail_msg: Push the reviewed revision before installing it.
+
+    - name: Create the private release root
+      ansible.builtin.file:
+        path: "{{ operations_install_root }}/releases"
+        state: directory
+        mode: '0700'
+
+    - name: Install the exact independent Git checkout
+      ansible.builtin.git:
+        repo: "{{ operations_source_repo }}"
+        dest: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}"
+        version: "{{ operations_selected_revision.stdout }}"
+        update: false
+      when: not ansible_check_mode
+
+    - name: Create the release virtual environment
+      ansible.builtin.command:
+        argv: [python3, -m, venv, soyspray-venv]
+        chdir: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}"
+        creates: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}/soyspray-venv/bin/python"
+      when: not ansible_check_mode
+
+    - name: Install the pinned Python dependencies
+      ansible.builtin.pip:
+        requirements: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}/requirements-dev.txt"
+        virtualenv: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}/soyspray-venv"
+      when: not ansible_check_mode
+
+    - name: Install the pinned Ansible collections
+      ansible.builtin.command:
+        argv:
+          - "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}/soyspray-venv/bin/ansible-galaxy"
+          - collection
+          - install
+          - -r
+          - requirements-ansible.yml
+          - -p
+          - collections
+      args:
+        chdir: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}"
+        creates: >-
+          {{ operations_install_root }}/releases/{{ operations_selected_revision.stdout
+          }}/collections/ansible_collections/kubernetes/core/MANIFEST.json
+      when: not ansible_check_mode
+
+    - name: Install the pinned application check dependencies
+      ansible.builtin.command:
+        argv: [npm, ci]
+        chdir: >-
+          {{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}/{{ item }}
+        creates: >-
+          {{ operations_install_root }}/releases/{{ operations_selected_revision.stdout
+          }}/{{ item }}/node_modules
+      loop:
+        - apps/autism-traits/app
+        - apps/boys
+      when: not ansible_check_mode
+
+    - name: Install the pinned browser used by the full gate
+      ansible.builtin.command:
+        argv: [npx, playwright, install, chromium]
+        chdir: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}/apps/boys"
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Validate the installed release before selecting it
+      ansible.builtin.command:
+        argv: [make, go]
+        chdir: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}"
+      environment:
+        PATH: >-
+          {{ operations_install_root }}/releases/{{ operations_selected_revision.stdout
+          }}/soyspray-venv/bin:{{ ansible_env.PATH
+          | default('/usr/local/bin:/usr/bin:/bin') }}
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Read the installed current revision
+      ansible.builtin.command:
+        argv: [readlink, -f, "{{ operations_install_root }}/current"]
+      register: operations_old_current
+      changed_when: false
+      failed_when: false
+
+    - name: Retain the previous installed release for rollback
+      ansible.builtin.file:
+        src: "{{ operations_old_current.stdout }}"
+        dest: "{{ operations_install_root }}/previous"
+        state: link
+        force: true
+      when:
+        - not ansible_check_mode
+        - operations_old_current.rc == 0
+        - operations_old_current.stdout != operations_install_root + '/releases/' + operations_selected_revision.stdout
+
+    - name: Select the installed current release
+      ansible.builtin.file:
+        src: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}"
+        dest: "{{ operations_install_root }}/current"
+        state: link
+        force: true
+      when: not ansible_check_mode
+
+- name: Install evidence collection from the pinned runtime
+  ansible.builtin.import_playbook: ../recovery/install-evidence-schedule.yml
+  vars:
+    operations_checkout: "{{ lookup('env', 'HOME') }}/.local/lib/soyspray-operations/current"
+
+- name: Install restore checks from the pinned runtime
+  ansible.builtin.import_playbook: ../recovery/install-restore-check-schedule.yml
+  vars:
+    operations_checkout: "{{ lookup('env', 'HOME') }}/.local/lib/soyspray-operations/current"
+
+- name: Install recovery-input backups from the pinned runtime
+  ansible.builtin.import_playbook: ../../../apps/recovery-input-backup/install.yml
+  vars:
+    operations_checkout: "{{ lookup('env', 'HOME') }}/.local/lib/soyspray-operations/current"
+
+- name: Install diagnosis and metrics from the pinned runtime
+  ansible.builtin.import_playbook: ../../../apps/cluster-diagnosis/install.yml
+  vars:
+    operations_checkout: "{{ lookup('env', 'HOME') }}/.local/lib/soyspray-operations/current"

@@ -1,0 +1,33 @@
+# Installed laptop operations
+
+One Ansible operation installs evidence collection, monthly isolated restores,
+recovery-input backups, diagnosis, and metrics under
+`~/.local/lib/soyspray-operations`. Each immutable release has its own Git
+checkout and Python environment. `current` selects the active release and
+`previous` retains the prior one for rollback. Private credentials, reports,
+locks, incident state, and model inputs remain outside the checkout.
+
+Install or update an exact pushed commit:
+
+```sh
+source soyspray-venv/bin/activate
+ansible-playbook playbooks/operations/runtime/install.yml \
+  -e operations_revision=COMMIT \
+  -e diagnosis_telegram_target=RECIPIENT \
+  -e diagnosis_enabled=true
+```
+
+Run the same command with `--check` before an update. To roll back, use the
+commit shown by `readlink ~/.local/lib/soyspray-operations/previous` as
+`operations_revision`. The installer keeps systemd unit names and OpenClaw job
+identity unchanged.
+
+Check the installation with `systemctl --user status` for
+`soyspray-operations-evidence.timer`, `soyspray-restore-check.timer`,
+`soyspray-recovery-input-backup.timer`, and `soyspray-evidence-metrics.service`.
+Use `openclaw cron list --all --json` for diagnosis. Run a recovery-input backup
+through its installed service. Run a critical isolated restore with the pinned
+Python command under `current`; reports remain in `~/.local/state/soyspray`.
+
+The runtime does not update itself. It keeps all releases until an operator
+removes an unreferenced old release after verification.
