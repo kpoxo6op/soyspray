@@ -160,6 +160,7 @@
     - name: Reload the evacuation plan
       ansible.builtin.set_fact:
         node2_evacuation_plan: "{{ lookup('file', node2_evacuation_evidence_file) | from_json }}"
+      when: not ansible_check_mode
 
     - name: Read all rejoined Kubernetes nodes
       kubernetes.core.k8s_info:
@@ -167,6 +168,7 @@
         kind: Node
         kubeconfig: "{{ kubeconfig_path }}"
       register: node2_rejoined_nodes
+      when: not ansible_check_mode
 
     - name: Read all rejoined etcd members
       ansible.builtin.command:
@@ -175,6 +177,7 @@
       register: node2_rejoined_etcd
       changed_when: false
       check_mode: false
+      when: not ansible_check_mode
 
     - name: Require a new node identity in the original three-member cluster
       ansible.builtin.assert:
@@ -196,3 +199,4 @@
             (node2_rejoined_etcd.stdout | from_json)
             | map(attribute='Status.header.member_id') | unique | list | length == 3
         fail_msg: Node-2 did not rejoin as a new member of the original healthy cluster.
+      when: not ansible_check_mode

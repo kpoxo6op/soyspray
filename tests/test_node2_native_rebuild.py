@@ -106,6 +106,9 @@ def test_rejoin_uses_existing_storage_and_full_kubespray_cluster_play() -> None:
         if "ansible.builtin.import_playbook" not in play
     )
 
+    post_rejoin = plays[-1]["tasks"]
+    assert all(task.get("when") == "not ansible_check_mode" for task in post_rejoin)
+
 
 def test_restart_respects_native_eviction_protection() -> None:
     text = (NODES / "restart-node.yml").read_text()
