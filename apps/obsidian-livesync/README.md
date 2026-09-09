@@ -48,7 +48,7 @@ first with `--check`. Keep recovery keys outside the cluster. Restore data befor
 starting clients against a replacement cluster.
 
 Longhorn keeps 48 recent backups every 30 minutes and 30 daily backups. Use the
-[isolated recovery operations](../../playbooks/operations/recovery/README.md) to
+[isolated recovery operations](../../playbooks/operations/recovery) to
 start stock CouchDB on a scratch claim with archived configuration and credentials.
 Compare restored notes with the real local vault. Report attachment recovery as
 unknown when there is no attachment to restore. Preserve evidence of existing
@@ -91,4 +91,4 @@ the guarded cleanup operation with the report's check ID.
 covers the client sync journey. A successful upload or isolated database read
 does not prove two-client sync, attachment recovery, or seven-day recovery-point age.
 
-Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. The [monthly restore schedule](../../playbooks/operations/recovery/README.md) runs the same maintained command and validates its report.
+Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. The [monthly restore schedule](../../playbooks/operations/recovery) runs the same maintained command and validates its report.

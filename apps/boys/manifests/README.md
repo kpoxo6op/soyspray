@@ -3,7 +3,7 @@
 This native Kustomize package preserves the existing single-writer deployment,
 claim, service, ingress, tunnel, and network boundaries. Run `make diff APP=boys`
 from the repository root, then merge the pull request. Use the
-[app guide](../README.md) for checks and recovery.
+[app guide](..) for checks and recovery.
 
 
 ```text

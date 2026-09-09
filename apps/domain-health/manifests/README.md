@@ -7,5 +7,5 @@ initial image transition. Keep that file unchanged until the tested image is
 promoted and verified, then remove it.
 
 Render with `kubectl kustomize apps/domain-health` from the repo root. Use the
-[app commands](../README.md) for deployment and verify the Prometheus scrape and
+[app commands](..) for deployment and verify the Prometheus scrape and
 recent check results afterward. No persistent volume belongs to this app.

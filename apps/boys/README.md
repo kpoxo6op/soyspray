@@ -13,7 +13,7 @@ The smaller interface preserves existing hidden trip fields and audit history.
 
 The app keeps the existing SQLite database, sessions, and single-writer
 `boys` deployment on `boys-data`. The critical Longhorn backup group protects
-that claim. See [recovery operations](../../playbooks/operations/recovery/README.md)
+that claim. See [recovery operations](../../playbooks/operations/recovery)
 for isolated restores and their evidence limits.
 
 Run these commands from the repository root:
@@ -33,8 +33,8 @@ prune and deletion guards preserve them if removed from the root. The namespace
 and PVC also have explicit data protection. Normal deployment cannot retire
 Boys or remove its access keys.
 
-Runtime source and its compatibility contract are in [app/](app/README.md).
-[manifests/](manifests/README.md) contains the workload and tunnel configuration.
+Runtime source and its compatibility contract are in [app/](app).
+[manifests/](manifests) contains the workload and tunnel configuration.
 Checks live in `tests/`. The Docker build includes only the listed runtime files;
 Python and browser tools are development dependencies outside the image.
 The image workflow checks fresh access, migration, and rollback with disposable
@@ -69,7 +69,7 @@ creation instead of overwriting it. Secret content uses standard input and
 suppressed task output. No plaintext file is written on the node. Check mode
 validates inputs and skips creation.
 
-The separate [trip bootstrap](../../playbooks/operations/boys/README.md) loads
+The separate [trip bootstrap](../../playbooks/operations/boys) loads
 the private initial seed from encrypted input. It does not replace the current
 trip database. Keep `boys-data`, the database path, and the session key together
 through restores so existing dates, personal PIN hashes, and sessions survive.
@@ -111,7 +111,7 @@ age, and evidence gaps. They contain no private trip content or credentials.
 A passed restore report proves that one selected backup passed these checks.
 It does not prove seven days of recovery-point coverage. The command does not
 change the live workload or its data. Use the report's check ID and backup UID
-with the guarded [cleanup operation](../../playbooks/operations/recovery/README.md)
+with the guarded [cleanup operation](../../playbooks/operations/recovery)
 if an interrupted check leaves scratch resources behind.
 
 `make status APP=boys FORMAT=json` and `make backup-status FORMAT=json` show
@@ -139,4 +139,4 @@ Use the installed app browser dependencies from `make setup`. The existing local
 and image tests verify writes and claim races against disposable data; they do
 not prove an existing human session works against the live service.
 
-Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. The [monthly restore schedule](../../playbooks/operations/recovery/README.md) runs the same maintained command and validates its report.
+Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. The [monthly restore schedule](../../playbooks/operations/recovery) runs the same maintained command and validates its report.

@@ -27,12 +27,12 @@ route. Secrets and login details are not stored in this repository.
 ## Repository map
 
 - [`kubespray/`](kubespray/) contains the pinned cluster provisioner.
-- [`argocd/`](argocd/README.md) contains the complete application catalog.
-- [`playbooks/`](playbooks/README.md) contains bootstrap and operations entry
+- [`argocd/`](argocd) contains the complete application catalog.
+- [`playbooks/`](playbooks) contains bootstrap and operations entry
   points.
 - [`roles/`](roles/) contains reusable Ansible roles.
-- [`scripts/`](scripts/README.md) contains validation and operator helpers.
-- [`soydocs/`](soydocs/README.md) contains cluster build notes and maintenance
+- [`scripts/`](scripts) contains validation and operator helpers.
+- [`soydocs/`](soydocs) contains cluster build notes and maintenance
   records.
 
 ## Change rules
@@ -42,5 +42,5 @@ route. Secrets and login details are not stored in this repository.
 - Run `make go` before merge.
 - Add tests and a rollback path for behaviour changes.
 
-The [two repo skills](.agents/skills/README.md) cover operating Soyspray and
+The [two repo skills](.agents/skills) cover operating Soyspray and
 changing an application. Shared laptop skills are maintained outside the repo.

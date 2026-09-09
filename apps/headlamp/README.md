@@ -20,7 +20,7 @@ make status APP=headlamp FORMAT=json
 make diff APP=headlamp
 ```
 
-Merge the pull request to deploy through the [native root](../../argocd/README.md).
+Merge the pull request to deploy through the [native root](../../argocd).
 The chart is pinned to the existing `0.35.0` release. Diff compares the clean,
 pushed Git commit and this exact chart through native Argo revision overrides.
 Verify the chart and `main` Git revision, then sign in and open the workload list. A successful

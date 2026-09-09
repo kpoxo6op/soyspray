@@ -1,7 +1,7 @@
 # Boys runtime
 
 Python standard library, SQLite, and plain JavaScript run from an immutable image.
-Use [the app guide](../README.md) for normal use, deployment, and recovery.
+Use [the app guide](..) for normal use, deployment, and recovery.
 
 
 The authenticated trip interface stores one shared document, one response per

@@ -44,7 +44,7 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-u
 
 For maintenance procedures, including uninstallation and cleanup, see:
 
-- [Longhorn Maintenance Procedures](manifests/docs/README.md)
+- [Longhorn Maintenance Procedures](manifests/docs)
 
 ## Prometheus Storage Plan
 

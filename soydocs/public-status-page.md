@@ -55,7 +55,7 @@ not serve separate copies at the same time.
   behavior.
 - [`../Makefile`](../Makefile) supplies `status-page-check`, `status-page`, and
   `status-page-fallback`.
-- [`../platform/README.md`](../platform/README.md) contains the short operator
+- [`../platform/README.md`](../platform) contains the short operator
   procedure.
 
 The reconciler creates or updates declared items. It does not delete an
