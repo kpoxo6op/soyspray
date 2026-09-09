@@ -57,6 +57,12 @@ and backup/retention checks.
 - When work creates or changes a feature folder, add or update a short,
   human-centered `README.md` in that folder. Explain its purpose, normal human
   use, important commands, checks, and limits. Keep shared indexes concise.
+- Keep `docs/` as the human entry point and local README files as the
+  authoritative technical source. A material behavior, ownership, access, or
+  recovery change must update both affected layers in the same pull request.
+  Distinguish a configured backup, a completed backup, an isolated restore, and
+  a human recovery journey. Do not copy private inputs or unsupported recovery
+  claims into the public documentation site.
 - Use specific Ansible operations for destructive changes. Confirm scope when
   it is not already authorized; preserve shared resources and access.
 - Keep tests that protect behavior, data, ownership, and deployment safety.
