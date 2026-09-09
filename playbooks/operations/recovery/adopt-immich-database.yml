@@ -52,15 +52,39 @@
         kubeconfig: "{{ kubeconfig_path }}"
       register: root_app
 
-    - name: Require the root to be healthy at the merged revision
+    - name: Require only the expected ownership drift at the merged revision
       ansible.builtin.assert:
         that:
           - root_app.resources | length == 1
           - root_app.resources[0].spec.source.targetRevision == 'main'
-          - root_app.resources[0].status.sync.status == 'Synced'
+          - root_app.resources[0].status.sync.status == 'OutOfSync'
           - root_app.resources[0].status.health.status == 'Healthy'
           - root_app.resources[0].status.sync.revision == expected_root_revision
           - root_app.resources[0].operation | default(none) == none
+          - root_app.resources[0].status.operationState.phase == 'Succeeded'
+          - >-
+            root_app.resources[0].status.operationState.syncResult.revision
+            == expected_root_revision
+          - root_drift | length == 4
+          - >-
+            root_drift | map(attribute='name') | sort | list
+            == expected_drift_names
+          - >-
+            root_drift | selectattr('kind', 'equalto', 'Application')
+            | list | length == 2
+          - >-
+            root_drift | selectattr('kind', 'equalto', 'ApplicationSet')
+            | selectattr('requiresPruning', 'equalto', true)
+            | list | length == 2
+      vars:
+        root_drift: >-
+          {{ root_app.resources[0].status.resources
+             | rejectattr('status', 'equalto', 'Synced') | list }}
+        expected_drift_names:
+          - immich-db
+          - immich-db-a-initdb
+          - immich-db-active-a
+          - immich-db-alias
 
     - name: Read the exact legacy ApplicationSets
       kubernetes.core.k8s_info:
@@ -96,7 +120,7 @@
       loop: "{{ owning_sets }}"
       register: child_apps
 
-    - name: Require direct root tracking and unchanged child identity
+    - name: Require unchanged child identity under the exact legacy owner
       ansible.builtin.assert:
         that:
           - item.resources | length == 1
@@ -105,15 +129,11 @@
           - item.resources[0].metadata.ownerReferences | length == 1
           - item.resources[0].metadata.ownerReferences[0].uid == item.item.uid
           - item.resources[0].metadata.ownerReferences[0].controller | bool
-          - >-
-            (item.resources[0].metadata.labels | default({}))
-            .get('argocd.argoproj.io/instance', '') == 'soyspray'
           - item.resources[0].spec.sources | length == 1
           - item.resources[0].spec.sources[0].targetRevision == 'main'
           - item.resources[0].spec.sources[0].path == item.item.path
           - item.resources[0].status.sync.status == 'Synced'
           - item.resources[0].status.health.status == 'Healthy'
-          - item.resources[0].status.sync.revisions == [expected_root_revision]
           - item.resources[0].operation | default(none) == none
       loop: "{{ child_apps.results }}"
       loop_control:
@@ -128,6 +148,7 @@
         kubeconfig: "{{ kubeconfig_path }}"
       loop: "{{ preserved_resources }}"
       register: resources_before
+      no_log: true
 
     - name: Require unchanged resource identity and no Application owner
       ansible.builtin.assert:
@@ -138,6 +159,7 @@
       loop: "{{ resources_before.results }}"
       loop_control:
         label: "{{ item.item.kind }}/{{ item.item.name }}"
+      no_log: true
 
     - name: Require database health and archive continuity
       ansible.builtin.assert:
@@ -164,6 +186,7 @@
         cluster: "{{ resources_before.results[0].resources[0] }}"
         schedule: "{{ resources_before.results[1].resources[0] }}"
         service: "{{ resources_before.results[3].resources[0] }}"
+      no_log: true
 
     - name: Orphan the child Applications and remove only their old generators
       kubernetes.core.k8s:
@@ -200,7 +223,26 @@
           .get('argocd.argoproj.io/instance', '') == 'soyspray'
         - adopted_apps.resources[0].status.sync.status == 'Synced'
         - adopted_apps.resources[0].status.health.status == 'Healthy'
-      retries: 30
+        - adopted_apps.resources[0].status.sync.revisions == [expected_root_revision]
+      retries: 90
+      delay: 2
+      when: not ansible_check_mode
+
+    - name: Wait for the root to become fully synced
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: soyspray
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: root_after
+      until:
+        - root_after.resources | length == 1
+        - root_after.resources[0].status.sync.revision == expected_root_revision
+        - root_after.resources[0].status.sync.status == 'Synced'
+        - root_after.resources[0].status.health.status == 'Healthy'
+        - root_after.resources[0].operation | default(none) == none
+      retries: 90
       delay: 2
       when: not ansible_check_mode
 
@@ -214,6 +256,7 @@
       loop: "{{ preserved_resources }}"
       register: resources_after
       when: not ansible_check_mode
+      no_log: true
 
     - name: Prove every resource kept its identity
       ansible.builtin.assert:
@@ -225,6 +268,7 @@
       loop_control:
         label: "{{ item.item.kind }}/{{ item.item.name }}"
       when: not ansible_check_mode
+      no_log: true
 
     - name: Prove database health and archive identity after adoption
       ansible.builtin.assert:
@@ -242,3 +286,4 @@
       vars:
         cluster: "{{ resources_after.results[0].resources[0] }}"
       when: not ansible_check_mode
+      no_log: true
