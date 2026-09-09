@@ -34,10 +34,17 @@ def test_runtime_uses_the_minimal_recovery_dependencies() -> None:
     development = (ROOT / "requirements-dev.txt").read_text().splitlines()
     installer = RUNTIME_INSTALLER.read_text()
 
-    assert recovery == ["ansible-core==2.18.18", "PyYAML==6.0.3"]
+    assert recovery == [
+        "ansible-core==2.18.18",
+        "cryptography==46.0.7",
+        "jmespath==1.1.0",
+        "netaddr==1.3.0",
+        "PyYAML==6.0.3",
+    ]
     assert development[0] == "-r requirements-recovery.txt"
     assert "requirements-recovery.txt" in installer
     assert "requirements-dev.txt" not in installer
+    assert "- --force" in installer
     assert "npm" not in installer
     assert "playwright" not in installer
     assert "make, go" not in installer
@@ -64,4 +71,9 @@ def test_runtime_checks_the_exact_release_and_recovery_playbooks() -> None:
         "playbooks/operations/recovery/restore-volume.yml",
         "playbooks/operations/recovery/validate-durable.yml",
         "apps/recovery-input-backup/collect.yml",
+        "playbooks/operations/storage/evacuate-node2.yml",
+        "playbooks/operations/storage/restore-node2-replicas.yml",
+        "playbooks/operations/nodes/remove-node2.yml",
+        "playbooks/operations/nodes/clean-node2-baseline.yml",
+        "playbooks/operations/nodes/rejoin-node2.yml",
     ]

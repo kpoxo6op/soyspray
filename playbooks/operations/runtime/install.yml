@@ -74,11 +74,10 @@
           - requirements-ansible.yml
           - -p
           - collections
+          - --force
       args:
         chdir: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}"
-        creates: >-
-          {{ operations_install_root }}/releases/{{ operations_selected_revision.stdout
-          }}/collections/ansible_collections/kubernetes/core/MANIFEST.json
+      changed_when: true
       when: not ansible_check_mode
 
     - name: Verify tracked files in the installed release
@@ -123,6 +122,11 @@
         - playbooks/operations/recovery/restore-volume.yml
         - playbooks/operations/recovery/validate-durable.yml
         - apps/recovery-input-backup/collect.yml
+        - playbooks/operations/storage/evacuate-node2.yml
+        - playbooks/operations/storage/restore-node2-replicas.yml
+        - playbooks/operations/nodes/remove-node2.yml
+        - playbooks/operations/nodes/clean-node2-baseline.yml
+        - playbooks/operations/nodes/rejoin-node2.yml
       changed_when: false
       when: not ansible_check_mode
 
