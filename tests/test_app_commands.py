@@ -91,11 +91,13 @@ def test_staging_preserves_local_changes_without_copying_ignored_credentials(tmp
     (package / "private.yaml").write_text("secret")
     (package / "new.yml").write_text("new local manifest")
     (package / "dashboard.json").write_text('{"title":"local dashboard"}')
+    (package / "generator.py").write_text("print('generated')\n")
     staged = tmp_path / "staged"
     app_diff.stage_package(package, "old/app/path", staged)
     assert (staged / "old/app/path/deployment.yaml").read_text() == "local draft"
     assert (staged / "old/app/path/new.yml").read_text() == "new local manifest"
     assert (staged / "old/app/path/dashboard.json").read_text() == ('{"title":"local dashboard"}')
+    assert (staged / "old/app/path/generator.py").read_text() == "print('generated')\n"
     assert not (staged / "old/app/path/private.yaml").exists()
     with pytest.raises(ValueError, match="inside the temporary"):
         app_diff.stage_package(package, "../../escape", staged)
@@ -136,6 +138,7 @@ def test_native_diff_distinguishes_changes_from_failed_comparisons(
         with pytest.raises(RuntimeError, match="comparison failed"):
             app_diff.compare("example", tmp_path, "argocd")
     assert kubeconfig["contexts"][0]["context"]["namespace"] == "original"
+    assert ["--local-include", "*"] == calls[-1][calls[-1].index("--local-include") : -2]
     assert calls[-1][-2:] == ["--diff-exit-code", "10"]
 
 
