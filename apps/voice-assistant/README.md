@@ -43,7 +43,7 @@ Assistant on TCP port `8123`.
 The current private model file is:
 
 ```text
-~/.config/soyspray/recovery/voice-models/gi-v7.tflite
+~/.config/soyspray/recovery/voice-models/gi-v2.tflite
 ```
 
 Bootstrap private inputs only when the working tree is clean:
@@ -51,7 +51,7 @@ Bootstrap private inputs only when the working tree is clean:
 ```bash
 read -rsp 'Home Assistant voice token: ' VOICE_ASSISTANT_HA_TOKEN
 export VOICE_ASSISTANT_HA_TOKEN
-export VOICE_ASSISTANT_GI_MODEL_PATH="${HOME}/.config/soyspray/recovery/voice-models/gi-v7.tflite"
+export VOICE_ASSISTANT_GI_MODEL_PATH="${HOME}/.config/soyspray/recovery/voice-models/gi-v2.tflite"
 source soyspray-venv/bin/activate
 make -f apps/voice-assistant/Makefile bootstrap
 unset VOICE_ASSISTANT_HA_TOKEN VOICE_ASSISTANT_GI_MODEL_PATH
