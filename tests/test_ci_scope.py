@@ -182,7 +182,7 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
 
 
 def test_immich_recovery_changes_select_native_image_checks():
-    assert ci_scope.select(["apps/immich/backup/dump.sql"]) == {
+    assert ci_scope.select(["apps/immich-offsite-backup/manifests/runtime/dump.sql"]) == {
         "boys": False,
         "autism": False,
         "immich": True,

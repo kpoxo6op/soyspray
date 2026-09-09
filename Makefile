@@ -115,7 +115,7 @@ status-page-check:
 	$(MAKE) --no-print-directory -f apps/status-page/Makefile check
 
 test: ## Run the focused test suite
-	$(PYTEST) -q tests apps/cluster-diagnosis/tests apps/immich/tests --ignore=apps/immich/tests/test_backup.py apps/autism-traits/tests apps/boys/tests apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/prometheus/tests
+	$(PYTEST) -q tests apps/cluster-diagnosis/tests apps/immich/tests apps/immich-offsite-backup/tests --ignore=apps/immich-offsite-backup/tests/test_backup.py apps/autism-traits/tests apps/boys/tests apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/prometheus/tests
 
 render: ## Render all managed Kustomize packages
 	for path in $(KUSTOMIZATIONS); do \

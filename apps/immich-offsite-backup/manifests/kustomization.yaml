@@ -5,4 +5,4 @@ kind: Kustomization
 namespace: immich
 resources:
   - sa.yaml
-  - ../../immich/backup
+  - runtime

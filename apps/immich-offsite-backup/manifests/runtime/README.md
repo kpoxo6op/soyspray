@@ -44,14 +44,13 @@ until the paired replacement is verified.
 
 ## Operator commands
 
-Run `make go` on the pushed branch first. Activate `soyspray-venv` and use the
-standard inventory, `--become --become-user=root --user ubuntu` options with
-these Ansible playbooks:
+Run `make go` on the pushed branch first. Merge application changes to `main`.
+Argo CD owns the CronJob. Use Ansible only for the private Secret and deliberate
+one-time backup operations:
 
-- `apps/immich/backup/bootstrap.yml --vault-password-file /private/vault-password -e @/private/immich-backup.vault.yml`
-- `apps/immich/backup/deploy.yml -e immich_backup_revision=PUSHED_BRANCH`
-- `apps/immich/backup/run-job.yml -e immich_backup_operation=initialize -e immich_backup_run_id=UNIQUE_ID -e immich_backup_evidence_dir=/private/evidence`
-- `apps/immich/backup/run-job.yml -e immich_backup_operation=backup -e immich_backup_run_id=UNIQUE_ID -e immich_backup_evidence_dir=/private/evidence`
+- `apps/immich-offsite-backup/manifests/runtime/bootstrap.yml --vault-password-file /private/vault-password -e @/private/immich-backup.vault.yml`
+- `apps/immich-offsite-backup/manifests/runtime/run-job.yml -e immich_backup_operation=initialize -e immich_backup_run_id=UNIQUE_ID -e immich_backup_evidence_dir=/private/evidence`
+- `apps/immich-offsite-backup/manifests/runtime/run-job.yml -e immich_backup_operation=backup -e immich_backup_run_id=UNIQUE_ID -e immich_backup_evidence_dir=/private/evidence`
 
 Initialize a new repository once. An existing repository makes initialization
 fail without replacing it. The run command requires a suspended CronJob and no
@@ -64,5 +63,5 @@ the username and password with the existing database Secret. Restic inputs come
 from Ansible Vault. Check mode performs validation; repeated runs reject changed
 credentials and preserve the existing Secret.
 
-After merge, return the Application to `HEAD` with the existing merged-branch
-handoff runbook. Verify its exact source comparison before deleting the branch.
+Use `make status APP=immich-offsite-backup FORMAT=json` after merge. The
+Application must stay on `main`.

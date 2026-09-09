@@ -5,7 +5,7 @@ import yaml
 from conftest import ROOT
 
 spec = importlib.util.spec_from_file_location(
-    "immich_promotion", ROOT / "apps/immich/backup/promote-image.py"
+    "immich_promotion", ROOT / "apps/immich-offsite-backup/manifests/runtime/promote-image.py"
 )
 promotion = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(promotion)

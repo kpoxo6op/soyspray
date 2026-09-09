@@ -25,7 +25,7 @@ scope check, use `python -m scripts.ci_scope --base origin/main` after committin
 the change. The helper selects tests; the app inventory still comes from Argo
 Application metadata. Add a new browser suite to this workflow when an app needs
 one. Keep `make check` as the complete local gate. The Docker-based Immich tests
-can also run separately with `python3 apps/immich/tests/test_backup.py`; they never
+can also run separately with `python3 apps/immich-offsite-backup/tests/test_backup.py`; they never
 connect to Kubernetes or the production repository.
 
 `boys-image.yml` builds and checks the Boys image on source pull requests.

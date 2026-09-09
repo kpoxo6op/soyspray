@@ -98,7 +98,7 @@ A retry uses the existing key and encrypted export. If key creation succeeded
 but export failed, the operation stops. Inspect that incomplete bootstrap;
 do not replace a key that a running backup may already use.
 
-For Immich, pass `-e @apps/immich/backup/store.yml` and a separate
+For Immich, pass `-e @apps/immich-offsite-backup/manifests/runtime/store.yml` and a separate
 `recovery_sealed_credentials` path to the same operation. This creates an identity
 limited to `immich/` in the recovery bucket. It does not change Longhorn's policy
 or the historical archive buckets. Decrypt its export directly into Ansible Vault
