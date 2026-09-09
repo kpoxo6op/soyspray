@@ -9,12 +9,10 @@
     diagnosis_home: "{{ lookup('env', 'HOME') }}"
     diagnosis_state: "{{ diagnosis_home }}/.local/state/soyspray/cluster-diagnosis"
     diagnosis_codex: "{{ diagnosis_home }}/.local/bin/codex"
-    diagnosis_enabled: false
   tasks:
-    - name: Require an explicit private Telegram recipient and existing account
+    - name: Require the existing account and installed source
       ansible.builtin.assert:
         that:
-          - diagnosis_telegram_target | default('') | string | length > 0
           - (diagnosis_home + '/.codex/auth.json') is file
           - (diagnosis_repo + '/apps/cluster-diagnosis/app/adapter.py') is file
 
@@ -91,6 +89,23 @@
             (diagnosis_jobs.stdout | from_json).jobs | selectattr('name', 'equalto', 'cluster-diagnosis')
             | list | length == diagnosis_matches | length
 
+    - name: Preserve the existing private target and schedule state
+      ansible.builtin.set_fact:
+        diagnosis_effective_telegram_target: >-
+          {{ diagnosis_telegram_target | default(
+             diagnosis_matches[0].payload.env.TELEGRAM_TARGET
+             if diagnosis_matches | length == 1 else '') | string }}
+        diagnosis_effective_enabled: >-
+          {{ diagnosis_enabled | default(
+             diagnosis_matches[0].enabled
+             if diagnosis_matches | length == 1 else false) | bool }}
+      no_log: true
+
+    - name: Require a private target for a new diagnosis job
+      ansible.builtin.assert:
+        that: diagnosis_effective_telegram_target | length > 0
+        fail_msg: Set diagnosis_telegram_target only when no declared job exists.
+
     - name: Prepare the native command arguments
       ansible.builtin.set_fact:
         diagnosis_job_options:
@@ -115,7 +130,7 @@
           - --command-env
           - ALERTMANAGER_URL=http://192.168.20.35:9093
           - --command-env
-          - "TELEGRAM_TARGET={{ diagnosis_telegram_target }}"
+          - "TELEGRAM_TARGET={{ diagnosis_effective_telegram_target }}"
           - --command-env
           - "CODEX_BIN={{ diagnosis_codex }}"
           - --command-env
@@ -147,7 +162,10 @@
 
     - name: Apply the requested command job state
       ansible.builtin.command:
-        argv: "{{ ['openclaw', 'cron', 'edit', diagnosis_job_id, '--enable' if diagnosis_enabled | bool else '--disable'] + diagnosis_job_options }}"
+        argv: >-
+          {{ ['openclaw', 'cron', 'edit', diagnosis_job_id,
+              '--enable' if diagnosis_effective_enabled else '--disable']
+             + diagnosis_job_options }}
       changed_when: true
 
     - name: Install the route for numeric endpoint replies only
