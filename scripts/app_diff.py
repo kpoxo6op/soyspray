@@ -39,14 +39,15 @@ def stage_package(package, source_path, destination):
     count = 0
     for name in set(filter(None, files)):
         file = ROOT / name
-        if file.suffix not in (".json", ".yaml", ".yml") or not file.exists():
+        if not file.exists():
             continue
         if not file.resolve().is_relative_to(package):
             raise ValueError("A manifest links outside this app's package.")
         target = destination / path / file.relative_to(package)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(file.read_bytes())
-        count += 1
+        if file.suffix in (".json", ".yaml", ".yml"):
+            count += 1
     if not count:
         raise ValueError("The app package has no tracked or unignored YAML files.")
 
@@ -93,11 +94,7 @@ def compare(app, package, binary):
                 str(checkout),
                 "--server-side-generate",
                 "--local-include",
-                "*.yaml",
-                "--local-include",
-                "*.yml",
-                "--local-include",
-                "*.json",
+                "*",
             ]
         kubeconfig = work / "kubeconfig.json"
         kubeconfig.touch(mode=0o600)
