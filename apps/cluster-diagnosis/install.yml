@@ -23,6 +23,7 @@
         argv: [git, diff, --quiet, HEAD, --]
         chdir: "{{ diagnosis_repo }}"
       changed_when: false
+      check_mode: false
 
     - name: Read the source revision
       ansible.builtin.command:
@@ -30,6 +31,7 @@
         chdir: "{{ diagnosis_repo }}"
       register: diagnosis_revision
       changed_when: false
+      check_mode: false
 
     - name: Create private diagnosis directories
       ansible.builtin.file:
@@ -72,6 +74,7 @@
         argv: [openclaw, cron, list, --all, --json]
       register: diagnosis_jobs
       changed_when: false
+      check_mode: false
 
     - name: Select this declared job
       ansible.builtin.set_fact:
@@ -134,6 +137,7 @@
         argv: [openclaw, cron, list, --all, --json]
       register: diagnosis_installed
       changed_when: false
+      check_mode: false
 
     - name: Select the installed job identity
       ansible.builtin.set_fact:
