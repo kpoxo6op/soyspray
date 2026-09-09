@@ -1,0 +1,244 @@
+---
+- name: Adopt the existing Immich database Applications under the root app
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    expected_root_revision: ""
+    expected_system_id: "7636716030165340184"
+    owning_sets:
+      - name: immich-db
+        uid: 84c8b489-c979-4a50-8896-22ca53aad2e0
+        application: immich-db-a-initdb
+        application_uid: ee763068-b8b4-4e06-ae4e-bd935b4aa26e
+        path: apps/immich/database/production
+      - name: immich-db-alias
+        uid: a40af192-fb57-40bc-9275-f27b64296b07
+        application: immich-db-active-a
+        application_uid: df0edd82-e249-41af-876a-3c2f0e6e8e68
+        path: apps/immich/database/alias
+    preserved_resources:
+      - api_version: postgresql.cnpg.io/v1
+        kind: Cluster
+        name: immich-db-a
+        uid: 3636ad88-1e60-4a24-8d64-d82509dc00b5
+      - api_version: postgresql.cnpg.io/v1
+        kind: ScheduledBackup
+        name: immich-db-daily-a
+        uid: 1f323228-56fd-4df6-9cf2-6ee1b46151e0
+      - api_version: v1
+        kind: Secret
+        name: immich-app-secret-a
+        uid: d2893719-e27a-4138-b017-7b02fae1c805
+      - api_version: v1
+        kind: Service
+        name: immich-db-active
+        uid: c22affac-2ba9-4081-b376-c3ec475600cd
+  tasks:
+    - name: Require the exact merged root revision
+      ansible.builtin.assert:
+        that:
+          - expected_root_revision | length == 40
+          - expected_root_revision is regex('^[0-9a-f]{40}$')
+        fail_msg: Pass the merged main commit as -e expected_root_revision=SHA.
+
+    - name: Read the root Application
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: soyspray
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: root_app
+
+    - name: Require the root to be healthy at the merged revision
+      ansible.builtin.assert:
+        that:
+          - root_app.resources | length == 1
+          - root_app.resources[0].spec.source.targetRevision == 'main'
+          - root_app.resources[0].status.sync.status == 'Synced'
+          - root_app.resources[0].status.health.status == 'Healthy'
+          - root_app.resources[0].status.sync.revision == expected_root_revision
+          - root_app.resources[0].operation | default(none) == none
+
+    - name: Read the exact legacy ApplicationSets
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: ApplicationSet
+        namespace: argocd
+        name: "{{ item.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ owning_sets }}"
+      register: legacy_sets
+
+    - name: Require the exact harmless legacy owners
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+          - item.resources[0].metadata.uid == item.item.uid
+          - item.resources[0].metadata.finalizers | default([]) | length == 0
+          - item.resources[0].spec.syncPolicy.preserveResourcesOnDeletion | bool
+          - item.resources[0].spec.template.spec.sources | length == 1
+          - item.resources[0].spec.template.spec.sources[0].targetRevision == 'main'
+          - item.resources[0].spec.template.spec.sources[0].path == item.item.path
+      loop: "{{ legacy_sets.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+
+    - name: Read the existing child Applications
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: "{{ item.application }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ owning_sets }}"
+      register: child_apps
+
+    - name: Require direct root tracking and unchanged child identity
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+          - item.resources[0].metadata.uid == item.item.application_uid
+          - item.resources[0].metadata.finalizers | default([]) | length == 0
+          - item.resources[0].metadata.ownerReferences | length == 1
+          - item.resources[0].metadata.ownerReferences[0].uid == item.item.uid
+          - item.resources[0].metadata.ownerReferences[0].controller | bool
+          - >-
+            (item.resources[0].metadata.labels | default({}))
+            .get('argocd.argoproj.io/instance', '') == 'soyspray'
+          - item.resources[0].spec.sources | length == 1
+          - item.resources[0].spec.sources[0].targetRevision == 'main'
+          - item.resources[0].spec.sources[0].path == item.item.path
+          - item.resources[0].status.sync.status == 'Synced'
+          - item.resources[0].status.health.status == 'Healthy'
+          - item.resources[0].status.sync.revisions == [expected_root_revision]
+          - item.resources[0].operation | default(none) == none
+      loop: "{{ child_apps.results }}"
+      loop_control:
+        label: "{{ item.item.application }}"
+
+    - name: Read the preserved database resources
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api_version }}"
+        kind: "{{ item.kind }}"
+        namespace: postgresql
+        name: "{{ item.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ preserved_resources }}"
+      register: resources_before
+
+    - name: Require unchanged resource identity and no Application owner
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+          - item.resources[0].metadata.uid == item.item.uid
+          - item.resources[0].metadata.ownerReferences | default([]) | length == 0
+      loop: "{{ resources_before.results }}"
+      loop_control:
+        label: "{{ item.item.kind }}/{{ item.item.name }}"
+
+    - name: Require database health and archive continuity
+      ansible.builtin.assert:
+        that:
+          - cluster.status.systemID == expected_system_id
+          - cluster.status.instances == 1
+          - cluster.status.readyInstances == 1
+          - >-
+            cluster.status.conditions
+            | selectattr('type', 'equalto', 'Ready')
+            | map(attribute='status') | list == ['True']
+          - >-
+            cluster.status.conditions
+            | selectattr('type', 'equalto', 'ContinuousArchiving')
+            | map(attribute='status') | list == ['True']
+          - schedule.spec.cluster.name == 'immich-db-a'
+          - schedule.spec.method == 'plugin'
+          - schedule.spec.schedule == '0 47 4 * * *'
+          - service.spec.type == 'ExternalName'
+          - >-
+            service.spec.externalName
+            == 'immich-db-a-rw.postgresql.svc.cluster.local'
+      vars:
+        cluster: "{{ resources_before.results[0].resources[0] }}"
+        schedule: "{{ resources_before.results[1].resources[0] }}"
+        service: "{{ resources_before.results[3].resources[0] }}"
+
+    - name: Orphan the child Applications and remove only their old generators
+      kubernetes.core.k8s:
+        api_version: argoproj.io/v1alpha1
+        kind: ApplicationSet
+        namespace: argocd
+        name: "{{ item.name }}"
+        state: absent
+        kubeconfig: "{{ kubeconfig_path }}"
+        delete_options:
+          propagationPolicy: Orphan
+        wait: true
+        wait_timeout: 60
+      loop: "{{ owning_sets }}"
+      loop_control:
+        label: "{{ item.name }}"
+      when: not ansible_check_mode
+
+    - name: Wait for each child to lose the legacy owner
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: "{{ item.application }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ owning_sets }}"
+      register: adopted_apps
+      until:
+        - adopted_apps.resources | length == 1
+        - adopted_apps.resources[0].metadata.uid == item.application_uid
+        - adopted_apps.resources[0].metadata.ownerReferences | default([]) | length == 0
+        - >-
+          (adopted_apps.resources[0].metadata.labels | default({}))
+          .get('argocd.argoproj.io/instance', '') == 'soyspray'
+        - adopted_apps.resources[0].status.sync.status == 'Synced'
+        - adopted_apps.resources[0].status.health.status == 'Healthy'
+      retries: 30
+      delay: 2
+      when: not ansible_check_mode
+
+    - name: Re-read the preserved database resources
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api_version }}"
+        kind: "{{ item.kind }}"
+        namespace: postgresql
+        name: "{{ item.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ preserved_resources }}"
+      register: resources_after
+      when: not ansible_check_mode
+
+    - name: Prove every resource kept its identity
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+          - item.resources[0].metadata.uid == item.item.uid
+          - item.resources[0].metadata.ownerReferences | default([]) | length == 0
+      loop: "{{ resources_after.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.kind }}/{{ item.item.name }}"
+      when: not ansible_check_mode
+
+    - name: Prove database health and archive identity after adoption
+      ansible.builtin.assert:
+        that:
+          - cluster.status.systemID == expected_system_id
+          - cluster.status.readyInstances == 1
+          - >-
+            cluster.status.conditions
+            | selectattr('type', 'equalto', 'Ready')
+            | map(attribute='status') | list == ['True']
+          - >-
+            cluster.status.conditions
+            | selectattr('type', 'equalto', 'ContinuousArchiving')
+            | map(attribute='status') | list == ['True']
+      vars:
+        cluster: "{{ resources_after.results[0].resources[0] }}"
+      when: not ansible_check_mode

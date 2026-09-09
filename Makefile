@@ -101,6 +101,7 @@ lint: ## Check Python style and common defects
 		playbooks/operations/nodes/snapshot-etcd.yml \
 		playbooks/operations/storage/prepare-existing-longhorn-storage.yml \
 		playbooks/operations/storage/protect-loki-before-node2.yml \
+		playbooks/operations/recovery/adopt-immich-database.yml \
 		playbooks/operations/recovery/restore-volume.yml playbooks/operations/recovery/cleanup-restore.yml playbooks/operations/recovery/start-restored-app.yml \
 		playbooks/operations/recovery/configure-longhorn.yml playbooks/operations/recovery/backup-daily-now.yml
 
