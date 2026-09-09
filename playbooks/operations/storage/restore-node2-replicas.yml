@@ -1,0 +1,121 @@
+---
+- name: Restore node-2 Longhorn scheduling and replica policies
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    recovery_target: node-2
+    recovery_target_ip: 192.168.20.12
+    recovery_target_disk: default-disk-60b0ac7c10410705
+    node2_repository_root: "{{ (playbook_dir + '/../../..') | realpath }}"
+  tasks:
+    - name: Require a private evacuation plan and exact delivered revision
+      ansible.builtin.assert:
+        that:
+          - recovery_target == 'node-2'
+          - hostvars[recovery_target].ansible_host == recovery_target_ip
+          - node2_restore_mode | default('') in ['pre-removal-rollback', 'post-rejoin']
+          - node2_evacuation_evidence_file | default('') is match('^/')
+          - not node2_evacuation_evidence_file.startswith(node2_repository_root)
+          - node2_recovery_git_revision | default('') is match('^[0-9a-f]{40}$')
+          - node2_recovery_git_revision == lookup('pipe', 'git -C ' + (node2_repository_root | quote) + ' rev-parse HEAD')
+          - node2_recovery_git_revision == lookup('pipe', 'git -C ' + (node2_repository_root | quote) + ' rev-parse origin/main')
+          - lookup('pipe', 'git -C ' + (node2_repository_root | quote) + ' status --porcelain --untracked-files=no') | length == 0
+          - ansible_limit | default('') | length == 0
+          - ansible_run_tags | default(['all']) == ['all']
+          - ansible_skip_tags | default([]) | length == 0
+        fail_msg: Use the private evacuation plan from the exact delivered revision.
+
+    - name: Load the immutable evacuation plan
+      ansible.builtin.set_fact:
+        node2_evacuation_plan: "{{ lookup('file', node2_evacuation_evidence_file) | from_json }}"
+
+    - name: Require the matching evacuation plan
+      ansible.builtin.assert:
+        that:
+          - node2_evacuation_plan.schema_version == 1
+          - node2_evacuation_plan.git_revision == node2_recovery_git_revision
+          - node2_evacuation_plan.target == recovery_target
+          - node2_evacuation_plan.target_ip == recovery_target_ip
+          - node2_evacuation_plan.disk == recovery_target_disk
+          - node2_evacuation_plan.volumes | length > 0
+          - node2_evacuation_plan.volumes | map(attribute='name') | unique | list | length == node2_evacuation_plan.volumes | length
+
+    - name: Read the rejoined Kubernetes node
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Node
+        name: "{{ recovery_target }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_rejoined_node
+
+    - name: Read the retained Longhorn node
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Node
+        namespace: longhorn-system
+        name: "{{ recovery_target }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_rejoined_longhorn
+
+    - name: Require the expected Kubernetes member and retained Longhorn identity
+      ansible.builtin.assert:
+        that:
+          - node2_rejoined_node.resources | length == 1
+          - >-
+            (node2_restore_mode == 'pre-removal-rollback' and
+             node2_rejoined_node.resources[0].metadata.uid == node2_evacuation_plan.kubernetes_node_uid) or
+            (node2_restore_mode == 'post-rejoin' and
+             node2_rejoined_node.resources[0].metadata.uid != node2_evacuation_plan.kubernetes_node_uid)
+          - >-
+            node2_rejoined_node.resources[0].status.addresses
+            | selectattr('type', 'equalto', 'InternalIP')
+            | map(attribute='address') | list == [recovery_target_ip]
+          - >-
+            node2_rejoined_node.resources[0].status.conditions
+            | selectattr('type', 'equalto', 'Ready')
+            | map(attribute='status') | list == ['True']
+          - node2_rejoined_longhorn.resources | length == 1
+          - node2_rejoined_longhorn.resources[0].metadata.uid == node2_evacuation_plan.longhorn_node_uid
+          - recovery_target_disk in node2_rejoined_longhorn.resources[0].spec.disks
+          - node2_rejoined_longhorn.resources[0].spec.disks[recovery_target_disk].path == '/storage'
+
+    - name: Re-enable Longhorn scheduling and clear eviction
+      kubernetes.core.k8s_json_patch:
+        api_version: longhorn.io/v1beta2
+        kind: Node
+        namespace: longhorn-system
+        name: "{{ recovery_target }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - {op: test, path: /metadata/uid, value: "{{ node2_evacuation_plan.longhorn_node_uid }}"}
+          - {op: test, path: /spec, value: "{{ node2_rejoined_longhorn.resources[0].spec }}"}
+          - {op: replace, path: /spec/evictionRequested, value: false}
+          - {op: replace, path: "/spec/disks/{{ recovery_target_disk }}/evictionRequested", value: false}
+          - {op: replace, path: /spec/allowScheduling, value: true}
+          - {op: replace, path: "/spec/disks/{{ recovery_target_disk }}/allowScheduling", value: true}
+
+    - name: Restore each recorded volume policy
+      ansible.builtin.include_tasks: restore-node2-volume.yml
+      loop: "{{ node2_evacuation_plan.volumes }}"
+      loop_control:
+        loop_var: node2_volume_entry
+
+    - name: Save the private restoration result
+      ansible.builtin.copy:
+        dest: >-
+          {{ node2_evacuation_evidence_file | dirname }}/{{ node2_evacuation_plan.run_id }}-{{ node2_restore_mode }}.json
+        mode: '0600'
+        content: >-
+          {{ {'schema_version': 1,
+              'run_id': node2_evacuation_plan.run_id,
+              'git_revision': node2_recovery_git_revision,
+              'target': recovery_target,
+              'new_kubernetes_node_uid': node2_rejoined_node.resources[0].metadata.uid,
+              'mode': node2_restore_mode,
+              'status': 'replica policies restored'} | to_nice_json }}
+      delegate_to: localhost
+      become: false
+      when: not ansible_check_mode

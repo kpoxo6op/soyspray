@@ -1,0 +1,51 @@
+---
+- name: Select the target volume and its live replicas
+  ansible.builtin.set_fact:
+    node2_current_volume: >-
+      {{ node2_longhorn_volumes.resources
+         | selectattr('metadata.name', 'equalto', node2_volume_name) | first }}
+    node2_current_replicas: >-
+      {{ node2_longhorn_replicas.resources
+         | selectattr('spec.volumeName', 'equalto', node2_volume_name)
+         | selectattr('spec.failedAt', 'equalto', '') | list }}
+
+- name: Require healthy copies before changing the volume policy
+  ansible.builtin.assert:
+    that:
+      - node2_current_volume.status.robustness == 'healthy'
+      - node2_current_volume.spec.numberOfReplicas | int in [2, 3]
+      - node2_current_replicas | length == node2_current_volume.spec.numberOfReplicas | int
+      - >-
+        node2_current_replicas
+        | selectattr('status.currentState', 'equalto', 'running') | list | length
+        == node2_current_volume.spec.numberOfReplicas | int
+      - >-
+        node2_current_replicas
+        | selectattr('spec.nodeID', 'equalto', removal_target) | list | length == 1
+      - >-
+        node2_current_replicas
+        | rejectattr('spec.nodeID', 'equalto', removal_target)
+        | map(attribute='spec.nodeID') | unique | list | length
+        == (node2_current_volume.spec.numberOfReplicas | int) - 1
+    fail_msg: "{{ node2_volume_name }} does not have the required healthy survivor copies."
+
+- name: Add the volume to the private restoration plan
+  ansible.builtin.set_fact:
+    node2_volume_plan: >-
+      {{ node2_volume_plan + [{
+           'name': node2_volume_name,
+           'uid': node2_current_volume.metadata.uid,
+           'spec': node2_current_volume.spec,
+           'evacuation_replicas': 2,
+           'restore_replicas': node2_restore_replica_overrides.get(
+             node2_volume_name, node2_current_volume.spec.numberOfReplicas | int),
+           'target_replica_names': node2_current_replicas
+             | selectattr('spec.nodeID', 'equalto', removal_target)
+             | map(attribute='metadata.name') | list,
+           'target_data_directories': node2_current_replicas
+             | selectattr('spec.nodeID', 'equalto', removal_target)
+             | map(attribute='spec.dataDirectoryName') | list,
+           'survivor_nodes': node2_current_replicas
+             | rejectattr('spec.nodeID', 'equalto', removal_target)
+             | map(attribute='spec.nodeID') | unique | sort | list
+         }] }}

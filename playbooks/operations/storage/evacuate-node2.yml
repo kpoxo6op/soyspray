@@ -1,0 +1,241 @@
+---
+- name: Evacuate verified Longhorn replicas from node-2
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    removal_target: node-2
+    removal_target_ip: 192.168.20.12
+    removal_target_longhorn_uid: 12d6269a-f61b-4b49-88a0-d2e4efc2e21a
+    removal_target_disk: default-disk-60b0ac7c10410705
+    node2_repository_root: "{{ (playbook_dir + '/../../..') | realpath }}"
+    node2_repository_status: >-
+      {{ lookup('pipe', 'git -C ' + (node2_repository_root | quote) + ' status --porcelain --untracked-files=no') }}
+    node2_delivered_git_revision: >-
+      {{ lookup('pipe', 'git -C ' + (node2_repository_root | quote) + ' rev-parse origin/main') }}
+    node2_evacuation_evidence_dir: >-
+      {{ lookup('env', 'HOME') }}/.local/state/soyspray/node-recovery/storage
+    node2_restore_replica_overrides:
+      pvc-c43a407a-b315-458d-b6ab-a73aa882c0fb: 1
+  tasks:
+    - name: Require the exact reviewed target and delivered revision
+      ansible.builtin.assert:
+        that:
+          - removal_target == 'node-2'
+          - hostvars[removal_target].ansible_host == removal_target_ip
+          - node2_evacuation_run_id | default('') is match('^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{7,40}$')
+          - node2_recovery_git_revision | default('') is match('^[0-9a-f]{40}$')
+          - node2_recovery_git_revision == lookup('pipe', 'git -C ' + (node2_repository_root | quote) + ' rev-parse HEAD')
+          - node2_recovery_git_revision == node2_delivered_git_revision
+          - node2_repository_status | length == 0
+          - not node2_evacuation_evidence_dir.startswith(node2_repository_root)
+          - ansible_limit | default('') | length == 0
+          - ansible_run_tags | default(['all']) == ['all']
+          - ansible_skip_tags | default([]) | length == 0
+        fail_msg: Use node-2, a unique run ID, and the exact pushed recovery revision.
+
+    - name: Inspect an existing immutable evacuation plan
+      ansible.builtin.stat:
+        path: "{{ node2_evacuation_evidence_dir }}/{{ node2_evacuation_run_id }}.json"
+      register: node2_evacuation_evidence
+      delegate_to: localhost
+      become: false
+
+    - name: Load the existing evacuation plan for a retry
+      ansible.builtin.set_fact:
+        node2_existing_evacuation_plan: >-
+          {{ lookup('file', node2_evacuation_evidence_dir + '/' + node2_evacuation_run_id + '.json') | from_json }}
+      when: node2_evacuation_evidence.stat.exists
+
+    - name: Read the target Longhorn node
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Node
+        namespace: longhorn-system
+        name: "{{ removal_target }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_longhorn_node
+
+    - name: Read the target Kubernetes node
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Node
+        name: "{{ removal_target }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_kubernetes_node
+
+    - name: Read all Longhorn volumes
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Volume
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_longhorn_volumes
+
+    - name: Read all Longhorn replicas
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Replica
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_longhorn_replicas
+
+    - name: Select live target replicas and their volumes
+      ansible.builtin.set_fact:
+        node2_target_replicas: >-
+          {{ node2_longhorn_replicas.resources
+             | selectattr('spec.nodeID', 'equalto', removal_target)
+             | selectattr('spec.failedAt', 'equalto', '') | list }}
+        node2_target_volume_names: >-
+          {{ node2_longhorn_replicas.resources
+             | selectattr('spec.nodeID', 'equalto', removal_target)
+             | selectattr('spec.failedAt', 'equalto', '')
+             | map(attribute='spec.volumeName') | unique | sort | list }}
+
+    - name: Require the reviewed target node and disk
+      ansible.builtin.assert:
+        that:
+          - node2_longhorn_node.resources | length == 1
+          - node2_kubernetes_node.resources | length == 1
+          - >-
+            node2_kubernetes_node.resources[0].status.addresses
+            | selectattr('type', 'equalto', 'InternalIP')
+            | map(attribute='address') | list == [removal_target_ip]
+          - >-
+            node2_kubernetes_node.resources[0].status.conditions
+            | selectattr('type', 'equalto', 'Ready')
+            | map(attribute='status') | list == ['True']
+          - node2_longhorn_node.resources[0].metadata.uid == removal_target_longhorn_uid
+          - removal_target_disk in node2_longhorn_node.resources[0].spec.disks
+          - node2_longhorn_node.resources[0].spec.disks[removal_target_disk].path == '/storage'
+          - node2_evacuation_evidence.stat.exists or (node2_longhorn_node.resources[0].spec.allowScheduling | bool)
+          - node2_evacuation_evidence.stat.exists or not (node2_longhorn_node.resources[0].spec.evictionRequested | bool)
+          - node2_evacuation_evidence.stat.exists or (node2_longhorn_node.resources[0].spec.disks[removal_target_disk].allowScheduling | bool)
+          - node2_evacuation_evidence.stat.exists or not (node2_longhorn_node.resources[0].spec.disks[removal_target_disk].evictionRequested | bool)
+          - node2_evacuation_evidence.stat.exists or node2_target_replicas | length > 0
+          - node2_evacuation_evidence.stat.exists or node2_target_replicas | length == node2_target_volume_names | length
+        fail_msg: Node-2 Longhorn identity, disk, or replica placement changed. Stop before eviction.
+
+    - name: Start the private restoration plan
+      ansible.builtin.set_fact:
+        node2_volume_plan: []
+      when: not node2_evacuation_evidence.stat.exists
+
+    - name: Reuse the immutable restoration plan
+      ansible.builtin.set_fact:
+        node2_volume_plan: "{{ node2_existing_evacuation_plan.volumes }}"
+      when: node2_evacuation_evidence.stat.exists
+
+    - name: Validate every target volume and record its policy
+      ansible.builtin.include_tasks: validate-node2-volume.yml
+      loop: "{{ node2_target_volume_names }}"
+      loop_control:
+        loop_var: node2_volume_name
+      when: not node2_evacuation_evidence.stat.exists
+
+    - name: Require the immutable plan to match this retry
+      ansible.builtin.assert:
+        that:
+          - not node2_evacuation_evidence.stat.exists or node2_existing_evacuation_plan.schema_version == 1
+          - not node2_evacuation_evidence.stat.exists or node2_existing_evacuation_plan.run_id == node2_evacuation_run_id
+          - not node2_evacuation_evidence.stat.exists or node2_existing_evacuation_plan.git_revision == node2_recovery_git_revision
+          - not node2_evacuation_evidence.stat.exists or node2_existing_evacuation_plan.target == removal_target
+          - not node2_evacuation_evidence.stat.exists or node2_existing_evacuation_plan.target_ip == removal_target_ip
+          - not node2_evacuation_evidence.stat.exists or node2_existing_evacuation_plan.longhorn_node_uid == removal_target_longhorn_uid
+          - not node2_evacuation_evidence.stat.exists or node2_existing_evacuation_plan.disk == removal_target_disk
+          - node2_volume_plan | length > 0
+          - node2_volume_plan | map(attribute='name') | unique | list | length == node2_volume_plan | length
+
+    - name: Create the private evidence directory
+      ansible.builtin.file:
+        path: "{{ node2_evacuation_evidence_dir }}"
+        state: directory
+        mode: '0700'
+      delegate_to: localhost
+      become: false
+      when: not ansible_check_mode and not node2_evacuation_evidence.stat.exists
+
+    - name: Save the immutable pre-eviction plan
+      ansible.builtin.copy:
+        dest: "{{ node2_evacuation_evidence_dir }}/{{ node2_evacuation_run_id }}.json"
+        mode: '0600'
+        content: >-
+          {{ {'schema_version': 1,
+              'run_id': node2_evacuation_run_id,
+              'git_revision': node2_recovery_git_revision,
+              'target': removal_target,
+              'target_ip': removal_target_ip,
+              'kubernetes_node_uid': node2_kubernetes_node.resources[0].metadata.uid,
+              'longhorn_node_uid': removal_target_longhorn_uid,
+              'disk': removal_target_disk,
+              'volumes': node2_volume_plan} | to_nice_json }}
+      delegate_to: localhost
+      become: false
+      when: not ansible_check_mode and not node2_evacuation_evidence.stat.exists
+
+    - name: Disable new scheduling on the target node and disk
+      kubernetes.core.k8s_json_patch:
+        api_version: longhorn.io/v1beta2
+        kind: Node
+        namespace: longhorn-system
+        name: "{{ removal_target }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - {op: test, path: /metadata/uid, value: "{{ removal_target_longhorn_uid }}"}
+          - {op: test, path: /spec, value: "{{ node2_longhorn_node.resources[0].spec }}"}
+          - {op: replace, path: /spec/allowScheduling, value: false}
+          - {op: replace, path: "/spec/disks/{{ removal_target_disk }}/allowScheduling", value: false}
+
+    - name: Validate and converge every volume to the evacuation policy
+      ansible.builtin.include_tasks: evacuate-node2-volume.yml
+      loop: "{{ node2_volume_plan }}"
+      loop_control:
+        loop_var: node2_volume_entry
+
+    - name: Read the target node before requesting eviction
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Node
+        namespace: longhorn-system
+        name: "{{ removal_target }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_longhorn_unschedulable
+      when: not ansible_check_mode
+
+    - name: Request native eviction from the target node and disk
+      kubernetes.core.k8s_json_patch:
+        api_version: longhorn.io/v1beta2
+        kind: Node
+        namespace: longhorn-system
+        name: "{{ removal_target }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch:
+          - {op: test, path: /metadata/uid, value: "{{ removal_target_longhorn_uid }}"}
+          - {op: test, path: /spec, value: "{{ node2_longhorn_unschedulable.resources[0].spec }}"}
+          - {op: replace, path: /spec/evictionRequested, value: true}
+          - {op: replace, path: "/spec/disks/{{ removal_target_disk }}/evictionRequested", value: true}
+      when: not ansible_check_mode
+
+    - name: Wait until no live replica remains on node-2
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Replica
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_replicas_after
+      until: >-
+        node2_replicas_after.resources
+        | selectattr('spec.nodeID', 'equalto', removal_target)
+        | selectattr('spec.failedAt', 'equalto', '') | list | length == 0
+      retries: 360
+      delay: 10
+      when: not ansible_check_mode
+
+    - name: Verify every evacuated volume on the survivors
+      ansible.builtin.include_tasks: verify-evacuated-node2-volume.yml
+      loop: "{{ node2_volume_plan }}"
+      loop_control:
+        loop_var: node2_volume_entry
+      when: not ansible_check_mode
