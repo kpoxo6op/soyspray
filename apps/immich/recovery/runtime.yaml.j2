@@ -9,7 +9,6 @@ metadata:
     soyspray.vip/check-id: {{ recovery_check_id }}
     app: immich-recovery-redis
 spec:
-  affinity: {{ recovery_pod_affinity | to_json }}
   automountServiceAccountToken: false
   restartPolicy: Always
   containers:
@@ -40,7 +39,6 @@ metadata:
     soyspray.vip/check-id: {{ recovery_check_id }}
     app: immich-recovery-server
 spec:
-  affinity: {{ recovery_pod_affinity | to_json }}
   automountServiceAccountToken: false
   restartPolicy: Always
   containers:
