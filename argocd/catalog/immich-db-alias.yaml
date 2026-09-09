@@ -1,5 +1,5 @@
-# Generates the active alias app only.
-# Edit this list deliberately when flipping Immich to the other database side.
+# Transitional owner for the existing active alias Application.
+# Remove this generator only through the bounded orphan/adoption operation.
 # These apps must not prune the shared alias Service when a generated app is removed.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
@@ -32,7 +32,7 @@ spec:
       sources:
         - repoURL: "https://github.com/kpoxo6op/soyspray.git"
           targetRevision: main
-          path: apps/immich/database/immich-db-active/overlays/active-{{active}}
+          path: apps/immich/database/alias
       syncPolicy:
         syncOptions:
           - CreateNamespace=true
