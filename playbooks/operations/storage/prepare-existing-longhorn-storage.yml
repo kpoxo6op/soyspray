@@ -3,6 +3,7 @@
   hosts: node-2
   gather_facts: true
   become: true
+  any_errors_fatal: true
   vars:
     longhorn_storage_mount: /storage
     longhorn_storage_uuid: 49c092f4-dd55-41f5-99c6-854f8b44af4e

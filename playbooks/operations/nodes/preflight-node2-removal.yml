@@ -1,0 +1,344 @@
+---
+- name: Refuse node-2 removal without current recovery evidence
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    removal_target: node-2
+    removal_target_ip: 192.168.20.12
+    removal_target_longhorn_uid: 12d6269a-f61b-4b49-88a0-d2e4efc2e21a
+    removal_target_disk: default-disk-60b0ac7c10410705
+    node2_retired_volume_name: pvc-5d43214a-cbfa-40ef-ab8c-a902acc3c180
+    node2_retired_volume_uid: 572e059e-7d02-4e03-afcf-bf75cefed4b7
+    node2_repository_root: "{{ (playbook_dir + '/../../..') | realpath }}"
+    node2_backup_max_age_seconds: 3600
+    node2_snapshot_max_age_seconds: 3600
+    node2_cnpg_backup_max_age_seconds: 90000
+    etcdctl_bin: "{{ bin_dir | default('/usr/local/bin') }}/etcdctl"
+    etcd_cert_dir: /etc/ssl/etcd/ssl
+    etcdctl_environment:
+      ETCDCTL_API: "3"
+      ETCDCTL_ENDPOINTS: https://127.0.0.1:2379
+      ETCDCTL_CACERT: "{{ etcd_cert_dir }}/ca.pem"
+      ETCDCTL_CERT: "{{ etcd_cert_dir }}/admin-{{ inventory_hostname }}.pem"
+      ETCDCTL_KEY: "{{ etcd_cert_dir }}/admin-{{ inventory_hostname }}-key.pem"
+  tasks:
+    - name: Require the exact native removal settings and authorization
+      ansible.builtin.assert:
+        that:
+          - node | default('') == removal_target
+          - reset_nodes | default(false) | bool
+          - not (allow_ungraceful_removal | default(true) | bool)
+          - skip_confirmation | default(false) | bool
+          - not (flush_iptables | default(true) | bool)
+          - not (reset_restart_network | default(true) | bool)
+          - ansible_limit | default('') | length == 0
+          - ansible_run_tags | default(['all']) == ['all']
+          - ansible_skip_tags | default([]) | length == 0
+          - node2_removal_authorization | default('') == 'destroy-node-2-retain-os-and-filesystems'
+          - node2_recovery_git_revision | default('') is match('^[0-9a-f]{40}$')
+          - node2_recovery_git_revision == lookup('pipe', 'git -C ' + (node2_repository_root | quote) + ' rev-parse HEAD')
+          - node2_recovery_git_revision == lookup('pipe', 'git -C ' + (node2_repository_root | quote) + ' rev-parse origin/main')
+          - lookup('pipe', 'git -C ' + (node2_repository_root | quote) + ' status --porcelain --untracked-files=no') | length == 0
+        fail_msg: Refusing any target, reset mode, or source other than the reviewed node-2 operation.
+
+    - name: Require private evidence paths outside Git
+      ansible.builtin.assert:
+        that:
+          - node2_evacuation_evidence_file | default('') is match('^/')
+          - node2_etcd_snapshot_file | default('') is match('^/')
+          - node2_etcd_snapshot_status_file | default('') is match('^/')
+          - node2_backup_evidence_file | default('') is match('^/')
+          - node2_immich_restore_report | default('') is match('^/')
+          - not node2_evacuation_evidence_file.startswith(node2_repository_root)
+          - not node2_etcd_snapshot_file.startswith(node2_repository_root)
+          - not node2_backup_evidence_file.startswith(node2_repository_root)
+          - not node2_immich_restore_report.startswith(node2_repository_root)
+
+    - name: Load private JSON evidence
+      ansible.builtin.set_fact:
+        node2_evacuation_plan: "{{ lookup('file', node2_evacuation_evidence_file) | from_json }}"
+        node2_etcd_status: "{{ lookup('file', node2_etcd_snapshot_status_file) | from_json }}"
+        node2_backup_record: >-
+          {{ (lookup('file', node2_backup_evidence_file).splitlines() | last) | from_json }}
+        node2_immich_restore: "{{ lookup('file', node2_immich_restore_report) | from_json }}"
+
+    - name: Require typed current backup observations
+      ansible.builtin.assert:
+        that:
+          - node2_backup_record.schema_version == 1
+          - node2_backup_record.observed_at is string
+          - node2_backup_record.observed_at is match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T')
+          - node2_backup_record.critical_backups['boys/boys-data'].value is number
+          - node2_backup_record.critical_backups['boys/boys-data'].value >= 0
+          - node2_backup_record.critical_backups['obsidian/obsidian-livesync-couchdb-rescue-longhorn'].value is number
+          - node2_backup_record.critical_backups['obsidian/obsidian-livesync-couchdb-rescue-longhorn'].value >= 0
+          - node2_backup_record.critical_backups['vaultwarden/vaultwarden-data'].value is number
+          - node2_backup_record.critical_backups['vaultwarden/vaultwarden-data'].value >= 0
+          - node2_backup_record.immich_restic.value is mapping
+          - node2_backup_record.immich_restic.value.age_seconds is number
+          - node2_backup_record.immich_restic.value.age_seconds >= 0
+        fail_msg: Backup ages must be current nonnegative numbers; unknown observations cannot authorize removal.
+
+    - name: Parse the backup observation time
+      ansible.builtin.set_fact:
+        node2_backup_observed_epoch: >-
+          {{ lookup('pipe', 'date --date=' + (node2_backup_record.observed_at | quote) + ' +%s') | int }}
+
+    - name: Inspect the protected controller snapshot
+      ansible.builtin.stat:
+        path: "{{ node2_etcd_snapshot_file }}"
+        checksum_algorithm: sha256
+      register: node2_etcd_snapshot
+      delegate_to: localhost
+      become: false
+
+    - name: Inspect the current backup evidence file
+      ansible.builtin.stat:
+        path: "{{ node2_backup_evidence_file }}"
+      register: node2_backup_evidence
+      delegate_to: localhost
+      become: false
+
+    - name: Read Kubernetes nodes
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Node
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_cluster_nodes
+
+    - name: Read the target Longhorn node
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Node
+        namespace: longhorn-system
+        name: "{{ removal_target }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_longhorn_node
+
+    - name: Read remaining Longhorn replicas
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Replica
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_remaining_replicas
+
+    - name: Read all volume attachments
+      kubernetes.core.k8s_info:
+        api_version: storage.k8s.io/v1
+        kind: VolumeAttachment
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_volume_attachments
+
+    - name: Read all Longhorn volumes
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Volume
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_all_volumes
+
+    - name: Read Longhorn backing-image dependencies
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api_version }}"
+        kind: "{{ item.kind }}"
+        namespace: longhorn-system
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop:
+        - {api_version: longhorn.io/v1beta2, kind: BackingImage}
+        - {api_version: longhorn.io/v1beta2, kind: BackingImageDataSource}
+        - {api_version: longhorn.io/v1beta2, kind: BackingImageManager}
+      register: node2_backing_image_dependencies
+
+    - name: Read CloudNativePG clusters
+      kubernetes.core.k8s_info:
+        api_version: postgresql.cnpg.io/v1
+        kind: Cluster
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_cnpg_clusters
+
+    - name: Read CloudNativePG object stores
+      kubernetes.core.k8s_info:
+        api_version: barmancloud.cnpg.io/v1
+        kind: ObjectStore
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_cnpg_object_stores
+
+    - name: Read the temporary Authentik worker budget
+      kubernetes.core.k8s_info:
+        api_version: policy/v1
+        kind: PodDisruptionBudget
+        namespace: authentik
+        name: authentik-worker
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_authentik_worker_pdb
+
+    - name: Check every etcd endpoint
+      ansible.builtin.command:
+        argv: ["{{ etcdctl_bin }}", endpoint, health, --cluster]
+      environment: "{{ etcdctl_environment }}"
+      register: node2_etcd_health
+      changed_when: false
+      check_mode: false
+
+    - name: Read every etcd member status
+      ansible.builtin.command:
+        argv: ["{{ etcdctl_bin }}", endpoint, status, --cluster, -w, json]
+      environment: "{{ etcdctl_environment }}"
+      register: node2_etcd_status_live
+      changed_when: false
+      check_mode: false
+
+    - name: Revalidate every evacuated volume on both survivors
+      ansible.builtin.include_tasks: ../storage/verify-evacuated-node2-volume.yml
+      loop: "{{ node2_evacuation_plan.volumes }}"
+      loop_control:
+        loop_var: node2_volume_entry
+
+    - name: Validate current CloudNativePG recovery windows
+      ansible.builtin.include_tasks: validate-node2-cnpg.yml
+      loop:
+        - {namespace: authentik, cluster: authentik-postgresql, object_store: authentik-offsite}
+        - {namespace: postgresql, cluster: immich-db-a, object_store: immich-offsite}
+      loop_control:
+        loop_var: node2_cnpg_expected
+
+    - name: Require healthy survivors, storage, backups, and restore evidence
+      ansible.builtin.assert:
+        that:
+          - node2_cluster_nodes.resources | length == 3
+          - >-
+            node2_cluster_nodes.resources
+            | selectattr('metadata.name', 'in', ['node-0', 'node-1'])
+            | map(attribute='status.conditions') | flatten
+            | selectattr('type', 'equalto', 'Ready')
+            | selectattr('status', 'equalto', 'True') | list | length == 2
+          - >-
+            node2_cluster_nodes.resources
+            | selectattr('metadata.name', 'equalto', removal_target)
+            | map(attribute='metadata.uid') | list == [node2_evacuation_plan.kubernetes_node_uid]
+          - node2_longhorn_node.resources | length == 1
+          - node2_longhorn_node.resources[0].metadata.uid == removal_target_longhorn_uid
+          - not (node2_longhorn_node.resources[0].spec.allowScheduling | bool)
+          - node2_longhorn_node.resources[0].spec.evictionRequested | bool
+          - not (node2_longhorn_node.resources[0].spec.disks[removal_target_disk].allowScheduling | bool)
+          - node2_longhorn_node.resources[0].spec.disks[removal_target_disk].evictionRequested | bool
+          - >-
+            node2_remaining_replicas.resources
+            | selectattr('spec.nodeID', 'equalto', removal_target)
+            | selectattr('spec.failedAt', 'equalto', '') | list | length == 0
+          - node2_evacuation_plan.git_revision == node2_recovery_git_revision
+          - node2_evacuation_plan.longhorn_node_uid == removal_target_longhorn_uid
+          - node2_evacuation_plan.disk == removal_target_disk
+          - >-
+            node2_all_volumes.resources
+            | rejectattr('metadata.name', 'equalto', node2_retired_volume_name)
+            | rejectattr('status.robustness', 'equalto', 'healthy') | list | length == 0
+          - >-
+            node2_all_volumes.resources
+            | selectattr('status.robustness', 'equalto', 'unknown')
+            | map(attribute='metadata.name') | list == [node2_retired_volume_name]
+          - >-
+            node2_all_volumes.resources
+            | selectattr('metadata.name', 'equalto', node2_retired_volume_name)
+            | map(attribute='metadata.uid') | list == [node2_retired_volume_uid]
+          - >-
+            node2_all_volumes.resources
+            | selectattr('metadata.name', 'equalto', node2_retired_volume_name)
+            | map(attribute='status.state') | list == ['detached']
+          - >-
+            node2_remaining_replicas.resources
+            | selectattr('spec.volumeName', 'equalto', node2_retired_volume_name)
+            | selectattr('status.currentState', 'equalto', 'running') | list | length == 0
+          - >-
+            node2_remaining_replicas.resources
+            | selectattr('spec.volumeName', 'equalto', node2_retired_volume_name)
+            | selectattr('spec.nodeID', 'equalto', removal_target) | list | length == 0
+          - >-
+            node2_volume_attachments.resources
+            | selectattr('spec.source.persistentVolumeName', 'defined')
+            | selectattr('spec.source.persistentVolumeName', 'equalto', node2_retired_volume_name)
+            | list | length == 0
+          - >-
+            node2_backing_image_dependencies.results
+            | map(attribute='resources') | flatten | list | length == 0
+          - node2_authentik_worker_pdb.resources | length == 1
+          - node2_authentik_worker_pdb.resources[0].spec.minAvailable | int == 0
+          - node2_authentik_worker_pdb.resources[0].status.disruptionsAllowed | int == 1
+          - (node2_etcd_status_live.stdout | from_json) | length == 3
+          - (node2_etcd_status_live.stdout | from_json) | map(attribute='Status.header.cluster_id') | unique | list | length == 1
+          - node2_etcd_snapshot.stat.isreg | default(false)
+          - node2_etcd_snapshot.stat.checksum | default('') == node2_etcd_snapshot_sha256
+          - (lookup('pipe', 'date +%s') | int) - (node2_etcd_snapshot.stat.mtime | int) <= node2_snapshot_max_age_seconds
+          - node2_etcd_status.totalKey | int > 0
+          - node2_etcd_status.totalSize | int > 0
+          - node2_backup_evidence.stat.isreg | default(false)
+          - (lookup('pipe', 'date +%s') | int) - (node2_backup_evidence.stat.mtime | int) <= 600
+          - (lookup('pipe', 'date +%s') | int) - (node2_backup_observed_epoch | int) >= -30
+          - (lookup('pipe', 'date +%s') | int) - (node2_backup_observed_epoch | int) <= 600
+          - node2_backup_record.critical_backups['boys/boys-data'].value <= node2_backup_max_age_seconds
+          - node2_backup_record.critical_backups['obsidian/obsidian-livesync-couchdb-rescue-longhorn'].value <= node2_backup_max_age_seconds
+          - node2_backup_record.critical_backups['vaultwarden/vaultwarden-data'].value <= node2_backup_max_age_seconds
+          - node2_backup_record.immich_restic.value.age_seconds <= node2_backup_max_age_seconds
+          - node2_immich_restore.status == 'passed'
+          - node2_immich_restore.git_revision == node2_recovery_git_revision
+          - node2_immich_restore.cleanup == 'completed'
+          - node2_immich_restore.production_inputs == 'not read'
+          - node2_immich_restore.data.asset_count | int > 0
+          - node2_immich_restore.data.data_checks == 'passed'
+        fail_msg: Node-2 removal prerequisites are incomplete or stale. Keep node-2 intact.
+
+- name: Recheck the retained node-2 hardware immediately before reset
+  hosts: node-2
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  vars:
+    expected_target_ip: 192.168.20.12
+    expected_root_uuid: d3507a31-6115-4f40-affc-ca5164120e50
+    expected_root_model: SAMSUNG MZVLB256HAHQ-000L7
+    expected_storage_uuid: 49c092f4-dd55-41f5-99c6-854f8b44af4e
+    expected_storage_model: PNY 500GB SATA S
+  tasks:
+    - name: Confirm effective root access
+      ansible.builtin.command:
+        argv: [id, -u]
+      register: node2_effective_user
+      changed_when: false
+      check_mode: false
+
+    - name: Read retained filesystems before reset
+      ansible.builtin.command:
+        argv: [findmnt, -J, -o, "SOURCE,TARGET,FSTYPE,UUID", --target, "{{ item }}"]
+      loop: ['/', /storage]
+      register: node2_pre_reset_mounts
+      changed_when: false
+      check_mode: false
+
+    - name: Read retained disk models before reset
+      ansible.builtin.command:
+        argv: [lsblk, -dn, -o, MODEL, "{{ item }}"]
+      loop: [/dev/nvme0n1, /dev/sda]
+      register: node2_pre_reset_models
+      changed_when: false
+      check_mode: false
+
+    - name: Require the exact retained host before native reset
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'node-2'
+          - ansible_host == expected_target_ip
+          - node2_effective_user.stdout | trim == '0'
+          - (node2_pre_reset_mounts.results[0].stdout | from_json).filesystems[0].source == '/dev/nvme0n1p2'
+          - (node2_pre_reset_mounts.results[0].stdout | from_json).filesystems[0].fstype == 'ext4'
+          - (node2_pre_reset_mounts.results[0].stdout | from_json).filesystems[0].uuid == expected_root_uuid
+          - (node2_pre_reset_mounts.results[1].stdout | from_json).filesystems[0].source == '/dev/sda1'
+          - (node2_pre_reset_mounts.results[1].stdout | from_json).filesystems[0].target == '/storage'
+          - (node2_pre_reset_mounts.results[1].stdout | from_json).filesystems[0].fstype == 'ext4'
+          - (node2_pre_reset_mounts.results[1].stdout | from_json).filesystems[0].uuid == expected_storage_uuid
+          - node2_pre_reset_models.results[0].stdout | trim == expected_root_model
+          - node2_pre_reset_models.results[1].stdout | trim == expected_storage_model
+        fail_msg: Node-2 SSH, sudo, disk identity, or filesystem identity changed. Refusing reset.
