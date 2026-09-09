@@ -127,6 +127,40 @@ def test_missing_evidence_and_unverified_binding_are_unknown(tmp_path):
     assert read_evidence("../boys", "claim-1", "pv-1", NOW, tmp_path)["value"] == "unknown"
 
 
+def test_durable_report_is_matched_by_claim_and_pv_identity(tmp_path):
+    report = {
+        "schema_version": 1,
+        "app": "durable",
+        "check_id": "daily-1",
+        "started_at": (NOW - timedelta(hours=2)).isoformat(),
+        "finished_at": (NOW - timedelta(hours=1)).isoformat(),
+        "status": "passed",
+        "cleanup": "completed",
+        "volumes": [
+            {
+                "app": "home-assistant-config",
+                "source_claim_uid": "claim-1",
+                "source_volume_uid": "pv-1",
+                "backup": {"recovery_point": (NOW - timedelta(hours=3)).isoformat()},
+                "cleanup": "completed",
+                "original_resources": "unchanged",
+                "data": {"private_state": "never-output-this"},
+            }
+        ],
+    }
+    path = tmp_path / "durable" / report["check_id"] / "report.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(report))
+
+    value = read_evidence("home-assistant", "claim-1", "pv-1", NOW, tmp_path)["value"]
+    success = value["last_success"]["value"]
+    assert success["accepted"] is True
+    assert success["validation"] == "Private restored data check passed."
+    assert "image" not in success
+    assert value["invalid_reports"] == 0
+    assert "never-output-this" not in json.dumps(value)
+
+
 def test_report_links_are_not_followed(tmp_path, record):
     path = save(tmp_path, record)
     data = path.read_text()
