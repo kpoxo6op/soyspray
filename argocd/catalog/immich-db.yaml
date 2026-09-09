@@ -1,39 +1,21 @@
-# Transitional owner for the existing production DB Application.
-# Remove this generator only through the bounded orphan/adoption operation.
-# These apps must not prune database resources when a generated app is removed.
 apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
+kind: Application
 metadata:
-  name: immich-db
+  name: immich-db-a-initdb
   namespace: argocd
   labels:
     soyspray.vip/owner: household
   annotations:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
+  project: legacy-workloads
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: postgresql
+  sources:
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: main
+      path: apps/immich/database/production
   syncPolicy:
-    preserveResourcesOnDeletion: true
-  generators:
-    - list:
-        elements:
-          - letter: a
-            role: initdb
-  template:
-    metadata:
-      name: immich-db-{{letter}}-{{role}}
-      labels:
-        soyspray.vip/owner: household
-      annotations:
-        argocd.argoproj.io/sync-options: Prune=false,Delete=false
-    spec:
-      project: legacy-workloads
-      destination:
-        server: "https://kubernetes.default.svc"
-        namespace: postgresql
-      sources:
-        - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-          targetRevision: main
-          path: apps/immich/database/production
-      syncPolicy:
-        syncOptions:
-          - CreateNamespace=true
+    syncOptions:
+      - CreateNamespace=true

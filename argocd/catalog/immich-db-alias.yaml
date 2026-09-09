@@ -1,38 +1,21 @@
-# Transitional owner for the existing active alias Application.
-# Remove this generator only through the bounded orphan/adoption operation.
-# These apps must not prune the shared alias Service when a generated app is removed.
 apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
+kind: Application
 metadata:
-  name: immich-db-alias
+  name: immich-db-active-a
   namespace: argocd
   labels:
     soyspray.vip/owner: household
   annotations:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
+  project: legacy-workloads
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: postgresql
+  sources:
+    - repoURL: https://github.com/kpoxo6op/soyspray.git
+      targetRevision: main
+      path: apps/immich/database/alias
   syncPolicy:
-    preserveResourcesOnDeletion: true
-  generators:
-    - list:
-        elements:
-          - active: a
-  template:
-    metadata:
-      name: immich-db-active-{{active}}
-      labels:
-        soyspray.vip/owner: household
-      annotations:
-        argocd.argoproj.io/sync-options: Prune=false,Delete=false
-    spec:
-      project: legacy-workloads
-      destination:
-        server: "https://kubernetes.default.svc"
-        namespace: postgresql
-      sources:
-        - repoURL: "https://github.com/kpoxo6op/soyspray.git"
-          targetRevision: main
-          path: apps/immich/database/alias
-      syncPolicy:
-        syncOptions:
-          - CreateNamespace=true
+    syncOptions:
+      - CreateNamespace=true
