@@ -19,7 +19,6 @@
         --delete-emptydir-data
         --force
         --grace-period=30
-        --disable-eviction=true
         --timeout={{ drain_timeout | default('10m') }}
       delegate_to: "{{ groups['kube_control_plane'][0] }}"
       register: drain_result
