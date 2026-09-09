@@ -56,9 +56,11 @@
         creates: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}/soyspray-venv/bin/python"
       when: not ansible_check_mode
 
-    - name: Install the pinned Python dependencies
+    - name: Install the pinned recovery dependencies
       ansible.builtin.pip:
-        requirements: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}/requirements-dev.txt"
+        requirements: >-
+          {{ operations_install_root }}/releases/{{ operations_selected_revision.stdout
+          }}/requirements-recovery.txt
         virtualenv: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}/soyspray-venv"
       when: not ansible_check_mode
 
@@ -79,35 +81,48 @@
           }}/collections/ansible_collections/kubernetes/core/MANIFEST.json
       when: not ansible_check_mode
 
-    - name: Install the pinned application check dependencies
+    - name: Verify tracked files in the installed release
       ansible.builtin.command:
-        argv: [npm, ci]
-        chdir: >-
-          {{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}/{{ item }}
-        creates: >-
-          {{ operations_install_root }}/releases/{{ operations_selected_revision.stdout
-          }}/{{ item }}/node_modules
-      loop:
-        - apps/autism-traits/app
-        - apps/boys
-      when: not ansible_check_mode
-
-    - name: Install the pinned browser used by the full gate
-      ansible.builtin.command:
-        argv: [npx, playwright, install, chromium]
-        chdir: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}/apps/boys"
+        argv: [git, status, --porcelain, --untracked-files=no]
+        chdir: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}"
+      register: operations_release_status
       changed_when: false
       when: not ansible_check_mode
 
-    - name: Validate the installed release before selecting it
+    - name: Read the installed release revision
       ansible.builtin.command:
-        argv: [make, go]
+        argv: [git, rev-parse, HEAD]
+        chdir: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}"
+      register: operations_installed_revision
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Require an unmodified exact release
+      ansible.builtin.assert:
+        that:
+          - operations_release_status.stdout | length == 0
+          - operations_installed_revision.stdout == operations_selected_revision.stdout
+      when: not ansible_check_mode
+
+    - name: Check the emergency recovery playbooks
+      ansible.builtin.command:
+        argv:
+          - >-
+            {{ operations_install_root }}/releases/{{ operations_selected_revision.stdout
+            }}/soyspray-venv/bin/ansible-playbook
+          - --syntax-check
+          - -i
+          - kubespray/inventory/soycluster/hosts.yml
+          - "{{ item }}"
         chdir: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}"
       environment:
-        PATH: >-
+        ANSIBLE_COLLECTIONS_PATH: >-
           {{ operations_install_root }}/releases/{{ operations_selected_revision.stdout
-          }}/soyspray-venv/bin:{{ ansible_env.PATH
-          | default('/usr/local/bin:/usr/bin:/bin') }}
+          }}/collections
+      loop:
+        - playbooks/operations/recovery/restore-volume.yml
+        - playbooks/operations/recovery/validate-durable.yml
+        - apps/recovery-input-backup/collect.yml
       changed_when: false
       when: not ansible_check_mode
 
