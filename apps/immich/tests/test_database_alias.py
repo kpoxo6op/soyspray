@@ -29,10 +29,12 @@ def test_explicit_alias_renders_the_active_a_service() -> None:
     )
 
 
-def test_transitional_generator_uses_the_explicit_alias_path() -> None:
-    application_set = yaml.safe_load((CATALOG / "immich-db-alias.yaml").read_text())
-    source = application_set["spec"]["template"]["spec"]["sources"][0]
+def test_direct_application_uses_the_explicit_alias_path() -> None:
+    application = yaml.safe_load((CATALOG / "immich-db-alias.yaml").read_text())
+    source = application["spec"]["sources"][0]
 
+    assert application["kind"] == "Application"
+    assert application["metadata"]["name"] == "immich-db-active-a"
     assert source == {
         "repoURL": "https://github.com/kpoxo6op/soyspray.git",
         "targetRevision": "main",
