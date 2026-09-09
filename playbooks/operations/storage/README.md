@@ -43,6 +43,19 @@ Omit `--check` only after the output identifies node-2, `192.168.20.12`, UUID
 This operation reuses the filesystem. Use neither storage initializer during
 the node rebuild.
 
+## Evacuate and restore node-2 replicas
+
+`evacuate-node2.yml` records every live node-2 replica in private state,
+disables target scheduling, temporarily uses the two survivor copies, requests
+native Longhorn eviction, and waits for every affected volume to be healthy on
+node-0 and node-1. It does not delete Replica objects or storage paths.
+
+After the retained OS rejoins through Kubespray,
+`restore-node2-replicas.yml` uses that private plan to re-enable scheduling and
+restore every recorded replica policy. Loki returns to its original one-copy
+monitoring policy; three-copy volumes rebuild on node-2. Use the exact commands
+and ordering in `../nodes/README.md`.
+
 ## Disposable monitoring data
 
 `monitoring-replicas.yml` sets one Longhorn replica for the existing Prometheus
