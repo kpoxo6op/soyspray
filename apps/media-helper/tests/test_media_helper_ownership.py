@@ -45,7 +45,7 @@ def test_project_covers_only_existing_stateless_workload_kinds():
 
 
 def test_live_tv_bootstrap_does_not_manage_the_native_helper_or_applications():
-    tasks = (ROOT / "roles/apps/live_tv/tasks/enabled.yml").read_text()
+    tasks = (ROOT / "apps/live-tv/bootstrap/tasks/enabled.yml").read_text()
     assert "media-helper" not in tasks
     assert "kind: Application" not in tasks
     assert "targetRevision" not in tasks

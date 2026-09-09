@@ -15,7 +15,7 @@ spec:
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
     targetRevision: main
-    path: playbooks/argocd/applications/backups/obsidian-offsite-backup
+    path: apps/obsidian-offsite-backup/manifests
   syncPolicy:
     automated:
       prune: true

@@ -7,12 +7,12 @@ import yaml
 from conftest import ROOT, load_all, load_yaml
 
 BLUEPRINT = ROOT / (
-    "playbooks/argocd/applications/security/authentik/blueprints/legacy-forward-auth.yaml"
+    "apps/authentik/manifests/blueprints/legacy-forward-auth.yaml"
 )
 
 APPLICATIONS = {
     "longhorn": {
-        "directory": "playbooks/argocd/applications/infrastructure/longhorn",
+        "directory": "apps/longhorn/manifests",
         "host": "longhorn.soyspray.vip",
         "namespace": "longhorn-system",
         "config_map": "auth-proxy-set-headers-longhorn",
@@ -26,21 +26,21 @@ APPLICATIONS = {
         "service": "authentik-server-prometheus",
     },
     "zigbee2mqtt": {
-        "directory": "playbooks/argocd/applications/home-automation/zigbee2mqtt",
+        "directory": "apps/zigbee2mqtt/manifests",
         "host": "zigbee2mqtt.soyspray.vip",
         "namespace": "home-automation",
         "config_map": "auth-proxy-set-headers-zigbee2mqtt",
         "service": "authentik-server-zigbee2mqtt",
     },
     "lazylibrarian": {
-        "directory": "playbooks/argocd/applications/media/lazylibrarian",
+        "directory": "apps/lazylibrarian/manifests",
         "host": "lazylibrarian.soyspray.vip",
         "namespace": "media",
         "config_map": "auth-proxy-set-headers-lazylibrarian",
         "service": "authentik-server-lazylibrarian",
     },
     "qbittorrent": {
-        "directory": "playbooks/argocd/applications/media/qbittorrent",
+        "directory": "apps/qbittorrent/manifests",
         "host": "torrent.soyspray.vip",
         "namespace": "media",
         "config_map": "auth-proxy-set-headers-qbittorrent",
@@ -240,7 +240,7 @@ def test_external_name_services_render_without_application_selectors() -> None:
 
 def test_zigbee2mqtt_keeps_its_live_immutable_selector() -> None:
     deployment = load_yaml(
-        "playbooks/argocd/applications/home-automation/zigbee2mqtt/deployment.yaml"
+        "apps/zigbee2mqtt/manifests/deployment.yaml"
     )
     selector = deployment["spec"]["selector"]["matchLabels"]
     pod_labels = deployment["spec"]["template"]["metadata"]["labels"]
@@ -251,7 +251,7 @@ def test_zigbee2mqtt_keeps_its_live_immutable_selector() -> None:
 
 def test_prometheus_and_qbittorrent_have_no_direct_web_load_balancer_bypass() -> None:
     prometheus = load_yaml("apps/prometheus/values.yaml")["prometheus"]["service"]
-    qbittorrent = load_yaml("playbooks/argocd/applications/media/qbittorrent/service.yaml")["spec"]
+    qbittorrent = load_yaml("apps/qbittorrent/manifests/service.yaml")["spec"]
 
     assert prometheus == {"type": "ClusterIP"}
     assert qbittorrent["type"] == "ClusterIP"
@@ -259,7 +259,7 @@ def test_prometheus_and_qbittorrent_have_no_direct_web_load_balancer_bypass() ->
 
 
 def test_authentik_role_mounts_proxy_configuration_and_argo_owns_the_apps() -> None:
-    tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+    tasks = (ROOT / "apps/authentik/bootstrap/tasks/main.yml").read_text()
 
     assert "legacy-forward-auth.yaml" in tasks
     assert "kind: Application" not in tasks

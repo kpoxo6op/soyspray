@@ -32,7 +32,7 @@ spec:
       sources:
         - repoURL: "https://github.com/kpoxo6op/soyspray.git"
           targetRevision: main
-          path: playbooks/argocd/applications/database/cnpg/immich-db-active/overlays/active-{{active}}
+          path: apps/immich/database/immich-db-active/overlays/active-{{active}}
       syncPolicy:
         syncOptions:
           - CreateNamespace=true

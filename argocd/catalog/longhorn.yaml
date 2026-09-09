@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
     targetRevision: main
-    path: playbooks/argocd/applications/infrastructure/longhorn
+    path: apps/longhorn/manifests
   destination:
     server: "https://kubernetes.default.svc"
     namespace: longhorn-system

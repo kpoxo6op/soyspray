@@ -13,9 +13,9 @@ APP_PATHS = {
     "domain_health": ("apps/domain-health/",),
     "immich": (
         "apps/immich/",
-        "roles/apps/immich/",
-        "playbooks/argocd/applications/media/immich/",
-        "playbooks/argocd/applications/backups/immich-offsite-backup/",
+        "apps/immich/bootstrap/",
+        "apps/immich/manifests/",
+        "apps/immich-offsite-backup/manifests/",
     ),
     "boys": ("apps/boys/",),
     "autism": ("apps/autism-traits/",),

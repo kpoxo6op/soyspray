@@ -575,10 +575,10 @@ def test_model_downloads_use_checksums() -> None:
 
 
 def test_ansible_bootstraps_voice_private_inputs_only() -> None:
-    defaults = load_yaml("roles/apps/voice-assistant/defaults/main.yml")
-    tasks = (ROOT / "roles/apps/voice-assistant/tasks/main.yml").read_text()
-    enabled = load_yaml("roles/apps/voice-assistant/tasks/enabled.yml")
-    enabled_tasks = (ROOT / "roles/apps/voice-assistant/tasks/enabled.yml").read_text()
+    defaults = load_yaml("apps/voice-assistant/bootstrap/defaults/main.yml")
+    tasks = (ROOT / "apps/voice-assistant/bootstrap/tasks/main.yml").read_text()
+    enabled = load_yaml("apps/voice-assistant/bootstrap/tasks/enabled.yml")
+    enabled_tasks = (ROOT / "apps/voice-assistant/bootstrap/tasks/enabled.yml").read_text()
     playbook = load_yaml("playbooks/bootstrap-app-inputs.yml")
 
     assert "voice_assistant_target_revision" not in defaults
@@ -613,7 +613,7 @@ def test_ansible_bootstraps_voice_private_inputs_only() -> None:
     assert "targetRevision" not in enabled_tasks
     assert "voice-assistant-application.yaml" not in enabled_tasks
     assert any(
-        item["role"] == "apps/voice-assistant" for item in playbook[0]["vars"]["input_roles"]
+        item["role"] == "voice-assistant/bootstrap" for item in playbook[0]["vars"]["input_roles"]
     )
 
 
@@ -628,15 +628,11 @@ def test_home_assistant_has_local_voice_settings() -> None:
         f"internal_url: http://{service['loadBalancerIP']}:{service['ports'][0]['port']}"
         in bootstrap
     )
-    deployment = load_yaml(
-        "apps/home-assistant/manifests/deployment.yaml"
-    )
+    deployment = load_yaml("apps/home-assistant/manifests/deployment.yaml")
     assert deployment["spec"]["template"]["metadata"]["annotations"] == {
         "soyspray.vip/bootstrap-config-revision": "2026-08-25-snappy-peanut-v3"
     }
-    configmap = load_yaml(
-        "apps/home-assistant/manifests/configmap-bootstrap.yaml"
-    )
+    configmap = load_yaml("apps/home-assistant/manifests/configmap-bootstrap.yaml")
     automations = yaml.safe_load(configmap["data"]["automations.yaml"])
     by_id = {automation["id"]: automation for automation in automations}
 

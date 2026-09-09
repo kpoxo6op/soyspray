@@ -3,8 +3,8 @@ from __future__ import annotations
 import yaml
 from conftest import ROOT
 
-BLUEPRINT = ROOT / "playbooks/argocd/applications/security/authentik/blueprints/native-apps.yaml"
-TASKS = ROOT / "roles/apps/authentik/tasks/native-apps.yml"
+BLUEPRINT = ROOT / "apps/authentik/manifests/blueprints/native-apps.yaml"
+TASKS = ROOT / "apps/authentik/bootstrap/tasks/native-apps.yml"
 
 
 def _blueprint_entries() -> list[dict]:
@@ -247,7 +247,7 @@ def test_immich_admin_password_reset_is_explicit_and_private() -> None:
 
 
 def test_authentik_role_mounts_and_runs_native_app_configuration() -> None:
-    task_text = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+    task_text = (ROOT / "apps/authentik/bootstrap/tasks/main.yml").read_text()
     tasks = yaml.safe_load(task_text)
     native_index = next(
         index

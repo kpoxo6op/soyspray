@@ -21,7 +21,7 @@
           - app.resources | length == 1
           - app.resources[0].operation | default(none) == none
           - app.resources[0].spec.source.repoURL == 'https://github.com/kpoxo6op/soyspray.git'
-          - app.resources[0].spec.source.path == 'playbooks/argocd/applications/security/authentik/database'
+          - app.resources[0].spec.source.path == 'apps/authentik-postgresql/manifests'
           - app.resources[0].metadata.ownerReferences | default([]) | length == 0
     - name: Select the pushed source and pause self-heal only during preview
       kubernetes.core.k8s_json_patch:

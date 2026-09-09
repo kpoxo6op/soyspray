@@ -3,7 +3,7 @@
 This repo keeps Kubespray as a submodule because the cluster bootstrap and node-level
 add-ons are managed by Kubespray, not by Argo CD.
 
-Argo reconciles workloads under `playbooks/argocd/applications`, but it does not apply
+Argo reconciles workloads under `apps/NAME/`, but it does not apply
 Kubespray inventory or role changes. When a change affects Kubespray-managed resources,
 the fix must land in the `kubespray` submodule, the parent `soyspray` repo must point at
 that submodule commit, and a Kubespray playbook must be run against the cluster.

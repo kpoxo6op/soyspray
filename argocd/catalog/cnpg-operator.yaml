@@ -19,7 +19,7 @@ spec:
       targetRevision: "0.26.0"
     - repoURL: "https://github.com/kpoxo6op/soyspray.git"
       targetRevision: main
-      path: playbooks/argocd/applications/database/cnpg/plugin-barman-cloud
+      path: apps/cnpg-operator/manifests
   syncPolicy:
     automated:
       prune: true

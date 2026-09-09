@@ -32,7 +32,7 @@ def test_archive_switch_is_one_identity_guarded_patch():
 
 
 def test_immich_preserves_archive_identity_and_daily_schedule():
-    base = ROOT / "playbooks/argocd/applications/database/cnpg/immich-db/overlays/initdb"
+    base = ROOT / "apps/immich/database/immich-db/overlays/initdb"
     spec = yaml.safe_load((base / "backup-config-patch.yaml").read_text())["spec"]
     assert spec["plugins"][0]["parameters"] == {
         "barmanObjectName": "immich-offsite",
@@ -64,7 +64,7 @@ def test_authentik_preserves_archive_and_replication():
     resources = list(
         yaml.safe_load_all(
             (
-                ROOT / "playbooks/argocd/applications/security/authentik/database/cluster.yaml"
+                ROOT / "apps/authentik-postgresql/manifests/cluster.yaml"
             ).read_text()
         )
     )

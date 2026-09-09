@@ -5,10 +5,10 @@
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
     input_roles:
-      - {name: Authentik, role: apps/authentik}
-      - {name: Immich backup, role: apps/immich}
-      - {name: Live TV, role: apps/live_tv}
-      - {name: Home Assistant Voice, role: apps/voice-assistant}
+      - {name: Authentik, role: authentik/bootstrap}
+      - {name: Immich backup, role: immich/bootstrap}
+      - {name: Live TV, role: live-tv/bootstrap}
+      - {name: Home Assistant Voice, role: voice-assistant/bootstrap}
   pre_tasks:
     - name: Prepare the certificate provider identity
       ansible.builtin.import_tasks: ../apps/cert-manager-config/bootstrap-tasks.yml

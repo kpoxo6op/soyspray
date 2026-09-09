@@ -41,7 +41,7 @@ def test_home_assistant_uses_authentik_and_keeps_native_recovery() -> None:
 
 def test_argo_owns_home_assistant_and_authentik_does_not_submit_it() -> None:
     application = load_yaml("argocd/catalog/home-assistant.yaml")
-    authentik_tasks = load_yaml("roles/apps/authentik/tasks/main.yml")
+    authentik_tasks = load_yaml("apps/authentik/bootstrap/tasks/main.yml")
 
     assert application["spec"]["source"]["targetRevision"] == "main"
     assert not any(
@@ -52,9 +52,9 @@ def test_argo_owns_home_assistant_and_authentik_does_not_submit_it() -> None:
 
 
 def test_qbittorrent_accepts_authentik_basic_auth_and_keeps_native_api() -> None:
-    deployment = load_yaml("playbooks/argocd/applications/media/qbittorrent/deployment.yaml")
+    deployment = load_yaml("apps/qbittorrent/manifests/deployment.yaml")
     image = deployment["spec"]["template"]["spec"]["containers"][0]["image"]
-    ingress = load_yaml("playbooks/argocd/applications/media/qbittorrent/ingress.yaml")
+    ingress = load_yaml("apps/qbittorrent/manifests/ingress.yaml")
     response_headers = set(
         ingress["metadata"]["annotations"][
             "nginx.ingress.kubernetes.io/auth-response-headers"
@@ -62,7 +62,7 @@ def test_qbittorrent_accepts_authentik_basic_auth_and_keeps_native_api() -> None
     )
     blueprint = (
         ROOT
-        / "playbooks/argocd/applications/security/authentik/blueprints/legacy-forward-auth.yaml"
+        / "apps/authentik/manifests/blueprints/legacy-forward-auth.yaml"
     ).read_text()
 
     assert image == "linuxserver/qbittorrent:libtorrentv1-5.2.3_v1.2.20-ls126"
@@ -76,9 +76,9 @@ def test_qbittorrent_accepts_authentik_basic_auth_and_keeps_native_api() -> None
 
 def test_qbittorrent_basic_auth_values_stay_in_the_runtime_secret() -> None:
     cluster_blueprint = (
-        ROOT / "playbooks/argocd/applications/security/authentik/blueprints/cluster-sso.yaml"
+        ROOT / "apps/authentik/manifests/blueprints/cluster-sso.yaml"
     ).read_text()
-    tasks = (ROOT / "roles/apps/authentik/tasks/main.yml").read_text()
+    tasks = (ROOT / "apps/authentik/bootstrap/tasks/main.yml").read_text()
 
     assert "qbittorrent_username: !Env QBITTORRENT_WEB_USERNAME" in cluster_blueprint
     assert "qbittorrent_password: !Env QBITTORRENT_WEB_PASSWORD" in cluster_blueprint

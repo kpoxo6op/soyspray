@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 @pytest.mark.parametrize("case", ["ready", "missing", "wrong-type", "missing-key", "wrong-source"])
 def test_authentik_requires_the_native_tls_mirror_without_writing_certificates(case):
-    tasks = yaml.safe_load((ROOT / "roles/apps/authentik/tasks/certificate.yml").read_text())
+    tasks = yaml.safe_load((ROOT / "apps/authentik/bootstrap/tasks/certificate.yml").read_text())
     secret = {
         "type": "kubernetes.io/tls",
         "data": {"tls.crt": "synthetic", "tls.key": "synthetic"},

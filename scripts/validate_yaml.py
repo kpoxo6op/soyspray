@@ -19,6 +19,21 @@ YAML_ROOTS = [
 ]
 
 
+class RepositoryLoader(yaml.SafeLoader):
+    pass
+
+
+def tagged(loader, tag, node):
+    if isinstance(node, yaml.ScalarNode):
+        return loader.construct_scalar(node)
+    if isinstance(node, yaml.SequenceNode):
+        return loader.construct_sequence(node)
+    return loader.construct_mapping(node)
+
+
+RepositoryLoader.add_multi_constructor("!", tagged)
+
+
 def yaml_files() -> list[Path]:
     paths: list[Path] = []
     for root in YAML_ROOTS:
@@ -33,7 +48,7 @@ def main() -> int:
     errors: list[str] = []
     for path in yaml_files():
         try:
-            list(yaml.safe_load_all(path.read_text(encoding="utf-8")))
+            list(yaml.load_all(path.read_text(encoding="utf-8"), Loader=RepositoryLoader))
         except yaml.YAMLError as exc:
             errors.append(f"{path.relative_to(ROOT)}: {exc}")
 

@@ -1,17 +1,15 @@
 # ArgoCD
 
-ArgoCD playbooks, configuration, and GitOps application definitions.
+Argo CD bootstrap and controller configuration.
 
 ## Structure
 
 ### playbooks/
-Ansible playbooks for deploying and configuring ArgoCD.
+Ansible playbooks for bootstrapping and configuring Argo CD itself.
 
 ### config/
 ArgoCD controller configuration files and configuration playbooks.
 
-### applications/
-GitOps application definitions organized by domain.
-
-See applications/README.md for details on each domain.
-
+Application manifests, checks, bootstrap inputs, and operating guides live
+under `apps/NAME/`. The native catalog is `argocd/catalog/`. Applications
+follow GitHub `main`; Ansible does not submit or deploy application workloads.
