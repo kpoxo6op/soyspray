@@ -1,8 +1,8 @@
 # Application management
 
 The `soyspray` Application is the single Argo CD root. Its Kustomization lists
-all direct Applications, the two existing Immich ApplicationSets, and their
-AppProjects. All Soyspray Git sources follow `main`.
+the direct Applications and their AppProjects. All Soyspray Git sources follow
+`main`.
 
 ## Normal change
 
@@ -31,9 +31,8 @@ The bootstrap must grant a new root-project permission before the first root
 sync that needs it. After that transition, the root also manages its own project.
 
 Root pruning and cascading deletion are disabled. Catalog Applications carry
-`Prune=false,Delete=false`. ApplicationSets preserve generated resources on
-deletion. Removing a catalog entry does not retire its workloads or data. Use
-an explicit Ansible retirement operation.
+`Prune=false,Delete=false`. Removing a catalog entry does not retire its
+workloads or data. Use an explicit Ansible retirement operation.
 
 The catalog does not contain private values. Run
 `playbooks/bootstrap-app-inputs.yml` only when a documented app needs a Secret,
