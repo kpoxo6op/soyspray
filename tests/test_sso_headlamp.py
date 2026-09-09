@@ -51,9 +51,7 @@ def test_authentik_worker_probe_allows_blueprint_apply_time() -> None:
 
 
 def test_authentik_has_a_headlamp_oidc_client() -> None:
-    blueprint = (
-        ROOT / "apps/authentik/manifests/blueprints/cluster-sso.yaml"
-    ).read_text()
+    blueprint = (ROOT / "apps/authentik/manifests/blueprints/cluster-sso.yaml").read_text()
 
     assert "id: headlamp-provider" in blueprint
     assert "client_id: headlamp" in blueprint

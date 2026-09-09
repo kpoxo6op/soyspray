@@ -4,9 +4,7 @@ from conftest import load_yaml
 
 
 def test_kube_prometheus_stack_can_scrape_authentik_postgresql_metrics() -> None:
-    policy = load_yaml(
-        "apps/authentik-postgresql/manifests/networkpolicy.yaml"
-    )
+    policy = load_yaml("apps/authentik-postgresql/manifests/networkpolicy.yaml")
 
     assert {
         "from": [

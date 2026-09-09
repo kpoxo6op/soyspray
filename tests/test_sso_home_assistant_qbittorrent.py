@@ -4,9 +4,7 @@ from conftest import ROOT, load_yaml
 
 
 def test_home_assistant_installs_the_pinned_oidc_release() -> None:
-    deployment = load_yaml(
-        "apps/home-assistant/manifests/deployment.yaml"
-    )
+    deployment = load_yaml("apps/home-assistant/manifests/deployment.yaml")
     init_containers = {
         item["name"]: item for item in deployment["spec"]["template"]["spec"]["initContainers"]
     }
@@ -21,9 +19,9 @@ def test_home_assistant_installs_the_pinned_oidc_release() -> None:
 
 
 def test_home_assistant_uses_authentik_and_keeps_native_recovery() -> None:
-    bootstrap = load_yaml(
-        "apps/home-assistant/manifests/configmap-bootstrap.yaml"
-    )["data"]["configuration.yaml"]
+    bootstrap = load_yaml("apps/home-assistant/manifests/configmap-bootstrap.yaml")["data"][
+        "configuration.yaml"
+    ]
 
     assert "auth_oidc:" in bootstrap
     assert "client_id: home-assistant" in bootstrap
@@ -60,10 +58,7 @@ def test_qbittorrent_accepts_authentik_basic_auth_and_keeps_native_api() -> None
             "nginx.ingress.kubernetes.io/auth-response-headers"
         ].split(",")
     )
-    blueprint = (
-        ROOT
-        / "apps/authentik/manifests/blueprints/legacy-forward-auth.yaml"
-    ).read_text()
+    blueprint = (ROOT / "apps/authentik/manifests/blueprints/legacy-forward-auth.yaml").read_text()
 
     assert image == "linuxserver/qbittorrent:libtorrentv1-5.2.3_v1.2.20-ls126"
     assert "Authorization" in response_headers
@@ -75,9 +70,7 @@ def test_qbittorrent_accepts_authentik_basic_auth_and_keeps_native_api() -> None
 
 
 def test_qbittorrent_basic_auth_values_stay_in_the_runtime_secret() -> None:
-    cluster_blueprint = (
-        ROOT / "apps/authentik/manifests/blueprints/cluster-sso.yaml"
-    ).read_text()
+    cluster_blueprint = (ROOT / "apps/authentik/manifests/blueprints/cluster-sso.yaml").read_text()
     tasks = (ROOT / "apps/authentik/bootstrap/tasks/main.yml").read_text()
 
     assert "qbittorrent_username: !Env QBITTORRENT_WEB_USERNAME" in cluster_blueprint
