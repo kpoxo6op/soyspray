@@ -8,6 +8,7 @@ import yaml
 from ansible.plugins.filter.core import FilterModule
 
 from apps.immich.recovery import run
+from scripts import restore_common
 
 RECOVERY = Path(__file__).resolve().parents[1] / "recovery"
 
@@ -20,21 +21,12 @@ def render(name):
         recovery_db_password="scratch-password-only",
         recovery_labels={},
         recovery_server_image_digest="ghcr.io/immich-app/immich-server:v2.3.1@sha256:" + "a" * 64,
-        recovery_source_secret_result={
-            "resources": [
-                {
-                    "data": {
-                        key: "dGVzdA=="
-                        for key in [
-                            "AWS_ACCESS_KEY_ID",
-                            "AWS_SECRET_ACCESS_KEY",
-                            "AWS_DEFAULT_REGION",
-                            "RESTIC_REPOSITORY",
-                            "RESTIC_PASSWORD",
-                        ]
-                    }
-                }
-            ]
+        recovery_restic_credentials={
+            "AWS_ACCESS_KEY_ID": "test",
+            "AWS_SECRET_ACCESS_KEY": "test",
+            "AWS_DEFAULT_REGION": "test",
+            "RESTIC_REPOSITORY": "s3:test",
+            "RESTIC_PASSWORD": "test",
         },
     )
     env = jinja2.Environment(undefined=jinja2.StrictUndefined)
@@ -81,6 +73,47 @@ def test_restore_verifies_files_and_excludes_pending_candidates():
     assert not job["spec"]["template"]["spec"]["automountServiceAccountToken"]
 
 
+def test_recovery_uses_off_cluster_inputs_and_no_production_affinity():
+    play = yaml.safe_load((RECOVERY / "restore.yml").read_text())[0]
+    serialized = yaml.safe_dump(play)
+    assert "recovery_source_secret_result" not in serialized
+    assert "recovery_production_before" not in serialized
+    assert "recovery_pod_affinity" not in serialized
+    assert "namespace: immich\n" not in serialized
+    for template in RECOVERY.glob("*.j2"):
+        assert "affinity:" not in template.read_text()
+
+
+def test_runtime_images_are_digest_pinned():
+    values = yaml.safe_load((RECOVERY / "restore.yml").read_text())[0]["vars"]
+    for name in [
+        "recovery_restic_image",
+        "recovery_database_image",
+        "recovery_redis_image",
+        "recovery_probe_image",
+    ]:
+        assert "@sha256:" in values[name]
+
+
+def test_immich_requires_explicit_target_paths_before_preflight(tmp_path, monkeypatch):
+    monkeypatch.setenv("XDG_STATE_HOME", str(tmp_path / "state"))
+    monkeypatch.delenv("SOYSPRAY_RECOVERY_KUBECONFIG", raising=False)
+    monkeypatch.delenv("SOYSPRAY_RECOVERY_INVENTORY", raising=False)
+    operation = restore_common.RestoreOperation(
+        "immich",
+        tmp_path / "checkout",
+        tmp_path / "backup.vault.yml",
+        tmp_path / "vault-password",
+        explicit_target=True,
+    )
+
+    with pytest.raises(ValueError, match="explicit recovery target"):
+        operation.prepare()
+
+    assert not operation.created_output
+    assert "explicit_target=True" in (RECOVERY / "run.py").read_text()
+
+
 def test_cleanup_is_idempotent_and_uses_uid_preconditions():
     tasks = yaml.safe_load((RECOVERY / "cleanup.yml").read_text())[0]["tasks"]
     delete = next(
@@ -106,7 +139,7 @@ def test_private_report_follows_storage_cleanup():
     assert always[report]["ansible.builtin.copy"]["mode"] == "0600"
 
 
-def test_failed_restore_runs_guarded_cleanup_and_identity_check(tmp_path):
+def test_failed_restore_runs_guarded_cleanup_without_production_reads(tmp_path):
     calls = []
 
     class Operation:
@@ -115,7 +148,18 @@ def test_failed_restore_runs_guarded_cleanup_and_identity_check(tmp_path):
         output = tmp_path
 
         def kube(self, *args):
-            return {"metadata": {"uid": "unchanged"}}
+            raise AssertionError("production reads are disabled by default")
+
+        def vault(self):
+            return {
+                "immich_restic_credentials": {
+                    "AWS_ACCESS_KEY_ID": "test",
+                    "AWS_SECRET_ACCESS_KEY": "test",
+                    "AWS_DEFAULT_REGION": "test",
+                    "RESTIC_REPOSITORY": "s3:test",
+                    "RESTIC_PASSWORD": "test",
+                }
+            }
 
         def ansible(self, path, variables, log):
             calls.append(Path(path).name)
@@ -127,7 +171,7 @@ def test_failed_restore_runs_guarded_cleanup_and_identity_check(tmp_path):
         run.restore(operation)
     assert calls == ["restore.yml", "cleanup.yml"]
     assert operation.report["cleanup"] == "completed"
-    assert operation.report["original_resources"] == "unchanged"
+    assert operation.report["production_comparison"] == "not requested"
 
 
 def test_ansible_preserves_restored_count_list(tmp_path):
