@@ -1,0 +1,136 @@
+---
+- name: Save and validate an etcd snapshot on a survivor
+  hosts: node-0
+  gather_facts: false
+  become: true
+  vars:
+    etcd_snapshot_root: /var/backups/soyspray/etcd
+    etcd_snapshot_controller_dir: >-
+      {{ lookup('env', 'HOME') }}/.local/state/soyspray/node-recovery/etcd
+    etcd_snapshot_transfer_dir: /home/ubuntu/.cache/soyspray-etcd-transfer
+    etcdctl_bin: "{{ bin_dir | default('/usr/local/bin') }}/etcdctl"
+    etcdutl_bin: "{{ bin_dir | default('/usr/local/bin') }}/etcdutl"
+    etcd_cert_dir: /etc/ssl/etcd/ssl
+    etcdctl_environment:
+      ETCDCTL_API: "3"
+      ETCDCTL_ENDPOINTS: https://127.0.0.1:2379
+      ETCDCTL_CACERT: "{{ etcd_cert_dir }}/ca.pem"
+      ETCDCTL_CERT: "{{ etcd_cert_dir }}/admin-{{ inventory_hostname }}.pem"
+      ETCDCTL_KEY: "{{ etcd_cert_dir }}/admin-{{ inventory_hostname }}-key.pem"
+  tasks:
+    - name: Require the designated survivor and an explicit snapshot label
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'node-0'
+          - etcd_snapshot_label is defined
+          - etcd_snapshot_label is match('^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{7,40}$')
+          - not etcd_snapshot_controller_dir.startswith('/tmp')
+        fail_msg: >-
+          Pass etcd_snapshot_label=YYYYMMDDTHHMMSSZ-GIT_SHA and keep the
+          controller copy in private persistent storage.
+
+    - name: Set the snapshot paths
+      ansible.builtin.set_fact:
+        etcd_snapshot_path: "{{ etcd_snapshot_root }}/{{ etcd_snapshot_label }}.db"
+        etcd_snapshot_status_path: >-
+          {{ etcd_snapshot_root }}/{{ etcd_snapshot_label }}.status.json
+
+    - name: Create the private survivor snapshot directory
+      ansible.builtin.file:
+        path: "{{ etcd_snapshot_root }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Check all etcd endpoints before the snapshot
+      ansible.builtin.command:
+        argv: ["{{ etcdctl_bin }}", endpoint, health, --cluster]
+      environment: "{{ etcdctl_environment }}"
+      register: etcd_health_before
+      changed_when: false
+
+    - name: Save the native etcd snapshot
+      ansible.builtin.command:
+        argv: ["{{ etcdctl_bin }}", snapshot, save, "{{ etcd_snapshot_path }}"]
+      environment: "{{ etcdctl_environment }}"
+      args:
+        creates: "{{ etcd_snapshot_path }}"
+
+    - name: Protect the survivor snapshot
+      ansible.builtin.file:
+        path: "{{ etcd_snapshot_path }}"
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Validate the native snapshot
+      ansible.builtin.command:
+        argv: ["{{ etcdutl_bin }}", snapshot, status, "{{ etcd_snapshot_path }}", -w, json]
+      register: etcd_snapshot_status
+      changed_when: false
+
+    - name: Require a populated snapshot
+      ansible.builtin.assert:
+        that:
+          - (etcd_snapshot_status.stdout | from_json).totalKey | int > 0
+          - (etcd_snapshot_status.stdout | from_json).totalSize | int > 0
+
+    - name: Save the validation result beside the snapshot
+      ansible.builtin.copy:
+        dest: "{{ etcd_snapshot_status_path }}"
+        content: "{{ etcd_snapshot_status.stdout | from_json | to_nice_json }}\n"
+        owner: root
+        group: root
+        mode: '0600'
+
+    - name: Create the private controller snapshot directory
+      ansible.builtin.file:
+        path: "{{ etcd_snapshot_controller_dir }}"
+        state: directory
+        mode: '0700'
+      delegate_to: localhost
+      become: false
+
+    - name: Fetch the validated snapshot through a private staging copy
+      block:
+        - name: Create the private transfer directory
+          ansible.builtin.file:
+            path: "{{ etcd_snapshot_transfer_dir }}"
+            state: directory
+            owner: ubuntu
+            group: ubuntu
+            mode: '0700'
+
+        - name: Stage owner-readable snapshot files
+          ansible.builtin.copy:
+            src: "{{ item }}"
+            dest: "{{ etcd_snapshot_transfer_dir }}/{{ item | basename }}"
+            remote_src: true
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          loop:
+            - "{{ etcd_snapshot_path }}"
+            - "{{ etcd_snapshot_status_path }}"
+
+        - name: Fetch the staged files without privileged encoding
+          ansible.builtin.fetch:
+            src: "{{ etcd_snapshot_transfer_dir }}/{{ item | basename }}"
+            dest: "{{ etcd_snapshot_controller_dir }}/"
+            flat: true
+          become: false
+          loop:
+            - "{{ etcd_snapshot_path }}"
+            - "{{ etcd_snapshot_status_path }}"
+      always:
+        - name: Remove the private transfer directory
+          ansible.builtin.file:
+            path: "{{ etcd_snapshot_transfer_dir }}"
+            state: absent
+
+    - name: Check etcd after the snapshot
+      ansible.builtin.command:
+        argv: ["{{ etcdctl_bin }}", endpoint, health, --cluster]
+      environment: "{{ etcdctl_environment }}"
+      changed_when: false
