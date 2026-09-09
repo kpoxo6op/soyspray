@@ -62,11 +62,7 @@ def test_immich_sync_selects_existing_resources_without_pruning():
 
 def test_authentik_preserves_archive_and_replication():
     resources = list(
-        yaml.safe_load_all(
-            (
-                ROOT / "apps/authentik-postgresql/manifests/cluster.yaml"
-            ).read_text()
-        )
+        yaml.safe_load_all((ROOT / "apps/authentik-postgresql/manifests/cluster.yaml").read_text())
     )
     cluster, schedule = resources
     assert cluster["spec"]["instances"] == 2

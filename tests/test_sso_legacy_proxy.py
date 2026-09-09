@@ -6,9 +6,7 @@ from pathlib import Path
 import yaml
 from conftest import ROOT, load_all, load_yaml
 
-BLUEPRINT = ROOT / (
-    "apps/authentik/manifests/blueprints/legacy-forward-auth.yaml"
-)
+BLUEPRINT = ROOT / ("apps/authentik/manifests/blueprints/legacy-forward-auth.yaml")
 
 APPLICATIONS = {
     "longhorn": {
@@ -239,9 +237,7 @@ def test_external_name_services_render_without_application_selectors() -> None:
 
 
 def test_zigbee2mqtt_keeps_its_live_immutable_selector() -> None:
-    deployment = load_yaml(
-        "apps/zigbee2mqtt/manifests/deployment.yaml"
-    )
+    deployment = load_yaml("apps/zigbee2mqtt/manifests/deployment.yaml")
     selector = deployment["spec"]["selector"]["matchLabels"]
     pod_labels = deployment["spec"]["template"]["metadata"]["labels"]
 

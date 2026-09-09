@@ -4,9 +4,7 @@ from conftest import load_all, load_yaml
 
 
 def test_cnpg_operator_can_read_authentik_instance_status() -> None:
-    policy = load_yaml(
-        "apps/authentik-postgresql/manifests/networkpolicy.yaml"
-    )
+    policy = load_yaml("apps/authentik-postgresql/manifests/networkpolicy.yaml")
 
     assert policy["spec"]["ingress"] == [
         {
