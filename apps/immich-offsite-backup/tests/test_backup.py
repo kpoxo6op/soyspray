@@ -10,6 +10,7 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+RUNTIME = ROOT / "manifests/runtime"
 POSTGRES = "postgres:16.10-bookworm@sha256:38471f330eb885e04de130b768d6db4e10469e2311879c7e5c699f6d2d8a1c74"
 RESTIC = (
     "restic/restic:0.18.1@sha256:39d9072fb5651c80d75c7a811612eb60b4c06b32ffe87c2e9f3c7222e1797e76"
@@ -79,7 +80,7 @@ class PairedBackup(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory(prefix="soyspray-backup-")
         self.addCleanup(self.temp.cleanup)
         self.work = Path(self.temp.name)
-        self.scripts = ROOT / "backup"
+        self.scripts = RUNTIME
         if image := os.environ.get("IMMICH_SCRIPT_IMAGE"):
             self.scripts = self.work / "scripts"
             self.scripts.mkdir()
@@ -102,9 +103,7 @@ class PairedBackup(unittest.TestCase):
             )
             self.assertEqual(copied.returncode, 0, copied.stderr)
             for name in ("dump.sh", "dump.sql", "backup.sh"):
-                self.assertEqual(
-                    (self.scripts / name).read_bytes(), (ROOT / "backup" / name).read_bytes()
-                )
+                self.assertEqual((self.scripts / name).read_bytes(), (RUNTIME / name).read_bytes())
         for name in (
             "backup",
             "repository",

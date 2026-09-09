@@ -7,7 +7,8 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("backup_credentials", ROOT / "backup/credentials.py")
+RUNTIME = ROOT / "manifests/runtime"
+spec = importlib.util.spec_from_file_location("backup_credentials", RUNTIME / "credentials.py")
 module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
@@ -86,7 +87,7 @@ def test_reject_invalid_or_changed_identity(inputs, change):
 
 
 def test_bootstrap_validates_privately_before_create_only_write():
-    tasks = yaml.safe_load((ROOT / "backup/bootstrap.yml").read_text())[0]["tasks"]
+    tasks = yaml.safe_load((RUNTIME / "bootstrap.yml").read_text())[0]["tasks"]
     assert all(task["no_log"] is True for task in tasks)
     assert [task["kubernetes.core.k8s_info"]["name"] for task in tasks[:3]] == [
         "immich-server",
@@ -103,7 +104,7 @@ def test_bootstrap_validates_privately_before_create_only_write():
 
 
 def test_manual_job_is_suspended_guarded_and_always_cleans_up():
-    tasks = yaml.safe_load((ROOT / "backup/run-job.yml").read_text())[0]["tasks"]
+    tasks = yaml.safe_load((RUNTIME / "run-job.yml").read_text())[0]["tasks"]
     assertions = [
         task["ansible.builtin.assert"]["that"] for task in tasks if "ansible.builtin.assert" in task
     ]

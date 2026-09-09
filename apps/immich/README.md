@@ -30,7 +30,7 @@ fail the job but do not invalidate a complete, verified restore candidate.
 External libraries require explicit mounts and inclusion rules before this
 operation can accept them.
 
-Run `python3 apps/immich/tests/test_backup.py` on a host with Docker for the native
+Run `python3 apps/immich-offsite-backup/tests/test_backup.py` on a host with Docker for the native
 image integration checks. They use disposable containers and a local repository,
 including a photo fixture, an album, a concurrent database edit, deleted and moved
 files, unreadable files, and a failed dump. CI runs these checks for affected
@@ -51,7 +51,8 @@ from that exact image. The bundle is a short init step; PostgreSQL and Restic st
 run their pinned upstream images. Runtime scripts are not loaded from ConfigMaps.
 
 A runtime source merge publishes the tested bundle to GHCR and opens a draft
-promotion containing its digest in `backup/kustomization.yaml`. Source-only and
+promotion containing its digest in
+`../immich-offsite-backup/manifests/runtime/kustomization.yaml`. Source-only and
 test-only merges do not change a running Job. Any configuration that requires a
 new script version must be reviewed in the same promotion. The first promotion
 records the image before a Job is registered. Do not enable the schedule until a

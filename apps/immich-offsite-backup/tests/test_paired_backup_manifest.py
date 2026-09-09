@@ -5,7 +5,8 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST = ROOT / "backup" / "paired-backup.yaml"
+RUNTIME = ROOT / "manifests/runtime"
+MANIFEST = RUNTIME / "paired-backup.yaml"
 SECRET_KEYS = {
     "PGHOST",
     "PGPORT",
@@ -97,11 +98,11 @@ if __name__ == "__main__":
 def test_script_digest_is_selected_by_kustomize():
     rendered = list(
         yaml.safe_load_all(
-            subprocess.check_output(["kubectl", "kustomize", str(ROOT / "backup")], text=True)
+            subprocess.check_output(["kubectl", "kustomize", str(RUNTIME)], text=True)
         )
     )
     image = rendered[0]["spec"]["jobTemplate"]["spec"]["template"]["spec"]["initContainers"][0][
         "image"
     ]
-    setting = yaml.safe_load((ROOT / "backup/kustomization.yaml").read_text())["images"][0]
+    setting = yaml.safe_load((RUNTIME / "kustomization.yaml").read_text())["images"][0]
     assert image == setting["newName"] + "@" + setting["digest"]

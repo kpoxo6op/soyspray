@@ -1,7 +1,7 @@
 # Immich offsite backup
 
 This Argo application runs Immich's paired database and original-file backup.
-The runtime scripts and recovery code live in `apps/immich/backup/` and
+The runtime scripts and recovery code live in `apps/immich-offsite-backup/manifests/runtime/` and
 `apps/immich/recovery/`; this directory owns the native Application package and
 its service account.
 
