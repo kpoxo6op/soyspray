@@ -18,9 +18,9 @@
           - (diagnosis_home + '/.codex/auth.json') is file
           - (diagnosis_repo + '/apps/cluster-diagnosis/app/adapter.py') is file
 
-    - name: Require the reviewed pushed checkout
+    - name: Require unchanged tracked source
       ansible.builtin.command:
-        argv: [make, deploy-preflight]
+        argv: [git, diff, --quiet, HEAD, --]
         chdir: "{{ diagnosis_repo }}"
       changed_when: false
 

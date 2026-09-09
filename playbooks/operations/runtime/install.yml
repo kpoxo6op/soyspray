@@ -126,6 +126,7 @@
       when:
         - not ansible_check_mode
         - operations_old_current.rc == 0
+        - operations_old_current.stdout is match('^.*/releases/[0-9a-f]{40}$')
         - operations_old_current.stdout != operations_install_root + '/releases/' + operations_selected_revision.stdout
 
     - name: Select the installed current release
