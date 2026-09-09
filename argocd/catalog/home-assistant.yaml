@@ -9,6 +9,12 @@ metadata:
     soyspray.vip/owner: household
   annotations:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/data-claims: home-automation/home-assistant-config
+    soyspray.vip/data: Home Assistant configuration and private runtime registries,
+      including pipelines, devices, entities, areas, and exposure settings
+    soyspray.vip/backup: 'Longhorn durable-small: daily, 30 retained; three replicas'
+    soyspray.vip/backup-cause: Restore the complete configuration claim and privately
+      verify Home Assistant runtime registries before accepting recovery.
 spec:
   project: legacy-workloads
   source:
