@@ -21,6 +21,8 @@ KUSTOMIZATIONS := \
 	apps/autism-traits/manifests \
 	apps/boys/manifests \
 	apps/domain-health \
+	apps/immich/database/production \
+	apps/immich/database/alias \
 	$(VAULTWARDEN_PACKAGE) \
 	$(OBSIDIAN_PACKAGE) \
 	apps/voice-assistant/manifests \
@@ -95,6 +97,10 @@ lint: ## Check Python style and common defects
 		playbooks/operations/boys/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint playbooks/bootstrap-apps.yml \
 		playbooks/bootstrap-app-inputs.yml \
+		playbooks/operations/runtime/install.yml \
+		playbooks/operations/nodes/snapshot-etcd.yml \
+		playbooks/operations/storage/prepare-existing-longhorn-storage.yml \
+		playbooks/operations/storage/protect-loki-before-node2.yml \
 		playbooks/operations/recovery/restore-volume.yml playbooks/operations/recovery/cleanup-restore.yml playbooks/operations/recovery/start-restored-app.yml \
 		playbooks/operations/recovery/configure-longhorn.yml playbooks/operations/recovery/backup-daily-now.yml
 
