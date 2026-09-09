@@ -7,6 +7,11 @@ checkout and Python environment. `current` selects the active release and
 `previous` retains the prior one for rollback. Private credentials, reports,
 locks, incident state, and model inputs remain outside the checkout.
 
+The installed environment uses `requirements-recovery.txt`. It contains the
+Ansible and YAML dependencies used by recovery operations. It does not install
+npm packages, a browser, pytest, ruff, or ansible-lint. Those remain delivery
+dependencies in `requirements-dev.txt` and the normal `make go` gate.
+
 Install or update an exact pushed commit:
 
 ```sh
@@ -21,6 +26,11 @@ Run the same command with `--check` before an update. To roll back, use the
 commit shown by `readlink ~/.local/lib/soyspray-operations/previous` as
 `operations_revision`. The installer keeps systemd unit names and OpenClaw job
 identity unchanged.
+
+Before selecting a release, the installer proves that the exact commit exists
+on GitHub, rejects tracked changes in the installed checkout, and syntax-checks
+the emergency restore playbooks. These checks do not replace `make go` or the
+GitHub checks required before delivery.
 
 Check the installation with `systemctl --user status` for
 `soyspray-operations-evidence.timer`, `soyspray-restore-check.timer`,
