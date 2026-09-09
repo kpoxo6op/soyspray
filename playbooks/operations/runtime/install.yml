@@ -15,6 +15,7 @@
         chdir: "{{ (playbook_dir + '/../../..') | realpath }}"
       register: operations_selected_revision
       changed_when: false
+      check_mode: false
 
     - name: Require an exact pushed revision and private install path
       ansible.builtin.assert:
