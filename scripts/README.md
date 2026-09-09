@@ -28,7 +28,7 @@ scripts/hays-open-submitted-timesheet
   pinned upstream `promtool`. Use `make prometheus-check`.
 - `validate_yaml.py` parses the YAML files used by the local quality gate.
 - `ci_scope.py` selects affected browser checks for GitHub CI. Shared checks
-  always run; [manual dispatch](../.github/workflows/README.md) runs all checks.
+  always run; [manual dispatch](../.github/workflows) runs all checks.
 
 Use `make status-page-check` to validate the external status configuration,
 `make status-page` to apply it, and `make check` for the full local gate.
@@ -39,15 +39,15 @@ Use `make status-page-check` to validate the external status configuration,
 - `app_status.py` reads Application ownership, source revisions, and available
   status through `kubectl`. Use `make apps` or `make status APP=boys FORMAT=json`.
   Missing metadata and evidence appear as `unknown` with a cause. API failures
-  return a nonzero exit code. See [application operations](../apps/README.md).
+  return a nonzero exit code. See [application operations](../apps).
 - `app_command.py` runs each app's native Makefile for local checks, diff,
   smoke, and restore checks. `app_diff.py` uses the checksum-pinned upstream
   Argo CLI through the current Kubernetes context. `app_diff_sources.py` validates
   exact pushed chart and Git values proposals. Neither operation syncs or prunes.
-  See [application operations](../apps/README.md#check-compare-and-merge).
+  See [application operations](../apps#check-compare-and-merge).
 - `make list-apps` uses native `kubectl` output for Argo sync and health.
 - `backup_status.py` reads native backup records for `make backup-status`.
-  See [recovery operations](../playbooks/operations/recovery/README.md#read-backup-status)
+  See [recovery operations](../playbooks/operations/recovery#read-backup-status)
   for coverage and evidence limits.
 - `check-ha-stretch.sh` checks the one-node-loss stretch configuration.
 

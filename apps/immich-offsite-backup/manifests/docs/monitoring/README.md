@@ -24,6 +24,6 @@ The Barman metric uses the native CNPG exporter on port 9187. The existing
 PodMonitor collects it. It replaces the old `cnpg_collector` backup metric.
 
 Use the standard Ansible monitoring source command in the
-[recovery README](../../../../../../operations/recovery/README.md). Preserve
+[recovery README](../../../../../../operations/recovery). Preserve
 Alertmanager delivery when changing queries. Missing metrics are missing
 evidence; do not replace them with a successful zero value.

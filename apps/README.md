@@ -5,15 +5,15 @@ near its source. The native root lists every application in
 [its Kustomization](../argocd/kustomization.yaml). Application ownership records
 are in [`argocd/catalog/`](../argocd/catalog/).
 
-- [Certificate configuration](cert-manager-config/README.md): issuers, wildcard certificates and TLS reflection.
-- [Media helper](media-helper/README.md): internal channel catalog, playlist and guide.
-- [Obsidian sync](obsidian-livesync/README.md): CouchDB note sync and recovery.
-- [Vaultwarden](vaultwarden/README.md): private human vault and restricted reader.
-- [Domain health](domain-health/README.md): domain checks and Prometheus metrics.
-- [ExternalDNS](external-dns/README.md): maintain ingress DNS through the existing Cloudflare identity.
-- [Boys](boys/README.md): shared calendar and accommodation links.
-- [Headlamp](headlamp/README.md): browse the cluster through Authentik OIDC.
-- [Autism traits](autism-traits/README.md): static assessment with scoring in the browser.
+- [Certificate configuration](cert-manager-config): issuers, wildcard certificates and TLS reflection.
+- [Media helper](media-helper): internal channel catalog, playlist and guide.
+- [Obsidian sync](obsidian-livesync): CouchDB note sync and recovery.
+- [Vaultwarden](vaultwarden): private human vault and restricted reader.
+- [Domain health](domain-health): domain checks and Prometheus metrics.
+- [ExternalDNS](external-dns): maintain ingress DNS through the existing Cloudflare identity.
+- [Boys](boys): shared calendar and accommodation links.
+- [Headlamp](headlamp): browse the cluster through Authentik OIDC.
+- [Autism traits](autism-traits): static assessment with scoring in the browser.
 
 Read the current cluster inventory and an app's status:
 
@@ -52,7 +52,7 @@ policies are not proof of a successful user journey or recovery. For mapped
 claims, status reads native Longhorn backup age and private restore reports.
 The `soyspray.vip/data-claims` annotation lists explicit `namespace/claim` names,
 separated by commas when needed. No second app inventory is maintained.
-Use [backup status](../playbooks/operations/recovery/README.md#read-backup-status)
+Use [backup status](../playbooks/operations/recovery#read-backup-status)
 for native Longhorn and CNPG observations while per-app recovery mapping is added.
 An API failure returns an unknown inventory and a nonzero exit code, not an empty
 healthy result. `scripts/app_status.py --help` also describes saved JSON input for
@@ -88,7 +88,7 @@ Media helper and certificate configuration compare a clean, pushed single Git so
 compare a clean, pushed commit with the live chart deployment. It
 keeps explicit chart versions and resolves Git values to the exact commit. It
 rejects Application setting changes that native revision overrides cannot render.
-See [ExternalDNS](external-dns/README.md) for supported changes and limits.
+See [ExternalDNS](external-dns) for supported changes and limits.
 
 The comparison does not sync or prune. It uses the pushed commit only for the
 comparison and does not change the live Application. A removed object in the
@@ -106,6 +106,6 @@ Unsupported restore operations report `unknown` with their cause. Restore
 reports do not replace the separate seven-day recovery-point measurements.
 
 `smoke APP=boys` checks the deployed public phone and desktop journey and reports
-authenticated coverage as unknown. See [Boys](boys/README.md#check-the-live-public-journey).
+authenticated coverage as unknown. See [Boys](boys#check-the-live-public-journey).
 Other apps report an unsupported operation with its cause until their smoke
 procedure is maintained.

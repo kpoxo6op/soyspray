@@ -256,7 +256,7 @@ prove that the application can be restored.
 ## Inspect an isolated volume restore
 
 For Boys, `make restore-check APP=boys` runs the full isolated workflow and data
-checks with automatic guarded cleanup. See the [app guide](../../../apps/boys/README.md#run-an-isolated-restore)
+checks with automatic guarded cleanup. See the [app guide](../../../apps/boys#run-an-isolated-restore)
 for encrypted inputs, report paths, and evidence limits. The operations below
 remain available for deliberate inspection. Automated callers can supply
 `recovery_expected_claim_uid` and `recovery_expected_backup_uid` to bind the

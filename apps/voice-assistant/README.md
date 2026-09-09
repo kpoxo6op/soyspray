@@ -30,7 +30,7 @@ data. Configure this state through the Home Assistant UI or supported API. Do
 not edit `.storage` files.
 
 Keep all voice recordings, packet captures, calculated audio data, model files,
-and training output outside Git. [models/README.md](manifests/models/README.md) lists the
+and training output outside Git. [models/README.md](manifests/models) lists the
 model names and checksums.
 
 ## Deployment
@@ -188,7 +188,7 @@ For token rotation:
 6. Run the transport and live Voice PE checks.
 7. Revoke the old token.
 
-For a model change, follow [models/README.md](manifests/models/README.md). First, Ansible
+For a model change, follow [models/README.md](manifests/models). First, Ansible
 creates and checks the new immutable ConfigMap. A second change makes the
 Deployment use it.
 

@@ -39,16 +39,16 @@ Security playbooks.
 
 ### boys/
 
-[Private Boys trip bootstrap](boys/README.md) from off-cluster Ansible Vault input.
+[Private Boys trip bootstrap](boys) from off-cluster Ansible Vault input.
 
 ### recovery/
 
 Critical S3 backups, encrypted runtime exports, and isolated restore operations.
-See [the recovery guide](recovery/README.md).
+See [the recovery guide](recovery).
 
 ### retirement/
 
-The [node-0 retirement operation](retirement/README.md) verifies that the old
+The [node-0 retirement operation](retirement) verifies that the old
 OpenClaw installation is absent. OpenClaw runs on the laptop. Keep this
 retryable playbook through the migration window.
 

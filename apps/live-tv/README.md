@@ -6,4 +6,4 @@ Dispatcharr and Jellyfin inputs. Merge the pull request to deploy through Argo
 from `main`.
 
 Retirement is a separate deliberate operation. Bootstrap does not stop or
-delete workloads. See [the input role](../../apps/live-tv/bootstrap/README.md).
+delete workloads. See [the input role](../../apps/live-tv/bootstrap).

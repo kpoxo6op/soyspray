@@ -11,7 +11,7 @@ The bootstrap adds `Cartoons` at `/media/Русские мультфильмы`,
 Jellyfin gets the Live TV lineup from Dispatcharr's HDHomeRun interface. Programme data and static channel artwork come from Media Helper XMLTV. Open Jellyfin's native `Live TV` and `Guide` screens to browse channels and schedules.
 
 The television client is the official Android TV application. See
-[the Android TV guide](../../soydocs/android-tv/README.md).
+[the Android TV guide](../../soydocs/android-tv).
 
 ## Access and storage
 

@@ -41,7 +41,7 @@ first with `--check`. Keep the Vault password and a separate recovery copy outsi
 the cluster. Restore the data volume and server keys before using restored access.
 
 The critical Longhorn policy keeps 48 recent backups every 30 minutes and 30 daily
-backups. Use the [isolated recovery procedure](../../playbooks/operations/recovery/README.md)
+backups. Use the [isolated recovery procedure](../../playbooks/operations/recovery)
 to check SQLite integrity, encrypted records and attachments, and restricted-record
 decryption. Human unlock and seven-day recovery-point proof remain separate checks.
 Run `make restore-check APP=vaultwarden` from a committed, pushed branch. It runs
@@ -107,4 +107,4 @@ fingerprints, and confirm membership from the human account. Share only
 `hays-online-timesheets`, close invitations, and run the silent check above.
 Restore an existing identity from backup before considering new enrollment.
 
-Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. The [monthly restore schedule](../../playbooks/operations/recovery/README.md) runs the same maintained command and validates its report.
+Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. The [monthly restore schedule](../../playbooks/operations/recovery) runs the same maintained command and validates its report.
