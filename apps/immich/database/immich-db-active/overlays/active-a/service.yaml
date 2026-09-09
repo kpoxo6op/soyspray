@@ -1,8 +1,0 @@
-# ExternalName service targeting A's RW endpoint.
-apiVersion: v1
-kind: Service
-metadata:
-  name: immich-db-active
-spec:
-  type: ExternalName
-  externalName: immich-db-a-rw.postgresql.svc.cluster.local
