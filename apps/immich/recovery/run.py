@@ -18,7 +18,6 @@ def restore(operation):
         ("pvc", "immich-library", "immich"),
         ("service", "immich-db-active", "postgresql"),
         ("cluster.postgresql.cnpg.io", "immich-db-a", "postgresql"),
-        ("secret", "immich-paired-backup", "immich"),
     ]
 
     def fingerprints():
@@ -35,10 +34,27 @@ def restore(operation):
             )
         return result
 
-    before = fingerprints()
+    compare_production = os.environ.get("SOYSPRAY_COMPARE_PRODUCTION") == "1"
+    before = fingerprints() if compare_production else None
+    vault = operation.vault()
+    credentials = vault.get("immich_restic_credentials", {})
+    expected_credential_keys = {
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_DEFAULT_REGION",
+        "RESTIC_REPOSITORY",
+        "RESTIC_PASSWORD",
+    }
+    require(
+        isinstance(credentials, dict)
+        and set(credentials) == expected_credential_keys
+        and all(isinstance(value, str) and value for value in credentials.values()),
+        "The encrypted Immich recovery input is incomplete.",
+    )
     variables = {
         "recovery_check_id": operation.check_id,
         "recovery_db_password": secrets.token_hex(24),
+        "recovery_restic_credentials": credentials,
         "recovery_server_image_digest": "ghcr.io/immich-app/immich-server:v2.3.1@sha256:f8d06a32b1b2a81053d78e40bf8e35236b9faefb5c3903ce9ca8712c9ed78445",
     }
 
@@ -66,14 +82,22 @@ def restore(operation):
             operation.report["cleanup"] = "failed - inspect cleanup.log"
             raise
         finally:
-            unchanged = fingerprints() == before
-            operation.report["original_resources"] = "unchanged" if unchanged else "changed"
-            require(unchanged, "Production identities changed during the restore.")
+            if before is None:
+                operation.report["production_comparison"] = "not requested"
+            else:
+                unchanged = fingerprints() == before
+                operation.report["production_comparison"] = "unchanged" if unchanged else "changed"
+                require(unchanged, "Production identities changed during the restore.")
 
 
 if __name__ == "__main__":
     raise SystemExit(
         run_restore(
-            "immich", ROOT, PRIVATE / "immich-backup.vault.yml", PRIVATE / "vault-password", restore
+            "immich",
+            ROOT,
+            PRIVATE / "immich-backup.vault.yml",
+            PRIVATE / "vault-password",
+            restore,
+            explicit_target=True,
         )
     )

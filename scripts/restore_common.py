@@ -187,11 +187,12 @@ def preflight_command(root, state, run_id):
 class RestoreOperation:
     """Own the private workspace and common isolated restore lifecycle."""
 
-    def __init__(self, app, root, vault_file, vault_password_file):
+    def __init__(self, app, root, vault_file, vault_password_file, explicit_target=False):
         self.app = app
         self.root = root
         self.vault_file = vault_file
         self.vault_password_file = vault_password_file
+        self.explicit_target = explicit_target
         self.started = datetime.now(timezone.utc)
         self.check_id = self.started.strftime("%Y%m%d%H%M%S") + "-" + secrets.token_hex(2)
         state_home = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state"))
@@ -211,6 +212,7 @@ class RestoreOperation:
         self.workspace = None
         self.work = None
         self.env = None
+        self.inventory = None
 
     @staticmethod
     def now():
@@ -221,6 +223,21 @@ class RestoreOperation:
             not self.output.resolve().is_relative_to(self.root),
             "Restore evidence must stay outside the checkout.",
         )
+        kubeconfig_source = None
+        if self.explicit_target:
+            kubeconfig_value = os.environ.get("SOYSPRAY_RECOVERY_KUBECONFIG", "")
+            inventory_value = os.environ.get("SOYSPRAY_RECOVERY_INVENTORY", "")
+            require(kubeconfig_value and inventory_value, "Set explicit recovery target paths.")
+            kubeconfig_source = Path(kubeconfig_value).expanduser().resolve()
+            self.inventory = Path(inventory_value).expanduser().resolve()
+            require(
+                kubeconfig_source.is_file()
+                and not kubeconfig_source.is_relative_to(self.root)
+                and self.inventory.is_file(),
+                "The explicit recovery kubeconfig or inventory is unavailable.",
+            )
+        else:
+            self.inventory = self.root / "kubespray/inventory/soycluster/hosts.yml"
         self.output.mkdir(mode=0o700, parents=True)
         self.created_output = True
         self.state.chmod(0o700)
@@ -260,8 +277,20 @@ class RestoreOperation:
         )
         self.workspace = tempfile.TemporaryDirectory(prefix="working-", dir=self.output)
         self.work = Path(self.workspace.name)
+        kubeconfig_command = ["kubectl"]
+        if kubeconfig_source is not None:
+            kubeconfig_command.extend(["--kubeconfig", str(kubeconfig_source)])
         config = capture_output(
-            ["kubectl", "config", "view", "--raw", "--minify", "--flatten", "-o", "json"],
+            [
+                *kubeconfig_command,
+                "config",
+                "view",
+                "--raw",
+                "--minify",
+                "--flatten",
+                "-o",
+                "json",
+            ],
             timeout=20,
             stderr=subprocess.PIPE,
         )
@@ -310,7 +339,7 @@ class RestoreOperation:
                 [
                     str(self.root / "soyspray-venv/bin/ansible-playbook"),
                     "-i",
-                    "kubespray/inventory/soycluster/hosts.yml",
+                    str(self.inventory),
                     "--become",
                     "--become-user=root",
                     "--user",
@@ -385,8 +414,10 @@ class RestoreOperation:
         return 0 if self.report["status"] == "passed" else 2
 
 
-def run_restore(app, root, vault_file, vault_password_file, worker):
-    operation = RestoreOperation(app, root, vault_file, vault_password_file)
+def run_restore(app, root, vault_file, vault_password_file, worker, *, explicit_target=False):
+    operation = RestoreOperation(
+        app, root, vault_file, vault_password_file, explicit_target=explicit_target
+    )
     previous_sigterm = signal.getsignal(signal.SIGTERM)
     signal.signal(signal.SIGTERM, _handle_sigterm)
     try:
