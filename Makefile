@@ -30,7 +30,7 @@ KUSTOMIZATIONS := \
 	apps/dispatcharr/manifests \
 	apps/jellyfin/manifests
 
-.PHONY: help setup act check shared-test shared-check full-check app-command diff smoke restore-check boys-check autism-traits-check lint validate validate-skills status-page-check prometheus-check \
+.PHONY: help setup act check shared-test shared-check full-check app-command diff smoke restore-check boys-check autism-traits-check docs-check docs-serve lint validate validate-skills status-page-check prometheus-check \
 	test render go voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
 	apps status backup-status list-apps node0 node1 node2 master worker1 worker2 worker3 clean
 
@@ -65,7 +65,7 @@ shared-test:
 
 shared-check: lint validate shared-test ## Run checks shared by every application deployment
 
-full-check: lint validate test autism-traits-check boys-check ## Run the full repository gate explicitly
+full-check: lint validate test autism-traits-check boys-check docs-check ## Run the full repository gate explicitly
 	printf '\nLocal gate passed.\n'
 
 app-command:
@@ -85,6 +85,12 @@ boys-check: ## Check Boys dates, trip behavior, and phone and desktop browsers
 
 autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
+
+docs-check: ## Build the human documentation with strict validation
+	$(VENV)/bin/mkdocs build --strict
+
+docs-serve: ## Preview the human documentation locally
+	$(VENV)/bin/mkdocs serve
 
 lint: ## Check Python style and common defects
 	$(PYTHON) -m ruff check apps/cluster-diagnosis apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/cert-manager-config/*.py apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich apps/prometheus/tests scripts tests playbooks/operations/nodes/cleanup-kubernetes-network.py playbooks/operations/nodes/run-node2-rebuild.py

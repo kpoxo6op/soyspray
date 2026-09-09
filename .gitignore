@@ -3,11 +3,13 @@ soyspray-venv
 .env.*
 *.txt
 !requirements-dev.txt
+!requirements-docs.txt
 !requirements-recovery.txt
 !.agents/skills/**/LICENSE.txt
 !.agents/skills/**/NOTICE.txt
 .router-backups/
 .build/
+site/
 /collections/
 .pytest_cache/
 .playwright-mcp/
