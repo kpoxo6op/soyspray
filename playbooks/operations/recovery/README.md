@@ -483,9 +483,11 @@ ansible-playbook playbooks/operations/recovery/adopt-immich-database.yml \
 ```
 
 The operation checks the exact Application, ApplicationSet, database, schedule,
-secret, and alias UIDs. It also checks root ownership, database health, and
-continuous archiving before removal. It proves the same identities and health
-after adoption. A mismatch stops the operation without deletion.
+secret, and alias UIDs. It requires the merged root revision to have only the
+two direct Applications and two prune-skipped legacy owners as drift. It also
+checks database health and continuous archiving before removal. After adoption,
+it requires root tracking, full sync, the same identities, and the same database
+health. A mismatch stops the operation without deletion.
 
 For Authentik, first use `select-authentik-database.yml -e cnpg_revision=BRANCH`.
 It pauses database self-heal so the archive switch remains atomic. Then run

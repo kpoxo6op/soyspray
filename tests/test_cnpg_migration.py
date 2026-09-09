@@ -77,6 +77,18 @@ def test_immich_adoption_is_exact_guarded_orphan_deletion():
         "84c8b489-c979-4a50-8896-22ca53aad2e0",
         "a40af192-fb57-40bc-9275-f27b64296b07",
     ]
+    drift_task = next(
+        task
+        for task in play["tasks"]
+        if task["name"].startswith("Require only the expected ownership drift")
+    )
+    assert drift_task["vars"]["expected_drift_names"] == [
+        "immich-db",
+        "immich-db-a-initdb",
+        "immich-db-active-a",
+        "immich-db-alias",
+    ]
+    assert "root_drift | length == 4" in drift_task["ansible.builtin.assert"]["that"]
     deletion = next(
         task["kubernetes.core.k8s"]
         for task in play["tasks"]
