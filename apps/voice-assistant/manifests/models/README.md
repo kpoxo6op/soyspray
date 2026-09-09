@@ -5,15 +5,15 @@ recordings, calculated audio data, and training output stay outside Git.
 
 | Purpose | ConfigMap | Private file | SHA-256 |
 | --- | --- | --- | --- |
-| Current | `openwakeword-gi-model-v7b` | `~/.config/soyspray/recovery/voice-models/gi-v7.tflite` | `e61dd9f2880f226b05b8f9885c053fa7ec7805170c3f3b4d56427c6294cb4be0` |
-| Rollback | `openwakeword-gi-model-v2` | `~/.config/soyspray/recovery/voice-models/gi-v2.tflite` | `4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739` |
+| Current | `openwakeword-gi-model-v2` | `~/.config/soyspray/recovery/voice-models/gi-v2.tflite` | `4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739` |
+| Retained previous | `openwakeword-gi-model-v7b` | `~/.config/soyspray/recovery/voice-models/gi-v7.tflite` | `e61dd9f2880f226b05b8f9885c053fa7ec7805170c3f3b4d56427c6294cb4be0` |
 
 An immutable ConfigMap cannot change after creation. Its checksum annotation
 and the SHA-256 of its decoded `gi.tflite` file must match this table.
 
 ## How detection works
 
-The service uses GI v7b with a score threshold of `0.65` and a trigger level of
+The service uses GI v2 with a score threshold of `0.65` and a trigger level of
 `2`. It needs two scores above `0.65` in a row. A lower score resets the count.
 An audio chunk with a 16-bit sample of `12` or higher starts a two-second timer.
 The service ignores high model scores when that timer has reached zero.
@@ -39,6 +39,10 @@ the misses.
 Four later activations were confirmed while the room was empty. Each event
 stopped in the listening state. None reached conversation, a service call, or
 a device action.
+
+The fixed synthetic suite later showed that v7b repeatedly accepted `gee` as
+GI. The retained v2 model detected `gee eye` and rejected every fixed negative
+sample in the same isolated service test, so production returned to v2.
 
 During one overnight check, the model produced single scores of `0.685` and
 `0.714`. Neither score caused a wake because the service requires two high
@@ -93,12 +97,12 @@ Use a new immutable ConfigMap name for a new model.
 
 Ansible creates and checks the new ConfigMap before Argo CD uses it.
 
-## GI v2 rollback
+## Switch the retained model
 
-Keep the v2 private file and immutable ConfigMap available. To roll back:
+Keep both private files and immutable ConfigMaps available. To switch models:
 
 1. Set the role defaults, Deployment volume, and startup-check checksum to the
-   v2 name and checksum in the table.
+   selected name and checksum in the table.
 2. Commit and push one small rollback change.
 3. If the immutable ConfigMap is absent, set
    `VOICE_ASSISTANT_GI_MODEL_PATH` to the private v2 file.
