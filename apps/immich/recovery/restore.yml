@@ -9,32 +9,16 @@
     recovery_namespace: "immich-recovery-{{ recovery_check_id }}"
     recovery_storage_size: 5Gi
     recovery_database_storage_size: 5Gi
-    recovery_source_secret: immich-paired-backup
     recovery_snapshot_host: immich
     recovery_snapshot_tag: restore-candidate
     recovery_restic_image: restic/restic:0.18.1@sha256:39d9072fb5651c80d75c7a811612eb60b4c06b32ffe87c2e9f3c7222e1797e76
-    recovery_database_image: ghcr.io/tensorchord/cloudnative-pgvecto.rs:16-v0.3.0
-    recovery_server_image: ghcr.io/immich-app/immich-server:v2.3.1
+    recovery_database_image: ghcr.io/tensorchord/cloudnative-pgvecto.rs:16-v0.3.0@sha256:be3f025d79aa1b747817f478e07e71be43236e14d00d8a9eb3914146245035ba
     recovery_server_image_digest: ""
-    recovery_redis_image: bitnamilegacy/redis:8.2.1-debian-12-r0
+    recovery_redis_image: docker.io/bitnamilegacy/redis@sha256:25bf63f3caf75af4628c0dfcf39859ad1ac8abe135be85e99699f9637b16dc28
     recovery_probe_image: curlimages/curl:8.14.1@sha256:9a1ed35addb45476afa911696297f8e115993df459278ed036182dd2cd22b67b
     recovery_db_username: recovery_immich
     recovery_db_password: ""
-    recovery_expected_asset_count: 0
-    recovery_expected_album_count: 0
-    recovery_expected_user_count: 1
-    recovery_source_db_host: immich-db-active.postgresql.svc.cluster.local
-    recovery_source_db_name: immich
-    recovery_source_db_user: immich
-    recovery_pod_affinity:
-      podAffinity:
-        requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchLabels:
-                app.kubernetes.io/instance: immich
-                app.kubernetes.io/name: server
-            namespaces: [immich]
-            topologyKey: kubernetes.io/hostname
+    recovery_restic_credentials: {}
     recovery_labels:
       soyspray.vip/purpose: immich-restore-check
       soyspray.vip/app: immich
@@ -51,79 +35,23 @@
         that:
           - recovery_check_id is match('^[a-z0-9][a-z0-9-]{0,23}$')
           - recovery_namespace != 'immich'
-          - recovery_source_db_host == 'immich-db-active.postgresql.svc.cluster.local'
-          - recovery_source_db_name == 'immich'
-          - recovery_source_db_user == 'immich'
-          - recovery_database_image == 'ghcr.io/tensorchord/cloudnative-pgvecto.rs:16-v0.3.0'
-          - recovery_server_image == 'ghcr.io/immich-app/immich-server:v2.3.1'
+          - recovery_database_image is match('^ghcr.io/tensorchord/cloudnative-pgvecto.rs:16-v0\.3\.0@sha256:[0-9a-f]{64}$')
           - recovery_server_image_digest is match('^ghcr.io/immich-app/immich-server:v2\.3\.1@sha256:[0-9a-f]{64}$')
+          - recovery_redis_image is match('^docker.io/bitnamilegacy/redis@sha256:[0-9a-f]{64}$')
           - recovery_db_username is match('^[a-z_][a-z0-9_]{0,30}$')
           - recovery_db_password | length >= 16
           - recovery_database_storage_size is match('^[1-9][0-9]*(Mi|Gi|Ti)$')
           - recovery_storage_size is match('^[1-9][0-9]*(Mi|Gi|Ti)$')
-        fail_msg: Supply a new scratch database password and the immutable Immich server digest.
-      no_log: true
-
-    - name: Read production identities before the check
-      kubernetes.core.k8s_info:
-        api_version: "{{ item.api }}"
-        kind: "{{ item.kind }}"
-        namespace: "{{ item.namespace }}"
-        name: "{{ item.name }}"
-        kubeconfig: "{{ kubeconfig_path }}"
-      loop:
-        - {api: apps/v1, kind: Deployment, namespace: immich, name: immich-server}
-        - {api: v1, kind: PersistentVolumeClaim, namespace: immich, name: immich-library}
-        - {api: v1, kind: Service, namespace: postgresql, name: immich-db-active}
-        - {api: postgresql.cnpg.io/v1, kind: Cluster, namespace: postgresql, name: immich-db-a}
-      register: recovery_production_before
-      no_log: true
-
-    - name: Read the source volume identity
-      kubernetes.core.k8s_info:
-        api_version: v1
-        kind: PersistentVolume
-        name: "{{ recovery_production_before.results[1].resources[0].spec.volumeName }}"
-        kubeconfig: "{{ kubeconfig_path }}"
-      register: recovery_source_volume
-      no_log: true
-
-    - name: Require the production A database and unchanged source contract
-      ansible.builtin.assert:
-        that:
-          - recovery_production_before.results | map(attribute='resources') | map('length') | list == [1, 1, 1, 1]
-          - recovery_production_before.results[2].resources[0].spec.externalName == 'immich-db-a-rw.postgresql.svc.cluster.local'
-          - recovery_production_before.results[3].resources[0].metadata.name == 'immich-db-a'
-          - recovery_production_before.results[3].resources[0].spec.imageName == recovery_database_image
-          - recovery_source_volume.resources | length == 1
-          - recovery_production_before.results[1].resources[0].status.phase == 'Bound'
-        fail_msg: Production Immich A or its storage identity changed.
-      no_log: true
-
-    - name: Read the paired backup Secret without exposing values
-      kubernetes.core.k8s_info:
-        api_version: v1
-        kind: Secret
-        namespace: immich
-        name: "{{ recovery_source_secret }}"
-        kubeconfig: "{{ kubeconfig_path }}"
-      register: recovery_source_secret_result
-      no_log: true
-
-    - name: Require the complete paired backup input contract
-      ansible.builtin.assert:
-        that:
-          - recovery_source_secret_result.resources | length == 1
           - >-
-            ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_DEFAULT_REGION',
-             'RESTIC_REPOSITORY', 'RESTIC_PASSWORD', 'PGHOST', 'PGPORT',
-             'PGDATABASE', 'PGUSER', 'PGPASSWORD']
-            | difference(recovery_source_secret_result.resources[0].data.keys() | list)
-            | length == 0
-          - recovery_source_secret_result.resources[0].data.PGHOST | b64decode == recovery_source_db_host
-          - recovery_source_secret_result.resources[0].data.PGDATABASE | b64decode == recovery_source_db_name
-          - recovery_source_secret_result.resources[0].data.PGUSER | b64decode == recovery_source_db_user
-        fail_msg: The paired backup Secret is missing keys or has the wrong source database.
+            recovery_restic_credentials.keys() | list | sort ==
+            ['AWS_ACCESS_KEY_ID', 'AWS_DEFAULT_REGION', 'AWS_SECRET_ACCESS_KEY',
+             'RESTIC_PASSWORD', 'RESTIC_REPOSITORY']
+          - recovery_restic_credentials.AWS_ACCESS_KEY_ID | length > 0
+          - recovery_restic_credentials.AWS_SECRET_ACCESS_KEY | length > 0
+          - recovery_restic_credentials.AWS_DEFAULT_REGION | length > 0
+          - recovery_restic_credentials.RESTIC_REPOSITORY is match('^s3:')
+          - recovery_restic_credentials.RESTIC_PASSWORD | length > 0
+        fail_msg: Supply a new scratch database password and the immutable Immich server digest.
       no_log: true
 
     - name: Refuse to reuse an existing recovery namespace
@@ -340,49 +268,6 @@
           delay: 10
           when: not ansible_check_mode
 
-        - name: Re-read production identities after the check
-          kubernetes.core.k8s_info:
-            api_version: "{{ item.api }}"
-            kind: "{{ item.kind }}"
-            namespace: "{{ item.namespace }}"
-            name: "{{ item.name }}"
-            kubeconfig: "{{ kubeconfig_path }}"
-          loop:
-            - {api: apps/v1, kind: Deployment, namespace: immich, name: immich-server}
-            - {api: v1, kind: PersistentVolumeClaim, namespace: immich, name: immich-library}
-            - {api: v1, kind: Service, namespace: postgresql, name: immich-db-active}
-            - {api: postgresql.cnpg.io/v1, kind: Cluster, namespace: postgresql, name: immich-db-a}
-          register: recovery_production_after
-          no_log: true
-          when: not ansible_check_mode
-
-        - name: Re-read the production PV after the check
-          kubernetes.core.k8s_info:
-            api_version: v1
-            kind: PersistentVolume
-            name: "{{ recovery_production_before.results[1].resources[0].spec.volumeName }}"
-            kubeconfig: "{{ kubeconfig_path }}"
-          register: recovery_source_volume_after
-          no_log: true
-          when: not ansible_check_mode
-
-        - name: Require unchanged production identities
-          ansible.builtin.assert:
-            that:
-              - recovery_production_after.results | map(attribute='resources') | map('length') | list == [1, 1, 1, 1]
-              - recovery_production_after.results[0].resources[0].metadata.uid == recovery_production_before.results[0].resources[0].metadata.uid
-              - recovery_production_after.results[1].resources[0].metadata.uid == recovery_production_before.results[1].resources[0].metadata.uid
-              - >-
-                recovery_production_after.results[1].resources[0].spec.volumeName ==
-                recovery_production_before.results[1].resources[0].spec.volumeName
-              - recovery_production_after.results[2].resources[0].metadata.uid == recovery_production_before.results[2].resources[0].metadata.uid
-              - recovery_production_after.results[2].resources[0].spec.externalName == 'immich-db-a-rw.postgresql.svc.cluster.local'
-              - recovery_production_after.results[3].resources[0].metadata.uid == recovery_production_before.results[3].resources[0].metadata.uid
-              - recovery_production_after.results[3].resources[0].spec.imageName == recovery_database_image
-              - recovery_source_volume_after.resources | length == 1
-              - recovery_source_volume_after.resources[0].metadata.uid == recovery_source_volume.resources[0].metadata.uid
-          when: not ansible_check_mode
-
         - name: Mark the isolated restore passed
           ansible.builtin.set_fact:
             recovery_status: passed
@@ -456,8 +341,6 @@
               status: "{{ recovery_status }}"
               started_at: "{{ recovery_started_at }}"
               finished_at: "{{ lookup('pipe', 'date -u +%Y-%m-%dT%H:%M:%SZ') }}"
-              source_claim_uid: "{{ recovery_production_before.results[1].resources[0].metadata.uid }}"
-              source_volume_uid: "{{ recovery_source_volume.resources[0].metadata.uid }}"
               backup:
                 snapshot_id: "{{ recovery_snapshot_id | default('') }}"
                 recovery_point: "{{ recovery_snapshot_time | default('') }}"
@@ -468,7 +351,7 @@
                 originals: "{{ 'Restic restored-file verification passed' if recovery_status == 'passed' else 'unknown' }}"
                 data_checks: "{{ 'passed' if recovery_status == 'passed' else 'failed' }}"
               image: "{{ recovery_server_image_digest }}"
-              original_resources: "{{ 'unchanged' if recovery_status == 'passed' else 'unknown' }}"
+              production_inputs: not read
               cleanup: completed
           when: not ansible_check_mode
 
