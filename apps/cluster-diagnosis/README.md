@@ -53,11 +53,12 @@ Use the shared installed-runtime operation from a committed, pushed revision:
 ```sh
 source soyspray-venv/bin/activate
 ansible-playbook playbooks/operations/runtime/install.yml \
-  -e operations_revision=COMMIT -e diagnosis_telegram_target=RECIPIENT \
-  -e diagnosis_enabled=true
+  -e operations_revision=COMMIT
 ```
 
-The installer creates a disabled native job, seeds a separate account profile
+The installer preserves an existing declared job's private target and enabled
+state. For the first installation only, pass `diagnosis_telegram_target` and
+`diagnosis_enabled=true`. It creates a disabled job by default, seeds a separate account profile
 without overwriting refreshed credentials, and archives committed source. It
 also installs the metrics endpoint for Grafana's Soyspray Operations view.
 The existing evidence collector timer is unchanged. The root-owned
