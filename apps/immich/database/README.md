@@ -1,5 +1,19 @@
 # CNPG Immich Database A/B Setup
 
+## Explicit replacement paths
+
+`production/` renders the existing `immich-db-a`, `immich-app-secret-a`, and
+`immich-db-daily-a` objects without a generated suffix or custom name
+references. `alias/` renders the stable `immich-db-active` Service directly.
+Repository tests compare both paths with the current generated A-side output.
+
+These paths are staged for ownership adoption. The live Applications remain
+owned by the two ApplicationSets until the bounded adoption operation removes
+their owner references. Do not delete either ApplicationSet manually. Keep the
+Applications on `main`, preserve their UIDs, and verify the database system ID,
+PVC, ScheduledBackup, archive server, and alias before removing the generator
+paths below.
+
 **Generator-driven layout** with single-copy overlays and ApplicationSet-injected suffixes for A/B failover and PITR restore.
 
 ## Architecture
