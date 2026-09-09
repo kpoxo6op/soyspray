@@ -24,6 +24,10 @@ and storage UIDs, database contents,
 authenticated access, and client synchronization. Ingress migration and image
 pinning remain separate changes.
 
+The ingress accepts request bodies up to 10 MB so normal note attachments can
+reach CouchDB. Larger attachments are rejected by NGINX and need a separate,
+reviewed limit change.
+
 ## Recovery inputs
 
 Bootstrap preserves two existing Secrets in `obsidian`. It restores only a missing

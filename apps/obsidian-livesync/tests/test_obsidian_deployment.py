@@ -47,6 +47,7 @@ def test_original_couchdb_writer_and_claim_keep_their_identities():
     assert claim["spec"]["accessModes"] == ["ReadWriteOnce"]
     ingress = objects["Ingress/obsidian-livesync-ingress"]
     assert ingress["spec"]["rules"][0]["host"] == "obsidian.soyspray.vip"
+    assert ingress["metadata"]["annotations"]["nginx.ingress.kubernetes.io/proxy-body-size"] == "10m"
 
 
 def test_native_ownership_has_bounded_permissions_and_storage_metadata():
