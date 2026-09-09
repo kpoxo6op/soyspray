@@ -8,6 +8,7 @@ soyspray-venv
 !.agents/skills/**/NOTICE.txt
 .router-backups/
 .build/
+/collections/
 .pytest_cache/
 .playwright-mcp/
 node_modules/
