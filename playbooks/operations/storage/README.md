@@ -4,6 +4,45 @@ Use these Ansible operations for deliberate changes to existing storage.
 Keep Kubespray responsible for the cluster foundation and Longhorn
 responsible for volume replicas.
 
+## Protect Loki before node-2 removal
+
+Loki currently has one replica on node-2. Run the reviewed native expansion
+before disabling or evacuating node-2 storage:
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/storage/protect-loki-before-node2.yml --check
+```
+
+After check mode passes, omit `--check`. The operation verifies the original
+claim and volume identities, changes only `numberOfReplicas` from one to two,
+and waits for one running copy on node-2 and one on a survivor. It is safe to
+repeat. Do not start Longhorn eviction until this operation reports two healthy
+replicas.
+
+## Retained node-2 filesystem
+
+`prepare-existing-longhorn-storage.yml` installs Longhorn host prerequisites
+and mounts the existing node-2 filesystem by its verified UUID. It refuses a
+changed node, address, filesystem type, or disk model. It never creates a
+partition, filesystem, or label.
+
+Run it in check mode before and after the retained-OS reset:
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu \
+  playbooks/operations/storage/prepare-existing-longhorn-storage.yml --check
+```
+
+Omit `--check` only after the output identifies node-2, `192.168.20.12`, UUID
+`49c092f4-dd55-41f5-99c6-854f8b44af4e`, ext4, and the PNY 500GB SATA disk.
+This operation reuses the filesystem. Use neither storage initializer during
+the node rebuild.
+
 ## Disposable monitoring data
 
 `monitoring-replicas.yml` sets one Longhorn replica for the existing Prometheus

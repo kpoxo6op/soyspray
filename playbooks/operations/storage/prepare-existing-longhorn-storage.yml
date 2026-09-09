@@ -1,0 +1,144 @@
+---
+- name: Prepare the retained node-2 Longhorn filesystem without formatting it
+  hosts: node-2
+  gather_facts: true
+  become: true
+  vars:
+    longhorn_storage_mount: /storage
+    longhorn_storage_uuid: 49c092f4-dd55-41f5-99c6-854f8b44af4e
+    longhorn_storage_fstype: ext4
+    longhorn_storage_model: PNY 500GB SATA S
+    longhorn_storage_mount_opts: defaults,noatime,nofail,x-systemd.device-timeout=10s
+  pre_tasks:
+    - name: Require the retained node-2 target
+      ansible.builtin.assert:
+        that:
+          - inventory_hostname == 'node-2'
+          - ansible_host == '192.168.20.12'
+          - node | default('node-2') == 'node-2'
+
+    - name: Resolve the retained filesystem by UUID
+      ansible.builtin.command:
+        argv: [readlink, -f, "/dev/disk/by-uuid/{{ longhorn_storage_uuid }}"]
+      register: longhorn_storage_partition
+      changed_when: false
+      check_mode: false
+
+    - name: Read the retained filesystem type
+      ansible.builtin.command:
+        argv: [lsblk, -ndo, FSTYPE, "{{ longhorn_storage_partition.stdout }}"]
+      register: longhorn_storage_observed_fstype
+      changed_when: false
+      check_mode: false
+
+    - name: Resolve the parent storage disk
+      ansible.builtin.command:
+        argv: [lsblk, -ndo, PKNAME, "{{ longhorn_storage_partition.stdout }}"]
+      register: longhorn_storage_parent_name
+      changed_when: false
+      check_mode: false
+
+    - name: Read the parent storage disk model
+      ansible.builtin.command:
+        argv:
+          - lsblk
+          - -ndo
+          - MODEL
+          - "/dev/{{ longhorn_storage_parent_name.stdout | trim }}"
+      register: longhorn_storage_observed_model
+      changed_when: false
+      check_mode: false
+
+    - name: Refuse a changed disk or filesystem
+      ansible.builtin.assert:
+        that:
+          - longhorn_storage_partition.stdout is match('^/dev/.+')
+          - (longhorn_storage_observed_fstype.stdout | trim) == longhorn_storage_fstype
+          - (longhorn_storage_observed_model.stdout | trim) == longhorn_storage_model
+        fail_msg: >-
+          The retained node-2 storage identity changed. Do not format or mount a
+          replacement until its identity and data ownership are reviewed.
+
+  tasks:
+    - name: Install Longhorn host prerequisites
+      ansible.builtin.apt:
+        name:
+          - cryptsetup
+          - dmsetup
+          - e2fsprogs
+          - nfs-common
+          - open-iscsi
+          - util-linux
+        state: present
+        update_cache: true
+
+    - name: Keep required Longhorn modules across boot
+      ansible.builtin.copy:
+        dest: /etc/modules-load.d/longhorn.conf
+        content: |
+          iscsi_tcp
+          dm_crypt
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Load required Longhorn modules
+      ansible.builtin.command:
+        argv: [modprobe, "{{ item }}"]
+      loop:
+        - iscsi_tcp
+        - dm_crypt
+      changed_when: false
+
+    - name: Create the retained mountpoint
+      ansible.builtin.file:
+        path: "{{ longhorn_storage_mount }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Keep the retained filesystem in fstab by UUID
+      ansible.builtin.lineinfile:
+        path: /etc/fstab
+        regexp: '^[^#]+\s+/storage\s+'
+        line: >-
+          UUID={{ longhorn_storage_uuid }} {{ longhorn_storage_mount }}
+          {{ longhorn_storage_fstype }} {{ longhorn_storage_mount_opts }} 0 2
+        create: false
+
+    - name: Check whether retained storage is mounted
+      ansible.builtin.command:
+        argv: [mountpoint, -q, "{{ longhorn_storage_mount }}"]
+      register: longhorn_storage_mounted
+      failed_when: false
+      changed_when: false
+      check_mode: false
+
+    - name: Mount the retained filesystem
+      ansible.builtin.command:
+        argv: [mount, "{{ longhorn_storage_mount }}"]
+      when:
+        - longhorn_storage_mounted.rc != 0
+        - not ansible_check_mode
+      changed_when: true
+
+    - name: Verify the mounted filesystem identity
+      ansible.builtin.command:
+        argv:
+          - findmnt
+          - -n
+          - -o
+          - UUID,FSTYPE,SOURCE
+          - --mountpoint
+          - "{{ longhorn_storage_mount }}"
+      register: longhorn_storage_mount_identity
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Require the retained filesystem after preparation
+      ansible.builtin.assert:
+        that:
+          - longhorn_storage_uuid in longhorn_storage_mount_identity.stdout
+          - longhorn_storage_fstype in longhorn_storage_mount_identity.stdout
+      when: not ansible_check_mode
