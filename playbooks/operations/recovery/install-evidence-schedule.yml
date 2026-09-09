@@ -5,8 +5,8 @@
   gather_facts: false
   become: false
   vars:
-    evidence_repo: "{{ (playbook_dir + '/../../..') | realpath }}"
-    evidence_python: /home/boris/code/soyspray/soyspray-venv/bin/python
+    evidence_repo: "{{ operations_checkout | default((playbook_dir + '/../../..') | realpath) }}"
+    evidence_python: "{{ evidence_repo }}/soyspray-venv/bin/python"
     evidence_unit_dir: "{{ lookup('env', 'HOME') }}/.config/systemd/user"
   tasks:
     - name: Require the maintained collector and Python runtime

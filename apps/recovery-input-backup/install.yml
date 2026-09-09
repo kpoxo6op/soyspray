@@ -5,7 +5,7 @@
   gather_facts: false
   become: false
   vars:
-    recovery_inputs_checkout: "{{ (playbook_dir + '/../..') | realpath }}"
+    recovery_inputs_checkout: "{{ operations_checkout | default((playbook_dir + '/../..') | realpath) }}"
     recovery_inputs_home: "{{ lookup('env', 'HOME') }}"
     recovery_inputs_run_now: false
   tasks:
