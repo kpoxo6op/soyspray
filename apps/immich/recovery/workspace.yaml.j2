@@ -98,12 +98,12 @@ metadata:
   namespace: {{ recovery_namespace }}
   labels: {{ recovery_labels | to_json }}
 type: Opaque
-data:
-  AWS_ACCESS_KEY_ID: {{ recovery_source_secret_result.resources[0].data.AWS_ACCESS_KEY_ID }}
-  AWS_SECRET_ACCESS_KEY: {{ recovery_source_secret_result.resources[0].data.AWS_SECRET_ACCESS_KEY }}
-  AWS_DEFAULT_REGION: {{ recovery_source_secret_result.resources[0].data.AWS_DEFAULT_REGION }}
-  RESTIC_REPOSITORY: {{ recovery_source_secret_result.resources[0].data.RESTIC_REPOSITORY }}
-  RESTIC_PASSWORD: {{ recovery_source_secret_result.resources[0].data.RESTIC_PASSWORD }}
+stringData:
+  AWS_ACCESS_KEY_ID: {{ recovery_restic_credentials.AWS_ACCESS_KEY_ID | quote }}
+  AWS_SECRET_ACCESS_KEY: {{ recovery_restic_credentials.AWS_SECRET_ACCESS_KEY | quote }}
+  AWS_DEFAULT_REGION: {{ recovery_restic_credentials.AWS_DEFAULT_REGION | quote }}
+  RESTIC_REPOSITORY: {{ recovery_restic_credentials.RESTIC_REPOSITORY | quote }}
+  RESTIC_PASSWORD: {{ recovery_restic_credentials.RESTIC_PASSWORD | quote }}
 ---
 apiVersion: v1
 kind: Secret
