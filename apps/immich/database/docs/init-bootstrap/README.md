@@ -15,13 +15,13 @@ This procedure initializes Immich DB fresh on **A** using the `initdb` overlay, 
   - `immich-offsite-writer` with writer keys `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `BUCKET_NAME`, `MEDIA_PREFIX`
   - `immich-offsite-restorer` with restorer keys
 
-## Step 1 — Sync operator and alias A
+## Step 1 — Deliver the operator and alias A
+
+Merge the reviewed catalog and manifest changes to `main`. Wait for the native
+root to create or update the CNPG operator and alias Applications, then sync the
+generated alias child if required:
 
 ```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml --tags cnpg-operator
-
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml --tags cnpg-immich-alias
-
 argocd app sync immich-db-active-a
 
 kubectl -n postgresql get svc immich-db-active -o jsonpath='{.spec.externalName}{"\n"}'
@@ -29,11 +29,11 @@ kubectl -n postgresql get svc immich-db-active -o jsonpath='{.spec.externalName}
 Expected: `immich-db-a-rw.postgresql.svc.cluster.local`
 
 
-## Step 2 — Sync ApplicationSet for DBs
+## Step 2 — Verify the database ApplicationSet
 
-```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml --tags cnpg-immich-db
-```
+Confirm the `immich-db` ApplicationSet is `Synced` after the root follows
+`main`. It creates the database child Applications; Ansible does not submit
+them.
 
 ## Step 3 — Bootstrap A from scratch
 

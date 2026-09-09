@@ -2,8 +2,7 @@
 
 Each app keeps its workload configuration, useful checks, and operating guide
 near its source. The native root lists every application in
-[its Kustomization](../argocd/kustomization.yaml). Older workload folders stay
-in place to avoid a large path migration. Their Application ownership records
+[its Kustomization](../argocd/kustomization.yaml). Application ownership records
 are in [`argocd/catalog/`](../argocd/catalog/).
 
 - [Certificate configuration](cert-manager-config/README.md): issuers, wildcard certificates and TLS reflection.
@@ -27,8 +26,7 @@ make backup-status FORMAT=json
 ```
 
 These commands use the current `kubectl` context. Inventory comes from Application
-metadata, including apps that still use the legacy deployment path. There is no
-second application registry. The `soyspray.vip/owner` label names the operator
+metadata. There is no second application registry. The `soyspray.vip/owner` label names the operator
 group. The `access-url`, `access-method`, `backup`, and `backup-cause` annotations
 under `soyspray.vip/` describe access and the declared backup policy.
 

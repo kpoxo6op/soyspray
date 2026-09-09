@@ -23,9 +23,9 @@ Restic retains 30 daily snapshots, grouped by host.
 
 The backup does not include caches, transcodes, reproducible voice models,
 large media trees, or broad host configuration such as `/etc`. The two unique
-voice models are on the laptop pCloud path and require a separate local backup
-operation. No additional durable node-local unit or configuration file was
-proven for inclusion in this package.
+GI voice models use the separate encrypted recovery-input backup and its private
+laptop model store. No additional durable node-local unit or configuration file
+was proven for inclusion in this package.
 
 The image uses the existing pinned Python 3.13 Alpine base. It installs the
 Restic 0.18.1 Linux amd64 binary from the upstream release with a pinned
