@@ -35,6 +35,13 @@ def read_evidence(app, claim_uid, pv_uid, now, root=None):
         if directory.is_symlink():
             return unknown("The Application restore directory is a symlink; reports were not read.")
         paths = list(directory.glob("*/report.json"))
+        aggregate = False
+        if not paths:
+            directory = directory.parent / "durable"
+            if directory.is_symlink():
+                return unknown("The durable restore directory is a symlink; reports were not read.")
+            paths = list(directory.glob("*/report.json"))
+            aggregate = True
         records = []
         invalid = 0
         for path in paths:
@@ -44,6 +51,30 @@ def read_evidence(app, claim_uid, pv_uid, now, root=None):
                 if path.stat().st_size > 1024 * 1024:
                     raise ValueError("Oversized report")
                 record = json.loads(path.read_text())
+                if aggregate:
+                    volumes = record.get("volumes")
+                    if record.get("app") != "durable" or not isinstance(volumes, list):
+                        raise ValueError("Invalid durable report")
+                    matches = [
+                        volume
+                        for volume in volumes
+                        if isinstance(volume, dict)
+                        and volume.get("source_claim_uid") == claim_uid
+                        and volume.get("source_volume_uid") == pv_uid
+                    ]
+                    if not matches:
+                        continue
+                    if len(matches) != 1:
+                        raise ValueError("No unique durable volume identity")
+                    volume = matches[0]
+                    record = {
+                        **record,
+                        **volume,
+                        "app": app,
+                        "data": {**volume.get("data", {}), "data_checks": "passed"},
+                        "image": "",
+                        "aggregate": True,
+                    }
                 started = instant(record.get("started_at"))
                 finished = instant(record.get("finished_at"))
                 check_id = record.get("check_id", "")
@@ -87,7 +118,10 @@ def read_evidence(app, claim_uid, pv_uid, now, root=None):
             and data.get("data_checks") == "passed"
             and point is not None
             and point <= finished
-            and re.fullmatch(r"[^\s]+@sha256:[0-9a-f]{64}", record.get("image", "")) is not None
+            and (
+                record.get("aggregate") is True
+                or re.fullmatch(r"[^\s]+@sha256:[0-9a-f]{64}", record.get("image", "")) is not None
+            )
         )
         result = {
             "check_id": record["check_id"],
@@ -102,12 +136,15 @@ def read_evidence(app, claim_uid, pv_uid, now, root=None):
             )
         if valid:
             result.update(
-                image=record["image"],
                 recovery_point=point.isoformat(),
                 existing_browser_cookie=unknown(
                     "This report does not prove a saved browser-cookie check."
                 ),
             )
+            if record.get("aggregate") is True:
+                result["validation"] = "Private restored data check passed."
+            else:
+                result["image"] = record["image"]
             login_field = "human_personal_pin" if app == "boys" else "human_login"
             result[login_field] = unknown("This report does not prove a human login.")
             if app == "obsidian-livesync":
@@ -149,6 +186,12 @@ def read_evidence(app, claim_uid, pv_uid, now, root=None):
                 "No completed data restore with cleanup matches the observed claim and PV."
             ),
             "invalid_reports": invalid,
-            "basis": "Private operator reports matched to observed storage identities. This is historical evidence for the reported image, not seven-day RPO or a current user-login check.",
+            "basis": (
+                "Private aggregate restore reports matched to observed storage identities. "
+                "This is historical evidence, not seven-day RPO or a current user-login check."
+                if aggregate
+                else "Private operator reports matched to observed storage identities. "
+                "This is historical evidence for the reported image, not seven-day RPO or a current user-login check."
+            ),
         }
     }
