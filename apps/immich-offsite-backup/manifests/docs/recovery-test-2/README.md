@@ -1,9 +1,11 @@
 # Media Recovery Test 2
 
-Redeploy immich app
+Restore the reviewed Immich manifests through the normal release path: merge
+the change to `main`, then wait for the native Argo root and Immich Application
+to become `Synced` and `Healthy`.
 
 ```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/deploy-argocd-apps.yml --tags immich
+make status APP=immich FORMAT=json
 ```
 
 Immich app failing - empty PVC missing `.immich` marker files. Restore media from S3:

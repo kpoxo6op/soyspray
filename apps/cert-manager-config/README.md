@@ -42,9 +42,9 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
 ```
 
 After a pushed-commit `make go`, remove `--check` to restore the missing input.
-The standard deployment runs this bootstrap before the native root. The general
-Ansible deployment uses the same tasks for `--tags cert-manager`. Existing ACME
-and TLS keys remain unchanged. Do not rotate keys or force renewal as a test.
+Run this bootstrap only for the documented private input. Merge manifest changes
+to `main` for delivery through the native root. Existing ACME and TLS keys remain
+unchanged. Do not rotate keys or force renewal as a test.
 Argo bootstrap owns the existing public Bitnami OCI repository registration.
 The old role and duplicate repository definition were removed after the native
 bootstrap passed live identity and repeat checks.
