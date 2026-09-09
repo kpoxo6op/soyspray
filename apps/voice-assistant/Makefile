@@ -4,9 +4,12 @@ VOICE_PE_HOST ?= home-assistant-voice-0a9b95.local
 VOICE_PE_CONFIG := .build/voice-pe/gi-voice-pe.yaml
 ESPHOME := uvx --from esphome==2025.5.1 esphome
 
-.PHONY: check bootstrap voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload
+.PHONY: check diff bootstrap voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload
 check:
 	cd $(ROOT) && $(PYTHON) -m pytest -q tests/test_home_assistant_voice.py
+
+diff:
+	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app voice-assistant --package apps/voice-assistant/manifests
 
 bootstrap:
 	cd $(ROOT) && $(ANSIBLE) playbooks/bootstrap-app-inputs.yml --tags voice_assistant
