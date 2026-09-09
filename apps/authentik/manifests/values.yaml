@@ -52,7 +52,7 @@ worker:
     timeoutSeconds: 15
   pdb:
     enabled: true
-    minAvailable: 1
+    minAvailable: 0
   resources:
     requests:
       cpu: 100m
