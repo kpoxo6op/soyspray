@@ -1,45 +1,56 @@
 # Immich isolated restore
 
-This folder verifies one completed paired Restic snapshot in a new namespace.
-It reads the production A identities (`immich-db-a` and the
-`immich-db-active` alias), then uses a separate database, Redis Pod, PVC, and
-Immich server. It never mounts `immich-library` or creates an external Service
-or Ingress.
+This workflow restores one completed paired Restic snapshot into a new
+namespace. It creates a disposable Longhorn claim, CNPG database, Redis Pod,
+and Immich server. It creates no external Service or Ingress.
 
-Run `make restore-check APP=immich` from the pushed repository checkout.
-The shared runner checks deployment prerequisites, takes a private lock, creates
-a unique check ID and scratch password, and saves private logs. It uses the
-existing off-cluster Immich Vault inputs. Do not pass passwords on the command line.
+The default check does not read the production namespace, production database,
+production Secret, production claim, or production volume. Recovery credentials
+come from the encrypted off-cluster file at
+`~/.config/soyspray/recovery/immich-backup.vault.yml`. The Vault password stays
+in the separate `vault-password` file. Do not pass either secret on the command
+line.
 
-The procedure selects the newest Restic snapshot with host `immich` and tag
-`restore-candidate`. It runs `restic restore --verify` into a new Longhorn PVC
-and checks the dump plus the `upload`, `library`, and `profile` trees. It
-restores the dump into a fresh CNPG database with a dedicated owner that can
-create the required extensions, then compares the restored database file references with the paired manifest
-and checks that every referenced file exists. The report records actual asset,
-album, and user counts. The isolated server uses the production database image and
-Immich `v2.3.1`, plus Redis `8.2.1`.
+Run the check from the pushed repository revision. Name the target kubeconfig
+and inventory explicitly:
 
-The playbook records production Deployment, PVC, database Service, CNPG
-Cluster, and PV identities before and after the check. Passed and failed runs
-remove only a namespace with matching ownership labels and its UID. A private
-`report.json` is written after cleanup. The wrapper also runs guarded cleanup
-when it receives `SIGINT` or `SIGTERM`.
+```sh
+SOYSPRAY_RECOVERY_KUBECONFIG="$HOME/.kube/config" \
+SOYSPRAY_RECOVERY_INVENTORY="$PWD/kubespray/inventory/soycluster/hosts.yml" \
+  make restore-check APP=immich
+```
+
+Set `SOYSPRAY_COMPARE_PRODUCTION=1` only when an optional before/after identity
+comparison is useful. That comparison reads production metadata. It is not a
+recovery input and is disabled by default.
+
+The workflow selects the newest Restic snapshot with host `immich` and tag
+`restore-candidate`. It ignores pending snapshots. It runs `restic restore
+--verify`, checks the paired PostgreSQL dump and file trees, restores the dump
+into a fresh database, and compares database file references with the paired
+manifest. It records actual asset, album, and user counts.
+
+All runtime images are pinned by digest. Scratch workloads use normal scheduler
+placement and normal registry pulls. NetworkPolicy denies cross-namespace and
+private-network access from application Pods. Only the Restic Pod can reach
+public HTTPS. CNPG management traffic retains its explicit cluster API access.
+
+The runner writes private logs and `report.json` under
+`~/.local/state/soyspray/restores/immich/`. Passed and failed runs delete only a
+namespace whose purpose, app, check ID, and UID match. The wrapper also runs
+guarded cleanup after `SIGINT` or `SIGTERM`.
+
+To retry cleanup for a known check ID:
 
 ```sh
 ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   apps/immich/recovery/cleanup.yml \
-  -e recovery_check_id=20260906-a
+  -e recovery_check_id=CHECK_ID
 ```
 
-A successful isolated check does not authorize an application restore, a
-production claim change, or a database cutover. The maintained runner pins the server digest and generates a new scratch password. The initial snapshot has 0 assets, 0 albums, and 1 user. Its historical files
-are preserved; an empty asset table does not prove photo recovery.
-
-Scratch file consumers use native affinity to the production server's node.
-This reuses its exact cached image and avoids moving the scratch RWO claim
-between jobs. Production claims are not mounted. The restore creates empty
-marker files only for omitted generated folders (`thumbs`, `encoded-video`,
-`backups`), as documented by [Immich](https://docs.immich.app/administration/system-integrity/#missing-immich-files).
-These folders are initialized; their contents are not claimed as recovered.
+A successful check proves recovery through the existing Kubernetes, Longhorn,
+CNPG, DNS, and registry infrastructure. It does not prove total-cluster recovery
+and does not authorize a production cutover. A useful release check must contain
+a disposable non-personal asset; a zero-asset snapshot is not photo-recovery
+evidence.
