@@ -125,6 +125,7 @@ def build_invocations(parser: argparse.ArgumentParser, args: argparse.Namespace)
                     **common,
                     "node2_rejoin_authorization": "rejoin-node-2-retained-os",
                     "node2_evacuation_evidence_file": args.evacuation,
+                    "node2_rejoin_apply": args.apply,
                 },
                 check=not args.apply,
             )

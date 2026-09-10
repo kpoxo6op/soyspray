@@ -1,0 +1,12 @@
+---
+- name: Keep the full Kubespray play apply-only
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Confirm that check mode stops at the supported boundary
+      ansible.builtin.assert:
+        that:
+          - ansible_check_mode
+          - not (node2_rejoin_apply | default(false) | bool)
+        fail_msg: The check-only rejoin boundary cannot replace Kubespray apply.
