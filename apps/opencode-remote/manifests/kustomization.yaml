@@ -3,6 +3,7 @@ kind: Kustomization
 namespace: opencode-remote
 resources:
   - namespace.yaml
+  - prod-cert-mirror.yaml
   - relay-config.yaml
   - relay-deployment.yaml
   - service.yaml
