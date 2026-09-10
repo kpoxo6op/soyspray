@@ -139,6 +139,7 @@
 
 - name: Rejoin node-2 through the pinned full Kubespray cluster play
   ansible.builtin.import_playbook: ../../../kubespray/cluster.yml
+  when: not ansible_check_mode
 
 - name: Verify the new node-2 member in the original cluster
   hosts: kube_control_plane[0]
