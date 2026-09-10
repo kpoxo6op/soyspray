@@ -98,7 +98,7 @@
         node2_survivor_cluster_id: >-
           {{ ((node2_survivor_etcd.stdout | from_json) | first).Status.header.cluster_id }}
 
-    - name: Read an interrupted cert-manager namespace migration
+    - name: Read the cert-manager namespace
       kubernetes.core.k8s_info:
         api_version: v1
         kind: Namespace
@@ -106,100 +106,15 @@
         kubeconfig: "{{ kubeconfig_path }}"
       register: node2_cert_manager_namespace
 
-    - name: Read ACME challenges blocking the interrupted migration
-      kubernetes.core.k8s_info:
-        api_version: acme.cert-manager.io/v1
-        kind: Challenge
-        namespace: cert-manager
-        kubeconfig: "{{ kubeconfig_path }}"
-      register: node2_cert_manager_challenges
-      when:
-        - node2_cert_manager_namespace.resources | length == 1
-        - node2_cert_manager_namespace.resources[0].metadata.deletionTimestamp is defined
-
-    - name: Require only failed pending ACME challenges before finalizer recovery
+    - name: Refuse a terminating cert-manager namespace
       ansible.builtin.assert:
         that:
-          - node2_cert_manager_challenges.resources | length > 0
           - >-
-            node2_cert_manager_challenges.resources
-            | map(attribute='metadata.finalizers') | flatten | unique | list
-            == ['acme.cert-manager.io/finalizer']
-          - >-
-            node2_cert_manager_challenges.resources
-            | map(attribute='status.state') | unique | list == ['pending']
-        fail_msg: Refuse to alter an interrupted cert-manager namespace with unknown blockers.
-      when:
-        - node2_cert_manager_namespace.resources | length == 1
-        - node2_cert_manager_namespace.resources[0].metadata.deletionTimestamp is defined
-
-    - name: Read the cert-manager webhook service during interrupted migration
-      kubernetes.core.k8s_info:
-        api_version: v1
-        kind: Service
-        namespace: cert-manager
-        name: cert-manager-webhook
-        kubeconfig: "{{ kubeconfig_path }}"
-      register: node2_cert_manager_webhook_service
-      when:
-        - node2_cert_manager_namespace.resources | length == 1
-        - node2_cert_manager_namespace.resources[0].metadata.deletionTimestamp is defined
-
-    - name: Require the cert-manager webhook service to be absent
-      ansible.builtin.assert:
-        that: node2_cert_manager_webhook_service.resources | length == 0
-        fail_msg: Refuse to remove admission registrations while the cert-manager webhook service exists.
-      when:
-        - node2_cert_manager_namespace.resources | length == 1
-        - node2_cert_manager_namespace.resources[0].metadata.deletionTimestamp is defined
-
-    - name: Remove orphaned cert-manager admission registrations
-      kubernetes.core.k8s:
-        api_version: admissionregistration.k8s.io/v1
-        kind: "{{ item }}"
-        name: cert-manager-webhook
-        state: absent
-        kubeconfig: "{{ kubeconfig_path }}"
-      loop:
-        - ValidatingWebhookConfiguration
-        - MutatingWebhookConfiguration
-      when:
-        - node2_cert_manager_namespace.resources | length == 1
-        - node2_cert_manager_namespace.resources[0].metadata.deletionTimestamp is defined
-
-    - name: Release failed pending ACME challenges from the interrupted migration
-      kubernetes.core.k8s:
-        api_version: acme.cert-manager.io/v1
-        kind: Challenge
-        namespace: cert-manager
-        name: "{{ item.metadata.name }}"
-        definition:
-          metadata:
-            finalizers: []
-        merge_type: merge
-        state: patched
-        kubeconfig: "{{ kubeconfig_path }}"
-      loop: "{{ node2_cert_manager_challenges.resources | default([]) }}"
-      loop_control:
-        label: "{{ item.metadata.name }}"
-      when:
-        - node2_cert_manager_namespace.resources | length == 1
-        - node2_cert_manager_namespace.resources[0].metadata.deletionTimestamp is defined
-
-    - name: Wait for the interrupted cert-manager namespace deletion
-      kubernetes.core.k8s_info:
-        api_version: v1
-        kind: Namespace
-        name: cert-manager
-        kubeconfig: "{{ kubeconfig_path }}"
-      register: node2_cert_manager_namespace_deleted
-      until: node2_cert_manager_namespace_deleted.resources | length == 0
-      retries: 30
-      delay: 2
-      when:
-        - not ansible_check_mode
-        - node2_cert_manager_namespace.resources | length == 1
-        - node2_cert_manager_namespace.resources[0].metadata.deletionTimestamp is defined
+            node2_cert_manager_namespace.resources | length == 0 or
+            node2_cert_manager_namespace.resources[0].metadata.deletionTimestamp is not defined
+        fail_msg: >-
+          Refuse to rejoin while the cert-manager namespace is terminating.
+          Resolve that separate incident before retrying this idempotent operation.
 
 - name: Confirm the retained node-2 host baseline
   hosts: node-2
