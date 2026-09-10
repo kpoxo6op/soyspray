@@ -22,6 +22,8 @@ def runner_for(*, head="revision", main="revision", dirty=False, syntax=0):
             return result(argv, output=" M tracked\n" if dirty else "")
         if argv[:2] == ["git", "ls-files"]:
             return result(argv)
+        if argv[:4] == ["git", "-C", "kubespray", "ls-files"]:
+            return result(argv)
         if "--syntax-check" in argv:
             return result(argv, code=syntax)
         raise AssertionError(argv)

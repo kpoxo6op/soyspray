@@ -55,14 +55,33 @@ def validate(root, apps, runner=run, is_file=lambda path: path.is_file()):
     required = [
         "requirements-recovery.txt",
         "requirements-ansible.yml",
-        "kubespray/inventory/soycluster/hosts.yml",
         "scripts/restore_common.py",
         *COMMON_PLAYBOOKS,
         *[f"apps/{app}/Makefile" for app in apps],
     ]
+    inventory = "kubespray/inventory/soycluster/hosts.yml"
     tracked = runner(["git", "ls-files", "--error-unmatch", "--", *required], root)
+    inventory_tracked = runner(
+        [
+            "git",
+            "-C",
+            "kubespray",
+            "ls-files",
+            "--error-unmatch",
+            "--",
+            "inventory/soycluster/hosts.yml",
+        ],
+        root,
+    )
     require(tracked.returncode == 0, "A required recovery source file is not tracked.")
-    require(all(is_file(root / path) for path in required), "A recovery source file is missing.")
+    require(
+        inventory_tracked.returncode == 0,
+        "The recovery inventory is not tracked by the pinned Kubespray source.",
+    )
+    require(
+        all(is_file(root / path) for path in [*required, inventory]),
+        "A recovery source file is missing.",
+    )
 
     require(
         all(shutil.which(tool) for tool in ("git", "kubectl", "ssh")),
