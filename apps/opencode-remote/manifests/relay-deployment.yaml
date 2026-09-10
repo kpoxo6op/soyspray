@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opencode-relay
+  namespace: opencode-remote
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: opencode-relay
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: opencode-relay
+    spec:
+      automountServiceAccountToken: false
+      hostNetwork: true
+      nodeSelector:
+        kubernetes.io/hostname: node-0
+      containers:
+        - name: relay
+          image: nginxinc/nginx-unprivileged:1.29.1-alpine@sha256:27985295bdb22a1ef8f712863210bd5877c0f3006494a593e86b3fe0fa55467e
+          ports:
+            - name: relay
+              containerPort: 32409
+              hostIP: 192.168.20.10
+              protocol: TCP
+          readinessProbe:
+            tcpSocket:
+              port: relay
+          livenessProbe:
+            tcpSocket:
+              port: relay
+          resources:
+            requests:
+              cpu: 10m
+              memory: 24Mi
+            limits:
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 101
+            seccompProfile:
+              type: RuntimeDefault
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: opencode-relay
