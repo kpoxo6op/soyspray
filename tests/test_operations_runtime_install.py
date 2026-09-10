@@ -36,6 +36,7 @@ def test_runtime_uses_the_minimal_recovery_dependencies() -> None:
 
     assert recovery == [
         "ansible-core==2.18.18",
+        "bcrypt==4.0.1",
         "cryptography==46.0.7",
         "jmespath==1.1.0",
         "netaddr==1.3.0",
