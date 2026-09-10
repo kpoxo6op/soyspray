@@ -32,6 +32,11 @@ on GitHub, rejects tracked changes in the installed checkout, and syntax-checks
 the emergency restore playbooks. These checks do not replace `make go` or the
 GitHub checks required before delivery.
 
+At restore time, the installed runtime runs a focused preflight against the
+exact delivered `main` revision. It checks recovery source, commands,
+dependencies, maintained app entry points, and playbook syntax. It does not run
+the development-only frontend, browser, lint, or test gates again.
+
 Check the installation with `systemctl --user status` for
 `soyspray-operations-evidence.timer`, `soyspray-restore-check.timer`,
 `soyspray-recovery-input-backup.timer`, and `soyspray-evidence-metrics.service`.
