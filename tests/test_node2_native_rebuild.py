@@ -1,9 +1,12 @@
+import subprocess
 from pathlib import Path
 
 import yaml
+from jinja2 import Template
 
 ROOT = Path(__file__).resolve().parents[1]
 NODES = ROOT / "playbooks/operations/nodes"
+STORAGE = ROOT / "playbooks/operations/storage"
 
 
 def test_remove_node2_is_a_preflight_only_playbook() -> None:
@@ -82,6 +85,44 @@ def test_baseline_cleanup_can_only_target_cluster_network_prefixes() -> None:
     assert 'path: "/storage/replicas/{{ item }}"' in playbook
     assert "expected_root_uuid: d3507a31-6115-4f40-affc-ca5164120e50" in playbook
     assert "expected_storage_uuid: 49c092f4-dd55-41f5-99c6-854f8b44af4e" in playbook
+
+
+def test_replica_restore_accepts_only_evidence_from_current_main_history(tmp_path) -> None:
+    tasks = yaml.safe_load((STORAGE / "restore-node2-replicas.yml").read_text())[0]["tasks"]
+    probe = next(t for t in tasks if t.get("register") == "node2_evacuation_revision_ancestry")
+    assert probe["delegate_to"] == "localhost"
+    assert probe["become"] is False
+    assert probe["check_mode"] is False
+
+    def git(*args):
+        return subprocess.check_output(["git", "-C", str(tmp_path), *args], text=True).strip()
+
+    git("init", "-q")
+    git("config", "user.email", "test@example.invalid")
+    git("config", "user.name", "Test")
+    git("commit", "--allow-empty", "-qm", "evacuation")
+    ancestor = git("rev-parse", "HEAD")
+    git("commit", "--allow-empty", "-qm", "recovery fix")
+    current = git("rev-parse", "HEAD")
+    git("checkout", "-qb", "unmerged", ancestor)
+    git("commit", "--allow-empty", "-qm", "unmerged change")
+    unrelated = git("rev-parse", "HEAD")
+    for revision, accepted in (
+        (ancestor, True),
+        (current, True),
+        (unrelated, False),
+        ("0" * 40, False),
+    ):
+        variables = {
+            "node2_repository_root": str(tmp_path),
+            "node2_recovery_git_revision": current,
+            "node2_evacuation_plan": {"git_revision": revision},
+        }
+        argv = [
+            Template(arg).render(**variables) for arg in probe["ansible.builtin.command"]["argv"]
+        ]
+        result = subprocess.run(argv, capture_output=True)
+        assert (result.returncode == 0) is accepted
 
 
 def test_rejoin_uses_existing_storage_and_full_kubespray_cluster_play() -> None:
