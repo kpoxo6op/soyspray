@@ -36,6 +36,12 @@ def command(root, apps):
     ]
 
 
+def operation_sources(apps):
+    return [
+        "scripts/restore_durable.py" if app == "durable" else f"apps/{app}/Makefile" for app in apps
+    ]
+
+
 def validate(root, apps, runner=run, is_file=lambda path: path.is_file()):
     root = Path(root).resolve()
     head = runner(["git", "rev-parse", "HEAD"], root)
@@ -57,7 +63,7 @@ def validate(root, apps, runner=run, is_file=lambda path: path.is_file()):
         "requirements-ansible.yml",
         "scripts/restore_common.py",
         *COMMON_PLAYBOOKS,
-        *[f"apps/{app}/Makefile" for app in apps],
+        *operation_sources(apps),
     ]
     inventory = "kubespray/inventory/soycluster/hosts.yml"
     tracked = runner(["git", "ls-files", "--error-unmatch", "--", *required], root)
@@ -94,7 +100,8 @@ def validate(root, apps, runner=run, is_file=lambda path: path.is_file()):
         "A pinned recovery Python dependency is missing.",
     )
     for app in apps:
-        app_command(app, "restore-check", str(root / "soyspray-venv/bin/python"), root=root)
+        if app != "durable":
+            app_command(app, "restore-check", str(root / "soyspray-venv/bin/python"), root=root)
 
     syntax = runner(
         [

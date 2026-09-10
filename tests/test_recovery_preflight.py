@@ -41,6 +41,10 @@ def test_preflight_uses_only_recovery_runtime_and_delivered_source(monkeypatch) 
     )
 
 
+def test_durable_preflight_checks_its_shared_runner_not_a_fake_app_folder() -> None:
+    assert recovery_preflight.operation_sources(["durable"]) == ["scripts/restore_durable.py"]
+
+
 @pytest.mark.parametrize(
     "runner,message",
     [
