@@ -57,6 +57,32 @@
       - "longhornvolume={{ node2_volume_entry.name }}"
     kubeconfig: "{{ kubeconfig_path }}"
   register: node2_replicas_after_restore
+  until:
+    - >-
+      node2_replicas_after_restore.resources
+      | selectattr('spec.failedAt', 'equalto', '')
+      | selectattr('status.currentState', 'equalto', 'running')
+      | list | length == node2_volume_entry.restore_replicas | int
+  retries: 360
+  delay: 10
+  when: not ansible_check_mode
+
+- name: Wait for synchronized read-write engine copies
+  kubernetes.core.k8s_info:
+    api_version: longhorn.io/v1beta2
+    kind: Engine
+    namespace: longhorn-system
+    label_selectors:
+      - "longhornvolume={{ node2_volume_entry.name }}"
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: node2_engines_after_restore
+  until:
+    - node2_engines_after_restore.resources | length == 1
+    - >-
+      node2_engines_after_restore.resources[0].status.replicaModeMap | default({}) | dict2items
+      | selectattr('value', 'equalto', 'RW') | list | length == node2_volume_entry.restore_replicas | int
+  retries: 360
+  delay: 10
   when: not ansible_check_mode
 
 - name: Require the recorded healthy replica count
