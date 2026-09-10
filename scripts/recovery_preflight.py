@@ -36,7 +36,7 @@ def command(root, apps):
     ]
 
 
-def validate(root, apps, runner=run):
+def validate(root, apps, runner=run, is_file=lambda path: path.is_file()):
     root = Path(root).resolve()
     head = runner(["git", "rev-parse", "HEAD"], root)
     main = runner(["git", "rev-parse", "origin/main"], root)
@@ -62,16 +62,14 @@ def validate(root, apps, runner=run):
     ]
     tracked = runner(["git", "ls-files", "--error-unmatch", "--", *required], root)
     require(tracked.returncode == 0, "A required recovery source file is not tracked.")
-    require(all((root / path).is_file() for path in required), "A recovery source file is missing.")
+    require(all(is_file(root / path) for path in required), "A recovery source file is missing.")
 
     require(
         all(shutil.which(tool) for tool in ("git", "kubectl", "ssh")),
         "A recovery command is missing.",
     )
     for tool in ("ansible-playbook", "ansible-vault"):
-        require(
-            (root / "soyspray-venv/bin" / tool).is_file(), f"The recovery runtime lacks {tool}."
-        )
+        require(is_file(root / "soyspray-venv/bin" / tool), f"The recovery runtime lacks {tool}.")
     require(
         all(importlib.util.find_spec(module) is not None for module in PYTHON_MODULES),
         "A pinned recovery Python dependency is missing.",

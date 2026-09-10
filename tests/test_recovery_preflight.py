@@ -33,7 +33,10 @@ def test_preflight_uses_only_recovery_runtime_and_delivered_source(monkeypatch) 
     monkeypatch.setattr(recovery_preflight.shutil, "which", lambda tool: f"/usr/bin/{tool}")
     monkeypatch.setattr(recovery_preflight.importlib.util, "find_spec", lambda module: object())
 
-    assert recovery_preflight.validate(ROOT, ["boys"], runner=runner_for()) == "revision"
+    assert (
+        recovery_preflight.validate(ROOT, ["boys"], runner=runner_for(), is_file=lambda path: True)
+        == "revision"
+    )
 
 
 @pytest.mark.parametrize(
@@ -49,4 +52,4 @@ def test_preflight_rejects_unvalidated_recovery_source(monkeypatch, runner, mess
     monkeypatch.setattr(recovery_preflight.importlib.util, "find_spec", lambda module: object())
 
     with pytest.raises(ValueError, match=message):
-        recovery_preflight.validate(ROOT, ["boys"], runner=runner)
+        recovery_preflight.validate(ROOT, ["boys"], runner=runner, is_file=lambda path: True)
