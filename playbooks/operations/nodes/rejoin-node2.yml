@@ -54,19 +54,44 @@
       changed_when: false
       check_mode: false
 
-    - name: Require the authoritative two-member survivor cluster
+    - name: Require the authoritative survivor or resumed cluster
       ansible.builtin.assert:
         that:
           - node2_evacuation_plan.target == recovery_target
-          - node2_survivor_nodes.resources | length == 2
-          - node2_survivor_nodes.resources | map(attribute='metadata.name') | sort | list == ['node-0', 'node-1']
+          - node2_survivor_nodes.resources | length in [2, 3]
+          - >-
+            node2_survivor_nodes.resources | map(attribute='metadata.name') | sort | list
+            == (['node-0', 'node-1'] if node2_survivor_nodes.resources | length == 2
+                else ['node-0', 'node-1', 'node-2'])
           - >-
             node2_survivor_nodes.resources
             | map(attribute='status.conditions') | flatten
             | selectattr('type', 'equalto', 'Ready')
-            | selectattr('status', 'equalto', 'True') | list | length == 2
-          - (node2_survivor_etcd.stdout | from_json) | length == 2
+            | selectattr('status', 'equalto', 'True') | list | length
+            == node2_survivor_nodes.resources | length
+          - >-
+            (node2_survivor_etcd.stdout | from_json) | length
+            == node2_survivor_nodes.resources | length
           - (node2_survivor_etcd.stdout | from_json) | map(attribute='Status.header.cluster_id') | unique | list | length == 1
+
+    - name: Recognize an exact partially completed rejoin
+      ansible.builtin.set_fact:
+        node2_rejoin_resumed: "{{ node2_survivor_nodes.resources | length == 3 }}"
+
+    - name: Require a safe new identity before resuming Kubespray
+      ansible.builtin.assert:
+        that:
+          - >-
+            node2_survivor_nodes.resources
+            | selectattr('metadata.name', 'equalto', recovery_target)
+            | map(attribute='metadata.uid')
+            | reject('equalto', node2_evacuation_plan.kubernetes_node_uid)
+            | list | length == 1
+          - >-
+            (node2_survivor_etcd.stdout | from_json)
+            | map(attribute='Status.header.member_id') | unique | list | length == 3
+        fail_msg: Refuse to resume unless node-2 has a new identity in the healthy original cluster.
+      when: node2_rejoin_resumed
 
     - name: Record the survivor etcd cluster identity
       ansible.builtin.set_fact:
@@ -122,7 +147,7 @@
         - /var/lib/longhorn
       register: node2_rejoin_paths
 
-    - name: Require the clean retained host before Kubespray
+    - name: Require the retained disk identity before Kubespray
       ansible.builtin.assert:
         that:
           - inventory_hostname == 'node-2'
@@ -131,8 +156,23 @@
           - (node2_rejoin_mounts.results[1].stdout | from_json).filesystems[0].uuid == expected_storage_uuid
           - node2_rejoin_models.results[0].stdout | trim == expected_root_model
           - node2_rejoin_models.results[1].stdout | trim == expected_storage_model
+
+    - name: Require the clean retained host before the first Kubespray join
+      ansible.builtin.assert:
+        that:
           - node2_rejoin_services.stdout_lines | select('equalto', 'active') | list | length == 0
           - node2_rejoin_paths.results | selectattr('stat.exists') | list | length == 0
+      when: not hostvars[groups['kube_control_plane'][0]].node2_rejoin_resumed
+
+    - name: Require the matching joined host before a Kubespray resume
+      ansible.builtin.assert:
+        that:
+          - node2_rejoin_services.stdout_lines | select('equalto', 'active') | list | length == 3
+          - >-
+            ['/etc/kubernetes', '/var/lib/kubelet', '/var/lib/etcd', '/var/lib/containerd']
+            | difference(node2_rejoin_paths.results | selectattr('stat.exists') | map(attribute='item') | list)
+            | length == 0
+      when: hostvars[groups['kube_control_plane'][0]].node2_rejoin_resumed
 
 - name: Prepare the existing node-2 storage filesystem
   ansible.builtin.import_playbook: ../storage/prepare-existing-longhorn-storage.yml

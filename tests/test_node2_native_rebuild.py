@@ -105,6 +105,13 @@ def test_rejoin_uses_existing_storage_and_full_kubespray_cluster_play() -> None:
     assert "ignore_assert_errors | default(false)" in text
     assert "kubernetes_node_uid" in text
     assert "node2_survivor_cluster_id" in text
+    assert "Recognize an exact partially completed rejoin" in text
+    assert "Require a safe new identity before resuming Kubespray" in text
+    assert "Require the matching joined host before a Kubespray resume" in text
+    assert (
+        "node2_rejoin_services.stdout_lines | select('equalto', 'active') | list | length == 3"
+        in text
+    )
     assert (NODES / "check-node2-rejoin.yml").exists()
     assert all(
         play.get("any_errors_fatal") is True
