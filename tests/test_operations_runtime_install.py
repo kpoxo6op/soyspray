@@ -39,6 +39,7 @@ def test_runtime_uses_the_minimal_recovery_dependencies() -> None:
         "cryptography==46.0.7",
         "jmespath==1.1.0",
         "netaddr==1.3.0",
+        "passlib==1.7.4",
         "PyYAML==6.0.3",
     ]
     assert development[0] == "-r requirements-recovery.txt"
