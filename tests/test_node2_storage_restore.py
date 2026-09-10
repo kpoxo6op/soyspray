@@ -10,6 +10,26 @@ ROOT = Path(__file__).resolve().parents[1] / "playbooks/operations/storage"
 TASKS = yaml.safe_load((ROOT / "restore-node2-replicas.yml").read_text())[0]["tasks"]
 
 
+@pytest.mark.parametrize("count", [1, 3])
+def test_replica_patch_keeps_the_count_an_integer(count):
+    tasks = yaml.safe_load((ROOT / "restore-node2-volume.yml").read_text())
+    task = next(t for t in tasks if t["name"] == "Restore the recorded replica count")
+    spec = {"numberOfReplicas": 2, "dataLocality": "best-effort"}
+    variables = {
+        "node2_volume_entry": {"uid": "original-volume", "restore_replicas": count},
+        "node2_volume_before_restore": {"resources": [{"spec": spec}]},
+    }
+    patch = Templar(loader=DataLoader(), variables=variables).template(
+        task["kubernetes.core.k8s_json_patch"]["patch"]
+    )
+    assert patch == [
+        {"op": "test", "path": "/metadata/uid", "value": "original-volume"},
+        {"op": "test", "path": "/spec", "value": spec},
+        {"op": "replace", "path": "/spec/numberOfReplicas", "value": count},
+    ]
+    assert type(patch[-1]["value"]) is int
+
+
 def passes(name, variables):
     task = next(t for t in TASKS if t["name"] == name)
     loader = DataLoader()
