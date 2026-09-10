@@ -20,7 +20,7 @@ def fake_runner(state_home, calls, failures=None):
     def run(command, **kwargs):
         calls.append(command)
         assert kwargs["env"]["XDG_STATE_HOME"] == str(state_home)
-        if "full-check" in command:
+        if "scripts.recovery_preflight" in command:
             assert "SOYSPRAY_RESTORE_SCHEDULE_RUN_ID" not in kwargs["env"]
             return subprocess.CompletedProcess(command, 0, stdout="gate\n", stderr="")
         assert kwargs["env"]["SOYSPRAY_RESTORE_SCHEDULE_RUN_ID"]
@@ -59,7 +59,7 @@ def test_schedule_runs_gate_and_all_apps_in_order(tmp_path):
 
     assert code == 0
     assert calls == [
-        ["make", "--no-print-directory", "full-check"],
+        restore_schedule.preflight_command(tmp_path / "repo", restore_schedule.APPS),
         ["make", "--no-print-directory", "restore-check", "APP=boys"],
         ["make", "--no-print-directory", "restore-check", "APP=vaultwarden"],
         ["make", "--no-print-directory", "restore-check", "APP=obsidian-livesync"],
@@ -97,7 +97,7 @@ def test_schedule_stops_when_cleanup_evidence_is_missing(tmp_path):
     assert report["status"] == "failed"
     assert len(report["apps"]) == 1
     assert calls == [
-        ["make", "--no-print-directory", "full-check"],
+        restore_schedule.preflight_command(tmp_path / "repo", restore_schedule.APPS),
         ["make", "--no-print-directory", "restore-check", "APP=boys"],
     ]
 
@@ -115,7 +115,7 @@ def test_schedule_stops_before_apps_when_shared_gate_fails(tmp_path):
     assert code == 2
     assert report["status"] == "failed"
     assert report["apps"] == []
-    assert calls == [["make", "--no-print-directory", "full-check"]]
+    assert calls == [restore_schedule.preflight_command(tmp_path / "repo", restore_schedule.APPS)]
 
 
 def test_schedule_units_are_user_scoped_and_monthly():
@@ -214,14 +214,15 @@ def test_runner_reuses_only_the_successful_schedule_check_for_its_revision(
         )
     )
     monkeypatch.setattr(restore_common, "capture_output", lambda *args, **kwargs: "checked\n")
-    assert restore_common.preflight_command(tmp_path, state, None) == ["make", "go"]
+    assert restore_common.preflight_command(tmp_path, state, None, "boys") == [
+        str(tmp_path / "soyspray-venv/bin/python"),
+        "-m",
+        "scripts.recovery_preflight",
+        "--app",
+        "boys",
+    ]
     if accepted:
-        assert restore_common.preflight_command(tmp_path, state, run_id) == [
-            "make",
-            "-o",
-            "check",
-            "go",
-        ]
+        assert restore_common.preflight_command(tmp_path, state, run_id, "boys") is None
     else:
         with pytest.raises(ValueError, match="did not pass"):
-            restore_common.preflight_command(tmp_path, state, run_id)
+            restore_common.preflight_command(tmp_path, state, run_id, "boys")
