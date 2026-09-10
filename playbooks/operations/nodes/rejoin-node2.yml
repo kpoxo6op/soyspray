@@ -340,7 +340,10 @@
             | selectattr('type', 'equalto', 'Ready')
             | selectattr('status', 'equalto', 'True') | list | length == 3
           - (node2_rejoined_etcd.stdout | from_json) | length == 3
-          - (node2_rejoined_etcd.stdout | from_json) | map(attribute='Status.header.cluster_id') | unique | list == [hostvars[groups['kube_control_plane'][0]].node2_survivor_cluster_id]
+          - >-
+            (node2_rejoined_etcd.stdout | from_json)
+            | map(attribute='Status.header.cluster_id') | map('string') | unique | list
+            == [hostvars[groups['kube_control_plane'][0]].node2_survivor_cluster_id | string]
           - >-
             (node2_rejoined_etcd.stdout | from_json)
             | map(attribute='Status.header.member_id') | unique | list | length == 3
