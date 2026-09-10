@@ -251,8 +251,8 @@ def test_restore_operation_cleans_up_after_failures_and_never_reports_partial_su
         return json.dumps(value).encode()
 
     def run(args, **kwargs):
-        if args[0] == "make":
-            assert args == ["make", "go"]
+        if "scripts.recovery_preflight" in args:
+            assert args[-2:] == ["--app", "vaultwarden"]
             if failure == "preflight":
                 raise subprocess.CalledProcessError(2, args)
         elif str(args[0]).endswith("ansible-playbook"):
