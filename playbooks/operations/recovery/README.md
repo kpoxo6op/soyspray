@@ -476,25 +476,10 @@ backup. Use `-e cnpg_database=immich -e cnpg_backup_id=NAME` with the standard
 inventory and privilege options. Run check mode first. With an old Kubernetes client on the node, this check
 is local. Use an explicit server dry run for API admission validation.
 
-Push the matching database manifests before applying. The Immich production
-database and active alias are direct, non-pruning Argo CD Applications. The
-one-time `adopt-immich-database.yml` operation removes only their two obsolete
-ApplicationSets with orphan propagation. Run it after its direct Application
-manifests are merged and healthy:
-
-```sh
-ansible-playbook playbooks/operations/recovery/adopt-immich-database.yml \
-  -e expected_root_revision=MERGED_MAIN_SHA --check
-ansible-playbook playbooks/operations/recovery/adopt-immich-database.yml \
-  -e expected_root_revision=MERGED_MAIN_SHA
-```
-
-The operation checks the exact Application, ApplicationSet, database, schedule,
-secret, and alias UIDs. It requires the merged root revision to have only the
-two direct Applications and two prune-skipped legacy owners as drift. It also
-checks database health and continuous archiving before removal. After adoption,
-it requires root tracking, full sync, the same identities, and the same database
-health. A mismatch stops the operation without deletion.
+The Immich production database and active alias are direct, non-pruning Argo CD
+Applications. Their completed one-time ownership adoption operation was removed
+after the legacy ApplicationSets disappeared and the direct Applications,
+database, schedule, Secret, and alias identities were verified.
 
 For Authentik, first use `select-authentik-database.yml -e cnpg_revision=BRANCH`.
 It pauses database self-heal so the archive switch remains atomic. Then run
