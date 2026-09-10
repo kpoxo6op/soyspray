@@ -30,6 +30,11 @@ After node maintenance, restore temporary application settings. Authentik's
 normal worker disruption budget keeps one worker available; see its
 [operations guide](https://github.com/kpoxo6op/soyspray/tree/main/apps/authentik).
 
+The retained-OS node rejoin stops if the `cert-manager` namespace is
+terminating. Resolve that separate namespace incident, then retry the same
+idempotent operation. Node recovery does not remove application finalizers or
+admission registrations.
+
 ## Detailed procedures
 
 - [Application operations](https://github.com/kpoxo6op/soyspray/tree/main/apps)

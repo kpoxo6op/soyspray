@@ -158,6 +158,12 @@ apply run prepares the existing `/storage` filesystem without formatting, runs
 the full pinned Kubespray cluster play, and requires a new Kubernetes node and
 etcd member ID in the original etcd cluster.
 
+The rejoin refuses to continue if the `cert-manager` namespace is terminating.
+The pinned Kubespray role preserves this namespace by default. A terminating
+namespace is a separate cluster incident: resolve its blocker, then retry the
+same idempotent rejoin command. The node operation does not delete admission
+registrations or remove application finalizers.
+
 Restore Longhorn scheduling and every recorded replica policy:
 
 ```sh

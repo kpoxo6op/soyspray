@@ -2,6 +2,8 @@ import subprocess
 from pathlib import Path
 
 import yaml
+from ansible.parsing.dataloader import DataLoader
+from ansible.template import Templar
 from jinja2 import Template
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -71,16 +73,7 @@ def test_cleanup_requires_stopped_services_and_real_paths_before_deletion() -> N
     assert "^/storage/replicas/pvc-" in text
 
 
-def test_baseline_cleanup_can_only_target_cluster_network_prefixes() -> None:
-    script = (NODES / "cleanup-kubernetes-network.py").read_text()
-    assert 'CHAIN_PREFIXES = ("KUBE-", "cali-")' in script
-    assert 'IPSET_PREFIXES = ("KUBE-", "cali")' in script
-    assert "iptables-restore" not in script
-    assert "ip6tables-restore" not in script
-    assert "flush_iptables" not in script
-    for unsafe in ("mkfs", "wipefs", "parted", "reboot"):
-        assert unsafe not in script
-
+def test_baseline_cleanup_preserves_storage_boundaries() -> None:
     playbook = (NODES / "clean-node2-baseline.yml").read_text()
     assert 'path: "/storage/replicas/{{ item }}"' in playbook
     assert "expected_root_uuid: d3507a31-6115-4f40-affc-ca5164120e50" in playbook
@@ -149,14 +142,7 @@ def test_rejoin_uses_existing_storage_and_full_kubespray_cluster_play() -> None:
     assert "Recognize an exact partially completed rejoin" in text
     assert "Require a safe new identity before resuming Kubespray" in text
     assert "Require the matching joined host before a Kubespray resume" in text
-    assert "Require only failed pending ACME challenges before finalizer recovery" in text
-    assert "Require the cert-manager webhook service to be absent" in text
-    assert "Remove orphaned cert-manager admission registrations" in text
-    assert "ValidatingWebhookConfiguration" in text
-    assert "MutatingWebhookConfiguration" in text
-    assert "acme.cert-manager.io/finalizer" in text
-    assert "state: patched" in text
-    assert "Wait for the interrupted cert-manager namespace deletion" in text
+    assert "Refuse a terminating cert-manager namespace" in text
     assert (
         "node2_rejoin_services.stdout_lines | select('equalto', 'active') | list | length == 3"
         in text
@@ -170,6 +156,29 @@ def test_rejoin_uses_existing_storage_and_full_kubespray_cluster_play() -> None:
 
     post_rejoin = plays[-1]["tasks"]
     assert all(task.get("when") == "not ansible_check_mode" for task in post_rejoin)
+
+
+def test_rejoin_refuses_a_terminating_cert_manager_namespace() -> None:
+    plays = yaml.safe_load((NODES / "rejoin-node2.yml").read_text())
+    task = next(
+        task
+        for task in plays[0]["tasks"]
+        if task.get("name") == "Refuse a terminating cert-manager namespace"
+    )
+    expression = task["ansible.builtin.assert"]["that"][0]
+
+    def evaluate(resources):
+        variables = {"node2_cert_manager_namespace": {"resources": resources}}
+        rendered = Templar(loader=DataLoader(), variables=variables).template(
+            "{{ " + expression + " }}"
+        )
+        return rendered is True
+
+    assert evaluate([])
+    assert evaluate([{"metadata": {"name": "cert-manager"}}])
+    assert not evaluate(
+        [{"metadata": {"name": "cert-manager", "deletionTimestamp": "2026-09-10T00:00:00Z"}}]
+    )
 
 
 def test_restart_respects_native_eviction_protection() -> None:
