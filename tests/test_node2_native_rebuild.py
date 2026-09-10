@@ -108,6 +108,10 @@ def test_rejoin_uses_existing_storage_and_full_kubespray_cluster_play() -> None:
     assert "Recognize an exact partially completed rejoin" in text
     assert "Require a safe new identity before resuming Kubespray" in text
     assert "Require the matching joined host before a Kubespray resume" in text
+    assert "Require only failed pending ACME challenges before finalizer recovery" in text
+    assert "acme.cert-manager.io/finalizer" in text
+    assert "state: patched" in text
+    assert "Wait for the interrupted cert-manager namespace deletion" in text
     assert (
         "node2_rejoin_services.stdout_lines | select('equalto', 'active') | list | length == 3"
         in text
