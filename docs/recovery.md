@@ -32,3 +32,7 @@ If a recovery fix is merged between evacuation and restoration, run current
 `main` with the original private evacuation file. Restoration verifies that
 the recorded revision belongs to current history and that resource identities
 still match.
+
+A rebuilt node can receive new Kubernetes and Longhorn resource IDs. The node
+procedure verifies the retained filesystem and Longhorn disk identity before
+restoring replicas, and waits for synchronized copies before reporting success.
