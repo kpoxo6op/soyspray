@@ -25,10 +25,10 @@
     namespace: longhorn-system
     name: "{{ node2_volume_entry.name }}"
     kubeconfig: "{{ kubeconfig_path }}"
-    patch:
-      - {op: test, path: /metadata/uid, value: "{{ node2_volume_entry.uid }}"}
-      - {op: test, path: /spec, value: "{{ node2_volume_before_restore.resources[0].spec }}"}
-      - {op: replace, path: /spec/numberOfReplicas, value: "{{ node2_volume_entry.restore_replicas | int }}"}
+    patch: >-
+      {{ [{'op': 'test', 'path': '/metadata/uid', 'value': node2_volume_entry.uid},
+          {'op': 'test', 'path': '/spec', 'value': node2_volume_before_restore.resources[0].spec},
+          {'op': 'replace', 'path': '/spec/numberOfReplicas', 'value': node2_volume_entry.restore_replicas | int}] }}
   when: >-
     node2_volume_before_restore.resources[0].spec.numberOfReplicas | int
     != node2_volume_entry.restore_replicas | int
