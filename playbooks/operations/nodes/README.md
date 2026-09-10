@@ -150,9 +150,13 @@ $runner rejoin --revision "$revision" --evacuation "$evacuation"
 $runner rejoin --apply --revision "$revision" --evacuation "$evacuation"
 ```
 
-The wrapper prepares the existing `/storage` filesystem without formatting,
-runs the full pinned Kubespray cluster play, and requires a new Kubernetes node
-and etcd member ID in the original etcd cluster.
+The dry-run validates the survivor cluster, retained host and filesystem,
+storage preparation, inventory, and playbook syntax. Kubespray cannot reliably
+simulate a fresh host because later tasks depend on binaries and systemd units
+that earlier check-mode tasks only predict. The apply run prepares the existing
+`/storage` filesystem without formatting, runs the full pinned Kubespray cluster
+play, and requires a new Kubernetes node and etcd member ID in the original etcd
+cluster.
 
 Restore Longhorn scheduling and every recorded replica policy:
 

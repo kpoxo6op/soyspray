@@ -95,6 +95,12 @@ def test_rejoin_uses_existing_storage_and_full_kubespray_cluster_play() -> None:
         "../storage/prepare-existing-longhorn-storage.yml",
         "../../../kubespray/cluster.yml",
     ]
+    kubespray_import = next(
+        play
+        for play in plays
+        if play.get("ansible.builtin.import_playbook") == "../../../kubespray/cluster.yml"
+    )
+    assert kubespray_import["when"] == "not ansible_check_mode"
     text = (NODES / "rejoin-node2.yml").read_text()
     assert "--limit" not in text
     assert "ignore_assert_errors | default(false)" in text
