@@ -168,9 +168,11 @@ def _handle_sigterm(signum, frame):
     raise RestoreInterrupted
 
 
-def preflight_command(root, state, run_id):
+def preflight_command(root, state, run_id, app):
+    from scripts.recovery_preflight import command
+
     if not run_id:
-        return ["make", "go"]
+        return command(root, [app])
     require(bool(re.fullmatch(r"[0-9]{14}-[0-9a-f]{4}", run_id)), "Invalid schedule run ID.")
     report = json.loads((state.parent / "schedule" / run_id / "report.json").read_text())
     require(
@@ -181,7 +183,7 @@ def preflight_command(root, state, run_id):
         == capture_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip(),
         "The scheduled full check did not pass for this revision.",
     )
-    return ["make", "-o", "check", "go"]
+    return None
 
 
 class RestoreOperation:
@@ -253,16 +255,23 @@ class RestoreOperation:
         preflight_log = self.output / "preflight.log"
         with preflight_log.open("w") as log:
             preflight_log.chmod(0o600)
-            run_process(
-                preflight_command(
-                    self.root, self.state, os.environ.get("SOYSPRAY_RESTORE_SCHEDULE_RUN_ID")
-                ),
-                cwd=self.root,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                check=True,
-                timeout=1200,
+            command = preflight_command(
+                self.root,
+                self.state,
+                os.environ.get("SOYSPRAY_RESTORE_SCHEDULE_RUN_ID"),
+                self.app,
             )
+            if command:
+                run_process(
+                    command,
+                    cwd=self.root,
+                    stdout=log,
+                    stderr=subprocess.STDOUT,
+                    check=True,
+                    timeout=1200,
+                )
+            else:
+                log.write("Reused this revision's successful recovery preflight.\n")
         self.report["git_revision"] = capture_output(
             ["git", "rev-parse", "HEAD"], cwd=self.root, text=True
         ).strip()

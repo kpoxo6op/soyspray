@@ -11,6 +11,7 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+from scripts.recovery_preflight import command as preflight_command
 from scripts.restore_common import RestoreInterrupted, capture_output, run_process
 
 
@@ -156,7 +157,7 @@ def run_schedule(root, state_home, runner=run_process):
             env.pop("SOYSPRAY_RESTORE_SCHEDULE_RUN_ID", None)
             gate_revision = revision(root)
             report["git_revision"] = gate_revision
-            gate_command = ["make", "--no-print-directory", "full-check"]
+            gate_command = preflight_command(root, APPS)
             gate, gate_error = run_command(
                 gate_command, root, env, SHARED_GATE_TIMEOUT, output / "shared-check.log", runner
             )
@@ -168,7 +169,7 @@ def run_schedule(root, state_home, runner=run_process):
             if gate_error or not gate or gate.returncode != 0:
                 report.update(
                     status="failed",
-                    error="The shared repository gate failed or exceeded its time limit.",
+                    error="The recovery preflight failed or exceeded its time limit.",
                 )
                 save_report(report_path, report)
                 return report, 2
@@ -178,7 +179,7 @@ def run_schedule(root, state_home, runner=run_process):
             for app in APPS:
                 if revision(root) != gate_revision:
                     report.update(
-                        status="failed", error="The checkout changed after the full gate."
+                        status="failed", error="The checkout changed after recovery preflight."
                     )
                     save_report(report_path, report)
                     return report, 2
