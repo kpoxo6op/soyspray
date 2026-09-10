@@ -10,6 +10,7 @@ are in [`argocd/catalog/`](../argocd/catalog/).
 - [Obsidian sync](obsidian-livesync): CouchDB note sync and recovery.
 - [Vaultwarden](vaultwarden): private human vault and restricted reader.
 - [Domain health](domain-health): domain checks and Prometheus metrics.
+- [OpenCode Remote](opencode-remote): private phone access to laptop-hosted OpenCode.
 - [ExternalDNS](external-dns): maintain ingress DNS through the existing Cloudflare identity.
 - [Boys](boys): shared calendar and accommodation links.
 - [Headlamp](headlamp): browse the cluster through Authentik OIDC.

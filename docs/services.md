@@ -13,6 +13,7 @@ application folder is authoritative for commands and limits.
 | Obsidian LiveSync | Synchronisation for the personal Obsidian vault | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/obsidian-livesync) |
 | Boys | Shared trip calendar and accommodation links | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/boys) |
 | Headlamp | Authenticated view of Kubernetes resources | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/headlamp) |
+| OpenCode Remote | Private phone access to OpenCode running on laptop `mox` | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/opencode-remote) |
 | Monitoring | Metrics, alerts, logs, and public service status | [Application folders](https://github.com/kpoxo6op/soyspray/tree/main/apps) |
 
 Use the repository's native application catalogue when you need the complete
@@ -21,4 +22,3 @@ current list:
 ```sh
 make apps
 ```
-
