@@ -263,7 +263,9 @@ remain available for deliberate inspection. Automated callers can supply
 restore to prior observations. Cleanup also checks the supplied backup UID.
 
 `restore-volume.yml` restores one completed critical backup into a new
-Longhorn claim. It checks the source claim and backup identity first. The
+Longhorn claim. Normal drills can compare the source claim. Independent drills
+instead take a saved source volume identity and named backup, so they do not
+read the production application namespace. The
 scratch namespace denies ingress and egress. Its inspection container has no
 service-account token, host mounts, or public endpoint. The container uses a
 pinned Python image and stops after four hours. The disposable volume has one
@@ -507,3 +509,16 @@ The command does not replace the separate critical application restore checks.
 To retry selected daily volumes, use `python -m scripts.restore_durable --app
 booklore-mariadb mosquitto-data`. Keep earlier successful reports as evidence;
 each selected run still performs preflight and guarded cleanup.
+
+To prove recovery without production application reads, select one backup using
+saved recovery evidence and pass both identities explicitly:
+
+```bash
+python -m scripts.restore_durable --app home-assistant-config \
+  --source-volume pvc-SAVED-IDENTITY --backup backup-SAVED-IDENTITY
+```
+
+This mode reads the Longhorn backup catalog and disposable scratch resources,
+including the restored Longhorn volume and its storage class. It does not read
+the production application namespace. The private report records
+`production_inputs` as `not read`.
