@@ -61,6 +61,12 @@ unchanged if a recovery fix is merged between stages. Its recorded revision must
 be an ancestor of the running revision; node, disk, and volume identities must
 still match before any policy changes.
 
+Longhorn can recreate its Node resource and disk map key during rejoin. The
+restore matches `/storage` to its retained filesystem UUID and on-disk Longhorn
+identity, then tests the current resource UID and spec before patching. A
+pre-removal rollback still requires the original Node UID and disk key.
+Restoration waits for every required engine copy to report synchronized `RW`.
+
 ## Disposable monitoring data
 
 `monitoring-replicas.yml` sets one Longhorn replica for the existing Prometheus
