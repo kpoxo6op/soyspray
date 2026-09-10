@@ -26,17 +26,39 @@
           - ansible_limit | default('') | length == 0
           - ansible_run_tags | default(['all']) == ['all']
           - ansible_skip_tags | default([]) | length == 0
-        fail_msg: Use the private evacuation plan from the exact delivered revision.
+        fail_msg: Run from exact current main with the original private evacuation plan.
 
     - name: Load the immutable evacuation plan
       ansible.builtin.set_fact:
         node2_evacuation_plan: "{{ lookup('file', node2_evacuation_evidence_file) | from_json }}"
 
+    - name: Require an immutable evacuation revision
+      ansible.builtin.assert:
+        that:
+          - node2_evacuation_plan.git_revision is match('^[0-9a-f]{40}$')
+
+    - name: Verify the evacuation revision belongs to current main history
+      ansible.builtin.command:
+        argv:
+          - git
+          - -C
+          - "{{ node2_repository_root }}"
+          - merge-base
+          - --is-ancestor
+          - "{{ node2_evacuation_plan.git_revision }}"
+          - "{{ node2_recovery_git_revision }}"
+      register: node2_evacuation_revision_ancestry
+      changed_when: false
+      failed_when: false
+      delegate_to: localhost
+      become: false
+      check_mode: false
+
     - name: Require the matching evacuation plan
       ansible.builtin.assert:
         that:
           - node2_evacuation_plan.schema_version == 1
-          - node2_evacuation_plan.git_revision == node2_recovery_git_revision
+          - node2_evacuation_revision_ancestry.rc == 0
           - node2_evacuation_plan.target == recovery_target
           - node2_evacuation_plan.target_ip == recovery_target_ip
           - node2_evacuation_plan.disk == recovery_target_disk
