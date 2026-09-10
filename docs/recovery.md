@@ -27,3 +27,8 @@ the confirmation required by the maintained procedure.
 See the [recovery operations](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations/recovery)
 for the authoritative commands and limits.
 
+For a node rebuild, follow the [node recovery procedure](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations/nodes).
+If a recovery fix is merged between evacuation and restoration, run current
+`main` with the original private evacuation file. Restoration verifies that
+the recorded revision belongs to current history and that resource identities
+still match.

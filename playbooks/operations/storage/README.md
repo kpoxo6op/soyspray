@@ -56,6 +56,11 @@ restore every recorded replica policy. Loki returns to its original one-copy
 monitoring policy; three-copy volumes rebuild on node-2. Use the exact commands
 and ordering in `../nodes/README.md`.
 
+Run restoration from exact current `main`. Keep the original evacuation file
+unchanged if a recovery fix is merged between stages. Its recorded revision must
+be an ancestor of the running revision; node, disk, and volume identities must
+still match before any policy changes.
+
 ## Disposable monitoring data
 
 `monitoring-replicas.yml` sets one Longhorn replica for the existing Prometheus
