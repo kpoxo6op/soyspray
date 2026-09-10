@@ -26,9 +26,12 @@ source, live health, access, and recovery evidence for one application.
 Do not use ad hoc Kubernetes writes for a lasting change. A live application
 must not be retargeted to a topic branch.
 
+After node maintenance, restore temporary application settings. Authentik's
+normal worker disruption budget keeps one worker available; see its
+[operations guide](https://github.com/kpoxo6op/soyspray/tree/main/apps/authentik).
+
 ## Detailed procedures
 
 - [Application operations](https://github.com/kpoxo6op/soyspray/tree/main/apps)
 - [Ansible operations](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations)
 - [Repository helper commands](https://github.com/kpoxo6op/soyspray/tree/main/scripts)
-

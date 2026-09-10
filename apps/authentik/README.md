@@ -3,6 +3,9 @@
 Authentik provides single sign-on for private cluster applications. The Ansible
 role creates stable runtime secrets and applies this Argo CD application.
 
+The single worker has a disruption budget of `minAvailable: 1`. Planned node
+maintenance must handle this budget explicitly and restore it afterwards.
+
 ## Normal use
 
 The blueprints define two access groups:
