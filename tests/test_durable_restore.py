@@ -3,10 +3,63 @@ from pathlib import Path
 
 import pytest
 import yaml
+from ansible.parsing.dataloader import DataLoader
+from ansible.playbook.conditional import Conditional
+from ansible.template import Templar
 
 from scripts.check_durable_data import check
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_saved_volume_restore_does_not_require_a_production_claim():
+    play = yaml.safe_load((ROOT / "playbooks/operations/recovery/restore-volume.yml").read_text())[
+        0
+    ]
+    source_task = next(
+        task
+        for task in play["tasks"]
+        if task["name"] == "Select the saved or observed source volume"
+    )
+    variables = {
+        "recovery_read_production": False,
+        "recovery_source_volume": "pvc-284dc3e7-0a39-47cf-9192-9c37c45a5cb8",
+    }
+    loader = DataLoader()
+    templar = Templar(loader=loader, variables=variables)
+    selected = templar.template(source_task["ansible.builtin.set_fact"])[
+        "recovery_selected_source_volume"
+    ]
+    assert selected == variables["recovery_source_volume"]
+
+    backup_task = next(
+        task
+        for task in play["tasks"]
+        if task["name"] == "Require a completed backup of the original bound claim"
+    )
+    variables.update(
+        recovery_selected_source_volume=selected,
+        recovery_expected_backup_uid="backup-uid",
+        recovery_backup={
+            "resources": [
+                {
+                    "metadata": {"uid": "backup-uid"},
+                    "status": {
+                        "state": "Completed",
+                        "progress": 100,
+                        "messages": {},
+                        "error": "",
+                        "backupTargetName": "critical-s3",
+                        "volumeName": selected,
+                        "url": "s3://example/backup",
+                    },
+                }
+            ]
+        },
+    )
+    conditional = Conditional(loader=loader)
+    conditional.when = backup_task["ansible.builtin.assert"]["that"]
+    assert conditional.evaluate_conditional(Templar(loader=loader, variables=variables), variables)
 
 
 def test_catalog_preserves_critical_identities_and_daily_claims():

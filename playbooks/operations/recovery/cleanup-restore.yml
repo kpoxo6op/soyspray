@@ -39,10 +39,11 @@
       loop_control:
         label: "{{ item.kind }}/{{ item.metadata.name }}"
 
-    - name: Read claims before deleting a scratch namespace
+    - name: Read claims in the scratch namespace before deletion
       kubernetes.core.k8s_info:
         api_version: v1
         kind: PersistentVolumeClaim
+        namespace: "{{ recovery_scratch }}"
         kubeconfig: "{{ kubeconfig_path }}"
       register: recovery_claims
 
@@ -52,11 +53,12 @@
           - item.metadata.name == 'restored-data'
           - item.spec.storageClassName == recovery_scratch
           - item.metadata.labels['soyspray.vip/purpose'] | default('') == 'restore-check'
+          - item.metadata.labels['soyspray.vip/app'] | default('') == recovery_app
+          - item.metadata.labels['soyspray.vip/check-id'] | default('') == recovery_check_id
           - >-
-            item.spec.volumeName | default('unbound') not in
-            (recovery_claims.resources | rejectattr('metadata.namespace', 'equalto', recovery_scratch)
-             | selectattr('spec.volumeName', 'defined') | map(attribute='spec.volumeName') | list)
-      loop: "{{ recovery_claims.resources | selectattr('metadata.namespace', 'equalto', recovery_scratch) | list }}"
+            recovery_source_volume | default('') | length == 0 or
+            item.spec.volumeName | default('') != recovery_source_volume
+      loop: "{{ recovery_claims.resources }}"
       loop_control:
         label: "{{ item.metadata.name }}"
 
@@ -86,8 +88,7 @@
       retries: 60
       delay: 5
       loop: >-
-        {{ recovery_claims.resources | selectattr('metadata.namespace', 'equalto', recovery_scratch)
-           | selectattr('spec.volumeName', 'defined') | list }}
+        {{ recovery_claims.resources | selectattr('spec.volumeName', 'defined') | list }}
       loop_control:
         label: "{{ item.spec.volumeName }}"
       when: not ansible_check_mode

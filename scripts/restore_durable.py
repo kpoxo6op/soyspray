@@ -34,21 +34,42 @@ def main():
     parser.add_argument(
         "--app", nargs="+", choices=sorted(targets), help="Check only these daily volumes"
     )
+    parser.add_argument(
+        "--source-volume",
+        help="Use this saved Longhorn volume identity without reading the production claim",
+    )
+    parser.add_argument("--backup", help="Restore this named backup")
     args = parser.parse_args()
     if args.app:
         targets = {name: targets[name] for name in dict.fromkeys(args.app)}
+    independent = args.source_volume is not None or args.backup is not None
+    if independent:
+        if not (args.source_volume and args.backup):
+            parser.error("--source-volume and --backup must be supplied together")
+        if len(targets) != 1:
+            parser.error("saved inputs require exactly one --app")
+        if next(iter(targets)) in NATIVE_APPS:
+            parser.error("this app still requires a saved native runtime image")
 
     def worker(operation):
         operation.report["volumes"] = []
         for app, target in targets.items():
             namespace, name = target["namespace"], target["claim"]
-            claim = operation.kube("-n", namespace, "get", "pvc", name)
-            pv = operation.kube("get", "pv", claim["spec"]["volumeName"])
-            verify_binding(claim, pv)
+            claim = pv = None
+            source_volume = args.source_volume
+            if independent:
+                operation.report["production_inputs"] = "not read"
+            else:
+                claim = operation.kube("-n", namespace, "get", "pvc", name)
+                pv = operation.kube("get", "pv", claim["spec"]["volumeName"])
+                verify_binding(claim, pv)
+                source_volume = claim["spec"]["volumeName"]
+                operation.report["production_inputs"] = "read for optional comparison"
             backup = select_backup(
                 operation.kube("-n", "longhorn-system", "get", "backups.longhorn.io")["items"],
-                claim["spec"]["volumeName"],
+                source_volume,
                 operation.now(),
+                requested=args.backup,
             )
             operation.report["backup"] = {
                 "name": backup["metadata"]["name"],
@@ -59,9 +80,12 @@ def main():
                 "recovery_app": app,
                 "recovery_check_id": operation.check_id,
                 "recovery_backup_name": backup["metadata"]["name"],
-                "recovery_expected_claim_uid": claim["metadata"]["uid"],
                 "recovery_expected_backup_uid": backup["metadata"]["uid"],
+                "recovery_read_production": not independent,
+                "recovery_source_volume": source_volume,
             }
+            if claim is not None:
+                variables["recovery_expected_claim_uid"] = claim["metadata"]["uid"]
             scratch = "restore-" + app + "-" + operation.check_id
             with operation.isolated_restore(scratch, variables):
                 operation.stage = app + " isolated restore"
@@ -103,12 +127,13 @@ def main():
                     "The restored data check failed; inspect its private error log.",
                 )
                 data = json.loads(result.stdout)
-                require(
-                    identity(operation.kube("-n", namespace, "get", "pvc", name)) == identity(claim)
-                    and identity(operation.kube("get", "pv", claim["spec"]["volumeName"]))
-                    == identity(pv),
-                    "The production claim or volume changed.",
-                )
+                if claim is not None:
+                    require(
+                        identity(operation.kube("-n", namespace, "get", "pvc", name))
+                        == identity(claim)
+                        and identity(operation.kube("get", "pv", source_volume)) == identity(pv),
+                        "The production claim or volume changed.",
+                    )
                 if app in NATIVE_APPS:
                     candidates = []
                     for pod in operation.kube("-n", namespace, "get", "pods")["items"]:
@@ -156,10 +181,15 @@ def main():
                     {
                         "app": app,
                         "backup": dict(operation.report["backup"]),
-                        "source_claim_uid": claim["metadata"]["uid"],
-                        "source_volume_uid": pv["metadata"]["uid"],
+                        "source_claim_uid": (
+                            claim["metadata"]["uid"] if claim is not None else "not read"
+                        ),
+                        "source_volume_uid": (
+                            pv["metadata"]["uid"] if pv is not None else "not read"
+                        ),
+                        "source_volume": source_volume,
                         "data": data,
-                        "original_resources": "unchanged",
+                        "original_resources": "unchanged" if claim is not None else "not read",
                     }
                 )
             (operation.output / "cleanup.log").rename(operation.output / (app + "-cleanup.log"))
