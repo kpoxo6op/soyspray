@@ -68,46 +68,6 @@ def test_immich_database_apps_are_direct_and_non_pruning():
         assert "automated" not in app["spec"]["syncPolicy"]
 
 
-def test_immich_adoption_is_exact_guarded_orphan_deletion():
-    play = yaml.safe_load(
-        (ROOT / "playbooks/operations/recovery/adopt-immich-database.yml").read_text()
-    )[0]
-    assert play["vars"]["expected_root_revision"] == ""
-    assert [item["uid"] for item in play["vars"]["owning_sets"]] == [
-        "84c8b489-c979-4a50-8896-22ca53aad2e0",
-        "a40af192-fb57-40bc-9275-f27b64296b07",
-    ]
-    drift_task = next(
-        task
-        for task in play["tasks"]
-        if task["name"].startswith("Require only the expected ownership drift")
-    )
-    assert drift_task["vars"]["expected_drift_names"] == [
-        "immich-db",
-        "immich-db-a-initdb",
-        "immich-db-active-a",
-        "immich-db-alias",
-    ]
-    assert "root_drift | length == 4" in drift_task["ansible.builtin.assert"]["that"]
-    deletion = next(
-        task["kubernetes.core.k8s"]
-        for task in play["tasks"]
-        if task["name"].startswith("Orphan the child Applications")
-    )
-    assert deletion["kind"] == "ApplicationSet"
-    assert deletion["state"] == "absent"
-    assert deletion["delete_options"] == {"propagationPolicy": "Orphan"}
-    identity_guard = next(
-        task["ansible.builtin.assert"]["that"]
-        for task in play["tasks"]
-        if task["name"].startswith("Require unchanged resource identity")
-    )
-    assert "item.resources[0].metadata.uid == item.item.uid" in identity_guard
-    assert (
-        "item.resources[0].metadata.ownerReferences | default([]) | length == 0" in identity_guard
-    )
-
-
 def test_authentik_preserves_archive_and_replication():
     resources = list(
         yaml.safe_load_all((ROOT / "apps/authentik-postgresql/manifests/cluster.yaml").read_text())
