@@ -28,3 +28,11 @@ the private hostname must not provide an OpenCode login path.
 The route is unavailable when `mox` is asleep, offline, signed out, or when the
 `opencode-remote.service` user service is stopped. Kubernetes stores no OpenCode
 data and has no backup or restore role.
+
+## Roll back
+
+Do not delete the Argo CD Application first. Its deletion and pruning protections
+intentionally retain resources. Restore the previous desired workload while the
+Application and `apps/opencode-remote/manifests` path still exist, then verify
+Argo has pruned the relay, Service, Ingress, and ConfigMap. Remove the Argo
+registration only after the namespace contains no retained route resources.
