@@ -91,21 +91,21 @@ def test_rejoin_uses_existing_storage_and_full_kubespray_cluster_play() -> None:
         for play in plays
         if "ansible.builtin.import_playbook" in play
     ]
-    assert imports == [
-        "../storage/prepare-existing-longhorn-storage.yml",
-        "../../../kubespray/cluster.yml",
-    ]
-    kubespray_import = next(
+    assert imports[0] == "../storage/prepare-existing-longhorn-storage.yml"
+    assert len(imports) == 2
+    selected_import = next(
         play
         for play in plays
-        if play.get("ansible.builtin.import_playbook") == "../../../kubespray/cluster.yml"
+        if "../../../kubespray/cluster.yml" in play.get("ansible.builtin.import_playbook", "")
     )
-    assert kubespray_import["when"] == "not ansible_check_mode"
+    assert "node2_rejoin_apply" in selected_import["ansible.builtin.import_playbook"]
+    assert "check-node2-rejoin.yml" in selected_import["ansible.builtin.import_playbook"]
     text = (NODES / "rejoin-node2.yml").read_text()
     assert "--limit" not in text
     assert "ignore_assert_errors | default(false)" in text
     assert "kubernetes_node_uid" in text
     assert "node2_survivor_cluster_id" in text
+    assert (NODES / "check-node2-rejoin.yml").exists()
     assert all(
         play.get("any_errors_fatal") is True
         for play in plays

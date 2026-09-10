@@ -138,8 +138,10 @@
   ansible.builtin.import_playbook: ../storage/prepare-existing-longhorn-storage.yml
 
 - name: Rejoin node-2 through the pinned full Kubespray cluster play
-  ansible.builtin.import_playbook: ../../../kubespray/cluster.yml
-  when: not ansible_check_mode
+  ansible.builtin.import_playbook: >-
+    {{ '../../../kubespray/cluster.yml'
+       if (node2_rejoin_apply | default(false) | bool)
+       else 'check-node2-rejoin.yml' }}
 
 - name: Verify the new node-2 member in the original cluster
   hosts: kube_control_plane[0]
