@@ -9,8 +9,7 @@ tunnel.
 
 - User systemd on `mox` runs OpenCode and owns its sessions and credentials.
 - Git and Argo CD own the private node relay, Service, and Ingress.
-- The namespace contains a declarative reflector mirror of the shared wildcard
-  TLS secret. Reflector supplies and renews the certificate data.
+- cert-manager issues and renews the hostname certificate in this namespace.
 - OpenCode Basic Auth remains required behind the ingress.
 - A non-root Nginx relay binds only to `node-0`'s private LAN address and reaches
   the stable Tailscale address of `mox`. Update `manifests/relay-config.yaml` if
