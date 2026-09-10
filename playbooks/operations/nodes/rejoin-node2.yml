@@ -133,6 +133,40 @@
         - node2_cert_manager_namespace.resources | length == 1
         - node2_cert_manager_namespace.resources[0].metadata.deletionTimestamp is defined
 
+    - name: Read the cert-manager webhook service during interrupted migration
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Service
+        namespace: cert-manager
+        name: cert-manager-webhook
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: node2_cert_manager_webhook_service
+      when:
+        - node2_cert_manager_namespace.resources | length == 1
+        - node2_cert_manager_namespace.resources[0].metadata.deletionTimestamp is defined
+
+    - name: Require the cert-manager webhook service to be absent
+      ansible.builtin.assert:
+        that: node2_cert_manager_webhook_service.resources | length == 0
+        fail_msg: Refuse to remove admission registrations while the cert-manager webhook service exists.
+      when:
+        - node2_cert_manager_namespace.resources | length == 1
+        - node2_cert_manager_namespace.resources[0].metadata.deletionTimestamp is defined
+
+    - name: Remove orphaned cert-manager admission registrations
+      kubernetes.core.k8s:
+        api_version: admissionregistration.k8s.io/v1
+        kind: "{{ item }}"
+        name: cert-manager-webhook
+        state: absent
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop:
+        - ValidatingWebhookConfiguration
+        - MutatingWebhookConfiguration
+      when:
+        - node2_cert_manager_namespace.resources | length == 1
+        - node2_cert_manager_namespace.resources[0].metadata.deletionTimestamp is defined
+
     - name: Release failed pending ACME challenges from the interrupted migration
       kubernetes.core.k8s:
         api_version: acme.cert-manager.io/v1

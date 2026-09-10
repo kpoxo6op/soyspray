@@ -109,6 +109,10 @@ def test_rejoin_uses_existing_storage_and_full_kubespray_cluster_play() -> None:
     assert "Require a safe new identity before resuming Kubespray" in text
     assert "Require the matching joined host before a Kubespray resume" in text
     assert "Require only failed pending ACME challenges before finalizer recovery" in text
+    assert "Require the cert-manager webhook service to be absent" in text
+    assert "Remove orphaned cert-manager admission registrations" in text
+    assert "ValidatingWebhookConfiguration" in text
+    assert "MutatingWebhookConfiguration" in text
     assert "acme.cert-manager.io/finalizer" in text
     assert "state: patched" in text
     assert "Wait for the interrupted cert-manager namespace deletion" in text
