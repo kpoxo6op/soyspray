@@ -9,10 +9,10 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
     soyspray.vip/access-url: https://opencode.soyspray.vip
-    soyspray.vip/access-method: Private LAN or Tailscale route with OpenCode Basic Auth
+    soyspray.vip/access-method: Private LAN or Tailscale route with protected DeepSeek Harness access
     soyspray.vip/data: none in Kubernetes; sessions and credentials stay on laptop mox
     soyspray.vip/backup: none required for the stateless Kubernetes route
-    soyspray.vip/backup-cause: Git owns routing; laptop systemd and OpenCode own runtime state
+    soyspray.vip/backup-cause: Git owns routing; laptop systemd and DeepSeek Harness own runtime state
 spec:
   project: opencode-remote
   source:
