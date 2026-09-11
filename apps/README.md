@@ -10,7 +10,7 @@ are in [`argocd/catalog/`](../argocd/catalog/).
 - [Obsidian sync](obsidian-livesync): CouchDB note sync and recovery.
 - [Vaultwarden](vaultwarden): private human vault and restricted reader.
 - [Domain health](domain-health): domain checks and Prometheus metrics.
-- [DeepSeek Harness Remote](opencode-remote): private phone access to the official laptop-hosted DeepSeek Harness.
+- [DeepSeek Harness Remote](ai): private phone access to the official laptop-hosted DeepSeek Harness.
 - [ExternalDNS](external-dns): maintain ingress DNS through the existing Cloudflare identity.
 - [Boys](boys): shared calendar and accommodation links.
 - [Headlamp](headlamp): browse the cluster through Authentik OIDC.

@@ -1,10 +1,10 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: opencode-remote
+  name: ai
   namespace: argocd
   labels:
-    app.kubernetes.io/part-of: opencode-remote
+    app.kubernetes.io/part-of: ai
     soyspray.vip/owner: platform
   annotations:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
@@ -14,14 +14,14 @@ metadata:
     soyspray.vip/backup: none required for the stateless Kubernetes route
     soyspray.vip/backup-cause: Git owns routing; laptop systemd and DeepSeek Harness own runtime state
 spec:
-  project: opencode-remote
+  project: ai
   source:
     repoURL: https://github.com/kpoxo6op/soyspray.git
     targetRevision: main
-    path: apps/opencode-remote/manifests
+    path: apps/ai/manifests
   destination:
     server: https://kubernetes.default.svc
-    namespace: opencode-remote
+    namespace: ai
   syncPolicy:
     automated:
       prune: true
@@ -31,7 +31,7 @@ spec:
       - PruneLast=true
     managedNamespaceMetadata:
       labels:
-        app.kubernetes.io/part-of: opencode-remote
+        app.kubernetes.io/part-of: ai
         pod-security.kubernetes.io/enforce: privileged
         pod-security.kubernetes.io/enforce-version: v1.35
         pod-security.kubernetes.io/warn: restricted

@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
-  name: opencode-remote
+  name: ai
   namespace: argocd
   annotations:
     argocd.argoproj.io/sync-wave: '-10'
@@ -12,7 +12,7 @@ spec:
     - https://github.com/kpoxo6op/soyspray.git
   destinations:
     - server: https://kubernetes.default.svc
-      namespace: opencode-remote
+      namespace: ai
   clusterResourceWhitelist:
     - group: ''
       kind: Namespace

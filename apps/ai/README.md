@@ -20,7 +20,7 @@ tunnel.
 ## Check it
 
 ```sh
-kubectl -n opencode-remote get application,deployment,service,ingress
+kubectl -n ai get application,deployment,service,ingress
 curl --head https://ai.soyspray.vip/
 ```
 
@@ -36,6 +36,6 @@ Kubernetes stores no Harness data and has no backup or restore role.
 
 Do not delete the Argo CD Application first. Its deletion and pruning protections
 intentionally retain resources. Restore the previous desired workload while the
-Application and `apps/opencode-remote/manifests` path still exist, then verify
+Application and `apps/ai/manifests` path still exist, then verify
 Argo has pruned the relay, Service, Ingress, and ConfigMap. Remove the Argo
 registration only after the namespace contains no retained route resources.
