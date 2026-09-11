@@ -54,6 +54,8 @@ spec:
       app.kubernetes.io/name: secret-reflector
   template:
     metadata:
+      annotations:
+        soyspray.vip/reflection-namespaces-revision: "2026-09-11-opencode-remote"
       labels:
         app.kubernetes.io/name: secret-reflector
     spec:
