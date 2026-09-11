@@ -7,6 +7,7 @@ resources:
   - relay-config.yaml
   - relay-deployment.yaml
   - service.yaml
+  - authentik-forward-auth.yaml
   - ingress.yaml
 labels:
   - pairs:
