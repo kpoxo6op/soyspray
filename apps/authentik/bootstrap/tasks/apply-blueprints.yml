@@ -35,7 +35,7 @@
   until: >-
     authentik_blueprint_file.rc == 0 and
     authentik_blueprint_file.stdout.split()[0] ==
-    (lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/' + authentik_blueprint_name) | hash('sha256'))
+    (lookup('file', role_path + '/../manifests/blueprints/' + authentik_blueprint_name) | hash('sha256'))
   retries: 30
   delay: 5
   changed_when: false
