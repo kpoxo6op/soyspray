@@ -4,6 +4,7 @@
   connection: local
   gather_facts: false
   vars:
+    ansible_python_interpreter: /usr/bin/python3
     confirm_ai_rename: false
   tasks:
     - name: Read the replacement AI Application
