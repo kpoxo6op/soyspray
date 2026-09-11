@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: opencode-relay
-  namespace: opencode-remote
+  name: ai-relay
+  namespace: ai
 spec:
   replicas: 1
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      app.kubernetes.io/name: opencode-relay
+      app.kubernetes.io/name: ai-relay
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: opencode-relay
+        app.kubernetes.io/name: ai-relay
     spec:
       automountServiceAccountToken: false
       hostNetwork: true
@@ -62,7 +62,7 @@ spec:
       volumes:
         - name: config
           configMap:
-            name: opencode-relay
+            name: ai-relay
         - name: temporary-files
           emptyDir:
             sizeLimit: 64Mi

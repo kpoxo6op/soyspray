@@ -1,6 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: opencode-remote
+namespace: ai
 resources:
   - namespace.yaml
   - certificate.yaml
@@ -10,4 +10,4 @@ resources:
   - ingress.yaml
 labels:
   - pairs:
-      app.kubernetes.io/instance: opencode-remote
+      app.kubernetes.io/instance: ai
