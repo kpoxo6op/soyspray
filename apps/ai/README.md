@@ -11,7 +11,8 @@ tunnel.
   owns its sessions and credentials.
 - Git and Argo CD own the private node relay, Service, and Ingress.
 - cert-manager issues and renews the hostname certificate in this namespace.
-- The laptop authentication proxy requires Basic Auth before the native
+- Authentik permits `cluster-admins` before the request reaches the relay.
+- The laptop proxy accepts only the node-0 relay and performs the native
   DeepSeek Harness browser-token exchange.
 - A non-root Nginx relay binds only to `node-0`'s private LAN address and reaches
   the stable Tailscale address of `mox`. Update `manifests/relay-config.yaml` if
@@ -24,8 +25,8 @@ kubectl -n ai get application,deployment,service,ingress
 curl --head https://ai.soyspray.vip/
 ```
 
-The unauthenticated request must return `401`. Test an authenticated Harness session
-from the phone with Tailscale enabled. Then disable Tailscale and mobile Wi-Fi;
+The unauthenticated request must redirect to Authentik. Test an authenticated
+Harness session from the phone with Tailscale enabled. Then disable Tailscale and mobile Wi-Fi;
 the private hostname must not provide a Harness login path.
 
 The route is unavailable when `mox` is asleep, offline, signed out, or when the
