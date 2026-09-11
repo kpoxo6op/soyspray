@@ -1,9 +1,8 @@
 # DeepSeek Harness Remote
 
 This route makes DeepSeek Harness on laptop `mox` available at
-<https://opencode.soyspray.vip>. It is for private LAN and Tailscale access from
-the phone. The legacy hostname is retained as a stable bookmark. It does not
-run the harness in Kubernetes and does not add a public
+<https://ai.soyspray.vip>. It is for private LAN and Tailscale access from the
+phone. It does not run the harness in Kubernetes and does not add a public
 tunnel.
 
 ## Ownership
@@ -22,7 +21,7 @@ tunnel.
 
 ```sh
 kubectl -n opencode-remote get application,deployment,service,ingress
-curl --head https://opencode.soyspray.vip/
+curl --head https://ai.soyspray.vip/
 ```
 
 The unauthenticated request must return `401`. Test an authenticated Harness session

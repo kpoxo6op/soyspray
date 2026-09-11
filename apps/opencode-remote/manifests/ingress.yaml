@@ -11,10 +11,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - opencode.soyspray.vip
+        - ai.soyspray.vip
       secretName: prod-cert-tls
   rules:
-    - host: opencode.soyspray.vip
+    - host: ai.soyspray.vip
       http:
         paths:
           - path: /
