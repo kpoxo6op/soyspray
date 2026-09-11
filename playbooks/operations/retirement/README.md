@@ -11,6 +11,7 @@ Run it only after `ai` is present in Argo CD:
 
 ```bash
 source soyspray-venv/bin/activate
+python -m pip install -r playbooks/operations/retirement/requirements.in
 ansible-playbook playbooks/operations/retirement/opencode-remote.yml \
   -e confirm_ai_rename=true
 ```
