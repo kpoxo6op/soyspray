@@ -1,0 +1,83 @@
+---
+- name: Retire the legacy OpenCode-named Harness route
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    confirm_ai_rename: false
+  tasks:
+    - name: Read the replacement AI Application
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        name: ai
+        namespace: argocd
+      register: ai_application
+
+    - name: Verify the replacement owns the intended Git path
+      ansible.builtin.assert:
+        that:
+          - confirm_ai_rename | bool
+          - ai_application.resources | length == 1
+          - ai_application.resources[0].spec.project == 'ai'
+          - ai_application.resources[0].spec.source.path == 'apps/ai/manifests'
+          - ai_application.resources[0].spec.destination.namespace == 'ai'
+          - ai_application.resources[0].status.sync.status == 'Synced'
+        fail_msg: The replacement AI Application is not ready for the legacy-name retirement.
+
+    - name: Remove the legacy Application before its workload
+      kubernetes.core.k8s:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        name: opencode-remote
+        namespace: argocd
+        state: absent
+        wait: true
+
+    - name: Remove the legacy stateless namespace and route
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: opencode-remote
+        state: absent
+        wait: true
+        wait_timeout: 180
+
+    - name: Remove the legacy AppProject
+      kubernetes.core.k8s:
+        api_version: argoproj.io/v1alpha1
+        kind: AppProject
+        name: opencode-remote
+        namespace: argocd
+        state: absent
+        wait: true
+
+    - name: Wait for the renamed relay to become available
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: ai-relay
+        namespace: ai
+        wait: true
+        wait_condition:
+          type: Available
+          status: 'True'
+        wait_timeout: 180
+
+    - name: Read the renamed route resources
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api_version }}"
+        kind: "{{ item.kind }}"
+        name: "{{ item.name }}"
+        namespace: ai
+      loop:
+        - {api_version: v1, kind: Service, name: ai}
+        - {api_version: networking.k8s.io/v1, kind: Ingress, name: ai}
+        - {api_version: cert-manager.io/v1, kind: Certificate, name: ai}
+      register: ai_route
+
+    - name: Verify the renamed route resources exist
+      ansible.builtin.assert:
+        that:
+          - ai_route.results | map(attribute='resources') | map('length') | min == 1
+        fail_msg: The legacy route is retired, but one or more AI route resources are missing.

@@ -1,5 +1,25 @@
 # Node-0 OpenClaw retirement
 
+## Legacy DeepSeek Harness route name
+
+`opencode-remote.yml` removes the old `opencode-remote` Argo Application,
+namespace, route, and AppProject after the replacement `ai` Application is
+Synced. It then waits for the renamed relay and verifies its Service, Ingress,
+and Certificate exist.
+
+Run it only after `ai` is present in Argo CD:
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook playbooks/operations/retirement/opencode-remote.yml \
+  -e confirm_ai_rename=true
+```
+
+The operation is safe to rerun. It does not change the laptop, shared ingress,
+DNS provider credentials, or any namespace other than `opencode-remote`.
+
+## Node-0 OpenClaw
+
 OpenClaw runs on the laptop. `node0-openclaw.yml` removes only the verified
 old installation on node-0. Keep this operation through the migration window.
 
