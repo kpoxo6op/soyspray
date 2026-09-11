@@ -7,7 +7,7 @@ metadata:
     argocd.argoproj.io/sync-wave: '-10'
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
-  description: Private HTTPS route to OpenCode running on Boris's laptop.
+  description: Private HTTPS route to DeepSeek Harness running on Boris's laptop.
   sourceRepos:
     - https://github.com/kpoxo6op/soyspray.git
   destinations:
