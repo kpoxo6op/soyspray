@@ -247,11 +247,11 @@
         namespace: authentik
       data:
         cluster-sso.yaml: >-
-          {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/cluster-sso.yaml') }}
+          {{ lookup('file', role_path + '/../manifests/blueprints/cluster-sso.yaml') }}
         native-apps.yaml: >-
-          {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/native-apps.yaml') }}
+          {{ lookup('file', role_path + '/../manifests/blueprints/native-apps.yaml') }}
         legacy-forward-auth.yaml: >-
-          {{ lookup('file', playbook_dir + '/argocd/applications/security/authentik/blueprints/legacy-forward-auth.yaml') }}
+          {{ lookup('file', role_path + '/../manifests/blueprints/legacy-forward-auth.yaml') }}
   tags: [authentik, authentik-blueprints]
 
 - name: Apply the published Authentik blueprints
