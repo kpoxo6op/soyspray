@@ -211,6 +211,33 @@ entries:
     attrs:
       group: !Find [authentik_core.group, [name, cluster-admins]]
 
+  - model: authentik_providers_proxy.proxyprovider
+    id: ai-proxy-provider
+    identifiers:
+      name: DeepSeek Harness forward auth
+    attrs:
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-authentication-flow]]
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      external_host: https://ai.soyspray.vip
+      mode: forward_single
+
+  - model: authentik_core.application
+    id: ai-proxy-application
+    identifiers: {slug: ai}
+    attrs:
+      name: DeepSeek Harness
+      group: Cluster
+      meta_icon: fa://fa-robot
+      provider: !KeyOf ai-proxy-provider
+      meta_launch_url: https://ai.soyspray.vip
+      policy_engine_mode: all
+
+  - model: authentik_policies.policybinding
+    identifiers: {target: !KeyOf ai-proxy-application, order: 0}
+    attrs:
+      group: !Find [authentik_core.group, [name, cluster-admins]]
+
   - model: authentik_outposts.outpost
     identifiers:
       managed: goauthentik.io/outposts/embedded
@@ -227,3 +254,4 @@ entries:
         - !KeyOf lazylibrarian-proxy-provider
         - !KeyOf qbittorrent-proxy-provider
         - !KeyOf dispatcharr-proxy-provider
+        - !KeyOf ai-proxy-provider
