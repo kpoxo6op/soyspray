@@ -9,6 +9,13 @@ from conftest import ROOT, load_all, load_yaml
 BLUEPRINT = ROOT / ("apps/authentik/manifests/blueprints/legacy-forward-auth.yaml")
 
 APPLICATIONS = {
+    "ai": {
+        "directory": "apps/ai/manifests",
+        "host": "ai.soyspray.vip",
+        "namespace": "ai",
+        "config_map": "auth-proxy-set-headers-ai",
+        "service": "authentik-server-ai",
+    },
     "longhorn": {
         "directory": "apps/longhorn/manifests",
         "host": "longhorn.soyspray.vip",
