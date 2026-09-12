@@ -93,8 +93,8 @@ docs-serve: ## Preview the human documentation locally
 	$(VENV)/bin/mkdocs serve
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check apps/cluster-diagnosis apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/cert-manager-config/*.py apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich apps/prometheus/tests scripts tests playbooks/operations/nodes/cleanup-kubernetes-network.py playbooks/operations/nodes/run-node2-rebuild.py
-	$(PYTHON) -m ruff format --check apps/cluster-diagnosis apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/cert-manager-config/*.py apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich apps/prometheus/tests scripts tests playbooks/operations/nodes/cleanup-kubernetes-network.py playbooks/operations/nodes/run-node2-rebuild.py
+	$(PYTHON) -m ruff check apps/cluster-diagnosis apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/cert-manager-config/*.py apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich apps/prometheus/tests scripts tests
+	$(PYTHON) -m ruff format --check apps/cluster-diagnosis apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/cert-manager-config/*.py apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich apps/prometheus/tests scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml apps/obsidian-livesync/*.yml apps/cert-manager-config/*.yml apps/prometheus/*.yml argocd/bootstrap/repositories.yml apps/authentik/bootstrap/tasks/certificate.yml \
 		apps/voice-assistant/bootstrap/tasks/*.yml apps/voice-assistant/bootstrap/defaults/*.yml
@@ -105,13 +105,6 @@ lint: ## Check Python style and common defects
 		playbooks/bootstrap-app-inputs.yml \
 		playbooks/operations/runtime/install.yml \
 		playbooks/operations/nodes/snapshot-etcd.yml \
-		playbooks/operations/nodes/drill-v2/scope.yml \
-		playbooks/operations/nodes/preflight-node2-removal.yml \
-		playbooks/operations/nodes/clean-node2-baseline.yml \
-		playbooks/operations/storage/prepare-existing-longhorn-storage.yml \
-		playbooks/operations/storage/protect-loki-before-node2.yml \
-		playbooks/operations/storage/evacuate-node2.yml \
-		playbooks/operations/storage/restore-node2-replicas.yml \
 		playbooks/operations/recovery/restore-volume.yml playbooks/operations/recovery/cleanup-restore.yml playbooks/operations/recovery/start-restored-app.yml \
 		playbooks/operations/recovery/configure-longhorn.yml playbooks/operations/recovery/backup-daily-now.yml
 
