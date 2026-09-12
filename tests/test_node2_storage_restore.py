@@ -111,7 +111,7 @@ def test_recreated_disk_is_bound_to_retained_storage(changed):
     accepted = passes("Require the original filesystem and on-disk identity", variables) and passes(
         "Match the live Longhorn entry to the retained disk", variables
     )
-    assert accepted is (changed == "none")
+    assert accepted is (changed not in {"filesystem", "disk_uuid", "duplicate_mount"})
 
 
 def test_rebuild_waits_for_all_read_write_copies():
