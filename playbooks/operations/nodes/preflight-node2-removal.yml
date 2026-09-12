@@ -8,8 +8,6 @@
     kubeconfig_path: /etc/kubernetes/admin.conf
     removal_target: node-2
     removal_target_ip: 192.168.20.12
-    removal_target_longhorn_uid: 12d6269a-f61b-4b49-88a0-d2e4efc2e21a
-    removal_target_disk: default-disk-60b0ac7c10410705
     node2_retired_volume_name: pvc-5d43214a-cbfa-40ef-ab8c-a902acc3c180
     node2_retired_volume_uid: 572e059e-7d02-4e03-afcf-bf75cefed4b7
     node2_repository_root: "{{ (playbook_dir + '/../../..') | realpath }}"
@@ -117,6 +115,14 @@
         name: "{{ removal_target }}"
         kubeconfig: "{{ kubeconfig_path }}"
       register: node2_longhorn_node
+
+    - name: Select the live Longhorn identity for the retained storage mount
+      ansible.builtin.set_fact:
+        removal_target_longhorn_uid: "{{ node2_longhorn_node.resources[0].metadata.uid }}"
+        removal_target_disk: >-
+          {{ node2_longhorn_node.resources[0].spec.disks | dict2items
+             | selectattr('value.path', 'equalto', '/storage')
+             | map(attribute='key') | first }}
 
     - name: Read remaining Longhorn replicas
       kubernetes.core.k8s_info:

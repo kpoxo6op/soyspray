@@ -15,7 +15,15 @@ def test_node2_evacuation_is_identity_bound_and_uses_native_eviction() -> None:
     assert play["hosts"] == "kube_control_plane[0]"
     assert play["vars"]["removal_target"] == "node-2"
     assert play["vars"]["removal_target_ip"] == "192.168.20.12"
-    assert play["vars"]["removal_target_disk"] == "default-disk-60b0ac7c10410705"
+    assert "removal_target_disk" not in play["vars"]
+    identity = task_by_name(
+        play["tasks"], "Select the live Longhorn identity for the retained storage mount"
+    )["ansible.builtin.set_fact"]
+    assert (
+        identity["removal_target_longhorn_uid"]
+        == "{{ node2_longhorn_node.resources[0].metadata.uid }}"
+    )
+    assert "selectattr('value.path', 'equalto', '/storage')" in identity["removal_target_disk"]
     assert play["vars"]["node2_restore_replica_overrides"] == {
         "pvc-c43a407a-b315-458d-b6ab-a73aa882c0fb": 1
     }
