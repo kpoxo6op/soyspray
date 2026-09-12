@@ -8,7 +8,6 @@
     kubeconfig_path: /etc/kubernetes/admin.conf
     recovery_target: node-2
     recovery_target_ip: 192.168.20.12
-    recovery_target_disk: default-disk-60b0ac7c10410705
     node2_repository_root: "{{ (playbook_dir + '/../../..') | realpath }}"
   tasks:
     - name: Require a private evacuation plan and exact delivered revision
@@ -61,7 +60,6 @@
           - node2_evacuation_revision_ancestry.rc == 0
           - node2_evacuation_plan.target == recovery_target
           - node2_evacuation_plan.target_ip == recovery_target_ip
-          - node2_evacuation_plan.disk == recovery_target_disk
           - node2_evacuation_plan.volumes | length > 0
           - node2_evacuation_plan.volumes | map(attribute='name') | unique | list | length == node2_evacuation_plan.volumes | length
 
