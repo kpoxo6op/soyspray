@@ -1,0 +1,16 @@
+---
+- name: Confirm one native removal
+  ansible.builtin.import_playbook: scope.yml
+  vars:
+    drill_operation: remove
+
+- name: Run the pinned Kubespray removal
+  ansible.builtin.import_playbook: ../../../../kubespray/remove-node.yml
+  vars:
+    node: "{{ drill_node }}"
+    reset_nodes: true
+    skip_confirmation: true
+    allow_ungraceful_removal: "{{ drill_disrupt | default(false) | bool }}"
+    flush_iptables: false
+    reset_restart_network: false
+    drain_retries: 0
