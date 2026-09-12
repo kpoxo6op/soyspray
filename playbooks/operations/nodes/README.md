@@ -1,5 +1,10 @@
 # Node recovery
 
+For the experimental node-2 then node-1 observation drill, use
+[native drill v2](drill-v2/README.md). It has its own explicit disruption scope
+and does not use the evacuation and cleanup sequence below. V2 acceptance is
+pending; retain this v1 procedure as a reference until that review is complete.
+
 These operations remove and rebuild node-2 without reinstalling its OS or
 formatting either filesystem. Kubespray owns Kubernetes, etcd, the container
 runtime, and CNI. Longhorn owns replica movement. Use the exact sequence below.
