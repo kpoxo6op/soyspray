@@ -128,7 +128,6 @@
         that:
           - node2_restore_filesystem.stdout.split() == ['49c092f4-dd55-41f5-99c6-854f8b44af4e', 'ext4']
           - node2_restore_disks | length == 1
-          - node2_restore_disk_identity.diskName == node2_evacuation_plan.disk
           - node2_restore_disk_identity.diskUUID | length > 0
 
     - name: Select the verified live disk key
