@@ -105,6 +105,7 @@ lint: ## Check Python style and common defects
 		playbooks/bootstrap-app-inputs.yml \
 		playbooks/operations/runtime/install.yml \
 		playbooks/operations/nodes/snapshot-etcd.yml \
+		playbooks/operations/nodes/drill-v2/scope.yml \
 		playbooks/operations/nodes/preflight-node2-removal.yml \
 		playbooks/operations/nodes/clean-node2-baseline.yml \
 		playbooks/operations/storage/prepare-existing-longhorn-storage.yml \
