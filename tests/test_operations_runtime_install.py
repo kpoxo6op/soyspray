@@ -73,9 +73,6 @@ def test_runtime_checks_the_exact_release_and_recovery_playbooks() -> None:
         "playbooks/operations/recovery/restore-volume.yml",
         "playbooks/operations/recovery/validate-durable.yml",
         "apps/recovery-input-backup/collect.yml",
-        "playbooks/operations/storage/evacuate-node2.yml",
-        "playbooks/operations/storage/restore-node2-replicas.yml",
-        "playbooks/operations/nodes/remove-node2.yml",
-        "playbooks/operations/nodes/clean-node2-baseline.yml",
-        "playbooks/operations/nodes/rejoin-node2.yml",
+        "kubespray/remove-node.yml",
+        "kubespray/cluster.yml",
     ]
