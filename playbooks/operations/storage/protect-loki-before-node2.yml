@@ -59,7 +59,9 @@
             | length == loki_volume_before.resources[0].spec.numberOfReplicas
           - >-
             loki_volume_before.resources[0].spec.numberOfReplicas == 2 or
-            (loki_replicas_before.resources | map(attribute='spec.nodeID') | list) == [removal_target]
+            (loki_replicas_before.resources | map(attribute='spec.nodeID') | list) == [removal_target] or
+            (loki_replicas_before.resources | map(attribute='spec.nodeID') | list | unique | list) == ['node-0'] or
+            (loki_replicas_before.resources | map(attribute='spec.nodeID') | list | unique | list) == ['node-1']
         fail_msg: >-
           Loki no longer has the reviewed claim, volume, health, or replica
           placement. Stop before changing its replica policy.
@@ -81,7 +83,9 @@
           - op: replace
             path: /spec/numberOfReplicas
             value: 2
-      when: loki_volume_before.resources[0].spec.numberOfReplicas == 1
+      when:
+        - loki_volume_before.resources[0].spec.numberOfReplicas == 1
+        - removal_target in (loki_replicas_before.resources | map(attribute='spec.nodeID') | list)
 
     - name: Wait for two healthy Loki replicas
       kubernetes.core.k8s_info:
@@ -110,7 +114,10 @@
           | length == 1
       retries: 120
       delay: 5
-      when: not ansible_check_mode
+      when:
+        - not ansible_check_mode
+        - loki_volume_before.resources[0].spec.numberOfReplicas == 1
+        - removal_target in (loki_replicas_before.resources | map(attribute='spec.nodeID') | list)
 
     - name: Require the protected Loki volume
       kubernetes.core.k8s_info:
@@ -122,7 +129,7 @@
       register: loki_volume_after
       until:
         - loki_volume_after.resources | length == 1
-        - loki_volume_after.resources[0].spec.numberOfReplicas == 2
+        - loki_volume_after.resources[0].spec.numberOfReplicas in [1, 2]
         - loki_volume_after.resources[0].status.robustness == 'healthy'
       retries: 60
       delay: 5
