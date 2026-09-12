@@ -1,0 +1,8 @@
+---
+- name: Confirm one member is being restored
+  ansible.builtin.import_playbook: scope.yml
+  vars:
+    drill_operation: readd
+
+- name: Run the pinned Kubespray cluster reconciliation on all peers
+  ansible.builtin.import_playbook: ../../../../kubespray/cluster.yml
