@@ -30,18 +30,11 @@ After node maintenance, restore temporary application settings. Authentik's
 normal worker disruption budget keeps one worker available; see its
 [operations guide](https://github.com/kpoxo6op/soyspray/tree/main/apps/authentik).
 
-The retained-OS node rejoin stops if the `cert-manager` namespace is
-terminating. Resolve that separate namespace incident, then retry the same
-idempotent operation. Node recovery does not remove application finalizers or
-admission registrations.
-
 ## Detailed procedures
 
-- [Native node drill v2](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations/nodes/drill-v2):
-  an experimental remove/readd exercise on node-2, then node-1. It records native
-  failures and recovery, with an explicitly authorized disruptive fallback that
-  can lose data. It uses existing backup restore tools and has not yet passed
-  its live acceptance run. Ordinary maintenance does not imply this permission.
+- [Native node removal and readd](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations/nodes/drill-v2):
+  the retained-OS Kubespray path for one target at a time. The disruptive
+  fallback requires separate authorization and can lose data.
 - [Application operations](https://github.com/kpoxo6op/soyspray/tree/main/apps)
 - [Ansible operations](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations)
 - [Repository helper commands](https://github.com/kpoxo6op/soyspray/tree/main/scripts)
