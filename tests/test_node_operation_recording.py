@@ -1,11 +1,11 @@
-"""Protect the command recorder used by the native node drill."""
+"""Protect command recording for native node operations."""
 
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RECORDER = ROOT / "playbooks/operations/nodes/drill-v2/record.sh"
+RECORDER = ROOT / "playbooks/operations/nodes/record.sh"
 
 
 def test_recorder_preserves_exit_status_arguments_and_log_privacy(tmp_path):
