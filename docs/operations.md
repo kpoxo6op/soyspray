@@ -26,13 +26,14 @@ source, live health, access, and recovery evidence for one application.
 Do not use ad hoc Kubernetes writes for a lasting change. A live application
 must not be retargeted to a topic branch.
 
-After node maintenance, restore temporary application settings. Authentik's
-normal worker disruption budget keeps one worker available; see its
-[operations guide](https://github.com/kpoxo6op/soyspray/tree/main/apps/authentik).
+Node-1/node-2 removal and readd use the maintained native Kubespray procedure
+below. The validation drills are complete. Keep application disruption budgets
+and storage policy in place; a refused drain requires a decision about the
+specific maintenance outage, not temporary policy changes.
 
 ## Detailed procedures
 
-- [Native node removal and readd](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations/nodes/drill-v2):
+- [Native node removal and readd](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations/nodes):
   the retained-OS Kubespray path for one target at a time. The disruptive
   fallback requires separate authorization and can lose data.
 - [Application operations](https://github.com/kpoxo6op/soyspray/tree/main/apps)
