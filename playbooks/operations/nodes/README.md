@@ -1,10 +1,10 @@
 # Node operations
 
-Use native Kubespray to remove and readd node-1 or node-2, one at a time.
-The validation drills are complete. Use this procedure for requested
-maintenance; no repeat drill is required. It retains the OS, SSH and mounted
-filesystems. Node-0 removal, disk replacement and total-cluster recovery are
-outside this procedure.
+Use native Kubespray to remove and readd one node at a time. It retains the
+OS, SSH and mounted filesystems. For the first control-plane/etcd member,
+reorder all three groups so a healthy survivor is first and the target is
+last, then run the full cluster playbook before removal. Keep that survivor-
+first order after a successful readd.
 
 Use the merged repository revision and its pinned Kubespray submodule. The
 fork's cert-manager ownership protection must remain: Kubespray must not
@@ -22,8 +22,8 @@ git submodule update --init --recursive
 source soyspray-venv/bin/activate
 inventory="$PWD/kubespray/inventory/soycluster/hosts.yml"
 ansible_cmd=(ansible-playbook -i "$inventory" --become --become-user=root --user ubuntu)
-target=node-2  # select node-1 or node-2
-case "$target" in node-1|node-2) ;; *) exit 2 ;; esac
+target=node-2  # select one authorized target
+case "$target" in node-0|node-1|node-2) ;; *) exit 2 ;; esac
 session="$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short HEAD)"
 evidence="$HOME/.local/state/soyspray/node-operations/$session"
 umask 077
@@ -45,7 +45,12 @@ each node or unrelated commit. Keep credentials out of command logs.
 Save the target Node UID, filesystem identities, node/etcd membership,
 application health and active storage state. Record known exceptions before
 removal. Start with three Ready/schedulable nodes and healthy etcd; resolve an
-active recovery before taking another member out.
+active recovery before taking another member out. For a first-member removal,
+verify the reordered Ansible group order and run the full `cluster.yml` while
+all three nodes are present. After removal, use a private kubeconfig targeting
+a healthy survivor. If `kube-public/cluster-info` still names the removed
+endpoint, apply Kubespray's documented minimal endpoint correction while
+preserving the CA and other fields.
 
 ## Remove
 
