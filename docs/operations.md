@@ -26,10 +26,10 @@ source, live health, access, and recovery evidence for one application.
 Do not use ad hoc Kubernetes writes for a lasting change. A live application
 must not be retargeted to a topic branch.
 
-Node-1/node-2 removal and readd use the maintained native Kubespray procedure
-below. The validation drills are complete. Keep application disruption budgets
-and storage policy in place; a refused drain requires a decision about the
-specific maintenance outage, not temporary policy changes.
+Node-0, node-1 and node-2 use one native Kubespray procedure: prepare survivor
+access and backups, remove, readd, then verify recovery. All validation drills
+are complete. Keep disruption budgets and storage policy in place; the guide
+covers first-member discovery and node-0's local storage without extra wrappers.
 
 ## Detailed procedures
 
