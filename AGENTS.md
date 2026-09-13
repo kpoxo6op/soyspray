@@ -32,10 +32,11 @@ and backup/retention checks.
 - Kubespray inventory is `kubespray/inventory/soycluster/hosts.yml`.
 - Kubespray owns the cluster foundation. Argo CD owns application workloads;
   Ansible owns bootstrap inputs, secrets, recovery, and deliberate operations.
-- Node-1/node-2 drills are complete. For requested maintenance, use
+- Node-0/node-1/node-2 drills are complete. For requested maintenance, use
   `playbooks/operations/nodes/README.md` and the pinned native Kubespray commands.
   Do not repeat drills or rebuild the removed evacuation/cleanup wrappers.
-  Node-0 removal remains outside this procedure.
+  Check the current first control-plane/etcd member before removal; preserve
+  node-0's mounted storage and device identities.
 
 ## Networking Notes
 - Router (OpenWrt) is at `192.168.20.1`.
