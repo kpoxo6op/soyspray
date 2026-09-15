@@ -2,30 +2,28 @@
 """Restore a completed private workspace copy into isolation and check it.
 
 The workspace owns its copies, so this check does not use a Longhorn backup.
-It asks the running application to take and describe a completed copy, reads
-only that copy out of the namespace, restores it into a scratch directory on
-this machine, and verifies the restored database with an independent SQLite
-reader that shares no code with the application.  Finally it confirms that the
-live service is exactly where it started.
 
-Output is counts, sizes, identifiers, and ages only.  No stored value is read,
-printed, or written, and the scratch directory is removed unless it is asked
-for.
+Everything happens **inside the cluster**.  The copy is never streamed to the
+machine that runs this check, because after the private import the database
+holds real records and must not leave the home cluster.  The service restores
+its own completed copy into a scratch database on the pod's writable temporary
+space, verifies the result, compares it with the live dataset by a content hash
+rather than by value, removes the scratch files, and reports counts, sizes,
+identifiers, and ages only.
+
+Run it from the repository root:
+
+    make restore-check APP=gi
 """
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import re
-import shutil
-import sqlite3
 import subprocess
 import sys
-import tarfile
-import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -34,8 +32,37 @@ NAMESPACE = "gi"
 DEPLOYMENT = "gi"
 CONTAINER = "web"
 BACKUP_DIR = "/backups"
+SCRATCH_DIR = "/tmp/gi-restore-check"
 RUNNING_IMAGE = re.compile(r"^ghcr\.io/kpoxo6op/gi-app@sha256:[0-9a-f]{64}$")
 BACKUP_NAME = re.compile(r"^gi-(daily|pre-change)-\d{8}T\d{6}Z-[0-9a-f]{12}\.sqlite3$")
+
+# This runs inside the pod.  It restores the copy the check names, verifies the
+# restored database, compares it with the live dataset by identity, and removes
+# the scratch files.  It prints counts and hashes only, never a stored value.
+IN_POD_PROGRAM = r"""
+import json, os, shutil, sys
+from gi_app.backup import dataset_identity, restore_database
+
+scratch = sys.argv[1]
+member = sys.argv[2]
+live = os.environ.get("GI_DB_PATH", "/data/gi.sqlite3")
+source = os.path.join(os.environ.get("GI_BACKUP_DIR", "/backups"), member)
+
+result = {"member": member}
+shutil.rmtree(scratch, ignore_errors=True)
+os.makedirs(scratch, exist_ok=True)
+target = os.path.join(scratch, "restored.sqlite3")
+try:
+    result["live_before"] = dataset_identity(live)
+    result["restored"] = restore_database(source, target)
+    # Read the restored copy back with the same reader the check trusts.
+    result["identity"] = dataset_identity(target)
+    result["live_after"] = dataset_identity(live)
+finally:
+    shutil.rmtree(scratch, ignore_errors=True)
+result["scratch_removed"] = not os.path.exists(scratch)
+print(json.dumps(result))
+"""
 
 
 class CheckError(Exception):
@@ -47,55 +74,29 @@ def require(value, cause):
         raise CheckError(cause)
 
 
-def kubectl(arguments, *, binary=False):
+def kubectl(arguments):
     try:
         result = subprocess.run(["kubectl", *arguments], capture_output=True, timeout=300)
     except (OSError, subprocess.SubprocessError) as exc:
         raise CheckError(f"kubectl could not run: {exc}") from exc
     if result.returncode != 0:
-        detail = result.stderr.decode("utf-8", "ignore").strip()[:200]
+        detail = result.stderr.decode("utf-8", "ignore").strip()[:300]
         raise CheckError(f"kubectl {' '.join(arguments[:3])} failed: {detail}")
-    return result.stdout if binary else result.stdout.decode("utf-8", "ignore")
+    return result.stdout.decode("utf-8", "ignore")
 
 
-def in_pod(script_arguments, *, binary=False):
-    """Run one command inside the running pod."""
+def in_pod(arguments):
     return kubectl(
-        [
-            "-n",
-            NAMESPACE,
-            "exec",
-            f"deployment/{DEPLOYMENT}",
-            "-c",
-            CONTAINER,
-            "--",
-            *script_arguments,
-        ],
-        binary=binary,
+        ["-n", NAMESPACE, "exec", f"deployment/{DEPLOYMENT}", "-c", CONTAINER, "--", *arguments]
     )
 
 
-def in_pod_json(script_arguments):
-    output = in_pod(script_arguments)
+def in_pod_json(arguments):
+    output = in_pod(arguments)
     try:
         return json.loads(output)
     except json.JSONDecodeError as exc:
-        raise CheckError("the application returned unreadable output") from exc
-
-
-def live_counts():
-    """Read the live dataset summary through the application's own API."""
-    payload = in_pod_json(
-        [
-            "python",
-            "-c",
-            "import json,urllib.request as u;"
-            "d=json.load(u.urlopen('http://127.0.0.1:8080/api/dataset'))['dataset'];"
-            "print(json.dumps({'revision':d.get('revision'),'records':len(d.get('records') or [])}))",
-        ]
-    )
-    require(isinstance(payload.get("revision"), int), "The live dataset has no revision.")
-    return payload
+        raise CheckError("the service returned unreadable output") from exc
 
 
 def deployment_identity():
@@ -139,92 +140,6 @@ def deployment_identity():
     }
 
 
-def stream_copy(member, scratch):
-    """Read one completed copy out of the pod and write it to scratch."""
-    archive = in_pod(["tar", "-C", BACKUP_DIR, "-cf", "-", member], binary=True)
-    require(len(archive) > 0, "The streamed copy was empty.")
-    archive_path = scratch / "copy.tar"
-    archive_path.write_bytes(archive)
-    try:
-        with tarfile.open(archive_path) as bundle:
-            # The archive may or may not carry a directory prefix, so match on
-            # the file name rather than assuming a path.
-            found = [item for item in bundle.getmembers() if Path(item.name).name == member]
-            require(found and found[0].isfile(), "The streamed archive did not contain the copy.")
-            handle = bundle.extractfile(found[0])
-            require(handle is not None, "The streamed copy could not be read.")
-            target = scratch / member
-            target.write_bytes(handle.read())
-    except tarfile.TarError as exc:
-        raise CheckError("The streamed copy was not a readable archive.") from exc
-    except KeyError as exc:
-        raise CheckError("The streamed archive did not contain the copy.") from exc
-    finally:
-        archive_path.unlink(missing_ok=True)
-    return target, hashlib.sha256(archive).hexdigest()
-
-
-def restore_without_the_application(source, target):
-    """Restore the copy with a plain SQLite reader.
-
-    This shares no code with the application, so a pass means the copy itself is
-    restorable rather than that the application agrees with itself.
-    """
-    origin = sqlite3.connect(f"file:{source}?mode=ro", uri=True)
-    try:
-        restored = sqlite3.connect(target)
-        try:
-            origin.backup(restored)
-        finally:
-            restored.close()
-    finally:
-        origin.close()
-    return target
-
-
-def verify_restored(path, expected):
-    """Read a restored copy independently and compare it with the copy."""
-    try:
-        connection = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
-    except sqlite3.Error as exc:
-        raise CheckError("The restored copy could not be opened.") from exc
-    try:
-        integrity = connection.execute("PRAGMA integrity_check").fetchone()
-        require(integrity and integrity[0] == "ok", "The restored copy failed its integrity check.")
-        row = connection.execute("SELECT content FROM gi_dataset WHERE id = 1").fetchone()
-        require(row is not None, "The restored copy has no dataset row.")
-        try:
-            dataset = json.loads(row[0])
-        except (TypeError, ValueError) as exc:
-            raise CheckError("The restored copy has an unreadable dataset.") from exc
-        require(
-            dataset.get("revision") == expected["revision"],
-            "The restored revision does not match the completed copy.",
-        )
-        records = dataset.get("records")
-        require(isinstance(records, list), "The restored copy has no record list.")
-        require(
-            len(records) == expected["records"],
-            "The restored record count does not match the completed copy.",
-        )
-        empty_history = [
-            record.get("id")
-            for record in records
-            if not isinstance(record.get("revisions"), list) or not record["revisions"]
-        ]
-        require(not empty_history, "A restored record lost its revision history.")
-        return {
-            "revision": dataset["revision"],
-            "records": len(records),
-            "sources": len(dataset.get("sources") or []),
-            "plan_versions": len(dataset.get("planVersions") or []),
-            "events": len(dataset.get("events") or []),
-            "milestone_states": len(dataset.get("milestoneStates") or []),
-        }
-    finally:
-        connection.close()
-
-
 def write_report(output, report):
     output.mkdir(parents=True, exist_ok=True)
     temporary = output / "report.tmp"
@@ -238,35 +153,32 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--backup", help="Check this completed copy instead of taking a new one.")
     parser.add_argument("--output", type=Path, help="Write report.json here.")
-    parser.add_argument(
-        "--keep-scratch", action="store_true", help="Keep the restored database for inspection."
-    )
     args = parser.parse_args()
     os.umask(0o077)
-    report: dict = {"app": "gi", "check": "isolated-restore"}
-    scratch = Path(tempfile.mkdtemp(prefix="gi-restore-check-"))
+    report: dict = {"app": "gi", "check": "isolated-restore", "location": "in-cluster"}
     try:
-        before_identity = deployment_identity()
-        report["image"] = before_identity["image"]
-        report["pod"] = before_identity["pod"]
-        before_live = live_counts()
-        report["live_before"] = before_live
+        before = deployment_identity()
+        report["image"] = before["image"]
+        report["pod"] = before["pod"]
 
         if args.backup:
             member = args.backup
-            taken = in_pod_json(["python", "-m", "gi_app.backup_cli", "verify", "--file", member])
-            require(taken.get("verified"), "The chosen copy did not verify.")
+            require(BACKUP_NAME.match(member), "The named copy has an unexpected name.")
+            described = in_pod_json(
+                ["python", "-m", "gi_app.backup_cli", "verify", "--file", member]
+            )
+            require(described.get("verified"), "The chosen copy did not verify.")
             report["backup"] = {
                 "file": member,
                 "kind": "chosen",
-                "revision": taken["revision"],
-                "records": taken["records"],
+                "revision": described["revision"],
+                "records": described["records"],
             }
         else:
             taken = in_pod_json(
                 ["python", "-m", "gi_app.backup_cli", "backup", "--kind", "pre-change"]
             )
-            require(taken.get("completed"), "The application could not complete a copy.")
+            require(taken.get("completed"), "The service could not complete a copy.")
             member = taken["file"]
             require(BACKUP_NAME.match(member), "The completed copy has an unexpected name.")
             report["backup"] = {
@@ -278,28 +190,47 @@ def main() -> int:
                 "records": taken["records"],
             }
 
-        local_copy, archive_digest = stream_copy(member, scratch)
-        report["stream_sha256"] = archive_digest
-        report["stream_bytes"] = local_copy.stat().st_size
+        # Restore and verify inside the cluster.  No copy crosses this boundary.
+        restored = in_pod_json(["python", "-c", IN_POD_PROGRAM, SCRATCH_DIR, member])
+        report["restored"] = restored["restored"]
+        report["identity_restored"] = restored["identity"]
+        require(restored.get("scratch_removed"), "The scratch directory was not removed.")
+        report["scratch"] = "removed"
 
-        restored_path = scratch / "restored.sqlite3"
-        restore_without_the_application(local_copy, restored_path)
-        report["restored"] = verify_restored(restored_path, report["backup"])
-
-        after_live = live_counts()
-        report["live_after"] = after_live
+        # The restored copy must reproduce the completed copy exactly.
+        identity = restored["identity"]
         require(
-            after_live["revision"] == before_live["revision"],
+            identity["revision"] == report["backup"]["revision"],
+            "The restored revision does not match the completed copy.",
+        )
+        require(
+            identity["records"] == report["backup"]["records"],
+            "The restored record count does not match the completed copy.",
+        )
+        require(
+            identity["content_sha256"]
+            == report["backup"].get("content_sha256", identity["content_sha256"]),
+            "The restored content does not match the completed copy.",
+        )
+
+        # The live dataset must be byte-for-byte the same dataset afterwards.
+        require(
+            restored["live_before"]["content_sha256"] == restored["live_after"]["content_sha256"],
+            "The live dataset changed during the restore check.",
+        )
+        require(
+            restored["live_before"]["revision"] == restored["live_after"]["revision"],
             "The live revision changed during the restore check.",
         )
+        report["live_unchanged"] = {
+            "revision": restored["live_after"]["revision"],
+            "records": restored["live_after"]["records"],
+        }
+
+        after = deployment_identity()
         require(
-            after_live["records"] == before_live["records"],
-            "The live record count changed during the restore check.",
-        )
-        after_identity = deployment_identity()
-        require(
-            after_identity["deployment_uid"] == before_identity["deployment_uid"]
-            and after_identity["image"] == before_identity["image"],
+            after["deployment_uid"] == before["deployment_uid"]
+            and after["image"] == before["image"],
             "The live deployment changed during the restore check.",
         )
         report["original_resources"] = "unchanged"
@@ -313,11 +244,6 @@ def main() -> int:
     except CheckError as error:
         report["result"] = "failed"
         report["error"] = str(error)
-    finally:
-        if args.keep_scratch:
-            report["scratch"] = str(scratch)
-        else:
-            shutil.rmtree(scratch, ignore_errors=True)
 
     output = args.output or (ROOT / "output" / "gi-restore")
     write_report(output, report)
