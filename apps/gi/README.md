@@ -35,6 +35,26 @@ separate from `cluster-admins` and `media-users`. An unavailable Authentik
 service denies access rather than allowing it. The backend is an internal
 ClusterIP Service. There is no public tunnel and no public landing page.
 
+## Registry credential
+
+The image is a private GHCR package, so the cluster needs a pull credential. It
+is a GitHub personal access token (classic) with only the `read:packages` scope,
+kept outside this checkout as an Ansible Vault variables file:
+
+```yaml
+gi_registry_username: kpoxo6op
+gi_registry_token: <classic token with read:packages>
+```
+
+```sh
+make check APP=gi
+ansible-playbook apps/gi/bootstrap.yml -e @/path/to/gi-registry.vault.yml --ask-vault-pass
+```
+
+The bootstrap creates the `gi-registry` Secret in the `gi` namespace and never
+replaces an existing credential. Without it the pod reports `ImagePullBackOff`,
+because the package denies anonymous pulls.
+
 ## What this package owns
 
 `manifests/` holds the namespace, the two claims, the deployment, the service,
