@@ -19,6 +19,7 @@ NODE2 := 192.168.20.12
 KUSTOMIZATIONS := \
 	argocd \
 	apps/autism-traits/manifests \
+	apps/gi/manifests \
 	apps/boys/manifests \
 	apps/domain-health \
 	apps/immich/database/production \
@@ -93,8 +94,8 @@ docs-serve: ## Preview the human documentation locally
 	$(VENV)/bin/mkdocs serve
 
 lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check apps/cluster-diagnosis apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/cert-manager-config/*.py apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich apps/prometheus/tests scripts tests
-	$(PYTHON) -m ruff format --check apps/cluster-diagnosis apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/cert-manager-config/*.py apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich apps/prometheus/tests scripts tests
+	$(PYTHON) -m ruff check apps/cluster-diagnosis apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/cert-manager-config/*.py apps/gi/tests apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich apps/prometheus/tests scripts tests
+	$(PYTHON) -m ruff format --check apps/cluster-diagnosis apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/cert-manager-config/*.py apps/gi/tests apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/immich apps/prometheus/tests scripts tests
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
 		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/vaultwarden/*.yml apps/obsidian-livesync/*.yml apps/cert-manager-config/*.yml apps/prometheus/*.yml argocd/bootstrap/repositories.yml apps/authentik/bootstrap/tasks/certificate.yml \
 		apps/voice-assistant/bootstrap/tasks/*.yml apps/voice-assistant/bootstrap/defaults/*.yml
@@ -125,7 +126,7 @@ status-page-check:
 	$(MAKE) --no-print-directory -f apps/status-page/Makefile check
 
 test: ## Run the focused test suite
-	$(PYTEST) -q tests apps/cluster-diagnosis/tests apps/immich/tests apps/immich-offsite-backup/tests --ignore=apps/immich-offsite-backup/tests/test_backup.py apps/autism-traits/tests apps/boys/tests apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/prometheus/tests
+	$(PYTEST) -q tests apps/cluster-diagnosis/tests apps/immich/tests apps/immich-offsite-backup/tests --ignore=apps/immich-offsite-backup/tests/test_backup.py apps/autism-traits/tests apps/boys/tests apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/gi/tests apps/prometheus/tests
 
 render: ## Render all managed Kustomize packages
 	for path in $(KUSTOMIZATIONS); do \

@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gi
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: gi
+    soyspray.vip/owner: platform
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-url: https://gi.soyspray.vip
+    soyspray.vip/access-method: Authentik forward auth, gi-users group only; LAN and
+      Tailscale
+    soyspray.vip/data-claims: gi/gi-data, gi/gi-backups
+    soyspray.vip/data: gi/gi-data; /data/gi.sqlite3; private records and revisions.
+      gi/gi-backups; /backups; completed database copies.
+    soyspray.vip/backup: 'App-owned: one completed copy each day and before each
+      import or schema change, seven daily copies and the latest pre-change copy'
+    soyspray.vip/backup-cause: Home-cluster storage only. This claim is deliberately
+      outside the off-cluster Longhorn recovery groups, so it does not protect against
+      complete loss of the home cluster.
+spec:
+  project: gi
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: main
+    path: apps/gi/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gi
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - PruneLast=true
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: gi
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: v1.35
+        pod-security.kubernetes.io/warn: restricted
+        pod-security.kubernetes.io/warn-version: v1.35

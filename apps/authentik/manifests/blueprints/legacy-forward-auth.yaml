@@ -238,6 +238,35 @@ entries:
     attrs:
       group: !Find [authentik_core.group, [name, cluster-admins]]
 
+  # GI is a private single-user workspace.  Its policy binds only the dedicated
+  # gi-users group, so no existing group or administrator gains access by default.
+  - model: authentik_providers_proxy.proxyprovider
+    id: gi-proxy-provider
+    identifiers:
+      name: GI workspace forward auth
+    attrs:
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-authentication-flow]]
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+      external_host: https://gi.soyspray.vip
+      mode: forward_single
+
+  - model: authentik_core.application
+    id: gi-proxy-application
+    identifiers: {slug: gi}
+    attrs:
+      name: GI workspace
+      group: Cluster
+      meta_icon: fa://fa-lock
+      provider: !KeyOf gi-proxy-provider
+      meta_launch_url: https://gi.soyspray.vip
+      policy_engine_mode: all
+
+  - model: authentik_policies.policybinding
+    identifiers: {target: !KeyOf gi-proxy-application, order: 0}
+    attrs:
+      group: !Find [authentik_core.group, [name, gi-users]]
+
   - model: authentik_outposts.outpost
     identifiers:
       managed: goauthentik.io/outposts/embedded
@@ -255,3 +284,4 @@ entries:
         - !KeyOf qbittorrent-proxy-provider
         - !KeyOf dispatcharr-proxy-provider
         - !KeyOf ai-proxy-provider
+        - !KeyOf gi-proxy-provider

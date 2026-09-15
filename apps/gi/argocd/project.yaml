@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: gi
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '-10'
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  description: Private single-user workspace on the LAN and Tailscale path.
+  sourceRepos:
+    - https://github.com/kpoxo6op/soyspray.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: gi
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: ''
+      kind: ConfigMap
+    - group: ''
+      kind: PersistentVolumeClaim
+    - group: ''
+      kind: Service
+    - group: cert-manager.io
+      kind: Certificate
+    - group: apps
+      kind: Deployment
+    - group: networking.k8s.io
+      kind: Ingress

@@ -37,6 +37,13 @@ entries:
     identifiers:
       name: media-users
 
+  # Private single-user workspace group.  It is deliberately separate from
+  # cluster-admins and media-users so no other account gains access by default.
+  - model: authentik_core.group
+    id: gi-users
+    identifiers:
+      name: gi-users
+
   - model: authentik_core.user
     id: boris-user
     state: created
@@ -48,6 +55,7 @@ entries:
       groups:
         - !KeyOf cluster-admins
         - !KeyOf media-users
+        - !KeyOf gi-users
       password: !Env SSO_PASSWORD
 
   - model: authentik_providers_oauth2.oauth2provider
