@@ -51,7 +51,18 @@ APPLICATIONS = {
         "config_map": "auth-proxy-set-headers-qbittorrent",
         "service": "authentik-server-qbittorrent",
     },
+    "gi": {
+        "directory": "apps/gi/manifests",
+        "host": "gi.soyspray.vip",
+        "namespace": "gi",
+        "config_map": "auth-proxy-set-headers-gi",
+        "service": "authentik-server-gi",
+    },
 }
+
+# Every forward-auth route binds exactly one group.  Only `gi` uses a dedicated
+# group, so no existing group or administrator reaches it by default.
+FORWARD_AUTH_GROUPS = {"gi": "gi-users"}
 
 AUTH_ANNOTATIONS = {
     "nginx.ingress.kubernetes.io/auth-url",
@@ -124,7 +135,11 @@ def test_blueprint_has_all_bound_single_application_proxy_providers() -> None:
         }
         for application in applications
     }
-    assert all(groups == {"cluster-admins"} for groups in binding_groups.values())
+    assert all(
+        groups
+        == {FORWARD_AUTH_GROUPS.get(name.removesuffix("-proxy-application"), "cluster-admins")}
+        for name, groups in binding_groups.items()
+    )
     assert len(outposts) == 1
     assert outposts[0]["identifiers"]["managed"] == "goauthentik.io/outposts/embedded"
     assert len(outposts[0]["attrs"]["providers"]) == len(expected_hosts)
