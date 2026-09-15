@@ -284,6 +284,19 @@ def test_the_access_group_has_exactly_one_private_member_source():
     assert holders == ["boris"]
 
 
+def test_the_member_entry_is_reconciled_on_every_apply():
+    """Authentik skips an existing instance for `state: created`.
+
+    With `created`, adding a group to this account would never reach an account
+    that already exists, so the workspace group would stay empty.  `present`
+    keeps the group list in step with the reviewed file.
+    """
+    entries = blueprint("cluster-sso.yaml")["entries"]
+    user = next(entry for entry in entries if entry.get("id") == "boris-user")
+    assert user["state"] == "present"
+    assert "gi-users" in user["attrs"]["groups"]
+
+
 def test_no_private_value_can_reach_the_public_package():
     """The public repository ships deployment only, never runtime content."""
     tracked = subprocess.check_output(

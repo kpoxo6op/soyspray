@@ -46,7 +46,10 @@ entries:
 
   - model: authentik_core.user
     id: boris-user
-    state: created
+    # `present`, not `created`: Authentik skips an existing instance for
+    # `created`, so a group added here would never reach an account that already
+    # exists.  `present` keeps the group list in step with this file.
+    state: present
     identifiers:
       username: boris
     attrs:
