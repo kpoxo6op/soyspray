@@ -19,6 +19,7 @@ APP_PATHS = {
     ),
     "boys": ("apps/boys/",),
     "autism": ("apps/autism-traits/",),
+    "gi": ("apps/gi/",),
 }
 SHARED_CONTROLS = {
     "Makefile",

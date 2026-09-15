@@ -1,0 +1,17 @@
+---
+- name: Bootstrap the private workspace registry credential
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Prepare the protected namespace
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition: >-
+          {{ lookup('file', playbook_dir + '/../../apps/gi/manifests/namespace.yaml') | from_yaml }}
+
+    - name: Prepare the private pull credential
+      ansible.builtin.import_tasks: bootstrap-tasks.yml

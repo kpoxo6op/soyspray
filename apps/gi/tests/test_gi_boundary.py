@@ -123,6 +123,32 @@ def test_the_running_image_is_an_immutable_private_digest():
     assert ":latest" not in container["image"]
 
 
+def test_the_private_image_has_a_declared_pull_credential():
+    """A private package needs a credential, and it is created from Vault inputs.
+
+    Without this the pod can only ever report ImagePullBackOff, because the
+    package denies anonymous pulls.
+    """
+    pod = named("Deployment", "gi")["spec"]["template"]["spec"]
+    assert pod["imagePullSecrets"] == [{"name": "gi-registry", "optional": True}]
+
+    bootstrap = (APP / "bootstrap-tasks.yml").read_text()
+    assert "kind: Secret" in bootstrap
+    assert "kubernetes.io/dockerconfigjson" in bootstrap
+    assert "read:packages" in bootstrap
+    # The credential is supplied from outside the repository.
+    assert "gi_registry_token" in bootstrap
+    assert "no_log: true" in bootstrap
+
+    tracked = subprocess.check_output(
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "--", "apps/gi"],
+        cwd=ROOT,
+        text=True,
+    ).split()
+    for name in tracked:
+        assert not name.endswith(".vault.yml"), name
+
+
 def test_only_one_writer_can_run_at_a_time():
     spec = named("Deployment", "gi")["spec"]
     assert spec["replicas"] == 1
@@ -268,6 +294,8 @@ def test_no_private_value_can_reach_the_public_package():
     allowed = {
         "apps/gi/Makefile",
         "apps/gi/README.md",
+        "apps/gi/bootstrap-tasks.yml",
+        "apps/gi/bootstrap.yml",
         "apps/gi/argocd/application.yaml",
         "apps/gi/argocd/kustomization.yaml",
         "apps/gi/argocd/project.yaml",

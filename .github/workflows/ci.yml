@@ -22,6 +22,7 @@ jobs:
       media_helper: ${{ steps.scope.outputs.media_helper }}
       boys: ${{ steps.scope.outputs.boys }}
       autism: ${{ steps.scope.outputs.autism }}
+      gi: ${{ steps.scope.outputs.gi }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -143,8 +144,32 @@ jobs:
     with:
       publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
+
+  gi:
+    needs: scope
+    if: needs.scope.outputs.gi == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - name: Install local tooling
+        run: python -m pip install -r requirements-dev.txt
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v5
+      - name: Check the private workspace boundary
+        run: python -m pytest -q apps/gi/tests
+      - name: Render the private workspace package
+        run: |
+          kubectl kustomize apps/gi/manifests >/dev/null
+          kubectl kustomize apps/gi/argocd >/dev/null
+
   check:
-    needs: [scope, shared, autism, boys, immich, domain_health, media_helper]
+    needs: [scope, shared, autism, boys, immich, domain_health, media_helper, gi]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -157,7 +182,7 @@ jobs:
           jobs = json.loads(os.environ['RESULTS'])
           for job in ('scope', 'shared'):
               assert jobs[job]['result'] == 'success', f'{job} did not pass'
-          for app in ('autism', 'boys', 'immich', 'domain_health', 'media_helper'):
+          for app in ('autism', 'boys', 'immich', 'domain_health', 'media_helper', 'gi'):
               selected = jobs['scope']['outputs'].get(app)
               assert selected in ('true', 'false'), f'{app} scope is missing'
               expected = 'success' if selected == 'true' else 'skipped'

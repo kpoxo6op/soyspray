@@ -1,0 +1,63 @@
+---
+# The image is a private GHCR package, so the cluster needs a pull credential.
+# The credential is a GitHub personal access token (classic) with only
+# `read:packages`, stored outside this checkout as an Ansible Vault variable.
+#
+#   gi_registry_username: kpoxo6op
+#   gi_registry_token: <classic token with read:packages>
+#
+# Supply it as an extra variables file:
+#   ansible-playbook apps/gi/bootstrap.yml \
+#     -e @/path/to/gi-registry.vault.yml --ask-vault-pass
+
+- name: Read the existing GI pull credential
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: gi
+    name: gi-registry
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: gi_existing_registry
+  no_log: true
+
+- name: Validate the supplied pull credential
+  ansible.builtin.assert:
+    that:
+      - gi_registry_username is defined
+      - gi_registry_token is defined
+      - gi_registry_username | length > 0
+      - gi_registry_token | length > 0
+    fail_msg: >-
+      Supply gi_registry_username and gi_registry_token through an Ansible Vault
+      variables file. The token must be a GitHub personal access token (classic)
+      with only the read:packages scope.
+  no_log: true
+  when: gi_existing_registry.resources | length == 0
+
+- name: Create the missing GI pull credential
+  kubernetes.core.k8s:
+    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: gi-registry
+        namespace: gi
+        labels:
+          app.kubernetes.io/part-of: gi
+      type: kubernetes.io/dockerconfigjson
+      stringData:
+        .dockerconfigjson: >-
+          {{ {'auths': {'ghcr.io': {'auth': (gi_registry_username ~ ':' ~ gi_registry_token) | b64encode}}} | to_json }}
+  no_log: true
+  when: gi_existing_registry.resources | length == 0
+
+- name: Report the pull credential state
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        'gi-registry already exists; the existing credential was preserved.'
+        if gi_existing_registry.resources | length > 0
+        else 'gi-registry created from the supplied Vault inputs.'
+      }}

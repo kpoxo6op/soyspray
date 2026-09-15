@@ -24,6 +24,7 @@ def test_boys_changes_select_its_browser_checks(path):
         "immich": False,
         "domain_health": False,
         "media_helper": False,
+        "gi": False,
     }
 
 
@@ -34,6 +35,7 @@ def test_shared_only_change_keeps_application_checks_optional():
         "immich": False,
         "domain_health": False,
         "media_helper": False,
+        "gi": False,
     }
     assert ci_scope.select(["apps/autism-traits/app/src/App.tsx"]) == {
         "boys": False,
@@ -41,6 +43,7 @@ def test_shared_only_change_keeps_application_checks_optional():
         "immich": False,
         "domain_health": False,
         "media_helper": False,
+        "gi": False,
     }
 
 
@@ -118,6 +121,7 @@ def test_deleted_and_renamed_paths_are_both_checked(tmp_path, monkeypatch):
         "immich": False,
         "domain_health": False,
         "media_helper": False,
+        "gi": False,
     }
 
 
@@ -145,6 +149,7 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
                 "immich": "false",
                 "domain_health": "false",
                 "media_helper": "false",
+                "gi": "false",
             },
         },
         "shared": {"result": "success"},
@@ -153,6 +158,7 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
         "immich": {"result": "skipped"},
         "domain_health": {"result": "skipped"},
         "media_helper": {"result": "skipped"},
+        "gi": {"result": "skipped"},
     }
     if failure in {"shared", "scope"}:
         jobs[failure]["result"] = "failure"
@@ -181,6 +187,26 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
     assert (run.returncode == 0) is (failure is None)
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        "apps/gi/manifests/deployment.yaml",
+        "apps/gi/argocd/application.yaml",
+        "apps/gi/bootstrap-tasks.yml",
+        "apps/gi/tests/test_gi_boundary.py",
+    ],
+)
+def test_gi_changes_select_its_boundary_checks(path):
+    assert ci_scope.select([path]) == {
+        "boys": False,
+        "autism": False,
+        "immich": False,
+        "domain_health": False,
+        "media_helper": False,
+        "gi": True,
+    }
+
+
 def test_immich_recovery_changes_select_native_image_checks():
     assert ci_scope.select(["apps/immich-offsite-backup/manifests/runtime/dump.sql"]) == {
         "boys": False,
@@ -188,6 +214,7 @@ def test_immich_recovery_changes_select_native_image_checks():
         "immich": True,
         "domain_health": False,
         "media_helper": False,
+        "gi": False,
     }
 
 
@@ -198,6 +225,7 @@ def test_domain_health_changes_select_the_native_image_checks():
         "immich": False,
         "domain_health": True,
         "media_helper": False,
+        "gi": False,
     }
 
 
