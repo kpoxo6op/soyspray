@@ -9,6 +9,7 @@ resources:
   - ../apps/external-dns/argocd
   - ../apps/domain-health/argocd
   - ../apps/ai/argocd
+  - ../apps/gi/argocd
   - ../apps/vaultwarden/argocd
   - ../apps/obsidian-livesync/argocd
   - ../apps/media-helper/argocd
