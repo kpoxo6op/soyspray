@@ -237,17 +237,17 @@ class RestoreCheckTests(unittest.TestCase):
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual("passed", report["result"])
         self.assertEqual(self.image, report["image"])
-        self.assertEqual(self.revision, report["live_before"]["revision"])
         self.assertEqual(self.revision, report["backup"]["revision"])
         self.assertEqual(3, report["backup"]["records"])
         self.assertEqual(self.revision, report["restored"]["revision"])
         self.assertEqual(3, report["restored"]["records"])
-        self.assertEqual(3, report["restored"]["sources"])
+        self.assertEqual(3, report["identity_restored"]["sources"])
+        self.assertEqual(self.revision, report["live_unchanged"]["revision"])
+        self.assertEqual(3, report["live_unchanged"]["records"])
         self.assertEqual("unchanged", report["original_resources"])
         self.assertEqual("retained", report["completed_copy"])
-        self.assertNotIn("scratch", report)
-        # Nothing about the live database changed.
-        self.assertEqual(self.revision, report["live_after"]["revision"])
+        self.assertEqual("removed", report["scratch"])
+        self.assertEqual("in-cluster", report["location"])
         connection = sqlite3.connect(f"file:{self.live}?mode=ro", uri=True)
         try:
             dataset = json.loads(
@@ -263,21 +263,23 @@ class RestoreCheckTests(unittest.TestCase):
         result, report = self.run_check()
         self.assertEqual(0, result.returncode)
         text = json.dumps(report)
-        for forbidden in ("mortgageCents", "sourceIds", "label", "content"):
+        # No record value, no source label, and no dataset body may appear.
+        # Table names and digests are structure, not content.
+        for forbidden in ("mortgageCents", "sourceIds", "synthetic statement", "SELECT content"):
             self.assertNotIn(forbidden, text)
-        # Only counts, identifiers, sizes, and ages.
+        # Only counts, identifiers, sizes, ages, and content digests.
         self.assertEqual(
             {
                 "app",
                 "check",
+                "location",
                 "image",
                 "pod",
-                "live_before",
                 "backup",
-                "stream_sha256",
-                "stream_bytes",
                 "restored",
-                "live_after",
+                "identity_restored",
+                "scratch",
+                "live_unchanged",
                 "original_resources",
                 "completed_copy",
                 "checked_at",
@@ -285,6 +287,9 @@ class RestoreCheckTests(unittest.TestCase):
             },
             set(report),
         )
+        # The only content-shaped field is a digest, never a value.
+        self.assertEqual(64, len(report["identity_restored"]["content_sha256"]))
+        self.assertRegex(report["identity_restored"]["content_sha256"], r"^[0-9a-f]{64}$")
 
     def test_a_failed_copy_is_reported_rather_than_passing(self) -> None:
         self.start_instance()
