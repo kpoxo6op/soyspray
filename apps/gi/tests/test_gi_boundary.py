@@ -130,7 +130,9 @@ def test_the_private_image_has_a_declared_pull_credential():
     package denies anonymous pulls.
     """
     pod = named("Deployment", "gi")["spec"]["template"]["spec"]
-    assert pod["imagePullSecrets"] == [{"name": "gi-registry", "optional": True}]
+    # No `optional` key: the API server discards it, so including it would make
+    # Argo report permanent drift.
+    assert pod["imagePullSecrets"] == [{"name": "gi-registry"}]
 
     bootstrap = (APP / "bootstrap-tasks.yml").read_text()
     assert "kind: Secret" in bootstrap

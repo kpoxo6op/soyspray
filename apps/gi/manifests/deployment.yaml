@@ -23,12 +23,12 @@ spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
       # The image is a private package, so the cluster needs a pull credential.
-      # The maintained bootstrap creates it from private Vault inputs.  It is
-      # marked optional so a first sync still renders while the credential is
-      # being prepared; the pod then reports ImagePullBackOff until it exists.
+      # The maintained bootstrap creates it from private Vault inputs.  Do not
+      # mark it optional: the API server discards that field, so Argo would
+      # report permanent drift and re-sync forever.  Until the credential
+      # exists the pod reports ImagePullBackOff, which is the honest state.
       imagePullSecrets:
         - name: gi-registry
-          optional: true
       securityContext:
         fsGroup: 1000
         fsGroupChangePolicy: OnRootMismatch
