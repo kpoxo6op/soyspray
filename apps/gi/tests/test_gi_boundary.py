@@ -323,8 +323,10 @@ def test_no_private_value_can_reach_the_public_package():
         "apps/gi/manifests/pvc.yaml",
         "apps/gi/manifests/service.yaml",
         "apps/gi/tests/test_gi_boundary.py",
+        "apps/gi/tests/test_gi_restore_check.py",
     }
     assert set(tracked) <= allowed, sorted(set(tracked) - allowed)
+    # The boundary check names the patterns it forbids, so it is not scanned.
     scanned = sorted(allowed - {"apps/gi/tests/test_gi_boundary.py"})
     text = "\n".join((ROOT / name).read_text().lower() for name in scanned)
     for forbidden in ("datasetid", "monthly closing balance", "closingmortgagecents"):
