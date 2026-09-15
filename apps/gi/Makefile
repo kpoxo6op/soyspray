@@ -1,5 +1,5 @@
 include $(dir $(lastword $(MAKEFILE_LIST)))../common.mk
-.PHONY: check diff bootstrap
+.PHONY: check diff bootstrap restore-check
 
 check:
 	cd $(ROOT) && $(PYTHON) -m pytest -q apps/gi/tests
@@ -13,6 +13,9 @@ diff:
 
 bootstrap:
 	cd $(ROOT) && $(ANSIBLE) apps/gi/bootstrap.yml
+
+restore-check:
+	cd $(ROOT) && $(PYTHON) -m scripts.gi_restore_check
 
 .DEFAULT:
 	@printf 'unknown: gi has no maintained %s operation yet.\n' "$@" >&2
