@@ -52,7 +52,13 @@ def test_dashboard_retirement_is_scoped_and_guarded() -> None:
     names = [task["name"] for task in tasks]
 
     guard = tasks[names.index("Require a healthy Application before removing anything")]
-    assert "Synced" in guard["ansible.builtin.assert"]["fail_msg"]
+    assert "Healthy" in guard["ansible.builtin.assert"]["fail_msg"]
+
+    drift = tasks[names.index("Require the only drift to be replaced dashboard ConfigMaps")]
+    condition = " ".join(drift["ansible.builtin.assert"]["that"])
+    assert "rejectattr('status', 'equalto', 'Synced')" in condition
+    assert "rejectattr('kind', 'equalto', 'ConfigMap')" in condition
+    assert "dashboard_prefix" in condition
 
     remove = tasks[names.index("Remove the replaced dashboard ConfigMaps")]
     assert remove["kubernetes.core.k8s"]["kind"] == "ConfigMap"
