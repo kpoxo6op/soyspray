@@ -214,6 +214,21 @@ class LifecycleTests(unittest.TestCase):
         current = incident.Incident(next(iter(state["incidents"].values())))
         self.assertEqual(current.generation, 1)
 
+    def test_alerts_that_never_page_are_not_incidents(self):
+        state = fresh_state()
+        report = applied(
+            state,
+            [
+                alert(
+                    alertname="Watchdog", namespace=None, pod=None, container=None, severity="none"
+                ),
+                alert(alertname="InfoInhibitor", severity="info"),
+                alert(alertname="CPUThrottlingHigh", severity="info"),
+            ],
+        )
+        self.assertEqual(report["transitions"], [])
+        self.assertEqual(state["incidents"], {})
+
     def test_suppressed_alert_does_not_open_an_incident(self):
         state = fresh_state()
         report = applied(state, [alert(inhibited=["KubeNodeNotReady"])])

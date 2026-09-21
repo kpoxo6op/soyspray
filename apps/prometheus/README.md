@@ -41,6 +41,15 @@ Alloy-derived log and event counters.
 holds the complete mapping, the detection timing and the missing-evidence
 behaviour.
 
+The template may use only Go `text/template` builtins plus the functions
+Alertmanager adds (`date`, `humanizeDuration`, `join`, `match`, `reReplaceAll`,
+`safeHtml`, `since`, `stringSlice`, `title`, `toLower`, `toUpper`, `trimSpace`,
+`tz`). There is no arithmetic function, so the overflow line reports the group
+size and the number shown rather than a difference. An undefined function fails
+the reload and raises `AlertmanagerFailedReload` while the old configuration
+keeps running, so `apps/loki/tests/test_alloy_signals.py` rejects any unknown
+name.
+
 The Telegram template is plain text on purpose, and `parse_mode: ""` is set
 explicitly because Alertmanager defaults an absent `parse_mode` to `HTML`. With
 HTML, one unescaped `<` in alert text made Telegram reject a whole group with
