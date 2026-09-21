@@ -283,7 +283,7 @@ alertmanager:
       {{- end }}
       {{- end }}
       {{- if gt (len .Alerts) $limit }}
-      (+{{ sub (len .Alerts) $limit }} more alerts in this group; open Grafana for the rest)
+      (+{{ len .Alerts }} alerts in this group, {{ $limit }} shown; open Grafana for the rest)
       {{- end }}
       {{- if .CommonAnnotations.runbook_url }}
       Runbook: {{ .CommonAnnotations.runbook_url }}

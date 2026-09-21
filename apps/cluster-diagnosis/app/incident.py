@@ -15,6 +15,10 @@ from datetime import datetime, timedelta
 from typing import Any, Iterable
 from urllib.parse import urlsplit, urlunsplit
 
+# Only alerts that can reach a human are operational incidents. Watchdog and
+# InfoInhibitor are synthetic bookkeeping alerts at severity none, and info
+# alerts never page, so tracking them would show a permanently open incident.
+TRACKED_SEVERITIES = frozenset({"critical", "warning"})
 # Symptoms that arrive inside this window belong to the same incident.
 CORRELATION_WINDOW = timedelta(minutes=30)
 # An incident with no firing symptom is closed after this grace period. The grace
@@ -431,6 +435,8 @@ def apply_alerts(
     observed: dict[str, list[tuple[str, dict[str, Any]]]] = {}
     for alert in alerts:
         if not isinstance(alert, dict):
+            continue
+        if severity(alert) not in TRACKED_SEVERITIES:
             continue
         kind, key = anchor(alert)
         observed.setdefault(anchor_id(kind, key), []).append((kind, alert))

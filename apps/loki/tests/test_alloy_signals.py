@@ -231,6 +231,64 @@ def test_alloy_pods_roll_when_the_pipeline_changes():
         assert annotations.get("soyspray.dev/signal-config"), name
 
 
+# Go text/template builtins plus every function Alertmanager adds (v0.28.1
+# template/template.go). Anything else fails at reload time, which keeps the old
+# configuration running and raises AlertmanagerFailedReload.
+TEMPLATE_FUNCTIONS = {
+    "and",
+    "call",
+    "html",
+    "index",
+    "slice",
+    "js",
+    "len",
+    "not",
+    "or",
+    "print",
+    "printf",
+    "println",
+    "urlquery",
+    "eq",
+    "ne",
+    "lt",
+    "le",
+    "gt",
+    "ge",
+    "date",
+    "humanizeDuration",
+    "join",
+    "match",
+    "reReplaceAll",
+    "safeHtml",
+    "since",
+    "stringSlice",
+    "title",
+    "toLower",
+    "toUpper",
+    "trimSpace",
+    "tz",
+    "template",
+    "define",
+    "block",
+    "range",
+    "with",
+    "if",
+    "else",
+    "end",
+    "nil",
+    "true",
+    "false",
+}
+
+
+def test_alert_manager_template_uses_only_defined_functions():
+    values = yaml.safe_load((ROOT / "apps/prometheus/values.yaml").read_text())
+    template = values["alertmanager"]["templateFiles"]["soy-telegram.tmpl"]
+    called = set(re.findall(r"{{\s*-?\s*([a-zA-Z_][a-zA-Z0-9_]*)", template))
+    unknown = {name for name in called if name not in TEMPLATE_FUNCTIONS}
+    assert not unknown, f"Alertmanager does not define these template functions: {sorted(unknown)}"
+
+
 def test_alert_manager_template_stays_plain_text():
     values = yaml.safe_load((ROOT / "apps/prometheus/values.yaml").read_text())
     telegram = values["alertmanager"]["config"]["receivers"][1]["telegram_configs"][0]
