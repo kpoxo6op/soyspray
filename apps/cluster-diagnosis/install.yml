@@ -39,6 +39,7 @@
       loop:
         - profile
         - drafts
+        - evidence
         - "source-{{ diagnosis_revision.stdout }}"
 
     - name: Seed the dedicated account without replacing a refreshed profile
@@ -139,6 +140,12 @@
           - "CLUSTER_DIAGNOSIS_WORKSPACE={{ diagnosis_state }}/drafts"
           - --command-env
           - "CLUSTER_DIAGNOSIS_SOURCE={{ diagnosis_state }}/source-{{ diagnosis_revision.stdout }}"
+          - --command-env
+          - "CLUSTER_DIAGNOSIS_EVIDENCE={{ diagnosis_state }}/evidence"
+          - --command-env
+          - "CLUSTER_DIAGNOSIS_METRICS={{ diagnosis_state }}/metrics.json"
+          - --command-env
+          - "CLUSTER_DIAGNOSIS_LOKI_URL=http://loki.monitoring.svc.cluster.local:3100"
 
     - name: Create the disabled command job
       ansible.builtin.command:
@@ -204,7 +211,9 @@
           Description=Serve saved Soyspray numeric recovery evidence
           [Service]
           WorkingDirectory={{ diagnosis_repo }}
-          ExecStart={{ diagnosis_repo }}/soyspray-venv/bin/python -m scripts.operations_evidence --serve-only --bind 192.168.20.50
+          ExecStart={{ diagnosis_repo }}/soyspray-venv/bin/python -m scripts.operations_evidence \
+            --serve-only --bind 192.168.20.50 \
+            --incident-state {{ diagnosis_state }}/metrics.json
           Restart=on-failure
           RestartSec=30
           NoNewPrivileges=true
