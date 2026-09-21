@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/component: config
     app.kubernetes.io/part-of: observability
   annotations:
-    description: Loki configuration for single-binary deployment with retention and ruler enabled.
+    description: Loki configuration for single-binary deployment with bounded retention.
 data:
   config.yaml: |
     auth_enabled: false
@@ -56,16 +56,5 @@ data:
       retention_delete_delay: 30m
       retention_delete_worker_count: 64
       compactor_ring:
-        kvstore:
-          store: inmemory
-
-    ruler:
-      alertmanager_url: http://alertmanager-operated.monitoring.svc:9093
-      rule_path: /var/loki/rules-temp
-      storage:
-        type: local
-        local:
-          directory: /etc/loki/rules
-      ring:
         kvstore:
           store: inmemory
