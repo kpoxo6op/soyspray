@@ -1,0 +1,190 @@
+rule_files:
+  - runtime-signals.yaml
+evaluation_interval: 1m
+
+tests:
+  - name: Crash looping pod pages at critical severity
+    interval: 1m
+    input_series:
+      - series: >-
+          kube_pod_container_status_waiting_reason{job="kube-state-metrics",namespace="immich",
+          pod="immich-server-0",container="server",reason="CrashLoopBackOff"}
+        values: "1x30"
+      - series: >-
+          kube_pod_container_status_waiting_reason{job="kube-state-metrics",namespace="boys",
+          pod="boys-0",container="web",reason="ContainerCreating"}
+        values: "1x30"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: SoysprayPodCrashLooping
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: kube-state-metrics
+              namespace: immich
+              pod: immich-server-0
+              container: server
+              reason: CrashLoopBackOff
+            exp_annotations:
+              summary: "Pod immich/immich-server-0 is crash looping"
+              description: >-
+                Container server in immich/immich-server-0 has been waiting in CrashLoopBackOff for
+                10 minutes. Read the pod logs in Grafana and run the application check before
+                changing anything.
+      - eval_time: 5m
+        alertname: SoysprayPodCrashLooping
+        exp_alerts: []
+
+  - name: Volume attach failure pages at critical severity
+    interval: 1m
+    input_series:
+      - series: >-
+          soyspray_event_mount_failure_total{namespace="obsidian",type="Warning",
+          kubernetes_event_involved_object_name="obsidian-livesync-0",cluster="soyspray",
+          kubernetes_event_reason="FailedMount"}
+        values: "1x30"
+      - series: >-
+          soyspray_event_mount_failure_total{namespace="boy",type="Warning",
+          kubernetes_event_involved_object_name="boy-0",cluster="soyspray",
+          kubernetes_event_reason="FailedMount"}
+        values: "_x30"
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: SoysprayVolumeMountFailure
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              namespace: obsidian
+              kubernetes_event_involved_object_name: obsidian-livesync-0
+            exp_annotations:
+              summary: "Volume attach or mount failure for obsidian/obsidian-livesync-0"
+              description: >-
+                Kubernetes reported FailedMount or FailedAttachVolume for
+                obsidian/obsidian-livesync-0 in the last 10 minutes. Check Longhorn volume status
+                and node health.
+
+  - name: Backup tool errors warn before the backup record goes stale
+    interval: 1m
+    input_series:
+      # Created on the first match, so the first sample is already 1 and later
+      # samples stay flat. increase() alone would never see this failure.
+      - series: >-
+          soyspray_log_media_backup_failure_total{namespace="immich",container="aws-sync",
+          pod="immich-paired-backup-1",cluster="soyspray",job="kubernetes-pods"}
+        values: "1x20"
+      - series: >-
+          soyspray_log_couchdb_backup_failure_total{namespace="obsidian",container="backup",
+          pod="obsidian-couchdb-offsite-backup-1",cluster="soyspray",job="kubernetes-pods"}
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: SoysprayBackupToolFailure
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: immich
+              container: aws-sync
+            exp_annotations:
+              summary: "Backup tool errors in immich/aws-sync"
+              description: >-
+                A backup container logged a failure line in the last 5 minutes. The backup record
+                may still look current. Read the container logs in Grafana before the next
+                schedule.
+          - exp_labels:
+              severity: warning
+              namespace: obsidian
+              container: backup
+            exp_annotations:
+              summary: "Backup tool errors in obsidian/backup"
+              description: >-
+                A backup container logged a failure line in the last 5 minutes. The backup record
+                may still look current. Read the container logs in Grafana before the next
+                schedule.
+
+  - name: Database backup failure pages at critical severity
+    interval: 1m
+    input_series:
+      - series: >-
+          soyspray_log_database_backup_failure_total{namespace="postgresql",container="postgres",
+          pod="immich-db-a-1",cluster="soyspray",job="kubernetes-pods"}
+        values: "1x20"
+      - series: >-
+          soyspray_log_database_archive_failure_total{namespace="postgresql",container="plugin-barman-cloud",
+          pod="immich-db-a-1",cluster="soyspray",job="kubernetes-pods"}
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: SoysprayDatabaseBackupFailure
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              namespace: postgresql
+            exp_annotations:
+              summary: "Database backup or WAL archive failure in postgresql"
+              description: >-
+                The PostgreSQL cluster logged a backup, barman or archive_command failure in the
+                last 5 minutes. Check the database backup record before the 36h stale threshold.
+
+  - name: Only the declared backup jobs raise a backoff warning
+    interval: 1m
+    input_series:
+      # A single terminal event creates the series at 1 and never repeats.
+      - series: >-
+          soyspray_event_job_backoff_total{namespace="immich",type="Warning",
+          kubernetes_event_involved_object_name="immich-media-offsite-sync-28912345",
+          cluster="soyspray"}
+        values: "1x20"
+      - series: >-
+          soyspray_event_job_backoff_total{namespace="boys",type="Warning",
+          kubernetes_event_involved_object_name="unrelated-cleanup-job-1234",cluster="soyspray"}
+        values: "1x20"
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: SoysprayBackupJobBackoff
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: immich
+              kubernetes_event_involved_object_name: immich-media-offsite-sync-28912345
+            exp_annotations:
+              summary: "Backup job immich-media-offsite-sync-28912345 hit its backoff limit"
+              description: >-
+                Kubernetes reported BackoffLimitExceeded for a backup job in immich. The job will
+                not retry until the next schedule.
+
+  - name: A stalled Alloy writer warns that log evidence is missing
+    interval: 1m
+    input_series:
+      - series: >-
+          loki_write_sent_bytes_total{instance="10.233.88.194:12345",job="monitoring/alloy",
+          namespace="monitoring",pod="alloy-cf9ml",endpoint="http-metrics",container="alloy"}
+        values: "1000x60"
+      - series: >-
+          loki_write_sent_bytes_total{instance="10.233.71.164:12345",job="monitoring/alloy",
+          namespace="monitoring",pod="alloy-khqsm",endpoint="http-metrics",container="alloy"}
+        values: "0+1000x60"
+      - series: >-
+          up{instance="10.233.88.194:12345",job="monitoring/alloy",namespace="monitoring",
+          pod="alloy-cf9ml",endpoint="http-metrics",container="alloy"}
+        values: "1x60"
+      - series: >-
+          up{instance="10.233.71.164:12345",job="monitoring/alloy",namespace="monitoring",
+          pod="alloy-khqsm",endpoint="http-metrics",container="alloy"}
+        values: "1x60"
+    alert_rule_test:
+      - eval_time: 40m
+        alertname: SoysprayLogPipelineStalled
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: 10.233.88.194:12345
+              job: monitoring/alloy
+              namespace: monitoring
+              pod: alloy-cf9ml
+              endpoint: http-metrics
+              container: alloy
+            exp_annotations:
+              summary: "Alloy instance 10.233.88.194:12345 is not sending logs to Loki"
+              description: >-
+                Alloy is up but has sent nothing to Loki for 20 minutes. New incidents will have no
+                log evidence. Check Loki health and the Alloy writer metrics.
