@@ -248,10 +248,11 @@ alertmanager:
           - api_url: "https://api.telegram.org"
             bot_token_file: /etc/alertmanager/telegram/PROMETHEUS_TELEGRAM_BOT_TOKEN
             chat_id: 336642153
-            # Alertmanager defaults parse_mode to "HTML" when the key is absent,
-            # so plain text must be asked for explicitly. An empty string is the
-            # documented way to disable entity parsing.
-            parse_mode: ""
+            # parse_mode stays at Alertmanager's HTML default. An empty value
+            # would disable entity parsing, but the Prometheus Operator omits an
+            # empty string from the generated config, so asking for it changes
+            # nothing. HTML mode auto-escapes alert text; the template below
+            # keeps the rendered message short enough never to be truncated.
             message: '{{ template "soy.telegram" . }}'
       - name: "watchdog-healthchecks"
         webhook_configs:
@@ -260,25 +261,42 @@ alertmanager:
     templates:
       - '/etc/alertmanager/config/*.tmpl'
   templateFiles:
-    # Plain text on purpose. With parse_mode HTML, one unescaped "<" in alert
-    # text made Telegram reject the whole group with "can't parse entities"
-    # (96 rejected deliveries on 2026-09-13), so a critical alert could be lost.
-    # The label set is trimmed and the alert list is capped so a group stays
-    # inside the Telegram message limit.
+    # Alertmanager truncates the rendered message at 4096 runes. That cut is what
+    # produced "can't parse entities: Unclosed start tag": in HTML parse mode the
+    # engine auto-escapes alert text, so a truncation in the middle of an entity
+    # leaves the message unparseable and Telegram rejects the whole group.
+    # Alertmanager defines no arithmetic and no substring function, so every long
+    # field first loses "<" and "&" - which also stops auto-escaping from
+    # expanding the text - and is then capped with reReplaceAll. The alert count
+    # is capped as well, so the rendered length cannot reach the truncation.
+    #
+    # Alertmanager's template functions are the Go text/template builtins plus
+    # date, humanizeDuration, join, match, reReplaceAll, safeHtml, since,
+    # stringSlice, title, toLower, toUpper, trimSpace and tz. Anything else fails
+    # the reload, and apps/loki/tests rejects an unknown name.
     soy-telegram.tmpl: |
       {{- define "soy.telegram" -}}
-      {{- $limit := 12 -}}
-      {{- if eq .Status "firing" -}}🔥 FIRING{{- else -}}✅ RESOLVED{{- end }} [{{ .CommonLabels.severity }}] {{ .CommonLabels.alertname }} ({{ len .Alerts }})
+      {{- $limit := 4 -}}
+      {{- if eq .Status "firing" -}}🔥 FIRING{{- else -}}✅ RESOLVED{{- end }} [{{ .CommonLabels.severity }}] {{ .CommonLabels.alertname | reReplaceAll "[<&]" " " | reReplaceAll "(?s)^(.{0,80}).*$" "$1" }} ({{ len .Alerts }})
 
       {{- range $index, $alert := .Alerts }}
       {{- if lt $index $limit }}
-      - {{ .Labels.namespace }}{{ if .Labels.job_name }}/{{ .Labels.job_name }}{{ end }}{{ if .Labels.deployment }}/{{ .Labels.deployment }}{{ end }}{{ if .Labels.statefulset }}/{{ .Labels.statefulset }}{{ end }}{{ if .Labels.daemonset }}/{{ .Labels.daemonset }}{{ end }}{{ if and .Labels.pod (not .Labels.job_name) }}/{{ .Labels.pod }}{{ end }}{{ if .Labels.container }}/{{ .Labels.container }}{{ end }}{{ if .Labels.node }} node={{ .Labels.node }}{{ end }}{{ if .Labels.reason }} reason={{ .Labels.reason }}{{ end }}
+      {{- $who := printf "%s" .Labels.namespace -}}
+      {{- if .Labels.job_name }}{{ $who = printf "%s/%s" $who .Labels.job_name }}{{ end -}}
+      {{- if .Labels.deployment }}{{ $who = printf "%s/%s" $who .Labels.deployment }}{{ end -}}
+      {{- if .Labels.statefulset }}{{ $who = printf "%s/%s" $who .Labels.statefulset }}{{ end -}}
+      {{- if .Labels.daemonset }}{{ $who = printf "%s/%s" $who .Labels.daemonset }}{{ end -}}
+      {{- if and .Labels.pod (not .Labels.job_name) }}{{ $who = printf "%s/%s" $who .Labels.pod }}{{ end -}}
+      {{- if .Labels.container }}{{ $who = printf "%s/%s" $who .Labels.container }}{{ end -}}
+      {{- if .Labels.node }}{{ $who = printf "%s node=%s" $who .Labels.node }}{{ end -}}
+      {{- if .Labels.reason }}{{ $who = printf "%s reason=%s" $who .Labels.reason }}{{ end }}
+      - {{ $who | reReplaceAll "[<&]" " " | reReplaceAll "(?s)^(.{0,200}).*$" "$1" }}
 
         {{- $text := .Annotations.summary -}}
         {{- if eq $text "" -}}{{- $text = .Annotations.description -}}{{- end }}
-        {{ $text }}
+        {{ $text | reReplaceAll "[<&]" " " | reReplaceAll "(?s)^(.{0,300}).*$" "$1" }}
         {{- if and .Annotations.description (ne .Annotations.description $text) }}
-        {{ .Annotations.description }}
+        {{ .Annotations.description | reReplaceAll "[<&]" " " | reReplaceAll "(?s)^(.{0,300}).*$" "$1" }}
         {{- end }}
       {{- end }}
       {{- end }}
@@ -286,7 +304,7 @@ alertmanager:
       (+{{ len .Alerts }} alerts in this group, {{ $limit }} shown; open Grafana for the rest)
       {{- end }}
       {{- if .CommonAnnotations.runbook_url }}
-      Runbook: {{ .CommonAnnotations.runbook_url }}
+      Runbook: {{ .CommonAnnotations.runbook_url | reReplaceAll "[<&]" " " | reReplaceAll "(?s)^(.{0,200}).*$" "$1" }}
       {{- end }}
       {{- end }}
 

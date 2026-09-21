@@ -41,27 +41,26 @@ Alloy-derived log and event counters.
 holds the complete mapping, the detection timing and the missing-evidence
 behaviour.
 
-The template may use only Go `text/template` builtins plus the functions
-Alertmanager adds (`date`, `humanizeDuration`, `join`, `match`, `reReplaceAll`,
-`safeHtml`, `since`, `stringSlice`, `title`, `toLower`, `toUpper`, `trimSpace`,
-`tz`). There is no arithmetic function, so the overflow line reports the group
-size and the number shown rather than a difference. An undefined function fails
-the reload and raises `AlertmanagerFailedReload` while the old configuration
-keeps running, so `apps/loki/tests/test_alloy_signals.py` rejects any unknown
-name.
+The Telegram template may use only Go `text/template` builtins plus the
+functions Alertmanager adds (`date`, `humanizeDuration`, `join`, `match`,
+`reReplaceAll`, `safeHtml`, `since`, `stringSlice`, `title`, `toLower`,
+`toUpper`, `trimSpace`, `tz`). There is no arithmetic and no substring function,
+so the overflow line reports the group size and the number shown, and length
+bounds come from `reReplaceAll`. An undefined function fails the reload and
+raises `AlertmanagerFailedReload` while the old configuration keeps running, so
+`apps/loki/tests/test_alloy_signals.py` rejects any unknown name.
 
-The Telegram template is plain text on purpose, and `parse_mode: ""` is set
-explicitly because Alertmanager defaults an absent `parse_mode` to `HTML`. With
-HTML, one unescaped `<` in alert text made Telegram reject a whole group with
-`can't parse entities` (96 rejected deliveries on 2026-09-13), so a critical
-alert could be lost. The template trims the label set and renders at most twelve
-alerts per group, then says how many were left out, so a group stays inside the
-Telegram message limit. Annotations themselves remain unbounded, so a single
-alert with an extremely long annotation could still exceed it.
+`parse_mode` stays at Alertmanager's `HTML` default. An empty value would
+disable entity parsing, but the Prometheus Operator omits an empty string from
+the generated config, so asking for it changes nothing and only looks effective.
 
-`SoysprayLogPipelineStalled` covers the evidence path: it warns when an Alloy
-instance is up but has sent nothing to Loki for 20 minutes, so a silent log
-pipeline is visible before the next incident needs log evidence.
+The failure mode being defended against is truncation, not escaping. In HTML
+mode the engine auto-escapes alert text, but Alertmanager cuts the rendered
+message at 4096 runes, and a cut inside an escaped entity leaves the message
+unparseable, so Telegram rejects the whole group. That is what produced the 96
+rejected deliveries on 2026-09-13. The template therefore removes `<` and `&`
+from every long field, caps each field, and renders at most four alerts per
+group, which keeps the worst case near 3.6 thousand runes.
 
 Node-level inhibition is not used. The standard kube-state-metrics alerts carry
 no `node` label, so an inhibition rule with `equal: [node]` could not match them.

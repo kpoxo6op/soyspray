@@ -289,14 +289,44 @@ def test_alert_manager_template_uses_only_defined_functions():
     assert not unknown, f"Alertmanager does not define these template functions: {sorted(unknown)}"
 
 
-def test_alert_manager_template_stays_plain_text():
+def test_alert_manager_template_cannot_be_truncated():
+    """Alertmanager cuts the rendered message at 4096 runes.
+
+    A cut in the middle of an auto-escaped entity leaves an unparseable message
+    and Telegram rejects the whole group, which is what happened on 2026-09-13.
+    The template must bound its own length instead of relying on that cut.
+    """
     values = yaml.safe_load((ROOT / "apps/prometheus/values.yaml").read_text())
-    telegram = values["alertmanager"]["config"]["receivers"][1]["telegram_configs"][0]
-    # Alertmanager defaults parse_mode to "HTML", so plain text must be explicit.
-    assert telegram.get("parse_mode") == "", "an absent parse_mode means HTML"
     template = values["alertmanager"]["templateFiles"]["soy-telegram.tmpl"]
     assert "<b>" not in template and "<a href" not in template
-    assert "lt $index $limit" in template, "the alert list must stay bounded"
+
+    limit = int(re.search(r"\$limit := (\d+)", template).group(1))
+    capped = re.findall(
+        r'reReplaceAll "\[<&\]" " " \| reReplaceAll "\(\?s\)\^\(\.\{0,(\d+)\}\)\.\*\$" "\$1"',
+        template,
+    )
+    caps = sorted(int(value) for value in capped)
+    # Every rendered field that carries alert text: the alert name, the label
+    # line, the summary, the description and the runbook URL.
+    assert caps == [80, 200, 200, 300, 300], caps
+
+    # Removing "<" and "&" first means auto-escaping cannot expand the text, so
+    # the rendering is bounded by the caps themselves.
+    header = 21 + 80 + 8
+    per_alert = 2 + 200 + 1 + 2 + 300 + 1 + 2 + 300 + 1
+    footer = 80 + 2 + 200
+    worst = header + limit * per_alert + footer
+    assert worst < 4096, f"worst-case rendering is {worst} runes"
+    assert limit >= 2, "a group must show more than one alert"
+
+
+def test_alert_manager_receiver_does_not_claim_an_ineffective_setting():
+    """The Prometheus Operator omits an empty parse_mode from the config."""
+    values = yaml.safe_load((ROOT / "apps/prometheus/values.yaml").read_text())
+    telegram = values["alertmanager"]["config"]["receivers"][1]["telegram_configs"][0]
+    assert "parse_mode" not in telegram, (
+        "an empty parse_mode is dropped by the operator and would only look effective"
+    )
 
 
 if __name__ == "__main__":
