@@ -6,6 +6,7 @@ import argparse
 import json
 import math
 import os
+import re
 import shlex
 import shutil
 import signal
@@ -29,9 +30,13 @@ VAULT_FILE = "/home/boris/.config/soyspray/recovery/immich-backup.vault.yml"
 VAULT_PASSWORD_FILE = "/home/boris/.config/soyspray/recovery/vault-password"
 RESTORE_ROOT = Path.home() / ".local/state/soyspray/restores"
 EVIDENCE_FILE = Path.home() / ".local/state/soyspray/evidence/operations.jsonl"
+INCIDENT_FILE = Path.home() / ".local/state/soyspray/cluster-diagnosis/metrics.json"
 INTERVAL_SECONDS = 120
 DEFAULT_BIND = "127.0.0.1"
 DEFAULT_PORT = 9910
+MAX_INCIDENT_ANCHORS = 40
+MAX_INCIDENT_LABEL = 80
+INCIDENT_SCHEMA_VERSION = 1
 CRITICAL_BACKUPS = {
     "boys/boys-data": {"app_namespace": "boys", "pvc": "boys-data"},
     "obsidian/obsidian-livesync-couchdb-rescue-longhorn": {
@@ -482,7 +487,166 @@ class MetricsHandler(BaseHTTPRequestHandler):
         return
 
 
-def saved_metrics(output: str | Path, restore_root: str | Path = RESTORE_ROOT) -> str:
+def _bounded_label(value: object) -> str:
+    text = re.sub(r"[^A-Za-z0-9_.:/ -]", "_", str(value))
+    return text[:MAX_INCIDENT_LABEL]
+
+
+def _number(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    number = float(value)
+    return number if math.isfinite(number) else None
+
+
+def incident_metrics(path: str | Path = INCIDENT_FILE, now: datetime | None = None) -> str:
+    """Expose bounded incident, collector and classifier state as numbers only.
+
+    The diagnosis adapter writes the private snapshot. A missing, unreadable or
+    older snapshot yields no series, so the dashboard shows unknown instead of a
+    false zero.
+    """
+    lines = [
+        "# HELP soyspray_incident_open Incidents the adapter currently tracks as open.",
+        "# TYPE soyspray_incident_open gauge",
+        "# HELP soyspray_incident_opened_timestamp_seconds Open time of a tracked incident.",
+        "# TYPE soyspray_incident_opened_timestamp_seconds gauge",
+        "# HELP soyspray_incident_consequence Application incident owned by an open node incident.",
+        "# TYPE soyspray_incident_consequence gauge",
+        "# HELP soyspray_diagnosis_attempts_today Model attempts spent on the current day.",
+        "# TYPE soyspray_diagnosis_attempts_today gauge",
+        "# HELP soyspray_diagnosis_outcome_total Diagnosis outcomes since the state file was created.",
+        "# TYPE soyspray_diagnosis_outcome_total counter",
+        "# HELP soyspray_diagnosis_last_outcome_timestamp_seconds Time of the last recorded outcome.",
+        "# TYPE soyspray_diagnosis_last_outcome_timestamp_seconds gauge",
+        "# HELP soyspray_diagnosis_alertmanager_source_ok Whether the last Alertmanager read succeeded.",
+        "# TYPE soyspray_diagnosis_alertmanager_source_ok gauge",
+        "# HELP soyspray_evidence_collector_observed Whether the collector returned an evidence pack.",
+        "# TYPE soyspray_evidence_collector_observed gauge",
+        "# HELP soyspray_evidence_collector_lines_read_total Log lines the collector read for the last incident.",
+        "# TYPE soyspray_evidence_collector_lines_read_total gauge",
+        "# HELP soyspray_evidence_collector_lines_exported_total Log lines the collector exported after allowlisting.",
+        "# TYPE soyspray_evidence_collector_lines_exported_total gauge",
+        "# HELP soyspray_evidence_gap_total Declared evidence gaps by reason.",
+        "# TYPE soyspray_evidence_gap_total gauge",
+        "# HELP soyspray_classifier_up Whether the last classification returned usable hints.",
+        "# TYPE soyspray_classifier_up gauge",
+        "# HELP soyspray_classifier_failure_total Classifier requests that failed or fell back.",
+        "# TYPE soyspray_classifier_failure_total counter",
+        "# HELP soyspray_classifier_unknown_total Evidence lines left explicitly unknown.",
+        "# TYPE soyspray_classifier_unknown_total counter",
+        "# HELP soyspray_classifier_last_success_timestamp_seconds Last successful classification.",
+        "# TYPE soyspray_classifier_last_success_timestamp_seconds gauge",
+        "# HELP soyspray_classifier_result_total Classifier labels assigned in the last incident.",
+        "# TYPE soyspray_classifier_result_total gauge",
+        "# HELP soyspray_classifier_model_info Serving classifier model of the last request.",
+        "# TYPE soyspray_classifier_model_info gauge",
+    ]
+    try:
+        source = Path(path).expanduser()
+        if source.is_symlink() or source.stat().st_size > 512 * 1024:
+            return "\n".join(lines) + "\n"
+        snapshot = json.loads(source.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return "\n".join(lines) + "\n"
+    if not isinstance(snapshot, dict) or snapshot.get("schema_version") != INCIDENT_SCHEMA_VERSION:
+        return "\n".join(lines) + "\n"
+
+    incidents = snapshot.get("incidents") or {}
+    open_incidents = incidents.get("open") if isinstance(incidents, dict) else None
+    for item in (open_incidents or [])[:MAX_INCIDENT_ANCHORS]:
+        if not isinstance(item, dict):
+            continue
+        anchor = _bounded_label(item.get("anchor", "unknown"))
+        kind = _bounded_label(item.get("kind", "unknown"))
+        labels = {"anchor": anchor, "kind": kind}
+        lines.append(_metric("soyspray_incident_open", 1, labels))
+        opened = timestamp(item.get("opened_at"))
+        if opened:
+            lines.append(
+                _metric("soyspray_incident_opened_timestamp_seconds", opened.timestamp(), labels)
+            )
+        for consequence in (item.get("consequences") or [])[:MAX_INCIDENT_ANCHORS]:
+            lines.append(
+                _metric(
+                    "soyspray_incident_consequence",
+                    1,
+                    {"anchor": _bounded_label(consequence), "parent": anchor},
+                )
+            )
+
+    attempts_today = _number(snapshot.get("attempts_today"))
+    if attempts_today is not None:
+        lines.append(_metric("soyspray_diagnosis_attempts_today", attempts_today))
+    lines.append(
+        _metric("soyspray_diagnosis_alertmanager_source_ok", int(bool(snapshot.get("source_ok"))))
+    )
+
+    metrics = snapshot.get("metrics") if isinstance(snapshot.get("metrics"), dict) else {}
+    outcomes = metrics.get("outcomes") if isinstance(metrics.get("outcomes"), dict) else {}
+    for outcome, count in list(outcomes.items())[:32]:
+        value = _number(count)
+        if value is not None:
+            lines.append(
+                _metric(
+                    "soyspray_diagnosis_outcome_total", value, {"outcome": _bounded_label(outcome)}
+                )
+            )
+    last = _number(metrics.get("last_outcome_timestamp_seconds"))
+    if last is not None:
+        lines.append(_metric("soyspray_diagnosis_last_outcome_timestamp_seconds", last))
+
+    collector = snapshot.get("collector") if isinstance(snapshot.get("collector"), dict) else {}
+    status = str(collector.get("status", "unknown"))
+    lines.append(
+        _metric("soyspray_evidence_collector_observed", int(status in {"observed", "partial"}))
+    )
+    for name, key in (
+        ("soyspray_evidence_collector_lines_read_total", "lines"),
+        ("soyspray_evidence_collector_lines_exported_total", "exported"),
+    ):
+        value = _number(collector.get(key))
+        if value is not None:
+            lines.append(_metric(name, value))
+    gap_counts = collector.get("gaps") if isinstance(collector.get("gaps"), dict) else {}
+    for reason, count in list(gap_counts.items())[:32]:
+        value = _number(count)
+        if value is not None:
+            lines.append(
+                _metric("soyspray_evidence_gap_total", value, {"reason": _bounded_label(reason)})
+            )
+
+    classifier = snapshot.get("classifier") if isinstance(snapshot.get("classifier"), dict) else {}
+    state = str(classifier.get("status", "unknown"))
+    lines.append(_metric("soyspray_classifier_up", int(state in {"ok", "cached", "partial"})))
+    for name, key in (
+        ("soyspray_classifier_failure_total", "classifier_failure_total"),
+        ("soyspray_classifier_unknown_total", "classifier_unknown_total"),
+    ):
+        value = _number(metrics.get(key))
+        if value is not None:
+            lines.append(_metric(name, value))
+    success = _number(metrics.get("classifier_last_success_timestamp_seconds"))
+    if success is not None:
+        lines.append(_metric("soyspray_classifier_last_success_timestamp_seconds", success))
+    model = classifier.get("model")
+    if isinstance(model, str) and model:
+        lines.append(_metric("soyspray_classifier_model_info", 1, {"model": _bounded_label(model)}))
+    for label, count in list((classifier.get("counts") or {}).items())[:16]:
+        value = _number(count)
+        if value is not None:
+            lines.append(
+                _metric("soyspray_classifier_result_total", value, {"label": _bounded_label(label)})
+            )
+    del now
+    return "\n".join(lines) + "\n"
+
+
+def saved_metrics(
+    output: str | Path,
+    restore_root: str | Path = RESTORE_ROOT,
+    incident_file: str | Path = INCIDENT_FILE,
+) -> str:
     """Expose recorded evidence without running another collector or restore."""
     from scripts.restore_schedule import APPS
 
@@ -524,6 +688,7 @@ def saved_metrics(output: str | Path, restore_root: str | Path = RESTORE_ROOT) -
             _metric("soyspray_critical_restore_last_success_timestamp_seconds", max(successes))
             + "\n"
         )
+    body += incident_metrics(incident_file)
     return body
 
 
@@ -612,6 +777,11 @@ def main(argv: list[str] | None = None) -> int:
         "--restore-root",
         default=os.environ.get("SOYSPRAY_EVIDENCE_RESTORE_ROOT", str(RESTORE_ROOT)),
     )
+    parser.add_argument(
+        "--incident-state",
+        default=os.environ.get("SOYSPRAY_EVIDENCE_INCIDENT_STATE", str(INCIDENT_FILE)),
+        help="Private incident snapshot written by the cluster diagnosis adapter.",
+    )
     args = parser.parse_args(argv)
     if args.interval <= 0 or not 1 <= args.port <= 65535:
         parser.error("interval must be positive and port must be between 1 and 65535")
@@ -627,7 +797,9 @@ def main(argv: list[str] | None = None) -> int:
         if args.once:
             parser.error("--once and --serve-only cannot be combined")
         server = ThreadingHTTPServer((args.bind, args.port), MetricsHandler)
-        server.metrics_supplier = lambda: saved_metrics(args.output, args.restore_root)
+        server.metrics_supplier = lambda: saved_metrics(
+            args.output, args.restore_root, args.incident_state
+        )
         try:
             server.serve_forever()
         finally:
