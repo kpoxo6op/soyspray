@@ -618,7 +618,10 @@ def incident_metrics(path: str | Path = INCIDENT_FILE, now: datetime | None = No
 
     classifier = snapshot.get("classifier") if isinstance(snapshot.get("classifier"), dict) else {}
     state = str(classifier.get("status", "unknown"))
-    lines.append(_metric("soyspray_classifier_up", int(state in {"ok", "cached", "partial"})))
+    # 1 = usable hints, 0 = provider failed, absent = not attempted. An absent
+    # series shows as unknown instead of a false zero.
+    if state in {"ok", "cached", "partial", "unavailable", "quota-exhausted"}:
+        lines.append(_metric("soyspray_classifier_up", int(state in {"ok", "cached", "partial"})))
     for name, key in (
         ("soyspray_classifier_failure_total", "classifier_failure_total"),
         ("soyspray_classifier_unknown_total", "classifier_unknown_total"),

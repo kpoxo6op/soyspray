@@ -199,6 +199,9 @@ class Classifier:
         elif report["results"]:
             report["status"] = "cached"
 
+        if not report["results"] and not pending:
+            # Nothing was classified. Say so instead of reporting success.
+            report["status"] = "no-input"
         report["counts"] = _counts(report["results"])
         report["unknown"] = report["counts"].get(UNKNOWN, 0)
         self._record_metrics(report)

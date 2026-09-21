@@ -145,7 +145,7 @@
           - --command-env
           - "CLUSTER_DIAGNOSIS_METRICS={{ diagnosis_state }}/metrics.json"
           - --command-env
-          - "CLUSTER_DIAGNOSIS_LOKI_URL=http://loki.monitoring.svc.cluster.local:3100"
+          - "CLUSTER_DIAGNOSIS_LOKI_URL=http://10.233.57.196:3100"
 
     - name: Create the disabled command job
       ansible.builtin.command:

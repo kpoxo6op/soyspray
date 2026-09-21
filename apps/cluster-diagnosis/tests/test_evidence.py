@@ -524,6 +524,18 @@ class StoreTests(unittest.TestCase):
             )
 
 
+class EndpointTests(unittest.TestCase):
+    def test_the_collector_uses_an_address_the_ssh_host_can_resolve(self):
+        """node-0 is the host network and cannot resolve cluster DNS names."""
+        assert ".svc.cluster.local" not in evidence.DEFAULT_LOKI_URL, evidence.DEFAULT_LOKI_URL
+        assert evidence.DEFAULT_LOKI_URL.startswith("http://"), evidence.DEFAULT_LOKI_URL
+        host = evidence.DEFAULT_LOKI_URL.split("//", 1)[1].split(":", 1)[0]
+        parts = host.split(".")
+        assert len(parts) == 4 and all(part.isdigit() for part in parts), host.replace(
+            parts[-1], "x"
+        )
+
+
 class LimitTests(unittest.TestCase):
     def test_max_window_and_defaults_are_explicit(self):
         self.assertEqual(evidence.DEFAULT_WINDOW_SECONDS, 900)
