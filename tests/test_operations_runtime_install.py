@@ -29,6 +29,22 @@ def test_diagnosis_reinstall_preserves_private_target_and_enabled_state() -> Non
     assert "diagnosis_effective_enabled" in edit
 
 
+def test_metrics_service_restarts_when_the_release_changes() -> None:
+    play = yaml.safe_load(INSTALLER.read_text())[0]
+    tasks = play["tasks"]
+    names = [task["name"] for task in tasks]
+    unit = tasks[
+        names.index("Install the numeric evidence endpoint without changing the collector timer")
+    ]["ansible.builtin.copy"]["content"]
+    assert "X-Soyspray-Revision={{ diagnosis_revision.stdout }}" in unit, (
+        "the running endpoint would keep the previous release when current moves"
+    )
+    service = tasks[names.index("Enable the saved evidence endpoint")][
+        "ansible.builtin.systemd_service"
+    ]
+    assert "restarted" in service["state"]
+
+
 def test_runtime_uses_the_minimal_recovery_dependencies() -> None:
     recovery = (ROOT / "requirements-recovery.txt").read_text().splitlines()
     development = (ROOT / "requirements-dev.txt").read_text().splitlines()

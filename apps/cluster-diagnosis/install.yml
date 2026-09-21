@@ -209,6 +209,10 @@
         content: |
           [Unit]
           Description=Serve saved Soyspray numeric recovery evidence
+          # The revision marker makes a new release change this file, so the unit
+          # is reloaded and restarted. Without it the running process keeps the
+          # previous release's code while current points at the new one.
+          X-Soyspray-Revision={{ diagnosis_revision.stdout }}
           [Service]
           WorkingDirectory={{ diagnosis_repo }}
           ExecStart={{ diagnosis_repo }}/soyspray-venv/bin/python -m scripts.operations_evidence \
