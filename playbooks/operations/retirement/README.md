@@ -53,3 +53,26 @@ After verified absence, delete the obsolete node-0 installation and maintenance
 files. Keep the retirement playbook through the migration window. A completed
 retirement can be checked and applied again. Reinstallation needs a separate
 reviewed operation; this playbook does not recreate the host installation.
+
+## Replaced Grafana dashboards
+
+`grafana-dashboard-configmaps.yml` removes dashboard ConfigMaps that a newer
+revision replaced. The Prometheus Operator installs a content-hashed name for
+every generated dashboard, and the `kube-prometheus-stack` Application keeps
+pruning disabled on purpose, so the old ConfigMap stays behind and Grafana's
+sidecar writes both copies to the same file. Whichever it writes last wins, so
+the dashboard can show the previous layout.
+
+The operation reads what the Application declares, removes only live ConfigMaps
+whose label is `grafana_dashboard=1` and whose name starts with
+`grafana-dashboard-`, and refuses to run while the Application is not Synced and
+Healthy.
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook playbooks/operations/retirement/grafana-dashboard-configmaps.yml --check
+ansible-playbook playbooks/operations/retirement/grafana-dashboard-configmaps.yml
+```
+
+It is safe to rerun. It changes nothing else: no Application, no namespace, no
+Service, and no dashboard content.
