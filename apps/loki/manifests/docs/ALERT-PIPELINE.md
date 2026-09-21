@@ -1,446 +1,123 @@
-# Loki Alert Pipeline: From Logs to Telegram
+# Observability pipeline
 
-## Complete Flow Diagram
+Prometheus owns every health and paging decision. Alertmanager routes and groups
+alerts. Loki stores searchable raw evidence. Alloy collects and derives bounded
+event and log signals.
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ STEP 1: LOG COLLECTION                                                      │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────┐          ┌──────────────────────┐
-│ Alloy DaemonSet      │          │ Alloy Events         │
-│ (on every node)      │          │ (single deployment)  │
-│                      │          │                      │
-│ Collects:            │          │ Collects:            │
-│ /var/log/pods/*/*.log│          │ K8s Events API       │
-│                      │          │                      │
-│ Labels added:        │          │ Labels added:        │
-│ - job=kubernetes-pods│          │ - job=kubernetes-events
-│ - namespace          │          │ - namespace          │
-│ - pod                │          │ - reason             │
-│ - container          │          │ - type (Warning/Normal)
-│ - cluster=soyspray   │          │ - involved_object_*  │
-└─────────┬────────────┘          └──────────┬───────────┘
-          │                                  │
-          │ HTTP Push                        │ HTTP Push
-          │ :3100/loki/api/v1/push          │ :3100/loki/api/v1/push
-          │                                  │
-          └──────────────┬───────────────────┘
-                         │
-                         ▼
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ STEP 2: LOG STORAGE & INDEXING                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-          ┌──────────────────────────┐
-          │ Loki StatefulSet         │
-          │ (monitoring namespace)   │
-          │                          │
-          │ Components:              │
-          │ 1. Ingester             │◄── Receives logs from Alloy
-          │ 2. Querier              │◄── Queried by Ruler
-          │ 3. Ruler ⚡             │◄── Evaluates alert rules
-          │ 4. Compactor            │
-          │                          │
-          │ Storage:                 │
-          │ /var/loki/chunks/       │
-          │ /var/loki/index/        │
-          │ (50Gi Longhorn PVC)     │
-          └─────────┬────────────────┘
-                    │
-                    │ Mounts ConfigMaps:
-                    │ - /etc/loki/config.yaml (loki-config)
-                    │ - /etc/loki/rules/*.yaml (projected volume) ◄── YOUR RULES HERE!
-                    │   ├── loki-rules-kubernetes
-                    │   └── loki-rules-backup
-                    │
-                    ▼
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ STEP 3: RULE EVALUATION (Loki Ruler Component)                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-          ┌─────────────────────────────────────┐
-          │ Projected Volume: Rules ConfigMaps   │
-          │ (/etc/loki/rules/)                  │
-          │                                     │
-          │ ┌─────────────────────────────────┐ │
-          │ │ loki-rules-kubernetes ConfigMap│ │
-          │ │                                 │ │
-          │ │ • kubernetes-critical.yaml     │ │
-          │ │   - KubernetesPodCrashLoopingLogs│ │
-          │ │                                 │ │
-          │ │ • application-errors.yaml      │ │
-          │ │   - ApplicationErrorBurst       │ │
-          │ │     count_over_time(...|~ "error")│ │
-          │ │                                 │ │
-          │ │ • storage-mount-failures.yaml  │ │
-          │ │   - VolumeMountAttachFailures   │ │
-          │ │     |~ "FailedMount|Failed..." │ │
-          │ └─────────────────────────────────┘ │
-          │                                     │
-          │ ┌─────────────────────────────────┐ │
-          │ │ loki-rules-backup ConfigMap    │ │
-          │ │                                 │ │
-          │ │ • immich-backup.yaml           │ │
-          │ │ • immich-backup-events.yaml    │ │
-          │ │ • cnpg-backup.yaml             │ │
-          │ │ • backup-error-burst.yaml       │ │
-          │ └─────────────────────────────────┘ │
-          └─────────────────────────────────────┘
-                           │
-                           │ Ruler runs LogQL queries every 1m
-                           │ Example: count_over_time({job="kubernetes-pods"}
-                           │          |~ "error"[5m]) > 50
-                           ▼
-          ┌──────────────────────────────────────┐
-          │ Loki Ruler evaluates:                │
-          │                                      │
-          │ FOR ApplicationErrorBurst:           │
-          │ 1. Query logs: job=kubernetes-pods   │
-          │ 2. Filter: |~ "(?i)\b(error|fatal)\b"│
-          │ 3. Count over 5m window              │
-          │ 4. Group by (namespace, pod)         │
-          │ 5. Threshold: > 50 lines             │
-          │ 6. Wait: 5m (for: 5m)                │
-          │ 7. IF TRUE → Fire Alert              │
-          └──────────────┬───────────────────────┘
-                         │
-                         │ Alert Payload:
-                         │ {
-                         │   "alertname": "ApplicationErrorBurst",
-                         │   "namespace": "media",
-                         │   "pod": "radarr-7d8f9c-xyz",
-                         │   "severity": "warning",
-                         │   "summary": "Error burst in media/radarr-7d8f9c-xyz"
-                         │ }
-                         │
-                         ▼
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ STEP 4: ALERT ROUTING (Alertmanager)                                        │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-          ┌───────────────────────────────────────┐
-          │ Alertmanager                          │
-          │ (deployed by kube-prometheus-stack)   │
-          │                                       │
-          │ Configuration:                        │
-          │ - LoadBalancer: 192.168.50.206        │
-          │ - Config: prometheus/values.yaml      │
-          │                                       │
-          │ ┌───────────────────────────────────┐ │
-          │ │ Route Configuration:              │ │
-          │ │                                   │ │
-          │ │ route:                            │ │
-          │ │   group_by: ["alertname"]         │ │
-          │ │   group_wait: 30s                 │ │
-          │ │   group_interval: 5m              │ │
-          │ │   repeat_interval: 4h             │ │
-          │ │   receiver: "telegram"            │ │
-          │ │   routes:                         │ │
-          │ │     - matchers:                   │ │
-          │ │       - severity=~"warning|critical"│ │
-          │ │       receiver: "telegram"        │ │
-          │ └───────────────────────────────────┘ │
-          │                                       │
-          │ Processing:                           │
-          │ 1. Receive alert from Loki Ruler      │
-          │ 2. Check severity (warning/critical)  │
-          │ 3. Group by alertname                 │
-          │ 4. Wait 30s for more alerts           │
-          │ 5. Send to telegram receiver          │
-          └──────────────┬────────────────────────┘
-                         │
-                         ▼
-
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ STEP 5: TELEGRAM NOTIFICATION                                               │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-          ┌──────────────────────────────────────┐
-          │ Telegram Receiver Configuration:     │
-          │                                      │
-          │ receivers:                           │
-          │   - name: "telegram"                 │
-          │     telegram_configs:                │
-          │       - api_url: "https://api.telegram.org"
-          │         bot_token_file: /etc/alertmanager/telegram/
-          │                         PROMETHEUS_TELEGRAM_BOT_TOKEN
-          │         chat_id: 336642153           │
-          └──────────────┬───────────────────────┘
-                         │
-                         │ Secret mounted from:
-                         │ alertmanager-telegram-secret
-                         │ (contains bot token)
-                         │
-                         ▼
-          ┌──────────────────────────────────────┐
-          │ Telegram API                         │
-          │ https://api.telegram.org             │
-          └──────────────┬───────────────────────┘
-                         │
-                         ▼
-          ┌──────────────────────────────────────┐
-          │  📱 Your Telegram                    │
-          │                                      │
-          │  🔴 [FIRING:1] ApplicationErrorBurst │
-          │                                      │
-          │  Error burst in media/radarr-xyz     │
-          │                                      │
-          │  More than 50 log lines containing   │
-          │  'error' or 'fatal' were observed    │
-          │  in 5m for pod media/radarr-xyz.     │
-          │  Investigate recent deployments...   │
-          │                                      │
-          │  Labels:                             │
-          │    alertname: ApplicationErrorBurst  │
-          │    namespace: media                  │
-          │    pod: radarr-7d8f9c-xyz           │
-          │    severity: warning                 │
-          └──────────────────────────────────────┘
+pod logs ──► Alloy DaemonSet ──┬─► Loki  (raw, searchable, 48h)
+                               └─► Alloy /metrics (bounded signal counters)
+Kubernetes events ──► Alloy events Deployment ──┬─► Loki (raw events)
+                                                └─► Alloy /metrics
+kube-state-metrics ────────────────────────────────► Prometheus
+Alloy /metrics ──► Prometheus (PodMonitor monitoring/alloy, 30s)
+Prometheus rules ──► Alertmanager ──► Telegram / Healthchecks.io
+Alertmanager ──► laptop incident adapter ──► evidence collector ──► Jev ──► isolated worker
 ```
 
-## Configuration File Locations
+## Where a decision is made
 
-### 1. Log Collection Configuration
-**Location**: `playbooks/yaml/argocd-apps/alloy-loki-manual/`
-- `alloy-configmap.yaml` - Pod logs collection
-- `alloy-events-configmap.yaml` - Kubernetes events collection
-- `alloy-daemonset.yaml` - DaemonSet running on every node
-- `alloy-events-deployment.yaml` - Events collector deployment
+| Decision | Owner | Object |
+| --- | --- | --- |
+| Is a pod crash looping | Prometheus | `SoysprayPodCrashLooping` (critical) |
+| Did a volume attach fail | Prometheus | `SoysprayVolumeMountFailure` (critical) |
+| Did a backup tool report failure | Prometheus | `SoysprayBackupToolFailure` (warning) |
+| Did a database backup or WAL archive fail | Prometheus | `SoysprayDatabaseBackupFailure` (critical) |
+| Did a backup job exceed its backoff limit | Prometheus | `SoysprayBackupJobBackoff` (warning) |
+| Does a backup record go stale | Prometheus | `CriticalBackupGettingOld`, `ImmichMediaBackupStale`, `CNPGBackupStale` |
+| Who receives an alert, and how it is grouped | Alertmanager | `apps/prometheus/values.yaml` |
+| What the raw line said | Loki | LogQL queries in Grafana |
+| Is the incident worth a model call | laptop adapter | `apps/cluster-diagnosis` |
 
-### 2. Loki Storage & Rules
-**Location**: `playbooks/yaml/argocd-apps/alloy-loki-manual/`
-- `loki-configmap.yaml` - Loki server configuration
-  - Line 64-73: Ruler configuration pointing to Alertmanager
-- `loki-rules-kubernetes.yaml` - **Platform & Kubernetes Rules** ⚡
-  - `kubernetes-critical.yaml` - KubernetesPodCrashLoopingLogs
-  - `application-errors.yaml` - ApplicationErrorBurst
-  - `storage-mount-failures.yaml` - VolumeMountAttachFailures
-- `loki-rules-backup.yaml` - **Backup & Database Rules** ⚡
-  - `immich-backup.yaml` - ImmichMediaBackupFailureImmediate
-  - `immich-backup-events.yaml` - ImmichMediaBackupBackoffLimitExceeded
-  - `cnpg-backup.yaml` - CNPGBackupBarmanError, CNPGWalArchiveFailure
-  - `backup-error-burst.yaml` - BackupErrorBurst
-- `loki-statefulset.yaml` - Uses projected volume to mount both rule ConfigMaps
+The Loki ruler is retired. Loki no longer holds alert rules, so a Loki restart
+cannot stop paging and a rule change cannot silently live in two places.
 
-### 3. Alertmanager Configuration
-**Location**: `apps/prometheus/`
-- `values.yaml` - Lines 145-184
-  - Telegram bot token mount
-  - Route configuration
-  - Receiver configuration
+## Alloy signal counters
 
-## How Rules Work
+The counters come from `loki.process` `stage.metrics` blocks. The metric name
+carries the signal, because metric labels come from the log stream and adding a
+`signal` label would change the stored stream identity.
 
-### Example: ApplicationErrorBurst
+Prometheus reads a non-zero value inside a window
+(`max_over_time(metric[10m]) > 0`) rather than `increase()`. Alloy creates a
+counter on its first match, so the first sample is already `1` and there is no
+zero sample to measure an increase from. `increase()` would miss a single
+one-shot failure, which is exactly what the backup-job rules must catch.
 
-```yaml
-- alert: ApplicationErrorBurst
-  expr: |
-    sum by (namespace, pod) (
-      count_over_time({cluster="soyspray", job="kubernetes-pods"} |~ "(?i)\b(error|fatal)\b" [5m])
-    ) > 50
-  for: 5m
-```
+| Counter | Source | Replaces |
+| --- | --- | --- |
+| `soyspray_log_media_backup_failure_total` | immich `aws-sync` | `ImmichMediaBackupFailureImmediate` |
+| `soyspray_log_couchdb_backup_failure_total` | obsidian `backup` | `ObsidianBackupFailureImmediate` |
+| `soyspray_log_database_backup_failure_total` | postgresql barman error lines | `CNPGBackupBarmanError` |
+| `soyspray_log_database_archive_failure_total` | postgresql `archive_command` failures | `CNPGWalArchiveFailure` |
+| `soyspray_event_mount_failure_total` | warning events | `VolumeMountAttachFailures` |
+| `soyspray_event_job_backoff_total` | `BackoffLimitExceeded` events | `ImmichMediaBackupBackoffLimitExceeded`, `ObsidianBackupBackoffLimitExceeded` |
 
-**Step-by-step execution:**
+The counters carry only stream labels: `namespace`, `pod`, `container`, `job`,
+`cluster`, and for events the `kubernetes_event_*` labels. They exist only while
+a matching stream is active, bounded by `max_idle_duration = "1h"`, so the
+`/metrics` endpoint cannot grow without limit. The `stage.metrics` blocks stay
+last in each pipeline because a later stage can add unexpected metric labels.
 
-1. **LogQL Query**: `{cluster="soyspray", job="kubernetes-pods"}`
-   - Selects all pod logs from your cluster
+A counter is created on its first match, so an absent counter means "no match
+yet", not "the pipeline is broken". There is deliberately no always-on counter:
+a `match_all` counter would carry a label set per pod or per event object for
+the whole Prometheus retention period.
 
-2. **Log Filter**: `|~ "(?i)\b(error|fatal)\b"`
-   - Case-insensitive regex match for "error" or "fatal" words
+The counter holds its value while its stream stays active, bounded by
+`max_idle_duration = "1h"`, so a failure alert stays visible for about an hour
+after the last matching line, then Prometheus marks the series stale and the
+alert resolves.
 
-3. **Count**: `count_over_time(...[5m])`
-   - Counts matching log lines in 5-minute window
+Pipeline liveness therefore uses the Alloy writer series that already exist:
 
-4. **Group**: `sum by (namespace, pod)`
-   - Groups results per namespace+pod combination
+- `loki_write_sent_bytes_total` per Alloy instance, consumed by the
+  `SoysprayLogPipelineStalled` rule;
+- `up{job="monitoring/alloy"}` and `TargetDown` for scrape health.
 
-5. **Threshold**: `> 50`
-   - Fires if more than 50 error lines found
+The selectors themselves are checked against live Loki with
+`/loki/api/v1/query_range`, so a selector that cannot parse or cannot match is
+found without waiting for a real failure.
 
-6. **Pending**: `for: 5m`
-   - Alert must be true for 5 minutes before firing
+## Retired rules
 
-7. **Labels**: `severity: warning`
-   - Sets alert severity for routing
+`ApplicationErrorBurst` and `BackupErrorBurst` counted lines containing `error`
+or `fatal`. They are removed, and their detection is not replaced one-for-one. A
+raw error word is not an operational fact, and the two rules were the only
+warning-level signals in this file with no user-visible meaning. A long-running,
+Ready application that emits sustained errors but never crashes now produces no
+alert from this file; it is visible in Grafana and in the laptop adapter's
+evidence, not as a page. The eight specific rules above keep their replacement.
+Actionable failures stay detectable through:
 
-## Label Flow
+- kube-state-metrics rules: `KubePodCrashLooping`, `KubePodNotReady`,
+  `KubeContainerWaiting`, `KubeJobFailed`, `KubeDeploymentReplicasMismatch`;
+- node rules: `KubeNodeNotReady`, `KubeletDown`, `node-hardware`;
+- storage rules: `KubePersistentVolumeErrors`, `KubePersistentVolumeFillingUp`,
+  `CriticalBackupGettingOld`, `CriticalBackupEvidenceMissing`;
+- the specific backup counters above.
 
-Labels are consistently applied through the pipeline:
+Detection timing is close to the retired rules, with three deliberate
+differences:
 
-```
-Alloy Collection → Loki Storage → Rule Evaluation → Alert
-  cluster=soyspray   cluster=soyspray   namespace=media    namespace=media
-  job=kubernetes-pods job=kubernetes-pods pod=radarr-xyz   pod=radarr-xyz
-  namespace=media     namespace=media                      severity=warning
-  pod=radarr-xyz      pod=radarr-xyz                       alertname=...
-```
+- The crash-loop rule reads a container waiting state instead of an event line
+  and uses a 10-minute lookback instead of 5 minutes, so an init-container crash
+  loop is not covered by it.
+- The Obsidian backup rule alerts after 1 minute instead of 2.
+- `SoysprayVolumeMountFailure` keeps the event object name under
+  `kubernetes_event_involved_object_name` rather than a normalized `pod` label.
+  The laptop adapter reads that label, so the object still reaches the
+  investigation.
 
-## Why This Works
+## Missing evidence
 
-### Log-Based vs Metric-Based Alerts
-
-**Metrics** (Prometheus):
-- ✅ CPU, memory, disk usage
-- ✅ Request rates, latencies
-- ✅ Counters, gauges, histograms
-- ❌ Cannot detect "error" in logs
-- ❌ Cannot parse event messages
-
-**Logs** (Loki):
-- ✅ Error message patterns
-- ✅ Kubernetes event messages
-- ✅ Application-specific failures
-- ✅ Text pattern matching
-- ❌ Not suitable for numeric metrics
-
-**Your setup has BOTH!**
-- Prometheus monitors metrics
-- Loki monitors logs
-- Both send alerts to same Alertmanager
-- Both route to same Telegram bot
-
-## Integration Points
-
-### 1. Loki → Alertmanager
-```yaml
-# loki-configmap.yaml
-ruler:
-  alertmanager_url: http://alertmanager-operated.monitoring.svc:9093
-```
-
-### 2. Prometheus → Loki (Metrics)
-```yaml
-# loki-servicemonitor.yaml
-# Prometheus scrapes Loki's /metrics endpoint
-# (monitors Loki's own health, not for alerts)
-```
-
-### 3. Alloy → Loki (Logs)
-```yaml
-# alloy-configmap.yaml
-loki.write "default" {
-  endpoint {
-    url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
-  }
-}
-```
-
-### 4. Alertmanager → Telegram
-```yaml
-# prometheus/values.yaml
-telegram_configs:
-  - api_url: "https://api.telegram.org"
-    bot_token_file: /etc/alertmanager/telegram/PROMETHEUS_TELEGRAM_BOT_TOKEN
-    chat_id: 336642153
-```
-
-## Testing the Pipeline
-
-### 1. Generate Test Logs
-```bash
-# Create a pod that logs errors
-kubectl run error-test --image=busybox --restart=Never -- sh -c '
-  for i in $(seq 1 100); do
-    echo "ERROR: Test error message $i"
-    sleep 1
-  done
-'
-```
-
-### 2. Check Loki Ingestion
-```bash
-# Port-forward to Loki
-kubectl port-forward -n monitoring svc/loki 3100:3100
-
-# Query logs via LogQL
-curl 'http://localhost:3100/loki/api/v1/query' \
-  --data-urlencode 'query={pod="error-test"} |= "ERROR"'
-```
-
-### 3. Check Ruler Evaluation
-```bash
-# Check Loki ruler API
-curl http://localhost:3100/loki/api/v1/rules
-
-# Should show your rules and their state
-```
-
-### 4. Check Alertmanager
-```bash
-# Port-forward to Alertmanager
-kubectl port-forward -n monitoring svc/alertmanager-operated 9093:9093
-
-# View active alerts
-curl http://localhost:9093/api/v2/alerts
-```
-
-### 5. Check Telegram
-- Wait 5 minutes (for: 5m)
-- Alert should fire to Telegram chat 336642153
-
-## Troubleshooting
-
-### Alert Not Firing?
-
-1. **Check Loki has logs**:
-   ```bash
-   kubectl logs -n monitoring loki-0 | grep "ingester"
-   ```
-
-2. **Check Ruler is running**:
-   ```bash
-   kubectl logs -n monitoring loki-0 | grep "ruler"
-   ```
-
-3. **Check rules are loaded**:
-   ```bash
-   kubectl exec -n monitoring loki-0 -- ls -la /etc/loki/rules/
-   ```
-
-4. **Check Alertmanager connectivity**:
-   ```bash
-   kubectl exec -n monitoring loki-0 -- wget -O- \
-     http://alertmanager-operated.monitoring.svc:9093/-/healthy
-   ```
-
-### Alert Fires But No Telegram?
-
-1. **Check Alertmanager config**:
-   ```bash
-   kubectl get secret -n monitoring alertmanager-kube-prometheus-stack-alertmanager \
-     -o jsonpath='{.data.alertmanager\.yaml}' | base64 -d
-   ```
-
-2. **Check Telegram secret**:
-   ```bash
-   kubectl get secret -n monitoring alertmanager-telegram-secret
-   ```
-
-3. **Check Alertmanager logs**:
-   ```bash
-   kubectl logs -n monitoring alertmanager-kube-prometheus-stack-alertmanager-0
-   ```
-
-## Summary
-
-**Your complete observability stack:**
-
-```
-Logs (Alloy) ──┐
-               ├──► Loki ──► Ruler ──┐
-Events (Alloy)─┘                     │
-                                     ├──► Alertmanager ──► Telegram 📱
-Metrics ───────────► Prometheus ─────┘
-```
-
-- **2 log pipelines**: Pod logs + K8s events
-- **1 metrics pipeline**: Prometheus scraping
-- **3 alert rules**: Errors, crashes, storage failures
-- **1 notification channel**: Telegram
-- **100% GitOps**: All config in this repo
+- Alloy down: `up{job="monitoring/alloy"} == 0` and `TargetDown`.
+- Alloy up but not writing: `SoysprayLogPipelineStalled`, which fires roughly
+  30 minutes after traffic stops, because the window is 20 minutes and the
+  `for:` duration is 10.
+- Loki down: Prometheus rules keep working, because no rule reads Loki. The
+  incident adapter records a collector gap instead of an empty evidence pack.
+- Alertmanager down: Prometheus keeps evaluating rules; the adapter reports a
+  source failure once and stops.
+- Counter never matched: no alert, and no false claim of health. The rule is
+  absent, not green.

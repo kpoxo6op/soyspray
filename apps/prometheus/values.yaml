@@ -248,7 +248,10 @@ alertmanager:
           - api_url: "https://api.telegram.org"
             bot_token_file: /etc/alertmanager/telegram/PROMETHEUS_TELEGRAM_BOT_TOKEN
             chat_id: 336642153
-            parse_mode: HTML
+            # Alertmanager defaults parse_mode to "HTML" when the key is absent,
+            # so plain text must be asked for explicitly. An empty string is the
+            # documented way to disable entity parsing.
+            parse_mode: ""
             message: '{{ template "soy.telegram" . }}'
       - name: "watchdog-healthchecks"
         webhook_configs:
@@ -257,38 +260,33 @@ alertmanager:
     templates:
       - '/etc/alertmanager/config/*.tmpl'
   templateFiles:
+    # Plain text on purpose. With parse_mode HTML, one unescaped "<" in alert
+    # text made Telegram reject the whole group with "can't parse entities"
+    # (96 rejected deliveries on 2026-09-13), so a critical alert could be lost.
+    # The label set is trimmed and the alert list is capped so a group stays
+    # inside the Telegram message limit.
     soy-telegram.tmpl: |
       {{- define "soy.telegram" -}}
+      {{- $limit := 12 -}}
       {{- if eq .Status "firing" -}}🔥 FIRING{{- else -}}✅ RESOLVED{{- end }} [{{ .CommonLabels.severity }}] {{ .CommonLabels.alertname }} ({{ len .Alerts }})
 
-      {{- range .Alerts }}
-      - <b>Alert</b>
-        {{- if .Labels.namespace }}
-        ns={{ .Labels.namespace }}{{ end }}{{ if .Labels.job_name }}
-        job={{ .Labels.job_name }}{{ end }}{{ if .Labels.deployment }}
-        deploy={{ .Labels.deployment }}{{ end }}{{ if .Labels.statefulset }}
-        sts={{ .Labels.statefulset }}{{ end }}{{ if .Labels.daemonset }}
-        ds={{ .Labels.daemonset }}{{ end }}{{ if and .Labels.pod (not .Labels.job_name) }}
-        pod={{ .Labels.pod }}{{ end }}{{ if .Labels.container }}
-        container={{ .Labels.container }}{{ end }}{{ if .Labels.node }}
-        node={{ .Labels.node }}{{ end }}{{ if .Labels.reason }}
-        reason={{ .Labels.reason }}{{ end }}
+      {{- range $index, $alert := .Alerts }}
+      {{- if lt $index $limit }}
+      - {{ .Labels.namespace }}{{ if .Labels.job_name }}/{{ .Labels.job_name }}{{ end }}{{ if .Labels.deployment }}/{{ .Labels.deployment }}{{ end }}{{ if .Labels.statefulset }}/{{ .Labels.statefulset }}{{ end }}{{ if .Labels.daemonset }}/{{ .Labels.daemonset }}{{ end }}{{ if and .Labels.pod (not .Labels.job_name) }}/{{ .Labels.pod }}{{ end }}{{ if .Labels.container }}/{{ .Labels.container }}{{ end }}{{ if .Labels.node }} node={{ .Labels.node }}{{ end }}{{ if .Labels.reason }} reason={{ .Labels.reason }}{{ end }}
 
         {{- $text := .Annotations.summary -}}
-        {{- if eq $text "" -}}{{- $text = .Annotations.description -}}{{- end -}}
+        {{- if eq $text "" -}}{{- $text = .Annotations.description -}}{{- end }}
         {{ $text }}
         {{- if and .Annotations.description (ne .Annotations.description $text) }}
-
         {{ .Annotations.description }}
         {{- end }}
-
-        {{- if .GeneratorURL }}
-        Source: <a href="{{ .GeneratorURL }}">open</a>
-        {{- end }}
-
+      {{- end }}
+      {{- end }}
+      {{- if gt (len .Alerts) $limit }}
+      (+{{ sub (len .Alerts) $limit }} more alerts in this group; open Grafana for the rest)
       {{- end }}
       {{- if .CommonAnnotations.runbook_url }}
-      Runbook: <a href="{{ .CommonAnnotations.runbook_url }}">open</a>
+      Runbook: {{ .CommonAnnotations.runbook_url }}
       {{- end }}
       {{- end }}
 

@@ -23,13 +23,42 @@ Open Grafana at `https://grafana.soyspray.vip` and sign in through Authentik OID
 Open Prometheus at `https://prometheus.soyspray.vip`, which uses Authentik forward
 authentication.
 
-The **Soyspray Operations** dashboard has eight panels for node, Argo, Longhorn,
-backup, and restore observations. A missing sample means the result is unknown.
-A historical restore result does not prove current access.
+The **Soyspray Operations** dashboard has fifteen panels for node, Argo,
+Longhorn, backup, restore, incident, collector and classifier observations. A
+missing sample means the result is unknown. A historical restore result does not
+prove current access.
 
 Alertmanager sends critical and warning alerts to Telegram. The continuous
 `Watchdog` alert sends one Healthchecks.io ping each minute. Healthchecks.io can
 report a complete monitoring or internet failure.
+
+## Alert ownership
+
+Prometheus owns every health and paging decision. `alerts/runtime-signals.yaml`
+carries the rules that replaced the retired Loki ruler rules, including the
+Alloy-derived log and event counters.
+[apps/loki/manifests/docs/ALERT-PIPELINE.md](../loki/manifests/docs/ALERT-PIPELINE.md)
+holds the complete mapping, the detection timing and the missing-evidence
+behaviour.
+
+The Telegram template is plain text on purpose, and `parse_mode: ""` is set
+explicitly because Alertmanager defaults an absent `parse_mode` to `HTML`. With
+HTML, one unescaped `<` in alert text made Telegram reject a whole group with
+`can't parse entities` (96 rejected deliveries on 2026-09-13), so a critical
+alert could be lost. The template trims the label set and renders at most twelve
+alerts per group, then says how many were left out, so a group stays inside the
+Telegram message limit. Annotations themselves remain unbounded, so a single
+alert with an extremely long annotation could still exceed it.
+
+`SoysprayLogPipelineStalled` covers the evidence path: it warns when an Alloy
+instance is up but has sent nothing to Loki for 20 minutes, so a silent log
+pipeline is visible before the next incident needs log evidence.
+
+Node-level inhibition is not used. The standard kube-state-metrics alerts carry
+no `node` label, so an inhibition rule with `equal: [node]` could not match them.
+The laptop incident adapter instead correlates a node incident with its
+application consequences using `kube_pod_info`, and stops diagnosing those
+consequences separately.
 
 ## Commands
 

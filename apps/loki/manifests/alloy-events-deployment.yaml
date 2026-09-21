@@ -15,6 +15,11 @@ spec:
       app.kubernetes.io/component: events
   template:
     metadata:
+      annotations:
+        # Alloy reads its config at start and does not reload a mounted
+        # ConfigMap. Bump this value in the same commit as any pipeline
+        # change so the pod template changes and the pods roll.
+        soyspray.dev/signal-config: "1"
       labels:
         app.kubernetes.io/name: grafana-alloy
         app.kubernetes.io/component: events

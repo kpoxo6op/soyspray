@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/component: agent
     app.kubernetes.io/part-of: observability
   annotations:
-    description: Grafana Alloy Flow configuration for Kubernetes pod logs and events.
+    description: Grafana Alloy Flow configuration for Kubernetes pod logs, log signals, and events.
 data:
   config.alloy: |
     logging {
@@ -59,6 +59,81 @@ data:
 
       stage.static_labels {
         values = { job = "kubernetes-pods", cluster = "soyspray" }
+      }
+
+      // Log signals for Prometheus alerting. Prometheus owns the paging
+      // decision; Loki keeps the searchable raw line. Keep these stages last:
+      // stages added after stage.metrics can add unexpected metric labels.
+      // Pipeline liveness uses the existing loki_write_sent_bytes_total series,
+      // so no always-on counter is needed here.
+
+      // Replaces the retired Loki rule ImmichMediaBackupFailureImmediate.
+      // Each source gets its own metric name: a duplicate name across two
+      // stage.metrics blocks is a registration conflict, and the namespace
+      // label already separates the sources.
+      stage.match {
+        selector = "{job=\"kubernetes-pods\", namespace=\"immich\", container=\"aws-sync\"} |~ \"(?i)(an error occurred|error|accessdenied|expiredtoken|slowdown|requesttimetooskewed|read-only file system|connection reset)\""
+
+        stage.metrics {
+          metric.counter {
+            name              = "soyspray_log_media_backup_failure_total"
+            description       = "Backup tool failure lines from the Immich media offsite sync."
+            prefix            = ""
+            match_all         = true
+            action            = "inc"
+            max_idle_duration = "1h"
+          }
+        }
+      }
+
+      // Replaces the retired Loki rule ObsidianBackupFailureImmediate.
+      stage.match {
+        selector = "{job=\"kubernetes-pods\", namespace=\"obsidian\", container=\"backup\"} |~ \"(?i)(error|failed|fatal|command not found|missing|failed to)\""
+
+        stage.metrics {
+          metric.counter {
+            name              = "soyspray_log_couchdb_backup_failure_total"
+            description       = "Backup tool failure lines from the Obsidian CouchDB backup."
+            prefix            = ""
+            match_all         = true
+            action            = "inc"
+            max_idle_duration = "1h"
+          }
+        }
+      }
+
+      // Replaces the retired Loki rule CNPGBackupBarmanError. A barman line
+      // only counts when it also carries an error word, so routine archive
+      // progress lines stay quiet.
+      stage.match {
+        selector = "{job=\"kubernetes-pods\", namespace=\"postgresql\"} |= \"barman\" !~ \"(?i)error_severity[^,]{0,4}(log|info)\" !~ \"(?i)(restore point.*created|completed.*backup|successfully)\" |~ \"(?i)\\\\b(error|failed|fatal)\\\\b\""
+
+        stage.metrics {
+          metric.counter {
+            name              = "soyspray_log_database_backup_failure_total"
+            description       = "Barman backup failure lines from PostgreSQL."
+            prefix            = ""
+            match_all         = true
+            action            = "inc"
+            max_idle_duration = "1h"
+          }
+        }
+      }
+
+      // Replaces the retired Loki rule CNPGWalArchiveFailure.
+      stage.match {
+        selector = "{job=\"kubernetes-pods\", namespace=\"postgresql\"} |~ \"(?i)archive_command.*(failed|returned)\""
+
+        stage.metrics {
+          metric.counter {
+            name              = "soyspray_log_database_archive_failure_total"
+            description       = "WAL archive_command failure lines from PostgreSQL."
+            prefix            = ""
+            match_all         = true
+            action            = "inc"
+            max_idle_duration = "1h"
+          }
+        }
       }
     }
 

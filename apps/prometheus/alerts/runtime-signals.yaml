@@ -1,0 +1,140 @@
+# Replacement coverage for the retired Loki ruler rules.
+#
+# Prometheus owns health and paging decisions. Loki keeps the searchable raw
+# evidence. Every rule below replaces one named Loki rule; the mapping is in
+# apps/loki/README.md. The Alloy counters are produced by the log and event
+# pipelines in apps/loki/manifests.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: runtime-signals
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: pod-runtime-critical
+      interval: 1m
+      rules:
+        # Replaces KubernetesPodCrashLoopingLogs (Loki, critical, 10m).
+        # kube-state-metrics carries the same CrashLoopBackOff fact, so the
+        # detection no longer depends on log or event delivery.
+        - alert: SoysprayPodCrashLooping
+          expr: |
+            max_over_time(
+              kube_pod_container_status_waiting_reason{
+                job="kube-state-metrics", reason="CrashLoopBackOff"
+              }[10m]
+            ) >= 1
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+            description: >-
+              Container {{ $labels.container }} in {{ $labels.namespace }}/{{ $labels.pod }} has been
+              waiting in CrashLoopBackOff for 10 minutes. Read the pod logs in Grafana and run the
+              application check before changing anything.
+
+    - name: storage-critical
+      interval: 1m
+      rules:
+        # Replaces VolumeMountAttachFailures (Loki, critical, 10m).
+        # The counter is created on its first match, so there is no zero sample
+        # and increase() would miss a single failure. A non-zero value inside the
+        # window is the correct test for a lazily created counter.
+        - alert: SoysprayVolumeMountFailure
+          expr: |
+            sum by (namespace, kubernetes_event_involved_object_name) (
+              max_over_time(soyspray_event_mount_failure_total{type="Warning"}[10m])
+            ) > 0
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Volume attach or mount failure for {{ $labels.namespace }}/{{ $labels.kubernetes_event_involved_object_name }}"
+            description: >-
+              Kubernetes reported FailedMount or FailedAttachVolume for
+              {{ $labels.namespace }}/{{ $labels.kubernetes_event_involved_object_name }} in the last
+              10 minutes. Check Longhorn volume status and node health.
+
+    - name: backup-early-warning
+      interval: 1m
+      rules:
+        # Replaces ImmichMediaBackupFailureImmediate and ObsidianBackupFailureImmediate
+        # (Loki, warning). These fire from tool output before a scheduled backup
+        # record goes stale, so the 36h stale alert stays a last resort.
+        - alert: SoysprayBackupToolFailure
+          expr: |
+            sum by (namespace, container) (
+              max_over_time(soyspray_log_media_backup_failure_total[5m])
+            ) > 0
+            or sum by (namespace, container) (
+              max_over_time(soyspray_log_couchdb_backup_failure_total[5m])
+            ) > 0
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Backup tool errors in {{ $labels.namespace }}/{{ $labels.container }}"
+            description: >-
+              A backup container logged a failure line in the last 5 minutes. The backup record may
+              still look current. Read the container logs in Grafana before the next schedule.
+
+        # Replaces CNPGBackupBarmanError and CNPGWalArchiveFailure (Loki, critical).
+        - alert: SoysprayDatabaseBackupFailure
+          expr: |
+            sum by (namespace) (
+              max_over_time(soyspray_log_database_backup_failure_total[5m])
+            ) > 0
+            or sum by (namespace) (
+              max_over_time(soyspray_log_database_archive_failure_total[5m])
+            ) > 0
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Database backup or WAL archive failure in {{ $labels.namespace }}"
+            description: >-
+              The PostgreSQL cluster logged a backup, barman or archive_command failure in the last
+              5 minutes. Check the database backup record before the 36h stale threshold.
+
+        # Replaces ImmichMediaBackupBackoffLimitExceeded and
+        # ObsidianBackupBackoffLimitExceeded (Loki, warning).
+        - alert: SoysprayBackupJobBackoff
+          expr: |
+            sum by (namespace, kubernetes_event_involved_object_name) (
+              max_over_time(
+                soyspray_event_job_backoff_total{
+                  type="Warning",
+                  kubernetes_event_involved_object_name=~".*(immich-media-offsite-sync|obsidian-couchdb-offsite-backup).*"
+                }[5m]
+              )
+            ) > 0
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Backup job {{ $labels.kubernetes_event_involved_object_name }} hit its backoff limit"
+            description: >-
+              Kubernetes reported BackoffLimitExceeded for a backup job in {{ $labels.namespace }}.
+              The job will not retry until the next schedule.
+
+    - name: evidence-pipeline
+      interval: 1m
+      rules:
+        # Log evidence for the laptop incident adapter comes from this pipeline.
+        # A stalled writer means the next incident has no log evidence, which the
+        # adapter reports as a collector gap rather than as health.
+        - alert: SoysprayLogPipelineStalled
+          expr: |
+            increase(loki_write_sent_bytes_total[20m]) == 0
+            and on (instance, job) (up{job="monitoring/alloy"} == 1)
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Alloy instance {{ $labels.instance }} is not sending logs to Loki"
+            description: >-
+              Alloy is up but has sent nothing to Loki for 20 minutes. New incidents will have no
+              log evidence. Check Loki health and the Alloy writer metrics.

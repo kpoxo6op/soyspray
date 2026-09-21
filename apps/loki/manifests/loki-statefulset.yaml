@@ -67,9 +67,6 @@ spec:
               mountPath: /var/loki
             - name: tmp
               mountPath: /tmp
-            - name: rules
-              mountPath: /etc/loki/rules/fake
-              readOnly: true
       securityContext:
         fsGroup: 10001
       volumes:
@@ -79,12 +76,5 @@ spec:
         - name: storage
           persistentVolumeClaim:
             claimName: storage-loki-0
-        - name: rules
-          projected:
-            sources:
-              - configMap:
-                  name: loki-rules-kubernetes
-              - configMap:
-                  name: loki-rules-backup
         - name: tmp
           emptyDir: {}

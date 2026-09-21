@@ -15,6 +15,19 @@ make backup-status FORMAT=json
 source, live health, access, and recovery evidence for one application.
 `make backup-status` reads native backup records and private restore reports.
 
+## Read an incident
+
+`make status APP=NAME` shows one application. For the current incident state,
+open the **Soyspray Operations** dashboard in Grafana and read the
+`soyspray_incident_open`, `soyspray_evidence_gap_total` and
+`soyspray_classifier_up` panels. Missing series mean the adapter has not
+written state yet; they are unknown, not healthy.
+
+Telegram receives one narrative per incident from the laptop adapter, plus
+material updates and one recovery message. Alertmanager still sends critical
+and warning alerts directly, and Healthchecks.io still receives the `Watchdog`
+ping. A classifier fault never stops either path.
+
 ## Change an application
 
 1. Work on a branch.
