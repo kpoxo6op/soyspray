@@ -114,6 +114,19 @@ def test_runtime_checks_the_exact_release_and_recovery_playbooks() -> None:
     revision = tasks[names.index("Read the installed release revision")]
     assert revision["ansible.builtin.command"]["argv"] == ["git", "rev-parse", "HEAD"]
 
+    ancestry = tasks[names.index("Require the exact revision to be part of the pushed branch")][
+        "ansible.builtin.command"
+    ]["argv"]
+    assert isinstance(ancestry, list), ancestry
+    assert ancestry[:3] == ["git", "merge-base", "--is-ancestor"], (
+        "an older pushed revision must still be installable for rollback"
+    )
+    refuse = tasks[names.index("Refuse a revision that is not on the pushed branch")]
+    assert refuse["ansible.builtin.assert"]["that"] == [
+        "operations_remote_main.stdout | length > 0",
+        "operations_ancestry.rc == 0",
+    ]
+
     syntax = tasks[names.index("Check the emergency recovery playbooks")]
     assert "--syntax-check" in syntax["ansible.builtin.command"]["argv"]
     assert syntax["loop"] == [
