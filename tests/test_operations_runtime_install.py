@@ -54,6 +54,13 @@ def test_dashboard_retirement_is_scoped_and_guarded() -> None:
     guard = tasks[names.index("Require a healthy Application before removing anything")]
     assert "Healthy" in guard["ansible.builtin.assert"]["fail_msg"]
 
+    desired = tasks[names.index("Select the ConfigMaps the Application declares")][
+        "ansible.builtin.set_fact"
+    ]["dashboard_desired"]
+    assert "selectattr('status', 'equalto', 'Synced')" in desired, (
+        "a resource awaiting pruning is still listed as managed and would look declared"
+    )
+
     drift = tasks[names.index("Require the only drift to be replaced dashboard ConfigMaps")]
     condition = " ".join(drift["ansible.builtin.assert"]["that"])
     assert "rejectattr('status', 'equalto', 'Synced')" in condition

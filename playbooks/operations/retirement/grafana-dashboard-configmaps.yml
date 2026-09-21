@@ -43,10 +43,13 @@
           revision replaced, which is why the Application cannot reach Synced on
           its own.
 
+    # A resource the Application no longer declares still appears in its status
+    # as OutOfSync while pruning is disabled, so "declared" means Synced.
     - name: Select the ConfigMaps the Application declares
       ansible.builtin.set_fact:
         dashboard_desired: >-
           {{ dashboard_application.resources[0].status.resources
+             | selectattr('status', 'equalto', 'Synced')
              | selectattr('kind', 'equalto', 'ConfigMap')
              | map(attribute='name')
              | select('match', '^' + dashboard_prefix)
