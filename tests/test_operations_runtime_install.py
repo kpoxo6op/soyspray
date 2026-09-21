@@ -45,6 +45,24 @@ def test_metrics_service_restarts_when_the_release_changes() -> None:
     assert "restarted" in service["state"]
 
 
+def test_dashboard_retirement_is_scoped_and_guarded() -> None:
+    playbook = ROOT / "playbooks/operations/retirement/grafana-dashboard-configmaps.yml"
+    play = yaml.safe_load(playbook.read_text())[0]
+    tasks = play["tasks"]
+    names = [task["name"] for task in tasks]
+
+    guard = tasks[names.index("Require a healthy Application before removing anything")]
+    assert "Synced" in guard["ansible.builtin.assert"]["fail_msg"]
+
+    remove = tasks[names.index("Remove the replaced dashboard ConfigMaps")]
+    assert remove["kubernetes.core.k8s"]["kind"] == "ConfigMap"
+    assert remove["kubernetes.core.k8s"]["state"] == "absent"
+    assert remove["loop"] == "{{ dashboard_stale }}"
+
+    scope = tasks[names.index("Require a replacement for every ConfigMap to remove")]
+    assert "dashboard_prefix" in scope["ansible.builtin.assert"]["fail_msg"]
+
+
 def test_runtime_uses_the_minimal_recovery_dependencies() -> None:
     recovery = (ROOT / "requirements-recovery.txt").read_text().splitlines()
     development = (ROOT / "requirements-dev.txt").read_text().splitlines()
