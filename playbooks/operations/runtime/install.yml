@@ -23,17 +23,42 @@
           - operations_selected_revision.stdout is match('^[0-9a-f]{40}$')
           - operations_install_root.startswith(operations_home + '/.local/lib/')
 
-    - name: Read the revision from GitHub
+    - name: Read the pushed main tip from GitHub
       ansible.builtin.command:
-        argv: [git, ls-remote, "{{ operations_source_repo }}"]
-      register: operations_remote_refs
+        argv: [git, ls-remote, "{{ operations_source_repo }}", refs/heads/main]
+      register: operations_remote_main
       changed_when: false
       check_mode: false
 
-    - name: Require the exact revision to be available remotely
+    - name: Fetch the pushed branch history
+      ansible.builtin.command:
+        argv: [git, fetch, --quiet, "{{ operations_source_repo }}", main]
+        chdir: "{{ (playbook_dir + '/../../..') | realpath }}"
+      changed_when: false
+      check_mode: false
+
+    - name: Require the exact revision to be part of the pushed branch
+      ansible.builtin.command:
+        argv:
+          - git
+          - merge-base
+          - --is-ancestor
+          - "{{ operations_selected_revision.stdout }}"
+          - "{{ operations_remote_main.stdout.split()[0] }}"
+        chdir: "{{ (playbook_dir + '/../../..') | realpath }}"
+      register: operations_ancestry
+      changed_when: false
+      check_mode: false
+      failed_when: false
+
+    - name: Refuse a revision that is not on the pushed branch
       ansible.builtin.assert:
-        that: operations_selected_revision.stdout in operations_remote_refs.stdout
-        fail_msg: Push the reviewed revision before installing it.
+        that:
+          - operations_remote_main.stdout | length > 0
+          - operations_ancestry.rc == 0
+        fail_msg: >-
+          {{ operations_selected_revision.stdout }} is not part of the pushed main
+          branch. Push it, or use the readlink of a release that was pushed.
 
     - name: Create the private release root
       ansible.builtin.file:
