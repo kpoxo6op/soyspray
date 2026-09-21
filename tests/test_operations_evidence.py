@@ -220,6 +220,18 @@ class IncidentMetricTests(unittest.TestCase):
             text = evidence.incident_metrics(path)
         self.assertIn("soyspray_classifier_up 0", text)
 
+    def test_a_collector_that_never_ran_reports_no_series(self):
+        with tempfile.TemporaryDirectory() as folder:
+            value = self.snapshot()
+            value.pop("collector")
+            path = self.write(folder, value)
+            text = evidence.incident_metrics(path)
+        series = [line for line in text.splitlines() if line and not line.startswith("#")]
+        self.assertFalse(
+            [line for line in series if line.startswith("soyspray_evidence_collector_observed")],
+            series,
+        )
+
     def test_a_classifier_that_never_ran_reports_no_series(self):
         with tempfile.TemporaryDirectory() as folder:
             value = self.snapshot()

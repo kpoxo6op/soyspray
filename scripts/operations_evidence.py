@@ -598,9 +598,12 @@ def incident_metrics(path: str | Path = INCIDENT_FILE, now: datetime | None = No
 
     collector = snapshot.get("collector") if isinstance(snapshot.get("collector"), dict) else {}
     status = str(collector.get("status", "unknown"))
-    lines.append(
-        _metric("soyspray_evidence_collector_observed", int(status in {"observed", "partial"}))
-    )
+    # Absent means no incident has been collected yet, which is unknown rather
+    # than a failure. Only a real observation or a real gap becomes a series.
+    if status != "unknown":
+        lines.append(
+            _metric("soyspray_evidence_collector_observed", int(status in {"observed", "partial"}))
+        )
     for name, key in (
         ("soyspray_evidence_collector_lines_read_total", "lines"),
         ("soyspray_evidence_collector_lines_exported_total", "exported"),
