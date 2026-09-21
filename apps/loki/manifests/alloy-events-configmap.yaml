@@ -7,6 +7,8 @@ metadata:
     app.kubernetes.io/name: grafana-alloy
     app.kubernetes.io/component: agent
     app.kubernetes.io/part-of: observability
+  annotations:
+    description: Grafana Alloy Flow configuration for Kubernetes events, event signals, and events.
 data:
   config.alloy: |
     logging {
@@ -43,6 +45,46 @@ data:
         values = { cluster = "soyspray" }
       }
 
+      // Event signals for Prometheus alerting. Prometheus owns the paging
+      // decision; Loki keeps the searchable event. Keep these stages last:
+      // stages added after stage.metrics can add unexpected metric labels.
+      // Pipeline liveness uses the existing loki_write_sent_bytes_total series,
+      // so no always-on counter is needed here.
+
+      // Replaces the retired Loki rule VolumeMountAttachFailures.
+      stage.match {
+        selector = "{job=\"kubernetes-events\", type=\"Warning\"} |~ \"(?i)(failedmount|failedattachvolume|volumeattachmentfailed|unable to attach or mount volumes|mountvolume[.]setup failed)\""
+
+        stage.metrics {
+          metric.counter {
+            name              = "soyspray_event_mount_failure_total"
+            description       = "Volume attach and mount failure warnings from Kubernetes events."
+            prefix            = ""
+            match_all         = true
+            action            = "inc"
+            max_idle_duration = "1h"
+          }
+        }
+      }
+
+      // Replaces the retired Loki rules ImmichMediaBackupBackoffLimitExceeded
+      // and ObsidianBackupBackoffLimitExceeded. The Prometheus rule selects the
+      // declared backup jobs from this counter.
+      stage.match {
+        selector = "{job=\"kubernetes-events\"} |= \"BackoffLimitExceeded\""
+
+        stage.metrics {
+          metric.counter {
+            name              = "soyspray_event_job_backoff_total"
+            description       = "Kubernetes events reporting that a job exceeded its backoff limit."
+            prefix            = ""
+            match_all         = true
+            action            = "inc"
+            max_idle_duration = "1h"
+          }
+        }
+      }
+
       forward_to = [loki.write.default.receiver]
     }
 
@@ -51,4 +93,3 @@ data:
         url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
       }
     }
-
