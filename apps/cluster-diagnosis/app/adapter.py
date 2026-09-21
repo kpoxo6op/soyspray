@@ -345,6 +345,8 @@ def _incident_header(transition: str, summary: dict[str, Any], reason: str = "")
 
 def _classifier_line(report: dict[str, Any]) -> str:
     summary = classify_module.summarize(report or {})
+    if summary["status"] == "no-input":
+        return "Classifier hint (not proof): no sanitized evidence line to classify."
     if summary["status"] in {"unavailable", "quota-exhausted"}:
         return (
             "Classifier hint (not proof): unavailable "

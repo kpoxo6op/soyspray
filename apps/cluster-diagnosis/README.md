@@ -72,6 +72,13 @@ SSH to node-0 carries a fixed local script and a base64-encoded request built
 only from charset-validated label values. No alert text, log line or model
 command enters that SSH command.
 
+The SSH session runs on the node's host network, which cannot resolve cluster
+DNS, so the collector and the metric reader use Service ClusterIPs
+(`CLUSTER_DIAGNOSIS_LOKI_URL`, and the Prometheus address inside
+`metric_evidence`). If those Services are ever recreated, update both addresses
+together. A wrong address shows as a `query-failed` or `collector-unavailable`
+gap, never as healthy evidence.
+
 ## Jev classification
 
 The adapter posts sanitized evidence lines to `https://classifier.dev` (the

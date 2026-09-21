@@ -35,7 +35,10 @@ DEFAULT_WINDOW_SECONDS = 900
 MAX_WINDOW_SECONDS = 3600
 DEFAULT_TIMEOUT_SECONDS = 20
 DEFAULT_SSH_HOST = "ubuntu@192.168.20.10"
-DEFAULT_LOKI_URL = "http://loki.monitoring.svc.cluster.local:3100"
+# The query runs through SSH on node-0, which is the host network and cannot
+# resolve cluster DNS, so the collector uses the Service ClusterIP. Update it
+# together with the Prometheus ClusterIP if those Services are ever recreated.
+DEFAULT_LOKI_URL = "http://10.233.57.196:3100"
 
 SAFE_SELECTOR_VALUE = re.compile(r"[a-zA-Z0-9_.:/-]{1,253}")
 CRI_PREFIX = re.compile(r"^\d{4}-\d{2}-\d{2}T[\d:.]+Z (?:stdout|stderr) [FP] ")

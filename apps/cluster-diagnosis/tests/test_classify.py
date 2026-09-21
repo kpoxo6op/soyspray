@@ -345,6 +345,7 @@ class BookkeepingTests(unittest.TestCase):
         report = classifier(client).classify(["", "   ", "\n"])
         self.assertEqual(client.calls, [])
         self.assertEqual(report["results"], [])
+        self.assertEqual(report["status"], "no-input")
 
 
 class TransportTests(unittest.TestCase):
