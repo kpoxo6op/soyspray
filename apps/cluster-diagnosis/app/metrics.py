@@ -11,6 +11,8 @@ import re
 from datetime import datetime
 from typing import Any
 
+import incident as incident_module
+
 MAX_INCIDENT_ANCHORS = 40
 MAX_LABEL = 80
 SAFE_LABEL = re.compile(r"[^A-Za-z0-9_.:/ -]")
@@ -49,6 +51,11 @@ HELP = (
         "Time of the last delivered narrative.",
     ),
     (
+        "soyspray_diagnosis_outbox_oldest_seconds",
+        "gauge",
+        "Age of the oldest message waiting for Telegram.",
+    ),
+    (
         "soyspray_diagnosis_model_info",
         "gauge",
         "Serving model and profile of the last request.",
@@ -68,6 +75,11 @@ HELP = (
         "soyspray_incident_consequence",
         "gauge",
         "Application incident owned by an open node incident.",
+    ),
+    (
+        "soyspray_incident_undiagnosed_timestamp_seconds",
+        "gauge",
+        "Start of the failed work on an open critical incident with no diagnosis.",
     ),
     (
         "soyspray_incident_overflow_total",
@@ -141,6 +153,7 @@ def render(
     poll_seconds: int,
     model: str = "",
     profile: str = "",
+    day: str,
 ) -> str:
     out = Renderer()
     out.metric("soyspray_diagnosis_up", 1)
@@ -149,6 +162,13 @@ def render(
     out.metric("soyspray_diagnosis_provider_blocked", int(blocked))
     out.metric("soyspray_diagnosis_attempt_limit", attempt_limit)
     out.metric("soyspray_diagnosis_token_limit", token_limit)
+
+    # The day's spending is only reported once something has been spent, so the
+    # dashboard shows unknown rather than a zero that hides a lost ledger.
+    spending = (state.get("budget") or {}).get(day) or {}
+    if isinstance(spending, dict) and spending:
+        out.metric("soyspray_diagnosis_attempts_today", spending.get("attempts"))
+        out.metric("soyspray_diagnosis_tokens_today", spending.get("tokens"))
 
     metrics = state.get("metrics") or {}
     out.metric(
@@ -163,7 +183,11 @@ def render(
         out.info("soyspray_diagnosis_outcome_total", count, {"outcome": outcome})
     for result, count in list((metrics.get("deliveries") or {}).items())[:16]:
         out.info("soyspray_diagnosis_delivery_total", count, {"result": result})
-    out.metric("soyspray_diagnosis_outbox_pending", len(state.get("outbox") or []))
+    outbox = [entry for entry in (state.get("outbox") or []) if isinstance(entry, dict)]
+    out.metric("soyspray_diagnosis_outbox_pending", len(outbox))
+    oldest = oldest_outbox_seconds(outbox, now)
+    if oldest is not None:
+        out.metric("soyspray_diagnosis_outbox_oldest_seconds", oldest)
     if model:
         out.info("soyspray_diagnosis_model_info", 1, {"model": model, "profile": profile})
 
@@ -176,6 +200,13 @@ def render(
             out.metric(
                 "soyspray_incident_opened_timestamp_seconds",
                 opened,
+                {"anchor": anchor, "kind": kind},
+            )
+        undiagnosed = undiagnosed_since(item)
+        if undiagnosed is not None:
+            out.metric(
+                "soyspray_incident_undiagnosed_timestamp_seconds",
+                undiagnosed,
                 {"anchor": anchor, "kind": kind},
             )
         overflow = item.get("symptom_overflow")
@@ -212,6 +243,43 @@ def render(
     for label, count in list((classifier.get("counts") or {}).items())[:16]:
         out.info("soyspray_classifier_result_total", count, {"label": label})
     return out.text()
+
+
+def undiagnosed_since(item: dict[str, Any]) -> float | None:
+    """Report an open critical incident that no successful answer ever covered.
+
+    This survives midnight and a restart because it is derived from the incident
+    record: the first attempt that failed, or the open time when no attempt got
+    far enough to be recorded. A provider that fails every call, an exhausted
+    attempt allowance and an interrupted attempt all appear here.
+    """
+    if str(item.get("state") or "") != "open":
+        return None
+    if item.get("last_result") == "ok":
+        return None
+    try:
+        severity = incident_module.Incident(item).highest_severity()
+    except (KeyError, TypeError, ValueError):
+        return None
+    if severity != "critical":
+        return None
+    attempts = [entry for entry in (item.get("attempts") or []) if isinstance(entry, dict)]
+    if attempts:
+        return incident_time(attempts[0].get("at"))
+    return incident_time(item.get("opened_at"))
+
+
+def oldest_outbox_seconds(outbox: list[dict[str, Any]], now: datetime) -> float | None:
+    """Age of the oldest queued message, or nothing when the outbox is empty."""
+    queued = [
+        float(entry["queued_at"])
+        for entry in outbox
+        if isinstance(entry.get("queued_at"), (int, float))
+        and not isinstance(entry.get("queued_at"), bool)
+    ]
+    if not queued:
+        return None
+    return max(0.0, now.timestamp() - min(queued))
 
 
 def incident_time(value: object) -> float | None:
