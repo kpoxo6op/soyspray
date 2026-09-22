@@ -42,9 +42,11 @@ spec:
           type: RuntimeDefault
       containers:
         - name: diagnosis
-          # Replaced by the digest promotion PR that the image workflow opens
-          # after the first merge. Until then the pod cannot start, which is why
-          # the source merge and the promotion merge are done back to back.
+          # Pinned to a digest published by the image workflow, which opens a
+          # separate promotion PR for every new one and is the only writer of
+          # this line. A placeholder digest means a source merge landed before
+          # its promotion merge, so the pod cannot start in that window and the
+          # two merges are done back to back.
           image: ghcr.io/kpoxo6op/cluster-diagnosis@sha256:0000000000000000000000000000000000000000000000000000000000000000
           imagePullPolicy: IfNotPresent
           command: ["python3", "/app/diagnosis.py"]
