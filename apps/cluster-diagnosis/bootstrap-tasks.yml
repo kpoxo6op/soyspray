@@ -1,19 +1,50 @@
 ---
+# The reads use kubectl, not kubernetes.core.k8s_info. The module needs the
+# Python kubernetes client on the control-plane node, and the nodes do not have
+# it, so k8s_info fails with "Failed to import the required Python library".
+# kubectl is installed by Kubespray and is already the tool the write steps use.
 - name: Read the existing DeepSeek diagnosis identity
-  kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Secret
-    namespace: monitoring
-    name: cluster-diagnosis-deepseek
-    kubeconfig: "{{ kubeconfig_path }}"
-  register: cluster_diagnosis_existing
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ kubeconfig_path }}"
+      - get
+      - secret
+      - --namespace
+      - monitoring
+      - cluster-diagnosis-deepseek
+      - --output
+      - json
+  register: cluster_diagnosis_existing_secret
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  no_log: true
+
+- name: Require a readable diagnosis namespace
+  ansible.builtin.assert:
+    that:
+      - >-
+        cluster_diagnosis_existing_secret.rc == 0 or
+        'NotFound' in (cluster_diagnosis_existing_secret.stderr | default(''))
+    fail_msg: >-
+      kubectl could not read monitoring/cluster-diagnosis-deepseek (rc
+      {{ cluster_diagnosis_existing_secret.rc }}):
+      {{ cluster_diagnosis_existing_secret.stderr | default('') | trim }}
+
+- name: Read the installed DeepSeek key
+  ansible.builtin.set_fact:
+    cluster_diagnosis_installed_key: >-
+      {{ '' if cluster_diagnosis_existing_secret.rc != 0
+         else ((cluster_diagnosis_existing_secret.stdout | from_json).data | default({}))['api-key']
+              | default('') | b64decode }}
   no_log: true
 
 - name: Select the supplied or existing DeepSeek key
   ansible.builtin.set_fact:
     cluster_diagnosis_bootstrap_key: >-
-      {{ cluster_diagnosis_deepseek_api_key | default(
-         (cluster_diagnosis_existing.resources | first | default({})).data['api-key'] | default('') | b64decode) }}
+      {{ cluster_diagnosis_deepseek_api_key | default(cluster_diagnosis_installed_key) }}
   no_log: true
 
 - name: Require a usable DeepSeek key
@@ -30,9 +61,8 @@
 - name: Refuse to replace an existing DeepSeek identity
   ansible.builtin.assert:
     that: >-
-      {{ cluster_diagnosis_existing.resources | length == 0 or
-         cluster_diagnosis_bootstrap_key ==
-         (cluster_diagnosis_existing.resources[0].data['api-key'] | default('') | b64decode) }}
+      {{ cluster_diagnosis_installed_key | length == 0 or
+         cluster_diagnosis_bootstrap_key | trim == cluster_diagnosis_installed_key | trim }}
     fail_msg: >-
       The supplied key differs from the installed one. This bootstrap cannot
       rotate a provider identity: remove the Secret deliberately and rerun, or
@@ -56,25 +86,35 @@
         api-key: {{ cluster_diagnosis_bootstrap_key | to_json }}
   changed_when: true
   no_log: true
-  when: cluster_diagnosis_existing.resources | length == 0 and not ansible_check_mode
+  when: cluster_diagnosis_existing_secret.rc != 0 and not ansible_check_mode
 
 - name: Read the installed Telegram delivery identity
-  kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Secret
-    namespace: monitoring
-    name: alertmanager-telegram-secret
-    kubeconfig: "{{ kubeconfig_path }}"
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ kubeconfig_path }}"
+      - get
+      - secret
+      - --namespace
+      - monitoring
+      - alertmanager-telegram-secret
+      - --output
+      - json
   register: cluster_diagnosis_telegram
+  changed_when: false
+  check_mode: false
+  failed_when: false
   no_log: true
 
 - name: Require the existing Alertmanager bot identity
   ansible.builtin.assert:
     that:
-      - cluster_diagnosis_telegram.resources | length == 1
-      - "'PROMETHEUS_TELEGRAM_BOT_TOKEN' in cluster_diagnosis_telegram.resources[0].data"
+      - cluster_diagnosis_telegram.rc == 0
+      - >-
+        'PROMETHEUS_TELEGRAM_BOT_TOKEN' in
+        ((cluster_diagnosis_telegram.stdout | default('{}') | from_json).data | default({}))
     fail_msg: >-
       The diagnosis narrative is delivered by the existing Alertmanager bot.
       Restore monitoring/alertmanager-telegram-secret first. This bootstrap
       never creates, changes or deletes that Secret.
-  no_log: true
