@@ -226,6 +226,8 @@ recovered.
 | `soyspray_diagnosis_provider_blocked` | The provider rejected the key |
 | `soyspray_diagnosis_outbox_pending`, `_outbox_oldest_seconds` | Delivery state |
 | `soyspray_diagnosis_delivery_total`, `_outcome_total`, `_model_info` | Outcomes and serving model |
+| `soyspray_diagnosis_last_success_timestamp_seconds` | Last message delivered, any outcome |
+| `soyspray_diagnosis_last_diagnosis_timestamp_seconds` | Last successful provider answer |
 | `soyspray_incident_open`, `_opened_timestamp_seconds` | Open incidents |
 | `soyspray_incident_undiagnosed_timestamp_seconds` | Critical work with no answer yet |
 | `soyspray_evidence_*`, `soyspray_classifier_*` | Evidence and classifier state |

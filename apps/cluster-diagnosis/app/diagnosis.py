@@ -821,6 +821,11 @@ class Diagnosis:
             body = result["content"]
             self.model = result.get("model") or self.model
             outcome = "diagnosed"
+            # A delivered message is not a diagnosis: a failure notice is also
+            # delivered, so the two times are recorded separately.
+            self.state.setdefault("metrics", {})["last_diagnosis_timestamp_seconds"] = int(
+                timestamp.timestamp()
+            )
             candidate.record.pop("retry_after", None)
         else:
             body = f"Diagnosis stopped: {result['cause']}. Native alerting continues."
