@@ -768,6 +768,33 @@ class MetricsTests(unittest.TestCase):
         self.assertIn("soyspray_diagnosis_attempts_today 1.0", after)
         self.assertIn("soyspray_diagnosis_tokens_today 812.0", after)
 
+    def test_a_delivered_failure_notice_is_not_a_diagnosis(self):
+        with tempfile.TemporaryDirectory() as folder:
+            harness = Harness(Path(folder), transmission=Transmission([(503, {})]))
+            diagnosis = harness.open()
+            diagnosis.iterate()
+            samples = [
+                line
+                for line in diagnosis.render_metrics().splitlines()
+                if line and not line.startswith("#")
+            ]
+            self.assertTrue(
+                [line for line in samples if line.startswith("soyspray_diagnosis_last_success")]
+            )
+            self.assertFalse(
+                [line for line in samples if line.startswith("soyspray_diagnosis_last_diagnosis")]
+            )
+            harness.transmission.responses = [answer()]
+            harness.alerts = [alert(ends=NOW + timedelta(hours=2))]
+            harness.clock[0] = NOW + timedelta(minutes=10)
+            diagnosis.iterate()
+            text = diagnosis.render_metrics()
+        self.assertIn(
+            f"soyspray_diagnosis_last_diagnosis_timestamp_seconds "
+            f"{int((NOW + timedelta(minutes=10)).timestamp())}.0",
+            text,
+        )
+
     def test_an_undiagnosed_critical_incident_is_reported_with_its_age(self):
         with tempfile.TemporaryDirectory() as folder:
             harness = Harness(Path(folder), transmission=Transmission([(503, {}), (503, {})]))

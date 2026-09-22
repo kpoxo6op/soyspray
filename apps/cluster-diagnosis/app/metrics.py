@@ -48,7 +48,12 @@ HELP = (
     (
         "soyspray_diagnosis_last_success_timestamp_seconds",
         "gauge",
-        "Time of the last delivered narrative.",
+        "Time of the last message delivered to Telegram, of any outcome.",
+    ),
+    (
+        "soyspray_diagnosis_last_diagnosis_timestamp_seconds",
+        "gauge",
+        "Time of the last answer the provider returned successfully.",
     ),
     (
         "soyspray_diagnosis_outbox_oldest_seconds",
@@ -178,6 +183,10 @@ def render(
     out.metric(
         "soyspray_diagnosis_last_success_timestamp_seconds",
         metrics.get("last_success_timestamp_seconds"),
+    )
+    out.metric(
+        "soyspray_diagnosis_last_diagnosis_timestamp_seconds",
+        metrics.get("last_diagnosis_timestamp_seconds"),
     )
     for outcome, count in list((metrics.get("outcomes") or {}).items())[:32]:
         out.info("soyspray_diagnosis_outcome_total", count, {"outcome": outcome})
