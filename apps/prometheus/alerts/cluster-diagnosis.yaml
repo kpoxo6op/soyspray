@@ -28,6 +28,21 @@ spec:
               and no narrative will arrive. Check the cluster-diagnosis
               Deployment, its persistent volume and the Argo Application.
 
+        - alert: SoysprayDiagnosisSourceUnreadable
+          expr: soyspray_diagnosis_alertmanager_source_ok == 0
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "The incident loop cannot read Alertmanager"
+            description: >-
+              The loop is running and polling, but every poll fails before it
+              reaches an incident, so nothing is investigated and no narrative
+              will arrive. Check the pod log for source-failed and the
+              NetworkPolicy in monitoring/cluster-diagnosis: the pod resolves
+              through the node-local DNS cache and reads Alertmanager on port
+              9093.
+
         - alert: SoysprayDiagnosisStateUnusable
           expr: soyspray_diagnosis_state_usable == 0
           for: 5m

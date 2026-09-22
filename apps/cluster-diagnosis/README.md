@@ -156,8 +156,10 @@ recovered.
 | `soyspray_evidence_*`, `soyspray_classifier_*` | Evidence and classifier state |
 
 Never-attempted work exposes no series, so the dashboard shows unknown rather
-than a false zero. Four alerts cover the failure modes:
-`SoysprayDiagnosisStale`, `SoysprayDiagnosisStateUnusable`,
+than a false zero. Five alerts cover the failure modes:
+`SoysprayDiagnosisStale` (no metrics, or no completed poll for 15 minutes),
+`SoysprayDiagnosisSourceUnreadable` (the loop polls but cannot read
+Alertmanager, so nothing can be investigated), `SoysprayDiagnosisStateUnusable`,
 `SoysprayDiagnosisProviderRejected` and `SoysprayDiagnosisDeliveryBacklog`.
 
 ## Models
