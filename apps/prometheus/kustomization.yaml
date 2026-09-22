@@ -110,4 +110,5 @@ resources:
   - alerts/authentik.yaml
   - alerts/node-hardware.yaml
   - alerts/cluster-diagnosis.yaml
+  - alerts/acceptance-probe.yaml  # TEMPORARY acceptance probe
   - alerts/runtime-signals.yaml
