@@ -56,6 +56,11 @@ HELP = (
         "Model answers by disposition: accepted, no-update or rejected.",
     ),
     (
+        "soyspray_diagnosis_answer_rejected_total",
+        "counter",
+        "Rejected model answers by reason.",
+    ),
+    (
         "soyspray_diagnosis_last_success_timestamp_seconds",
         "gauge",
         "Time of the last message delivered to Telegram, of any outcome.",
@@ -204,6 +209,8 @@ def render(
         out.info("soyspray_diagnosis_suppressed_total", count, {"reason": reason})
     for disposition, count in list((metrics.get("answers") or {}).items())[:4]:
         out.info("soyspray_diagnosis_answer_total", count, {"result": disposition})
+    for reason, count in list((metrics.get("rejections") or {}).items())[:8]:
+        out.info("soyspray_diagnosis_answer_rejected_total", count, {"reason": reason})
     for result, count in list((metrics.get("deliveries") or {}).items())[:16]:
         out.info("soyspray_diagnosis_delivery_total", count, {"result": result})
     outbox = [entry for entry in (state.get("outbox") or []) if isinstance(entry, dict)]
