@@ -231,7 +231,10 @@ so the readiness path is likely failing for a different reason. Check the Servic
 - Nothing about the pipeline is printed: no collection accounting, no classifier
   label, no provider error. Those stay in the metrics and the log.
 - With no finding at all, the loop is silent: it does not call the model, spends
-  nothing and sends nothing. The same finding is never sent twice.
+  nothing and sends nothing. The same kind of finding is never sent twice: the
+  counts come from a sliding window, so more of the same lines is not news. A
+  second message also waits out a ten-minute cooldown, and a finding that was
+  held back by the cooldown still goes out afterwards.
 - A close is only sent for an incident whose message reached the chat, and it
   says why it closed.
 
@@ -286,7 +289,8 @@ that spends its whole budget before answering produces an explicit
 for an optional addition, not a report, so `NO_UPDATE`, an overlong answer, a
 Markdown answer or an answer with a URL is rejected and the finding goes alone.
 `soyspray_diagnosis_answer_total{result}` counts accepted, no-update and rejected
-answers, and `soyspray_diagnosis_suppressed_total{reason}` counts the incidents
+answers, `soyspray_diagnosis_answer_rejected_total{reason}` says why an answer was
+rejected, and `soyspray_diagnosis_suppressed_total{reason}` counts the incidents
 the loop examined and stayed silent about.
 
 ## Setup
