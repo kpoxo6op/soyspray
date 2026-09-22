@@ -17,9 +17,11 @@ from urllib.request import Request, urlopen
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 DEFAULT_MODEL = "deepseek-flash"
 DEFAULT_THINKING = "disabled"
-# Reasoning is off for the default model, so a short answer is enough. The
-# reasoning profile needs room for the reasoning tokens plus the answer.
-FLASH_MAX_TOKENS = 512
+# The answer has five short sections, and 512 tokens was measured to hit the
+# ceiling and return finish_reason "length". An answer that is cut off is a
+# failure here, never a message, so the ceiling has room for the whole reply.
+# The reasoning profile also needs room for its reasoning tokens.
+FLASH_MAX_TOKENS = 1200
 REASONING_MAX_TOKENS = 4096
 FLASH_WALL_SECONDS = 60.0
 REASONING_WALL_SECONDS = 90.0
@@ -46,7 +48,7 @@ only from the supplied evidence. Return these sections, concisely:
 Empty metric series and missing log evidence are unknown, not healthy. A
 "normal or recovered" classifier hint does not prove recovery. Do not claim
 evidence that was not supplied. Never print credentials, tokens or URLs with
-credentials."""
+credentials. Answer in at most 200 words in total."""
 
 PROFILES = {
     "flash": {

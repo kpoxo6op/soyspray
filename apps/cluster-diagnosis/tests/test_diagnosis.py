@@ -517,6 +517,37 @@ class PayloadTests(unittest.TestCase):
         self.assertEqual(body["classification"]["status"], "ok")
         self.assertLessEqual(len(prompt.encode()), diagnosis_module.MAX_EVIDENCE_BYTES + 2048)
 
+    def test_budgeting_never_changes_the_reported_evidence(self):
+        """The narrative and the metrics describe collection, not prompt room."""
+        big = pack()
+        big["targets"][0]["samples"] = [
+            {"level": "error", "message": "panic " + "x" * 180} for _ in range(8)
+        ]
+        big["read_only_metrics"] = {
+            "nodes_ready": [{"labels": {"node": f"n{index}"}, "value": 1} for index in range(64)]
+        }
+        before = json.dumps(big, sort_keys=True)
+        diagnosis_module.build_prompt(
+            {"anchor": "app:immich", "symptoms": []}, big, classification()
+        )
+        self.assertEqual(json.dumps(big, sort_keys=True), before)
+        self.assertIn("1 log target(s)", diagnosis_module.evidence_line(big))
+
+    def test_the_prompt_prefers_evidence_over_metrics(self):
+        big = pack()
+        big["read_only_metrics"] = {
+            "nodes_ready": [{"labels": {"node": f"n{index}"}, "value": 1} for index in range(64)]
+        }
+        payload = diagnosis_module.budget_payload(
+            diagnosis_module.build_payload(
+                {"anchor": "app:immich", "symptoms": []}, big, classification()
+            ),
+            diagnosis_module.MAX_EVIDENCE_BYTES,
+        )
+        self.assertEqual(payload["incident"]["anchor"], "app:immich")
+        # The small evidence sample survives; the bulky context goes first.
+        self.assertTrue(payload["evidence"]["targets"][0]["samples"])
+
     def test_the_classifier_hint_is_labelled_as_a_hint(self):
         line = diagnosis_module.classifier_line(classification())
         self.assertIn("not proof", line)

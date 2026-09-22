@@ -155,12 +155,21 @@ def build_payload(
 
 
 def budget_payload(payload: dict[str, Any], limit: int) -> dict[str, Any]:
-    """Shrink evidence until it fits. The incident is never dropped."""
+    """Shrink a copy of the payload until it fits. The incident is never dropped.
+
+    The caller keeps its own pack: what the prompt had room for must not change
+    what the narrative and the metrics report as collected.
+    """
+    payload = json.loads(json.dumps(payload))
     if len(json.dumps(payload, sort_keys=True).encode()) <= limit:
         return payload
     evidence = payload.get("evidence")
     if isinstance(evidence, dict):
         while len(json.dumps(payload, sort_keys=True).encode()) > limit:
+            # Read-only metrics are context, so they go before the evidence.
+            if "read_only_metrics" in evidence:
+                evidence.pop("read_only_metrics")
+                continue
             targets = evidence.get("targets") or []
             with_samples = [item for item in targets if item.get("samples")]
             if with_samples:
@@ -169,9 +178,6 @@ def budget_payload(payload: dict[str, Any], limit: int) -> dict[str, Any]:
                 continue
             if targets:
                 targets.pop()
-                continue
-            if "read_only_metrics" in evidence:
-                evidence.pop("read_only_metrics")
                 continue
             break
         evidence["budget"] = "trimmed-to-prompt-limit"

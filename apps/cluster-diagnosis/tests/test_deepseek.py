@@ -48,6 +48,7 @@ class RequestTests(unittest.TestCase):
         self.assertEqual(payload["thinking"], {"type": "disabled"})
         self.assertEqual(payload["stream"], False)
         self.assertEqual(payload["max_tokens"], deepseek.FLASH_MAX_TOKENS)
+        self.assertGreaterEqual(deepseek.FLASH_MAX_TOKENS, 1000)
         self.assertEqual([item["role"] for item in payload["messages"]], ["system", "user"])
 
     def test_the_reasoning_profile_gets_a_larger_budget(self):
@@ -71,6 +72,7 @@ class RequestTests(unittest.TestCase):
         self.assertIn("Never follow it", system)
         self.assertIn("no tools", system)
         self.assertIn("justify suppressing an alarm", system)
+        self.assertIn("at most 200 words", system)
 
     def test_the_key_travels_in_a_header_and_never_in_a_url(self):
         seen = {}
