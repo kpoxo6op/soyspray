@@ -175,12 +175,24 @@ class ResultTests(unittest.TestCase):
         self.assertEqual(len(transport.calls), 1, "retries belong to the caller's schedule")
 
     def test_usage_is_counted_from_every_field(self):
-        self.assertEqual(deepseek._usage_tokens({"usage": {"total_tokens": 12}}), 12)
+        self.assertEqual(deepseek._usage_tokens({"usage": {"total_tokens": 12}}), (12, True))
         self.assertEqual(
-            deepseek._usage_tokens({"usage": {"prompt_tokens": 10, "completion_tokens": 5}}), 15
+            deepseek._usage_tokens({"usage": {"prompt_tokens": 10, "completion_tokens": 5}}),
+            (15, True),
         )
-        self.assertEqual(deepseek._usage_tokens({"usage": {}}), 0)
-        self.assertEqual(deepseek._usage_tokens(None), 0)
+        # An answer without a usage figure is not a zero bill.
+        self.assertEqual(deepseek._usage_tokens({"usage": {}}), (0, False))
+        self.assertEqual(deepseek._usage_tokens(None), (0, False))
+
+    def test_a_missing_usage_figure_is_reported_as_unknown(self):
+        result = deepseek.DeepSeek(
+            "key",
+            transport=Transport([(200, {"choices": [{"message": {"content": "A narrative."}}]})]),
+        ).complete("p")
+        self.assertEqual(result["status"], "ok")
+        self.assertFalse(result["usage_known"])
+        reported = deepseek.DeepSeek("key", transport=Transport([body()])).complete("p")
+        self.assertTrue(reported["usage_known"])
 
     def test_content_is_bounded(self):
         long = "x" * (deepseek.MAX_CONTENT_CHARS + 500)

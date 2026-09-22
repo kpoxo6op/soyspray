@@ -213,8 +213,13 @@ def incident_header(transition: str, summary: dict[str, Any], reason: str = "") 
         "recovered": "INCIDENT RECOVERED" if recovered else "INCIDENT CLOSED",
     }
     active = [item for item in summary["symptoms"] if item.get("state") == "firing"]
+    # The header carries the incident's own severity, not the severity that is
+    # still firing: a closing message for a critical incident must not read
+    # "warning" just because every critical symptom has already closed.
     severity = (
-        "critical" if any(item.get("severity") == "critical" for item in active) else "warning"
+        "critical"
+        if any(item.get("severity") == "critical" for item in summary["symptoms"])
+        else "warning"
     )
     generation = summary.get("generation", 1)
     suffix = f" gen {generation}" if generation > 1 else ""
@@ -304,6 +309,9 @@ def changed_symptoms(before: dict[str, Any], summary: dict[str, Any]) -> str:
 
 SEVERITY_RANK = {"critical": 3, "warning": 2, "info": 1, "none": 0, "unknown": 0}
 
+# An attempt whose process never recorded an answer is abandoned after this long.
+ABANDONED_ATTEMPT_SECONDS = 600
+
 
 def owns_critical_work(state: dict[str, Any], record: dict[str, Any]) -> bool:
     """Critical itself, or a root incident that owns a critical consequence."""
@@ -329,6 +337,19 @@ def eligible(record: dict[str, Any]) -> bool:
     )
 
 
+def in_flight(record: dict[str, Any], now: datetime) -> bool:
+    """Report whether a recorded attempt can still be running.
+
+    The longest request either profile allows is 90 seconds, so the grace is
+    generous. An attempt older than that, with no answer recorded, was
+    interrupted with its process; the incident must not wait behind it forever.
+    """
+    started = incident_module.parse_time(record.get("in_flight_since"))
+    if started is None:
+        return False
+    return (now - started).total_seconds() <= ABANDONED_ATTEMPT_SECONDS
+
+
 def select_candidate(
     state: dict[str, Any], now: datetime
 ) -> tuple[incident_module.Incident | None, list[str]]:
@@ -346,8 +367,13 @@ def select_candidate(
         current = incident_module.Incident(record)
         # Unchanged content is not worth another attempt, but a failed
         # transmission is: the retry is charged like any other attempt and runs
-        # only after its backoff.
-        failed = record.get("last_result") not in {"ok", "in-progress", None}
+        # only after its backoff. An attempt that is still inside its own
+        # deadline is left alone; one whose process died before it could record
+        # an answer is abandoned work and is retried as a charged attempt.
+        failed = record.get("last_result") not in {"ok", None}
+        if record.get("last_result") == "in-progress" and in_flight(record, now):
+            notes.append("in-flight")
+            continue
         if record.get("last_attempt_hash") == current.content_hash() and not failed:
             continue
         if current.attempt_count() >= incident_module.MAX_ATTEMPTS_PER_GENERATION:
@@ -496,9 +522,29 @@ class Diagnosis:
         return ""
 
     def save(self) -> None:
+        if not self.state_usable:
+            # The ledger could not be read. Writing over it would destroy the
+            # evidence of the corruption and hand back a fresh daily allowance,
+            # which is the one thing the spend guard must never do.
+            return
         self.store.save(self.state)
 
     # -- delivery ------------------------------------------------------------
+
+    def _blocked_today(self, day: str) -> bool:
+        """Read the provider latch, which belongs to one Auckland day.
+
+        A rejection is remembered in the ledger so a restart cannot clear it,
+        and it expires with the day so a long-running process asks again
+        tomorrow instead of staying silent until someone restarts it.
+        """
+        record = self.state.get("blocked")
+        if record is None:
+            return False
+        if isinstance(record, dict) and record.get("day") == day:
+            return True
+        self.state["blocked"] = None
+        return False
 
     def deliver_outbox(self) -> None:
         now = time.time()
@@ -517,15 +563,96 @@ class Diagnosis:
                 self.state.setdefault("metrics", {})["last_success_timestamp_seconds"] = int(
                     self.now().timestamp()
                 )
+                self._record_delivery(entry)
             else:
                 self._count("deliveries", "failed")
                 keep.append(entry)
         self.state["outbox"] = keep
 
-    def enqueue(self, message: str) -> None:
+    def _record_delivery(self, entry: dict[str, Any]) -> None:
+        """Mark that this incident's own message reached the chat.
+
+        An incident is only worth a closing message when the chat heard about it
+        in the first place, so delivery, not queueing, is the evidence.
+        """
+        record = self._record_for(str(entry.get("incident_id") or ""))
+        if record is None:
+            return
+        record["delivered_generation"] = int(
+            entry.get("generation") or record.get("generation") or 1
+        )
+        record["delivered_at"] = self.now().isoformat()
+
+    def _record_for(self, incident_id: str) -> dict[str, Any] | None:
+        """Find an incident record, open or closed, by its identifier."""
+        if not incident_id:
+            return None
+        record = (self.state.get("incidents") or {}).get(incident_id)
+        if isinstance(record, dict):
+            return record
+        for candidate in self.state.get("closed") or []:
+            if isinstance(candidate, dict) and str(candidate.get("id") or "") == incident_id:
+                return candidate
+        return None
+
+    def enqueue(self, message: str, *, incident_id: str = "", generation: int = 0) -> None:
         telegram_module.enqueue(
             self.state.setdefault("outbox", []),
-            {"message": message, "queued_at": time.time()},
+            {
+                "message": message,
+                "queued_at": time.time(),
+                "incident_id": incident_id,
+                "generation": int(generation),
+            },
+        )
+
+    def _close_notice(
+        self, incident: incident_module.Incident, incident_id: str, generation: int, reason: str
+    ) -> None:
+        incident.record["recovery_notified"] = True
+        incident.record["close_pending"] = None
+        self.enqueue(
+            narrative("recovered", summarize(incident), {}, {}, "", reason=reason),
+            incident_id=incident_id,
+            generation=generation,
+        )
+
+    def flush_close_notices(self) -> list[str]:
+        """Send the holds whose opening message has now been delivered.
+
+        A close that was held because its narrative was still queued is sent as
+        soon as that narrative arrives. When the opening message is gone for
+        good, the hold is dropped instead of arriving out of nowhere.
+        """
+        outcomes: list[str] = []
+        for record in list(self.state.get("closed") or []):
+            if not isinstance(record, dict) or not record.get("close_pending"):
+                continue
+            incident_id = str(record.get("id") or "")
+            generation = int(record.get("generation") or 1)
+            delivered = int(record.get("delivered_generation") or 0) == generation
+            if not delivered and self._pending_for(incident_id, generation):
+                continue
+            if not delivered:
+                record["close_pending"] = None
+                record["recovery_notified"] = True
+                outcomes.append("close-suppressed")
+                continue
+            self._close_notice(
+                incident_module.Incident(record),
+                incident_id,
+                generation,
+                str(record.get("close_pending")),
+            )
+            self._count("outcomes", "recovered")
+            outcomes.append("recovered")
+        return outcomes
+
+    def _pending_for(self, incident_id: str, generation: int) -> bool:
+        return any(
+            str(entry.get("incident_id") or "") == incident_id
+            and int(entry.get("generation") or 0) == int(generation)
+            for entry in (self.state.get("outbox") or [])
         )
 
     def _count(self, bucket: str, key: str) -> None:
@@ -536,7 +663,13 @@ class Diagnosis:
 
     def iterate(self) -> str:
         timestamp = self.now()
+        if not self.state_usable:
+            # Refuse to work at all without the spend guard, and do not touch the
+            # ledger: retrying the read is the only safe action, and a corrupt
+            # file must never be replaced by a fresh allowance.
+            return "state-unusable"
         day = store_module.day_key(timestamp)
+        self.blocked = self._blocked_today(day)
         self.deliver_outbox()
 
         def finish(outcome: str) -> str:
@@ -582,30 +715,31 @@ class Diagnosis:
             current = transition["incident"]
             if current.record.get("recovery_notified"):
                 continue
-            current.record["recovery_notified"] = True
-            self.enqueue(
-                narrative(
-                    "recovered",
-                    summarize(current),
-                    {},
-                    {},
-                    "",
-                    reason=transition.get("reason", ""),
-                )
-            )
+            incident_id = str(current.record.get("id") or "")
+            generation = int(current.record.get("generation") or 1)
+            if int(current.record.get("delivered_generation") or 0) != generation:
+                # Nothing about this incident has reached the chat yet. Hold the
+                # close: it must follow the opening message, never overtake it,
+                # and it is not news when no opening message ever arrived.
+                current.record["close_pending"] = str(transition.get("reason", ""))
+                continue
+            self._close_notice(current, incident_id, generation, str(transition.get("reason", "")))
             self._count("outcomes", "recovered")
             outcomes.append("recovered")
+
+        outcomes.extend(self.flush_close_notices())
+
+        if self.blocked:
+            # A rejected or unfunded key will not recover by retrying today, so
+            # the loop stops asking until the next Auckland day. Recovery
+            # notices above still go out: they need no provider call.
+            self._count("outcomes", "provider-blocked")
+            return finish("provider-blocked")
 
         candidate, notes = select_candidate(self.state, timestamp)
         outcomes.extend(notes)
         if candidate is None:
             return finish(",".join(outcomes) if outcomes else "unchanged")
-        if not self.state_usable:
-            self._count("outcomes", "state-unusable")
-            return finish("state-unusable")
-        if self.blocked:
-            self._count("outcomes", "provider-blocked")
-            return finish("provider-blocked")
 
         worker = self.deepseek_factory()
         reserved = worker.reserve_tokens()
@@ -634,6 +768,9 @@ class Diagnosis:
             {"at": timestamp.isoformat(), "hash": content_hash, "generation": candidate.generation}
         )
         candidate.record["last_result"] = "in-progress"
+        # The stamp is what lets a later poll tell a request that is still
+        # running from one whose process died before it could record an answer.
+        candidate.record["in_flight_since"] = timestamp.isoformat()
         # Persist the reservation before the request leaves the pod.
         self.save()
 
@@ -663,10 +800,21 @@ class Diagnosis:
 
         result = worker.complete(build_prompt(summary, pack, classification))
         store_module.charge_tokens(
-            self.state, day, reserved=reserved, used=int(result.get("tokens") or 0)
+            self.state,
+            day,
+            reserved=reserved,
+            used=int(result.get("tokens") or 0),
+            known=bool(result.get("usage_known")),
         )
+        candidate.record.pop("in_flight_since", None)
         if result.get("blocked"):
             self.blocked = True
+            self.state["blocked"] = {
+                "day": day,
+                "cause": str(result.get("cause") or "rejected"),
+                "at": timestamp.isoformat(),
+                "incident": str(candidate.record.get("anchor") or ""),
+            }
         candidate.record["last_result"] = result["status"]
         candidate.record["last_pack_status"] = pack.get("status", "unknown")
         if result["status"] == "ok":
@@ -682,7 +830,11 @@ class Diagnosis:
             ).isoformat()
         candidate.record["updated_at"] = timestamp.isoformat()
         message = narrative(transition, summary, pack, classification, body, changes=changes)
-        self.enqueue(message)
+        self.enqueue(
+            message,
+            incident_id=str(candidate.record.get("id") or ""),
+            generation=candidate.generation,
+        )
         candidate.record["notified_hash"] = content_hash
         candidate.record["notified_symptoms"] = {
             name: item.get("state") for name, item in candidate.symptoms.items()
@@ -695,9 +847,11 @@ class Diagnosis:
     # -- metrics -------------------------------------------------------------
 
     def render_metrics(self) -> str:
+        now = self.now()
         return metrics_module.render(
             self.state,
-            now=self.now(),
+            now=now,
+            day=store_module.day_key(now),
             source_ok=self.source_ok,
             state_usable=self.state_usable,
             blocked=self.blocked,
