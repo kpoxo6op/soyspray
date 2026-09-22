@@ -45,6 +45,13 @@ timestamps, silences and inhibition do not create an incident. A symptom that
 resolves, is inhibited or stops being reported closes after its own grace, and
 the incident closes three minutes after its last firing symptom.
 
+Only critical work spends a model call. An incident qualifies when it is critical
+itself, or when it is a root incident that owns a critical consequence, which is
+what lets one node investigation replace several application investigations. A
+warning-only incident is tracked, and it still sends one close message when it
+ends, but it never opens a narrative: Alertmanager has already paged the warning
+itself and the daily allowance is small.
+
 Only Alertmanager's own resolution is described as recovery. A silence, an
 inhibition or a vanished alert is reported as a close with its reason.
 
