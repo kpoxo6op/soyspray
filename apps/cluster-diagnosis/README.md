@@ -22,9 +22,13 @@ Prometheus ◄── /metrics (ServiceMonitor monitoring/cluster-diagnosis)
 | `NetworkPolicy/cluster-diagnosis` | `monitoring` | Egress only where it must go |
 
 The pod never talks to the Kubernetes API. It has no service account token, and
-the NetworkPolicy excludes the pod and service CIDRs, so the API server and every
-other workload are unreachable. Calico has no name-based egress rules, so the
-external side is "anything outside the cluster CIDRs on 443".
+the NetworkPolicy excludes the pod CIDR, the service CIDR and the LAN subnet, so
+the API server, the node addresses, the router and every other workload are
+unreachable. Calico has no name-based egress rules, so the external side is
+"anything outside those ranges on 443". Two allowances are wider than they look
+and are deliberate: the DNS rule names the node-local cache address on port 53,
+and the monitoring rule allows ports 3100, 9090 and 9093 to every pod in the
+`monitoring` namespace, because a policy cannot name a Service.
 
 ## Incident identity and lifecycle
 
@@ -66,11 +70,18 @@ inhibition or a vanished alert is reported as a close with its reason.
 | Transmissions per attempt | 1 | retries are scheduled, not repeated |
 
 A reservation for the transmission and its token ceiling is written and
-`fsync`ed **before** the request leaves the pod. A request that completes
-remotely but is never observed still counts, and a reported usage replaces the
-reservation. The provider is asked once per attempt: a 429, a 5xx, a timeout or
-an empty answer records the outcome, schedules a bounded `retry_after`, and the
+`fsync`ed **before** the request leaves the pod. A request whose answer never
+arrived keeps its reservation: the provider may have served and billed it, and
+only a reported usage figure replaces the reservation, including a reported
+zero. The provider is asked once per attempt: a 429, a 5xx, a timeout or an
+empty answer records the outcome, schedules a bounded `retry_after`, and the
 next poll retries it as a separate, charged attempt.
+
+An attempt that is interrupted with its process is not a lost incident. The
+record carries the moment the request started, and a later poll treats an
+attempt that outlived its own deadline as abandoned and retries it as a charged
+attempt. `SoysprayDiagnosisUndiagnosed` fires when an open critical incident has
+had no successful answer for an hour, whichever of these causes applies.
 
 401, 402 and 403 are different: the key is rejected or unfunded, so the loop
 stops asking and raises `SoysprayDiagnosisProviderRejected` until the next day.
@@ -84,28 +95,82 @@ guarantee and is not backed up**.
 - It is written atomically and the process holds an exclusive lock for its whole
   lifetime. The Deployment uses `Recreate`, so two pods cannot write at once.
 - A missing file is a normal first start. A corrupt, unreadable or wrong-schema
-  file is **not**: model calls stop, readiness reports `state-unusable`, and
-  `SoysprayDiagnosisStateUnusable` fires. Losing the ledger would hand back a
-  fresh daily allowance, so it fails closed.
+  file is **not**: model calls stop, nothing is delivered, readiness reports
+  `state-unusable`, and `SoysprayDiagnosisStateUnusable` fires. The loop never
+  writes over a ledger it could not read, because that would destroy the
+  evidence and hand back a fresh daily allowance. It retries the read on every
+  poll, so repairing or replacing the file resumes work without a restart.
 - The claim is part of the Application, so ordinary upgrades preserve it.
 
 ### Guarded reset
 
-Reset the ledger deliberately, and only when you intend to grant a fresh day:
+Reset the ledger deliberately, and only when you intend to grant a fresh day.
+The writer must be stopped first, and Argo CD with automated self-heal will put
+a scaled-down Deployment straight back, so park it through Git:
 
-```sh
-kubectl -n monitoring scale deployment/cluster-diagnosis --replicas=0
-kubectl -n monitoring wait --for=delete pod -l app.kubernetes.io/name=cluster-diagnosis --timeout=120s
-IMAGE="$(kubectl -n monitoring get deployment cluster-diagnosis -o jsonpath='{.spec.template.spec.containers[0].image}')"
-kubectl -n monitoring run cluster-diagnosis-reset --rm -it --restart=Never \
-  --image="$IMAGE" --command -- python3 /app/diagnosis.py --reset-state
-kubectl -n monitoring scale deployment/cluster-diagnosis --replicas=1
-```
+1. Merge a one-line change that sets `spec.replicas: 0` in
+   `apps/cluster-diagnosis/manifests/deployment.yaml`, and wait until the pod is
+   gone:
 
-`--reset-state` refuses to run while another process holds the lock, so the
-scale-down is a safety step, not a formality. The reset pod needs the same
-volume: add `--overrides` to mount `cluster-diagnosis-state` at `/state` if the
-run above reports a missing state root.
+   ```sh
+   kubectl -n monitoring wait --for=delete pod \
+     -l app.kubernetes.io/name=cluster-diagnosis --timeout=180s
+   ```
+
+2. Run the reset against the same claim. The pod below mounts the ledger, which
+   the reset needs: without the claim it would report success against its own
+   empty scratch volume.
+
+   ```sh
+   IMAGE="$(kubectl -n monitoring get deployment cluster-diagnosis \
+     -o jsonpath='{.spec.template.spec.containers[0].image}')"
+   kubectl -n monitoring apply -f - <<YAML
+   apiVersion: v1
+   kind: Pod
+   metadata:
+     name: cluster-diagnosis-reset
+     namespace: monitoring
+   spec:
+     restartPolicy: Never
+     automountServiceAccountToken: false
+     securityContext:
+       runAsNonRoot: true
+       runAsUser: 10001
+       runAsGroup: 10001
+       fsGroup: 10001
+       seccompProfile:
+         type: RuntimeDefault
+     containers:
+       - name: reset
+         image: ${IMAGE}
+         command: ["python3", "/app/diagnosis.py", "--reset-state"]
+         env:
+           - name: CLUSTER_DIAGNOSIS_STATE_ROOT
+             value: /state
+         securityContext:
+           allowPrivilegeEscalation: false
+           readOnlyRootFilesystem: true
+           capabilities:
+             drop: ["ALL"]
+         volumeMounts:
+           - name: state
+             mountPath: /state
+     volumes:
+       - name: state
+         persistentVolumeClaim:
+           claimName: cluster-diagnosis-state
+   YAML
+   kubectl -n monitoring wait --for=jsonpath='{.status.phase}'=Succeeded \
+     pod/cluster-diagnosis-reset --timeout=180s
+   kubectl -n monitoring logs pod/cluster-diagnosis-reset
+   kubectl -n monitoring delete pod cluster-diagnosis-reset
+   ```
+
+3. Merge the replicas back to `1` and confirm the loop is polling again.
+
+`--reset-state` refuses to run while another process holds the lock, so step 1 is
+a safety step, not a formality. The ledger's own count of the day is discarded by
+the reset: that is what "grant a fresh day" means.
 
 ## Data that leaves the cluster
 
@@ -144,7 +209,9 @@ configuration rather than model output.
 Delivery is separate from diagnosis: a narrative is queued in the outbox and
 sent in the same iteration, a failure is retried on later polls without another
 model call, the outbox holds at most 20 entries, and an entry older than six
-hours is dropped. Telegram can accept a message before the client gives up, so a
+hours is dropped and counted as expired. A closing message is only sent for an
+incident the chat actually heard about, and it waits until that earlier message
+has been delivered instead of overtaking it. Telegram can accept a message before the client gives up, so a
 duplicate is possible; a narrative is never sent for an incident that already
 recovered.
 
@@ -157,17 +224,21 @@ recovered.
 | `soyspray_diagnosis_state_usable` | 0 stops all model calls |
 | `soyspray_diagnosis_attempts_today`, `_tokens_today` | Current day against its ceiling |
 | `soyspray_diagnosis_provider_blocked` | The provider rejected the key |
-| `soyspray_diagnosis_outbox_pending`, `_delivery_total` | Delivery state |
-| `soyspray_diagnosis_outcome_total`, `_model_info` | Outcomes and serving model |
+| `soyspray_diagnosis_outbox_pending`, `_outbox_oldest_seconds` | Delivery state |
+| `soyspray_diagnosis_delivery_total`, `_outcome_total`, `_model_info` | Outcomes and serving model |
 | `soyspray_incident_open`, `_opened_timestamp_seconds` | Open incidents |
+| `soyspray_incident_undiagnosed_timestamp_seconds` | Critical work with no answer yet |
 | `soyspray_evidence_*`, `soyspray_classifier_*` | Evidence and classifier state |
 
 Never-attempted work exposes no series, so the dashboard shows unknown rather
-than a false zero. Five alerts cover the failure modes:
+than a false zero. Six alerts cover the failure modes:
 `SoysprayDiagnosisStale` (no metrics, or no completed poll for 15 minutes),
 `SoysprayDiagnosisSourceUnreadable` (the loop polls but cannot read
 Alertmanager, so nothing can be investigated), `SoysprayDiagnosisStateUnusable`,
-`SoysprayDiagnosisProviderRejected` and `SoysprayDiagnosisDeliveryBacklog`.
+`SoysprayDiagnosisProviderRejected`, `SoysprayDiagnosisUndiagnosed` (an open
+critical incident with no answer for an hour) and
+`SoysprayDiagnosisDeliveryStalled` (the oldest queued message has waited more
+than thirty minutes).
 
 ## Models
 
@@ -233,20 +304,46 @@ loop, so it reports `busy` rather than racing it.
 
 Cutover is complete: the OpenClaw job was removed with
 `playbooks/operations/retirement/laptop-cluster-diagnosis.yml`, and the laptop
-keeps only backup and restore evidence.
+keeps only backup and restore evidence. The removed job was
+`f2558fdf-209c-4dcc-a92b-9e5a3decf85f`; the retired ledger is kept beside the
+laptop copy as `state.retired.json`.
+
+Known-good revisions for a rollback:
+
+| Step | Revision or digest |
+| --- | --- |
+| Running runtime image | `ghcr.io/kpoxo6op/cluster-diagnosis@sha256:3165dfe5…` (promotion commit `8d1a6398`) |
+| Source merge that created the workload | `a7d6fb7b` |
+| Last laptop runtime release | the commit shown by `readlink ~/.local/lib/soyspray-operations/previous` |
 
 Roll back to the laptop loop:
 
-1. Revert the commit that removed `apps/cluster-diagnosis/install.yml` and the
-   runtime installer import.
-2. Run `ansible-playbook playbooks/operations/runtime/install.yml -e
-   operations_revision=COMMIT -e diagnosis_enabled=true`.
-3. Convert the cluster ledger into the laptop schema, or accept a fresh laptop
-   day, and note that the two ledgers are independent.
+1. Park the cluster loop first, or two loops will spend and notify
+   independently: merge `spec.replicas: 0` for
+   `monitoring/cluster-diagnosis` through the same Git path as the guarded
+   reset, wait for the pod to be gone, and confirm no
+   `apps/cluster-diagnosis/app/adapter.py` process is left on this laptop
+   (`pgrep -af adapter.py`).
+2. Restore the laptop loop: revert the commits that removed
+   `apps/cluster-diagnosis/install.yml` and the runtime installer import, then
+   run `ansible-playbook playbooks/operations/runtime/install.yml -e
+   operations_revision=COMMIT -e diagnosis_enabled=true`. That restores the
+   OpenClaw cron job and its dependencies: the job runs Codex through the
+   OpenClaw CLI with the diagnosis profile under
+   `~/.local/state/soyspray/cluster-diagnosis/profile`, so OpenClaw and the
+   account behind that profile must still be usable.
+3. Decide what happens to the day's spending. The two ledgers are separate
+   schemas, so there is no tested conversion: either carry the cluster spend
+   into the laptop ledger by hand (the fields are `budget[day].attempts` and
+   `.tokens` in the cluster ledger, the equivalent counters in the laptop one)
+   or accept a fresh laptop day deliberately. A pending outbox is dropped with
+   the cluster ledger; nothing is delivered twice.
 
 Roll back the provider only:
 
-1. Revert the image digest to the last reviewed one, or set `DEEPSEEK_PROFILE`
-   to move to the reasoning profile.
-2. If the key must change, remove `monitoring/cluster-diagnosis-deepseek` and
+1. Revert the image digest to the last reviewed one.
+2. `DEEPSEEK_PROFILE=reasoning` is a configuration change, not a rollback: it
+   selects `deepseek-v4-pro` with thinking enabled and a larger ceiling. Use it
+   to diagnose a provider problem, not to undo a release.
+3. If the key must change, remove `monitoring/cluster-diagnosis-deepseek` and
    rerun the bootstrap with the new Vault value.

@@ -3,9 +3,10 @@
 # node network and every other workload.
 #
 # Calico does not offer name-based egress rules, so the external side is
-# expressed as "anything outside the cluster CIDRs on 443". The pod CIDR and
-# service CIDR are excluded, which is what blocks the API server and the rest of
-# the cluster while still allowing an address that can move.
+# expressed as "anything outside the cluster CIDRs and the LAN on 443". The pod
+# CIDR, the service CIDR and the LAN subnet are excluded, which is what blocks
+# the API server, the node addresses and every other workload while still
+# allowing an address that can move.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -44,6 +45,9 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+    # Every pod in the monitoring namespace may answer on these three ports. The
+    # policy cannot name a Service, so it allows the ports rather than exactly
+    # the three workloads that serve them.
     - to:
         - namespaceSelector:
             matchLabels:
@@ -55,12 +59,16 @@ spec:
           port: 9090
         - protocol: TCP
           port: 9093
+    # The two external hosts are reached by name over 443. Everything inside the
+    # cluster, the node network and the LAN stays out: the API server, the node
+    # addresses, the router and every other workload are unreachable from here.
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
             except:
               - 10.233.0.0/18
               - 10.233.64.0/18
+              - 192.168.20.0/24
       ports:
         - protocol: TCP
           port: 443

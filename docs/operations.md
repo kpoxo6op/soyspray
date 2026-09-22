@@ -33,7 +33,8 @@ The loop runs as `monitoring/cluster-diagnosis`. Read its logs with
 `kubectl -n monitoring exec deploy/cluster-diagnosis -- python3 /app/diagnosis.py
 --print-metrics`, and its alerts with `SoysprayDiagnosisStale`,
 `SoysprayDiagnosisSourceUnreadable`, `SoysprayDiagnosisStateUnusable`,
-`SoysprayDiagnosisProviderRejected` and `SoysprayDiagnosisDeliveryBacklog`.
+`SoysprayDiagnosisProviderRejected`, `SoysprayDiagnosisUndiagnosed` and
+`SoysprayDiagnosisDeliveryStalled`.
 
 ## Change an application
 
