@@ -206,6 +206,35 @@ read-only from `monitoring/alertmanager-telegram-secret`; this workload never
 creates, changes or deletes that Secret, and the recipient is application
 configuration rather than model output.
 
+### What a message contains
+
+Alertmanager has already sent the alert, the runbook link and the resolved
+notice. The loop therefore speaks only when it knows something the alert does not
+say, and the message is at most four short lines:
+
+```text
+FIRE KubePodNotReady [warning] immich/immich-server-6ddff46cbc-x4bb4 (immich-server) - firing 17m
+last 15m: 40 sampled line(s) - network-timeout x32, unhealthy x32.
+The liveness probe reportedly succeeds only because the API server is reachable,
+so the readiness path is likely failing for a different reason. Check the Service endpoints.
+```
+
+- The first line is written by the loop: icon, state, severity, the alert the
+  operator recognises, the object, and how long the alert has been firing.
+- The second line is the new observation, written by the loop from the evidence
+  pack: sampled lines with the signal names and counts, counted in lines that
+  matched, never in events or restarts.
+- The last lines are the only part the model writes: at most two sentences, 45
+  words, plain text, no headings or Markdown. The loop rejects anything else
+  rather than repairing it, and the model may answer `NO_UPDATE`, which sends the
+  finding alone.
+- Nothing about the pipeline is printed: no collection accounting, no classifier
+  label, no provider error. Those stay in the metrics and the log.
+- With no finding at all, the loop is silent: it does not call the model, spends
+  nothing and sends nothing. The same finding is never sent twice.
+- A close is only sent for an incident whose message reached the chat, and it
+  says why it closed.
+
 Delivery is separate from diagnosis: a narrative is queued in the outbox and
 sent in the same iteration, a failure is retried on later polls without another
 model call, the outbox holds at most 20 entries, and an entry older than six
@@ -253,7 +282,12 @@ deadline. `DEEPSEEK_MODEL` and `DEEPSEEK_THINKING` override either profile.
 
 An empty or truncated answer is a failure, never a message: a reasoning model
 that spends its whole budget before answering produces an explicit
-`empty-content` outcome instead of an empty Telegram message.
+`empty-content` outcome instead of an empty Telegram message. The model is asked
+for an optional addition, not a report, so `NO_UPDATE`, an overlong answer, a
+Markdown answer or an answer with a URL is rejected and the finding goes alone.
+`soyspray_diagnosis_answer_total{result}` counts accepted, no-update and rejected
+answers, and `soyspray_diagnosis_suppressed_total{reason}` counts the incidents
+the loop examined and stayed silent about.
 
 ## Setup
 
