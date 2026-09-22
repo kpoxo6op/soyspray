@@ -37,8 +37,6 @@ MAX_ATTEMPTS_PER_GENERATION = 3
 MAX_CLOSED_INCIDENTS = 40
 MAX_ACTIVE_INCIDENTS = 40
 
-STATE_VERSION = 2
-
 SAFE_LABEL = re.compile(r"[a-zA-Z0-9_.:/-]{1,253}")
 SECRET_KEY_MARKERS = (
     "password",
@@ -396,29 +394,6 @@ def new_incident(kind: str, key: str, now: datetime, *, generation: int = 1) -> 
             "reopened_from": None,
         }
     )
-
-
-def _empty_state() -> dict[str, Any]:
-    return {
-        "version": STATE_VERSION,
-        "source": None,
-        "incidents": {},
-        "closed": [],
-        "attempts": {},
-        "quota": {},
-        "metrics": {},
-        "classifier_cache": {},
-    }
-
-
-def load_incident_state(store_load: Any) -> dict[str, Any]:
-    """Load incident state through a caller-supplied loader, tolerating old files."""
-    value = store_load()
-    if not isinstance(value, dict) or value.get("version") != STATE_VERSION:
-        return _empty_state()
-    for name, default in _empty_state().items():
-        value.setdefault(name, default() if callable(default) else default)
-    return value
 
 
 def apply_alerts(
