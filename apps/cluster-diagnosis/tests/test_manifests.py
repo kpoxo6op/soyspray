@@ -54,13 +54,15 @@ class NetworkPolicyTest(unittest.TestCase):
         external = [rule for rule in rules if rule["to"][0]["ipBlock"]["cidr"] == "0.0.0.0/0"]
         self.assertEqual(len(external), 1)
         self.assertEqual(
-            external[0]["to"][0]["ipBlock"]["except"], ["10.233.0.0/18", "10.233.64.0/18"]
+            external[0]["to"][0]["ipBlock"]["except"],
+            ["10.233.0.0/18", "10.233.64.0/18", "192.168.20.0/24"],
         )
         self.assertEqual(egress_ports(external[0]), {("TCP", 443)})
 
     def test_no_egress_rule_reaches_the_api_server_or_the_node_network(self):
         # Only the 443 rule may name a wide range, and it excludes the service
-        # and pod CIDRs, so the API server is unreachable by construction.
+        # CIDR, the pod CIDR and the LAN, so the API server and the node and
+        # router addresses are unreachable by construction.
         for rule in self.egress:
             for target in rule["to"]:
                 if "ipBlock" in target:

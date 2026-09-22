@@ -68,14 +68,28 @@ spec:
               until the next day. Restore the key in
               monitoring/cluster-diagnosis-deepseek through the bootstrap.
 
-        - alert: SoysprayDiagnosisDeliveryBacklog
-          expr: soyspray_diagnosis_outbox_pending > 3
-          for: 15m
+        - alert: SoysprayDiagnosisUndiagnosed
+          expr: time() - soyspray_incident_undiagnosed_timestamp_seconds > 3600
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "A critical incident has no diagnosis"
+            description: >-
+              An open critical incident has gone an hour without a successful
+              answer, because every provider call failed, the attempt allowance
+              is spent, or an attempt was interrupted. The incident record holds
+              this state across a restart. Read the loop log for the outcome.
+
+        - alert: SoysprayDiagnosisDeliveryStalled
+          expr: soyspray_diagnosis_outbox_oldest_seconds > 1800
+          for: 10m
           labels:
             severity: warning
           annotations:
             summary: "Diagnosis messages are not reaching Telegram"
             description: >-
-              More than three narratives are waiting in the outbox. Delivery is
-              retried without another model call, and an entry older than six
-              hours is dropped.
+              The oldest queued narrative has waited more than thirty minutes.
+              Delivery is retried on every poll without another model call, and
+              an entry older than six hours is dropped. Check the bot token in
+              monitoring/alertmanager-telegram-secret and the loop log.

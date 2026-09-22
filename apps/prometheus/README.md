@@ -41,8 +41,9 @@ incident loop: `SoysprayDiagnosisStale` (no metrics, or no completed poll for 15
 minutes), `SoysprayDiagnosisSourceUnreadable` (the loop polls but cannot read
 Alertmanager), `SoysprayDiagnosisStateUnusable` (the spend guard cannot be read,
 so model calls are refused), `SoysprayDiagnosisProviderRejected` (DeepSeek
-rejected the key) and `SoysprayDiagnosisDeliveryBacklog` (narratives are not
-reaching Telegram).
+rejected the key), `SoysprayDiagnosisUndiagnosed` (an open critical incident has
+had no successful answer for an hour) and `SoysprayDiagnosisDeliveryStalled` (the
+oldest queued narrative has waited more than thirty minutes).
 [apps/loki/manifests/docs/ALERT-PIPELINE.md](../loki/manifests/docs/ALERT-PIPELINE.md)
 holds the complete mapping, the detection timing and the missing-evidence
 behaviour.
