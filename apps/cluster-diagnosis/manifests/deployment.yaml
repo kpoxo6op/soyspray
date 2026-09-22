@@ -8,10 +8,14 @@ metadata:
     app.kubernetes.io/component: diagnosis
     app.kubernetes.io/part-of: observability
   annotations:
-    description: 'One incident loop: Alertmanager to incident, Loki evidence, Jev
-      classification, one DeepSeek narrative, Telegram delivery.'
+    description: >-
+      One incident loop: Alertmanager to incident, Loki evidence, Jev
+      classification, one DeepSeek narrative, Telegram delivery.
 spec:
   replicas: 1
+  # Recreate guarantees the previous pod is gone before the next starts. The
+  # ledger also takes an exclusive lock, so two writers cannot overlap even if a
+  # pod is started by hand.
   strategy:
     type: Recreate
   selector:
@@ -24,8 +28,10 @@ spec:
         app.kubernetes.io/component: diagnosis
         app.kubernetes.io/part-of: observability
       annotations:
-        soyspray.dev/runtime-config: '1'
+        soyspray.dev/runtime-config: "1"
     spec:
+      # No Kubernetes identity: the loop reads Alertmanager, Loki and Prometheus
+      # over plain HTTP and never talks to the API server.
       automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
@@ -35,82 +41,89 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-      - name: diagnosis
-        image: ghcr.io/kpoxo6op/cluster-diagnosis@sha256:0000000000000000000000000000000000000000000000000000000000000000
-        imagePullPolicy: IfNotPresent
-        command:
-        - python3
-        - /app/diagnosis.py
-        env:
-        - name: ALERTMANAGER_URL
-          value: http://alertmanager-operated.monitoring.svc.cluster.local:9093
-        - name: LOKI_URL
-          value: http://loki.monitoring.svc.cluster.local:3100
-        - name: PROMETHEUS_URL
-          value: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
-        - name: CLUSTER_DIAGNOSIS_STATE_ROOT
-          value: /state
-        - name: DEEPSEEK_PROFILE
-          value: flash
-        - name: DEEPSEEK_API_KEY_FILE
-          value: /etc/cluster-diagnosis/deepseek/api-key
-        - name: TELEGRAM_BOT_TOKEN_FILE
-          value: /etc/cluster-diagnosis/telegram/PROMETHEUS_TELEGRAM_BOT_TOKEN
-        - name: TELEGRAM_CHAT_ID
-          value: '336642153'
-        - name: POLL_SECONDS
-          value: '120'
-        - name: DAILY_ATTEMPT_LIMIT
-          value: '3'
-        - name: DAILY_TOKEN_LIMIT
-          value: '60000'
-        - name: METRICS_PORT
-          value: '9911'
-        ports:
-        - name: metrics
-          containerPort: 9911
-        readinessProbe:
-          httpGet:
-            path: /healthz
-            port: metrics
-          initialDelaySeconds: 5
-          periodSeconds: 30
-        resources:
-          requests:
-            cpu: 50m
-            memory: 128Mi
-          limits:
-            cpu: 500m
-            memory: 512Mi
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop:
-            - ALL
-        volumeMounts:
-        - name: state
-          mountPath: /state
-        - name: deepseek
-          mountPath: /etc/cluster-diagnosis/deepseek
-          readOnly: true
-        - name: telegram
-          mountPath: /etc/cluster-diagnosis/telegram
-          readOnly: true
-        - name: tmp
-          mountPath: /tmp
+        - name: diagnosis
+          # Replaced by the digest promotion PR that the image workflow opens
+          # after the first merge. Until then the pod cannot start, which is why
+          # the source merge and the promotion merge are done back to back.
+          image: ghcr.io/kpoxo6op/cluster-diagnosis@sha256:0000000000000000000000000000000000000000000000000000000000000000
+          imagePullPolicy: IfNotPresent
+          command: ["python3", "/app/diagnosis.py"]
+          env:
+            - name: ALERTMANAGER_URL
+              value: http://alertmanager-operated.monitoring.svc.cluster.local:9093
+            - name: LOKI_URL
+              value: http://loki.monitoring.svc.cluster.local:3100
+            - name: PROMETHEUS_URL
+              value: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+            - name: CLUSTER_DIAGNOSIS_STATE_ROOT
+              value: /state
+            - name: DEEPSEEK_PROFILE
+              value: flash
+            - name: DEEPSEEK_API_KEY_FILE
+              value: /etc/cluster-diagnosis/deepseek/api-key
+            # The bot token belongs to the existing Alertmanager bot, so the
+            # narrative arrives in the same private chat as the alerts. The
+            # recipient is application configuration, never model output.
+            - name: TELEGRAM_BOT_TOKEN_FILE
+              value: /etc/cluster-diagnosis/telegram/PROMETHEUS_TELEGRAM_BOT_TOKEN
+            - name: TELEGRAM_CHAT_ID
+              value: "336642153"
+            - name: POLL_SECONDS
+              value: "120"
+            - name: DAILY_ATTEMPT_LIMIT
+              value: "3"
+            - name: DAILY_TOKEN_LIMIT
+              value: "60000"
+            - name: METRICS_PORT
+              value: "9911"
+          ports:
+            - name: metrics
+              containerPort: 9911
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          # No liveness probe on purpose: a dependency outage or an unreadable
+          # ledger must not restart the pod in a loop. Readiness reports the
+          # condition and SoysprayDiagnosisStateUnusable alerts on it.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: state
+              mountPath: /state
+            - name: deepseek
+              mountPath: /etc/cluster-diagnosis/deepseek
+              readOnly: true
+            - name: telegram
+              mountPath: /etc/cluster-diagnosis/telegram
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
       volumes:
-      - name: state
-        persistentVolumeClaim:
-          claimName: cluster-diagnosis-state
-      - name: deepseek
-        secret:
-          secretName: cluster-diagnosis-deepseek
-          items:
-          - key: api-key
-            path: api-key
-      - name: telegram
-        secret:
-          secretName: alertmanager-telegram-secret
-      - name: tmp
-        emptyDir: {}
+        - name: state
+          persistentVolumeClaim:
+            claimName: cluster-diagnosis-state
+        - name: deepseek
+          secret:
+            secretName: cluster-diagnosis-deepseek
+            items:
+              - key: api-key
+                path: api-key
+        - name: telegram
+          secret:
+            secretName: alertmanager-telegram-secret
+        - name: tmp
+          emptyDir: {}
