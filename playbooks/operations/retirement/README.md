@@ -97,3 +97,21 @@ reports honestly when OpenClaw is not installed.
 
 Do not remove `soyspray-evidence-metrics.service` or its timers: they keep
 serving backup and restore evidence.
+
+## Temporary diagnosis acceptance probe
+
+`acceptance-probe.yml` removes the `PrometheusRule/acceptance-probe` that the
+one-off production-path probe left behind. The `kube-prometheus-stack`
+Application keeps pruning disabled on purpose, so deleting the rule from Git
+resolves nothing by itself: the rule stays live and keeps firing. This
+operation names that rule exactly, refuses to touch a rule that is not the
+probe, and is safe to rerun.
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook playbooks/operations/retirement/acceptance-probe.yml --check
+ansible-playbook playbooks/operations/retirement/acceptance-probe.yml
+```
+
+Once Prometheus reloads, the alert resolves, the incident loop closes the
+incident and sends one closing message. Nothing else in `monitoring` changes.
