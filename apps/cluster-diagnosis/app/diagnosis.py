@@ -284,6 +284,38 @@ def age_label(seconds: Any) -> str:
     return f"{hours}h{minutes:02d}m" if minutes else f"{hours}h"
 
 
+def finding_shape(summary: dict[str, Any], pack: dict[str, Any]) -> str:
+    """Describe what kind of observation this is, without its drifting numbers.
+
+    The counts come from a sliding window, so the same situation reports 40 lines
+    and then 44. What matters for a second message is a different kind of
+    observation, not a different count of the same one.
+    """
+    signals: set[str] = set()
+    exported = 0
+    samples: list[str] = []
+    for target in pack.get("targets") or []:
+        if not isinstance(target, dict):
+            continue
+        for name, count in (target.get("signals") or {}).items():
+            if isinstance(count, int) and count > 0:
+                signals.add(str(name))
+        exported += int(target.get("exported") or 0)
+        for sample in target.get("samples") or []:
+            message = str((sample or {}).get("message") or "").strip()
+            if message:
+                samples.append(message)
+    exported = int((pack.get("totals") or {}).get("exported") or exported)
+    if signals:
+        return "signals:" + ",".join(sorted(signals))
+    if exported and samples:
+        return "lines:" + hashlib.sha256(samples[0].encode()).hexdigest()[:8]
+    related = correlated_symptoms(summary)
+    if related:
+        return f"related:{related[0]}"
+    return ""
+
+
 def finding_line(summary: dict[str, Any], pack: dict[str, Any]) -> str:
     """Return what this loop knows that the alert itself does not say.
 
@@ -321,12 +353,12 @@ def finding_line(summary: dict[str, Any], pack: dict[str, Any]) -> str:
     return ""
 
 
-def _finding_signature(candidate: incident_module.Incident, finding: str) -> str:
-    """Identify one finding so the same news is never delivered twice."""
+def _finding_signature(candidate: incident_module.Incident, shape: str) -> str:
+    """Identify one kind of finding so the same news is never delivered twice."""
     payload = {
         "anchor": candidate.anchor_id,
         "generation": candidate.generation,
-        "finding": finding,
+        "shape": shape,
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:32]
 
@@ -392,23 +424,34 @@ def incident_header(transition: str, summary: dict[str, Any], reason: str = "") 
     return "\n".join(lines)
 
 
-def answer_is_plain(text: str) -> bool:
-    """Accept only short, plain prose from the model. Reject rather than repair."""
+def answer_rejection(text: str) -> str:
+    """Say why an answer cannot be sent, or return an empty string to accept it.
+
+    The contract is enforced here rather than repaired: a cut qualification or a
+    half-printed command is worse than no prose at all.
+    """
     body = text.strip()
-    if not body or body.upper().startswith(NO_UPDATE):
-        return False
+    if not body:
+        return "empty"
+    if body.upper().startswith(NO_UPDATE):
+        return "no-update"
     if any(marker in body for marker in PLAIN_TEXT_FORBIDDEN):
-        return False
+        return "markup-or-link"
+    if body.lstrip().startswith(("-", "*", "#", ">", "1.", "2.")):
+        return "list-or-heading"
     if len(body.split()) > MAX_ANSWER_WORDS:
-        return False
+        return "too-many-words"
     if len([line for line in body.splitlines() if line.strip()]) > MAX_ANSWER_SENTENCES:
-        return False
+        return "too-many-lines"
     sentences = [part for part in re.split(r"[.!?]+\s+|[.!?]+$", body) if part.strip()]
     if len(sentences) > MAX_ANSWER_SENTENCES:
-        return False
-    if body.lstrip().startswith(("-", "*", "#", ">", "1.", "2.")):
-        return False
-    return True
+        return "too-many-sentences"
+    return ""
+
+
+def answer_is_plain(text: str) -> bool:
+    """Report whether an answer may be sent as written."""
+    return not answer_rejection(text)
 
 
 def narrative(
@@ -455,6 +498,8 @@ SEVERITY_RANK = {"critical": 3, "warning": 2, "info": 1, "none": 0, "unknown": 0
 
 # An attempt whose process never recorded an answer is abandoned after this long.
 ABANDONED_ATTEMPT_SECONDS = 600
+# At most one enrichment message per incident in this window.
+ENRICHMENT_COOLDOWN_SECONDS = 600
 
 
 def owns_critical_work(state: dict[str, Any], record: dict[str, Any]) -> bool:
@@ -923,11 +968,23 @@ class Diagnosis:
             outcomes.append("no-finding")
             return finish(",".join(outcomes))
 
-        signature = _finding_signature(candidate, finding)
+        signature = _finding_signature(candidate, finding_shape(summary, pack))
         if signature == candidate.record.get("delivered_signature"):
             self._count("outcomes", "no-news")
             self._count("suppressed", "no-news")
             outcomes.append("no-news")
+            return finish(",".join(outcomes))
+        last_message = incident_module.parse_time(candidate.record.get("delivered_at"))
+        if (
+            last_message
+            and (timestamp - last_message).total_seconds() < ENRICHMENT_COOLDOWN_SECONDS
+        ):
+            # One incident, one message, then quiet for a while: a second message
+            # a minute later reads as noise whatever it says. The finding is not
+            # marked as delivered, so it can go out after the cooldown.
+            self._count("outcomes", "cooldown")
+            self._count("suppressed", "cooldown")
+            outcomes.append("cooldown")
             return finish(",".join(outcomes))
 
         worker = self.deepseek_factory()
@@ -1007,16 +1064,18 @@ class Diagnosis:
             )
             candidate.record.pop("retry_after", None)
             answer = str(result.get("content") or "")
-            if answer_is_plain(answer):
+            reason = answer_rejection(answer)
+            if not reason:
                 outcome = "enriched"
                 self._count("answers", "accepted")
-            elif answer.strip().upper().startswith(NO_UPDATE):
+            elif reason == "no-update":
                 outcome = "finding-only"
                 self._count("answers", "no-update")
                 answer = ""
             else:
                 outcome = "finding-only"
                 self._count("answers", "rejected")
+                self._count("rejections", reason)
                 answer = ""
         else:
             # A provider failure is the diagnosis service's own problem. It is

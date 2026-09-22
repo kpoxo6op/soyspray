@@ -231,6 +231,42 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(harness.state()["metrics"]["suppressed"], {"no-finding": 1})
         self.assertNotIn(DAY, harness.state().get("budget", {}))
 
+    def test_a_drifting_count_is_the_same_finding(self):
+        harness = Harness(self.root)
+        harness.transmission = Transmission([answer()], harness.state_path)
+        diagnosis = harness.open()
+        diagnosis.iterate()
+        # The window slides, so the same situation reports more lines. That is
+        # not news, and it must not become a second message.
+        drifted = pack()
+        drifted["targets"][0]["signals"] = {"crash-loop": 9}
+        drifted["targets"][0]["exported"] = 12
+        drifted["totals"]["exported"] = 12
+        harness.pack = drifted
+        harness.alerts = [alert(ends=NOW + timedelta(hours=2))]
+        harness.clock[0] = NOW + timedelta(hours=1)
+        self.assertEqual(diagnosis.iterate(), "no-news")
+        self.assertEqual(len(harness.telegram.messages), 1)
+
+    def test_a_second_message_waits_for_the_cooldown(self):
+        harness = Harness(self.root)
+        harness.transmission = Transmission([answer(), answer("second")], harness.state_path)
+        diagnosis = harness.open()
+        diagnosis.iterate()
+        updated = pack()
+        updated["targets"][0]["signals"] = {"disk-full": 1}
+        harness.pack = updated
+        harness.alerts = [alert(ends=NOW + timedelta(hours=2))]
+        harness.clock[0] = NOW + timedelta(minutes=2)
+        self.assertEqual(diagnosis.iterate(), "cooldown")
+        self.assertEqual(len(harness.telegram.messages), 1)
+        # The observation is not marked as delivered, so it still goes out later.
+        harness.clock[0] = NOW + timedelta(
+            seconds=diagnosis_module.ENRICHMENT_COOLDOWN_SECONDS + 60
+        )
+        self.assertEqual(diagnosis.iterate(), "enriched")
+        self.assertIn("disk-full ×1", harness.telegram.messages[-1])
+
     def test_the_same_finding_is_never_delivered_twice(self):
         harness = Harness(self.root)
         harness.transmission = Transmission([answer()], harness.state_path)
@@ -252,7 +288,10 @@ class LifecycleTests(unittest.TestCase):
         updated["targets"][0]["signals"] = {"oom-killing": 3}
         harness.pack = updated
         harness.alerts = [alert(ends=NOW + timedelta(hours=2))]
-        harness.clock[0] = NOW + timedelta(minutes=6)
+        # Past the cooldown, so a different observation can go out.
+        harness.clock[0] = NOW + timedelta(
+            seconds=diagnosis_module.ENRICHMENT_COOLDOWN_SECONDS + 60
+        )
         self.assertEqual(diagnosis.iterate(), "enriched")
         self.assertEqual(len(harness.transmission.calls), 2)
         self.assertIn("oom-killing ×3", harness.telegram.messages[-1])
