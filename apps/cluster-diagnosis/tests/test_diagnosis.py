@@ -468,6 +468,19 @@ class SourceTests(unittest.TestCase):
         diagnosis.iterate()
         self.assertTrue(harness.state()["source"]["ok"])
 
+    def test_a_reader_reports_the_recorded_source_state(self):
+        # --print-metrics runs in its own process and never polls, so without
+        # this it would report a false source failure against a healthy loop.
+        harness = Harness(self.root)
+        diagnosis = harness.open()
+        diagnosis.iterate()
+        reader = harness.open()
+        self.assertIn("soyspray_diagnosis_alertmanager_source_ok 1", reader.render_metrics())
+        harness.fail_fetch = True
+        diagnosis.iterate()
+        reader = harness.open()
+        self.assertIn("soyspray_diagnosis_alertmanager_source_ok 0", reader.render_metrics())
+
     def test_alerts_that_cannot_page_are_not_incidents(self):
         harness = Harness(
             self.root,

@@ -487,6 +487,12 @@ class Diagnosis:
             self.state_usable = False
             return str(error)
         self.state_usable = True
+        # The ledger records whether the last Alertmanager read succeeded. A
+        # reader such as --print-metrics has not polled, so it reports the
+        # recorded answer instead of a fresh process's empty one.
+        source = self.state.get("source")
+        if isinstance(source, dict) and "ok" in source:
+            self.source_ok = bool(source["ok"])
         return ""
 
     def save(self) -> None:
