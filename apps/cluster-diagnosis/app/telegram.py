@@ -32,6 +32,21 @@ def fit_message(message: str, limit: int = MAX_MESSAGE_CHARS) -> str:
     return trimmed + "\n... (truncated)"
 
 
+def bounded_message(lines: list[str], limit: int = MAX_MESSAGE_CHARS) -> str:
+    """Join whole lines, dropping optional ones rather than cutting any in half.
+
+    The first line is the incident identity and is never dropped: a message that
+    cannot say what it is about is worse than a short one. The later lines are
+    less important in order, so the model's prose goes before a finding is cut
+    mid-sentence. Nothing is ever repaired or half-printed.
+    """
+    kept = [line for line in lines if line is not None]
+    while len(kept) > 1 and len("\n".join(kept)) > limit:
+        kept.pop()
+    message = "\n".join(kept)
+    return message if len(message) <= limit else kept[0][:limit]
+
+
 def default_transport(url: str, payload: dict[str, Any], timeout: float) -> tuple[int, Any]:
     request = Request(
         url,

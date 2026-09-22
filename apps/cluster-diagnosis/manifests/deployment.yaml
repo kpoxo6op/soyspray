@@ -47,7 +47,7 @@ spec:
           # this line. A placeholder digest means a source merge landed before
           # its promotion merge, so the pod cannot start in that window and the
           # two merges are done back to back.
-          image: ghcr.io/kpoxo6op/cluster-diagnosis@sha256:042a35a55a843878d302e27eb2d8f3ccd5b4c1430b7886b10e8da8f0a9a2c2ec
+          image: ghcr.io/kpoxo6op/cluster-diagnosis@sha256:1d76775d41f83b4d102ce7d5e2aed7fd5e0d809b7e3fb8d37a3ded5da9fbea73
           imagePullPolicy: IfNotPresent
           command: ["python3", "/app/diagnosis.py"]
           env:

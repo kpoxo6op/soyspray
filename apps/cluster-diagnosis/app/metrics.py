@@ -46,6 +46,16 @@ HELP = (
     ("soyspray_diagnosis_delivery_total", "counter", "Delivery attempts by result."),
     ("soyspray_diagnosis_outcome_total", "counter", "Diagnosis outcomes since start."),
     (
+        "soyspray_diagnosis_suppressed_total",
+        "counter",
+        "Incidents the loop examined and stayed silent about.",
+    ),
+    (
+        "soyspray_diagnosis_answer_total",
+        "counter",
+        "Model answers by disposition: accepted, no-update or rejected.",
+    ),
+    (
         "soyspray_diagnosis_last_success_timestamp_seconds",
         "gauge",
         "Time of the last message delivered to Telegram, of any outcome.",
@@ -190,6 +200,10 @@ def render(
     )
     for outcome, count in list((metrics.get("outcomes") or {}).items())[:32]:
         out.info("soyspray_diagnosis_outcome_total", count, {"outcome": outcome})
+    for reason, count in list((metrics.get("suppressed") or {}).items())[:8]:
+        out.info("soyspray_diagnosis_suppressed_total", count, {"reason": reason})
+    for disposition, count in list((metrics.get("answers") or {}).items())[:4]:
+        out.info("soyspray_diagnosis_answer_total", count, {"result": disposition})
     for result, count in list((metrics.get("deliveries") or {}).items())[:16]:
         out.info("soyspray_diagnosis_delivery_total", count, {"result": result})
     outbox = [entry for entry in (state.get("outbox") or []) if isinstance(entry, dict)]
