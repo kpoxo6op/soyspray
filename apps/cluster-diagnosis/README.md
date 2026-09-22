@@ -163,7 +163,9 @@ than a false zero. Four alerts cover the failure modes:
 ## Models
 
 `DEEPSEEK_PROFILE=flash` is the default: `deepseek-flash` with thinking
-explicitly disabled, `max_tokens` 512, a 60-second deadline. `reasoning` selects
+explicitly disabled, `max_tokens` 1200, a 60-second deadline. The ceiling is
+1200 because a 512-token answer for a full incident payload came back
+truncated, which the loop correctly refused to deliver. `reasoning` selects
 `deepseek-v4-pro` with thinking enabled, `max_tokens` 4096 and a 90-second
 deadline. `DEEPSEEK_MODEL` and `DEEPSEEK_THINKING` override either profile.
 
