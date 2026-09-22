@@ -49,9 +49,17 @@
       ansible.builtin.command:
         argv: [git, rev-parse, HEAD]
         chdir: "{{ evidence_repo }}"
-      register: evidence_revision
+      register: evidence_revision_command
       changed_when: false
       check_mode: false
+
+    # The revision marker in the unit file must be the revision itself. A
+    # registered result would put the whole result, timestamps included, into
+    # the unit, which changed the file on every run and restarted the service
+    # even when the checkout had not moved.
+    - name: Select the installed runtime revision
+      ansible.builtin.set_fact:
+        evidence_revision: "{{ evidence_revision_command.stdout | trim }}"
 
     - name: Install the saved evidence endpoint
       ansible.builtin.template:
