@@ -1,0 +1,18 @@
+[Unit]
+Description=Serve saved Soyspray numeric recovery evidence
+# Alloy reads its configuration at start and does not reload a mounted
+# ConfigMap; the same applies here. The revision marker makes every release
+# change this file, so the unit reloads and the process restarts on the new
+# checkout instead of serving the previous one.
+X-Soyspray-Revision={{ evidence_revision }}
+
+[Service]
+WorkingDirectory={{ evidence_repo }}
+ExecStart={{ evidence_python }} -m scripts.operations_evidence --serve-only --bind {{ evidence_bind }}
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=true
+UMask=0077
+
+[Install]
+WantedBy=default.target

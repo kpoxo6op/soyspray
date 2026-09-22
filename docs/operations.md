@@ -23,10 +23,17 @@ open the **Soyspray Operations** dashboard in Grafana and read the
 `soyspray_classifier_up` panels. Missing series mean the adapter has not
 written state yet; they are unknown, not healthy.
 
-Telegram receives one narrative per incident from the laptop adapter, plus
-material updates and one recovery message. Alertmanager still sends critical
-and warning alerts directly, and Healthchecks.io still receives the `Watchdog`
-ping. A classifier fault never stops either path.
+Telegram receives one narrative per incident from the cluster diagnosis loop,
+plus material updates and one recovery message. Alertmanager still sends
+critical and warning alerts directly, and Healthchecks.io still receives the
+`Watchdog` ping. A classifier or provider fault never stops either path.
+
+The loop runs as `monitoring/cluster-diagnosis`. Read its logs with
+`kubectl -n monitoring logs deploy/cluster-diagnosis`, its spending ledger with
+`kubectl -n monitoring exec deploy/cluster-diagnosis -- python3 /app/diagnosis.py
+--print-metrics`, and its alerts with `SoysprayDiagnosisStale`,
+`SoysprayDiagnosisStateUnusable`, `SoysprayDiagnosisProviderRejected` and
+`SoysprayDiagnosisDeliveryBacklog`.
 
 ## Change an application
 

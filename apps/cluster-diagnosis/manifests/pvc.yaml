@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cluster-diagnosis-state
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: cluster-diagnosis
+    app.kubernetes.io/part-of: observability
+  annotations:
+    description: >-
+      Persistent operational state for the incident loop, and nothing else.
+      It holds incident identity, the daily attempt and token ledger, the
+      delivery outbox and the classifier cache. There is no disaster-recovery
+      guarantee: losing it means an operator resets the ledger deliberately and
+      currently firing incidents may be diagnosed again. It is not application
+      data and it is not backed up.
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 1Gi

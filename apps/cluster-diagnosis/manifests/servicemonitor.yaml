@@ -1,0 +1,24 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cluster-diagnosis
+  namespace: monitoring
+  labels:
+    # The stack selects ServiceMonitors by this release label
+    # (prometheusSpec.serviceMonitorSelector), and podMonitorSelector is empty.
+    release: kube-prometheus-stack
+    app.kubernetes.io/name: cluster-diagnosis
+    app.kubernetes.io/component: metrics
+    app.kubernetes.io/part-of: observability
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cluster-diagnosis
+      app.kubernetes.io/component: metrics
+  namespaceSelector:
+    matchNames:
+      - monitoring
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 60s

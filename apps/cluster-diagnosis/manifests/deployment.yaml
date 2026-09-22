@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cluster-diagnosis
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: cluster-diagnosis
+    app.kubernetes.io/component: diagnosis
+    app.kubernetes.io/part-of: observability
+  annotations:
+    description: 'One incident loop: Alertmanager to incident, Loki evidence, Jev
+      classification, one DeepSeek narrative, Telegram delivery.'
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cluster-diagnosis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cluster-diagnosis
+        app.kubernetes.io/component: diagnosis
+        app.kubernetes.io/part-of: observability
+      annotations:
+        soyspray.dev/runtime-config: '1'
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: diagnosis
+        image: ghcr.io/kpoxo6op/cluster-diagnosis@sha256:0000000000000000000000000000000000000000000000000000000000000000
+        imagePullPolicy: IfNotPresent
+        command:
+        - python3
+        - /app/diagnosis.py
+        env:
+        - name: ALERTMANAGER_URL
+          value: http://alertmanager-operated.monitoring.svc.cluster.local:9093
+        - name: LOKI_URL
+          value: http://loki.monitoring.svc.cluster.local:3100
+        - name: PROMETHEUS_URL
+          value: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+        - name: CLUSTER_DIAGNOSIS_STATE_ROOT
+          value: /state
+        - name: DEEPSEEK_PROFILE
+          value: flash
+        - name: DEEPSEEK_API_KEY_FILE
+          value: /etc/cluster-diagnosis/deepseek/api-key
+        - name: TELEGRAM_BOT_TOKEN_FILE
+          value: /etc/cluster-diagnosis/telegram/PROMETHEUS_TELEGRAM_BOT_TOKEN
+        - name: TELEGRAM_CHAT_ID
+          value: '336642153'
+        - name: POLL_SECONDS
+          value: '120'
+        - name: DAILY_ATTEMPT_LIMIT
+          value: '3'
+        - name: DAILY_TOKEN_LIMIT
+          value: '60000'
+        - name: METRICS_PORT
+          value: '9911'
+        ports:
+        - name: metrics
+          containerPort: 9911
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: metrics
+          initialDelaySeconds: 5
+          periodSeconds: 30
+        resources:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: state
+          mountPath: /state
+        - name: deepseek
+          mountPath: /etc/cluster-diagnosis/deepseek
+          readOnly: true
+        - name: telegram
+          mountPath: /etc/cluster-diagnosis/telegram
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: state
+        persistentVolumeClaim:
+          claimName: cluster-diagnosis-state
+      - name: deepseek
+        secret:
+          secretName: cluster-diagnosis-deepseek
+          items:
+          - key: api-key
+            path: api-key
+      - name: telegram
+        secret:
+          secretName: alertmanager-telegram-secret
+      - name: tmp
+        emptyDir: {}

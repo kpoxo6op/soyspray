@@ -1,0 +1,117 @@
+name: Cluster diagnosis image
+
+on:
+  workflow_call:
+    inputs:
+      publish:
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a tested image and open a draft promotion from main
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cluster-diagnosis-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    env:
+      IMAGE: ghcr.io/kpoxo6op/cluster-diagnosis
+      IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Build the immutable runtime
+        run: |
+          docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" \
+            --tag "$IMAGE:$IMAGE_TAG" apps/cluster-diagnosis
+      - name: Check the packaged runtime without external network access
+        run: |
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --mount "type=bind,source=$PWD/apps/cluster-diagnosis/tests,target=/checks,readonly" \
+            --entrypoint python3 "$IMAGE:$IMAGE_TAG" -c '
+          import importlib.util, sys
+          for name in ("store", "deepseek", "telegram", "evidence", "incident", "classify", "metrics", "diagnosis"):
+              spec = importlib.util.spec_from_file_location(name, f"/app/{name}.py")
+              module = importlib.util.module_from_spec(spec)
+              sys.modules[name] = module
+              spec.loader.exec_module(module)
+          print("The packaged runtime imports with no third-party dependency.")
+          '
+      - name: Check the real entrypoint on the isolated network
+        run: |
+          docker run --detach --name cluster-diagnosis-image-check --network none --read-only \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --user 10001:10001 --tmpfs /state:mode=1777 --tmpfs /tmp:mode=1777 \
+            --env CLUSTER_DIAGNOSIS_STATE_ROOT=/state \
+            --env TELEGRAM_CHAT_ID=0 \
+            --env METRICS_PORT=9911 \
+            --env POLL_SECONDS=3600 \
+            "$IMAGE:$IMAGE_TAG"
+          docker exec -i cluster-diagnosis-image-check python3 - <<'PY'
+          import json, time, urllib.error, urllib.request
+          for attempt in range(30):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:9911/metrics", timeout=2) as response:
+                      assert response.status == 200
+                      body = response.read().decode()
+                  break
+              except urllib.error.URLError:
+                  if attempt == 29:
+                      raise
+                  time.sleep(1)
+          assert "soyspray_diagnosis_up 1.0" in body, body
+          assert "soyspray_diagnosis_attempt_limit 3.0" in body, body
+          # Without a mounted state volume the ledger is created fresh, which is
+          # the documented first-start behaviour.
+          with urllib.request.urlopen("http://127.0.0.1:9911/healthz", timeout=2) as response:
+              assert response.status == 200
+          print("The unprivileged entrypoint serves metrics and a ready health check.")
+          PY
+      - name: Stop the isolated check container
+        if: always()
+        run: |
+          docker logs cluster-diagnosis-image-check | tail -5 || true
+          docker rm --force cluster-diagnosis-image-check || true
+      - name: Publish and open the separate promotion when requested
+        uses: ./.github/actions/publish-image-promotion
+        with:
+          publish: ${{ inputs.publish }}
+          app-slug: cluster-diagnosis
+          app-name: cluster diagnosis
+          image: ${{ env.IMAGE }}
+          image-tag: ${{ env.IMAGE_TAG }}
+          runtime-paths: apps/cluster-diagnosis/app apps/cluster-diagnosis/Dockerfile apps/cluster-diagnosis/.dockerignore
+          manifest: apps/cluster-diagnosis/manifests/deployment.yaml
+          commit-subject: Promote the tested cluster diagnosis runtime image
+          promotion-title: Promote the tested cluster diagnosis runtime image
+          evidence: >-
+            The image imports with the standard library alone, runs as an
+            unprivileged user with a read-only root filesystem and no
+            capabilities, and serves its metrics and health endpoints on an
+            isolated network. Promotion changes only the image digest and
+            preserves the ServiceAccount-free pod, the entrypoint, the probes,
+            the resource limits, the security context, the volume mounts and the
+            NetworkPolicy.
+          verification: >-
+            Run `make go`, confirm the Argo Application is Synced and Healthy,
+            and check that `soyspray_diagnosis_up` and
+            `soyspray_diagnosis_last_poll_timestamp_seconds` move before merge.

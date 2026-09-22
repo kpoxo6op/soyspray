@@ -193,8 +193,3 @@
   ansible.builtin.import_playbook: ../../../apps/recovery-input-backup/install.yml
   vars:
     operations_checkout: "{{ lookup('env', 'HOME') }}/.local/lib/soyspray-operations/current"
-
-- name: Install diagnosis and metrics from the pinned runtime
-  ansible.builtin.import_playbook: ../../../apps/cluster-diagnosis/install.yml
-  vars:
-    operations_checkout: "{{ lookup('env', 'HOME') }}/.local/lib/soyspray-operations/current"

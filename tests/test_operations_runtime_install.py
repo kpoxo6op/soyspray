@@ -7,42 +7,45 @@ INSTALLER = ROOT / "apps/cluster-diagnosis/install.yml"
 RUNTIME_INSTALLER = ROOT / "playbooks/operations/runtime/install.yml"
 
 
-def test_diagnosis_reinstall_preserves_private_target_and_enabled_state() -> None:
-    play = yaml.safe_load(INSTALLER.read_text())[0]
-    tasks = play["tasks"]
-    names = [task["name"] for task in tasks]
-    preserve = tasks[names.index("Preserve the existing private target and schedule state")]
-    values = preserve["ansible.builtin.set_fact"]
+def test_the_laptop_diagnosis_job_is_retired_not_installed() -> None:
+    """Diagnosis runs in the cluster; the runtime must not install a laptop job."""
+    installer = RUNTIME_INSTALLER.read_text()
+    assert "cluster-diagnosis/install.yml" not in installer
+    assert "openclaw cron add" not in installer
+    assert not (ROOT / "apps/cluster-diagnosis/install.yml").exists()
 
-    assert (
-        "diagnosis_matches[0].payload.env.TELEGRAM_TARGET"
-        in values["diagnosis_effective_telegram_target"]
-    )
-    assert "diagnosis_matches[0].enabled" in values["diagnosis_effective_enabled"]
-    options = tasks[names.index("Prepare the native command arguments")][
-        "ansible.builtin.set_fact"
-    ]["diagnosis_job_options"]
-    assert "TELEGRAM_TARGET={{ diagnosis_effective_telegram_target }}" in options
-    edit = tasks[names.index("Apply the requested command job state")]["ansible.builtin.command"][
-        "argv"
+    retirement = yaml.safe_load(
+        (ROOT / "playbooks/operations/retirement/laptop-cluster-diagnosis.yml").read_text()
+    )[0]
+    names = [task["name"] for task in retirement["tasks"]]
+    remove = retirement["tasks"][names.index("Stop and remove the laptop diagnosis job")]
+    assert remove["ansible.builtin.command"]["argv"][:3] == ["openclaw", "cron", "rm"]
+    assert remove["loop"] == "{{ cluster_diagnosis_matches | default([]) }}"
+
+
+def test_the_saved_evidence_endpoint_survives_the_diagnosis_retirement() -> None:
+    """The endpoint serves backup and restore evidence, so it must still install."""
+    play = yaml.safe_load(
+        (ROOT / "playbooks/operations/recovery/install-evidence-schedule.yml").read_text()
+    )[0]
+    names = [task["name"] for task in play["tasks"]]
+    unit = play["tasks"][names.index("Install the saved evidence endpoint")][
+        "ansible.builtin.template"
     ]
-    assert "diagnosis_effective_enabled" in edit
-
-
-def test_metrics_service_restarts_when_the_release_changes() -> None:
-    play = yaml.safe_load(INSTALLER.read_text())[0]
-    tasks = play["tasks"]
-    names = [task["name"] for task in tasks]
-    unit = tasks[
-        names.index("Install the numeric evidence endpoint without changing the collector timer")
-    ]["ansible.builtin.copy"]["content"]
-    assert "X-Soyspray-Revision={{ diagnosis_revision.stdout }}" in unit, (
-        "the running endpoint would keep the previous release when current moves"
-    )
-    service = tasks[names.index("Enable the saved evidence endpoint")][
+    assert unit["src"] == "systemd/soyspray-evidence-metrics.service.j2"
+    template = (
+        ROOT / "playbooks/operations/recovery/systemd/soyspray-evidence-metrics.service.j2"
+    ).read_text()
+    assert "X-Soyspray-Revision={{ evidence_revision }}" in template
+    assert "--serve-only" in template
+    service = play["tasks"][names.index("Enable the saved evidence endpoint")][
         "ansible.builtin.systemd_service"
     ]
     assert "restarted" in service["state"]
+    route = play["tasks"][names.index("Enable the numeric endpoint reply route")][
+        "ansible.builtin.systemd_service"
+    ]
+    assert route["enabled"] is True
 
 
 def test_dashboard_retirement_is_scoped_and_guarded() -> None:

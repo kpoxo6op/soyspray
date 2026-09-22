@@ -1,4 +1,8 @@
-"""Reject stale observations and incomplete snapshots; preserve private evidence."""
+"""Reject stale observations and incomplete snapshots; preserve private evidence.
+
+The incident ledger is not here: it lives in the cluster-diagnosis workload and
+is exposed by its own ServiceMonitor.
+"""
 
 import json
 import subprocess
@@ -112,183 +116,14 @@ class EvidenceTests(unittest.TestCase):
             path = directory / "report.json"
             report["apps"][0]["cleanup"] = "failed"
             path.write_text(json.dumps(report))
-            text = evidence.saved_metrics(
-                root / "absent.jsonl", root, root / "absent-incidents.json"
-            )
+            text = evidence.saved_metrics(root / "absent.jsonl", root)
             self.assertNotIn("soyspray_critical_restore_last_success_timestamp_seconds 17", text)
             self.assertIn("soyspray_critical_restore_observed 0", text)
             report["apps"][0]["cleanup"] = "completed"
             path.write_text(json.dumps(report))
-            text = evidence.saved_metrics(
-                root / "absent.jsonl", root, root / "absent-incidents.json"
-            )
+            text = evidence.saved_metrics(root / "absent.jsonl", root)
             self.assertIn("soyspray_critical_restore_observed 1", text)
             self.assertIn("soyspray_critical_restore_last_success_timestamp_seconds 17", text)
-
-
-class IncidentMetricTests(unittest.TestCase):
-    """The endpoint must report bounded incident state, never raw evidence."""
-
-    def snapshot(self, **overrides):
-        value = {
-            "schema_version": 1,
-            "updated_at": "2026-09-21T12:00:00+00:00",
-            "source_ok": True,
-            "daily_limit": 3,
-            "attempts_today": 1,
-            "incidents": {
-                "open": [
-                    {
-                        "anchor": "app:immich",
-                        "kind": "app",
-                        "generation": 1,
-                        "state": "open",
-                        "opened_at": "2026-09-21T01:00:00+00:00",
-                        "consequences": ["app:boys"],
-                        "symptoms": [{"name": "KubePodCrashLooping(p)", "labels": {"pod": "p"}}],
-                    }
-                ],
-                "recently_closed": [],
-            },
-            "metrics": {
-                "last_outcome": "diagnosed",
-                "last_outcome_timestamp_seconds": 1789900000,
-                "outcomes": {"diagnosed": 2, "unchanged": 40},
-                "classifier_failure_total": 1,
-                "classifier_unknown_total": 3,
-                "classifier_last_success_timestamp_seconds": 1789900000,
-            },
-            "collector": {
-                "status": "observed",
-                "gaps": {"text-format-not-exported": 4},
-                "targets": 2,
-                "lines": 30,
-                "exported": 12,
-            },
-            "classifier": {
-                "status": "ok",
-                "model": "jev-1.13.0",
-                "counts": {"storage failure": 4},
-                "model_substitution": False,
-                "cause": "",
-            },
-        }
-        value.update(overrides)
-        return value
-
-    def write(self, folder, value):
-        path = Path(folder) / "metrics.json"
-        path.write_text(json.dumps(value))
-        return path
-
-    def test_incident_state_is_exposed_as_bounded_numbers(self):
-        with tempfile.TemporaryDirectory() as folder:
-            path = self.write(folder, self.snapshot())
-            text = evidence.incident_metrics(path)
-        self.assertIn('soyspray_incident_open{anchor="app:immich",kind="app"} 1', text)
-        self.assertIn(
-            'soyspray_incident_consequence{anchor="app:boys",parent="app:immich"} 1', text
-        )
-        self.assertIn("soyspray_diagnosis_attempts_today 1", text)
-        self.assertIn('soyspray_diagnosis_outcome_total{outcome="diagnosed"} 2', text)
-        self.assertIn('soyspray_evidence_gap_total{reason="text-format-not-exported"} 4', text)
-        self.assertIn("soyspray_evidence_collector_observed 1", text)
-        self.assertIn("soyspray_classifier_up 1", text)
-        self.assertIn('soyspray_classifier_model_info{model="jev-1.13.0"} 1', text)
-        self.assertIn('soyspray_classifier_result_total{label="storage failure"} 4', text)
-        self.assertIn("soyspray_classifier_failure_total 1", text)
-
-    def test_missing_or_unknown_state_reports_no_series(self):
-        def series(text):
-            return [line for line in text.splitlines() if line and not line.startswith("#")]
-
-        with tempfile.TemporaryDirectory() as folder:
-            missing = Path(folder) / "absent.json"
-            self.assertEqual(series(evidence.incident_metrics(missing)), [])
-            wrong = self.write(folder, {"schema_version": 99})
-            self.assertEqual(series(evidence.incident_metrics(wrong)), [])
-            broken = Path(folder) / "broken.json"
-            broken.write_text("{not json")
-            self.assertEqual(series(evidence.incident_metrics(broken)), [])
-
-    def test_classifier_failure_reports_zero_up(self):
-        with tempfile.TemporaryDirectory() as folder:
-            value = self.snapshot()
-            value["classifier"]["status"] = "unavailable"
-            value["classifier"]["cause"] = "network"
-            path = self.write(folder, value)
-            text = evidence.incident_metrics(path)
-        self.assertIn("soyspray_classifier_up 0", text)
-
-    def test_a_collector_that_never_ran_reports_no_series(self):
-        with tempfile.TemporaryDirectory() as folder:
-            value = self.snapshot()
-            value.pop("collector")
-            path = self.write(folder, value)
-            text = evidence.incident_metrics(path)
-        series = [line for line in text.splitlines() if line and not line.startswith("#")]
-        self.assertFalse(
-            [line for line in series if line.startswith("soyspray_evidence_collector_observed")],
-            series,
-        )
-
-    def test_a_classifier_that_never_ran_reports_no_series(self):
-        with tempfile.TemporaryDirectory() as folder:
-            value = self.snapshot()
-            value["classifier"]["status"] = "no-input"
-            path = self.write(folder, value)
-            text = evidence.incident_metrics(path)
-        series = [line for line in text.splitlines() if line and not line.startswith("#")]
-        self.assertFalse(
-            [line for line in series if line.startswith("soyspray_classifier_up")], series
-        )
-
-    def test_unreadable_collector_reports_zero_observed(self):
-        with tempfile.TemporaryDirectory() as folder:
-            value = self.snapshot()
-            value["collector"]["status"] = "unavailable"
-            path = self.write(folder, value)
-            text = evidence.incident_metrics(path)
-        self.assertIn("soyspray_evidence_collector_observed 0", text)
-
-    def test_labels_are_bounded_and_escaped(self):
-        with tempfile.TemporaryDirectory() as folder:
-            value = self.snapshot()
-            value["incidents"]["open"][0]["anchor"] = 'app:bad"anchor' + "\nrow"
-            path = self.write(folder, value)
-            text = evidence.incident_metrics(path)
-        for line in text.splitlines():
-            if line.startswith("soyspray_incident_open"):
-                self.assertIn('anchor="app:bad_anchor_row"', line)
-                break
-        else:
-            self.fail("the incident line is missing")
-
-    def test_incident_list_is_bounded(self):
-        with tempfile.TemporaryDirectory() as folder:
-            value = self.snapshot()
-            value["incidents"]["open"] = [
-                {
-                    "anchor": f"app:app{index}",
-                    "kind": "app",
-                    "opened_at": "2026-09-21T01:00:00+00:00",
-                }
-                for index in range(200)
-            ]
-            path = self.write(folder, value)
-            text = evidence.incident_metrics(path)
-        self.assertEqual(
-            len([line for line in text.splitlines() if line.startswith("soyspray_incident_open{")]),
-            evidence.MAX_INCIDENT_ANCHORS,
-        )
-
-    def test_saved_metrics_includes_the_incident_block(self):
-        with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
-            path = self.write(folder, self.snapshot())
-            text = evidence.saved_metrics(root / "absent.jsonl", root, path)
-        self.assertIn("soyspray_critical_restore_observed 0", text)
-        self.assertIn('soyspray_incident_open{anchor="app:immich",kind="app"} 1', text)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,66 @@
+# The incident loop is the only path that turns an incident into a narrative, so
+# it must say when it stops working. A missing series is the loudest case and
+# absent() covers it.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cluster-diagnosis
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: cluster-diagnosis
+      interval: 1m
+      rules:
+        - alert: SoysprayDiagnosisStale
+          expr: |
+            absent(soyspray_diagnosis_up)
+            or (time() - soyspray_diagnosis_last_poll_timestamp_seconds > 900)
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "The incident loop has not polled Alertmanager"
+            description: >-
+              No diagnosis metrics are exposed, or the last completed poll is
+              more than 15 minutes old. Incidents are not being investigated
+              and no narrative will arrive. Check the cluster-diagnosis
+              Deployment, its persistent volume and the Argo Application.
+
+        - alert: SoysprayDiagnosisStateUnusable
+          expr: soyspray_diagnosis_state_usable == 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "The incident loop cannot read its spend guard"
+            description: >-
+              The state file is missing an expected schema, unreadable or not
+              writable, so model calls are refused. This is deliberate: a lost
+              ledger would hand back a fresh allowance. Use the guarded reset
+              procedure in the application README.
+
+        - alert: SoysprayDiagnosisProviderRejected
+          expr: soyspray_diagnosis_provider_blocked == 1
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "DeepSeek rejected the diagnosis credential"
+            description: >-
+              The provider returned 401, 402 or 403, so the loop stopped asking
+              until the next day. Restore the key in
+              monitoring/cluster-diagnosis-deepseek through the bootstrap.
+
+        - alert: SoysprayDiagnosisDeliveryBacklog
+          expr: soyspray_diagnosis_outbox_pending > 3
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Diagnosis messages are not reaching Telegram"
+            description: >-
+              More than three narratives are waiting in the outbox. Delivery is
+              retried without another model call, and an entry older than six
+              hours is dropped.

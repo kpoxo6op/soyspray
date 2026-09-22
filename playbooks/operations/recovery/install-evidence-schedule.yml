@@ -8,6 +8,8 @@
     evidence_repo: "{{ operations_checkout | default((playbook_dir + '/../../..') | realpath) }}"
     evidence_python: "{{ evidence_repo }}/soyspray-venv/bin/python"
     evidence_unit_dir: "{{ lookup('env', 'HOME') }}/.config/systemd/user"
+    evidence_bind: "{{ operations_evidence_bind | default('192.168.20.50') }}"
+    evidence_subnet: "{{ operations_evidence_subnet | default('192.168.20.0/24') }}"
   tasks:
     - name: Require the maintained collector and Python runtime
       ansible.builtin.assert:
@@ -42,3 +44,63 @@
         daemon_reload: true
         enabled: "{{ evidence_enabled | default(true) | bool }}"
         state: "{{ 'started' if evidence_enabled | default(true) | bool else 'stopped' }}"
+
+    - name: Read the installed runtime revision
+      ansible.builtin.command:
+        argv: [git, rev-parse, HEAD]
+        chdir: "{{ evidence_repo }}"
+      register: evidence_revision
+      changed_when: false
+      check_mode: false
+
+    - name: Install the saved evidence endpoint
+      ansible.builtin.template:
+        src: "systemd/soyspray-evidence-metrics.service.j2"
+        dest: "{{ evidence_unit_dir }}/soyspray-evidence-metrics.service"
+        mode: '0644'
+      register: evidence_metrics_unit
+
+    - name: Validate the saved evidence endpoint
+      ansible.builtin.command:
+        argv:
+          - systemd-analyze
+          - --user
+          - verify
+          - "{{ evidence_unit_dir }}/soyspray-evidence-metrics.service"
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Enable the saved evidence endpoint
+      ansible.builtin.systemd_service:
+        name: soyspray-evidence-metrics.service
+        scope: user
+        daemon_reload: "{{ evidence_metrics_unit.changed }}"
+        enabled: true
+        state: "{{ 'restarted' if evidence_metrics_unit.changed else 'started' }}"
+
+    - name: Install the route for numeric endpoint replies only
+      become: true
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/soyspray-evidence-route.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Keep Soyspray metrics replies on the local network
+          After=network-online.target
+          Wants=network-online.target
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=/usr/sbin/ip rule add priority 5191 from {{ evidence_bind }}/32 to {{ evidence_subnet }} ipproto tcp sport 9910 lookup main
+          ExecStop=/usr/sbin/ip rule del priority 5191 from {{ evidence_bind }}/32 to {{ evidence_subnet }} ipproto tcp sport 9910 lookup main
+          [Install]
+          WantedBy=multi-user.target
+      register: evidence_route_unit
+
+    - name: Enable the numeric endpoint reply route
+      become: true
+      ansible.builtin.systemd_service:
+        name: soyspray-evidence-route.service
+        daemon_reload: "{{ evidence_route_unit.changed }}"
+        enabled: true
+        state: "{{ 'restarted' if evidence_route_unit.changed else 'started' }}"

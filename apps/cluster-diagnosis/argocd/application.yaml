@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cluster-diagnosis
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: prometheus
+    soyspray.vip/owner: platform
+  annotations:
+    argocd.argoproj.io/sync-wave: '2'
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-method: No route. Prometheus scrapes its metrics Service.
+    soyspray.vip/data: >-
+      Persistent operational state: incident identity, the daily attempt and
+      token ledger, the delivery outbox and the classifier cache.
+    soyspray.vip/data-claims: >-
+      monitoring/cluster-diagnosis-state holds no application data. Losing it
+      means an operator resets the ledger deliberately.
+    soyspray.vip/backup: unsupported
+    soyspray.vip/backup-cause: >-
+      The volume is a spending guard and a delivery outbox, not application
+      data. It is not backed up, and the guarded reset procedure is documented
+      in the application README.
+spec:
+  project: cluster-diagnosis
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: main
+    path: apps/cluster-diagnosis
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  ignoreDifferences:
+    - group: ''
+      kind: PersistentVolumeClaim
+      jsonPointers:
+        - /spec/volumeName
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true

@@ -23,6 +23,7 @@ jobs:
       boys: ${{ steps.scope.outputs.boys }}
       autism: ${{ steps.scope.outputs.autism }}
       gi: ${{ steps.scope.outputs.gi }}
+      cluster_diagnosis: ${{ steps.scope.outputs.cluster_diagnosis }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -122,6 +123,17 @@ jobs:
     with:
       publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
+  cluster_diagnosis:
+    needs: scope
+    if: needs.scope.outputs.cluster_diagnosis == 'true'
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    uses: ./.github/workflows/cluster-diagnosis-image.yml
+    with:
+      publish: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
   domain_health:
     needs: scope
     if: needs.scope.outputs.domain_health == 'true'
@@ -169,7 +181,7 @@ jobs:
           kubectl kustomize apps/gi/argocd >/dev/null
 
   check:
-    needs: [scope, shared, autism, boys, immich, domain_health, media_helper, gi]
+    needs: [scope, shared, autism, boys, immich, domain_health, media_helper, gi, cluster_diagnosis]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -182,7 +194,15 @@ jobs:
           jobs = json.loads(os.environ['RESULTS'])
           for job in ('scope', 'shared'):
               assert jobs[job]['result'] == 'success', f'{job} did not pass'
-          for app in ('autism', 'boys', 'immich', 'domain_health', 'media_helper', 'gi'):
+          for app in (
+              'autism',
+              'boys',
+              'immich',
+              'domain_health',
+              'media_helper',
+              'gi',
+              'cluster_diagnosis',
+          ):
               selected = jobs['scope']['outputs'].get(app)
               assert selected in ('true', 'false'), f'{app} scope is missing'
               expected = 'success' if selected == 'true' else 'skipped'

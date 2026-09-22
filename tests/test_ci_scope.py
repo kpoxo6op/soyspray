@@ -9,6 +9,11 @@ from conftest import ROOT
 from scripts import ci_scope
 
 
+def selected(**apps):
+    """Every application boundary, with only the named ones selected."""
+    return {name: apps.get(name, False) for name in (*ci_scope.APP_PATHS, "autism", "boys")}
+
+
 @pytest.mark.parametrize(
     "path",
     [
@@ -18,33 +23,14 @@ from scripts import ci_scope
     ],
 )
 def test_boys_changes_select_its_browser_checks(path):
-    assert ci_scope.select([path]) == {
-        "boys": True,
-        "autism": False,
-        "immich": False,
-        "domain_health": False,
-        "media_helper": False,
-        "gi": False,
-    }
+    assert ci_scope.select([path]) == selected(boys=True)
 
 
 def test_shared_only_change_keeps_application_checks_optional():
-    assert ci_scope.select(["scripts/backup_status.py", "tests/test_backup_status.py"]) == {
-        "boys": False,
-        "autism": False,
-        "immich": False,
-        "domain_health": False,
-        "media_helper": False,
-        "gi": False,
-    }
-    assert ci_scope.select(["apps/autism-traits/app/src/App.tsx"]) == {
-        "boys": False,
-        "autism": True,
-        "immich": False,
-        "domain_health": False,
-        "media_helper": False,
-        "gi": False,
-    }
+    assert (
+        ci_scope.select(["scripts/backup_status.py", "tests/test_backup_status.py"]) == selected()
+    )
+    assert ci_scope.select(["apps/autism-traits/app/src/App.tsx"]) == selected(autism=True)
 
 
 @pytest.mark.parametrize(
@@ -115,14 +101,7 @@ def test_deleted_and_renamed_paths_are_both_checked(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     paths = ci_scope.changed_paths(base)
     assert set(paths) == {"apps/boys/old name.js", "apps/autism-traits/new.js"}
-    assert ci_scope.select(paths) == {
-        "boys": True,
-        "autism": True,
-        "immich": False,
-        "domain_health": False,
-        "media_helper": False,
-        "gi": False,
-    }
+    assert ci_scope.select(paths) == selected(boys=True, autism=True)
 
 
 @pytest.mark.parametrize(
@@ -137,6 +116,7 @@ def test_deleted_and_renamed_paths_are_both_checked(tmp_path, monkeypatch):
         "cancelled",
         "domain-image-failed",
         "media-image-failed",
+        "diagnosis-image-failed",
     ],
 )
 def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
@@ -150,6 +130,7 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
                 "domain_health": "false",
                 "media_helper": "false",
                 "gi": "false",
+                "cluster_diagnosis": "false",
             },
         },
         "shared": {"result": "success"},
@@ -159,6 +140,7 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
         "domain_health": {"result": "skipped"},
         "media_helper": {"result": "skipped"},
         "gi": {"result": "skipped"},
+        "cluster_diagnosis": {"result": "skipped"},
     }
     if failure in {"shared", "scope"}:
         jobs[failure]["result"] = "failure"
@@ -176,6 +158,9 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
     elif failure == "media-image-failed":
         jobs["scope"]["outputs"]["media_helper"] = "true"
         jobs["media_helper"]["result"] = "failure"
+    elif failure == "diagnosis-image-failed":
+        jobs["scope"]["outputs"]["cluster_diagnosis"] = "true"
+        jobs["cluster_diagnosis"]["result"] = "failure"
     workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
     gate = workflow["jobs"]["check"]["steps"][0]["run"]
     run = subprocess.run(
@@ -197,36 +182,19 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
     ],
 )
 def test_gi_changes_select_its_boundary_checks(path):
-    assert ci_scope.select([path]) == {
-        "boys": False,
-        "autism": False,
-        "immich": False,
-        "domain_health": False,
-        "media_helper": False,
-        "gi": True,
-    }
+    assert ci_scope.select([path]) == selected(gi=True)
 
 
 def test_immich_recovery_changes_select_native_image_checks():
-    assert ci_scope.select(["apps/immich-offsite-backup/manifests/runtime/dump.sql"]) == {
-        "boys": False,
-        "autism": False,
-        "immich": True,
-        "domain_health": False,
-        "media_helper": False,
-        "gi": False,
-    }
+    assert ci_scope.select(["apps/immich-offsite-backup/manifests/runtime/dump.sql"]) == selected(
+        immich=True
+    )
 
 
 def test_domain_health_changes_select_the_native_image_checks():
-    assert ci_scope.select(["apps/domain-health/app/domain-health-exporter.py"]) == {
-        "boys": False,
-        "autism": False,
-        "immich": False,
-        "domain_health": True,
-        "media_helper": False,
-        "gi": False,
-    }
+    assert ci_scope.select(["apps/domain-health/app/domain-health-exporter.py"]) == selected(
+        domain_health=True
+    )
 
 
 @pytest.mark.parametrize(

@@ -36,7 +36,12 @@ report a complete monitoring or internet failure.
 
 Prometheus owns every health and paging decision. `alerts/runtime-signals.yaml`
 carries the rules that replaced the retired Loki ruler rules, including the
-Alloy-derived log and event counters.
+Alloy-derived log and event counters. `alerts/cluster-diagnosis.yaml` covers the
+incident loop: `SoysprayDiagnosisStale` (no metrics, or no completed poll for 15
+minutes), `SoysprayDiagnosisStateUnusable` (the spend guard cannot be read, so
+model calls are refused), `SoysprayDiagnosisProviderRejected` (DeepSeek rejected
+the key) and `SoysprayDiagnosisDeliveryBacklog` (narratives are not reaching
+Telegram).
 [apps/loki/manifests/docs/ALERT-PIPELINE.md](../loki/manifests/docs/ALERT-PIPELINE.md)
 holds the complete mapping, the detection timing and the missing-evidence
 behaviour.

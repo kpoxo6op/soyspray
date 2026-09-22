@@ -1,0 +1,80 @@
+---
+- name: Retire the laptop incident diagnosis job
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    cluster_diagnosis_state: "{{ lookup('env', 'HOME') }}/.local/state/soyspray/cluster-diagnosis"
+    cluster_diagnosis_job_name: cluster-diagnosis
+  tasks:
+    - name: Read the declared diagnosis job
+      ansible.builtin.command:
+        argv: [openclaw, cron, list, --all, --json]
+      register: cluster_diagnosis_jobs
+      changed_when: false
+      check_mode: false
+      failed_when: false
+
+    - name: Select the laptop diagnosis job
+      ansible.builtin.set_fact:
+        cluster_diagnosis_matches: >-
+          {{ ((cluster_diagnosis_jobs.stdout | default('{}') | from_json).jobs | default([]))
+             | selectattr('name', 'equalto', cluster_diagnosis_job_name) | list }}
+      when: cluster_diagnosis_jobs.rc | default(1) == 0
+
+    - name: Report that no OpenClaw installation was found
+      ansible.builtin.debug:
+        msg: >-
+          OpenClaw is not available on this host, so there is no laptop
+          diagnosis job to remove. The in-cluster workload is unaffected.
+      when: cluster_diagnosis_jobs.rc | default(1) != 0
+
+    - name: Stop and remove the laptop diagnosis job
+      ansible.builtin.command:
+        argv: [openclaw, cron, rm, "{{ item.id }}"]
+      loop: "{{ cluster_diagnosis_matches | default([]) }}"
+      loop_control:
+        label: "{{ item.id }}"
+      changed_when: true
+      register: cluster_diagnosis_removed
+
+    - name: Read the remaining jobs
+      ansible.builtin.command:
+        argv: [openclaw, cron, list, --all, --json]
+      register: cluster_diagnosis_remaining
+      changed_when: false
+      check_mode: false
+      failed_when: false
+      when: cluster_diagnosis_jobs.rc | default(1) == 0
+
+    - name: Require the job to be gone
+      ansible.builtin.assert:
+        that:
+          - >-
+            ((cluster_diagnosis_remaining.stdout | default('{}') | from_json).jobs | default([]))
+            | selectattr('name', 'equalto', cluster_diagnosis_job_name) | list | length == 0
+        fail_msg: The laptop diagnosis job is still declared.
+      when: cluster_diagnosis_jobs.rc | default(1) == 0
+
+    - name: Read the laptop diagnosis state
+      ansible.builtin.stat:
+        path: "{{ cluster_diagnosis_state }}/state.json"
+      register: cluster_diagnosis_state_file
+
+    - name: Keep the retired ledger as evidence
+      ansible.builtin.copy:
+        src: "{{ cluster_diagnosis_state }}/state.json"
+        dest: "{{ cluster_diagnosis_state }}/state.retired.json"
+        remote_src: true
+        force: false
+        mode: '0600'
+      when: cluster_diagnosis_state_file.stat.exists
+
+    - name: Report the retired ledger
+      ansible.builtin.debug:
+        msg: >-
+          The laptop ledger was copied to state.retired.json and left in place.
+          The in-cluster workload keeps its own ledger on
+          monitoring/cluster-diagnosis-state. Delete the laptop copy only after
+          the cluster Application has been Synced and Healthy for a day.

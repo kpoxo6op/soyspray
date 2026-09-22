@@ -109,4 +109,5 @@ resources:
   - alerts/domain-health.yaml
   - alerts/authentik.yaml
   - alerts/node-hardware.yaml
+  - alerts/cluster-diagnosis.yaml
   - alerts/runtime-signals.yaml
