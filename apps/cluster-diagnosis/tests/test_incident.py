@@ -1,13 +1,16 @@
 import importlib.util
+import sys
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-MODULE_PATH = Path(__file__).parents[1] / "app" / "incident.py"
-SPEC = importlib.util.spec_from_file_location("cluster_diagnosis_incident", MODULE_PATH)
+APP = Path(__file__).parents[1] / "app"
+sys.path.insert(0, str(APP))
+SPEC = importlib.util.spec_from_file_location("cluster_diagnosis_incident", APP / "incident.py")
 incident = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(incident)
+import store as store_module  # noqa: E402 - loaded from the application directory
 
 NOW = datetime(2026, 9, 21, 12, 0, tzinfo=timezone.utc)
 
@@ -64,7 +67,7 @@ def refiring(*, minutes):
 
 
 def fresh_state():
-    return incident._empty_state()
+    return store_module.empty_state()
 
 
 def applied(state, alerts, now=NOW):
@@ -575,21 +578,18 @@ class SanitizationTests(unittest.TestCase):
 
 
 class StateTests(unittest.TestCase):
-    def test_old_state_version_is_discarded(self):
-        self.assertEqual(incident.load_incident_state(lambda: {"version": 1})["incidents"], {})
-
-    def test_current_state_version_is_loaded(self):
-        state = fresh_state()
-        applied(state, [alert()])
-        loaded = incident.load_incident_state(lambda: state)
-        self.assertEqual(len(loaded["incidents"]), 1)
-
     def test_inventory_is_bounded_and_sanitized(self):
         state = fresh_state()
         applied(state, [alert(namespace="immich"), alert(namespace="boys")])
         value = incident.inventory(state)
         self.assertEqual(len(value["open"]), 2)
         self.assertEqual({item["anchor"] for item in value["open"]}, {"app:immich", "app:boys"})
+
+    def test_the_store_state_shape_carries_what_the_model_needs(self):
+        state = fresh_state()
+        applied(state, [alert()])
+        for key in ("incidents", "closed", "budget", "outbox", "metrics"):
+            self.assertIn(key, state)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@ resources:
   - ../apps/cert-manager-config/argocd
   - ../apps/node-backup/argocd
   - ../apps/prometheus/argocd
+  - ../apps/cluster-diagnosis/argocd
   - catalog/authentik.yaml
   - catalog/authentik-postgresql.yaml
   - catalog/loki.yaml

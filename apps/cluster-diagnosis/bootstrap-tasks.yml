@@ -1,0 +1,80 @@
+---
+- name: Read the existing DeepSeek diagnosis identity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: monitoring
+    name: cluster-diagnosis-deepseek
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: cluster_diagnosis_existing
+  no_log: true
+
+- name: Select the supplied or existing DeepSeek key
+  ansible.builtin.set_fact:
+    cluster_diagnosis_bootstrap_key: >-
+      {{ cluster_diagnosis_deepseek_api_key | default(
+         (cluster_diagnosis_existing.resources | first | default({})).data['api-key'] | default('') | b64decode) }}
+  no_log: true
+
+- name: Require a usable DeepSeek key
+  ansible.builtin.assert:
+    that:
+      - cluster_diagnosis_bootstrap_key is string
+      - cluster_diagnosis_bootstrap_key | trim | length >= 20
+      - cluster_diagnosis_bootstrap_key | trim is match('^sk-[A-Za-z0-9_-]+$')
+    fail_msg: >-
+      Supply cluster_diagnosis_deepseek_api_key through an Ansible Vault
+      variables file, or restore the existing cluster-diagnosis-deepseek Secret.
+  no_log: true
+
+- name: Refuse to replace an existing DeepSeek identity
+  ansible.builtin.assert:
+    that: >-
+      {{ cluster_diagnosis_existing.resources | length == 0 or
+         cluster_diagnosis_bootstrap_key ==
+         (cluster_diagnosis_existing.resources[0].data['api-key'] | default('') | b64decode) }}
+    fail_msg: >-
+      The supplied key differs from the installed one. This bootstrap cannot
+      rotate a provider identity: remove the Secret deliberately and rerun, or
+      supply the installed key. Rotation is a separate reviewed operation.
+  no_log: true
+
+- name: Restore the missing DeepSeek Secret
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", create, -f, '-']
+    stdin: |
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: cluster-diagnosis-deepseek
+        namespace: monitoring
+        labels:
+          app.kubernetes.io/name: cluster-diagnosis
+          app.kubernetes.io/part-of: observability
+      type: Opaque
+      stringData:
+        api-key: {{ cluster_diagnosis_bootstrap_key | to_json }}
+  changed_when: true
+  no_log: true
+  when: cluster_diagnosis_existing.resources | length == 0 and not ansible_check_mode
+
+- name: Read the installed Telegram delivery identity
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    namespace: monitoring
+    name: alertmanager-telegram-secret
+    kubeconfig: "{{ kubeconfig_path }}"
+  register: cluster_diagnosis_telegram
+  no_log: true
+
+- name: Require the existing Alertmanager bot identity
+  ansible.builtin.assert:
+    that:
+      - cluster_diagnosis_telegram.resources | length == 1
+      - "'PROMETHEUS_TELEGRAM_BOT_TOKEN' in cluster_diagnosis_telegram.resources[0].data"
+    fail_msg: >-
+      The diagnosis narrative is delivered by the existing Alertmanager bot.
+      Restore monitoring/alertmanager-telegram-secret first. This bootstrap
+      never creates, changes or deletes that Secret.
+  no_log: true

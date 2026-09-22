@@ -76,3 +76,24 @@ ansible-playbook playbooks/operations/retirement/grafana-dashboard-configmaps.ym
 
 It is safe to rerun. It changes nothing else: no Application, no namespace, no
 Service, and no dashboard content.
+
+## Laptop incident diagnosis
+
+`laptop-cluster-diagnosis.yml` removes the OpenClaw cron job that ran the
+diagnosis adapter on the laptop. The loop now runs in the cluster as
+`monitoring/cluster-diagnosis` and needs no laptop process.
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook playbooks/operations/retirement/laptop-cluster-diagnosis.yml --check
+ansible-playbook playbooks/operations/retirement/laptop-cluster-diagnosis.yml
+```
+
+It copies the retired ledger to `state.retired.json` and leaves both files in
+place. The cluster keeps its own ledger on
+`monitoring/cluster-diagnosis-state`. Delete the laptop copy only after the
+Application has been Synced and Healthy for a day. It is safe to rerun, and it
+reports honestly when OpenClaw is not installed.
+
+Do not remove `soyspray-evidence-metrics.service` or its timers: they keep
+serving backup and restore evidence.

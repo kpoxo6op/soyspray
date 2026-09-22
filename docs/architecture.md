@@ -31,20 +31,23 @@ One operational incident produces one investigation and one explanation.
 ```text
 Prometheus rule fires
 └── Alertmanager routes the group to Telegram and Healthchecks.io
-    └── laptop adapter polls /api/v2/alerts every two minutes
+    └── in-cluster incident loop polls /api/v2/alerts every two minutes
         ├── folds related alerts into one incident (application or node)
         ├── collects bounded read-only evidence from Loki, outside the sandbox
         ├── asks the Jev classifier for a semantic hint (never proof)
-        ├── runs one isolated reasoning worker for a changed incident
+        ├── asks DeepSeek for one narrative, with no tools and no cluster access
         └── sends one Telegram narrative, material updates and one recovery
 ```
 
 Prometheus owns health and paging. Alertmanager owns routing and grouping. Loki
-keeps searchable raw evidence. The laptop adapter owns incident identity and
-decides whether an incident is worth a model call. The reasoning worker has no
-cluster credentials, no network and no ability to merge or deploy.
+keeps searchable raw evidence. The in-cluster loop owns incident identity and
+decides whether an incident is worth a model call. The model is a stateless,
+tool-free HTTP request, so it has no cluster credentials, no ability to run code
+and no way to change anything. The loop itself has no service account token and
+a NetworkPolicy that excludes the API server.
 
 The [Loki alert pipeline](https://github.com/kpoxo6op/soyspray/tree/main/apps/loki/manifests/docs)
 records the counter mapping. The
-[laptop diagnosis README](https://github.com/kpoxo6op/soyspray/tree/main/apps/cluster-diagnosis)
-records the evidence boundary, the classifier contract and the rollback steps.
+[cluster diagnosis README](https://github.com/kpoxo6op/soyspray/tree/main/apps/cluster-diagnosis)
+records the evidence boundary, the spending ledger, the classifier contract and
+the rollback steps.

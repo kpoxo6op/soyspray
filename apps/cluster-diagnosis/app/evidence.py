@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Collect bounded, read-only incident evidence outside the model sandbox.
+"""Collect bounded, read-only incident evidence inside the cluster.
 
-Raw log lines stay in the cluster and on this host. Only allowlisted, normalized
-records leave this module. A line whose format cannot be checked is not exported:
-it becomes an explicit evidence gap instead.
+Raw log lines stay in Loki and in this process. Only allowlisted, normalized
+records leave this module, and only the sanitized pack is written to disk. A line
+whose format cannot be checked is not exported: it becomes an explicit evidence
+gap instead.
 """
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import json
 import os
@@ -17,6 +17,9 @@ import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import urlopen
 
 MAX_TARGETS = 6
 MAX_LINES_PER_TARGET = 40
@@ -34,11 +37,9 @@ MAX_STORED_PACKS = 20
 DEFAULT_WINDOW_SECONDS = 900
 MAX_WINDOW_SECONDS = 3600
 DEFAULT_TIMEOUT_SECONDS = 20
-DEFAULT_SSH_HOST = "ubuntu@192.168.20.10"
-# The query runs through SSH on node-0, which is the host network and cannot
-# resolve cluster DNS, so the collector uses the Service ClusterIP. Update it
-# together with the Prometheus ClusterIP if those Services are ever recreated.
-DEFAULT_LOKI_URL = "http://10.233.57.196:3100"
+DEFAULT_LOKI_URL = "http://loki.monitoring.svc.cluster.local:3100"
+DEFAULT_ALERTMANAGER_URL = "http://alertmanager-operated.monitoring.svc.cluster.local:9093"
+DEFAULT_PROMETHEUS_URL = "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
 
 SAFE_SELECTOR_VALUE = re.compile(r"[a-zA-Z0-9_.:/-]{1,253}")
 CRI_PREFIX = re.compile(r"^\d{4}-\d{2}-\d{2}T[\d:.]+Z (?:stdout|stderr) [FP] ")
@@ -175,32 +176,8 @@ SENSITIVE_FIELD = re.compile(
     r"|private[_-]?key|access[_-]?key|session|cookie|auth)"
 )
 
+
 # Loki keeps the searchable raw evidence. The collector reads only these fields.
-LOKI_SCRIPT = """import base64,json,urllib.parse,urllib.request
-request=json.loads(base64.b64decode("__REQUEST__"))
-out={"status":"observed","targets":[]}
-for target in request["targets"]:
-    url=request["base"].rstrip("/")+"/loki/api/v1/query_range?"+urllib.parse.urlencode({
-        "query":target["query"],
-        "start":str(request["start_ns"]),
-        "end":str(request["end_ns"]),
-        "limit":str(request["limit"]),
-        "direction":"backward"})
-    try:
-        with urllib.request.urlopen(url,timeout=request["timeout"]) as response:
-            body=json.load(response)
-        streams=body.get("data",{}).get("result",[])
-        out["targets"].append({"id":target["id"],"selector":target["selector"],"streams":streams})
-    except Exception as error:
-        out["targets"].append({
-            "id":target["id"],
-            "selector":target["selector"],
-            "status":"unavailable",
-            "cause":type(error).__name__})
-print(json.dumps(out))
-"""
-
-
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -468,18 +445,52 @@ def trim_pack(pack: dict[str, Any]) -> dict[str, Any]:
     return pack
 
 
+def loki_transport(url: str, timeout: float) -> tuple[int, Any]:
+    """One bounded Loki read. The URL carries only validated label values."""
+    try:
+        with urlopen(url, timeout=timeout) as response:
+            body = response.read(MAX_RAW_RESPONSE_BYTES + 1)
+            if len(body) > MAX_RAW_RESPONSE_BYTES:
+                return response.status, None
+            return response.status, json.loads(body)
+    except HTTPError as error:
+        return error.code, None
+    except (URLError, TimeoutError, OSError, ValueError):
+        return 0, None
+
+
+def query_url(base: str, selector: str, start: datetime, end: datetime, limit: int) -> str:
+    return (
+        base.rstrip("/")
+        + "/loki/api/v1/query_range?"
+        + urlencode(
+            {
+                "query": selector,
+                "start": str(int(start.timestamp() * 1_000_000_000)),
+                "end": str(int(end.timestamp() * 1_000_000_000)),
+                "limit": str(limit),
+                "direction": "backward",
+            }
+        )
+    )
+
+
 def collect_evidence(
     summary: dict[str, Any],
     *,
-    runner: Callable[..., Any],
-    ssh_host: str = DEFAULT_SSH_HOST,
+    transport: Callable[[str, float], tuple[int, Any]] = loki_transport,
     loki_url: str = DEFAULT_LOKI_URL,
     now: datetime | None = None,
     window_seconds: int = DEFAULT_WINDOW_SECONDS,
     timeout: float = DEFAULT_TIMEOUT_SECONDS,
     node_pods: dict[str, list[tuple[str, str]]] | None = None,
 ) -> dict[str, Any]:
-    """Read bounded log evidence for one incident, outside any model sandbox."""
+    """Read bounded log evidence for one incident from Loki.
+
+    The query is built only from charset-validated label values, and the read is
+    bounded before it is parsed, so neither alert text nor log content can widen
+    the request or the payload.
+    """
     observed_at = now or _now()
     window_seconds = max(60, min(int(window_seconds), MAX_WINDOW_SECONDS))
     pack: dict[str, Any] = {
@@ -502,76 +513,37 @@ def collect_evidence(
         return pack
 
     start = observed_at - timedelta(seconds=window_seconds)
-    request = {
-        "base": loki_url,
-        "start_ns": str(int(start.timestamp() * 1_000_000_000)),
-        "end_ns": str(int(observed_at.timestamp() * 1_000_000_000)),
-        "limit": MAX_LINES_PER_TARGET,
-        "timeout": timeout,
-        "targets": targets,
-    }
-    encoded = base64.b64encode(json.dumps(request, separators=(",", ":")).encode()).decode()
-    script = LOKI_SCRIPT.replace("__REQUEST__", encoded)
-    try:
-        result = runner(
-            [
-                "ssh",
-                "-o",
-                "BatchMode=yes",
-                "-o",
-                "ConnectTimeout=5",
-                ssh_host,
-                "python3",
-                "-",
-            ],
-            timeout=timeout + 10,
-            input=script,
-        )
-    except Exception:  # noqa: BLE001 - any transport failure is an evidence gap
-        pack["gaps"].append({"reason": "collector-unavailable", "target": "loki"})
-        return pack
-    if getattr(result, "returncode", 1) != 0:
-        pack["gaps"].append({"reason": "collector-failed", "target": "loki"})
-        return pack
-    if len(getattr(result, "stdout", "") or "") > MAX_RAW_RESPONSE_BYTES:
-        pack["gaps"].append({"reason": "collector-too-large", "target": "loki"})
-        return pack
-    try:
-        response = json.loads(result.stdout)
-    except (ValueError, TypeError):
-        pack["gaps"].append({"reason": "collector-malformed", "target": "loki"})
-        return pack
-    if not isinstance(response, dict):
-        pack["gaps"].append({"reason": "collector-malformed", "target": "loki"})
-        return pack
-    pack["status"] = "observed"
     line_budget = MAX_TOTAL_LINES
     byte_budget = MAX_RAW_BYTES
-    for item in response.get("targets", []):
-        if not isinstance(item, dict):
-            continue
-        if item.get("status") == "unavailable":
-            pack["gaps"].append({"reason": "query-failed", "target": str(item.get("id", ""))[:80]})
-            continue
+    observed_any = False
+    for target in targets:
         if line_budget <= 0 or byte_budget <= 0:
-            pack["gaps"].append(
-                {"reason": "incident-budget-reached", "target": str(item.get("id", ""))[:80]}
-            )
+            pack["gaps"].append({"reason": "incident-budget-reached", "target": target["id"][:80]})
+            continue
+        url = query_url(loki_url, target["query"], start, observed_at, MAX_LINES_PER_TARGET)
+        try:
+            status, response = transport(url, timeout)
+        except Exception:  # noqa: BLE001 - any transport fault is an evidence gap
+            pack["gaps"].append({"reason": "collector-unavailable", "target": target["id"][:80]})
+            continue
+        if status != 200 or not isinstance(response, dict):
+            pack["gaps"].append({"reason": "query-failed", "target": target["id"][:80]})
+            continue
+        observed_any = True
+        streams = response.get("data", {}).get("result") if isinstance(response, dict) else None
+        if not isinstance(streams, list):
+            pack["gaps"].append({"reason": "query-malformed", "target": target["id"][:80]})
             continue
         lines, used, truncated = _line_messages(
-            item.get("streams") or [], line_budget=line_budget, byte_budget=byte_budget
+            streams, line_budget=line_budget, byte_budget=byte_budget
         )
         line_budget -= len(lines)
         byte_budget -= used
         pack["totals"]["bytes"] = pack["totals"].get("bytes", 0) + used
         if truncated:
-            pack["gaps"].append(
-                {"reason": "incident-budget-reached", "target": str(item.get("id", ""))[:80]}
-            )
+            pack["gaps"].append({"reason": "incident-budget-reached", "target": target["id"][:80]})
         if not lines:
-            pack["gaps"].append(
-                {"reason": "no-lines-in-window", "target": str(item.get("id", ""))[:80]}
-            )
+            pack["gaps"].append({"reason": "no-lines-in-window", "target": target["id"][:80]})
             continue
         records = [sanitize_line(line) for line in lines]
         text_lines = sum(1 for record in records if record["format"] == "text")
@@ -580,25 +552,21 @@ def collect_evidence(
             pack["gaps"].append(
                 {
                     "reason": "text-format-not-exported",
-                    "target": str(item.get("id", ""))[:80],
+                    "target": target["id"][:80],
                     "lines": text_lines,
                 }
             )
         if held_back:
             pack["gaps"].append(
-                {
-                    "reason": "message-held-back",
-                    "target": str(item.get("id", ""))[:80],
-                    "lines": held_back,
-                }
+                {"reason": "message-held-back", "target": target["id"][:80], "lines": held_back}
             )
         exported = [record for record in records if record["format"] != "text"]
         for record in exported:
             record.pop("message_held_back", None)
         pack["targets"].append(
             {
-                "id": str(item.get("id", ""))[:80],
-                "selector": str(item.get("selector", ""))[:200],
+                "id": target["id"][:80],
+                "selector": target["selector"][:200],
                 "lines": len(records),
                 "exported": len(exported),
                 "dropped": len(records) - len(exported),
@@ -613,7 +581,8 @@ def collect_evidence(
         pack["totals"]["exported"] += len(exported)
         pack["totals"]["dropped"] += len(records) - len(exported)
     pack["totals"]["samples"] = sum(len(target["samples"]) for target in pack["targets"])
-    if not pack["targets"]:
+    pack["status"] = "observed" if observed_any else "unavailable"
+    if not pack["targets"] and observed_any:
         pack["status"] = "no-evidence"
     return trim_pack(pack)
 

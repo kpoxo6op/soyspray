@@ -1,11 +1,12 @@
 # Installed laptop operations
 
 One Ansible operation installs evidence collection, monthly isolated restores,
-recovery-input backups, diagnosis, and metrics under
-`~/.local/lib/soyspray-operations`. Each immutable release has its own Git
+recovery-input backups and metrics under `~/.local/lib/soyspray-operations`. Each immutable release has its own Git
 checkout and Python environment. `current` selects the active release and
-`previous` retains the prior one for rollback. Private credentials, reports,
-locks, incident state, and model inputs remain outside the checkout.
+`previous` retains the prior one for rollback. Private credentials, reports and locks remain
+outside the checkout. Incident diagnosis is not installed here: it runs in the
+cluster as `monitoring/cluster-diagnosis` and keeps its ledger on its own
+volume.
 
 The installed environment uses `requirements-recovery.txt`. It contains the
 Ansible and YAML dependencies used by recovery operations. It does not install
@@ -17,9 +18,7 @@ Install or update an exact pushed commit:
 ```sh
 source soyspray-venv/bin/activate
 ansible-playbook playbooks/operations/runtime/install.yml \
-  -e operations_revision=COMMIT \
-  -e diagnosis_telegram_target=RECIPIENT \
-  -e diagnosis_enabled=true
+  -e operations_revision=COMMIT
 ```
 
 Run the same command with `--check` before an update. To roll back, use the
@@ -40,8 +39,7 @@ the development-only frontend, browser, lint, or test gates again.
 Check the installation with `systemctl --user status` for
 `soyspray-operations-evidence.timer`, `soyspray-restore-check.timer`,
 `soyspray-recovery-input-backup.timer`, and `soyspray-evidence-metrics.service`.
-Use `openclaw cron list --all --json` for diagnosis. Run a recovery-input backup
-through its installed service. Run a critical isolated restore with the pinned
+Run a recovery-input backup through its installed service. Run a critical isolated restore with the pinned
 Python command under `current`; reports remain in `~/.local/state/soyspray`.
 
 The runtime does not update itself. It keeps all releases until an operator
