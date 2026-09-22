@@ -38,6 +38,8 @@ MAX_CLOSED_INCIDENTS = 40
 MAX_ACTIVE_INCIDENTS = 40
 
 SAFE_LABEL = re.compile(r"[a-zA-Z0-9_.:/-]{1,253}")
+# Alert text the operator has already seen, kept short enough to stay a prompt field.
+MAX_ANNOTATION_CHARS = 240
 SECRET_KEY_MARKERS = (
     "password",
     "secret",
@@ -269,6 +271,23 @@ def prompt_labels(alert: dict[str, Any]) -> dict[str, str]:
     return {key: value for key in PROMPT_LABELS if (value := safe_label(labels.get(key)))}
 
 
+def prompt_annotations(alert: dict[str, Any]) -> dict[str, str]:
+    """Return the operator-visible alert text, truncated, for the prompt only.
+
+    The model is told not to repeat what the deterministic message already says,
+    and the alert annotation is part of what Alertmanager has already shown the
+    operator. It is text from our own alert rules, never from a workload, and it
+    still passes the same bounds and charset checks as any other prompt field.
+    """
+    annotations = safe_map(alert.get("annotations", {}))
+    kept: dict[str, str] = {}
+    for key in ("summary", "description"):
+        value = " ".join(str(annotations.get(key, "")).split())
+        if value:
+            kept[key] = value[:MAX_ANNOTATION_CHARS]
+    return kept
+
+
 def evidence_targets(alert: dict[str, Any]) -> dict[str, str]:
     """Return the bounded resource selection used to gather incident evidence."""
     labels = alert.get("labels") or {}
@@ -461,6 +480,9 @@ def apply_alerts(
                         )
                         continue
                 existing = {"first_seen": now.isoformat()}
+                started = parse_time(alert.get("startsAt"))
+                if started is not None:
+                    existing["starts_at"] = started.isoformat()
                 incident.symptoms[name] = existing
                 changed = True
             existing.update(
@@ -471,6 +493,7 @@ def apply_alerts(
                     "hash": alert_hash(alert),
                     "targets": evidence_targets(alert),
                     "labels": prompt_labels(alert),
+                    "annotations": prompt_annotations(alert),
                 }
             )
             if current in {"resolved", "suppressed"} and existing.get("state") == "firing":
@@ -655,7 +678,7 @@ def inventory(state: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def summarize(incident: Incident) -> dict[str, Any]:
+def summarize(incident: Incident, now: datetime | None = None) -> dict[str, Any]:
     """Return the sanitized incident shape supplied to prompts and delivery."""
     return {
         "anchor": incident.anchor_id,
@@ -673,10 +696,25 @@ def summarize(incident: Incident) -> dict[str, Any]:
                 "state": item.get("state"),
                 "severity": item.get("severity"),
                 "labels": item.get("labels", {}),
+                "annotations": item.get("annotations", {}),
+                # The alert's own firing time when Alertmanager gave one, and the
+                # loop's first sighting otherwise. The loop measured both.
+                "firing_seconds": _age_seconds(
+                    item.get("starts_at") or item.get("first_seen"), now
+                ),
             }
             for name, item in sorted(incident.symptoms.items())
         ],
     }
+
+
+def _age_seconds(value: Any, now: datetime | None) -> int | None:
+    if now is None:
+        return None
+    started = parse_time(value)
+    if started is None:
+        return None
+    return max(0, int((now - started).total_seconds()))
 
 
 def related_to_node(
