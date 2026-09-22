@@ -31,10 +31,14 @@ spec:
         - protocol: TCP
           port: 9911
   egress:
+    # The pod resolves through NodeLocal DNSCache, which answers on the
+    # kubespray `nodelocaldns_ip` address 169.254.25.10. That address is outside
+    # both cluster CIDRs, so it needs its own rule: without it the loop cannot
+    # resolve anything and every poll ends as source-failed. The other apps use
+    # the same rule.
     - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
+        - ipBlock:
+            cidr: 169.254.25.10/32
       ports:
         - protocol: UDP
           port: 53
