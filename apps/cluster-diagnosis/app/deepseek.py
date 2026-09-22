@@ -118,20 +118,24 @@ def default_transport(payload: dict[str, Any], api_key: str, timeout: float) -> 
         return error.code, detail
 
 
-def _usage_tokens(body: Any) -> int:
-    """Count every token the provider billed, including cached and reasoning."""
+def _usage_tokens(body: Any) -> tuple[int, bool]:
+    """Count every token the provider billed, and say whether it was reported.
+
+    Cached and reasoning tokens are part of the bill. An answer without a usage
+    figure is not a zero bill, so the caller keeps its reservation.
+    """
     if not isinstance(body, dict):
-        return 0
+        return 0, False
     usage = body.get("usage")
     if not isinstance(usage, dict):
-        return 0
+        return 0, False
     total = usage.get("total_tokens")
     if isinstance(total, int) and not isinstance(total, bool) and total >= 0:
-        return total
+        return total, True
     prompt = usage.get("prompt_tokens")
     completion = usage.get("completion_tokens")
     values = [value for value in (prompt, completion) if isinstance(value, int)]
-    return sum(values) if values else 0
+    return (sum(values), True) if values else (0, False)
 
 
 def interpret(status: int, body: Any) -> dict[str, Any]:
@@ -142,6 +146,7 @@ def interpret(status: int, body: Any) -> dict[str, Any]:
         "content": "",
         "model": "",
         "tokens": 0,
+        "usage_known": False,
         "blocked": False,
         "retry_after": 0,
     }
@@ -163,7 +168,7 @@ def interpret(status: int, body: Any) -> dict[str, Any]:
     if not isinstance(body, dict):
         result.update(cause="malformed", retry_after=300)
         return result
-    result["tokens"] = _usage_tokens(body)
+    result["tokens"], result["usage_known"] = _usage_tokens(body)
     model = body.get("model")
     if isinstance(model, str):
         result["model"] = model[:64]
@@ -213,6 +218,7 @@ class DeepSeek:
                 "content": "",
                 "model": "",
                 "tokens": 0,
+                "usage_known": False,
                 "blocked": True,
                 "retry_after": 3600,
             }
@@ -228,13 +234,15 @@ class DeepSeek:
         try:
             status, response = self.transport(body, self.api_key, timeout)
         except (URLError, TimeoutError, OSError, ValueError):
-            # The provider may still be generating. The reservation stays spent.
+            # The provider may still be generating, so the reservation stands:
+            # the answer never arrived and the bill for it may exist anyway.
             return {
                 "status": "unavailable",
                 "cause": "network",
                 "content": "",
                 "model": "",
                 "tokens": 0,
+                "usage_known": False,
                 "blocked": False,
                 "retry_after": 300,
             }
@@ -245,6 +253,7 @@ class DeepSeek:
                 "content": "",
                 "model": "",
                 "tokens": 0,
+                "usage_known": False,
                 "blocked": False,
                 "retry_after": 300,
             }

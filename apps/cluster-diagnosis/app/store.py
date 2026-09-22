@@ -74,8 +74,17 @@ def reserve(
     return True, ""
 
 
-def charge_tokens(state: dict[str, Any], day: str, *, reserved: int, used: int) -> None:
-    """Replace a reservation with what the provider actually reported."""
+def charge_tokens(
+    state: dict[str, Any], day: str, *, reserved: int, used: int, known: bool = True
+) -> None:
+    """Replace a reservation with what the provider actually reported.
+
+    When the answer never arrived, the reservation stands. The request may have
+    been served and billed, and releasing it would hand that spend back as if it
+    had never happened.
+    """
+    if not known:
+        return
     entry = budget_for(state, day)
     entry["tokens"] = max(0, entry["tokens"] - max(0, int(reserved)) + max(0, int(used)))
 

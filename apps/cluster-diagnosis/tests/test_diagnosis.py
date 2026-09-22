@@ -17,6 +17,7 @@ for name in ("diagnosis", "deepseek", "telegram", "evidence", "incident", "store
 
 import deepseek as deepseek_module  # noqa: E402
 import diagnosis as diagnosis_module  # noqa: E402
+import store as store_module  # noqa: E402
 import telegram as telegram_module  # noqa: E402
 
 NOW = datetime(2026, 9, 22, 12, 0, tzinfo=timezone.utc)
@@ -278,6 +279,40 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(len(closed), 1)
         self.assertIn("suppressed", closed[0])
 
+    def test_a_warning_that_never_reached_the_chat_closes_silently(self):
+        harness = Harness(self.root, alerts=[alert(severity="warning")])
+        diagnosis = harness.open()
+        self.assertEqual(diagnosis.iterate(), "unchanged")
+        harness.alerts = []
+        harness.clock[0] = NOW + timedelta(minutes=10)
+        diagnosis.iterate()
+        self.assertEqual(harness.telegram.messages, [])
+
+    def test_a_close_waits_for_an_undelivered_narrative(self):
+        failure = {"status": "failed", "cause": "timeout"}
+        harness = Harness(self.root, telegram=FakeTelegram([failure] * 6))
+        harness.transmission = Transmission([answer()], harness.state_path)
+        diagnosis = harness.open()
+        self.assertEqual(diagnosis.iterate(), "diagnosed")
+        self.assertEqual(len(harness.state()["outbox"]), 1)
+        self.assertEqual(harness.state()["metrics"]["deliveries"], {"failed": 1})
+        harness.alerts = []
+        harness.clock[0] = NOW + timedelta(minutes=10)
+        diagnosis.iterate()
+        # The narrative is still queued, so the close neither overtakes it nor
+        # disappears: it is deferred until the narrative reaches the chat.
+        self.assertEqual([m for m in harness.telegram.messages if "CLOSED" in m], [])
+        self.assertEqual(len(harness.state()["outbox"]), 1)
+        harness.telegram.results = []
+        harness.clock[0] = NOW + timedelta(minutes=12)
+        diagnosis.iterate()
+        self.assertEqual(harness.state()["outbox"], [])
+        self.assertIn("INCIDENT OPENED", harness.telegram.messages[-2])
+        # A vanished alert closes the incident, and the message keeps the
+        # severity the incident actually carried.
+        self.assertIn("INCIDENT CLOSED [critical]", harness.telegram.messages[-1])
+        self.assertIn("not-observed", harness.telegram.messages[-1])
+
     def test_the_narrative_reports_a_kept_local_gap(self):
         harness = Harness(self.root)
         harness.pack = pack()
@@ -311,6 +346,24 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(diagnosis.iterate(), "daily-tokens")
         self.assertEqual(harness.transmission.calls, [])
 
+    def test_an_unobserved_request_keeps_its_reservation(self):
+        harness = Harness(self.root, token_limit=10_000)
+        harness.transmission = Transmission([OSError("connection reset")], harness.state_path)
+        diagnosis = harness.open()
+        diagnosis.iterate()
+        spend = harness.state()["budget"][DAY]
+        self.assertEqual(spend["attempts"], 1)
+        self.assertEqual(
+            spend["tokens"], deepseek_module.FLASH_MAX_TOKENS + deepseek_module.INPUT_TOKEN_RESERVE
+        )
+
+    def test_a_reported_zero_usage_releases_the_reservation(self):
+        harness = Harness(self.root, token_limit=10_000)
+        harness.transmission = Transmission([answer(tokens=0)], harness.state_path)
+        diagnosis = harness.open()
+        diagnosis.iterate()
+        self.assertEqual(harness.state()["budget"][DAY]["tokens"], 0)
+
     def test_a_spent_token_budget_is_not_refilled_by_a_restart(self):
         harness = Harness(self.root, token_limit=1000)
         harness.transmission = Transmission([answer(tokens=990)], harness.state_path)
@@ -332,6 +385,41 @@ class BudgetTests(unittest.TestCase):
         self.assertEqual(harness.transmission.calls, [])
         self.assertIn("soyspray_diagnosis_state_usable 0", diagnosis.render_metrics())
 
+    def test_an_unusable_state_is_never_written_over(self):
+        harness = Harness(self.root)
+        harness.state_path.write_text("{ not json")
+        diagnosis = harness.diagnosis
+        diagnosis.reload_state()
+        corrupted = harness.state_path.read_bytes()
+        self.assertEqual(diagnosis.iterate(), "state-unusable")
+        self.assertEqual(harness.state_path.read_bytes(), corrupted)
+        samples = [
+            line
+            for line in diagnosis.render_metrics().splitlines()
+            if line and not line.startswith("#")
+        ]
+        self.assertFalse(
+            [line for line in samples if line.startswith("soyspray_diagnosis_attempts")]
+        )
+
+    def test_repairing_the_ledger_restores_the_recorded_allowance(self):
+        harness = Harness(self.root, attempt_limit=2)
+        harness.transmission = Transmission([answer(), answer()], harness.state_path)
+        harness.open().iterate()
+        spend = harness.state()["budget"][DAY]
+        # The file becomes unreadable, and an operator repairs it by hand.
+        harness.state_path.write_text("{ not json")
+        diagnosis = harness.diagnosis
+        diagnosis.reload_state()
+        diagnosis.iterate()
+        harness.state_path.write_text(
+            json.dumps({**store_module.empty_state(), "budget": {DAY: spend}})
+        )
+        self.assertEqual(diagnosis.reload_state(), "")
+        self.assertEqual(diagnosis.iterate(), "diagnosed")
+        self.assertEqual(len(harness.transmission.calls), 2)
+        self.assertEqual(harness.state()["budget"][DAY]["attempts"], 2)
+
     def test_a_missing_state_file_is_usable_and_starts_the_day_clean(self):
         harness = Harness(self.root)
         diagnosis = harness.open()
@@ -346,6 +434,49 @@ class ProviderTests(unittest.TestCase):
 
     def tearDown(self):
         self.tmp.cleanup()
+
+    def test_the_provider_latch_survives_a_restart_and_expires_with_the_day(self):
+        harness = Harness(self.root)
+        harness.transmission = Transmission([(401, {})], harness.state_path)
+        diagnosis = harness.open()
+        diagnosis.iterate()
+        self.assertTrue(diagnosis.blocked)
+        self.assertEqual(harness.state()["blocked"]["day"], DAY)
+
+        restarted = Harness(self.root)
+        restarted.transmission = Transmission([answer()], restarted.state_path)
+        reopened = restarted.open()
+        # The next poll reads the latch from the ledger, before any transmission.
+        reopened.blocked = reopened._blocked_today(DAY)
+        self.assertEqual(reopened.iterate(), "provider-blocked")
+        self.assertEqual(restarted.transmission.calls, [])
+
+        # The next Auckland day clears it without a restart, and the incident is
+        # still firing, so the loop asks the provider again.
+        reopened.state["blocked"]["day"] = "2026-09-21"
+        restarted.alerts = [alert(ends=NOW + timedelta(days=2))]
+        reopened.now = lambda: NOW + timedelta(days=1)
+        self.assertFalse(reopened._blocked_today("2026-09-23"))
+        self.assertIsNone(reopened.state["blocked"])
+        self.assertEqual(reopened.iterate(), "diagnosed")
+        self.assertEqual(len(restarted.transmission.calls), 1)
+
+    def test_an_interrupted_attempt_is_retried_after_the_grace(self):
+        harness = Harness(self.root)
+        harness.transmission = Transmission([answer(), answer()], harness.state_path)
+        diagnosis = harness.open()
+        diagnosis.iterate()
+        record = next(iter(diagnosis.state["incidents"].values()))
+        # A process that died after reserving the attempt leaves this behind.
+        record["last_result"] = "in-progress"
+        record["in_flight_since"] = NOW.isoformat()
+        harness.alerts = []
+        harness.clock[0] = NOW + timedelta(minutes=1)
+        self.assertEqual(diagnosis.iterate(), "in-flight")
+        harness.alerts = [alert(ends=NOW + timedelta(hours=4))]
+        harness.clock[0] = NOW + timedelta(seconds=diagnosis_module.ABANDONED_ATTEMPT_SECONDS + 60)
+        self.assertEqual(diagnosis.iterate(), "diagnosed")
+        self.assertEqual(len(harness.transmission.calls), 2)
 
     def test_a_rejected_key_stops_later_transmissions(self):
         harness = Harness(self.root)
@@ -619,6 +750,57 @@ class MetricsTests(unittest.TestCase):
         self.assertFalse(
             [line for line in series if line.startswith("soyspray_evidence_collector_observed")]
         )
+
+    def test_the_day_s_spending_is_reported_from_the_ledger(self):
+        with tempfile.TemporaryDirectory() as folder:
+            harness = Harness(Path(folder))
+            harness.transmission = Transmission([answer(tokens=812)], harness.state_path)
+            diagnosis = harness.open()
+            samples = lambda text: [  # noqa: E731
+                line for line in text.splitlines() if line and not line.startswith("#")
+            ]
+            before = samples(diagnosis.render_metrics())
+            self.assertFalse(
+                [line for line in before if line.startswith("soyspray_diagnosis_tokens")]
+            )
+            diagnosis.iterate()
+            after = samples(diagnosis.render_metrics())
+        self.assertIn("soyspray_diagnosis_attempts_today 1.0", after)
+        self.assertIn("soyspray_diagnosis_tokens_today 812.0", after)
+
+    def test_an_undiagnosed_critical_incident_is_reported_with_its_age(self):
+        with tempfile.TemporaryDirectory() as folder:
+            harness = Harness(Path(folder), transmission=Transmission([(503, {}), (503, {})]))
+            diagnosis = harness.open()
+            diagnosis.iterate()
+            text = diagnosis.render_metrics()
+            self.assertIn("soyspray_incident_undiagnosed_timestamp_seconds", text)
+            self.assertIn(f"{int(NOW.timestamp())}.0", text)
+            # A successful answer clears it.
+            harness.transmission.responses = [answer()]
+            harness.clock[0] = NOW + timedelta(minutes=10)
+            diagnosis.iterate()
+            text = diagnosis.render_metrics()
+        samples = [
+            line for line in text.splitlines() if line.startswith("soyspray_incident_undiagnosed")
+        ]
+        self.assertEqual(samples, [])
+
+    def test_a_waiting_message_reports_its_age(self):
+        with tempfile.TemporaryDirectory() as folder:
+            failure = {"status": "failed", "cause": "timeout"}
+            harness = Harness(Path(folder), telegram=FakeTelegram([failure] * 3))
+            harness.transmission = Transmission([answer()], harness.state_path)
+            diagnosis = harness.open()
+            diagnosis.iterate()
+            text = diagnosis.render_metrics()
+        age = [
+            float(line.split()[-1])
+            for line in text.splitlines()
+            if line.startswith("soyspray_diagnosis_outbox_oldest_seconds")
+        ]
+        self.assertEqual(len(age), 1)
+        self.assertGreaterEqual(age[0], 0.0)
 
     def test_a_hostile_anchor_cannot_inject_a_series(self):
         with tempfile.TemporaryDirectory() as folder:
