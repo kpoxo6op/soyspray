@@ -103,6 +103,8 @@ tests:
         values: "0x40"
       - series: soyspray_diagnosis_provider_blocked
         values: "1x40"
+      - series: soyspray_diagnosis_outbox_oldest_seconds
+        values: "10x40"
     alert_rule_test:
       - eval_time: 30m
         alertname: SoysprayDiagnosisStateUnusable
@@ -128,30 +130,63 @@ tests:
                 asking until the next day. Restore the key in
                 monitoring/cluster-diagnosis-deepseek through the bootstrap.
       - eval_time: 30m
-        alertname: SoysprayDiagnosisDeliveryBacklog
+        alertname: SoysprayDiagnosisDeliveryStalled
+        exp_alerts: []
+      - eval_time: 30m
+        alertname: SoysprayDiagnosisUndiagnosed
         exp_alerts: []
 
-  - name: A growing outbox warns while a small one stays quiet
+  - name: A stalled outbox warns while a fresh one stays quiet
     interval: 1m
     input_series:
       - series: soyspray_diagnosis_up
         values: "1x40"
       - series: soyspray_diagnosis_last_poll_timestamp_seconds
         values: "0+60x40"
-      - series: soyspray_diagnosis_outbox_pending{fixture="large"}
-        values: "5x40"
-      - series: soyspray_diagnosis_outbox_pending{fixture="small"}
-        values: "1x40"
+      - series: soyspray_diagnosis_outbox_oldest_seconds{fixture="stalled"}
+        values: "2400x40"
+      - series: soyspray_diagnosis_outbox_oldest_seconds{fixture="fresh"}
+        values: "60x40"
     alert_rule_test:
       - eval_time: 30m
-        alertname: SoysprayDiagnosisDeliveryBacklog
+        alertname: SoysprayDiagnosisDeliveryStalled
         exp_alerts:
           - exp_labels:
               severity: warning
-              fixture: large
+              fixture: stalled
             exp_annotations:
               summary: "Diagnosis messages are not reaching Telegram"
               description: >-
-                More than three narratives are waiting in the outbox. Delivery
-                is retried without another model call, and an entry older than
-                six hours is dropped.
+                The oldest queued narrative has waited more than thirty minutes.
+                Delivery is retried on every poll without another model call, and
+                an entry older than six hours is dropped. Check the bot token in
+                monitoring/alertmanager-telegram-secret and the loop log.
+
+  - name: Critical work that stays undiagnosed warns, and a diagnosed one does not
+    interval: 1m
+    input_series:
+      - series: soyspray_diagnosis_up
+        values: "1x100"
+      - series: soyspray_diagnosis_last_poll_timestamp_seconds
+        values: "0+60x100"
+      # The incident opened at the start of the test, so an hour has not passed.
+      - series: soyspray_incident_undiagnosed_timestamp_seconds{anchor="app:boys",kind="app"}
+        values: "0x100"
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: SoysprayDiagnosisUndiagnosed
+        exp_alerts: []
+      - eval_time: 90m
+        alertname: SoysprayDiagnosisUndiagnosed
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              anchor: app:boys
+              kind: app
+            exp_annotations:
+              summary: "A critical incident has no diagnosis"
+              description: >-
+                An open critical incident has gone an hour without a successful
+                answer, because every provider call failed, the attempt allowance
+                is spent, or an attempt was interrupted. The incident record holds
+                this state across a restart. Read the loop log for the outcome.
