@@ -1,0 +1,31 @@
+# TEMPORARY. This rule is an acceptance probe for the in-cluster diagnosis loop.
+# It fires for the running diagnosis pod itself, so the ordinary loop reads a
+# real critical alert from the production Alertmanager, forms a real incident,
+# collects real Loki evidence, calls the real provider and delivers to the real
+# chat. It is deleted by the pull request that reverts it, which also resolves
+# the alert and closes the incident.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: acceptance-probe
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: acceptance-probe
+      interval: 1m
+      rules:
+        - alert: SoysprayDiagnosisAcceptanceProbe
+          expr: |
+            kube_pod_info{namespace="monitoring", pod=~"cluster-diagnosis-[0-9a-f]+-[a-z0-9]+"} > 0
+          for: 1m
+          labels:
+            severity: critical
+            container: diagnosis
+          annotations:
+            summary: "Temporary acceptance probe for the diagnosis loop"
+            description: >-
+              Fires once for the running diagnosis pod so the production
+              incident path is exercised end to end. It carries no meaning about
+              the cluster and is removed by the pull request that reverts it.
