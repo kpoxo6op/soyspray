@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -95,3 +96,67 @@ def test_projects_keep_crd_permissions_separate_from_stack_permissions():
             project["metadata"]["annotations"]["argocd.argoproj.io/sync-options"]
             == "Prune=false,Delete=false"
         )
+
+
+def test_disposable_configuration_has_a_narrow_pruning_owner():
+    child = load("prometheus-config.yaml")
+    project = load("prometheus-config-project.yaml")
+    stack = yaml.safe_load((ROOT / "apps/prometheus/kustomization.yaml").read_text())
+    rendered = subprocess.run(
+        ["kubectl", "kustomize", str(ROOT / "apps/prometheus/config")],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    resources = list(yaml.safe_load_all(rendered.stdout))
+
+    assert child["metadata"]["name"] == child["spec"]["project"] == "prometheus-config"
+    assert child["metadata"].get("finalizers", []) == []
+    assert child["metadata"]["annotations"]["argocd.argoproj.io/sync-options"] == (
+        "Prune=false,Delete=false"
+    )
+    assert child["spec"]["source"] == {
+        "repoURL": "https://github.com/kpoxo6op/soyspray.git",
+        "targetRevision": "main",
+        "path": "apps/prometheus/config",
+    }
+    assert child["spec"]["syncPolicy"]["automated"] == {"prune": True, "selfHeal": True}
+    assert project["spec"]["destinations"] == [child["spec"]["destination"]]
+    assert project["spec"]["clusterResourceWhitelist"] == []
+    assert entries(project, "namespaceResourceWhitelist") == {
+        ("", "ConfigMap"),
+        ("monitoring.coreos.com", "PrometheusRule"),
+    }
+    assert "configMapGenerator" not in stack
+    assert not any(str(item).startswith("alerts/") for item in stack["resources"])
+
+    kinds = {(resource["apiVersion"], resource["kind"]) for resource in resources}
+    assert kinds == {("v1", "ConfigMap"), ("monitoring.coreos.com/v1", "PrometheusRule")}
+    dashboards = [item for item in resources if item["kind"] == "ConfigMap"]
+    rules = [item for item in resources if item["kind"] == "PrometheusRule"]
+    assert len(dashboards) == 8
+    assert len(rules) == 8
+    assert all(item["metadata"]["name"].startswith("grafana-dashboard-") for item in dashboards)
+    assert all(item["metadata"]["labels"]["grafana_dashboard"] == "1" for item in dashboards)
+    assert {item["metadata"]["name"] for item in dashboards} == {
+        generator["name"]
+        for generator in yaml.safe_load(
+            (ROOT / "apps/prometheus/config/kustomization.yaml").read_text()
+        )["configMapGenerator"]
+    }
+
+
+def test_migration_removes_only_replaced_hashed_dashboards():
+    play = yaml.safe_load(
+        (ROOT / "playbooks/operations/retirement/monitoring-config-migration.yml").read_text()
+    )[0]
+    tasks = {task["name"]: task for task in play["tasks"]}
+    guard = tasks["Require every old input to have an adopted stable replacement"]
+    conditions = " ".join(guard["ansible.builtin.assert"]["that"])
+    assert "grafana-dashboard-" in conditions
+    assert "dashboard_desired" in conditions
+    assert "kube-prometheus-stack" in conditions
+    remove = tasks["Remove only old hashed dashboard ConfigMaps"]["kubernetes.core.k8s"]
+    assert remove["kind"] == "ConfigMap"
+    assert remove["namespace"] == "monitoring"
+    assert remove["state"] == "absent"
