@@ -16,6 +16,9 @@ Git pull request
   while one node is unavailable.
 - Kubespray owns Kubernetes installation and cluster-wide configuration.
 - Argo CD owns declared workloads and follows the reviewed `main` branch.
+- Monitoring configuration is moving from the non-pruning stack Application to
+  a narrowly scoped child. During the first migration change, existing
+  dashboards and rules remain live while the stack releases their declarations.
 - Longhorn provides replicated persistent volumes and native backup records.
 - Stateful applications keep their recovery contract beside their manifests.
 - Recovery keys and private bootstrap inputs stay outside the cluster and Git.
