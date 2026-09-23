@@ -54,37 +54,38 @@
       ansible.builtin.set_fact:
         dashboard_legacy: >-
           {{ dashboard_live.resources
-             | selectattr('metadata.name', 'match', '^grafana-dashboard-.+-[a-z0-9]{10}$')
-             | list }}
+             | map(attribute='metadata.name')
+             | select('match', '^grafana-dashboard-')
+             | difference(dashboard_desired) | list }}
 
     - name: Require every old input to have an adopted stable replacement
       ansible.builtin.assert:
         that:
-          - item.metadata.name is match('^grafana-dashboard-.+-[a-z0-9]{10}$')
-          - item.metadata.labels['argocd.argoproj.io/instance'] == 'kube-prometheus-stack'
-          - item.metadata.name | regex_replace('-[a-z0-9]{10}$', '') in dashboard_desired
+          - item is match('^grafana-dashboard-.+-[a-z0-9]{10}$')
+          - >-
+            (dashboard_live.resources
+             | selectattr('metadata.name', 'equalto', item) | first)
+            .metadata.labels['argocd.argoproj.io/instance'] == 'kube-prometheus-stack'
+          - item | regex_replace('-[a-z0-9]{10}$', '') in dashboard_desired
         fail_msg: Refusing to retire a dashboard without its exact stable replacement.
       loop: "{{ dashboard_legacy }}"
-      loop_control:
-        label: "{{ item.metadata.name }}"
 
     - name: Report the exact legacy inputs to remove
       ansible.builtin.debug:
         msg:
           adopted: "{{ dashboard_desired | sort }}"
-          legacy: "{{ dashboard_legacy | map(attribute='metadata.name') | list | sort }}"
+          legacy: "{{ dashboard_legacy | sort }}"
 
     - name: Remove only old hashed dashboard ConfigMaps
       kubernetes.core.k8s:
         api_version: v1
         kind: ConfigMap
         namespace: monitoring
-        name: "{{ item.metadata.name }}"
+        name: "{{ item }}"
         state: absent
         wait: true
       loop: "{{ dashboard_legacy }}"
-      loop_control:
-        label: "{{ item.metadata.name }}"
+      no_log: true
 
     - name: Read remaining Grafana dashboard inputs
       kubernetes.core.k8s_info:
