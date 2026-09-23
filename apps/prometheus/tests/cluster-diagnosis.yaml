@@ -18,8 +18,8 @@ tests:
               summary: "The incident loop has not polled Alertmanager"
               description: >-
                 No diagnosis metrics are exposed, or the last completed poll is
-                more than 15 minutes old. Incidents are not being investigated
-                and no narrative will arrive. Check the cluster-diagnosis
+                more than 15 minutes old. Incidents are not being correlated
+                and no factual update will arrive. Check the cluster-diagnosis
                 Deployment, its persistent volume and the Argo Application.
 
   - name: A running loop with a fresh poll does not warn
@@ -60,7 +60,7 @@ tests:
               summary: "The incident loop cannot read Alertmanager"
               description: >-
                 The loop is running and polling, but every poll fails before it
-                reaches an incident, so nothing is investigated and no narrative
+                reaches an incident, so no incident evidence is collected and no factual update
                 will arrive. Check the pod log for source-failed and the
                 NetworkPolicy in monitoring/cluster-diagnosis: the pod resolves
                 through the node-local DNS cache and reads Alertmanager on port
@@ -88,11 +88,11 @@ tests:
               summary: "The incident loop has not polled Alertmanager"
               description: >-
                 No diagnosis metrics are exposed, or the last completed poll is
-                more than 15 minutes old. Incidents are not being investigated
-                and no narrative will arrive. Check the cluster-diagnosis
+                more than 15 minutes old. Incidents are not being correlated
+                and no factual update will arrive. Check the cluster-diagnosis
                 Deployment, its persistent volume and the Argo Application.
 
-  - name: An unreadable spend guard and a rejected credential each warn
+  - name: An unreadable state file warns
     interval: 1m
     input_series:
       - series: soyspray_diagnosis_up
@@ -101,8 +101,6 @@ tests:
         values: "0+60x40"
       - series: soyspray_diagnosis_state_usable
         values: "0x40"
-      - series: soyspray_diagnosis_provider_blocked
-        values: "1x40"
       - series: soyspray_diagnosis_outbox_oldest_seconds
         values: "10x40"
     alert_rule_test:
@@ -112,28 +110,13 @@ tests:
           - exp_labels:
               severity: warning
             exp_annotations:
-              summary: "The incident loop cannot read its spend guard"
+              summary: "The incident loop cannot read its state"
               description: >-
-                The state file is missing an expected schema, unreadable or not
-                writable, so model calls are refused. This is deliberate: a lost
-                ledger would hand back a fresh allowance. Use the guarded reset
-                procedure in the application README.
-      - eval_time: 30m
-        alertname: SoysprayDiagnosisProviderRejected
-        exp_alerts:
-          - exp_labels:
-              severity: warning
-            exp_annotations:
-              summary: "DeepSeek rejected the diagnosis credential"
-              description: >-
-                The provider returned 401, 402 or 403, so the loop stopped
-                asking until the next day. Restore the key in
-                monitoring/cluster-diagnosis-deepseek through the bootstrap.
+                The state file has an unsupported schema or is unreadable, so
+                incident tracking and delivery stop. Check the volume and use
+                the guarded reset procedure in the application README.
       - eval_time: 30m
         alertname: SoysprayDiagnosisDeliveryStalled
-        exp_alerts: []
-      - eval_time: 30m
-        alertname: SoysprayDiagnosisUndiagnosed
         exp_alerts: []
 
   - name: A stalled outbox warns while a fresh one stays quiet
@@ -157,36 +140,7 @@ tests:
             exp_annotations:
               summary: "Diagnosis messages are not reaching Telegram"
               description: >-
-                The oldest queued narrative has waited more than thirty minutes.
-                Delivery is retried on every poll without another model call, and
+                The oldest queued factual update has waited more than thirty minutes.
+                Delivery is retried on every poll without recreating the incident, and
                 an entry older than six hours is dropped. Check the bot token in
                 monitoring/alertmanager-telegram-secret and the loop log.
-
-  - name: Critical work that stays undiagnosed warns, and a diagnosed one does not
-    interval: 1m
-    input_series:
-      - series: soyspray_diagnosis_up
-        values: "1x100"
-      - series: soyspray_diagnosis_last_poll_timestamp_seconds
-        values: "0+60x100"
-      # The incident opened at the start of the test, so an hour has not passed.
-      - series: soyspray_incident_undiagnosed_timestamp_seconds{anchor="app:boys",kind="app"}
-        values: "0x100"
-    alert_rule_test:
-      - eval_time: 30m
-        alertname: SoysprayDiagnosisUndiagnosed
-        exp_alerts: []
-      - eval_time: 90m
-        alertname: SoysprayDiagnosisUndiagnosed
-        exp_alerts:
-          - exp_labels:
-              severity: warning
-              anchor: app:boys
-              kind: app
-            exp_annotations:
-              summary: "A critical incident has no diagnosis"
-              description: >-
-                An open critical incident has gone an hour without a successful
-                answer, because every provider call failed, the attempt allowance
-                is spent, or an attempt was interrupted. The incident record holds
-                this state across a restart. Read the loop log for the outcome.
