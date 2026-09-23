@@ -1,4 +1,4 @@
-# The loop reads three in-cluster Services and calls three external hosts. It has
+# The loop reads three in-cluster Services and calls Telegram. It has
 # no Kubernetes identity, and this policy keeps it away from the API server, the
 # node network and every other workload.
 #
@@ -59,7 +59,7 @@ spec:
           port: 9090
         - protocol: TCP
           port: 9093
-    # The two external hosts are reached by name over 443. Everything inside the
+    # Telegram is reached by name over 443. Everything inside the
     # cluster, the node network and the LAN stays out: the API server, the node
     # addresses, the router and every other workload are unreachable from here.
     - to:

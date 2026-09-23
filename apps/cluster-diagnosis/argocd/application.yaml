@@ -11,16 +11,13 @@ metadata:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
     soyspray.vip/access-method: No route. Prometheus scrapes its metrics Service.
     soyspray.vip/data: >-
-      Persistent operational state: incident identity, the daily attempt and
-      token ledger, the delivery outbox and the classifier cache.
+      Persistent operational state: incident identity and the delivery outbox.
     soyspray.vip/data-claims: >-
-      monitoring/cluster-diagnosis-state holds no application data. Losing it
-      means an operator resets the ledger deliberately.
+      monitoring/cluster-diagnosis-state holds no application data. Losing it may lose pending updates and deduplication history.
     soyspray.vip/backup: unsupported
     soyspray.vip/backup-cause: >-
-      The volume is a spending guard and a delivery outbox, not application
-      data. It is not backed up, and the guarded reset procedure is documented
-      in the application README.
+      The volume holds incident and delivery state, not application data. It is
+      not backed up; the limits and recovery procedure are in the README.
 spec:
   project: cluster-diagnosis
   source:
