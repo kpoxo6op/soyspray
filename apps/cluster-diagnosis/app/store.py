@@ -1,10 +1,8 @@
-"""Durable incident state that enforces the spending guard across restarts.
+"""Durable incident and delivery state across restarts.
 
-The state file is storage, not a cache. Losing it would hand back a fresh daily
-allowance, so a missing, unreadable or incompatible file stops model calls until
-an operator resets it deliberately. The file is written atomically and the
-process holds an exclusive lock for its whole lifetime, so a rolling update or a
-duplicate pod can never write it at the same time.
+An unreadable or incompatible file cannot be replaced silently: that would lose
+the delivery outbox and duplicate notices. Writes are atomic and one process
+holds the exclusive lock for its lifetime.
 """
 
 from __future__ import annotations
@@ -13,18 +11,14 @@ import fcntl
 import json
 import os
 import tempfile
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = 3
 
-DEFAULT_ATTEMPT_LIMIT = 3
-DEFAULT_TOKEN_LIMIT = 60_000
-
 
 class StateUnusable(RuntimeError):
-    """The spend guard cannot be read, so no model call may start."""
+    """Incident or delivery state cannot be read."""
 
 
 def empty_state() -> dict[str, Any]:
@@ -33,60 +27,9 @@ def empty_state() -> dict[str, Any]:
         "source": None,
         "incidents": {},
         "closed": [],
-        "budget": {},
-        "quota": {},
         "metrics": {},
-        "classifier_cache": {},
         "outbox": [],
-        "blocked": None,
     }
-
-
-def budget_for(state: dict[str, Any], day: str) -> dict[str, int]:
-    entry = state.setdefault("budget", {}).setdefault(day, {"attempts": 0, "tokens": 0})
-    for key in ("attempts", "tokens"):
-        value = entry.get(key, 0)
-        entry[key] = value if isinstance(value, int) and not isinstance(value, bool) else 0
-    return entry
-
-
-def reserve(
-    state: dict[str, Any],
-    day: str,
-    *,
-    tokens: int,
-    attempt_limit: int = DEFAULT_ATTEMPT_LIMIT,
-    token_limit: int = DEFAULT_TOKEN_LIMIT,
-) -> tuple[bool, str]:
-    """Reserve one transmission and its token ceiling before it is sent.
-
-    Returns whether the reservation was made and, when it was not, why. The
-    caller must save the state before opening the connection, so a request that
-    completes remotely but is never observed still counts.
-    """
-    entry = budget_for(state, day)
-    if entry["attempts"] >= attempt_limit:
-        return False, "daily-attempts"
-    if entry["tokens"] + tokens > token_limit:
-        return False, "daily-tokens"
-    entry["attempts"] += 1
-    entry["tokens"] += max(0, int(tokens))
-    return True, ""
-
-
-def charge_tokens(
-    state: dict[str, Any], day: str, *, reserved: int, used: int, known: bool = True
-) -> None:
-    """Replace a reservation with what the provider actually reported.
-
-    When the answer never arrived, the reservation stands. The request may have
-    been served and billed, and releasing it would hand that spend back as if it
-    had never happened.
-    """
-    if not known:
-        return
-    entry = budget_for(state, day)
-    entry["tokens"] = max(0, entry["tokens"] - max(0, int(reserved)) + max(0, int(used)))
 
 
 class StateStore:
@@ -120,7 +63,7 @@ class StateStore:
         try:
             value = json.loads(self.path.read_text(encoding="utf-8"))
         except FileNotFoundError:
-            # First start. The operator seeds or accepts a fresh budget.
+            # First start after the claim is created.
             return empty_state()
         except (OSError, ValueError, UnicodeError) as error:
             raise StateUnusable(f"state file is unreadable: {type(error).__name__}") from None
@@ -158,7 +101,3 @@ class StateStore:
         state = empty_state()
         self.save(state)
         return state
-
-
-def day_key(moment: datetime) -> str:
-    return moment.date().isoformat()

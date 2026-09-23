@@ -1,9 +1,7 @@
-"""Deliver diagnosis messages through the Telegram Bot API directly.
+"""Deliver factual incident updates through the Telegram Bot API directly.
 
 The bot token lives in a mounted Secret and never in a URL that reaches a log or
-an error message. Delivery is a separate step from diagnosis: a failed send is
-retried from the persisted outbox without spending another model call, and a
-narrative for an incident that already recovered is dropped rather than sent.
+an error message. A failed send is retried from the persisted outbox.
 """
 
 from __future__ import annotations
@@ -37,8 +35,7 @@ def bounded_message(lines: list[str], limit: int = MAX_MESSAGE_CHARS) -> str:
 
     The first line is the incident identity and is never dropped: a message that
     cannot say what it is about is worse than a short one. The later lines are
-    less important in order, so the model's prose goes before a finding is cut
-    mid-sentence. Nothing is ever repaired or half-printed.
+    less important in order, so a finding is never cut mid-sentence.
     """
     kept = [line for line in lines if line is not None]
     while len(kept) > 1 and len("\n".join(kept)) > limit:
@@ -74,7 +71,7 @@ def default_transport(url: str, payload: dict[str, Any], timeout: float) -> tupl
 
 
 class Telegram:
-    """Send plain text to one fixed chat. The recipient is never model output."""
+    """Send plain text to one fixed chat from application configuration."""
 
     def __init__(
         self,

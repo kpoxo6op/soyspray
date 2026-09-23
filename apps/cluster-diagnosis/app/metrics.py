@@ -1,7 +1,7 @@
 """Render the incident loop's state as Prometheus text.
 
-Only numbers and bounded labels are exposed. No evidence, prompt or provider
-response reaches this endpoint, and an absent value stays absent so the
+Only numbers and bounded labels are exposed. No log text or alert prose
+reaches this endpoint, and an absent value stays absent so the
 dashboard shows unknown instead of a false zero.
 """
 
@@ -10,8 +10,6 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from typing import Any
-
-import incident as incident_module
 
 MAX_INCIDENT_ANCHORS = 40
 MAX_LABEL = 80
@@ -27,17 +25,8 @@ HELP = (
     (
         "soyspray_diagnosis_state_usable",
         "gauge",
-        "Whether the spend guard could be read. 0 stops all model calls.",
+        "Whether incident and delivery state could be read.",
     ),
-    (
-        "soyspray_diagnosis_attempts_today",
-        "gauge",
-        "Transmissions charged to the current Auckland day.",
-    ),
-    ("soyspray_diagnosis_attempt_limit", "gauge", "Daily transmission ceiling."),
-    ("soyspray_diagnosis_tokens_today", "gauge", "Tokens charged to the current Auckland day."),
-    ("soyspray_diagnosis_token_limit", "gauge", "Daily token ceiling."),
-    ("soyspray_diagnosis_provider_blocked", "gauge", "1 when the provider rejected the key."),
     (
         "soyspray_diagnosis_outbox_pending",
         "gauge",
@@ -51,34 +40,14 @@ HELP = (
         "Incidents the loop examined and stayed silent about.",
     ),
     (
-        "soyspray_diagnosis_answer_total",
-        "counter",
-        "Model answers by disposition: accepted, no-update or rejected.",
-    ),
-    (
-        "soyspray_diagnosis_answer_rejected_total",
-        "counter",
-        "Rejected model answers by reason.",
-    ),
-    (
         "soyspray_diagnosis_last_success_timestamp_seconds",
         "gauge",
         "Time of the last message delivered to Telegram, of any outcome.",
     ),
     (
-        "soyspray_diagnosis_last_diagnosis_timestamp_seconds",
-        "gauge",
-        "Time of the last answer the provider returned successfully.",
-    ),
-    (
         "soyspray_diagnosis_outbox_oldest_seconds",
         "gauge",
         "Age of the oldest message waiting for Telegram.",
-    ),
-    (
-        "soyspray_diagnosis_model_info",
-        "gauge",
-        "Serving model and profile of the last request.",
     ),
     (
         "soyspray_diagnosis_alertmanager_source_ok",
@@ -97,11 +66,6 @@ HELP = (
         "Application incident owned by an open node incident.",
     ),
     (
-        "soyspray_incident_undiagnosed_timestamp_seconds",
-        "gauge",
-        "Start of the failed work on an open critical incident with no diagnosis.",
-    ),
-    (
         "soyspray_incident_overflow_total",
         "gauge",
         "Symptoms dropped because an incident was full.",
@@ -110,16 +74,6 @@ HELP = (
     ("soyspray_evidence_lines_read_total", "gauge", "Log lines read for the last incident."),
     ("soyspray_evidence_lines_exported_total", "gauge", "Log lines exported after allowlisting."),
     ("soyspray_evidence_gap_total", "gauge", "Evidence gaps by reason."),
-    ("soyspray_classifier_up", "gauge", "Whether the classifier returned usable hints."),
-    ("soyspray_classifier_failure_total", "counter", "Classifier requests that failed."),
-    ("soyspray_classifier_unknown_total", "counter", "Evidence lines left explicitly unknown."),
-    (
-        "soyspray_classifier_last_success_timestamp_seconds",
-        "gauge",
-        "Last successful classification.",
-    ),
-    ("soyspray_classifier_model_info", "gauge", "Serving classifier model."),
-    ("soyspray_classifier_result_total", "gauge", "Classifier labels in the last incident."),
 )
 
 
@@ -167,28 +121,12 @@ def render(
     now: datetime,
     source_ok: bool,
     state_usable: bool,
-    blocked: bool,
-    attempt_limit: int,
-    token_limit: int,
     poll_seconds: int,
-    model: str = "",
-    profile: str = "",
-    day: str,
 ) -> str:
     out = Renderer()
     out.metric("soyspray_diagnosis_up", 1)
     out.metric("soyspray_diagnosis_state_usable", int(state_usable))
     out.metric("soyspray_diagnosis_alertmanager_source_ok", int(source_ok))
-    out.metric("soyspray_diagnosis_provider_blocked", int(blocked))
-    out.metric("soyspray_diagnosis_attempt_limit", attempt_limit)
-    out.metric("soyspray_diagnosis_token_limit", token_limit)
-
-    # The day's spending is only reported once something has been spent, so the
-    # dashboard shows unknown rather than a zero that hides a lost ledger.
-    spending = (state.get("budget") or {}).get(day) or {}
-    if isinstance(spending, dict) and spending:
-        out.metric("soyspray_diagnosis_attempts_today", spending.get("attempts"))
-        out.metric("soyspray_diagnosis_tokens_today", spending.get("tokens"))
 
     metrics = state.get("metrics") or {}
     out.metric(
@@ -199,18 +137,10 @@ def render(
         "soyspray_diagnosis_last_success_timestamp_seconds",
         metrics.get("last_success_timestamp_seconds"),
     )
-    out.metric(
-        "soyspray_diagnosis_last_diagnosis_timestamp_seconds",
-        metrics.get("last_diagnosis_timestamp_seconds"),
-    )
     for outcome, count in list((metrics.get("outcomes") or {}).items())[:32]:
         out.info("soyspray_diagnosis_outcome_total", count, {"outcome": outcome})
     for reason, count in list((metrics.get("suppressed") or {}).items())[:8]:
         out.info("soyspray_diagnosis_suppressed_total", count, {"reason": reason})
-    for disposition, count in list((metrics.get("answers") or {}).items())[:4]:
-        out.info("soyspray_diagnosis_answer_total", count, {"result": disposition})
-    for reason, count in list((metrics.get("rejections") or {}).items())[:8]:
-        out.info("soyspray_diagnosis_answer_rejected_total", count, {"reason": reason})
     for result, count in list((metrics.get("deliveries") or {}).items())[:16]:
         out.info("soyspray_diagnosis_delivery_total", count, {"result": result})
     outbox = [entry for entry in (state.get("outbox") or []) if isinstance(entry, dict)]
@@ -218,8 +148,6 @@ def render(
     oldest = oldest_outbox_seconds(outbox, now)
     if oldest is not None:
         out.metric("soyspray_diagnosis_outbox_oldest_seconds", oldest)
-    if model:
-        out.info("soyspray_diagnosis_model_info", 1, {"model": model, "profile": profile})
 
     for item in (state.get("incidents") or {}).values():
         anchor = bounded(item.get("anchor", "unknown"))
@@ -230,13 +158,6 @@ def render(
             out.metric(
                 "soyspray_incident_opened_timestamp_seconds",
                 opened,
-                {"anchor": anchor, "kind": kind},
-            )
-        undiagnosed = undiagnosed_since(item)
-        if undiagnosed is not None:
-            out.metric(
-                "soyspray_incident_undiagnosed_timestamp_seconds",
-                undiagnosed,
                 {"anchor": anchor, "kind": kind},
             )
         overflow = item.get("symptom_overflow")
@@ -258,45 +179,7 @@ def render(
         for reason, count in list((collector.get("gaps") or {}).items())[:32]:
             out.info("soyspray_evidence_gap_total", count, {"reason": reason})
 
-    classifier = state.get("classifier") or {}
-    status = str(classifier.get("status", "unknown"))
-    if status in {"ok", "cached", "partial", "unavailable", "quota-exhausted"}:
-        out.metric("soyspray_classifier_up", int(status in {"ok", "cached", "partial"}))
-    if classifier.get("model"):
-        out.info("soyspray_classifier_model_info", 1, {"model": classifier["model"]})
-    out.metric("soyspray_classifier_failure_total", (metrics.get("classifier_failures") or 0))
-    out.metric("soyspray_classifier_unknown_total", (metrics.get("classifier_unknown") or 0))
-    out.metric(
-        "soyspray_classifier_last_success_timestamp_seconds",
-        metrics.get("classifier_last_success_timestamp_seconds"),
-    )
-    for label, count in list((classifier.get("counts") or {}).items())[:16]:
-        out.info("soyspray_classifier_result_total", count, {"label": label})
     return out.text()
-
-
-def undiagnosed_since(item: dict[str, Any]) -> float | None:
-    """Report an open critical incident that no successful answer ever covered.
-
-    This survives midnight and a restart because it is derived from the incident
-    record: the first attempt that failed, or the open time when no attempt got
-    far enough to be recorded. A provider that fails every call, an exhausted
-    attempt allowance and an interrupted attempt all appear here.
-    """
-    if str(item.get("state") or "") != "open":
-        return None
-    if item.get("last_result") == "ok":
-        return None
-    try:
-        severity = incident_module.Incident(item).highest_severity()
-    except (KeyError, TypeError, ValueError):
-        return None
-    if severity != "critical":
-        return None
-    attempts = [entry for entry in (item.get("attempts") or []) if isinstance(entry, dict)]
-    if attempts:
-        return incident_time(attempts[0].get("at"))
-    return incident_time(item.get("opened_at"))
 
 
 def oldest_outbox_seconds(outbox: list[dict[str, Any]], now: datetime) -> float | None:
