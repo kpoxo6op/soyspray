@@ -1,10 +1,8 @@
 import importlib.util
 import json
-import os
-import tempfile
 import unittest
 import unittest.mock
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -102,13 +100,46 @@ class SanitizeTests(unittest.TestCase):
         )
         self.assertEqual(record["format"], "text")
         self.assertNotIn("message", record)
-        self.assertIn("auth-denied", record["signals"])
+        self.assertEqual(record["signals"], [])
 
     def test_free_text_backup_failure_still_yields_a_signal_name(self):
         record = evidence.sanitize_line("barman backup failed for the archive")
         self.assertEqual(record["format"], "text")
         self.assertNotIn("message", record)
-        self.assertIn("backup-failure", record["signals"])
+        self.assertEqual(record["signals"], [])
+
+    def test_successful_checks_do_not_become_failures(self):
+        cases = (
+            "Liveness probe succeeded",
+            "Readiness probe succeeded",
+            "Checksum verified successfully",
+            "TLS handshake completed successfully",
+            "no timeout errors observed",
+        )
+        for message in cases:
+            with self.subTest(message=message):
+                record = evidence.sanitize_line(json.dumps({"level": "error", "msg": message}))
+                self.assertEqual(record["signals"], [])
+
+    def test_failure_must_be_in_an_operational_message(self):
+        record = evidence.sanitize_line(
+            json.dumps(
+                {"level": "error", "msg": "request completed", "previous_error": "i/o timeout"}
+            )
+        )
+        self.assertEqual(record["signals"], [])
+
+    def test_known_failed_checks_are_counted(self):
+        cases = {
+            "Readiness probe failed": "unhealthy",
+            "checksum mismatch": "checksum-mismatch",
+            "TLS handshake failed": "certificate-failure",
+            "i/o timeout": "network-timeout",
+        }
+        for message, expected in cases.items():
+            with self.subTest(message=message):
+                record = evidence.sanitize_line(json.dumps({"level": "error", "msg": message}))
+                self.assertIn(expected, record["signals"])
 
     def test_prompt_injection_text_stays_local(self):
         record = evidence.sanitize_line(
@@ -420,7 +451,6 @@ class CollectTests(unittest.TestCase):
         )
         self.assertEqual(pack["totals"]["lines"], 3)
         self.assertEqual(len(pack["targets"][0]["samples"]), 1)
-        self.assertEqual(len(evidence.sample_texts(pack)), 1)
 
     def test_the_line_budget_is_aggregate_across_targets(self):
         line = json.dumps({"level": "error", "msg": "panic: boot failed"})
@@ -492,34 +522,6 @@ class CollectTests(unittest.TestCase):
         self.assertLess(pack["totals"]["samples"], 48)
 
 
-class StoreTests(unittest.TestCase):
-    def test_pack_is_stored_privately_with_bounded_retention(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory) / "evidence"
-            for index in range(evidence.MAX_STORED_PACKS + 6):
-                pack = {"status": "observed", "collected_at": NOW.isoformat(), "index": index}
-                path = evidence.store_pack(pack, root, f"app:immich-{index}")
-                self.assertIsNotNone(path)
-            self.assertEqual(root.stat().st_mode & 0o777, 0o700)
-            stored = sorted(root.glob("*.json"))
-            self.assertEqual(len(stored), evidence.MAX_STORED_PACKS)
-            self.assertEqual(stored[0].stat().st_mode & 0o777, 0o600)
-
-    def test_store_failure_is_not_fatal(self):
-        with tempfile.TemporaryDirectory() as directory:
-            blocked = Path(directory) / "file"
-            blocked.write_text("not a directory")
-            self.assertIsNone(evidence.store_pack({"status": "observed"}, blocked, "app:immich"))
-
-    def test_no_stray_temporary_file_is_left(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory) / "evidence"
-            evidence.store_pack({"status": "observed", "collected_at": NOW.isoformat()}, root, "a")
-            self.assertEqual(
-                [item.name for item in root.iterdir()], [item.name for item in root.glob("*.json")]
-            )
-
-
 class EndpointTests(unittest.TestCase):
     def test_endpoints_are_in_cluster_service_names(self):
         """The collector runs in a pod, so it uses cluster DNS, not the LAN."""
@@ -553,16 +555,6 @@ class LimitTests(unittest.TestCase):
         )
         self.assertEqual(len(limited), 2)
         self.assertTrue(stopped)
-
-    def test_store_directory_mode_is_private(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory) / "evidence"
-            evidence.store_pack({"status": "observed"}, root, "a")
-            self.assertEqual(os.stat(root).st_mode & 0o777, 0o700)
-            self.assertEqual(
-                int(evidence.DEFAULT_WINDOW_SECONDS * 0 + timedelta(minutes=15).total_seconds()),
-                900,
-            )
 
 
 if __name__ == "__main__":
