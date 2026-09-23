@@ -90,10 +90,8 @@ Run the focused checks:
 make check APP=prometheus
 ```
 
-Compare the local stack with its live Application. This comparison covers
-the stack; the disposable child can be compared separately with
-`python3 -m scripts.app_diff --app prometheus-config --package apps/prometheus/config`
-after it exists live. Neither comparison syncs resources:
+Compare both local monitoring packages with their live Applications. This
+includes dashboard JSON and custom rules and does not sync resources:
 
 ```sh
 make diff APP=prometheus
