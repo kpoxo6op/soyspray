@@ -338,7 +338,7 @@ class SymptomIdentityTests(unittest.TestCase):
         second["labels"]["kubernetes_event_involved_object_name"] = "immich-server-1"
         self.assertNotEqual(incident.symptom_name(first), incident.symptom_name(second))
         self.assertIn("immich-server-1", incident.symptom_name(second))
-        self.assertIn("kubernetes_event_involved_object_name", incident.prompt_labels(second))
+        self.assertIn("kubernetes_event_involved_object_name", incident.incident_labels(second))
 
     def test_a_critical_symptom_replaces_a_warning_one_at_the_cap(self):
         state = fresh_state()
@@ -535,20 +535,20 @@ class CorrelationTests(unittest.TestCase):
 
 
 class SanitizationTests(unittest.TestCase):
-    def test_prompt_labels_are_allowlisted_and_charset_checked(self):
+    def test_incident_labels_are_allowlisted_and_charset_checked(self):
         value = alert(pod="immich-server-0")
         value["labels"]["DB_URL"] = "postgres://user:password@host/db"
         value["labels"]["pod"] = "immich server 0"
-        selected = incident.prompt_labels(value)
+        selected = incident.incident_labels(value)
         self.assertEqual(
             selected,
             {"alertname": "KubePodCrashLooping", "namespace": "immich", "severity": "critical"},
         )
 
-    def test_prompt_labels_keep_only_the_selected_keys(self):
+    def test_incident_labels_keep_only_the_selected_keys(self):
         value = alert(pod="immich-server-0", container="server")
         value["labels"]["team"] = "platform"
-        selected = incident.prompt_labels(value)
+        selected = incident.incident_labels(value)
         self.assertIn("pod", selected)
         self.assertNotIn("team", selected)
 
@@ -585,10 +585,10 @@ class StateTests(unittest.TestCase):
         self.assertEqual(len(value["open"]), 2)
         self.assertEqual({item["anchor"] for item in value["open"]}, {"app:immich", "app:boys"})
 
-    def test_the_store_state_shape_carries_what_the_model_needs(self):
+    def test_the_store_state_shape_carries_incidents_and_delivery(self):
         state = fresh_state()
         applied(state, [alert()])
-        for key in ("incidents", "closed", "budget", "outbox", "metrics"):
+        for key in ("incidents", "closed", "outbox", "metrics"):
             self.assertIn(key, state)
 
 
