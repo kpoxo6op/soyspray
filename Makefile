@@ -18,6 +18,7 @@ NODE2 := 192.168.20.12
 
 KUSTOMIZATIONS := \
 	argocd \
+	apps/prometheus/config \
 	apps/autism-traits/manifests \
 	apps/gi/manifests \
 	apps/boys/manifests \

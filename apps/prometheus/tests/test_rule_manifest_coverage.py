@@ -12,6 +12,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
 PACKAGE = ROOT / "apps/prometheus"
+PACKAGE = PACKAGE / "config"
 KUSTOMIZATION = PACKAGE / "kustomization.yaml"
 
 

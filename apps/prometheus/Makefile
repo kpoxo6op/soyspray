@@ -8,6 +8,7 @@ check:
 	cd $(ROOT) && $(PYTHON) scripts/check_prometheus.py
 	cd $(ROOT) && $(PYTHON) -m ansiblelint apps/prometheus/*.yml
 	cd $(ROOT) && kubectl kustomize apps/prometheus/argocd >/dev/null
+	cd $(ROOT) && kubectl kustomize apps/prometheus/config >/dev/null
 
 diff:
 	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app kube-prometheus-stack --package apps/prometheus

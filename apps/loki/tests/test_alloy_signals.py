@@ -13,7 +13,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
 MANIFESTS = ROOT / "apps/loki/manifests"
-ALERTS = ROOT / "apps/prometheus/alerts"
+ALERTS = ROOT / "apps/prometheus/config/alerts"
 
 CONFIGS = ("alloy-configmap.yaml", "alloy-events-configmap.yaml")
 
