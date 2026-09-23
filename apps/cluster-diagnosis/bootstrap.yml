@@ -1,10 +1,10 @@
 ---
-- name: Bootstrap the DeepSeek diagnosis identity
+- name: Check the shared Telegram delivery identity
   hosts: kube_control_plane[0]
   gather_facts: false
   become: true
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
   tasks:
-    - name: Prepare the existing provider and delivery identities
+    - name: Check the existing delivery identity
       ansible.builtin.import_tasks: bootstrap-tasks.yml
