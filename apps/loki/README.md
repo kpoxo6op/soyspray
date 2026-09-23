@@ -41,7 +41,7 @@ honestly and exits non-zero.
 - Adding a label in the Alloy pipeline changes the stored stream identity and
   doubles the streams for the affected lines. Prefer a new counter name over a
   new stream label.
-- Rule changes belong in `apps/prometheus/alerts/`, never in a Loki rules
+- Rule changes belong in `apps/prometheus/config/alerts/`, never in a Loki rules
   ConfigMap.
 
 ## Why manual deployment
