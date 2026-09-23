@@ -2,8 +2,7 @@
 """Group Alertmanager alerts into operational incidents and track their lifecycle.
 
 An incident is one thing an operator would investigate. Related symptoms keep one
-identity. Independent failures keep separate identities. The model reads this
-module's output, so every value that crosses into a prompt passes an allowlist.
+identity. Independent failures keep separate identities. Incident records and factual updates use allowlisted labels and bounded text.
 """
 
 from __future__ import annotations
@@ -33,12 +32,11 @@ STALE_AFTER = timedelta(hours=12)
 REOPEN_WINDOW = timedelta(hours=6)
 # Bounded memory for one incident and for the private state file.
 MAX_SYMPTOMS = 24
-MAX_ATTEMPTS_PER_GENERATION = 3
 MAX_CLOSED_INCIDENTS = 40
 MAX_ACTIVE_INCIDENTS = 40
 
 SAFE_LABEL = re.compile(r"[a-zA-Z0-9_.:/-]{1,253}")
-# Alert text the operator has already seen, kept short enough to stay a prompt field.
+# Alert text the operator has already seen, kept short enough to store safely.
 MAX_ANNOTATION_CHARS = 240
 SECRET_KEY_MARKERS = (
     "password",
@@ -75,8 +73,8 @@ RESOURCE_LABELS = (
     "kubernetes_event_involved_object_kind",
 )
 
-# Labels that may reach the model prompt.
-PROMPT_LABELS = (
+# Labels retained in the incident record and shown in factual updates.
+INCIDENT_LABELS = (
     "alertname",
     "severity",
     "namespace",
@@ -265,19 +263,17 @@ def symptom_name(alert: dict[str, Any]) -> str:
     return f"{alertname}({', '.join(parts)})" if parts else alertname
 
 
-def prompt_labels(alert: dict[str, Any]) -> dict[str, str]:
-    """Return only the allowlisted, charset-safe labels that may enter a prompt."""
+def incident_labels(alert: dict[str, Any]) -> dict[str, str]:
+    """Return only the allowlisted, charset-safe incident labels."""
     labels = alert.get("labels") or {}
-    return {key: value for key in PROMPT_LABELS if (value := safe_label(labels.get(key)))}
+    return {key: value for key in INCIDENT_LABELS if (value := safe_label(labels.get(key)))}
 
 
-def prompt_annotations(alert: dict[str, Any]) -> dict[str, str]:
-    """Return the operator-visible alert text, truncated, for the prompt only.
+def incident_annotations(alert: dict[str, Any]) -> dict[str, str]:
+    """Return bounded alert text already shown by Alertmanager.
 
-    The model is told not to repeat what the deterministic message already says,
-    and the alert annotation is part of what Alertmanager has already shown the
-    operator. It is text from our own alert rules, never from a workload, and it
-    still passes the same bounds and charset checks as any other prompt field.
+    Synthetic-check provenance is retained so this loop can stay silent about
+    tests. These annotations come from alert rules and are never sent to a model.
     """
     annotations = safe_map(alert.get("annotations", {}))
     kept: dict[str, str] = {}
@@ -386,9 +382,6 @@ class Incident:
         }
         return hashlib.sha256(_json(value).encode()).hexdigest()
 
-    def attempt_count(self) -> int:
-        return len(self.record.get("attempts", []))
-
 
 def new_incident(kind: str, key: str, now: datetime, *, generation: int = 1) -> Incident:
     stamp = now.isoformat()
@@ -405,8 +398,6 @@ def new_incident(kind: str, key: str, now: datetime, *, generation: int = 1) -> 
             "updated_at": stamp,
             "closed_at": None,
             "symptoms": {},
-            "attempts": [],
-            "notified_hash": None,
             "delivery_pending": None,
             "pending_since": None,
             "close_reason": None,
@@ -423,7 +414,7 @@ def apply_alerts(
     """Fold one Alertmanager read into incident state and report the transitions.
 
     Returns a report with the incidents that changed materially. The caller decides
-    which transition spends an attempt; this function never spends one.
+    which transitions warrant a factual update; this function sends nothing.
     """
     incidents: dict[str, dict[str, Any]] = state["incidents"]
     observed: dict[str, list[tuple[str, dict[str, Any]]]] = {}
@@ -492,8 +483,8 @@ def apply_alerts(
                     "severity": severity(alert),
                     "hash": alert_hash(alert),
                     "targets": evidence_targets(alert),
-                    "labels": prompt_labels(alert),
-                    "annotations": prompt_annotations(alert),
+                    "labels": incident_labels(alert),
+                    "annotations": incident_annotations(alert),
                 }
             )
             if current in {"resolved", "suppressed"} and existing.get("state") == "firing":
@@ -659,7 +650,7 @@ def _prune(state: dict[str, Any], now: datetime) -> None:
 
 
 def inventory(state: dict[str, Any]) -> dict[str, Any]:
-    """Return the bounded incident inventory used for metrics and prompts."""
+    """Return the bounded incident inventory used for metrics."""
     open_incidents = sorted(
         (Incident(record) for record in state["incidents"].values()),
         key=lambda item: item.record.get("opened_at") or "",
@@ -679,7 +670,7 @@ def inventory(state: dict[str, Any]) -> dict[str, Any]:
 
 
 def summarize(incident: Incident, now: datetime | None = None) -> dict[str, Any]:
-    """Return the sanitized incident shape supplied to prompts and delivery."""
+    """Return the bounded incident shape used for factual delivery."""
     return {
         "anchor": incident.anchor_id,
         "kind": incident.kind,
