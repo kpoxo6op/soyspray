@@ -56,6 +56,20 @@ reviewed operation; this playbook does not recreate the host installation.
 
 ## Replaced Grafana dashboards
 
+`monitoring-config-migration.yml` is the one-time cleanup after the
+`prometheus-config` Argo child has adopted all eight stable dashboard inputs
+and eight custom rules. It requires the child to be Synced and Healthy from
+`main`, checks that each old hashed dashboard has a live stable replacement,
+and removes only the old `kube-prometheus-stack` dashboard ConfigMaps. Run it
+once after the migration PR merges, first with `--check`. The playbook will be
+removed after live acceptance; later edits and removals are handled by Argo.
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook playbooks/operations/retirement/monitoring-config-migration.yml --check
+ansible-playbook playbooks/operations/retirement/monitoring-config-migration.yml
+```
+
 `grafana-dashboard-configmaps.yml` removes dashboard ConfigMaps that a newer
 revision replaced. The Prometheus Operator installs a content-hashed name for
 every generated dashboard, and the `kube-prometheus-stack` Application keeps
