@@ -43,6 +43,13 @@ Alertmanager source, unusable state and a stalled Telegram outbox.
 Do not use ad hoc Kubernetes writes for a lasting change. A live application
 must not be retargeted to a topic branch.
 
+For a dashboard or custom Prometheus alert rule, edit
+[`apps/prometheus/config`](https://github.com/kpoxo6op/soyspray/tree/main/apps/prometheus/config).
+After merge, `prometheus-config` updates a dashboard under its stable name or
+removes a file deleted from Git. The stack and CRDs keep their separate
+non-pruning owners. Verify `prometheus-config` is Synced and Healthy and check
+the actual dashboard or rule; an alert disappearing is not proof of recovery.
+
 Node-0, node-1 and node-2 use one native Kubespray procedure: prepare survivor
 access and backups, remove, readd, then verify recovery. All validation drills
 are complete. Keep disruption budgets and storage policy in place; the guide

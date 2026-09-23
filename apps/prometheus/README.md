@@ -1,7 +1,8 @@
 # Prometheus monitoring
 
 This package defines native Argo ownership for the existing Prometheus,
-Alertmanager, and Grafana stack and the Prometheus Operator CRDs. Prometheus
+Alertmanager, and Grafana stack, its disposable dashboards and custom rules,
+and the Prometheus Operator CRDs. Prometheus
 metrics are disposable on this toy cluster. The deployment does not require
 backup or restore evidence.
 
@@ -11,17 +12,14 @@ The package keeps these Application identities and versions:
 | --- | --- | --- |
 | `kube-prometheus-stack` | `prometheus-community/kube-prometheus-stack` through Kustomize | `78.2.0` |
 | `prometheus-crds` | `prometheus-community/prometheus-operator-crds` | `16.0.1` |
-
-During the monitoring configuration migration, the stack stops declaring the
-eight generated dashboards and eight custom rules. Its non-pruning policy keeps
-their existing live objects until the separate configuration child adopts the
-rules and replaces the hashed dashboards. Do not remove rules during this
-interval; the next reviewed change completes adoption and cleanup.
+| `prometheus-config` | `apps/prometheus/config` | `main` |
 
 The native definitions use separate AppProjects. The stack project cannot manage
-CRDs. The CRD project cannot manage stack resources. Both definitions disable
-automated pruning and omit cascading deletion finalizers. Existing live
-finalizers must be removed during controlled adoption.
+CRDs. The CRD project cannot manage stack resources. The configuration project
+permits only ConfigMaps and PrometheusRules in `monitoring`. The stack and CRD
+Applications disable automated pruning. The configuration child prunes obsolete
+dashboards and custom rules. All three Applications omit cascading deletion
+finalizers and are protected from root pruning and deletion.
 
 ## Normal use
 
@@ -40,9 +38,9 @@ report a complete monitoring or internet failure.
 
 ## Alert ownership
 
-Prometheus owns every health and paging decision. `alerts/runtime-signals.yaml`
+Prometheus owns every health and paging decision. `config/alerts/runtime-signals.yaml`
 carries the rules that replaced the retired Loki ruler rules, including the
-Alloy-derived log and event counters. `alerts/cluster-diagnosis.yaml` covers the factual incident loop:
+Alloy-derived log and event counters. `config/alerts/cluster-diagnosis.yaml` covers the factual incident loop:
 `SoysprayDiagnosisStale` (no metrics or completed poll),
 `SoysprayDiagnosisSourceUnreadable` (Alertmanager read failures),
 `SoysprayDiagnosisStateUnusable` (incident or delivery state unreadable), and
@@ -50,6 +48,12 @@ Alloy-derived log and event counters. `alerts/cluster-diagnosis.yaml` covers the
 [apps/loki/manifests/docs/ALERT-PIPELINE.md](../loki/manifests/docs/ALERT-PIPELINE.md)
 holds the complete mapping, the detection timing and the missing-evidence
 behaviour.
+
+The [configuration folder](config/README.md) owns the generated dashboard
+ConfigMaps and custom rules. Dashboard names are stable: changing a JSON file
+updates its existing ConfigMap. Removing or reverting a file causes the
+configuration child to prune only that disposable object. The stack chart's
+own rules and ConfigMaps remain with the non-pruning stack Application.
 
 The Telegram template may use only Go `text/template` builtins plus the
 functions Alertmanager adds (`date`, `humanizeDuration`, `join`, `match`,
@@ -86,8 +90,10 @@ Run the focused checks:
 make check APP=prometheus
 ```
 
-Compare the complete local package with the live stack. This comparison includes
-JSON dashboards and does not sync resources:
+Compare the local stack with its live Application. This comparison covers
+the stack; the disposable child can be compared separately with
+`python3 -m scripts.app_diff --app prometheus-config --package apps/prometheus/config`
+after it exists live. Neither comparison syncs resources:
 
 ```sh
 make diff APP=prometheus
@@ -135,13 +141,13 @@ The claim is a 20 GiB Longhorn volume. Adoption does not intentionally change th
 claim name, binding, or Prometheus identity. Loss of metrics history is accepted.
 Recovery is not verified.
 
-The native definitions disable automated pruning and protect both Applications
-from root pruning and deletion. The monitoring namespace and Prometheus claim are
-not added to native ownership.
+The stack and CRD definitions disable automated pruning. Root pruning and
+deletion remain disabled for all three Applications. The monitoring namespace
+and Prometheus claim are not added to the configuration child.
 
 The legacy package, adoption operation, and Ansible submission path are removed.
 
-After adoption, verify both Application UIDs, sources, projects, and health. Check
+After adoption, verify all three Application UIDs, sources, projects, and health. Check
 the claim and volume identities without treating them as recovery evidence. Check
 both access paths, Alertmanager, the external watchdog, and all eight operations
 panels. The native root and stack source follow `main`.
@@ -159,7 +165,7 @@ restore or continuous seven-day recovery coverage.
 The laptop evidence collector remains separate. Its metrics endpoint reports
 saved numeric evidence only. It does not run a backup or restore.
 
-Revert the faulty change through GitHub. Verify both Applications are Synced and
+Revert the faulty change through GitHub. Verify all three Applications are Synced and
 Healthy after the revert reaches `main`. Do not delete Applications,
 CRDs, claims, volumes, namespaces, or Secrets during rollback. Backup and restore
 are unsupported; rollback cannot recover lost metrics.
