@@ -1,0 +1,106 @@
+---
+- name: Retire legacy hashed dashboard ConfigMaps after Argo adoption
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Read the disposable configuration Application
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        name: prometheus-config
+        namespace: argocd
+      register: config_application
+
+    - name: Require completed native adoption
+      ansible.builtin.assert:
+        that:
+          - config_application.resources | length == 1
+          - config_application.resources[0].status.sync.status == 'Synced'
+          - config_application.resources[0].status.health.status == 'Healthy'
+          - config_application.resources[0].spec.source.path == 'apps/prometheus/config'
+          - config_application.resources[0].spec.source.targetRevision == 'main'
+        fail_msg: Wait for prometheus-config to adopt and sync from main.
+
+    - name: Select adopted stable dashboard names
+      ansible.builtin.set_fact:
+        dashboard_desired: >-
+          {{ config_application.resources[0].status.resources
+             | selectattr('kind', 'equalto', 'ConfigMap')
+             | selectattr('status', 'equalto', 'Synced')
+             | map(attribute='name')
+             | select('match', '^grafana-dashboard-') | list }}
+
+    - name: Read live Grafana dashboard inputs
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: ConfigMap
+        namespace: monitoring
+        label_selectors:
+          - grafana_dashboard=1
+      register: dashboard_live
+
+    - name: Require all eight stable dashboard inputs before cleanup
+      ansible.builtin.assert:
+        that:
+          - dashboard_desired | length == 8
+          - >-
+            dashboard_live.resources | map(attribute='metadata.name')
+            | intersect(dashboard_desired) | length == 8
+        fail_msg: Wait for all stable dashboard ConfigMaps before removing old copies.
+
+    - name: Select dashboard ConfigMaps left by the old stack owner
+      ansible.builtin.set_fact:
+        dashboard_legacy: >-
+          {{ dashboard_live.resources
+             | selectattr('metadata.name', 'match', '^grafana-dashboard-.+-[a-z0-9]{10}$')
+             | list }}
+
+    - name: Require every old input to have an adopted stable replacement
+      ansible.builtin.assert:
+        that:
+          - item.metadata.name is match('^grafana-dashboard-.+-[a-z0-9]{10}$')
+          - item.metadata.labels['argocd.argoproj.io/instance'] == 'kube-prometheus-stack'
+          - item.metadata.name | regex_replace('-[a-z0-9]{10}$', '') in dashboard_desired
+        fail_msg: Refusing to retire a dashboard without its exact stable replacement.
+      loop: "{{ dashboard_legacy }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Report the exact legacy inputs to remove
+      ansible.builtin.debug:
+        msg:
+          adopted: "{{ dashboard_desired | sort }}"
+          legacy: "{{ dashboard_legacy | map(attribute='metadata.name') | list | sort }}"
+
+    - name: Remove only old hashed dashboard ConfigMaps
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: ConfigMap
+        namespace: monitoring
+        name: "{{ item.metadata.name }}"
+        state: absent
+        wait: true
+      loop: "{{ dashboard_legacy }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Read remaining Grafana dashboard inputs
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: ConfigMap
+        namespace: monitoring
+        label_selectors:
+          - grafana_dashboard=1
+      register: dashboard_remaining
+
+    - name: Require one live input for each adopted dashboard
+      ansible.builtin.assert:
+        that:
+          - >-
+            dashboard_remaining.resources | map(attribute='metadata.name')
+            | select('match', '^grafana-dashboard-') | list | sort
+            == dashboard_desired | sort
+        fail_msg: A Grafana dashboard input is missing or duplicated.
+      when: not ansible_check_mode
