@@ -1,21 +1,16 @@
 #!/usr/bin/env python3
 """Collect bounded, read-only incident evidence inside the cluster.
 
-Raw log lines stay in Loki and in this process. Only allowlisted, normalized
-records leave this module, and only the sanitized pack is written to disk. A line
-whose format cannot be checked is not exported: it becomes an explicit evidence
-gap instead.
+Raw log lines stay in Loki and in this process. The bounded, normalized pack is
+used in process to select factual observations; it is never sent to a model or
+written to disk. A line whose format cannot be checked becomes an evidence gap.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
-import os
 import re
-import tempfile
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from typing import Any, Callable, Iterable
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
@@ -33,7 +28,6 @@ MAX_RAW_BYTES = 512 * 1024
 # Reject an oversized remote response before parsing it.
 MAX_RAW_RESPONSE_BYTES = 1024 * 1024
 MAX_PACK_BYTES = 24 * 1024
-MAX_STORED_PACKS = 20
 DEFAULT_WINDOW_SECONDS = 900
 MAX_WINDOW_SECONDS = 3600
 DEFAULT_TIMEOUT_SECONDS = 20
@@ -71,7 +65,7 @@ MESSAGE_KEYS = ("msg", "message", "error", "err", "reason", "detail", "cause", "
 SOURCE_KEYS = ("logger", "component", "caller", "module", "subsystem", "service", "source")
 
 # Bounded signal vocabulary. It mirrors the Alloy log and event signals so the
-# same names appear in Prometheus, in Loki, and in an incident narrative.
+# same names appear in Prometheus, in Loki, and in a factual update.
 SIGNALS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "mount-failure",
@@ -135,7 +129,14 @@ SIGNALS: tuple[tuple[str, re.Pattern[str]], ...] = (
             re.I,
         ),
     ),
-    ("checksum-mismatch", re.compile(r"checksum|integrity|corrupt|truncated", re.I)),
+    (
+        "checksum-mismatch",
+        re.compile(
+            r"checksum (?:mismatch|failed|invalid|does not match)"
+            r"|integrity (?:check )?failed|\bcorrupt(?:ed|ion)?\b|unexpectedly truncated",
+            re.I,
+        ),
+    ),
     (
         "saturation",
         re.compile(
@@ -146,12 +147,20 @@ SIGNALS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ),
     (
         "certificate-failure",
-        re.compile(r"certificate (?:has expired|is not valid|expired)|x509:|tls handshake", re.I),
+        re.compile(
+            r"certificate (?:has expired|is not valid|expired|verification failed)"
+            r"|x509:|tls handshake (?:failed|error|timeout)",
+            re.I,
+        ),
     ),
     ("evicted", re.compile(r"\bevicted\b|preempt|node affinity|outofcpu|outofmemory", re.I)),
     (
         "unhealthy",
-        re.compile(r"unhealthy|probe failed|liveness|readiness|not ready", re.I),
+        re.compile(
+            r"\bunhealthy\b|\b(?:liveness|readiness) probe (?:failed|errored|timed out)"
+            r"|\bprobe failed\b|\bnot ready\b",
+            re.I,
+        ),
     ),
 )
 
@@ -195,6 +204,15 @@ def normalize_line(raw: str) -> str:
 
 
 def signals_in(text: str) -> list[str]:
+    # These labels are observations, not keyword topics. A successful or
+    # explicitly negated check cannot be counted as a failure merely because
+    # it names the check or quotes the error it was testing for.
+    if re.search(
+        r"(?i)\b(?:no|without|zero)\s+(?:observed\s+)?(?:errors?|failures?|timeouts?|mismatches?)\b"
+        r"|\b(?:succeeded|successful|passed|verified|completed successfully)\b",
+        text,
+    ):
+        return []
     return sorted(name for name, pattern in SIGNALS if pattern.search(text))
 
 
@@ -289,7 +307,7 @@ def sanitize_line(raw: str) -> dict[str, Any]:
     The raw line is never returned. Free text is counted, not exported.
     """
     text = normalize_line(raw)
-    record: dict[str, Any] = {"format": "text", "signals": signals_in(text), "level": "unknown"}
+    record: dict[str, Any] = {"format": "text", "signals": [], "level": "unknown"}
     if not text:
         return record
     fields: dict[str, Any] = {}
@@ -309,6 +327,14 @@ def sanitize_line(raw: str) -> dict[str, Any]:
         record.update(selected)
         record.setdefault("level", "unknown")
         record["message_held_back"] = dropped and "message" not in selected
+        # A metadata field can quote a previous error or contain an unrelated
+        # keyword. Only the selected operational message has event semantics.
+        if record["level"] in {"warning", "error", "fatal"} and selected.get("message"):
+            record["signals"] = signals_in(selected["message"])
+    elif record["format"] == "text":
+        # Free text is kept local. Its level and polarity are not trustworthy,
+        # so it cannot establish a factual signal in a notification.
+        record["signals"] = []
     return record
 
 
@@ -596,7 +622,7 @@ def _histogram(values: Iterable[str]) -> dict[str, int]:
 
 
 def _samples(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Deduplicate exported records so repeated lines are not sent or billed twice."""
+    """Deduplicate sampled records so repeated lines cannot inflate a finding."""
     unique: dict[str, dict[str, Any]] = {}
     for record in records:
         key = json.dumps(record, sort_keys=True)
@@ -604,43 +630,3 @@ def _samples(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             unique[key] = record
     ordered = list(unique.values())
     return ordered[:MAX_SAMPLES_PER_TARGET]
-
-
-def sample_texts(pack: dict[str, Any]) -> list[str]:
-    """Return the bounded texts that may be sent to the classifier."""
-    texts: list[str] = []
-    for target in pack.get("targets", []):
-        for record in target.get("samples", []):
-            parts = [
-                f"{key}={record[key]}" for key in ("level", "source", "message") if record.get(key)
-            ]
-            if record.get("signals"):
-                parts.append("signals=" + ",".join(record["signals"]))
-            if parts:
-                texts.append(" ".join(parts))
-    return texts
-
-
-def store_pack(pack: dict[str, Any], directory: str | Path, name: str) -> str | None:
-    """Keep the sanitized pack privately, with bounded retention."""
-    root = Path(directory)
-    try:
-        root.mkdir(mode=0o700, parents=True, exist_ok=True)
-        root.chmod(0o700)
-        digest = hashlib.sha256(name.encode()).hexdigest()[:12]
-        stamp = re.sub(r"[^0-9]", "", str(pack.get("collected_at", "")))[:14]
-        descriptor, temporary = tempfile.mkstemp(prefix=f".{digest}.", dir=root)
-        os.fchmod(descriptor, 0o600)
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            json.dump(pack, stream, sort_keys=True)
-            stream.flush()
-            os.fsync(stream.fileno())
-        destination = root / f"{stamp}-{digest}.json"
-        os.replace(temporary, destination)
-        destination.chmod(0o600)
-        stored = sorted(root.glob("*.json"))
-        for stale in stored[:-MAX_STORED_PACKS]:
-            stale.unlink(missing_ok=True)
-        return str(destination)
-    except OSError:
-        return None
