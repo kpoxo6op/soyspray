@@ -51,7 +51,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="soyspray-prometheus-") as directory:
         work = Path(directory)
         rules = []
-        for manifest in sorted((PACKAGE / "alerts").glob("*.yaml")):
+        for manifest in sorted((PACKAGE / "config/alerts").glob("*.yaml")):
             document = yaml.safe_load(manifest.read_text())
             target = work / manifest.name
             target.write_text(yaml.safe_dump(document["spec"]))
