@@ -12,7 +12,7 @@ Kubernetes events ──► Alloy events Deployment ──┬─► Loki (raw ev
 kube-state-metrics ────────────────────────────────► Prometheus
 Alloy /metrics ──► Prometheus (PodMonitor monitoring/alloy, 30s)
 Prometheus rules ──► Alertmanager ──► Telegram / Healthchecks.io
-Alertmanager ──► laptop incident adapter ──► evidence collector ──► Jev ──► isolated worker
+Alertmanager ──► cluster incident loop ──► bounded Loki evidence ──► factual update when new
 ```
 
 ## Where a decision is made
@@ -27,7 +27,7 @@ Alertmanager ──► laptop incident adapter ──► evidence collector ─�
 | Does a backup record go stale | Prometheus | `CriticalBackupGettingOld`, `ImmichMediaBackupStale`, `CNPGBackupStale` |
 | Who receives an alert, and how it is grouped | Alertmanager | `apps/prometheus/values.yaml` |
 | What the raw line said | Loki | LogQL queries in Grafana |
-| Is the incident worth a model call | laptop adapter | `apps/cluster-diagnosis` |
+| Is there a new supported incident observation | cluster incident loop | `apps/cluster-diagnosis` |
 
 The Loki ruler is retired. Loki no longer holds alert rules, so a Loki restart
 cannot stop paging and a rule change cannot silently live in two places.
@@ -86,8 +86,7 @@ or `fatal`. They are removed, and their detection is not replaced one-for-one. A
 raw error word is not an operational fact, and the two rules were the only
 warning-level signals in this file with no user-visible meaning. A long-running,
 Ready application that emits sustained errors but never crashes now produces no
-alert from this file; it is visible in Grafana and in the laptop adapter's
-evidence, not as a page. The eight specific rules above keep their replacement.
+alert from this file; it is visible in Grafana and in bounded cluster evidence, not as a page. The eight specific rules above keep their replacement.
 Actionable failures stay detectable through:
 
 - kube-state-metrics rules: `KubePodCrashLooping`, `KubePodNotReady`,
@@ -106,8 +105,7 @@ differences:
 - The Obsidian backup rule alerts after 1 minute instead of 2.
 - `SoysprayVolumeMountFailure` keeps the event object name under
   `kubernetes_event_involved_object_name` rather than a normalized `pod` label.
-  The laptop adapter reads that label, so the object still reaches the
-  investigation.
+  The cluster incident loop reads that label when it selects bounded evidence.
 
 ## Missing evidence
 
@@ -116,8 +114,7 @@ differences:
   30 minutes after traffic stops, because the window is 20 minutes and the
   `for:` duration is 10.
 - Loki down: Prometheus rules keep working, because no rule reads Loki. The
-  incident adapter records a collector gap instead of an empty evidence pack.
-- Alertmanager down: Prometheus keeps evaluating rules; the adapter reports a
-  source failure once and stops.
+  incident loop records a collector gap instead of claiming health.
+- Alertmanager down: Prometheus keeps evaluating rules; the incident loop reports a source failure in metrics and retries the read.
 - Counter never matched: no alert, and no false claim of health. The rule is
   absent, not green.
