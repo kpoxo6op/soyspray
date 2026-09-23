@@ -121,6 +121,7 @@ def test_disposable_configuration_has_a_narrow_pruning_owner():
         "path": "apps/prometheus/config",
     }
     assert child["spec"]["syncPolicy"]["automated"] == {"prune": True, "selfHeal": True}
+    assert child["spec"]["syncPolicy"]["syncOptions"] == ["FailOnSharedResource=true"]
     assert project["spec"]["destinations"] == [child["spec"]["destination"]]
     assert project["spec"]["clusterResourceWhitelist"] == []
     assert entries(project, "namespaceResourceWhitelist") == {
@@ -144,25 +145,3 @@ def test_disposable_configuration_has_a_narrow_pruning_owner():
             (ROOT / "apps/prometheus/config/kustomization.yaml").read_text()
         )["configMapGenerator"]
     }
-
-
-def test_migration_removes_only_replaced_hashed_dashboards():
-    play = yaml.safe_load(
-        (ROOT / "playbooks/operations/retirement/monitoring-config-migration.yml").read_text()
-    )[0]
-    tasks = {task["name"]: task for task in play["tasks"]}
-    selection = tasks["Select dashboard ConfigMaps left by the old stack owner"][
-        "ansible.builtin.set_fact"
-    ]["dashboard_legacy"]
-    assert "difference(dashboard_desired)" in selection, (
-        "a valid stable name can itself end in ten alphanumeric characters"
-    )
-    guard = tasks["Require every old input to have an adopted stable replacement"]
-    conditions = " ".join(guard["ansible.builtin.assert"]["that"])
-    assert "grafana-dashboard-" in conditions
-    assert "dashboard_desired" in conditions
-    assert "kube-prometheus-stack" in conditions
-    remove = tasks["Remove only old hashed dashboard ConfigMaps"]["kubernetes.core.k8s"]
-    assert remove["kind"] == "ConfigMap"
-    assert remove["namespace"] == "monitoring"
-    assert remove["state"] == "absent"

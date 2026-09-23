@@ -48,37 +48,6 @@ def test_the_saved_evidence_endpoint_survives_the_diagnosis_retirement() -> None
     assert route["enabled"] is True
 
 
-def test_dashboard_retirement_is_scoped_and_guarded() -> None:
-    playbook = ROOT / "playbooks/operations/retirement/grafana-dashboard-configmaps.yml"
-    play = yaml.safe_load(playbook.read_text())[0]
-    tasks = play["tasks"]
-    names = [task["name"] for task in tasks]
-
-    guard = tasks[names.index("Require a healthy Application before removing anything")]
-    assert "Healthy" in guard["ansible.builtin.assert"]["fail_msg"]
-
-    desired = tasks[names.index("Select the ConfigMaps the Application declares")][
-        "ansible.builtin.set_fact"
-    ]["dashboard_desired"]
-    assert "selectattr('status', 'equalto', 'Synced')" in desired, (
-        "a resource awaiting pruning is still listed as managed and would look declared"
-    )
-
-    drift = tasks[names.index("Require the only drift to be replaced dashboard ConfigMaps")]
-    condition = " ".join(drift["ansible.builtin.assert"]["that"])
-    assert "rejectattr('status', 'equalto', 'Synced')" in condition
-    assert "rejectattr('kind', 'equalto', 'ConfigMap')" in condition
-    assert "dashboard_prefix" in condition
-
-    remove = tasks[names.index("Remove the replaced dashboard ConfigMaps")]
-    assert remove["kubernetes.core.k8s"]["kind"] == "ConfigMap"
-    assert remove["kubernetes.core.k8s"]["state"] == "absent"
-    assert remove["loop"] == "{{ dashboard_stale }}"
-
-    scope = tasks[names.index("Require a replacement for every ConfigMap to remove")]
-    assert "dashboard_prefix" in scope["ansible.builtin.assert"]["fail_msg"]
-
-
 def test_runtime_uses_the_minimal_recovery_dependencies() -> None:
     recovery = (ROOT / "requirements-recovery.txt").read_text().splitlines()
     development = (ROOT / "requirements-dev.txt").read_text().splitlines()

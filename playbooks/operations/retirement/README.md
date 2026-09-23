@@ -54,43 +54,6 @@ files. Keep the retirement playbook through the migration window. A completed
 retirement can be checked and applied again. Reinstallation needs a separate
 reviewed operation; this playbook does not recreate the host installation.
 
-## Replaced Grafana dashboards
-
-`monitoring-config-migration.yml` is the one-time cleanup after the
-`prometheus-config` Argo child has adopted all eight stable dashboard inputs
-and eight custom rules. It requires the child to be Synced and Healthy from
-`main`, checks that each old hashed dashboard has a live stable replacement,
-and removes only the old `kube-prometheus-stack` dashboard ConfigMaps. Run it
-once after the migration PR merges, first with `--check`. The playbook will be
-removed after live acceptance; later edits and removals are handled by Argo.
-
-```bash
-source soyspray-venv/bin/activate
-ansible-playbook playbooks/operations/retirement/monitoring-config-migration.yml --check
-ansible-playbook playbooks/operations/retirement/monitoring-config-migration.yml
-```
-
-`grafana-dashboard-configmaps.yml` removes dashboard ConfigMaps that a newer
-revision replaced. The Prometheus Operator installs a content-hashed name for
-every generated dashboard, and the `kube-prometheus-stack` Application keeps
-pruning disabled on purpose, so the old ConfigMap stays behind and Grafana's
-sidecar writes both copies to the same file. Whichever it writes last wins, so
-the dashboard can show the previous layout.
-
-The operation reads what the Application declares, removes only live ConfigMaps
-whose label is `grafana_dashboard=1` and whose name starts with
-`grafana-dashboard-`, and refuses to run while the Application is not Synced and
-Healthy.
-
-```bash
-source soyspray-venv/bin/activate
-ansible-playbook playbooks/operations/retirement/grafana-dashboard-configmaps.yml --check
-ansible-playbook playbooks/operations/retirement/grafana-dashboard-configmaps.yml
-```
-
-It is safe to rerun. It changes nothing else: no Application, no namespace, no
-Service, and no dashboard content.
-
 ## Laptop incident diagnosis
 
 `laptop-cluster-diagnosis.yml` removes the OpenClaw cron job that ran the
@@ -111,21 +74,3 @@ reports honestly when OpenClaw is not installed.
 
 Do not remove `soyspray-evidence-metrics.service` or its timers: they keep
 serving backup and restore evidence.
-
-## Temporary diagnosis acceptance probe
-
-`acceptance-probe.yml` removes the `PrometheusRule/acceptance-probe` that the
-one-off production-path probe left behind. The `kube-prometheus-stack`
-Application keeps pruning disabled on purpose, so deleting the rule from Git
-resolves nothing by itself: the rule stays live and keeps firing. This
-operation names that rule exactly, refuses to touch a rule that is not the
-probe, and is safe to rerun.
-
-```bash
-source soyspray-venv/bin/activate
-ansible-playbook playbooks/operations/retirement/acceptance-probe.yml --check
-ansible-playbook playbooks/operations/retirement/acceptance-probe.yml
-```
-
-Once Prometheus reloads, the alert resolves, the incident loop closes the
-incident and sends one closing message. Nothing else in `monitoring` changes.
