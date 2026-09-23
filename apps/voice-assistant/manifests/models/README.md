@@ -5,15 +5,15 @@ recordings, calculated audio data, and training output stay outside Git.
 
 | Purpose | ConfigMap | Private file | SHA-256 |
 | --- | --- | --- | --- |
-| Current | `openwakeword-gi-model-v2` | `~/.config/soyspray/recovery/voice-models/gi-v2.tflite` | `4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739` |
-| Retained previous | `openwakeword-gi-model-v7b` | `~/.config/soyspray/recovery/voice-models/gi-v7.tflite` | `e61dd9f2880f226b05b8f9885c053fa7ec7805170c3f3b4d56427c6294cb4be0` |
+| Current | `openwakeword-gi-model-v7b` | `~/.config/soyspray/recovery/voice-models/gi-v7.tflite` | `e61dd9f2880f226b05b8f9885c053fa7ec7805170c3f3b4d56427c6294cb4be0` |
+| Retained previous | `openwakeword-gi-model-v2` | `~/.config/soyspray/recovery/voice-models/gi-v2.tflite` | `4b89c92d8500243404a77af30a7d8f8a618718403a355a3564e18108bc8f9739` |
 
 An immutable ConfigMap cannot change after creation. Its checksum annotation
 and the SHA-256 of its decoded `gi.tflite` file must match this table.
 
 ## How detection works
 
-The service uses GI v2 with a score threshold of `0.65` and a trigger level of
+The service uses GI v7b with a score threshold of `0.65` and a trigger level of
 `2`. It needs two scores above `0.65` in a row. A lower score resets the count.
 An audio chunk with a 16-bit sample of `12` or higher starts a two-second timer.
 The service ignores high model scores when that timer has reached zero.
@@ -43,6 +43,11 @@ a device action.
 The fixed synthetic suite later showed that v7b repeatedly accepted `gee` as
 GI. The retained v2 model detected `gee eye` and rejected every fixed negative
 sample in the same isolated service test, so production returned to v2.
+
+On 2026-09-23, the operator returned production to v7b because v2 detection was
+not usable in normal use. The `gee` false-accept risk above stays open. A later
+model must pass the fixed negative suite and the live Voice PE test before it
+replaces v7b.
 
 During one overnight check, the model produced single scores of `0.685` and
 `0.714`. Neither score caused a wake because the service requires two high
