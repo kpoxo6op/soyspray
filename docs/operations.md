@@ -17,24 +17,20 @@ source, live health, access, and recovery evidence for one application.
 
 ## Read an incident
 
-`make status APP=NAME` shows one application. For the current incident state,
-open the **Soyspray Operations** dashboard in Grafana and read the
-`soyspray_incident_open`, `soyspray_evidence_gap_total` and
-`soyspray_classifier_up` panels. Missing series mean the adapter has not
-written state yet; they are unknown, not healthy.
+`make status APP=NAME` shows one application. The **Soyspray Operations**
+dashboard shows open incidents, source read status, evidence gaps and delivery
+state. A missing series is unknown, not healthy.
 
-Telegram receives one narrative per incident from the cluster diagnosis loop,
-plus material updates and one recovery message. Alertmanager still sends
-critical and warning alerts directly, and Healthchecks.io still receives the
-`Watchdog` ping. A classifier or provider fault never stops either path.
+Alertmanager sends critical and warning alerts directly to Telegram. The
+cluster incident loop adds a short factual update only for a new observation or
+supported correlation; it does not interpret logs with AI. The independent
+`Watchdog` ping remains in place. A vanished alert is not verified recovery.
 
 The loop runs as `monitoring/cluster-diagnosis`. Read its logs with
-`kubectl -n monitoring logs deploy/cluster-diagnosis`, its spending ledger with
+`kubectl -n monitoring logs deploy/cluster-diagnosis` and its metrics with
 `kubectl -n monitoring exec deploy/cluster-diagnosis -- python3 /app/diagnosis.py
---print-metrics`, and its alerts with `SoysprayDiagnosisStale`,
-`SoysprayDiagnosisSourceUnreadable`, `SoysprayDiagnosisStateUnusable`,
-`SoysprayDiagnosisProviderRejected`, `SoysprayDiagnosisUndiagnosed` and
-`SoysprayDiagnosisDeliveryStalled`.
+--print-metrics`. The maintained warning rules cover a stale loop, unreadable
+Alertmanager source, unusable state and a stalled Telegram outbox.
 
 ## Change an application
 
