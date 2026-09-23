@@ -102,6 +102,7 @@ resources:
   - alerts/node-hardware.yaml
   - alerts/cluster-diagnosis.yaml
   - alerts/runtime-signals.yaml
+  - alerts/monitoring-lifecycle-probe.yaml
 
 generatorOptions:
   disableNameSuffixHash: true
