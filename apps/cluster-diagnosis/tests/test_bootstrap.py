@@ -4,6 +4,8 @@ from pathlib import Path
 import yaml
 
 TASKS = Path(__file__).parents[1] / "bootstrap-tasks.yml"
+RETIREMENT = Path(__file__).parents[1] / "retire-provider-secret.yml"
+RESET = Path(__file__).parents[1] / "reset-state.yml"
 
 
 def tasks():
@@ -27,7 +29,7 @@ class BootstrapTest(unittest.TestCase):
         reads = [
             task for task in tasks() if task.get("register", "").startswith("cluster_diagnosis_")
         ]
-        self.assertEqual(len(reads), 2)
+        self.assertEqual(len(reads), 1)
         for task in reads:
             command = task["ansible.builtin.command"]["argv"]
             self.assertEqual(command[:1], ["kubectl"])
@@ -37,14 +39,6 @@ class BootstrapTest(unittest.TestCase):
             self.assertFalse(task["changed_when"])
             self.assertFalse(task["check_mode"])
             self.assertFalse(task["failed_when"])
-
-    def test_only_a_missing_diagnosis_secret_is_tolerated(self):
-        guard = next(
-            task for task in tasks() if task.get("name") == "Require a readable diagnosis namespace"
-        )
-        condition = " ".join(guard["ansible.builtin.assert"]["that"])
-        self.assertIn("cluster_diagnosis_existing_secret.rc == 0", condition)
-        self.assertIn("NotFound", condition)
 
     def test_the_delivery_identity_must_be_readable(self):
         guard = next(
@@ -56,15 +50,31 @@ class BootstrapTest(unittest.TestCase):
         self.assertIn("cluster_diagnosis_telegram.rc == 0", that)
         self.assertIn("PROMETHEUS_TELEGRAM_BOT_TOKEN", " ".join(that))
 
-    def test_the_write_waits_for_an_absent_secret_and_real_mode(self):
-        writes = [
-            task for task in tasks() if "create" in str(task.get("ansible.builtin.command", {}))
+    def test_bootstrap_never_writes_a_secret(self):
+        self.assertFalse(
+            [task for task in tasks() if "create" in str(task.get("ansible.builtin.command", {}))]
+        )
+
+    def test_retirement_targets_only_the_dedicated_provider_secret(self):
+        play = yaml.safe_load(RETIREMENT.read_text())[0]
+        self.assertEqual(play["vars"]["retired_secret"], "cluster-diagnosis-deepseek")
+        deletes = [
+            task
+            for task in play["tasks"]
+            if "delete" in (task.get("ansible.builtin.command") or {}).get("argv", [])
         ]
-        self.assertEqual(len(writes), 1)
-        condition = writes[0]["when"]
-        self.assertIn("cluster_diagnosis_existing_secret.rc != 0", condition)
-        self.assertIn("not ansible_check_mode", condition)
-        self.assertTrue(writes[0]["no_log"])
+        self.assertEqual(len(deletes), 1)
+        self.assertEqual(deletes[0]["ansible.builtin.command"]["argv"][-1], "{{ retired_secret }}")
+        self.assertIn("not ansible_check_mode", deletes[0]["when"])
+
+    def test_state_reset_requires_a_parked_writer_and_existing_claim(self):
+        play = yaml.safe_load(RESET.read_text())[0]
+        text = str(play["tasks"])
+        self.assertIn("state_reset_confirm", text)
+        self.assertIn("spec.replicas", text)
+        self.assertIn("diagnosis_pods.stdout", text)
+        self.assertIn("claimName: cluster-diagnosis-state", text)
+        self.assertNotIn("alertmanager-telegram-secret", text)
 
 
 if __name__ == "__main__":
