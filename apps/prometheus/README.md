@@ -12,6 +12,12 @@ The package keeps these Application identities and versions:
 | `kube-prometheus-stack` | `prometheus-community/kube-prometheus-stack` through Kustomize | `78.2.0` |
 | `prometheus-crds` | `prometheus-community/prometheus-operator-crds` | `16.0.1` |
 
+During the monitoring configuration migration, the stack stops declaring the
+eight generated dashboards and eight custom rules. Its non-pruning policy keeps
+their existing live objects until the separate configuration child adopts the
+rules and replaces the hashed dashboards. Do not remove rules during this
+interval; the next reviewed change completes adoption and cleanup.
+
 The native definitions use separate AppProjects. The stack project cannot manage
 CRDs. The CRD project cannot manage stack resources. Both definitions disable
 automated pruning and omit cascading deletion finalizers. Existing live
