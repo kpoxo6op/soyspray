@@ -399,7 +399,7 @@
     {
       "id": 9,
       "title": "Open incidents",
-      "description": "Incidents the laptop adapter tracks. Unknown means the adapter has not written state yet.",
+      "description": "Incidents the cluster loop tracks. Missing state is unknown.",
       "type": "stat",
       "datasource": {
         "type": "prometheus",
@@ -408,7 +408,7 @@
       "gridPos": {
         "x": 0,
         "y": 32,
-        "w": 8,
+        "w": 12,
         "h": 8
       },
       "fieldConfig": {
@@ -445,54 +445,6 @@
       ]
     },
     {
-      "id": 10,
-      "title": "Diagnosis attempts today",
-      "description": "Model attempts spent against the daily limit. Unknown means no adapter state.",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 8,
-        "y": 32,
-        "w": 8,
-        "h": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "Unknown",
-          "custom": {
-            "spanNulls": false
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "none",
-        "graphMode": "none"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "soyspray_diagnosis_attempts_today",
-          "legendFormat": "Attempts",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
-        }
-      ]
-    },
-    {
       "id": 11,
       "title": "Evidence collector state",
       "description": "1 means the last incident produced an evidence pack. 0 means the collector or Loki failed.",
@@ -502,9 +454,9 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "x": 16,
+        "x": 12,
         "y": 32,
-        "w": 8,
+        "w": 12,
         "h": 8
       },
       "fieldConfig": {
@@ -586,9 +538,9 @@
       ]
     },
     {
-      "id": 13,
-      "title": "Classifier state and results",
-      "description": "Jev classification hints. A failure leaves native alerts and ordinary diagnosis working.",
+      "id": 14,
+      "title": "Factual update outcomes",
+      "description": "Factual update outcomes since the state file was created.",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -621,114 +573,12 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "soyspray_classifier_up",
-          "legendFormat": "Classifier up",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        },
-        {
-          "refId": "B",
-          "expr": "soyspray_classifier_result_total",
-          "legendFormat": "{{label}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          }
-        }
-      ]
-    },
-    {
-      "id": 14,
-      "title": "Diagnosis outcomes",
-      "description": "Outcomes since the adapter state file was created. A gap means the adapter did not run.",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 48,
-        "w": 12,
-        "h": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "Unknown",
-          "custom": {
-            "spanNulls": false
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull"
-          ]
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
           "expr": "soyspray_diagnosis_outcome_total",
           "legendFormat": "{{outcome}}",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           }
-        }
-      ]
-    },
-    {
-      "id": 15,
-      "title": "Last classified model",
-      "description": "Serving classifier model of the last request. Unknown means no classification ran.",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 48,
-        "w": 8,
-        "h": 8
-      },
-      "fieldConfig": {
-        "defaults": {
-          "noValue": "Unknown",
-          "custom": {
-            "spanNulls": false
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "none",
-        "graphMode": "none"
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "expr": "soyspray_classifier_model_info",
-          "legendFormat": "{{model}}",
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "instant": true
         }
       ]
     }
