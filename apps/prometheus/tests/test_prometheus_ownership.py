@@ -135,7 +135,7 @@ def test_disposable_configuration_has_a_narrow_pruning_owner():
     dashboards = [item for item in resources if item["kind"] == "ConfigMap"]
     rules = [item for item in resources if item["kind"] == "PrometheusRule"]
     assert len(dashboards) == 8
-    assert len(rules) == 8
+    assert len(rules) == len(list((ROOT / "apps/prometheus/config/alerts").glob("*.yaml")))
     assert all(item["metadata"]["name"].startswith("grafana-dashboard-") for item in dashboards)
     assert all(item["metadata"]["labels"]["grafana_dashboard"] == "1" for item in dashboards)
     assert {item["metadata"]["name"] for item in dashboards} == {
