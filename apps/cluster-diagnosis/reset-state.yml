@@ -1,0 +1,177 @@
+---
+- name: Reset only the parked cluster diagnosis state claim
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Require explicit state reset scope
+      ansible.builtin.assert:
+        that:
+          - state_reset_confirm | default(false) | bool
+        fail_msg: >-
+          Set state_reset_confirm=true only after preserving the state file and
+          parking the Deployment through Git. This discards incident and outbox history.
+
+    - name: Read the declared Deployment before touching its claim
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - -n
+          - monitoring
+          - get
+          - deployment
+          - cluster-diagnosis
+          - -o
+          - json
+      register: diagnosis_deployment
+      changed_when: false
+      check_mode: false
+
+    - name: Read the remaining incident-loop pods
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - -n
+          - monitoring
+          - get
+          - pods
+          - -l
+          - app.kubernetes.io/name=cluster-diagnosis
+          - -o
+          - json
+      register: diagnosis_pods
+      changed_when: false
+      check_mode: false
+
+    - name: Require the writer to be parked and gone
+      ansible.builtin.assert:
+        that:
+          - (diagnosis_deployment.stdout | from_json).spec.replicas | int == 0
+          - ((diagnosis_pods.stdout | from_json).items | length) == 0
+        fail_msg: >-
+          The Deployment must be scaled to zero through Git and its pod must be
+          gone before the state claim can be reset.
+
+    - name: Require the reset pod name to be unused
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - -n
+          - monitoring
+          - get
+          - pod
+          - cluster-diagnosis-reset
+          - -o
+          - name
+      register: diagnosis_reset_existing
+      changed_when: false
+      failed_when: >-
+        diagnosis_reset_existing.rc != 0 and
+        'NotFound' not in diagnosis_reset_existing.stderr
+      check_mode: false
+
+    - name: Refuse to replace an existing reset pod
+      ansible.builtin.assert:
+        that:
+          - diagnosis_reset_existing.rc == 1
+        fail_msg: Inspect and retire the existing reset pod before retrying.
+
+    - name: Run the exact image against the existing state claim
+      ansible.builtin.command:
+        argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", create, -f, '-']
+        stdin: |
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: cluster-diagnosis-reset
+            namespace: monitoring
+            labels:
+              app.kubernetes.io/name: cluster-diagnosis-reset
+          spec:
+            restartPolicy: Never
+            automountServiceAccountToken: false
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 10001
+              runAsGroup: 10001
+              fsGroup: 10001
+              seccompProfile:
+                type: RuntimeDefault
+            containers:
+              - name: reset
+                image: {{ (diagnosis_deployment.stdout | from_json).spec.template.spec.containers[0].image }}
+                command: ["python3", "/app/diagnosis.py", "--reset-state"]
+                env:
+                  - name: CLUSTER_DIAGNOSIS_STATE_ROOT
+                    value: /state
+                securityContext:
+                  allowPrivilegeEscalation: false
+                  readOnlyRootFilesystem: true
+                  capabilities:
+                    drop: ["ALL"]
+                volumeMounts:
+                  - name: state
+                    mountPath: /state
+            volumes:
+              - name: state
+                persistentVolumeClaim:
+                  claimName: cluster-diagnosis-state
+      changed_when: true
+      when: not ansible_check_mode
+
+    - name: Wait for the reset pod to succeed
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - -n
+          - monitoring
+          - wait
+          - --for=jsonpath={.status.phase}=Succeeded
+          - pod/cluster-diagnosis-reset
+          - --timeout=180s
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Read the reset result
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - -n
+          - monitoring
+          - logs
+          - pod/cluster-diagnosis-reset
+      register: diagnosis_reset_result
+      changed_when: false
+      when: not ansible_check_mode
+
+    - name: Confirm that the image reset the claim
+      ansible.builtin.assert:
+        that:
+          - "'state reset' in diagnosis_reset_result.stdout"
+      when: not ansible_check_mode
+
+    - name: Delete the completed reset pod
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - -n
+          - monitoring
+          - delete
+          - pod
+          - cluster-diagnosis-reset
+      changed_when: true
+      when: not ansible_check_mode
