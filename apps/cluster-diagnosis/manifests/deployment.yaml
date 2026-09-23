@@ -9,12 +9,12 @@ metadata:
     app.kubernetes.io/part-of: observability
   annotations:
     description: >-
-      One incident loop: Alertmanager to incident, Loki evidence, Jev
-      classification, one DeepSeek narrative, Telegram delivery.
+      One incident loop: Alertmanager grouping, bounded Loki evidence and
+      factual Telegram updates when there is new information.
 spec:
   replicas: 1
   # Recreate guarantees the previous pod is gone before the next starts. The
-  # ledger also takes an exclusive lock, so two writers cannot overlap even if a
+  # state store also takes an exclusive lock, so two writers cannot overlap even if a
   # pod is started by hand.
   strategy:
     type: Recreate
@@ -59,23 +59,15 @@ spec:
               value: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
             - name: CLUSTER_DIAGNOSIS_STATE_ROOT
               value: /state
-            - name: DEEPSEEK_PROFILE
-              value: flash
-            - name: DEEPSEEK_API_KEY_FILE
-              value: /etc/cluster-diagnosis/deepseek/api-key
             # The bot token belongs to the existing Alertmanager bot, so the
-            # narrative arrives in the same private chat as the alerts. The
-            # recipient is application configuration, never model output.
+            # factual update arrives in the same private chat as the alerts. The
+            # recipient is application configuration, never log content.
             - name: TELEGRAM_BOT_TOKEN_FILE
               value: /etc/cluster-diagnosis/telegram/PROMETHEUS_TELEGRAM_BOT_TOKEN
             - name: TELEGRAM_CHAT_ID
               value: "336642153"
             - name: POLL_SECONDS
               value: "120"
-            - name: DAILY_ATTEMPT_LIMIT
-              value: "3"
-            - name: DAILY_TOKEN_LIMIT
-              value: "60000"
             - name: METRICS_PORT
               value: "9911"
           ports:
@@ -88,7 +80,7 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 30
           # No liveness probe on purpose: a dependency outage or an unreadable
-          # ledger must not restart the pod in a loop. Readiness reports the
+          # state file must not restart the pod in a loop. Readiness reports the
           # condition and SoysprayDiagnosisStateUnusable alerts on it.
           resources:
             requests:
@@ -106,9 +98,6 @@ spec:
           volumeMounts:
             - name: state
               mountPath: /state
-            - name: deepseek
-              mountPath: /etc/cluster-diagnosis/deepseek
-              readOnly: true
             - name: telegram
               mountPath: /etc/cluster-diagnosis/telegram
               readOnly: true
@@ -118,12 +107,6 @@ spec:
         - name: state
           persistentVolumeClaim:
             claimName: cluster-diagnosis-state
-        - name: deepseek
-          secret:
-            secretName: cluster-diagnosis-deepseek
-            items:
-              - key: api-key
-                path: api-key
         - name: telegram
           secret:
             secretName: alertmanager-telegram-secret
