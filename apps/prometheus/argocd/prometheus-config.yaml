@@ -22,6 +22,8 @@ spec:
     automated:
       prune: true
       selfHeal: true
+    syncOptions:
+      - FailOnSharedResource=true
     retry:
       limit: 5
       backoff:

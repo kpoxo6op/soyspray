@@ -12,6 +12,7 @@ check:
 
 diff:
 	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app kube-prometheus-stack --package apps/prometheus
+	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app prometheus-config --package apps/prometheus/config
 
 bootstrap:
 	cd $(ROOT) && $(ANSIBLE) apps/prometheus/bootstrap.yml

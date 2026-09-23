@@ -7,6 +7,19 @@ import pytest
 ROOT = Path(__file__).resolve().parents[3]
 
 
+def test_diff_covers_the_stack_and_disposable_configuration():
+    result = subprocess.run(
+        ["make", "--no-print-directory", "-n", "-f", "apps/prometheus/Makefile", "diff"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=True,
+    )
+    assert "--app kube-prometheus-stack --package apps/prometheus" in result.stdout
+    assert "--app prometheus-config --package apps/prometheus/config" in result.stdout
+
+
 def test_bootstrap_only_prepares_private_inputs():
     result = subprocess.run(
         [
