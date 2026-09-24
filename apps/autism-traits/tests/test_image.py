@@ -1,6 +1,8 @@
 import copy
+import os
 import runpy
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -42,3 +44,54 @@ def test_invalid_image_cannot_write_a_promotion(tmp_path, image):
     with pytest.raises(ValueError, match="digest"):
         promote(image, tmp_path)
     assert not list(tmp_path.iterdir())
+
+
+def test_image_publication_selector_ignores_tests_but_detects_runtime_changes(tmp_path):
+    workflow = yaml.safe_load((ROOT / ".github/workflows/autism-image.yml").read_text())
+    detect = next(
+        step for step in workflow["jobs"]["image"]["steps"] if step.get("id") == "runtime"
+    )
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args):
+        return subprocess.run(
+            ["git", *args], cwd=repo, check=True, capture_output=True, text=True
+        ).stdout.strip()
+
+    git("init")
+    git("config", "user.name", "Test")
+    git("config", "user.email", "test@example.invalid")
+
+    def commit(path, content):
+        target = repo / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content)
+        git("add", path)
+        git("commit", "-m", "fixture")
+        return git("rev-parse", "HEAD")
+
+    base = commit("apps/autism-traits/app/src/App.tsx", "original\n")
+    test = commit("apps/autism-traits/app/src/data/content.test.ts", "test\n")
+    e2e = commit("apps/autism-traits/app/e2e/assessment.spec.ts", "browser test\n")
+    runtime = commit("apps/autism-traits/app/src/App.tsx", "updated\n")
+    config = commit("apps/autism-traits/config/nginx.conf", "updated\n")
+
+    def detected(before, head):
+        output = tmp_path / "output"
+        output.write_text("")
+        env = {
+            **os.environ,
+            "BEFORE": before,
+            "GITHUB_SHA": head,
+            "GITHUB_EVENT_NAME": "push",
+            "GITHUB_OUTPUT": str(output),
+            "RUNNER_TEMP": str(tmp_path),
+        }
+        subprocess.run(["bash", "-e", "-c", detect["run"]], cwd=repo, env=env, check=True)
+        return output.read_text().strip()
+
+    assert detected(base, test) == "changed=false"
+    assert detected(test, e2e) == "changed=false"
+    assert detected(e2e, runtime) == "changed=true"
+    assert detected(runtime, config) == "changed=true"
