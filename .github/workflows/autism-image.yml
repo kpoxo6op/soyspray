@@ -55,6 +55,9 @@ jobs:
             git diff --name-only "$BEFORE" "$GITHUB_SHA" -- \
               apps/autism-traits/app apps/autism-traits/config \
               apps/autism-traits/Dockerfile apps/autism-traits/.dockerignore \
+              ':(glob,exclude)apps/autism-traits/app/**/*.test.*' \
+              ':(glob,exclude)apps/autism-traits/app/**/*.spec.*' \
+              ':(glob,exclude)apps/autism-traits/app/e2e/**' \
               > "$RUNNER_TEMP/autism-runtime-files"
             if [ -s "$RUNNER_TEMP/autism-runtime-files" ]; then changed=true; fi
           fi
