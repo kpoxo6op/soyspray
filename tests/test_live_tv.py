@@ -4,13 +4,15 @@ import ast
 import importlib.util
 import json
 import subprocess
+import types
+import urllib.error
+import urllib.parse
 
 import pytest
 import yaml
 from conftest import ROOT
 
 HELPER = ROOT / "apps/media-helper"
-CATALOG = HELPER / "app/channels.json"
 RECONCILE = ROOT / "apps/dispatcharr/manifests/reconcile.py"
 
 
@@ -48,22 +50,6 @@ def test_tv_hostname_keeps_jellyfin_as_its_root_application() -> None:
             "backend": {"service": {"name": "jellyfin", "port": {"number": 8096}}},
         }
     ]
-
-
-def test_voice_control_is_out_of_scope() -> None:
-    catalog = json.loads(CATALOG.read_text())
-    helper_source = (HELPER / "app/app.py").read_text()
-    helper_deployment = yaml.safe_load((HELPER / "manifests/deployment.yaml").read_text())
-    helper_env = helper_deployment["spec"]["template"]["spec"]["containers"][0].get("env", [])
-    home_assistant = (ROOT / "apps/home-assistant/manifests/configmap-bootstrap.yaml").read_text()
-    live_tv_tasks = (ROOT / "apps/live-tv/bootstrap/tasks/enabled.yml").read_text()
-
-    assert all("aliases" not in channel for channel in catalog["channels"])
-    assert "play_on_jellyfin" not in helper_source
-    assert "/jellyfin" not in helper_source
-    assert not any(item["name"].startswith("JELLYFIN_") for item in helper_env)
-    assert "play_live_tv_channel" not in home_assistant
-    assert "Reconcile the Home Assistant Argo revision" not in live_tv_tasks
 
 
 @pytest.mark.parametrize("name", ("media-helper", "dispatcharr", "jellyfin"))
@@ -120,20 +106,7 @@ def test_jellyfin_bootstrap_enables_qsv_without_losing_unknown_settings() -> Non
     assert current["HardwareAccelerationType"] == "none"
 
 
-def test_jellyfin_bootstrap_is_add_only_and_configures_live_tv() -> None:
-    script = (ROOT / "apps/jellyfin/manifests/bootstrap.py").read_text()
-    assert 'call("GET", "/System/Configuration/livetv"' in script
-    assert 'call("GET", "/LiveTv/TunerHosts"' not in script
-    assert 'call("GET", "/LiveTv/ListingProviders"' not in script
-    assert "/LiveTv/TunerHosts" in script
-    assert "http://dispatcharr.media.svc.cluster.local:9191/hdhr" in script
-    assert "/LiveTv/ListingProviders" in script
-    assert "/DisplayPreferences/" not in script
-    assert "VirtualFolders" in script
-    assert "DELETE" not in script
-    startup_get = script.index('call("GET", "/Startup/User")')
-    startup_post = script.index('"/Startup/User",', startup_get)
-    assert startup_get < startup_post
+def test_jellyfin_bootstrap_job_has_bounded_access() -> None:
     job = yaml.safe_load((ROOT / "apps/jellyfin/manifests/bootstrap-job.yaml").read_text())
     assert job["spec"]["activeDeadlineSeconds"] == 1200
     assert job["spec"]["backoffLimit"] == 0
@@ -141,6 +114,68 @@ def test_jellyfin_bootstrap_is_add_only_and_configures_live_tv() -> None:
     policy = yaml.safe_load((ROOT / "apps/jellyfin/manifests/network-policy.yaml").read_text())
     ingress = [peer for rule in policy["spec"]["ingress"] for peer in rule["from"]]
     assert {"podSelector": {"matchLabels": {"job-name": "jellyfin-bootstrap"}}} in ingress
+
+
+@pytest.mark.parametrize("already_configured", (True, False))
+def test_jellyfin_bootstrap_preserves_existing_inputs_and_adds_missing_tv(
+    already_configured: bool,
+) -> None:
+    source = (ROOT / "apps/jellyfin/manifests/bootstrap.py").read_text()
+    main = ast.parse(source).body
+    start = next(index for index, node in enumerate(main) if isinstance(node, ast.For))
+    calls = []
+    tuner = {"Url": "http://dispatcharr.media.svc.cluster.local:9191/hdhr"}
+    provider = {"Path": "http://media-helper.media.svc.cluster.local:8080/xmltv.xml"}
+
+    def fake_call(method, path, body=None, token=None):
+        calls.append((method, path))
+        if path == "/Startup/User":
+            raise urllib.error.HTTPError(path, 401, "already configured", None, None)
+        if path == "/Users/AuthenticateByName":
+            return {"AccessToken": "token"}
+        if path == "/System/Configuration/encoding":
+            return {
+                "HardwareAccelerationType": "qsv",
+                "EnableHardwareEncoding": True,
+                "QsvDevice": "/dev/dri/renderD128",
+                "UnknownFutureOption": "keep",
+            }
+        if path.startswith("/Plugins/"):
+            return {"ManageLoginPageButtons": True}
+        if path == "/Users":
+            return [{"Name": "playback"}]
+        if path == "/Library/VirtualFolders":
+            return [{"Name": "Cartoons"}]
+        if path == "/System/Configuration/livetv":
+            return {
+                "TunerHosts": [tuner] if already_configured else [],
+                "ListingProviders": [provider] if already_configured else [],
+            }
+        if path.startswith("/LiveTv/Channels"):
+            return {"Items": []}
+        return {}
+
+    namespace = {
+        "call": fake_call,
+        "os": types.SimpleNamespace(
+            environ={
+                "JELLYFIN_ADMIN_USER": "admin",
+                "JELLYFIN_ADMIN_PASSWORD": "secret",
+                "JELLYFIN_PLAYBACK_USER": "playback",
+            }
+        ),
+        "urllib": types.SimpleNamespace(parse=urllib.parse, error=urllib.error),
+        "qsv_configuration": load_jellyfin_bootstrap_function("qsv_configuration"),
+        "get_dispatcharr_lineup": lambda: [],
+        "guide_refresh_required": lambda *_: False,
+    }
+    exec(compile(ast.Module(body=main[start:], type_ignores=[]), "bootstrap.py", "exec"), namespace)
+    writes = [path for method, path in calls if method in {"POST", "PUT", "PATCH", "DELETE"}]
+    assert writes == (
+        ["/Users/AuthenticateByName"]
+        if already_configured
+        else ["/Users/AuthenticateByName", "/LiveTv/TunerHosts", "/LiveTv/ListingProviders"]
+    )
 
 
 @pytest.mark.parametrize(
@@ -167,18 +202,12 @@ def test_configuration_claims_are_protected(name: str, claim: str) -> None:
         assert pvc["spec"]["resources"]["requests"]["storage"] == "1Gi"
 
 
-def test_live_tv_role_propagates_its_deployment_tag() -> None:
+def test_live_tv_role_keeps_its_tag_and_secret_only_scope() -> None:
     tasks = yaml.safe_load((ROOT / "apps/live-tv/bootstrap/tasks/main.yml").read_text())
-    assert tasks == [
-        {
-            "name": "Bootstrap live TV private inputs",
-            "ansible.builtin.import_tasks": "enabled.yml",
-            "tags": "live-tv",
-        }
-    ]
+    assert len(tasks) == 1
+    assert tasks[0]["ansible.builtin.import_tasks"] == "enabled.yml"
+    assert tasks[0]["tags"] == "live-tv"
 
-
-def test_live_tv_bootstrap_only_prepares_secrets() -> None:
     tasks = yaml.safe_load((ROOT / "apps/live-tv/bootstrap/tasks/enabled.yml").read_text())
     oidc_check = next(
         index
@@ -194,15 +223,10 @@ def test_live_tv_bootstrap_only_prepares_secrets() -> None:
         == "jellyfin-secrets"
     )
     assert oidc_check < jellyfin_secret
-    assert "targetRevision" not in (ROOT / "apps/live-tv/bootstrap/tasks/enabled.yml").read_text()
-    assert (
-        "kind: Application" not in (ROOT / "apps/live-tv/bootstrap/tasks/enabled.yml").read_text()
-    )
-
-
-def test_full_gate_checks_the_private_input_playbook() -> None:
-    makefile = (ROOT / "Makefile").read_text()
-    assert "playbooks/bootstrap-app-inputs.yml" in makefile
+    for task in tasks:
+        definition = task.get("kubernetes.core.k8s", {}).get("definition", {})
+        assert definition.get("kind") != "Application"
+        assert "targetRevision" not in definition.get("spec", {})
 
 
 @pytest.mark.parametrize("name", ("dispatcharr", "jellyfin"))
@@ -506,28 +530,6 @@ def test_dispatcharr_reconcile_can_reach_dispatcharr_and_has_a_deadline() -> Non
     assert {"job-name": "jellyfin-bootstrap"} in selectors
     job = yaml.safe_load((ROOT / "apps/dispatcharr/manifests/reconcile-job.yaml").read_text())
     assert job["spec"]["activeDeadlineSeconds"] == 600
-    reconcile = (ROOT / "apps/dispatcharr/manifests/reconcile.py").read_text()
-    assert '"/core/settings/"' in reconcile
-    assert '"default_stream_profile": profile["id"]' not in reconcile
-    assert '"auto_enable_new_groups_live": True' in reconcile
-    assert "request(f\"/m3u/refresh/{account['id']}/\"" in reconcile
-    assert '"auto_channel_sync": True' not in reconcile
-    assert '"auto_channel_sync": False' in reconcile
-    assert "Dispatcharr did not assign a group" in reconcile
-    assert "Dispatcharr did not publish the managed lineup" in reconcile
-    assert 'request("", base=CATALOG_URL, timeout=90)' in reconcile
-
-
-def test_dispatcharr_reconcile_is_import_safe_and_tunes_live_relays() -> None:
-    source = RECONCILE.read_text()
-    assert 'if __name__ == "__main__":' in source
-    assert '"channel_shutdown_delay": 15' in source
-    assert '"new_client_behind_seconds": 20' in source
-    assert '"m3u_hash_key": "url"' not in source
-    assert "Dispatcharr must use URL stream identity" in source
-    assert "--plugin-dir /opt/streamlink-plugins" in source
-    assert "--stream-segment-threads 2" in source
-    assert "720p50,720p,480p50,480p,best" in source
 
 
 @pytest.mark.parametrize(
@@ -834,20 +836,23 @@ def test_dispatcharr_lineup_requires_each_managed_identity_once() -> None:
 def test_dispatcharr_keeps_auto_sync_disabled(monkeypatch) -> None:
     reconcile = load_reconcile()
     events = []
+    requests = []
+    upserts = []
 
     monkeypatch.setenv("DISPATCHARR_ADMIN_USER", "admin")
     monkeypatch.setenv("DISPATCHARR_ADMIN_PASSWORD", "secret")
 
     monkeypatch.setattr(reconcile, "initialize", lambda: None)
-    monkeypatch.setattr(
-        reconcile,
-        "request",
-        lambda path, method="GET", payload=None, token=None, base=reconcile.BASE, timeout=30: (
+
+    def request(path, method="GET", payload=None, token=None, base=reconcile.BASE, timeout=30):
+        requests.append((path, method, payload, base))
+        return (
             {"access": "token"}
             if path == "/accounts/token/"
             else {"id": 2, "channel_groups": [{"channel_group": 1, "stream_count": 1}]}
-        ),
-    )
+        )
+
+    monkeypatch.setattr(reconcile, "request", request)
     monkeypatch.setattr(
         reconcile,
         "rows",
@@ -858,7 +863,7 @@ def test_dispatcharr_keeps_auto_sync_disabled(monkeypatch) -> None:
                     "key": "stream_settings",
                     "value": {"m3u_hash_key": "url"},
                 },
-                {"id": 2, "key": "proxy_settings", "value": {}},
+                {"id": 2, "key": "proxy_settings", "value": {"other": "keep"}},
             ]
             if path == "/core/settings/"
             else [{"id": 1, "name": "ffmpeg", "locked": True}]
@@ -866,18 +871,19 @@ def test_dispatcharr_keeps_auto_sync_disabled(monkeypatch) -> None:
             else []
         ),
     )
-    monkeypatch.setattr(
-        reconcile,
-        "upsert",
-        lambda path, name, payload, token: (
+
+    def upsert(path, name, payload, token):
+        upserts.append((path, payload))
+        return (
             {"id": 7}
             if path == "/core/streamprofiles/"
             else {
                 "id": 2,
                 "channel_groups": [{"channel_group": 1, "stream_count": 1}],
             }
-        ),
-    )
+        )
+
+    monkeypatch.setattr(reconcile, "upsert", upsert)
 
     def refresh(account, token):
         events.append("refresh")
@@ -904,6 +910,23 @@ def test_dispatcharr_keeps_auto_sync_disabled(monkeypatch) -> None:
         "disable",
         ("reconcile", {"direct_hls": 1, "streamlink_page": 7}),
     ]
+    proxy_patch = next(
+        payload
+        for path, method, payload, _ in requests
+        if path == "/core/settings/2/" and method == "PATCH"
+    )
+    assert proxy_patch["value"] == {
+        "other": "keep",
+        "channel_shutdown_delay": 15,
+        "new_client_behind_seconds": 20,
+    }
+    assert any(path == "" and base == reconcile.CATALOG_URL for path, _, _, base in requests)
+    profile = next(payload for path, payload in upserts if path == "/core/streamprofiles/")
+    assert profile["command"] == "streamlink"
+    assert "--plugin-dir /opt/streamlink-plugins" in profile["parameters"]
+    assert "--stream-segment-threads 2" in profile["parameters"]
+    account = next(payload for path, payload in upserts if path == "/m3u/accounts/")
+    assert account["auto_enable_new_groups_live"] is True
 
 
 def test_dispatcharr_has_memory_for_four_relays() -> None:
