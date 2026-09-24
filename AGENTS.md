@@ -71,7 +71,19 @@ and backup/retention checks.
 - Use specific Ansible operations for destructive changes. Confirm scope when
   it is not already authorized; preserve shared resources and access.
 - Keep tests that protect behavior, data, ownership, and deployment safety.
-  Tests need not precede implementation. Do not enforce prose or file counts.
+  Before adding or keeping a test, name the credible failure it catches and the
+  observable result independent of the current implementation. Prefer an
+  existing user journey or public interface; use an isolated test when that
+  failure is hard to exercise there. Give each contract one primary test owner;
+  avoid production hooks that exist only for tests. Remove duplicate assertions
+  and tests that only mirror source text, current values, or prose quotas.
+  Keep source checks when they independently guard a real release, security,
+  or compatibility contract. A behavior-preserving refactor should normally
+  keep the test green. Tests need not precede implementation, and every fix
+  does not need a new test.
+  Do not enforce prose or file counts.
+- Write the result first in plain, short sentences. State evidence and material
+  limits; remove boilerplate, repetition, and unsupported completion claims.
 
 ## Application and data protection
 
