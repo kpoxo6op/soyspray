@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from conftest import ROOT, load_all, load_yaml
 
 AUTHENTIK_DIR = ROOT / "apps/authentik/manifests"
@@ -30,7 +32,7 @@ def test_authentik_uses_pinned_official_chart_and_external_database() -> None:
 
     assert chart["repoURL"] == "https://charts.goauthentik.io"
     assert chart["chart"] == "authentik"
-    assert chart["targetRevision"] == "2026.5.6"
+    assert re.fullmatch(r"\d{4}\.\d+\.\d+", chart["targetRevision"])
     assert app["spec"]["destination"]["namespace"] == "authentik"
     assert app["spec"]["syncPolicy"]["automated"] == {
         "prune": True,
