@@ -26,7 +26,9 @@ For frontend work, run `npm ci`, `npm run check`, and `npm run test:e2e` in `app
 CI also checks the built image over HTTP and TLS, compares served images with the
 source files, and runs phone and desktop browsers against that image.
 
-A source merge builds an immutable GHCR image and opens a draft promotion PR.
+A runtime source merge builds an immutable GHCR image and opens a draft promotion
+PR. Test-only changes run the checks but do not publish an image or open a
+promotion PR.
 The promotion changes the image digest in `manifests/deployment.yaml`. A source-only
 merge does not change the running image. Build output stays local.
 
