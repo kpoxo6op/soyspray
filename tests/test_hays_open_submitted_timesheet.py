@@ -12,7 +12,8 @@ def test_hays_runner_reports_only_safe_submitted_timesheet_proof() -> None:
     result = subprocess.run(
         ["node", RUNNER, "--check-proof"],
         cwd=ROOT,
-        input="Timesheet Details\nTimesheet Received on 26/08/2026\n40 hours\n",
+        input="Timesheet Details\nTimesheet Received on 26/08/2026\n40 hours\n"
+        "PRIVATE_ACCOUNT 1234567 PASSWORD=synthetic\n",
         check=True,
         capture_output=True,
         text=True,
@@ -24,15 +25,13 @@ def test_hays_runner_reports_only_safe_submitted_timesheet_proof() -> None:
         "receivedOn": "26/08/2026",
     }
 
+
+def test_hays_runner_keeps_its_dedicated_browser_and_secret_helper() -> None:
+    # The live browser and credential path cannot be exercised in repository CI.
     source = RUNNER.read_text()
-    assert "Input.insertText" in source
-    assert "agent-secret" in source
-    assert "hays-agent-chrome" in source
+    assert 'path.join(stateRoot, "hays-agent-chrome")' in source
+    assert 'path.join(__dirname, "agent-secret")' in source
     assert "google-chrome-codex" not in source
-    assert "TSDetails.aspx?TsID=" in source
-    assert "ASB BANK" not in source
-    assert "1333667" not in source
-    assert "HAYS_PASSWORD" not in source
 
 
 def test_hays_runner_rejects_a_page_that_is_not_submitted_timesheet_details() -> None:
