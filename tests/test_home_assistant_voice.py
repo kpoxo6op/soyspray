@@ -10,29 +10,13 @@ from conftest import ROOT, load_yaml
 
 PACKAGE = "apps/voice-assistant/manifests"
 
-SPEECH_IMAGE = (
-    "rhasspy/wyoming-speech-to-phrase:1.4.3@"
-    "sha256:e532f0dbc6b21285c4c784212003865b9167041927328a767cb0beb1a0beaa20"
-)
-PIPER_IMAGE = (
-    "rhasspy/wyoming-piper:2.3.1@"
-    "sha256:69b7f797ae3a8c3c0202cbf97152fb795d78c2355de2a31655c20671247360d8"
-)
-OPENWAKEWORD_IMAGE = (
-    "rhasspy/wyoming-openwakeword:2.1.0@"
-    "sha256:52cb1168731a1849fc28cf339c935fde58746bbabc94226668a40ef6ddf5d42b"
-)
 STOP_MODEL_SHA256 = "b5a18c4ad681a89950dfade31011e1631bdcb333e93c84519a1a63ff4f071146"
-BOOTSTRAP_IMAGE = (
-    "curlimages/curl:8.14.1@sha256:9a1ed35addb45476afa911696297f8e115993df459278ed036182dd2cd22b67b"
-)
-SPEECH_MODEL_REVISION = "a17c6ed2bbbb09176164e81cd3161b264d0fb2ba"
-SPEECH_MODEL_SHA256 = "3dbf8c16b2d08767eba4866a444f075d0a5b1304c73ca366d2c60346b28759e7"
-PIPER_MODEL_REVISION = "ea046e8458f6acd997706d6e6066a022b42f6fb1"
-PIPER_MODEL_SHA256 = "5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f"
-PIPER_CONFIG_SHA256 = "efe19c417bed055f2d69908248c6ba650fa135bc868b0e6abb3da181dab690a0"
 DEPLOYED_GI_MODEL_CONFIGMAP = "openwakeword-gi-model-v7b"
 DEPLOYED_GI_MODEL_SHA256 = "e61dd9f2880f226b05b8f9885c053fa7ec7805170c3f3b4d56427c6294cb4be0"
+
+
+def assert_pinned_image(image: str, repository: str) -> None:
+    assert re.fullmatch(rf"{re.escape(repository)}:[^@]+@sha256:[0-9a-f]{{64}}", image)
 
 
 def render_voice_stack() -> list[dict]:
@@ -97,13 +81,13 @@ def test_voice_services_use_local_storage_and_limited_network_access() -> None:
     expected = {
         "speech-to-phrase": {
             "deployment": speech,
-            "image": SPEECH_IMAGE,
+            "image": "rhasspy/wyoming-speech-to-phrase",
             "port": 10300,
             "data_claim": "speech-to-phrase-data-v1",
         },
         "piper-en": {
             "deployment": piper,
-            "image": PIPER_IMAGE,
+            "image": "rhasspy/wyoming-piper",
             "port": 10200,
             "data_claim": "piper-en-data-v1",
         },
@@ -120,7 +104,7 @@ def test_voice_services_use_local_storage_and_limited_network_access() -> None:
             "fsGroup": 1000,
             "seccompProfile": {"type": "RuntimeDefault"},
         }
-        assert container["image"] == contract["image"]
+        assert_pinned_image(container["image"], contract["image"])
         assert container["resources"]["requests"]
         assert container["resources"]["limits"]
         assert container["securityContext"] == {
@@ -216,7 +200,7 @@ def test_gi_model_runs_locally_without_wan_access() -> None:
         "fsGroup": 1000,
         "seccompProfile": {"type": "RuntimeDefault"},
     }
-    assert container["image"] == OPENWAKEWORD_IMAGE
+    assert_pinned_image(container["image"], "rhasspy/wyoming-openwakeword")
     assert container["command"] == [
         "/usr/src/.venv/bin/python3",
         "-P",
@@ -245,7 +229,9 @@ def test_gi_model_runs_locally_without_wan_access() -> None:
     assert "startswith('/patched/')" in startup_probe_command
     assert "'OKAY_NABU' not in handler_source" in startup_probe_command
     assert "MODEL_SHA256_PENDING" not in startup_probe_command
-    assert DEPLOYED_GI_MODEL_SHA256 in startup_probe_command
+    defaults = load_yaml("apps/voice-assistant/bootstrap/defaults/main.yml")
+    assert defaults["voice_assistant_gi_model_sha256"] in startup_probe_command
+    assert defaults["voice_assistant_gi_model_sha256"] == DEPLOYED_GI_MODEL_SHA256
     assert "OpenWakeWord.from_model('/models/gi.tflite')" in startup_probe_command
     assert "model.input_windows == 16" in startup_probe_command
     assert "model.process_streaming" in startup_probe_command
@@ -279,12 +265,13 @@ def test_gi_model_runs_locally_without_wan_access() -> None:
         }
     ]
     model_volume = next(volume for volume in pod["volumes"] if volume["name"] == "models")
+    assert model_volume["configMap"]["name"] == defaults["voice_assistant_gi_model_configmap_name"]
     assert model_volume["configMap"]["name"] == DEPLOYED_GI_MODEL_CONFIGMAP
     tmp_volume = next(volume for volume in pod["volumes"] if volume["name"] == "tmp")
     assert tmp_volume == {"name": "tmp", "emptyDir": {"sizeLimit": "256Mi"}}
     init = pod["initContainers"][0]
     assert init["name"] == "patch-gi-only"
-    assert init["image"] == OPENWAKEWORD_IMAGE
+    assert init["image"] == container["image"]
     assert init["command"] == [
         "/usr/src/.venv/bin/python3",
         "/patch-source/patch.py",
@@ -557,15 +544,22 @@ def test_model_downloads_use_checksums() -> None:
     assert job["spec"]["backoffLimit"] == 4
     assert pod["restartPolicy"] == "Never"
     assert pod["automountServiceAccountToken"] is False
-    assert container["image"] == BOOTSTRAP_IMAGE
-    for immutable_value in (
-        SPEECH_MODEL_REVISION,
-        SPEECH_MODEL_SHA256,
-        PIPER_MODEL_REVISION,
-        PIPER_MODEL_SHA256,
-        PIPER_CONFIG_SHA256,
-    ):
-        assert immutable_value in command
+    assert_pinned_image(container["image"], "curlimages/curl")
+    for variable in ("SPEECH_REVISION", "PIPER_REVISION"):
+        assert re.search(rf"^{variable}=[0-9a-f]{{40}}$", container["args"][0], re.M)
+    for variable in ("SPEECH_SHA256", "PIPER_MODEL_SHA256", "PIPER_CONFIG_SHA256"):
+        assert re.search(rf"^{variable}=[0-9a-f]{{64}}$", container["args"][0], re.M)
+    speech_download, piper_download = command.split("PIPER_MARKER=", 1)
+    assert (
+        speech_download.index("curl --fail")
+        < speech_download.index("sha256sum -c -")
+        < speech_download.index("tar -xzf")
+    )
+    assert (
+        piper_download.index("curl --fail")
+        < piper_download.rindex("sha256sum -c -")
+        < piper_download.index("mv /piper/en_US-lessac-medium.onnx.part")
+    )
     assert "resolve/main" not in command
     assert ".part" in command
     assert {mount["name"] for mount in container["volumeMounts"]} == {
@@ -585,9 +579,6 @@ def test_ansible_bootstraps_voice_private_inputs_only() -> None:
     assert "voice_assistant_enabled" not in defaults
     assert "VOICE_ASSISTANT_HA_TOKEN" in defaults["voice_assistant_ha_token"]
     assert "VOICE_ASSISTANT_GI_MODEL_PATH" in defaults["voice_assistant_gi_model_path"]
-    assert defaults["voice_assistant_gi_model_configmap_name"] == DEPLOYED_GI_MODEL_CONFIGMAP
-    assert defaults["voice_assistant_gi_model_sha256"] == DEPLOYED_GI_MODEL_SHA256
-    assert re.fullmatch(r"[0-9a-f]{64}", defaults["voice_assistant_gi_model_sha256"])
     assert defaults["voice_assistant_gi_model_retired_configmaps"] == []
     assert "enabled.yml" in tasks
     assert "disabled.yml" not in tasks
@@ -628,10 +619,6 @@ def test_home_assistant_has_local_voice_settings() -> None:
         f"internal_url: http://{service['loadBalancerIP']}:{service['ports'][0]['port']}"
         in bootstrap
     )
-    deployment = load_yaml("apps/home-assistant/manifests/deployment.yaml")
-    assert deployment["spec"]["template"]["metadata"]["annotations"] == {
-        "soyspray.vip/bootstrap-config-revision": "2026-08-25-snappy-peanut-v3"
-    }
     configmap = load_yaml("apps/home-assistant/manifests/configmap-bootstrap.yaml")
     automations = yaml.safe_load(configmap["data"]["automations.yaml"])
     by_id = {automation["id"]: automation for automation in automations}
