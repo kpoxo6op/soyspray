@@ -55,7 +55,7 @@ def rule_text():
 
 def test_every_selector_decodes_to_a_well_formed_logql_query():
     found = selectors()
-    assert len(found) == 6, [name for name, _ in found]
+    assert {name for name, _ in found} == set(CONFIGS)
     for name, selector in found:
         assert selector.startswith("{") and "}" in selector, (name, selector)
         matcher, _, rest = selector.partition("}")
