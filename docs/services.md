@@ -12,6 +12,7 @@ application folder is authoritative for commands and limits.
 | Vaultwarden | Personal password vault and restricted automation access | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/vaultwarden) |
 | Obsidian LiveSync | Synchronisation for the personal Obsidian vault | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/obsidian-livesync) |
 | Boys | Shared trip calendar and accommodation links | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/boys) |
+| Autism traits assessment | Public bilingual assessment; runtime changes use a reviewed image promotion | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/autism-traits) |
 | Headlamp | Authenticated view of Kubernetes resources | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/headlamp) |
 | DeepSeek Harness Remote | Authentik-protected phone access to the official DeepSeek Harness running on laptop `mox` at `ai.soyspray.vip` | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/ai) |
 | GI private workspace | Single-user private workspace at `gi.soyspray.vip`, restricted to the `gi-users` group, with its own claims and forward-auth route | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/gi) |
