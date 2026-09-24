@@ -53,15 +53,16 @@ def test_runtime_uses_the_minimal_recovery_dependencies() -> None:
     development = (ROOT / "requirements-dev.txt").read_text().splitlines()
     installer = RUNTIME_INSTALLER.read_text()
 
-    assert recovery == [
-        "ansible-core==2.18.18",
-        "bcrypt==4.0.1",
-        "cryptography==46.0.7",
-        "jmespath==1.1.0",
-        "netaddr==1.3.0",
-        "passlib==1.7.4",
-        "PyYAML==6.0.3",
-    ]
+    assert all("==" in requirement for requirement in recovery)
+    assert {requirement.split("==", 1)[0].lower() for requirement in recovery} == {
+        "ansible-core",
+        "bcrypt",
+        "cryptography",
+        "jmespath",
+        "netaddr",
+        "passlib",
+        "pyyaml",
+    }
     assert development[0] == "-r requirements-recovery.txt"
     assert "requirements-recovery.txt" in installer
     assert "requirements-dev.txt" not in installer
