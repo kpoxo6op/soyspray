@@ -234,11 +234,12 @@ test('crew patterns remain distinct and runtime assets stay local', async ({ pag
     if (new URL(request.url()).origin !== 'http://127.0.0.1:18183') remote.push(request.url());
   });
   await signIn(page);
+  const crew = await (await page.request.get('/api/crew')).json();
   const patterns = await page.locator('.legend-mark').evaluateAll((marks) => marks.map((mark) => {
     const style = getComputedStyle(mark);
     return [style.backgroundColor, style.backgroundImage];
   }));
-  expect(patterns).toHaveLength(9);
-  expect(new Set(patterns.map((pattern) => JSON.stringify(pattern))).size).toBe(9);
+  expect(patterns).toHaveLength(crew.crew.length);
+  expect(new Set(patterns.map((pattern) => JSON.stringify(pattern))).size).toBe(patterns.length);
   expect(remote).toEqual([]);
 });
