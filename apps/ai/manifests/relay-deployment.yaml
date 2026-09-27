@@ -14,6 +14,8 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: ai-relay
+      annotations:
+        checksum/relay-config: 19299453304836ac198733e7088f0ee72d8a639f825bde402e0e8d2c862a71a4
     spec:
       automountServiceAccountToken: false
       hostNetwork: true

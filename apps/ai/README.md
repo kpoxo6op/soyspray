@@ -16,8 +16,10 @@ tunnel.
   DeepSeek Harness browser-token exchange.
 - A non-root Nginx relay binds only to `node-0`'s private LAN address and reaches
   the laptop's Tailscale address. If that address changes, update
-  `manifests/relay-config.yaml` and the `listenHost` in the laptop's
-  `deepseek-harness/auth-proxy.mjs` before restarting the auth proxy.
+  `manifests/relay-config.yaml`, refresh the `checksum/relay-config` annotation
+  in `manifests/relay-deployment.yaml`, and update `listenHost` in the laptop's
+  `deepseek-harness/auth-proxy.mjs` before restarting the auth proxy. The
+  checksum makes Argo replace Nginx after a config change.
 
 ## Check it
 
