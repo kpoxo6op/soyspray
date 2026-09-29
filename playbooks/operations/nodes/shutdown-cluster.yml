@@ -43,7 +43,7 @@
       loop_control:
         label: "{{ item.item.metadata.name }}"
       register: application_stop_result
-      until: application_stop_result.finished
+      until: application_stop_result.finished | bool
       retries: 40
       delay: 5
 
@@ -70,7 +70,7 @@
       loop_control:
         label: "{{ item.item.metadata.name }}"
       register: infrastructure_stop_result
-      until: infrastructure_stop_result.finished
+      until: infrastructure_stop_result.finished | bool
       retries: 40
       delay: 5
 
