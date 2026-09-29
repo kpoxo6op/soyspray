@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import re
 import subprocess
+import sys
 from hashlib import sha256
 
 import yaml
@@ -415,6 +416,28 @@ DEFAULT_MODEL = Model.OKAY_NABU
     assert patched.rfind("_LOGGER.info(", 0, detection_log) > -1
     assert candidate_log < patched.index("if not audio_is_recent:", candidate_log)
     assert patched.index("await self.write_event(") < detection_log
+
+
+def test_openwakeword_patch_restarts_with_an_existing_target(tmp_path, monkeypatch) -> None:
+    patch_path = ROOT / PACKAGE / "gi_only_openwakeword.py"
+    spec = importlib.util.spec_from_file_location("gi_only_openwakeword_restart", patch_path)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "handler.py").write_text("original\n", encoding="utf-8")
+    target = tmp_path / "patched" / "wyoming_openwakeword"
+    monkeypatch.setattr(module, "patch_handler", lambda text: text + "patched\n")
+    monkeypatch.setattr(sys, "argv", [str(patch_path), str(source), str(target)])
+
+    module.main()
+    (target / "stale.py").write_text("stale\n", encoding="utf-8")
+    module.main()
+
+    assert (target / "handler.py").read_text(encoding="utf-8") == "original\npatched\n"
+    assert not (target / "stale.py").exists()
 
 
 def test_gi_voice_pe_firmware_renderer_disables_nabu() -> None:
