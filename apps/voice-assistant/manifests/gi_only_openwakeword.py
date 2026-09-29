@@ -228,6 +228,8 @@ def main() -> None:
         source_package = pathlib.Path(sys.argv[1])
         target_package = pathlib.Path(sys.argv[2])
 
+    if target_package.exists():
+        shutil.rmtree(target_package)
     shutil.copytree(source_package, target_package)
     handler_path = target_package / "handler.py"
     handler_path.write_text(patch_handler(handler_path.read_text(encoding="utf-8")))
