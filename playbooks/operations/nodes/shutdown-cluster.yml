@@ -1,0 +1,99 @@
+---
+- name: Gracefully power off the complete cluster for transport
+  hosts: kube_node
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  tasks:
+    - name: Require explicit whole-cluster shutdown and all three nodes
+      ansible.builtin.assert:
+        that:
+          - shutdown_cluster_confirm | default(false) | bool
+          - ansible_play_hosts_all | sort == ['node-0', 'node-1', 'node-2']
+
+    - name: Check the container runtime before stopping reconciliation
+      ansible.builtin.command: crictl ps -o json
+      register: running_containers
+      changed_when: false
+
+    - name: Stop kubelet so stopped containers remain stopped
+      ansible.builtin.systemd_service:
+        name: kubelet
+        state: stopped
+
+    - name: Stop application containers while storage and networking remain running
+      ansible.builtin.command:
+        argv: [crictl, stop, --timeout, '120', "{{ item.id }}"]
+      loop: "{{ (running_containers.stdout | from_json).containers }}"
+      when: >-
+        item.labels['io.kubernetes.pod.namespace'] not in
+        ['kube-system', 'longhorn-system', 'metallb-system']
+      loop_control:
+        label: "{{ item.metadata.name }}"
+      changed_when: true
+      async: 180
+      poll: 0
+      register: application_stops
+
+    - name: Wait for application shutdown before stopping storage
+      ansible.builtin.async_status:
+        jid: "{{ item.ansible_job_id }}"
+      loop: "{{ application_stops.results }}"
+      when: item.ansible_job_id is defined
+      loop_control:
+        label: "{{ item.item.metadata.name }}"
+      register: application_stop_result
+      until: application_stop_result.finished | bool
+      retries: 40
+      delay: 5
+
+    - name: Read the remaining infrastructure containers
+      ansible.builtin.command: crictl ps -o json
+      register: infrastructure_containers
+      changed_when: false
+
+    - name: Stop remaining containers gracefully
+      ansible.builtin.command:
+        argv: [crictl, stop, --timeout, '120', "{{ item.id }}"]
+      loop: "{{ (infrastructure_containers.stdout | from_json).containers }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+      changed_when: true
+      async: 180
+      poll: 0
+      register: infrastructure_stops
+
+    - name: Wait for infrastructure containers to stop
+      ansible.builtin.async_status:
+        jid: "{{ item.ansible_job_id }}"
+      loop: "{{ infrastructure_stops.results }}"
+      loop_control:
+        label: "{{ item.item.metadata.name }}"
+      register: infrastructure_stop_result
+      until: infrastructure_stop_result.finished | bool
+      retries: 40
+      delay: 5
+
+    - name: Verify there are no running containers
+      ansible.builtin.command: crictl ps -q
+      register: remaining_containers
+      changed_when: false
+      failed_when: remaining_containers.stdout | trim | length > 0
+
+    - name: Flush filesystem writes
+      ansible.builtin.command: sync
+      changed_when: false
+
+    - name: Schedule normal operating system poweroff in one minute
+      ansible.builtin.command: shutdown -h +1
+      changed_when: true
+
+    - name: Wait for SSH to stop accepting connections
+      ansible.builtin.wait_for:
+        host: "{{ ansible_host }}"
+        port: 22
+        state: stopped
+        delay: 65
+        timeout: 300
+      delegate_to: localhost
+      become: false

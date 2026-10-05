@@ -400,3 +400,8 @@ The following state was verified when this runbook was created:
 
 This section is historical evidence. Do not assume it is the current state.
 Run the verification checklist before you make a new operational claim.
+
+For physical transport of all three nodes, use the
+[whole-cluster poweroff operation](../playbooks/operations/nodes/README.md#power-off-all-nodes-for-transport)
+after publishing maintenance. Keep the external status page available until
+application access has been verified after startup.

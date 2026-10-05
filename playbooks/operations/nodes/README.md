@@ -108,3 +108,30 @@ zero write loss and full-media backup recovery remain unproven by these drills.
 Finish recovery before another member's maintenance. Keep one private handoff
 with revisions, identities, failures, assistance and restore results. Use
 [existing app recovery](../recovery/README.md); no new runner or drill is needed.
+
+## Power off all nodes for transport
+
+This preserves membership, volumes, and enabled services. Before running it,
+check backup evidence and save a validated etcd snapshot to the laptop using
+`snapshot-etcd.yml` above. Publish an external maintenance notice.
+
+After committing and pushing the operation, run from the normal inventory:
+
+```sh
+ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --user ubuntu \
+  playbooks/operations/nodes/shutdown-cluster.yml -e shutdown_cluster_confirm=true
+```
+
+The operation stops kubelet on all nodes, stops application containers with
+120 seconds of termination grace, then stops infrastructure containers, flushes
+writes and requests normal OS poweroff. It does not drain, remove, reset, or
+change storage ownership. It aborts before poweroff if container stops fail.
+A runtime may force termination after the grace period; inspect results and
+application logs when investigating recovery. SSH becoming unreachable is not
+proof that power LEDs are off: verify each machine physically before unplugging.
+
+If interrupted before poweroff, inspect the stage reached. To resume service
+instead, start kubelet through Ansible on all nodes. Kubelet remains enabled
+and starts normally on the next boot. At the destination, reconnect the same
+storage and network, power on all three nodes, and verify etcd, Ready nodes,
+volume health and application access before ending the maintenance notice.
