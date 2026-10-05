@@ -167,6 +167,18 @@ For each light command, check these separate stages:
 5. The intended physical light changes.
 6. Piper gives the expected reply.
 
+## Recovery after a restart
+
+The wake-word init container recreates its generated package before patching
+it, so retrying in the same pod does not leave an old package behind.
+
+If Speech-to-Phrase stays in `ContainerCreating` with `already mounted or mount
+point busy`, inspect the attached Longhorn device and multipath users. The
+[scoped storage repair](../../playbooks/operations/storage/README.md) excludes
+the verified voice disk WWID and releases only its unused map. It preserves
+the claim and model files. It refuses a map with users or additional disks;
+do not flush every map or recreate the PVC.
+
 A ring flash shows only that the satellite is listening. It does not show that
 Home Assistant called a service or changed a device.
 

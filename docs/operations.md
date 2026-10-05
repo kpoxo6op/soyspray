@@ -55,6 +55,15 @@ access and backups, remove, readd, then verify recovery. All validation drills
 are complete. Keep disruption budgets and storage policy in place; the guide
 covers first-member discovery and node-0's local storage without extra wrappers.
 
+For voice recovery after a power interruption, check both the wake-word and
+speech-recognition services. A healthy Home Assistant alone does not establish
+that the device can hear commands. The
+[voice guide](https://github.com/kpoxo6op/soyspray/tree/main/apps/voice-assistant)
+includes transport checks and the spoken device test. The
+[scoped storage operation](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations/storage)
+can release an unused multipath map blocking the existing speech model disk;
+it preserves the PVC and refuses active maps.
+
 ## Detailed procedures
 
 - [Native node removal and readd](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations/nodes):
