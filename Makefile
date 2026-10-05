@@ -109,6 +109,7 @@ lint: ## Check Python style and common defects
 		playbooks/operations/nodes/snapshot-etcd.yml \
 		playbooks/operations/recovery/restore-volume.yml playbooks/operations/recovery/cleanup-restore.yml playbooks/operations/recovery/start-restored-app.yml \
 		playbooks/operations/recovery/configure-longhorn.yml playbooks/operations/recovery/backup-daily-now.yml \
+		playbooks/operations/storage/repair-voice-multipath.yml \
 		playbooks/operations/retirement/*.yml
 
 validate: validate-skills status-page-check prometheus-check ## Validate YAML and rendered manifests
