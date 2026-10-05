@@ -1,0 +1,169 @@
+---
+- name: Release the unused multipath map blocking Speech-to-Phrase
+  hosts: "{{ voice_control_plane | default('kube_control_plane[0]') }}"
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    voice_claim: speech-to-phrase-data-v1
+  tasks:
+    - name: Read the existing voice model claim
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: home-automation
+        name: "{{ voice_claim }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: voice_pvc
+
+    - name: Require the bound Longhorn filesystem claim
+      ansible.builtin.assert:
+        that:
+          - voice_pvc.resources | length == 1
+          - voice_pvc.resources[0].status.phase == 'Bound'
+          - voice_pvc.resources[0].spec.storageClassName == 'longhorn'
+          - voice_pvc.resources[0].spec.volumeMode | default('Filesystem') == 'Filesystem'
+
+    - name: Read its Longhorn volume
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Volume
+        namespace: longhorn-system
+        name: "{{ voice_pvc.resources[0].spec.volumeName }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: voice_volume
+
+    - name: Require healthy attached storage on an inventory node
+      ansible.builtin.assert:
+        that:
+          - voice_volume.resources | length == 1
+          - voice_volume.resources[0].status.state == 'attached'
+          - voice_volume.resources[0].status.robustness == 'healthy'
+          - voice_volume.resources[0].status.currentNodeID in groups['kube_node']
+          - voice_volume.resources[0].status.currentNodeID == voice_volume.resources[0].spec.nodeID
+          - voice_volume.resources[0].status.kubernetesStatus.namespace == 'home-automation'
+          - voice_volume.resources[0].status.kubernetesStatus.pvcName == voice_claim
+
+    - name: Inspect and repair only the node holding the voice volume
+      delegate_to: "{{ voice_volume.resources[0].status.currentNodeID }}"
+      vars:
+        voice_device: "/dev/longhorn/{{ voice_pvc.resources[0].spec.volumeName }}"
+      block:
+        - name: Verify the Longhorn path and refuse a map with users or other disks
+          ansible.builtin.command:
+            argv: [python3, '-', "{{ voice_device }}"]
+            stdin: |
+              import json, os, pathlib, re, stat, subprocess, sys
+              device = pathlib.Path(sys.argv[1])
+              assert stat.S_ISBLK(device.stat().st_mode), 'Expected a block device'
+              def properties(path):
+                  result = subprocess.check_output(
+                      ['udevadm', 'info', '-q', 'property', str(path)], text=True)
+                  return dict(line.split('=', 1) for line in result.splitlines() if '=' in line)
+              props = properties(device)
+              expected = '-iscsi-iqn.2019-10.io.longhorn:' + device.name + '-lun-1'
+              assert props.get('ID_PATH', '').endswith(expected), 'Not the selected Longhorn LUN'
+              wwid = props['ID_SERIAL']
+              assert re.fullmatch('[0-9a-f]+', wwid), 'Invalid WWID'
+              for disk in pathlib.Path('/sys/class/block').glob('sd*'):
+                  other = properties('/dev/' + disk.name)
+                  if other.get('ID_SERIAL') == wwid:
+                      assert '-iscsi-iqn.2019-10.io.longhorn:' in other.get('ID_PATH', ''), \
+                          'WWID also belongs to non-Longhorn storage'
+              info = device.stat()
+              block = pathlib.Path('/sys/dev/block') / f'{os.major(info.st_rdev)}:{os.minor(info.st_rdev)}'
+              holders = list((block / 'holders').iterdir())
+              name = None
+              if holders:
+                  assert len(holders) == 1, 'Unexpected device holders'
+                  holder = holders[0]
+                  assert (holder / 'dm/uuid').read_text().strip() == 'mpath-' + wwid
+                  assert [p.name for p in (holder / 'slaves').iterdir()] == [block.resolve().name], \
+                      'Multipath map contains other disks'
+                  name = (holder / 'dm/name').read_text().strip()
+                  opened = subprocess.check_output(
+                      ['dmsetup', 'info', '-C', '--noheadings', '-o', 'open', name], text=True)
+                  assert int(opened.strip()) == 0, 'Multipath map is in use; refusing repair'
+              print(json.dumps({'wwid': wwid, 'map': name}))
+          register: voice_map_inspection
+          changed_when: false
+          check_mode: false
+
+        - name: Record the verified map identity
+          ansible.builtin.set_fact:
+            voice_map: "{{ voice_map_inspection.stdout | from_json }}"
+
+        - name: Create the multipath configuration fragment directory
+          ansible.builtin.file:
+            path: /etc/multipath/conf.d
+            state: directory
+            mode: '0755'
+
+        - name: Exclude only the verified Longhorn WWID from multipath
+          ansible.builtin.copy:
+            dest: /etc/multipath/conf.d/soyspray-voice.conf
+            mode: '0644'
+            content: |
+              # Managed by Soyspray repair-voice-multipath.yml.
+              blacklist {
+                  wwid "{{ voice_map.wwid }}"
+              }
+          register: voice_blacklist
+
+        - name: Check that multipath loads the exclusion
+          ansible.builtin.command:
+            argv: [multipath, '-t']
+          register: voice_multipath_config
+          changed_when: false
+          when: not ansible_check_mode
+
+        - name: Require the exclusion in the effective configuration
+          ansible.builtin.assert:
+            that: >-
+              voice_multipath_config.stdout is search(
+                'blacklist\s*\{[^}]*wwid\s+"' ~ voice_map.wwid ~ '"')
+          when: not ansible_check_mode
+
+        - name: Reload multipath without restarting other storage
+          ansible.builtin.command:
+            argv: [multipathd, reconfigure]
+          changed_when: true
+          when:
+            - not ansible_check_mode
+            - voice_blacklist.changed or voice_map.map is not none
+
+        - name: Release only the verified unused map
+          ansible.builtin.command:
+            argv: [multipath, '-f', "{{ voice_map.map }}"]
+          changed_when: true
+          when:
+            - not ansible_check_mode
+            - voice_map.map is not none
+
+    - name: Wait for Speech-to-Phrase to mount its existing storage
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        namespace: home-automation
+        name: speech-to-phrase
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: voice_speech
+      until: voice_speech.resources[0].status.readyReplicas | default(0) == 1
+      retries: 90
+      delay: 5
+      when: not ansible_check_mode
+
+    - name: Recheck the original claim identity
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: home-automation
+        name: "{{ voice_claim }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: voice_pvc_after
+
+    - name: Require the same claim and volume after repair
+      ansible.builtin.assert:
+        that:
+          - voice_pvc_after.resources[0].metadata.uid == voice_pvc.resources[0].metadata.uid
+          - voice_pvc_after.resources[0].spec.volumeName == voice_pvc.resources[0].spec.volumeName
