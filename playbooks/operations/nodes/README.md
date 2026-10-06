@@ -12,8 +12,7 @@ three-node inventory. No node-only limits, tags, `scale.yml` or check-mode drill
 - Start with three Ready/schedulable nodes and healthy etcd. Save the target UID,
   filesystem identities, application/storage state and known exceptions.
 - If the target is first in `kube_control_plane` or `etcd`, move it last in the
-  inventory groups, with a healthy survivor first. Merge the fork change and
-  Soyspray pin, verify the resolved order, then run full `cluster.yml` while
+  inventory groups, with a healthy survivor first. Merge the Soyspray inventory change, verify the resolved order, then run full `cluster.yml` while
   all nodes are present. Keep the new order.
 - **Before removal**, use a private kubeconfig pointing to a healthy survivor
   with CA verification. Check API access and `kube-public/cluster-info`.
@@ -36,7 +35,7 @@ git submodule update --init --recursive
 source soyspray-venv/bin/activate
 target=node-0  # select the one authorized target
 case "$target" in node-0|node-1|node-2) ;; *) exit 2 ;; esac
-inventory="$PWD/kubespray/inventory/soycluster/hosts.yml"
+inventory="$PWD/inventory/soycluster/hosts.yml"
 ansible_cmd=(ansible-playbook -i "$inventory" --become --become-user=root --user ubuntu)
 session="$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short HEAD)"
 evidence="$HOME/.local/state/soyspray/node-operations/$session"
@@ -108,3 +107,17 @@ zero write loss and full-media backup recovery remain unproven by these drills.
 Finish recovery before another member's maintenance. Keep one private handoff
 with revisions, identities, failures, assistance and restore results. Use
 [existing app recovery](../recovery/README.md); no new runner or drill is needed.
+
+## Kubespray source migration limit
+
+The inventory is now maintained by Soyspray. The existing fork pin is retained:
+upstream v2.31.0 unconditionally deletes the configured cert-manager namespace
+when that addon is enabled, whereas the fork protects it. Inventory variables
+alone do not reproduce that ownership protection. Do not switch provisioners or
+run upstream `cluster.yml` while that safety/parity gap remains.
+
+A detached Longhorn volume with unknown robustness also fails the strict
+all-volumes-healthy reconciliation gate. Preserve it; do not delete or force
+attach it to make the gate pass. The inventory move does not authorize a node
+maintenance run. A future version upgrade is a separate tag bump followed by
+full `upgrade-cluster.yml`, with snapshot and health checks first.

@@ -126,7 +126,7 @@ def main():
                 [
                     str(ROOT / "soyspray-venv/bin/ansible-playbook"),
                     "-i",
-                    "kubespray/inventory/soycluster/hosts.yml",
+                    "inventory/soycluster/hosts.yml",
                     "--become",
                     "--become-user=root",
                     "--user",

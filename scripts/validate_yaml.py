@@ -15,6 +15,7 @@ YAML_ROOTS = [
     "argocd",
     "kubernetes",
     "platform",
+    "inventory",
     "tests",
 ]
 

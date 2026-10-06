@@ -115,7 +115,7 @@ root:
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/storage/prepare-longhorn-worker-ssd.yml \
   -e longhorn_storage_force_format=true \

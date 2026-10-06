@@ -1,53 +1,41 @@
-# Kubespray Changes
+# Kubespray changes and upgrades
 
-This repo keeps Kubespray as a submodule because the cluster bootstrap and node-level
-add-ons are managed by Kubespray, not by Argo CD.
+Soyspray owns `inventory/soycluster/`; Kubespray is pinned separately under
+`kubespray/`. Inventory changes land in a Soyspray pull request. Argo CD does
+not reconcile the cluster foundation. Use the native node README before any
+Ansible operation that changes the foundation.
 
-Argo reconciles workloads under `apps/NAME/`, but it does not apply
-Kubespray inventory or role changes. When a change affects Kubespray-managed resources,
-the fix must land in the `kubespray` submodule, the parent `soyspray` repo must point at
-that submodule commit, and a Kubespray playbook must be run against the cluster.
+The current fork pin is unchanged. Switching to upstream v2.31.0 is blocked:
+its enabled cert-manager addon deletes the configured namespace during
+reconciliation, whereas the fork preserves it. The fork also reconciles the
+DNS autoscaler ConfigMap explicitly. No inventory variable reproduces the
+namespace protection. Do not run upstream against the live cluster until
+static parity and ownership safety are established.
 
-## NodeLocalDNS Upstreams
+A detached Longhorn volume with unknown robustness also fails the strict
+all-volumes-healthy reconciliation gate. Keep data and credentials intact;
+do not delete or force repair a volume to make a gate pass.
 
-The 2026-06-01 DNS alert fix touched Kubespray because NodeLocalDNS is rendered from the
-Kubespray inventory. The live problem was that NodeLocalDNS forwarded the root DNS zone
-`.` to `/etc/resolv.conf`, which on this node fed back into cluster/local DNS behavior and
-caused noisy NodeLocalDNS error bursts.
+## DNS settings
 
-The intended cluster behavior is:
+The inventory keeps NodeLocalDNS forwarding for `lan` and `soyspray.vip` to
+OpenWrt at `192.168.20.1`, and explicit root upstreams `1.1.1.1` and `9.9.9.9`.
+The path move changes none of these settings.
 
-- `lan` and `soyspray.vip` forward to the OpenWrt router at `192.168.20.1`
-- the default root zone `.` forwards to explicit public upstreams, currently `1.1.1.1`
-  and `9.9.9.9`
-- cluster zones continue to forward to CoreDNS
+## Future upgrade
 
-After merging a parent repo PR that updates the Kubespray submodule pointer, apply the
-Kubespray-managed resource explicitly:
-
-```sh
-source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
-  --become --become-user=root --user ubuntu \
-  kubespray/cluster.yml --tags nodelocaldns
-```
-
-Verify the live Corefile:
-
-```sh
-kubectl -n kube-system get cm nodelocaldns -o jsonpath='{.data.Corefile}'
-kubectl -n kube-system rollout status ds/nodelocaldns --timeout=120s
-```
-
-## Historical Upgrade Note
-
-For a full Kubespray version upgrade, check out the desired Kubespray tag or branch in
-the submodule, reapply local inventory customizations, update `kube_version`, and run the
-upgrade playbook:
+A version upgrade is a separate reviewed tag bump. Before running, require
+three Ready nodes, healthy three-member etcd, healthy Argo Applications and
+Longhorn volumes, plus a verified off-node etcd snapshot. Use the complete
+inventory with the native upgrade entrypoint:
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   kubespray/upgrade-cluster.yml
 ```
+
+The current inventory move performs no upgrade or live foundation run.
+See [the node guide](../playbooks/operations/nodes/README.md) for snapshot,
+health, source, and rollback conventions.

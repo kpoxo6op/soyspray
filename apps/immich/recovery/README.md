@@ -16,7 +16,7 @@ and inventory explicitly:
 
 ```sh
 SOYSPRAY_RECOVERY_KUBECONFIG="$HOME/.kube/config" \
-SOYSPRAY_RECOVERY_INVENTORY="$PWD/kubespray/inventory/soycluster/hosts.yml" \
+SOYSPRAY_RECOVERY_INVENTORY="$PWD/inventory/soycluster/hosts.yml" \
   make restore-check APP=immich
 ```
 
@@ -43,7 +43,7 @@ guarded cleanup after `SIGINT` or `SIGTERM`.
 To retry cleanup for a known check ID:
 
 ```sh
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   apps/immich/recovery/cleanup.yml \
   -e recovery_check_id=CHECK_ID

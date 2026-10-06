@@ -62,7 +62,7 @@ Example and utility playbooks.
 All playbooks follow standard Ansible execution pattern:
 
 ```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/<category>/<playbook-name>.yml
 ```

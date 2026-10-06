@@ -32,3 +32,7 @@ age.txt
 .sops-age-key.txt
 
 apps/*/app/dist/
+
+# Private Kubespray credentials remain outside Git.
+/inventory/soycluster/credentials/
+/inventory/soycluster/credentials

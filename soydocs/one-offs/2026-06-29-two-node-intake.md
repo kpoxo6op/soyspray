@@ -77,7 +77,7 @@ of this intake.
    leases move from `.240` and `.236` to `.11` and `.12`.
 3. Install Ubuntu on the new nodes.
 4. Verify SSH access as `ubuntu` on `192.168.20.11` and `192.168.20.12`.
-5. Update `kubespray/inventory/soycluster/hosts.yml` with `node-1` and
+5. Update `inventory/soycluster/hosts.yml` with `node-1` and
    `node-2`.
 6. Run the Kubespray scale workflow only after the stable IPs and SSH access
    are confirmed.
@@ -209,7 +209,7 @@ again at about 21:01 local time, then came back with Ubuntu SSH:
 
 ## 2026-06-29 Kubespray Scale Completion
 
-Both new nodes were added to `kubespray/inventory/soycluster/hosts.yml` on the
+Both new nodes were added to `inventory/soycluster/hosts.yml` on the
 `upgrade/kubespray-latest` submodule branch and assigned to `kube_node`:
 
 | Node | IP | Role |
@@ -220,14 +220,14 @@ Both new nodes were added to `kubespray/inventory/soycluster/hosts.yml` on the
 The inventory parsed with:
 
 ```sh
-ansible-inventory -i kubespray/inventory/soycluster/hosts.yml --graph
+ansible-inventory -i inventory/soycluster/hosts.yml --graph
 ```
 
 SSH and privilege escalation worked for all three hosts:
 
 ```sh
 source soyspray-venv/bin/activate
-ansible -i kubespray/inventory/soycluster/hosts.yml all \
+ansible -i inventory/soycluster/hosts.yml all \
   -m ping --become --become-user=root --user ubuntu
 ```
 

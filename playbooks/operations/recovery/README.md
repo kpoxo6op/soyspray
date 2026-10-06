@@ -141,7 +141,7 @@ settings for check mode, then omit `--check` to apply:
 
 ```bash
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/recovery/configure-longhorn.yml \
   -e @"${HOME}/.config/soyspray/recovery/longhorn.vault.yml" \
@@ -171,7 +171,7 @@ Run the native daily job once after bootstrap to establish initial coverage. Giv
 each deliberate run a new identifier; retries inspect the same Job:
 
 ```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/recovery/backup-daily-now.yml \
   -e recovery_backup_id=initial-small-1
@@ -214,7 +214,7 @@ the same recovery point. Its retention belongs to `critical-recent`.
 
 ```bash
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/recovery/backup-now.yml \
   -e recovery_app=boys -e recovery_backup_id=before-migration-1
@@ -234,7 +234,7 @@ outside this repository and a private Vault password file with mode `0600`.
 
 ```bash
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/recovery/export-runtime.yml \
   -e recovery_runtime_archive="${HOME}/.config/soyspray/recovery/runtime-20260905.vault.yml" \
@@ -275,7 +275,7 @@ Push the branch and run `make go`. Select an actual completed backup name:
 
 ```bash
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/recovery/restore-volume.yml \
   -e recovery_app=boys -e recovery_check_id=initial-20260905 \
@@ -318,7 +318,7 @@ as the current deployments. It retains network isolation and mounts only the
 scratch claim. CouchDB needs the encrypted runtime archive:
 
 ```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/recovery/start-restored-app.yml \
   -e recovery_app=obsidian -e recovery_check_id=initial-20260905 \
@@ -369,7 +369,7 @@ the copy after the app stops, and check the complete result before using it.
 After saving the results, remove only that disposable workspace:
 
 ```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/recovery/cleanup-restore.yml \
   -e recovery_app=boys -e recovery_check_id=initial-20260905
@@ -413,7 +413,7 @@ Install the user units only after reviewing the service and timer templates:
 
 ```bash
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   playbooks/operations/recovery/install-restore-check-schedule.yml
 systemctl --user status soyspray-restore-check.timer
 ```

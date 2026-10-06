@@ -14,7 +14,7 @@ Push the operation branch, run `make go`, then use the normal inventory:
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/boys/bootstrap-trip.yml \
   --vault-password-file "$HOME/.config/soyspray/recovery/vault-password" \

@@ -8,7 +8,7 @@ Run it only when credentials, blueprints, or native client settings need work:
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/bootstrap-app-inputs.yml --tags authentik
 ```

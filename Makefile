@@ -5,7 +5,7 @@ SHELL := /bin/bash
 VENV := soyspray-venv
 PYTHON := $(if $(wildcard $(VENV)/bin/python),$(VENV)/bin/python,python3)
 PYTEST := $(PYTHON) -m pytest
-INVENTORY := kubespray/inventory/soycluster/hosts.yml
+INVENTORY := inventory/soycluster/hosts.yml
 ANSIBLE := source $(VENV)/bin/activate && ansible-playbook -i $(INVENTORY) --become --become-user=root --user ubuntu
 AUTISM_TRAITS_APP := apps/autism-traits/app
 VAULTWARDEN_PACKAGE := apps/vaultwarden/manifests

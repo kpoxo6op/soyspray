@@ -28,7 +28,7 @@ Push the branch and run `make go`. Then check the exact node-0 operation:
 
 ```bash
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/retirement/node0-openclaw.yml --check
 ```

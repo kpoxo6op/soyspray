@@ -19,7 +19,7 @@ From the reviewed and pushed branch:
 
 ```bash
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/storage/repair-voice-multipath.yml \
   -e voice_control_plane=node-0 --check
@@ -51,7 +51,7 @@ Run it from the reviewed checkout:
 
 ```bash
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/storage/monitoring-replicas.yml --check
 ```

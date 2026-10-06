@@ -3,4 +3,4 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 PYTHON ?= soyspray-venv/bin/python
-ANSIBLE ?= source soyspray-venv/bin/activate && ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu
+ANSIBLE ?= source soyspray-venv/bin/activate && ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu

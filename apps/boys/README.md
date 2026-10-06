@@ -57,7 +57,7 @@ Push the branch and run `make go`, then run:
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu apps/boys/bootstrap.yml \
   --ask-vault-pass -e @/private/path/boys-runtime.vault.yml --check
 ```
