@@ -56,3 +56,33 @@ start. The beta line is intentional because the stable `v1.x` flow only supports
 Xiaomi Home accounts, while this vacuum is paired to a Dreamehome account. The
 actual Dreame account/device config entry is still HA runtime state in the PVC
 after login.
+
+## Fellow Stagg EKG Pro
+
+The Deployment installs the unofficial `bramboe/stagg-ekg-plus-ha` custom
+component at a fixed Git revision, checking the downloaded archive checksum
+before replacing only `/config/custom_components/fellow_stagg`. It uses the
+kettle's local HTTP CLI; Bluetooth is optional for discovery.
+
+Connect the kettle to the home 2.4 GHz Wi-Fi with Fellow's EKG Updater app.
+In Home Assistant, choose Settings → Devices & services → Add integration →
+Fellow Stagg EKG Pro (HTTP CLI), and enter its local HTTP URL. Find the address
+in the router's client list. Reconfigure the integration if DHCP changes it;
+this preserves entities and history. The config entry belongs to the HA PVC,
+so Wi-Fi credentials and private device addresses do not belong in Git.
+
+The integration exposes temperature, heating state, power, and schedule
+controls. It does not measure water quantity. Confirm water and placement
+before starting heat; installation does not create a heating schedule or
+expose the kettle to Assist automatically. The CLI has no authentication,
+so keep it on the trusted LAN and do not forward its HTTP port externally.
+Fellow does not officially support remote control, and firmware changes may
+remove this interface.
+
+Run `make check APP=home-assistant`, `make full-check`, and
+`make diff APP=home-assistant`. After GitOps delivery, confirm the integration
+loads and its reported temperature matches a fresh read from the kettle.
+The existing PVC backup/isolated restore contract includes its runtime entry.
+To roll back, remove the HA config entry and revert the installer commit;
+the component files remain on the PVC until explicitly removed. Existing
+integrations, credentials, and schedules are preserved.
