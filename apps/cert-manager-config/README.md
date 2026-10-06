@@ -5,7 +5,7 @@ TLS Secret reflector. Kubespray owns the cert-manager controller, webhook,
 cainjector, CRDs, and namespace. Keep those foundation resources in Kubespray.
 
 ```sh
-make status APP=cert-manager-config FORMAT=json
+kubectl -n argocd get application cert-manager-config -o yaml
 make check APP=cert-manager-config
 make smoke APP=cert-manager-config
 make diff APP=cert-manager-config

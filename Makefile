@@ -34,20 +34,11 @@ KUSTOMIZATIONS := \
 
 .PHONY: help setup act check shared-test shared-check full-check app-command diff smoke restore-check boys-check autism-traits-check docs-check docs-serve lint validate validate-skills status-page-check prometheus-check \
 	test render go voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
-	apps status backup-status list-apps node0 node1 node2 master worker1 worker2 worker3 clean
+	list-apps node0 node1 node2 master worker1 worker2 worker3 clean
 
 help: ## Show the operator commands
 	printf 'Soyspray operator commands\n\n'
 	awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
-
-apps: ## List Applications and their declared owners (FORMAT=json is supported)
-	$(PYTHON) -m scripts.app_status apps --format "$(FORMAT)"
-
-status: ## Read desired/running revisions and evidence gaps for APP (FORMAT=json is supported)
-	$(PYTHON) -m scripts.app_status status --app "$(APP)" --format "$(FORMAT)"
-
-backup-status: ## Read backup coverage, age, failures, and missing recovery evidence
-	$(PYTHON) -m scripts.backup_status --format "$(FORMAT)"
 
 setup: ## Create the venv and install local tooling
 	test -d $(VENV) || python3 -m venv $(VENV)
@@ -105,7 +96,6 @@ lint: ## Check Python style and common defects
 		playbooks/operations/boys/*.yml
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint playbooks/bootstrap-apps.yml \
 		playbooks/bootstrap-app-inputs.yml \
-		playbooks/operations/runtime/install.yml \
 		playbooks/operations/nodes/snapshot-etcd.yml \
 		playbooks/operations/recovery/restore-volume.yml playbooks/operations/recovery/cleanup-restore.yml playbooks/operations/recovery/start-restored-app.yml \
 		playbooks/operations/recovery/configure-longhorn.yml playbooks/operations/recovery/backup-daily-now.yml \

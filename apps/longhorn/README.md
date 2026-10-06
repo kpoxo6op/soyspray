@@ -65,7 +65,8 @@ The upstream chart enables a ServiceMonitor labelled for the existing Prometheus
 stack. It scrapes Longhorn managers every 60 seconds. This provides storage,
 replica, backup-state and backup-size metrics without another exporter. The native
 backup metrics do not include the snapshot time, so they do not prove backup age.
-Use `make backup-status FORMAT=json` for recovery-point observations.
+Use Longhorn Backup custom resources and the Longhorn UI for snapshot times.
+The kube-state-metrics rules retain the native critical-backup age alerts.
 
 Run `make go`, merge the pull request, and let Argo reconcile `main`. Verify the Application,
 ServiceMonitor, Prometheus target health, and existing volume identities and

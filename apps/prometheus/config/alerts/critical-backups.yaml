@@ -40,7 +40,7 @@ spec:
             severity: critical
           annotations:
             summary: "Critical backup is getting old"
-            description: "{{ $labels.app_namespace }}/{{ $labels.pvc }} has no successful snapshot from the last 45 minutes. Run make backup-status FORMAT=json."
+            description: "{{ $labels.app_namespace }}/{{ $labels.pvc }} has no successful snapshot from the last 45 minutes. Inspect Longhorn Backup records and the Longhorn UI."
         - alert: CriticalBackupEvidenceMissing
           expr: soyspray:critical_backup_observed == 0
           for: 5m
@@ -48,7 +48,7 @@ spec:
             severity: critical
           annotations:
             summary: "Critical backup evidence is missing"
-            description: "No eligible backup or current volume inventory for {{ $labels.app_namespace }}/{{ $labels.pvc }}. Recovery-point age is unknown. Run make backup-status FORMAT=json."
+            description: "No eligible backup or current volume inventory for {{ $labels.app_namespace }}/{{ $labels.pvc }}. Recovery-point age is unknown. Inspect Longhorn Backup records and the Longhorn UI."
         - alert: CriticalBackupInventoryMissing
           expr: absent(soyspray_longhorn_volume_info{critical_group="enabled",pv_status="Bound"})
           for: 5m

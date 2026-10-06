@@ -21,7 +21,7 @@ Run from the repository root:
 ```sh
 make check APP=external-dns
 make diff APP=external-dns
-make status APP=external-dns FORMAT=json
+kubectl -n argocd get application external-dns -o yaml
 ```
 
 Merge the pull request to deploy. Verify Argo health, the chart and `main` Git

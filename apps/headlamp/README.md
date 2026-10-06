@@ -16,7 +16,7 @@ Normal commands:
 
 ```sh
 make check APP=headlamp
-make status APP=headlamp FORMAT=json
+kubectl -n argocd get application headlamp -o yaml
 make diff APP=headlamp
 ```
 

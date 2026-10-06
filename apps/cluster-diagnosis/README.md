@@ -15,7 +15,7 @@ Prometheus ──────────────────────►
 ## Normal use
 
 ```sh
-make status APP=cluster-diagnosis FORMAT=json
+kubectl -n argocd get application cluster-diagnosis -o yaml
 make check APP=cluster-diagnosis
 make diff APP=cluster-diagnosis
 kubectl -n monitoring logs deploy/cluster-diagnosis --tail=50

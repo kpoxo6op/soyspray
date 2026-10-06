@@ -72,5 +72,5 @@ place. The cluster keeps its own ledger on
 Application has been Synced and Healthy for a day. It is safe to rerun, and it
 reports honestly when OpenClaw is not installed.
 
-Do not remove `soyspray-evidence-metrics.service` or its timers: they keep
-serving backup and restore evidence.
+The retired laptop evidence and restore-schedule units are removed. Keep the
+independent daily recovery-input-backup timer enabled.

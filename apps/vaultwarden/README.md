@@ -18,7 +18,7 @@ Ansible operation.
 ```sh
 make check APP=vaultwarden
 make diff APP=vaultwarden
-make status APP=vaultwarden FORMAT=json
+kubectl -n argocd get application vaultwarden -o yaml
 ```
 
 Merge the pull request to deploy. Verify the `main` Argo comparison, unchanged
@@ -65,9 +65,9 @@ soyspray-venv/bin/python -m apps.vaultwarden.restore_check \
 The command needs `bw`, `openssl`, cluster access, and the repo venv. It serializes
 local checks and uses loopback port 18443. CLI state and copied data are temporary;
 private reports stay under `~/.local/state/soyspray/restores/vaultwarden/`.
-`make backup-status FORMAT=json` reads that evidence. Failed cleanup is a failed
+Read the private restore report for the checks and their limits. Failed cleanup is a failed
 check: inspect its private log and retry the guarded cleanup procedure.
-Repeat monthly. Attachment presence does not prove human attachment decryption,
+Attachment presence does not prove human attachment decryption,
 and this check does not compare an older snapshot with later live edits.
 Upgrade the testing image in a separate reviewed change. The current pinned build
 is `1.37.2-fa2566d1`. It includes the upstream
@@ -107,4 +107,4 @@ fingerprints, and confirm membership from the human account. Share only
 `hays-online-timesheets`, close invitations, and run the silent check above.
 Restore an existing identity from backup before considering new enrollment.
 
-Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. The [monthly restore schedule](../../playbooks/operations/recovery) runs the same maintained command and validates its report.
+Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. Run the maintained restore command when recovery or a relevant change requires verification; no laptop restore schedule is installed.

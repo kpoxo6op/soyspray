@@ -13,7 +13,7 @@ interchangeable:
 ## Read recovery evidence
 
 ```sh
-make backup-status FORMAT=json
+kubectl get backups.postgresql.cnpg.io -A
 make restore-check APP=boys
 ```
 
@@ -27,12 +27,11 @@ the confirmation required by the maintained procedure.
 See the [recovery operations](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations/recovery)
 for the authoritative commands and limits.
 
-For a node rebuild, follow the [node recovery procedure](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations/nodes).
-If a recovery fix is merged between evacuation and restoration, run current
-`main` with the original private evacuation file. Restoration verifies that
-the recorded revision belongs to current history and that resource identities
-still match.
+For node maintenance, follow the [native Kubespray procedure](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations/nodes).
+The completed drills do not require repeating. Preserve filesystem, storage,
+and device identities; do not add a recurring manual drill.
 
-A rebuilt node can receive new Kubernetes and Longhorn resource IDs. The node
-procedure verifies the retained filesystem and Longhorn disk identity before
-restoring replicas, and waits for synchronized copies before reporting success.
+The daily [recovery-input backup](https://github.com/kpoxo6op/soyspray/tree/main/apps/recovery-input-backup)
+remains enabled for explicit node configuration and unique voice models. It
+verifies restored off-laptop content automatically. The production monitoring
+path uses native backup records and alerts; no laptop evidence job is required.

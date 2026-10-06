@@ -21,7 +21,7 @@ rename or recreate these resources during recovery work.
 Run the maintained application checks from the repository root:
 
 ```sh
-make status APP=immich FORMAT=json
+kubectl -n argocd get application immich -o yaml
 make check APP=immich
 make go
 ```

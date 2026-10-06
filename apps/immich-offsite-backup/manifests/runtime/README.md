@@ -63,5 +63,5 @@ the username and password with the existing database Secret. Restic inputs come
 from Ansible Vault. Check mode performs validation; repeated runs reject changed
 credentials and preserve the existing Secret.
 
-Use `make status APP=immich-offsite-backup FORMAT=json` after merge. The
+Use `kubectl -n argocd get application immich-offsite-backup -o yaml` after merge. The
 Application must stay on `main`.

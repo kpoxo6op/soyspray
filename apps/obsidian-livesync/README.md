@@ -15,7 +15,7 @@ explicit Ansible operation.
 
 ```sh
 make check APP=obsidian-livesync
-make status APP=obsidian-livesync FORMAT=json
+kubectl -n argocd get application obsidian-livesync -o yaml
 make diff APP=obsidian-livesync
 ```
 
@@ -82,13 +82,13 @@ incomplete coverage visible. Binary attachments and legacy note formats remain
 unknown; no data is invented or repaired to make the check pass.
 
 Private reports stay under `~/.local/state/soyspray/restores/obsidian-livesync/`.
-`make backup-status FORMAT=json` shows the counts and coverage limits. Temporary
+Read the private restore report for counts and coverage limits. Temporary
 credentials are removed with the working directory; note content is never written
-to a local file. Repeat monthly. If cleanup fails, inspect its private log and use
+to a local file. If cleanup fails, inspect its private log and use
 the guarded cleanup operation with the report's check ID.
 
 `make smoke APP=obsidian-livesync` remains unknown until a maintained command
 covers the client sync journey. A successful upload or isolated database read
 does not prove two-client sync, attachment recovery, or seven-day recovery-point age.
 
-Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. The [monthly restore schedule](../../playbooks/operations/recovery) runs the same maintained command and validates its report.
+Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. Run the maintained restore command when recovery or a relevant change requires verification; no laptop restore schedule is installed.

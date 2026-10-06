@@ -32,8 +32,7 @@ promotion PR.
 The promotion changes the image digest in `manifests/deployment.yaml`. A source-only
 merge does not change the running image. Build output stays local.
 
-Merge the reviewed digest promotion to deploy. Argo follows `main`. Check `make status
-APP=autism-traits FORMAT=json`, public and private access, and the actual browser
+Merge the reviewed digest promotion to deploy. Argo follows `main`. Check `kubectl -n argocd get application autism-traits -o yaml`, public and private access, and the actual browser
 journey. Retirement requires an explicit operation after removing its root
 registration.
 

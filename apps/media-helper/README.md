@@ -11,7 +11,7 @@ that group does not remove this helper.
 ```sh
 make check APP=media-helper
 make diff APP=media-helper
-make status APP=media-helper FORMAT=json
+kubectl -n argocd get application media-helper -o yaml
 ```
 
 Merge the pull request to deploy. Verify the `main` Argo comparison and existing

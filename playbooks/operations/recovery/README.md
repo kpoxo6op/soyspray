@@ -3,31 +3,25 @@
 Use these operations before changing ownership of durable applications. Keep
 the existing backup stores until the replacement has passed a real restore.
 
-## Read backup status
+## Read native backup state
 
 ```sh
-make backup-status
-make backup-status FORMAT=json
+kubectl -n longhorn-system get volumes.longhorn.io,backups.longhorn.io,backuptargets.longhorn.io
+kubectl get clusters.postgresql.cnpg.io,backups.postgresql.cnpg.io,scheduledbackups.postgresql.cnpg.io -A
 ```
 
-This reads Longhorn volumes, completed backups, backup groups, targets, and CNPG
-backup records. It does not read Secrets or change the cluster. Longhorn age starts
-at the snapshot time. PostgreSQL base-backup age starts at the backup start time;
-it does not show the latest recoverable WAL point. A continuous-archiving condition
-does not prove WAL age.
+Use the Longhorn and CNPG custom resources and UIs to inspect completion,
+recovery-point time, errors, targets, and schedules. Longhorn age starts at the
+snapshot time. A CNPG base backup does not establish the latest recoverable WAL
+point. A configured schedule and an available target do not prove a completed
+backup or successful restore.
 
-Schedule coverage and successful-backup coverage are separate. Retired claims are
-excluded. A failed, unfinished, or incomplete Longhorn backup cannot replace the
-last completed backup in this view. Failure counts cover only retained native
-records. Target availability and observation times show the backup system's view;
-the command does not independently inspect S3 objects.
-
-Restic snapshot observations, restore evidence, and seven-day proof remain
-`unknown` until their observation sources are connected. Missing native API data
-also appears as `unknown`, with its cause. Exit code 0 means the native observations
-were read; it does not mean all data meets the recovery target. Exit code 2 means
-an observation source failed or could not be read. For offline checks, use
-`python -m scripts.backup_status --input saved-observations.json --format json`.
+Prometheus keeps `CriticalBackupGettingOld`, `CNPGBackupStale`,
+`SoysprayBackupToolFailure`, and `SoysprayDatabaseBackupFailure`. These use
+native cluster observations; no production scrape depends on the laptop.
+Private isolated restore reports remain under `~/.local/state/soyspray/restores/`.
+Read each app's report with its recorded identities, tested image, data checks,
+and cleanup result; missing or stale evidence is unknown.
 
 ## Create the S3 store
 
@@ -181,7 +175,7 @@ This uses Longhorn's generated CronJob template and its native retention policy.
 It requires the CronJob's owner UID to match the daily policy. A retry must match
 the original template and identity. The completed Job expires after one day;
 Longhorn retains backup records and S3 objects under its own policy. Verify a
-completed backup for every selected claim with `make backup-status FORMAT=json`.
+completed backup for every selected claim in native Longhorn Backup records.
 Restore each database and verify its integrity before accepting recovery coverage.
 
 
@@ -381,93 +375,24 @@ for the disposable backing volume to disappear. It retains offsite backups
 and production claims. A failed restore can also use this cleanup operation;
 retain its error evidence first.
 
-## Read private restore evidence
+## Isolated restore checks
 
-`make backup-status FORMAT=json` reads the Application inventory, native backup
-records, and private reports under `~/.local/state/soyspray/restores/` (or
-`XDG_STATE_HOME`). `make status APP=boys FORMAT=json` uses the same observations
-for claims named by the Application's `soyspray.vip/data-claims` annotation.
-Missing mappings remain unknown; folder names do not create app inventory.
+Run `make restore-check APP=boys`, `APP=vaultwarden`, or
+`APP=obsidian-livesync` when recovery or a relevant change requires a check.
+The existing validators preserve production claims and identities and always
+attempt guarded scratch cleanup. App READMEs describe private inputs and limits.
+Reports stay outside Git; no scheduled laptop restore or evidence collector is
+installed. A successful historical restore does not prove current access or
+continuous recovery-point coverage.
 
-A restore is accepted only when its report matches the observed PVC and PV UIDs,
-contains completed data checks and cleanup, and confirms that original resources
-were unchanged. Status shows the last attempt separately from the last accepted
-restore, with its age and tested image. A later failed or interrupted attempt
-remains visible. Invalid or unreadable reports make the latest attempt uncertain.
-Only selected metadata is printed; private data and raw error text are omitted.
+The focused recovery preflight checks delivered source, required commands,
+pinned dependencies, app entry points, and playbook syntax. It does not rerun
+frontend or browser delivery checks during emergency recovery.
 
-This is historical evidence for that image and storage identity. It does not
-prove a human login, current runtime behavior, or seven days of RPO coverage.
-Reports stay on the operator machine and are not uploaded into the cluster.
-Keep the off-cluster recovery keys separately.
-
-## Schedule monthly isolated restore checks
-
-The laptop can run the three maintained restore checks from one native systemd
-user timer. The timer runs on the first day of each month at 03:00 and uses
-`Persistent=true`, so a powered-off laptop runs the missed check after it
-starts. It uses the existing encrypted files under
-`~/.config/soyspray/recovery/`; it does not create credentials or use a model.
-
-Install the user units only after reviewing the service and timer templates:
-
-```bash
-source soyspray-venv/bin/activate
-ansible-playbook -i inventory/soycluster/hosts.yml \
-  playbooks/operations/recovery/install-restore-check-schedule.yml
-systemctl --user status soyspray-restore-check.timer
-```
-
-The service runs one shared repository gate, then invokes
-`make restore-check APP=boys`, `APP=vaultwarden`, and
-`APP=obsidian-livesync` in that order. It validates the JSON report after each
-command. A result is accepted only when the report belongs to that app and
-schedule run, has `status: passed`, and has `cleanup: completed`. A failed app
-with completed cleanup does not block the other apps. A missing report or
-incomplete cleanup stops the schedule with a nonzero result and retains all
-reports for inspection.
-
-The schedule summary stays under
-`~/.local/state/soyspray/restores/schedule/<run-id>/report.json`; command logs
-are private files in the same folder. The scheduler serializes monthly runs
-with a private lock. Use `journalctl --user -u soyspray-restore-check.service`
-and the summary report to inspect a run.
-
-For offline checks, `scripts.app_status` accepts `--input` for Applications and
-`--backup-input` for saved native backup observations. `scripts.backup_status`
-accepts an observation bundle through `--input`. Offline checks make no cluster
-requests and do not scan private reports unless `--restore-dir` is supplied.
-Saved observations establish the recorded storage identities, not the current
-cluster binding. Use live commands to check current bindings.
-
-The monthly runner checks one exact delivered `main` revision with the minimal
-recovery runtime. It verifies tracked source, required commands and pinned
-Python dependencies, maintained app operations, and recovery playbook syntax.
-Each app reuses that result for the same revision. A changed revision stops the
-run. On interruption, the runner allows fifteen minutes for the active restore
-to finish guarded cleanup.
-
-Set `-e recovery_schedule_enabled=false` on the installer to disable the timer and stop its service with guarded cleanup. Use `-e recovery_schedule_run_now=true` to verify the installed service once.
-
-Each scheduled runner checks the saved successful recovery-preflight report
-against its Git revision before reusing that result. Standalone restore
-commands run the same focused preflight. Frontend, browser, lint, and test
-dependencies remain delivery gates and are not required during an emergency
-restore.
-
-## Backup-age observations
-
-Install the laptop's two-minute observation timer with
-`ansible-playbook playbooks/operations/recovery/install-evidence-schedule.yml`.
-It reads the critical backup recording rule, completed Immich Restic snapshots,
-and private restore reports. Records append to
-`~/.local/state/soyspray/evidence/operations.jsonl`. Missing or stale sources
-remain unknown with a cause. Immich age starts at the paired database dump.
-
-The timer uses no model. It does not backfill laptop downtime. Seven full days
-of actual observations are required for release review. Inspect failures with
-`journalctl --user -u soyspray-operations-evidence.service`; disable with the
-same installer and `-e evidence_enabled=false`. The model review remains paused.
+The independent daily [recovery-input backup](../../../apps/recovery-input-backup)
+remains enabled. It collects explicit node configuration and preserved voice
+models, then restores and verifies one off-laptop Restic copy. It does not send
+alerts or export production metrics.
 
 ## PostgreSQL archive migration
 

@@ -16,49 +16,17 @@ are in [`argocd/catalog/`](../argocd/catalog/).
 - [Headlamp](headlamp): browse the cluster through Authentik OIDC.
 - [Autism traits](autism-traits): static assessment with scoring in the browser.
 
-Read the current cluster inventory and an app's status:
+Read current health and sources through native Argo CD:
 
 ```sh
-make apps
-make apps FORMAT=json
-make status APP=boys FORMAT=json
-make list-apps
-make backup-status FORMAT=json
+kubectl -n argocd get applications
+kubectl -n argocd get application boys -o yaml
 ```
 
-These commands use the current `kubectl` context. Inventory comes from Application
-metadata. There is no second application registry. The `soyspray.vip/owner` label names the operator
-group. The `access-url`, `access-method`, `backup`, and `backup-cause` annotations
-under `soyspray.vip/` describe access and the declared backup policy.
-
-Status separates the desired source, Argo's last comparison, and its successful
-deployment history. It reports a running revision only when Argo confirms the
-current sources are synced. It includes Argo's comparison time; the command does
-not refresh Argo or execute a runtime probe. A previous successful sync does not prove
-that a later partial deployment completed.
-
-The separate `runtime` field reports pod images and the image IDs observed by the
-kubelet. It follows controller UIDs from Argo-managed workloads through native
-controllers to pods; labels alone do not establish ownership. During a rollout,
-old, pending, and terminating pods stay visible. App, init, and ephemeral
-containers are listed separately. These observations do not prove a user journey.
-
-Offline Application input never triggers a workload API read. Supply
-`--runtime-input` with a saved Kubernetes workload list to include image evidence.
-A workload read failure keeps the known Argo and backup fields, reports runtime
-as unknown, and returns a nonzero exit code.
-
-Missing fields appear as `unknown` with a cause. Access URLs and declared backup
-policies are not proof of a successful user journey or recovery. For mapped
-claims, status reads native Longhorn backup age and private restore reports.
-The `soyspray.vip/data-claims` annotation lists explicit `namespace/claim` names,
-separated by commas when needed. No second app inventory is maintained.
-Use [backup status](../playbooks/operations/recovery#read-backup-status)
-for native Longhorn and CNPG observations while per-app recovery mapping is added.
-An API failure returns an unknown inventory and a nonzero exit code, not an empty
-healthy result. `scripts/app_status.py --help` also describes saved JSON input for
-offline checks. The old `COLS` list format is replaced by native `kubectl` output
-in `make list-apps` and structured JSON in `make apps`.
+Use the Argo UI for workload comparisons and history, and Longhorn and CNPG
+custom resources and UIs for backup state. Application annotations describe
+ownership, access, and declared backup policy; they do not prove a successful
+user journey or recovery. Native backup alerts remain in Prometheus.
 
 ## Check, compare, and merge
 
@@ -103,8 +71,7 @@ Boys, Vaultwarden, and Obsidian have maintained isolated `restore-check` operati
 They read encrypted off-cluster inputs, verify a completed backup through the
 restored app, and clean up temporary resources. Each app README states its tested
 coverage and remaining human-login, note, or attachment gaps.
-Unsupported restore operations report `unknown` with their cause. Restore
-reports do not replace the separate seven-day recovery-point measurements.
+Unsupported restore operations report `unknown` with their cause. A completed backup is separate from a successful isolated restore.
 
 `smoke APP=boys` checks the deployed public phone and desktop journey and reports
 authenticated coverage as unknown. See [Boys](boys#check-the-live-public-journey).
