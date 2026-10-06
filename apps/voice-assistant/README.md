@@ -6,7 +6,9 @@ three lights.
 Home Assistant Voice PE streams audio to Home Assistant.
 Home Assistant uses these local Wyoming services:
 
-- Speech-to-Phrase for speech-to-text.
+- Speech-to-Phrase for speech-to-text, with its native 4× input gain before
+  voice activity detection. This helps quiet microphone audio reach the decoder;
+  it does not amplify the separate wake detector.
 - Piper for text-to-speech.
 - An openWakeWord service that lists only the installed GI model. It checks the
   SHA-256 of `handler.py` before it applies our patch, and stops if it differs.

@@ -31,3 +31,9 @@ in Home Assistant. It does not measure water quantity or automatically create
 heating schedules. Keep its unauthenticated local interface on the trusted
 LAN. Setup, firmware limits, checks, and rollback are documented in the
 [Home Assistant README](https://github.com/kpoxo6op/soyspray/tree/main/apps/home-assistant).
+
+Local Voice uses Speech-to-Phrase's native input gain to help quiet microphone
+audio reach speech recognition. The GI wake detector retains its own settings.
+Use the [Voice guide](https://github.com/kpoxo6op/soyspray/tree/main/apps/voice-assistant)
+for transport checks and physical microphone verification; a wake flash alone
+does not prove a recognized command.
