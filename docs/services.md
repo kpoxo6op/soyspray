@@ -24,3 +24,10 @@ current list:
 ```sh
 make apps
 ```
+
+Home Assistant supports the Fellow Stagg EKG Pro through a pinned unofficial
+local Wi-Fi integration. Pair Wi-Fi in Fellow's app, then add the integration
+in Home Assistant. It does not measure water quantity or automatically create
+heating schedules. Keep its unauthenticated local interface on the trusted
+LAN. Setup, firmware limits, checks, and rollback are documented in the
+[Home Assistant README](https://github.com/kpoxo6op/soyspray/tree/main/apps/home-assistant).
