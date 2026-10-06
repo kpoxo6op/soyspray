@@ -13,7 +13,7 @@ namespace, and provider identities are preserved.
 ```sh
 make check APP=domain-health
 make diff APP=domain-health
-make status APP=domain-health FORMAT=json
+kubectl -n argocd get application domain-health -o yaml
 ```
 
 Merge the pull request to deploy. Verify the `main` Argo comparison, running

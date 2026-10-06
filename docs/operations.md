@@ -1,23 +1,24 @@
 # Everyday operations
 
-Start with the maintained repository commands. They read native Kubernetes and
-Argo CD state and explain evidence gaps.
+Read native Kubernetes and Argo CD state; use the app README for checks.
 
 ## Check the system
 
 ```sh
-make apps
-make status APP=boys FORMAT=json
-make backup-status FORMAT=json
+kubectl -n argocd get applications
+kubectl -n argocd get application boys -o yaml
+kubectl -n longhorn-system get volumes.longhorn.io,backups.longhorn.io
+kubectl get backups.postgresql.cnpg.io -A
 ```
 
-`make apps` lists applications and ownership. `make status` combines desired
-source, live health, access, and recovery evidence for one application.
-`make backup-status` reads native backup records and private restore reports.
+Argo CD shows desired source, sync, health, and history. Longhorn and CNPG custom
+resources and UIs show backup state. A schedule does not prove a completed
+backup; private isolated restore reports remain beside the recovery procedure.
+Prometheus keeps the native backup alerts without a laptop scrape target.
 
 ## Read an incident
 
-`make status APP=NAME` shows one application. The **Soyspray Operations**
+The Argo CD UI shows each application. The **Soyspray Operations**
 dashboard shows open incidents, source read status, evidence gaps and delivery
 state. A missing series is unknown, not healthy.
 

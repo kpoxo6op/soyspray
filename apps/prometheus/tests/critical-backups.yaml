@@ -88,8 +88,7 @@ tests:
         severity: critical
       exp_annotations:
         summary: Critical backup is getting old
-        description: boys/boys-data has no successful snapshot from the last 45 minutes. Run make backup-status
-          FORMAT=json.
+        description: boys/boys-data has no successful snapshot from the last 45 minutes. Inspect Longhorn Backup records and the Longhorn UI.
 - name: Invalid or unavailable backups leave age and RPO unknown
   interval: 1m
   input_series:
@@ -132,7 +131,7 @@ tests:
       exp_annotations:
         summary: Critical backup evidence is missing
         description: No eligible backup or current volume inventory for boys/boys-data. Recovery-point
-          age is unknown. Run make backup-status FORMAT=json.
+          age is unknown. Inspect Longhorn Backup records and the Longhorn UI.
   - eval_time: 1h
     alertname: CriticalBackupGettingOld
     exp_alerts: []
@@ -174,7 +173,7 @@ tests:
       exp_annotations:
         summary: Critical backup evidence is missing
         description: No eligible backup or current volume inventory for boys/boys-data. Recovery-point
-          age is unknown. Run make backup-status FORMAT=json.
+          age is unknown. Inspect Longhorn Backup records and the Longhorn UI.
   - eval_time: 66m
     alertname: CriticalBackupInventoryMissing
     exp_alerts:

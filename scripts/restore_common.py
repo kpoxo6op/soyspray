@@ -15,7 +15,19 @@ from pathlib import Path
 
 import yaml
 
-from scripts.backup_status import has_backup_error, timestamp
+
+def timestamp(value):
+    try:
+        result = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return result if result.tzinfo else None
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def has_backup_error(state):
+    return bool(state.get("error")) or any(
+        key.lower() == "error" and value for key, value in (state.get("messages") or {}).items()
+    )
 
 
 def require(value, cause):

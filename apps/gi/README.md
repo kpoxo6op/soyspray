@@ -18,7 +18,7 @@ home cluster. Changing that boundary needs a separate decision.
 Run these commands from the repository root:
 
 ```sh
-make status APP=gi FORMAT=json
+kubectl -n argocd get application gi -o yaml
 make check APP=gi
 make diff APP=gi
 ```

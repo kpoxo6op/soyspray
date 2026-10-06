@@ -24,8 +24,10 @@ The native user timer runs daily at 03:15 Auckland time and catches missed runs
 when the laptop is available. It invokes no model. Check
 `systemctl --user status soyspray-recovery-input-backup.timer` and the private
 reports under `~/.local/state/soyspray/recovery-input-backup/`.
-The installer must reference the delivered checkout after merge. This timer
-is separate from critical monthly restores and operations evidence collection.
+The installer must reference the delivered main checkout after merge. This
+independent timer stays enabled; no production scrape or scheduled restore
+depends on it. Run the service once after installation and verify its report
+records a completed off-laptop snapshot and restored content.
 
 The files can help recover mounts, node networking, and unique model inputs.
 Kubespray still owns the cluster foundation. Do not apply restored configuration

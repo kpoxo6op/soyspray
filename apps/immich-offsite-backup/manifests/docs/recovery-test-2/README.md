@@ -5,7 +5,7 @@ the change to `main`, then wait for the native Argo root and Immich Application
 to become `Synced` and `Healthy`.
 
 ```bash
-make status APP=immich FORMAT=json
+kubectl -n argocd get application immich -o yaml
 ```
 
 Immich app failing - empty PVC missing `.immich` marker files. Restore media from S3:

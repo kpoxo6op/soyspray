@@ -27,8 +27,8 @@ Open Grafana at `https://grafana.soyspray.vip` and sign in through Authentik OID
 Open Prometheus at `https://prometheus.soyspray.vip`, which uses Authentik forward
 authentication.
 
-The **Soyspray Operations** dashboard has twelve panels for node, Argo,
-Longhorn, backup, restore, incident, evidence and delivery observations. A
+The **Soyspray Operations** dashboard shows native node, Argo, Longhorn, database and critical-backup observations,
+plus the remaining incident loop metrics. A
 missing sample means the result is unknown. A historical restore result does not
 prove current access.
 
@@ -100,7 +100,7 @@ make diff APP=prometheus
 Read the primary Application, runtime, storage, and recovery evidence:
 
 ```sh
-make status APP=prometheus FORMAT=json
+kubectl -n argocd get application kube-prometheus-stack -o yaml
 ```
 
 Merge the pull request to deploy through the native root.
@@ -160,8 +160,9 @@ The old-backup alert starts after 45 minutes and waits five minutes. Missing
 evidence also alerts after five minutes. These alerts do not prove a successful
 restore or continuous seven-day recovery coverage.
 
-The laptop evidence collector remains separate. Its metrics endpoint reports
-saved numeric evidence only. It does not run a backup or restore.
+Production monitoring does not scrape a laptop endpoint. Backup observations
+come from native cluster metrics; private restore reports stay on the operator
+machine. The daily recovery-input backup remains a separate laptop service.
 
 Revert the faulty change through GitHub. Verify all three Applications are Synced and
 Healthy after the revert reaches `main`. Do not delete Applications,

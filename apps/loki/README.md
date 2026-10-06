@@ -27,7 +27,7 @@ Telegram, and the continuous `Watchdog` alert pings Healthchecks.io.
 ```sh
 make check APP=loki
 make diff APP=loki
-make status APP=loki FORMAT=json
+kubectl -n argocd get application loki -o yaml
 ```
 
 `make check APP=loki` validates YAML and renders the Kustomize package. Loki has

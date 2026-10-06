@@ -44,13 +44,14 @@ mkdir -p "$evidence"
 record() { bash playbooks/operations/nodes/record.sh "$evidence" "$@"; }
 record revision git rev-parse HEAD
 record kubespray-revision git -C kubespray rev-parse HEAD
-record backups make backup-status FORMAT=json
+record longhorn-backups kubectl -n longhorn-system get backups.longhorn.io -o json
+record database-backups kubectl get backups.postgresql.cnpg.io -A -o json
 record etcd-snapshot "${ansible_cmd[@]}" playbooks/operations/nodes/snapshot-etcd.yml \
   -e "etcd_snapshot_label=$session" -e "etcd_snapshot_controller_dir=$evidence/etcd"
 ```
 
 Verify the laptop snapshot copy before removing node-0, where it was created.
-Read the backup report; exit zero is not backup proof. Keep credentials private.
+Read native backup completion and errors; exit zero is not backup proof. Keep credentials private.
 
 ## 2. Remove, then readd
 

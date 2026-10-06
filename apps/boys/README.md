@@ -19,7 +19,7 @@ for isolated restores and their evidence limits.
 Run these commands from the repository root:
 
 ```sh
-make status APP=boys FORMAT=json
+kubectl -n argocd get application boys -o yaml
 make check APP=boys
 make diff APP=boys
 make smoke APP=boys
@@ -114,13 +114,10 @@ change the live workload or its data. Use the report's check ID and backup UID
 with the guarded [cleanup operation](../../playbooks/operations/recovery)
 if an interrupted check leaves scratch resources behind.
 
-`make status APP=boys FORMAT=json` and `make backup-status FORMAT=json` show
-native backup age and the private restore reports available on this operator
-machine. Reports must match the observed claim and PV UIDs. Status shows the
-last attempt separately from the last accepted restore, including its age and
-tested image. A later failure does not erase earlier evidence. Missing or
-invalid reports remain unknown with a cause. These reports do not prove seven
-days of backup coverage or an existing human browser login.
+Read backup age from native Longhorn records and inspect the private restore
+report with its tested image, claim and PV UIDs, checks, and cleanup result.
+A later failed attempt does not invalidate an earlier historical result, but
+neither proves current access or continuous recovery-point coverage.
 
 ## Check the live public journey
 
@@ -139,4 +136,4 @@ Use the installed app browser dependencies from `make setup`. The existing local
 and image tests verify writes and claim races against disposable data; they do
 not prove an existing human session works against the live service.
 
-Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. The [monthly restore schedule](../../playbooks/operations/recovery) runs the same maintained command and validates its report.
+Restore checks use `scripts/restore_common.py` for the private workspace, lock, subprocess limits, report, and guarded cleanup. Application data checks remain in this folder. Run the maintained restore command when recovery or a relevant change requires verification; no laptop restore schedule is installed.

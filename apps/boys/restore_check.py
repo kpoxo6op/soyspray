@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from scripts.backup_status import timestamp
+from scripts.restore_common import timestamp
 from scripts.restore_common import identity, require, run_restore
 from scripts.restore_common import select_backup as select_backup
 from scripts.restore_common import verify_binding as verify_binding

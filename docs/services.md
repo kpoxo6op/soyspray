@@ -22,7 +22,7 @@ Use the repository's native application catalogue when you need the complete
 current list:
 
 ```sh
-make apps
+kubectl -n argocd get applications
 ```
 
 Home Assistant supports the Fellow Stagg EKG Pro through a pinned unofficial
