@@ -51,7 +51,7 @@ and `--ask-vault-pass` to this command:
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu apps/external-dns/bootstrap.yml \
   --ask-vault-pass -e @/private/external-dns.vault.yml
 ```

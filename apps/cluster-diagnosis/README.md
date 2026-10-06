@@ -83,7 +83,7 @@ change to `spec.replicas: 0`, confirm the pod is gone, then run the reviewed ope
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become \
+ansible-playbook -i inventory/soycluster/hosts.yml --become \
   --become-user=root --user ubuntu apps/cluster-diagnosis/reset-state.yml \
   -e state_reset_confirm=true
 ```

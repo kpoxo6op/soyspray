@@ -35,7 +35,7 @@ The create-only request also refuses a competing Secret creation.
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu apps/cert-manager-config/bootstrap.yml \
   --vault-password-file ~/.config/soyspray/recovery/vault-password \
   -e @"$HOME/.config/soyspray/recovery/cert-manager-config.vault.yml" --check

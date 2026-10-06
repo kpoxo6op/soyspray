@@ -24,8 +24,10 @@ Git pull request
 - Recovery keys and private bootstrap inputs stay outside the cluster and Git.
 
 The [Argo CD root](https://github.com/kpoxo6op/soyspray/tree/main/argocd)
-contains the application catalogue. The [Kubespray inventory](https://github.com/kpoxo6op/soyspray/tree/main/kubespray/inventory/soycluster)
-contains the declared cluster membership.
+contains the application catalogue. The [Kubespray inventory](https://github.com/kpoxo6op/soyspray/tree/main/inventory/soycluster)
+contains the declared cluster membership. The pinned provisioner is unchanged;
+its upstream migration is blocked by cert-manager namespace deletion and
+requires parity before any full reconciliation.
 
 ## Incident pipeline
 

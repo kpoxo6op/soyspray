@@ -45,7 +45,7 @@ Kubespray owns the cluster foundation. Argo CD owns application workloads from
 - Nodes are `node-0` (`192.168.20.10`), `node-1` (`192.168.20.11`), and `node-2`
   (`192.168.20.12`). Use `make node0`, `make node1`, or `make node2` for SSH as
   `ubuntu`. The API VIP is declared by the inventory.
-- Inventory: `kubespray/inventory/soycluster/hosts.yml`. Activate Ansible with
+- Inventory: `inventory/soycluster/hosts.yml`. Activate Ansible with
   `source soyspray-venv/bin/activate` and use the repository's inventory,
   `--become --become-user=root --user ubuntu` conventions.
 - Node drills are complete. Follow `playbooks/operations/nodes/README.md` for

@@ -42,7 +42,7 @@ blueprints with:
 
 ```bash
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu playbooks/bootstrap-app-inputs.yml \
   --tags authentik-blueprints
 ```
@@ -62,7 +62,7 @@ Run the local checks before deployment:
 ```bash
 source soyspray-venv/bin/activate
 pytest -q tests/test_sso.py tests/test_sso_headlamp.py tests/test_sso_legacy_proxy.py tests/test_sso_native_apps.py tests/test_live_tv.py
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml playbooks/bootstrap-app-inputs.yml --syntax-check --tags authentik
+ansible-playbook -i inventory/soycluster/hosts.yml playbooks/bootstrap-app-inputs.yml --syntax-check --tags authentik
 ```
 
 After checks pass, merge the pull request. Use this only for private inputs:
@@ -70,7 +70,7 @@ After checks pass, merge the pull request. Use this only for private inputs:
 ```bash
 make go
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/bootstrap-app-inputs.yml --tags authentik
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/bootstrap-app-inputs.yml --tags authentik
 ```
 
 Check the Argo CD application and workloads:

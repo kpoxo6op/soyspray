@@ -16,7 +16,7 @@ This document describes the process of adding a new worker node (node-3) to the 
 Added the new node to the Kubespray inventory file:
 
 ```yaml
-# Added to kubespray/inventory/soycluster/hosts.yml
+# Added to inventory/soycluster/hosts.yml
     node-3:
       ansible_host: 192.168.50.103
       ip: 192.168.50.103
@@ -36,7 +36,7 @@ Added the new node to the Kubespray inventory file:
 This gathers information about all nodes in the cluster:
 
 ```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu kubespray/playbooks/facts.yml
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu kubespray/playbooks/facts.yml
 ```
 
 ### 3. Scale the Cluster
@@ -44,7 +44,7 @@ ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-u
 Run the scale playbook to add the new node to the cluster:
 
 ```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu kubespray/scale.yml --limit=node-3
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu kubespray/scale.yml --limit=node-3
 ```
 
 The `--limit=node-3` flag ensures operations are performed only on the new node without disturbing the existing cluster.
@@ -62,7 +62,7 @@ kubectl get nodes
 Run the custom `set-node-labels.yml` playbook to apply the correct `worker` role label. This playbook runs from the control plane and updates all nodes, so no `--limit` is needed.
 
 ```bash
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/set-node-labels.yml
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/set-node-labels.yml
 ```
 
 After running, `kubectl get nodes` confirmed `node-3` has the `worker` role.
@@ -90,16 +90,16 @@ To rebalance, we created a playbook that drains and uncordons nodes, allowing po
 
 ```bash
 # Rebalance first node
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu \
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu \
   playbooks/rebalance-cluster.yml -e "skip_confirmation=true" -e "delete_emptydir=true" \
   -e "single_node=node-1" -e "wait_time=240"
 
 # Continue with other nodes as needed
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu \
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu \
   playbooks/rebalance-cluster.yml -e "skip_confirmation=true" -e "delete_emptydir=true" \
   -e "single_node=node-0" -e "wait_time=240"
 
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu \
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu \
   playbooks/rebalance-cluster.yml -e "skip_confirmation=true" -e "delete_emptydir=true" \
   -e "single_node=node-2" -e "wait_time=240"
 ```

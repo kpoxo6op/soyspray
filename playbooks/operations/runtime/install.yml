@@ -136,7 +136,7 @@
             }}/soyspray-venv/bin/ansible-playbook
           - --syntax-check
           - -i
-          - kubespray/inventory/soycluster/hosts.yml
+          - inventory/soycluster/hosts.yml
           - "{{ item }}"
         chdir: "{{ operations_install_root }}/releases/{{ operations_selected_revision.stdout }}"
       environment:

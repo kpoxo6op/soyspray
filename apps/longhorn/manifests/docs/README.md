@@ -133,7 +133,7 @@ kubectl get volumes.longhorn.io/pvc-cd72be8e-a730-4f27-8ba3-24fb2d2d9de9 -n long
 To clean up Longhorn data from nodes:
 
 ```sh
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/cleanup-longhorn.yml --extra-vars "skip_confirmation=true"
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/cleanup-longhorn.yml --extra-vars "skip_confirmation=true"
 ```
 
 ## Version-Specific Issues

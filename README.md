@@ -26,6 +26,7 @@ route. Secrets and login details are not stored in this repository.
 
 ## Repository map
 
+- [`inventory/soycluster/`](inventory/soycluster/) contains the cluster inventory.
 - [`kubespray/`](kubespray/) contains the pinned cluster provisioner.
 - [`argocd/`](argocd) contains the complete application catalog.
 - [`playbooks/`](playbooks) contains bootstrap and operations entry

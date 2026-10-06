@@ -23,7 +23,7 @@ select a branch. Use it only after the Argo foundation exists:
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu playbooks/bootstrap-apps.yml
 ```
 

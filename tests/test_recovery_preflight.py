@@ -12,7 +12,7 @@ def result(argv, code=0, output=""):
     return subprocess.CompletedProcess(argv, code, stdout=output, stderr="")
 
 
-def runner_for(*, head="revision", main="revision", dirty=False, syntax=0):
+def runner_for(*, head="revision", main="revision", dirty=False, syntax=0, inventory_tracked=True):
     def run(argv, root):
         if argv[:3] == ["git", "rev-parse", "HEAD"]:
             return result(argv, output=head + "\n")
@@ -21,9 +21,10 @@ def runner_for(*, head="revision", main="revision", dirty=False, syntax=0):
         if argv[:2] == ["git", "status"]:
             return result(argv, output=" M tracked\n" if dirty else "")
         if argv[:2] == ["git", "ls-files"]:
-            return result(argv)
-        if argv[:4] == ["git", "-C", "kubespray", "ls-files"]:
-            return result(argv)
+            missing_inventory = (
+                argv[-1] == "inventory/soycluster/hosts.yml" and not inventory_tracked
+            )
+            return result(argv, code=1 if missing_inventory else 0)
         if "--syntax-check" in argv:
             return result(argv, code=syntax)
         raise AssertionError(argv)
@@ -51,9 +52,11 @@ def test_durable_preflight_checks_its_shared_runner_not_a_fake_app_folder() -> N
         (runner_for(main="other"), "exact delivered main"),
         (runner_for(dirty=True), "tracked changes"),
         (runner_for(syntax=2), "syntax validation"),
+        (runner_for(inventory_tracked=False), "inventory is not tracked by Soyspray"),
     ],
 )
 def test_preflight_rejects_unvalidated_recovery_source(monkeypatch, runner, message) -> None:
+    """Refuse recovery with unreviewed source, inventory, or invalid playbooks."""
     monkeypatch.setattr(recovery_preflight.shutil, "which", lambda tool: f"/usr/bin/{tool}")
     monkeypatch.setattr(recovery_preflight.importlib.util, "find_spec", lambda module: object())
 

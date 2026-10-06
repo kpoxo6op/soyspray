@@ -55,7 +55,7 @@ do not create a new tunnel or commit the token. Run from the repository root:
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu apps/autism-traits/bootstrap.yml \
   --ask-vault-pass -e @/private/path/autism-traits.vault.yml
 ```

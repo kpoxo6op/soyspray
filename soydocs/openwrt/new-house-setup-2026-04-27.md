@@ -315,7 +315,7 @@ Repo changes made for recovery:
 
 - `Makefile` node addresses changed to `192.168.20.10`.
 - `AGENTS.md` networking notes changed to the new LAN.
-- `kubespray/inventory/soycluster/hosts.yml` changed to
+- `inventory/soycluster/hosts.yml` changed to
   `192.168.20.10`.
 - MetalLB primary pool changed to `192.168.20.20-192.168.20.38`.
 - MetalLB torrent pool removed.
@@ -461,7 +461,7 @@ the old service IP.
 
 ```sh
 source soyspray-venv/bin/activate
-ansible -i kubespray/inventory/soycluster/hosts.yml \
+ansible -i inventory/soycluster/hosts.yml \
   all --become --become-user=root --user ubuntu -m ping
 ```
 
@@ -470,7 +470,7 @@ Result: `node-0 | SUCCESS`, proving SSH and Ansible reachability at
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu kubespray/cluster.yml
 ```
 
@@ -543,7 +543,7 @@ Argo/application deployment:
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/deploy-argocd-apps.yml
 ```
@@ -557,7 +557,7 @@ apps/immich/database/immich-db-active-application.yaml
 The network-facing app subset was then applied with tags:
 
 ```sh
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/deploy-argocd-apps.yml \
   --tags redis,obsidian,plex,jellyfin,prowlarr,qbittorrent,lazylibrarian,booklore,sonarr,threadfin,streamlink,immich,mosquitto,zigbee2mqtt,homeassistant

@@ -65,24 +65,13 @@ def validate(root, apps, runner=run, is_file=lambda path: path.is_file()):
         *COMMON_PLAYBOOKS,
         *operation_sources(apps),
     ]
-    inventory = "kubespray/inventory/soycluster/hosts.yml"
+    inventory = "inventory/soycluster/hosts.yml"
     tracked = runner(["git", "ls-files", "--error-unmatch", "--", *required], root)
-    inventory_tracked = runner(
-        [
-            "git",
-            "-C",
-            "kubespray",
-            "ls-files",
-            "--error-unmatch",
-            "--",
-            "inventory/soycluster/hosts.yml",
-        ],
-        root,
-    )
+    inventory_tracked = runner(["git", "ls-files", "--error-unmatch", "--", inventory], root)
     require(tracked.returncode == 0, "A required recovery source file is not tracked.")
     require(
         inventory_tracked.returncode == 0,
-        "The recovery inventory is not tracked by the pinned Kubespray source.",
+        "The recovery inventory is not tracked by Soyspray.",
     )
     require(
         all(is_file(root / path) for path in [*required, inventory]),
@@ -108,7 +97,7 @@ def validate(root, apps, runner=run, is_file=lambda path: path.is_file()):
             str(root / "soyspray-venv/bin/ansible-playbook"),
             "--syntax-check",
             "-i",
-            "kubespray/inventory/soycluster/hosts.yml",
+            "inventory/soycluster/hosts.yml",
             *COMMON_PLAYBOOKS,
         ],
         root,

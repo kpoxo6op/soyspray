@@ -18,7 +18,7 @@ ArgoCD was then available at `http://192.168.20.21`.
 ## Configure ArgoCD
 
 ```sh
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu main.yml --tags argocd
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu main.yml --tags argocd
 ```
 
 This command configures ArgoCD with necessary settings:

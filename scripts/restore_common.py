@@ -239,7 +239,7 @@ class RestoreOperation:
                 "The explicit recovery kubeconfig or inventory is unavailable.",
             )
         else:
-            self.inventory = self.root / "kubespray/inventory/soycluster/hosts.yml"
+            self.inventory = self.root / "inventory/soycluster/hosts.yml"
         self.output.mkdir(mode=0o700, parents=True)
         self.created_output = True
         self.state.chmod(0o700)

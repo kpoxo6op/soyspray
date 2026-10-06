@@ -49,7 +49,7 @@ deploying the Argo app changes:
 
 ```bash
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   kubespray/cluster.yml --tags node-label
 ```
@@ -58,7 +58,7 @@ Then deploy the Argo-managed apps:
 
 ```bash
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/deploy-argocd-apps.yml --tags longhorn,prowlarr,threadfin,mosquitto,zigbee2mqtt
 ```

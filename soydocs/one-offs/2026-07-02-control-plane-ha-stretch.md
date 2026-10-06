@@ -166,7 +166,7 @@ Repair the stale membership record before adding more etcd members:
 
 ```bash
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu \
   playbooks/operations/kubernetes/repair-etcd-peer-url.yml
 ```

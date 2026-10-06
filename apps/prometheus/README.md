@@ -117,7 +117,7 @@ Supply a missing token through an encrypted Ansible variables file:
 
 ```sh
 source soyspray-venv/bin/activate
-ansible-playbook -i kubespray/inventory/soycluster/hosts.yml \
+ansible-playbook -i inventory/soycluster/hosts.yml \
   --become --become-user=root --user ubuntu apps/prometheus/bootstrap.yml \
   -e @/path/to/prometheus-recovery.vault.yml \
   --vault-password-file /path/to/vault-password

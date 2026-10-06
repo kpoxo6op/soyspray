@@ -8,7 +8,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-INVENTORY="${ROOT_DIR}/kubespray/inventory/soycluster/hosts.yml"
+INVENTORY="${ROOT_DIR}/inventory/soycluster/hosts.yml"
 DEFAULT_VIP="192.168.20.13"
 EXPECTED_NODES=(node-0 node-1 node-2)
 declare -A NODE_IPS=(
