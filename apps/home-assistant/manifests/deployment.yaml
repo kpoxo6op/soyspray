@@ -66,6 +66,37 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+        - name: install-fellow-stagg
+          image: alpine:3.20
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              apk add --no-cache ca-certificates unzip wget >/dev/null
+              revision="9eb03c9df294e82ea826fb36cf38de0068dbfe75"
+              expected_sha256="835fa8aa6448f2e45c53ed31ee89fd9d387b73646bd3f8c36292c393c5feb061"
+              install_dir="/config/custom_components/fellow_stagg"
+              version_file="${install_dir}/.soyspray-version"
+
+              if [ -f "${version_file}" ] && [ "$(cat "${version_file}")" = "${revision}" ]; then
+                exit 0
+              fi
+
+              tmp_dir="$(mktemp -d)"
+              trap 'rm -rf "${tmp_dir}"' EXIT
+              wget -q -O "${tmp_dir}/fellow.zip" "https://codeload.github.com/bramboe/stagg-ekg-plus-ha/zip/${revision}"
+              echo "${expected_sha256}  ${tmp_dir}/fellow.zip" | sha256sum -c -
+              unzip -q "${tmp_dir}/fellow.zip" -d "${tmp_dir}/source"
+              source_dir="${tmp_dir}/source/stagg-ekg-plus-ha-${revision}/custom_components/fellow_stagg"
+              test -f "${source_dir}/manifest.json"
+              mkdir -p /config/custom_components
+              rm -rf "${install_dir}"
+              cp -R "${source_dir}" "${install_dir}"
+              echo "${revision}" > "${version_file}"
+          volumeMounts:
+            - name: config
+              mountPath: /config
         - name: install-oidc-auth
           image: alpine:3.20
           command:
