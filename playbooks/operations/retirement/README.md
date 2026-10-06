@@ -74,3 +74,12 @@ reports honestly when OpenClaw is not installed.
 
 The retired laptop evidence and restore-schedule units are removed. Keep the
 independent daily recovery-input-backup timer enabled.
+
+## Retired laptop scrape
+
+After the laptop scrape is removed from the Prometheus package, the stack's
+non-pruning owner retains its old generated configuration Secret.
+`laptop-scrape.yml -e retire_laptop_scrape=true` removes only that unused Secret
+from delivered `main`. Run with `--check` first. It requires the original single
+laptop job, exact stack ownership, no Prometheus reference, and UID deletion
+preconditions. It never touches Alertmanager or its shared delivery identity.

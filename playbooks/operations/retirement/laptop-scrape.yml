@@ -1,0 +1,111 @@
+---
+- name: Retire the unused laptop scrape configuration
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    retire_laptop_scrape: false
+    laptop_scrape_secret: kube-prometheus-stack-prometheus-scrape-confg
+  tasks:
+    - name: Require explicit scope and removal from the delivered package
+      ansible.builtin.assert:
+        that:
+          - retire_laptop_scrape | bool
+          - >-
+            'soyspray-laptop-evidence' not in
+            lookup('file', playbook_dir + '/../../../apps/prometheus/values.yaml')
+
+    - name: Read the exact local and delivered revisions
+      ansible.builtin.command:
+        argv: "{{ item }}"
+        chdir: "{{ playbook_dir }}/../../.."
+      loop:
+        - [git, rev-parse, HEAD]
+        - [git, ls-remote, https://github.com/kpoxo6op/soyspray.git, refs/heads/main]
+      register: laptop_scrape_revisions
+      changed_when: false
+      check_mode: false
+
+    - name: Require delivered main for live retirement
+      ansible.builtin.assert:
+        that:
+          - >-
+            laptop_scrape_revisions.results[0].stdout ==
+            laptop_scrape_revisions.results[1].stdout.split()[0]
+      when: not ansible_check_mode
+
+    - name: Read the Prometheus configuration
+      kubernetes.core.k8s_info:
+        api_version: monitoring.coreos.com/v1
+        kind: Prometheus
+        namespace: monitoring
+        name: kube-prometheus-stack-prometheus
+      register: laptop_scrape_prometheus
+
+    - name: Require the obsolete configuration to be unused
+      ansible.builtin.assert:
+        that:
+          - laptop_scrape_prometheus.resources | length == 1
+          - >-
+            laptop_scrape_prometheus.resources[0].spec.get(
+            'additionalScrapeConfigs', {}).get('name', '') != laptop_scrape_secret
+
+    - name: Read only the obsolete scrape Secret
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: monitoring
+        name: "{{ laptop_scrape_secret }}"
+      register: laptop_scrape_read
+      no_log: true
+
+    - name: Verify ownership and the single retired laptop job
+      ansible.builtin.assert:
+        that:
+          - laptop_scrape_read.resources | length <= 1
+          - >-
+            laptop_scrape_read.resources | length == 0 or
+            laptop_scrape_read.resources[0].metadata.labels.get(
+            'argocd.argoproj.io/instance', '') == 'kube-prometheus-stack'
+          - >-
+            laptop_scrape_read.resources | length == 0 or
+            laptop_scrape_read.resources[0].data.keys() | list == ['additional-scrape-configs.yaml']
+          - >-
+            laptop_scrape_read.resources | length == 0 or
+            (laptop_scrape_read.resources[0].data['additional-scrape-configs.yaml'] |
+            b64decode | from_yaml) == [{'job_name': 'soyspray-laptop-evidence',
+            'scrape_interval': '60s', 'scrape_timeout': '10s',
+            'static_configs': [{'targets': ['192.168.20.50:9910']}]}]
+        fail_msg: The obsolete scrape configuration differs from its reviewed scope.
+      no_log: true
+
+    - name: Delete only the unused scrape Secret with its observed UID
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Secret
+        namespace: monitoring
+        name: "{{ laptop_scrape_secret }}"
+        state: absent
+        delete_options:
+          preconditions:
+            uid: "{{ laptop_scrape_read.resources[0].metadata.uid }}"
+        wait: true
+      when: laptop_scrape_read.resources | length == 1
+      no_log: true
+
+    - name: Verify the obsolete scrape Secret is absent
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: monitoring
+        name: "{{ laptop_scrape_secret }}"
+      register: laptop_scrape_after
+      when: not ansible_check_mode
+      no_log: true
+
+    - name: Require completed retirement
+      ansible.builtin.assert:
+        that:
+          - laptop_scrape_after.resources | length == 0
+      when: not ansible_check_mode
