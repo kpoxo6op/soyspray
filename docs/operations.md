@@ -35,10 +35,12 @@ Alertmanager source, unusable state and a stalled Telegram outbox.
 ## Change an application
 
 1. Work on a branch.
-2. Change the application folder and its technical README together.
+2. Change the application folder and update its short README when needed.
 3. Run the maintained application check and diff.
-4. Open a pull request and wait for required checks.
-5. Merge to `main`; Argo CD then follows the reviewed source.
+4. Open a pull request describing what changed, why, risk, and rollback. GitHub
+   CI is the merge gate; affected local checks help during development.
+5. Squash merge after CI passes and the change is verified safe. Argo CD follows
+   `main`; confirm affected Applications are Synced and Healthy.
 
 Do not use ad hoc Kubernetes writes for a lasting change. A live application
 must not be retargeted to a topic branch.

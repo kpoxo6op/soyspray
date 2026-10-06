@@ -138,7 +138,7 @@ render: ## Render all managed Kustomize packages
 	done
 
 go: override APP :=
-go: full-check ## Run every local check before a pull request or merge
+go: full-check ## Compatibility alias for the complete local check
 
 voice-pe-render:
 	$(MAKE) --no-print-directory -f apps/voice-assistant/Makefile voice-pe-render

@@ -1,141 +1,58 @@
-# AGENTS.md
+# Soyspray operator rules
 
-## Project Overview
-This repo manages a kubespray-provisioned Kubernetes cluster and its workloads
-(Ansible + Argo CD apps). Work often includes cluster operations, logs/alerts,
-and backup/retention checks.
+Kubespray owns the cluster foundation. Argo CD owns application workloads from
+`main`. Ansible owns private inputs, secrets, recovery, and deliberate operations.
 
-## Operator interface
+## Changes
 
-- `make apps` lists Applications and ownership from native metadata.
-- `make status APP=boys FORMAT=json` reports source, health, access, and recovery evidence.
-- `make check APP=boys` and `make diff APP=boys` use the app's maintained commands.
-- `make backup-status FORMAT=json` reports native backup and restore evidence.
-- `make restore-check APP=boys` runs the isolated recovery procedure.
-- Use the app README for supported operations and their limits. Missing evidence
-  must be unknown with its cause. `make full-check` runs the full repository gate.
+- Work on a branch and deliver through a GitHub pull request. Leave the primary
+  checkout on `main`; preserve untracked folders and private inputs.
+- GitHub CI is the merge gate. Run affected local checks while developing;
+  `make check` runs the complete local gate when needed.
+- Use squash merges after CI passes and the change is verified safe. Describe
+  what changed, why, risk, and rollback. Verify affected Argo Applications are
+  Synced and Healthy after merge.
+- Push before running cluster operations. Never make ad hoc imperative cluster
+  writes or retarget live Applications to a topic branch.
+- Use specific, guarded Ansible operations for destructive changes. Confirm
+  scope only when it has not already been authorized. Stop on an unexpected
+  state; do not improvise node resets, PVC deletion, or etcd repairs.
+- Keep one short README beside each app's source, manifests, tests, and
+  operations. Explain purpose, normal use, commands, checks, and limits.
+- Keep tests that protect observable behavior, data, security, recovery, and
+  deployment safety. Avoid assertions that only mirror source text or prose.
 
+## Data and secrets
 
-## Tools
-- `kubectl`: Inspect cluster resources, pods, logs, and CRs.
-- `aws` CLI: Check backup objects and IAM policies/permissions when S3 is
-  involved.
-- `gh` (GitHub CLI): Create/merge PRs and update PR descriptions.
-- `ansible-playbook`: Run runbooks with the repo’s inventory and standard
-  privilege escalation; check `Makefile` targets for canonical command
-  templates.
+- Preserve application data, PVCs, database identities, hostnames, sessions,
+  credentials, and node-0's mounted storage and device identities.
+- Establish completed backups and isolated restores before moving stateful
+  ownership. Adopt and verify replacement paths before deleting definitions.
+- Keep root pruning and cascading deletion disabled, including
+  `Prune=false,Delete=false`. Protect durable resources from pruning and
+  Application deletion. Retirement requires an explicit Ansible operation.
+- This repository is public. Never commit secrets, private recovery inputs,
+  credentials, or personal context. Use Ansible Vault; keep recovery keys and
+  Kubespray `credentials/` private and outside Git. Preserve credentials on retry.
+- Put no cluster credentials in GitHub Actions or GitHub secrets.
+- Let each backup tool own retention; do not apply generic S3 expiry to active
+  backup repositories. A schedule does not prove a completed backup or restore.
+- Build custom runtime code into immutable GHCR images. Source-only merges must
+  leave running code unchanged; deliver digests through separate promotion PRs.
 
-## Node Access
-- The cluster has three nodes: node-0 (`192.168.20.10`), node-1
-  (`192.168.20.11`), and node-2 (`192.168.20.12`).
-- Use `make node0`, `make node1`, or `make node2` for SSH as `ubuntu`.
-- Kubespray inventory is `kubespray/inventory/soycluster/hosts.yml`.
-- Kubespray owns the cluster foundation. Argo CD owns application workloads;
-  Ansible owns bootstrap inputs, secrets, recovery, and deliberate operations.
-- Node-0/node-1/node-2 drills are complete. For requested maintenance, use
-  `playbooks/operations/nodes/README.md` and the pinned native Kubespray commands.
-  Do not repeat drills or rebuild the removed evacuation/cleanup wrappers.
-  Check the current first control-plane/etcd member before removal; preserve
-  node-0's mounted storage and device identities.
+## Access and operations
 
-## Networking Notes
-- Router (OpenWrt) is at `192.168.20.1`.
-- LAN subnet: `192.168.20.0/24`.
-- DNS override: `soyspray.vip` resolves to `192.168.20.20` via router dnsmasq.
-- Tailscale on the router advertises the LAN route `192.168.20.0/24` and forwards
-  `tailscale -> lan`.
-
-## Workflow
-- Never run imperative commands modifying the cluster. Make changes in code.
-- Never modify `main` directly. Always work in a branch (PR branch or local
-  topic branch) and keep `main` untouched. Exception: markdown and comments.
-- For PR work: check out the PR branch, make changes there, push, then merge.
-- Push changes to the remote before running cluster actions.
-- Normal application delivery is a GitHub pull request merged to `main`. Argo
-  CD follows `main`. Run `make go` for final verification.
-- Activate the venv via `make act` before running Ansible.
-- For non-interactive runs, use:
-  `source soyspray-venv/bin/activate && ansible-playbook ...`.
-- Keep committed Soyspray Git sources at `main`. Use `make diff APP=NAME` for a
-  read-only comparison when the app supports it. Do not retarget a live
-  Application to a topic branch.
-- When work creates or changes a feature folder, add or update a short,
-  human-centered `README.md` in that folder. Explain its purpose, normal human
-  use, important commands, checks, and limits. Keep shared indexes concise.
-- Keep `docs/` as the human entry point and local README files as the
-  authoritative technical source. A material behavior, ownership, access, or
-  recovery change must update both affected layers in the same pull request.
-  Distinguish a configured backup, a completed backup, an isolated restore, and
-  a human recovery journey. Do not copy private inputs or unsupported recovery
-  claims into the public documentation site.
-- Use specific Ansible operations for destructive changes. Confirm scope when
-  it is not already authorized; preserve shared resources and access.
-- Keep tests that protect behavior, data, ownership, and deployment safety.
-  Before adding or keeping a test, name the credible failure it catches and the
-  observable result independent of the current implementation. Prefer an
-  existing user journey or public interface; use an isolated test when that
-  failure is hard to exercise there. Give each contract one primary test owner;
-  avoid production hooks that exist only for tests. Remove duplicate assertions
-  and tests that only mirror source text, current values, or prose quotas.
-  Keep source checks when they independently guard a real release, security,
-  or compatibility contract. A behavior-preserving refactor should normally
-  keep the test green. Tests need not precede implementation, and every fix
-  does not need a new test.
-  Do not enforce prose or file counts.
-- Write the result first in plain, short sentences. State evidence and material
-  limits; remove boilerplate, repetition, and unsupported completion claims.
-
-## Application and data protection
-
-- Keep app manifests, configuration, source, tests, and a short README under
-  `apps/NAME/`. Use upstream charts or Kustomize and explicit native Argo children.
-- Build custom runtime code into immutable GHCR images. Source changes open a
-  separate digest promotion PR; source-only merges must not change running code.
-- Establish backups and isolated restores before moving stateful ownership.
-  Preserve names, PVCs, database identities, hostnames, sessions, and keys.
-- Adopt and verify replacement paths before deleting old definitions. Check every
-  live Application source and referenced values path before cleanup.
-- Keep root pruning and cascading deletion disabled. Protect durable resources
-  from pruning and Application deletion. Parking retains data; retirement is an
-  explicit Ansible operation.
-- Use Ansible Vault and documented private bootstrap inputs. Keep recovery keys
-  outside the cluster. Preserve existing credentials during retries.
-- Each backup tool owns retention. Do not apply generic S3 expiry to active backup
-  repositories. A schedule alone does not prove the recovery target.
-
-## Pull Request Standard
-- Organize commits for review before opening or substantially updating a PR.
-- Keep a normal commit to one leaf folder or 1-5 closely related files. Aim for
-  roughly 2-3 screens of ordinary changes when that is practical.
-- Use smaller one-file commits for lifecycle switches, security boundaries,
-  deployment controls, and other logic that deserves focused review.
-- Do not mix platform code, application code, documentation, tests, generated
-  artifacts, or vendored material when those concerns can be reviewed
-  independently.
-- Put an unavoidable large generated or vendored file in its own commit. State
-  what it is in the commit subject instead of hiding it inside a broad commit.
-- Rebase onto the current base branch before final review. When history must be
-  rewritten, preserve the delivered tree, run the full local gate, and use
-  `--force-with-lease` rather than an unrestricted force push.
-- Write the PR description in simple, neutral English. Lead with the outcome
-  and safety facts, then include a review map, exact operating commands,
-  verification evidence, and rollback instructions when relevant.
-- List every commit from oldest to newest with a direct GitHub commit link.
-- Run affected-app CI and shared checks. Cancel superseded runs; preserve an
-  explicit full-repository check.
-- For a large PR, group commit ranges by area and place the complete commit list
-  in a collapsible section so the main description stays readable.
-- Add line-anchored PR comments where code is hard or non-obvious. Explain the
-  reason in simple English, not just what the line says.
-- After a force push, verify every inline comment against the new head. Replace
-  comments that are outdated or no longer line-anchored.
-- Keep the PR in draft until the description matches the current head and all
-  required local and GitHub checks pass.
-- Exclude one-off reports, temporary evidence, generated screenshots, secrets,
-  personal context, and irrelevant employer or client names from the PR.
-
-## Laptop operations
-- OpenClaw runs on the laptop. Do not install it on cluster nodes.
-- Keep shared Tailscale access, Kubernetes tools, Node.js/npm, and browser tooling.
-- Keep `playbooks/operations/retirement/node0-openclaw.yml` through the migration
-  window. It verifies absence without revoking credentials shared with the laptop.
+- Nodes are `node-0` (`192.168.20.10`), `node-1` (`192.168.20.11`), and `node-2`
+  (`192.168.20.12`). Use `make node0`, `make node1`, or `make node2` for SSH as
+  `ubuntu`. The API VIP is declared by the inventory.
+- Inventory: `kubespray/inventory/soycluster/hosts.yml`. Activate Ansible with
+  `source soyspray-venv/bin/activate` and use the repository's inventory,
+  `--become --become-user=root --user ubuntu` conventions.
+- Node drills are complete. Follow `playbooks/operations/nodes/README.md` for
+  authorized maintenance; do not repeat drills or rebuild evacuation wrappers.
+- Use app READMEs for supported checks, comparisons, and isolated restores.
+  Read native Argo, Longhorn, CNPG, and Prometheus state. Missing evidence is
+  unknown; distinguish configuration, completed backups, and verified restores.
+- OpenClaw belongs on the laptop. Keep shared Tailscale access, Kubernetes tools,
+  Node.js/npm, and browser tooling, and retain the node-0 retirement operation
+  through the migration window.

@@ -20,8 +20,8 @@ checked, and separate facts from unknowns. It should state any action that still
 needs confirmation.
 
 For a change, the agent should use a branch and pull request, run the maintained
-checks, preserve data and ownership boundaries, and update the affected human
-and technical documentation together.
+checks, preserve data and ownership boundaries, and update the affected app
+README when needed.
 
 For destructive work, the agent must resolve the exact target, check current
 backup and recovery evidence, and follow the maintained operation. General

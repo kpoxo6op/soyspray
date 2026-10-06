@@ -39,8 +39,9 @@ route. Secrets and login details are not stored in this repository.
 
 - Work on a branch. Merge through a GitHub pull request.
 - Change the cluster through Ansible and Argo CD, not ad hoc `kubectl` writes.
-- Run `make go` before merge.
-- Add tests and a rollback path for behaviour changes.
+- Run affected checks locally. GitHub CI is the merge gate.
+- Describe what changed, why, risk, and rollback; squash merge after CI passes
+  and the change is verified safe. Check affected Argo Applications afterwards.
 
-The [two repo skills](.agents/skills) cover operating Soyspray and
-changing an application. Shared laptop skills are maintained outside the repo.
+[AGENTS.md](AGENTS.md) contains the operator rules. There are no project-local
+skills; shared laptop skills are maintained outside the repo.
