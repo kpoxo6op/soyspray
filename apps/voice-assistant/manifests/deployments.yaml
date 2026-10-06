@@ -63,6 +63,7 @@ spec:
                   "--retrain-on-start",
                   "--retrain-seconds", "300",
                   "--retrain-on-connect",
+                  "--volume-multiplier", "4.0",
               ]
               asyncio.run(main())
           ports:
