@@ -32,12 +32,7 @@ requires parity before any full reconciliation.
 ## Incident pipeline
 
 Prometheus owns health detection. Alertmanager sends native critical and warning
-alerts to Telegram and the independent Watchdog route. The in-cluster incident
-loop polls Alertmanager, groups related alerts and reads bounded Loki samples.
-It sends a factual supplement only when it observes a distinct failure phrase
-or a supported relationship between alerts. Missing evidence is unknown;
-absence of an alert does not establish recovery. The loop has no AI provider,
-classifier or Kubernetes service account token.
-
-The [cluster diagnosis README](https://github.com/kpoxo6op/soyspray/tree/main/apps/cluster-diagnosis)
-records message rules, evidence limits, operating commands and rollback.
+alerts to Telegram and keeps the independent Watchdog route. Alloy exports
+bounded failure counters and sends searchable logs to Loki. Inspect logs in
+Grafana when an alert needs context. Missing evidence is unknown; absence of an
+alert does not establish recovery. There is no supplemental diagnosis writer.

@@ -75,6 +75,5 @@
       ansible.builtin.debug:
         msg: >-
           The laptop ledger was copied to state.retired.json and left in place.
-          The in-cluster workload keeps its own ledger on
-          monitoring/cluster-diagnosis-state. Delete the laptop copy only after
-          the cluster Application has been Synced and Healthy for a day.
+          The cluster diagnosis writer is retired. Keep this private local
+          ledger unless its removal is separately authorized.

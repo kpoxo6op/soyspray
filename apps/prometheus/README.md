@@ -28,7 +28,7 @@ Open Prometheus at `https://prometheus.soyspray.vip`, which uses Authentik forwa
 authentication.
 
 The **Soyspray Operations** dashboard shows native node, Argo, Longhorn, database and critical-backup observations,
-plus the remaining incident loop metrics. A
+with no laptop or diagnosis dependency. A
 missing sample means the result is unknown. A historical restore result does not
 prove current access.
 
@@ -40,11 +40,7 @@ report a complete monitoring or internet failure.
 
 Prometheus owns every health and paging decision. `config/alerts/runtime-signals.yaml`
 carries the rules that replaced the retired Loki ruler rules, including the
-Alloy-derived log and event counters. `config/alerts/cluster-diagnosis.yaml` covers the factual incident loop:
-`SoysprayDiagnosisStale` (no metrics or completed poll),
-`SoysprayDiagnosisSourceUnreadable` (Alertmanager read failures),
-`SoysprayDiagnosisStateUnusable` (incident or delivery state unreadable), and
-`SoysprayDiagnosisDeliveryStalled` (oldest queued update above thirty minutes).
+Alloy-derived log and event counters.
 [apps/loki/manifests/docs/ALERT-PIPELINE.md](../loki/manifests/docs/ALERT-PIPELINE.md)
 holds the complete mapping, the detection timing and the missing-evidence
 behaviour.
@@ -78,9 +74,8 @@ group, which keeps the worst case near 3.6 thousand runes.
 
 Node-level inhibition is not used. The standard kube-state-metrics alerts carry
 no `node` label, so an inhibition rule with `equal: [node]` could not match them.
-The laptop incident adapter instead correlates a node incident with its
-application consequences using `kube_pod_info`, and stops diagnosing those
-consequences separately.
+Alertmanager keeps its existing routes and grouping. Native node and
+application rules remain independent.
 
 ## Commands
 

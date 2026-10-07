@@ -28,7 +28,7 @@ def test_boys_changes_select_its_browser_checks(path):
 
 def test_shared_only_change_keeps_application_checks_optional():
     assert (
-        ci_scope.select(["scripts/backup_status.py", "tests/test_backup_status.py"]) == selected()
+        ci_scope.select(["scripts/restore_common.py", "tests/test_restore_common.py"]) == selected()
     )
     assert ci_scope.select(["apps/autism-traits/app/src/App.tsx"]) == selected(autism=True)
 
@@ -116,7 +116,6 @@ def test_deleted_and_renamed_paths_are_both_checked(tmp_path, monkeypatch):
         "cancelled",
         "domain-image-failed",
         "media-image-failed",
-        "diagnosis-image-failed",
     ],
 )
 def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
@@ -130,7 +129,6 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
                 "domain_health": "false",
                 "media_helper": "false",
                 "gi": "false",
-                "cluster_diagnosis": "false",
             },
         },
         "shared": {"result": "success"},
@@ -140,7 +138,6 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
         "domain_health": {"result": "skipped"},
         "media_helper": {"result": "skipped"},
         "gi": {"result": "skipped"},
-        "cluster_diagnosis": {"result": "skipped"},
     }
     if failure in {"shared", "scope"}:
         jobs[failure]["result"] = "failure"
@@ -158,9 +155,6 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
     elif failure == "media-image-failed":
         jobs["scope"]["outputs"]["media_helper"] = "true"
         jobs["media_helper"]["result"] = "failure"
-    elif failure == "diagnosis-image-failed":
-        jobs["scope"]["outputs"]["cluster_diagnosis"] = "true"
-        jobs["cluster_diagnosis"]["result"] = "failure"
     workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
     gate = workflow["jobs"]["check"]["steps"][0]["run"]
     run = subprocess.run(

@@ -54,26 +54,25 @@ files. Keep the retirement playbook through the migration window. A completed
 retirement can be checked and applied again. Reinstallation needs a separate
 reviewed operation; this playbook does not recreate the host installation.
 
-## Laptop incident diagnosis
+## Cluster diagnosis
 
-`laptop-cluster-diagnosis.yml` removes the OpenClaw cron job that ran the
-diagnosis adapter on the laptop. The loop now runs in the cluster as
-`monitoring/cluster-diagnosis` and needs no laptop process.
+`cluster-diagnosis.yml -e retire_cluster_diagnosis=true` retires the supplemental
+writer after its Argo child is removed through Git. Run with `--check` first,
+then apply delivered `main`. It checks exact ownership and UID preconditions,
+stops the writer, and deletes its objects and dedicated state claim. The claim's
+verified Delete policy lets Longhorn reclaim only its bound PV and volume;
+the operation waits for both to disappear. The unused dedicated provider Secret
+is also retired if present. Shared monitoring and Telegram identity are retained.
 
-```bash
-source soyspray-venv/bin/activate
-ansible-playbook playbooks/operations/retirement/laptop-cluster-diagnosis.yml --check
-ansible-playbook playbooks/operations/retirement/laptop-cluster-diagnosis.yml
-```
+Verify unchanged Alertmanager configuration, zero delivery failures, firing
+Watchdog, and healthy remaining Applications without sending a synthetic alert.
+Rollback through a CI-green Git revert to restore the pinned writer and objects.
+The retired incident ledger is not recoverable from Git; a recreated claim starts
+empty. Preserve shared delivery credentials and all unrelated application data.
 
-It copies the retired ledger to `state.retired.json` and leaves both files in
-place. The cluster keeps its own ledger on
-`monitoring/cluster-diagnosis-state`. Delete the laptop copy only after the
-Application has been Synced and Healthy for a day. It is safe to rerun, and it
-reports honestly when OpenClaw is not installed.
-
-The retired laptop evidence and restore-schedule units are removed. Keep the
-independent daily recovery-input-backup timer enabled.
+The earlier `laptop-cluster-diagnosis.yml` operation preserves its private local
+ledger and does not reinstall the loop. Laptop evidence units are retired;
+keep the independent recovery-input-backup timer enabled.
 
 ## Retired laptop scrape
 

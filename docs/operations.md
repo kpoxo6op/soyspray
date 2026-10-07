@@ -18,20 +18,11 @@ Prometheus keeps the native backup alerts without a laptop scrape target.
 
 ## Read an incident
 
-The Argo CD UI shows each application. The **Soyspray Operations**
-dashboard shows open incidents, source read status, evidence gaps and delivery
-state. A missing series is unknown, not healthy.
-
-Alertmanager sends critical and warning alerts directly to Telegram. The
-cluster incident loop adds a short factual update only for a new observation or
-supported correlation; it does not interpret logs with AI. The independent
-`Watchdog` ping remains in place. A vanished alert is not verified recovery.
-
-The loop runs as `monitoring/cluster-diagnosis`. Read its logs with
-`kubectl -n monitoring logs deploy/cluster-diagnosis` and its metrics with
-`kubectl -n monitoring exec deploy/cluster-diagnosis -- python3 /app/diagnosis.py
---print-metrics`. The maintained warning rules cover a stale loop, unreadable
-Alertmanager source, unusable state and a stalled Telegram outbox.
+The Argo CD UI and native **Soyspray Operations** dashboard show current
+application, node, storage, and backup state. Alertmanager sends critical and
+warning alerts directly to Telegram. The independent `Watchdog` ping remains
+in place. Loki holds searchable logs in Grafana. A vanished alert is not
+verified recovery; inspect the affected native resources and user journey.
 
 ## Change an application
 

@@ -1,0 +1,288 @@
+---
+- name: Retire only the cluster diagnosis writer and its access objects
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    retire_cluster_diagnosis: false
+    diagnosis_state_volume: pvc-35e507c0-d032-41b9-8af7-c97343b12006
+    diagnosis_state_uid: 35e507c0-d032-41b9-8af7-c97343b12006
+    diagnosis_objects:
+      - {api_version: argoproj.io/v1alpha1, kind: Application, namespace: argocd, name: cluster-diagnosis}
+      - {api_version: apps/v1, kind: Deployment, namespace: monitoring, name: cluster-diagnosis}
+      - {api_version: v1, kind: Service, namespace: monitoring, name: cluster-diagnosis}
+      - {api_version: monitoring.coreos.com/v1, kind: ServiceMonitor, namespace: monitoring, name: cluster-diagnosis}
+      - {api_version: networking.k8s.io/v1, kind: NetworkPolicy, namespace: monitoring, name: cluster-diagnosis}
+      - {api_version: argoproj.io/v1alpha1, kind: AppProject, namespace: argocd, name: cluster-diagnosis}
+    diagnosis_protected:
+      - {api_version: v1, kind: Secret, namespace: monitoring, name: alertmanager-telegram-secret}
+      - {api_version: v1, kind: Namespace, name: monitoring}
+  tasks:
+    - name: Require explicit scope and the native root removal
+      ansible.builtin.assert:
+        that:
+          - retire_cluster_diagnosis | bool
+          - "'apps/cluster-diagnosis' not in lookup('file', playbook_dir + '/../../../argocd/kustomization.yaml')"
+        fail_msg: Remove the diagnosis child through Git before this scoped retirement.
+
+    - name: Read the exact reviewed source revision
+      ansible.builtin.command:
+        argv: [git, rev-parse, HEAD]
+        chdir: "{{ playbook_dir }}/../../.."
+      register: diagnosis_local_revision
+      changed_when: false
+      check_mode: false
+
+    - name: Read the delivered main revision
+      ansible.builtin.command:
+        argv: [git, ls-remote, https://github.com/kpoxo6op/soyspray.git, refs/heads/main]
+      register: diagnosis_main_revision
+      changed_when: false
+      check_mode: false
+
+    - name: Require delivered main for live retirement
+      ansible.builtin.assert:
+        that:
+          - diagnosis_local_revision.stdout == diagnosis_main_revision.stdout.split()[0]
+      when: not ansible_check_mode
+
+    - name: Read preserved namespace and shared delivery identity
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api_version }}"
+        kind: "{{ item.kind }}"
+        namespace: "{{ item.namespace | default(omit) }}"
+        name: "{{ item.name }}"
+      loop: "{{ diagnosis_protected }}"
+      register: diagnosis_protected_before
+      no_log: true
+
+    - name: Require the preserved resources
+      ansible.builtin.assert:
+        that:
+          - diagnosis_protected_before.results | map(attribute='resources') | map('length') | min == 1
+        fail_msg: The shared identity, or namespace is missing.
+
+    - name: Read only the named retirement objects
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api_version }}"
+        kind: "{{ item.kind }}"
+        namespace: "{{ item.namespace }}"
+        name: "{{ item.name }}"
+      loop: "{{ diagnosis_objects }}"
+      register: diagnosis_read
+
+    - name: Refuse ownership drift before any deletion
+      ansible.builtin.assert:
+        that:
+          - item.resources | length <= 1
+          - >-
+            item.resources | length == 0 or item.resources[0].metadata.labels.get('argocd.argoproj.io/instance', '') ==
+            'cluster-diagnosis' or (item.item.kind in ['Application', 'AppProject'] and
+            item.resources[0].metadata.labels.get('argocd.argoproj.io/instance', '') == 'soyspray')
+          - >-
+            item.resources | length == 0 or item.item.kind != 'Application' or (item.resources[0].spec.source.path ==
+            'apps/cluster-diagnosis' and item.resources[0].spec.source.targetRevision == 'main' and
+            item.resources[0].spec.destination.namespace == 'monitoring' and item.resources[0].metadata.get('finalizers', [])
+            | length == 0)
+          - >-
+            item.resources | length == 0 or item.item.kind != 'AppProject' or (item.resources[0].spec.destinations | length ==
+            1 and item.resources[0].spec.destinations[0].namespace == 'monitoring' and
+            item.resources[0].spec.clusterResourceWhitelist | length == 0)
+        fail_msg: A named object does not match the retired diagnosis owner; stop without cleanup.
+      loop: "{{ diagnosis_read.results }}"
+      loop_control:
+        label: "{{ item.item.kind }}/{{ item.item.name }}"
+
+    - name: Read the exact dedicated state claim
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: monitoring
+        name: cluster-diagnosis-state
+      register: diagnosis_claim
+
+    - name: Read only the inspected bound volume and PV
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api_version }}"
+        kind: "{{ item.kind }}"
+        namespace: "{{ item.namespace | default(omit) }}"
+        name: "{{ diagnosis_state_volume }}"
+      loop:
+        - {api_version: v1, kind: PersistentVolume}
+        - {api_version: longhorn.io/v1beta2, kind: Volume, namespace: longhorn-system}
+      register: diagnosis_storage
+
+    - name: Require the exact dedicated claim and normal Longhorn reclamation
+      ansible.builtin.assert:
+        that:
+          - diagnosis_claim.resources | length <= 1
+          - diagnosis_storage.results | map(attribute='resources') | map('length') | max <= 1
+          - >-
+            diagnosis_claim.resources | length == 1 or
+            diagnosis_storage.results | map(attribute='resources') | map('length') | max == 0
+          - >-
+            diagnosis_claim.resources | length == 0 or
+            (diagnosis_claim.resources[0].metadata.uid == diagnosis_state_uid and
+            diagnosis_claim.resources[0].metadata.labels.get('argocd.argoproj.io/instance', '') == 'cluster-diagnosis' and
+            diagnosis_claim.resources[0].spec.volumeName == diagnosis_state_volume)
+          - >-
+            diagnosis_claim.resources | length == 0 or
+            diagnosis_storage.results | map(attribute='resources') | map('length') | min == 1
+          - >-
+            diagnosis_claim.resources | length == 0 or
+            (diagnosis_storage.results[0].resources[0].spec.claimRef.uid == diagnosis_state_uid and
+            diagnosis_storage.results[0].resources[0].spec.claimRef.name == 'cluster-diagnosis-state' and
+            diagnosis_storage.results[0].resources[0].spec.claimRef.namespace == 'monitoring' and
+            diagnosis_storage.results[0].resources[0].spec.persistentVolumeReclaimPolicy == 'Delete' and
+            diagnosis_storage.results[0].resources[0].spec.csi.driver == 'driver.longhorn.io' and
+            diagnosis_storage.results[0].resources[0].spec.csi.volumeHandle == diagnosis_state_volume)
+          - >-
+            diagnosis_claim.resources | length == 0 or
+            (diagnosis_storage.results[1].resources[0].status.kubernetesStatus.namespace == 'monitoring' and
+            diagnosis_storage.results[1].resources[0].status.kubernetesStatus.pvcName == 'cluster-diagnosis-state' and
+            diagnosis_storage.results[1].resources[0].status.kubernetesStatus.pvName == diagnosis_state_volume)
+        fail_msg: The dedicated claim or its storage identity differs from the reviewed scope.
+
+    - name: Read pods before retiring the dedicated state
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: monitoring
+      register: diagnosis_pods
+      no_log: true
+
+    - name: Refuse any other user of the diagnosis claim
+      ansible.builtin.assert:
+        that:
+          - >-
+            'cluster-diagnosis-state' not in (item.spec.get('volumes', []) |
+            selectattr('persistentVolumeClaim', 'defined') |
+            map(attribute='persistentVolumeClaim.claimName') | list) or
+            item.metadata.labels.get('app.kubernetes.io/name', '') == 'cluster-diagnosis'
+      loop: "{{ diagnosis_pods.resources }}"
+      no_log: true
+
+    - name: Read the retired dedicated provider Secret
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: monitoring
+        name: cluster-diagnosis-deepseek
+      register: diagnosis_provider
+      no_log: true
+
+    - name: Check all workload references to the dedicated provider Secret
+      ansible.builtin.command:
+        argv: [kubectl, get, 'pods,deployments,statefulsets,daemonsets,cronjobs,jobs', -A, -o, json]
+      register: diagnosis_consumers
+      changed_when: false
+      check_mode: false
+      no_log: true
+
+    - name: Require the dedicated provider Secret to be unused
+      ansible.builtin.assert:
+        that:
+          - diagnosis_provider.resources | length <= 1
+          - "'cluster-diagnosis-deepseek' not in diagnosis_consumers.stdout"
+        fail_msg: A workload still refers to the dedicated provider Secret.
+      no_log: true
+
+    - name: Delete reviewed objects with UID preconditions and no cascading Application deletion
+      kubernetes.core.k8s:
+        api_version: "{{ item.item.api_version }}"
+        kind: "{{ item.item.kind }}"
+        namespace: "{{ item.item.namespace }}"
+        name: "{{ item.item.name }}"
+        state: absent
+        delete_options:
+          preconditions:
+            uid: "{{ item.resources[0].metadata.uid }}"
+          propagationPolicy: Foreground
+        wait: true
+        wait_timeout: 180
+      loop: "{{ diagnosis_read.results }}"
+      loop_control:
+        label: "{{ item.item.kind }}/{{ item.item.name }}"
+      when: item.resources | length == 1
+
+    - name: Delete only the unused dedicated provider Secret
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Secret
+        namespace: monitoring
+        name: cluster-diagnosis-deepseek
+        state: absent
+        delete_options:
+          preconditions:
+            uid: "{{ diagnosis_provider.resources[0].metadata.uid }}"
+      when: diagnosis_provider.resources | length == 1
+      no_log: true
+
+    - name: Delete only the inspected dedicated state claim
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: monitoring
+        name: cluster-diagnosis-state
+        state: absent
+        delete_options:
+          preconditions:
+            uid: "{{ diagnosis_state_uid }}"
+        wait: true
+        wait_timeout: 300
+      when: diagnosis_claim.resources | length == 1
+
+    - name: Wait for normal PV and Longhorn volume reclamation
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api_version }}"
+        kind: "{{ item.kind }}"
+        namespace: "{{ item.namespace | default(omit) }}"
+        name: "{{ diagnosis_state_volume }}"
+      loop:
+        - {api_version: v1, kind: PersistentVolume}
+        - {api_version: longhorn.io/v1beta2, kind: Volume, namespace: longhorn-system}
+      register: diagnosis_reclaimed
+      until: diagnosis_reclaimed.resources | length == 0
+      retries: 60
+      delay: 5
+      when: not ansible_check_mode
+
+    - name: Read preserved resources after retirement
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api_version }}"
+        kind: "{{ item.kind }}"
+        namespace: "{{ item.namespace | default(omit) }}"
+        name: "{{ item.name }}"
+      loop: "{{ diagnosis_protected }}"
+      register: diagnosis_protected_after
+      no_log: true
+
+    - name: Verify retained data and shared identity without printing private fields
+      ansible.builtin.assert:
+        that:
+          - diagnosis_protected_after.results[item].resources | length == 1
+          - >-
+            diagnosis_protected_before.results[item].resources[0].metadata.uid ==
+            diagnosis_protected_after.results[item].resources[0].metadata.uid
+          - >-
+            item != 0 or diagnosis_protected_before.results[item].resources[0].metadata.resourceVersion ==
+            diagnosis_protected_after.results[item].resources[0].metadata.resourceVersion
+      loop: [0, 1]
+      no_log: true
+
+    - name: Verify all named retirement objects are absent
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api_version }}"
+        kind: "{{ item.kind }}"
+        namespace: "{{ item.namespace }}"
+        name: "{{ item.name }}"
+      loop: "{{ diagnosis_objects }}"
+      register: diagnosis_after
+      when: not ansible_check_mode
+
+    - name: Require completed scoped retirement
+      ansible.builtin.assert:
+        that:
+          - diagnosis_after.results | map(attribute='resources') | map('length') | max == 0
+      when: not ansible_check_mode

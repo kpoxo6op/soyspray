@@ -123,7 +123,7 @@ spec:
     - name: evidence-pipeline
       interval: 1m
       rules:
-        # Log evidence for the laptop incident adapter comes from this pipeline.
+        # Searchable logs and native backup signals come from this pipeline.
         # A stalled writer means the next incident has no log evidence, which the
         # adapter reports as a collector gap rather than as health.
         - alert: SoysprayLogPipelineStalled
