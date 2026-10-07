@@ -28,7 +28,7 @@ def test_boys_changes_select_its_browser_checks(path):
 
 def test_shared_only_change_keeps_application_checks_optional():
     assert (
-        ci_scope.select(["scripts/backup_status.py", "tests/test_backup_status.py"]) == selected()
+        ci_scope.select(["scripts/restore_common.py", "tests/test_restore_common.py"]) == selected()
     )
     assert ci_scope.select(["apps/autism-traits/app/src/App.tsx"]) == selected(autism=True)
 
