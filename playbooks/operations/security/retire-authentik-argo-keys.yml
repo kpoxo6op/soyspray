@@ -1,0 +1,152 @@
+---
+- name: Remove or restore only the unused Authentik Argo admin fields
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    authentik_argo_action: remove
+    authentik_argo_fields: [ARGOCD_ADMIN_PASSWORD_HASH, ARGOCD_ADMIN_PASSWORD_MTIME]
+  tasks:
+    - name: Require reviewed scope and a private copy
+      ansible.builtin.assert:
+        that:
+          - authentik_argo_action in ['remove', 'restore']
+          - authentik_argo_consumers_verified | default(false) | bool
+          - authentik_runtime_uid | default('') | length > 0
+          - authentik_runtime_version | default('') | length > 0
+          - >-
+            authentik_argo_copy | default('') is
+            match('^/home/boris/\.local/state/soyspray/plans/[^/]+\.json$')
+
+    - name: Require delivered operation
+      ansible.builtin.import_tasks: require-delivered.yml
+
+    - name: Read only the target Secret
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: authentik
+        name: authentik-runtime
+      register: runtime_before
+      no_log: true
+
+    - name: Require current identity and version
+      ansible.builtin.assert:
+        that:
+          - runtime_before.resources | length == 1
+          - runtime_before.resources[0].metadata.uid == authentik_runtime_uid
+          - runtime_before.resources[0].metadata.resourceVersion == authentik_runtime_version
+      no_log: true
+
+    - name: Inspect the private copy destination
+      ansible.builtin.stat:
+        path: "{{ authentik_argo_copy }}"
+        follow: false
+      register: copy_file
+
+    - name: Require a new removal copy or an existing private restore copy
+      ansible.builtin.assert:
+        that:
+          - >-
+            (authentik_argo_action == 'remove' and not copy_file.stat.exists) or
+            (authentik_argo_action == 'restore' and copy_file.stat.exists and
+            copy_file.stat.isreg and copy_file.stat.mode == '0600')
+
+    - name: Require exactly the two intended existing fields for removal
+      ansible.builtin.assert:
+        that:
+          - authentik_argo_fields | difference(runtime_before.resources[0].data.keys() | list) | length == 0
+      when: authentik_argo_action == 'remove'
+      no_log: true
+
+    - name: Keep the authorized pre-change copy privately
+      ansible.builtin.copy:
+        content: "{{ runtime_before.resources[0] | to_json }}"
+        dest: "{{ authentik_argo_copy }}"
+        mode: '0600'
+        force: false
+      when: authentik_argo_action == 'remove'
+      no_log: true
+
+    - name: Read the private copy for field-scoped rollback
+      ansible.builtin.slurp:
+        src: "{{ authentik_argo_copy }}"
+      register: restore_copy
+      when: authentik_argo_action == 'restore'
+      no_log: true
+
+    - name: Resolve the reviewed original fields
+      ansible.builtin.set_fact:
+        original_runtime: "{{ restore_copy.content | b64decode | from_json }}"
+      when: authentik_argo_action == 'restore'
+      no_log: true
+
+    - name: Require matching restore identity and absent fields
+      ansible.builtin.assert:
+        that:
+          - original_runtime.metadata.uid == authentik_runtime_uid
+          - authentik_argo_fields | difference(original_runtime.data.keys() | list) | length == 0
+          - authentik_argo_fields | intersect(runtime_before.resources[0].data.keys() | list) | length == 0
+      when: authentik_argo_action == 'restore'
+      no_log: true
+
+    - name: Start the atomic identity and version guards
+      ansible.builtin.set_fact:
+        runtime_patch:
+          - {op: test, path: /metadata/uid, value: "{{ authentik_runtime_uid }}"}
+          - {op: test, path: /metadata/resourceVersion, value: "{{ authentik_runtime_version }}"}
+      no_log: true
+
+    - name: Select only the two removal fields
+      ansible.builtin.set_fact:
+        runtime_patch: "{{ runtime_patch + [{'op': 'remove', 'path': '/data/' + item}] }}"
+      loop: "{{ authentik_argo_fields }}"
+      when: authentik_argo_action == 'remove'
+      no_log: true
+
+    - name: Select only the two original rollback fields
+      ansible.builtin.set_fact:
+        runtime_patch: >-
+          {{ runtime_patch + [{'op': 'add', 'path': '/data/' + item,
+          'value': original_runtime.data[item]}] }}
+      loop: "{{ authentik_argo_fields }}"
+      when: authentik_argo_action == 'restore'
+      no_log: true
+
+    - name: Mutate only the intended fields atomically
+      kubernetes.core.k8s_json_patch:
+        api_version: v1
+        kind: Secret
+        namespace: authentik
+        name: authentik-runtime
+        patch: "{{ runtime_patch }}"
+      no_log: true
+
+    - name: Re-read the target Secret
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: authentik
+        name: authentik-runtime
+      register: runtime_after
+      when: not ansible_check_mode
+      no_log: true
+
+    - name: Require unchanged identity and every unrelated field
+      ansible.builtin.assert:
+        that:
+          - runtime_after.resources[0].metadata.uid == authentik_runtime_uid
+          - >-
+            (runtime_before.resources[0].data | dict2items |
+            rejectattr('key', 'in', authentik_argo_fields) | items2dict) ==
+            (runtime_after.resources[0].data | dict2items |
+            rejectattr('key', 'in', authentik_argo_fields) | items2dict)
+          - >-
+            (authentik_argo_action == 'remove' and
+            authentik_argo_fields | intersect(runtime_after.resources[0].data.keys() | list) | length == 0) or
+            (authentik_argo_action == 'restore' and
+            runtime_after.resources[0].data['ARGOCD_ADMIN_PASSWORD_HASH'] == original_runtime.data['ARGOCD_ADMIN_PASSWORD_HASH'] and
+            runtime_after.resources[0].data['ARGOCD_ADMIN_PASSWORD_MTIME'] == original_runtime.data['ARGOCD_ADMIN_PASSWORD_MTIME'])
+      when: not ansible_check_mode
+      no_log: true

@@ -24,8 +24,9 @@ Create or regenerate the private Vault locally with a long random password,
 a cost-12 bcrypt hash and a current RFC3339 UTC `password_mtime`, under
 `argocd_admin`. Encrypt it with the existing recovery vault-password file.
 Nothing else belongs in `~/.config/soyspray/recovery/argocd-admin.vault.yml`;
-keep it mode 0600. The existing backup collector has a fixed recovery-input
-set, so this new Vault needs a separate private off-laptop copy.
+keep it mode 0600. The daily recovery-input collector covers the whole recovery
+directory and verifies an isolated off-laptop content restore. Its independent
+unlock material still needs the one human step in the recovery-input README.
 
 Generate it with `python -m scripts.argocd_admin_vault`; a second generation
 requires explicit `--replace`. Use `--refresh-cutoff` just before rotation to
@@ -57,3 +58,16 @@ key is unchanged, Applications are Synced/Healthy and no new warning fires.
 Use a newly generated private credential for a required admin rollback.
 Never re-enable Kubespray's Argo addon. Route rollback goes through a CI-green
 PR and a scoped identity/version guarded operation; never apply a broad install.
+
+
+## Unused Authentik Argo fields
+
+Bootstrap no longer creates or requires the former Argo admin fields.
+`retire-authentik-argo-keys.yml` removes exactly those two fields, after checking
+consumers, with atomic UID/resourceVersion tests and a new private 0600 copy.
+Every unrelated field and the Secret UID must remain unchanged. Supply reviewed
+`authentik_runtime_uid`, `authentik_runtime_version` and `authentik_argo_copy` in
+a private variables file; run check mode first, then merged-main live execution.
+For rollback, use `authentik_argo_action=restore` with that same private copy and
+fresh identity/version. It refuses a replacement Secret or existing rollback
+fields. This does not restore the old public Argo credential in `argocd-secret`.
