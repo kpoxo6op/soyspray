@@ -18,3 +18,9 @@ images:
   digest: sha256:3ee893b0593e605d7e1890966d912554b3b239dcbc873da09bcb63983ee5a2f4
 - name: ghcr.io/kpoxo6op/memes-import
   digest: sha256:3953c67aa53581dee969efa85a4f6e6ecbf71d2b7ffce263d8c1b7ef187ea6c2
+- name: memes-prepare-v1
+  newName: ghcr.io/kpoxo6op/memes
+  digest: sha256:3ee893b0593e605d7e1890966d912554b3b239dcbc873da09bcb63983ee5a2f4
+- name: memes-import-v1
+  newName: ghcr.io/kpoxo6op/memes-import
+  digest: sha256:3953c67aa53581dee969efa85a4f6e6ecbf71d2b7ffce263d8c1b7ef187ea6c2

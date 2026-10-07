@@ -7,16 +7,16 @@ The meme screen and feed API never disclose assignment arms or scores.
 
 ## Delivery state
 
-This source package is **not registered** in the root Argo kustomization.
-Deployment replicas are zero, preparation/import Jobs are suspended, and image
-references await separate digest promotions. Source merges cannot start cluster
-workloads. The image workflow tests and publishes web/import images independently
-and reuses the repository promotion action unchanged. Distinct action directories
-(`memes` and `memes/import`) give the two images separate promotion branches;
-the importer entrypoint delegates to the same digest editor. Leave both draft promotions
-open until goal 03; it must rebase them, retain both image entries, register Argo,
-and deliberately enable workloads. No tokens, production assets, or private inputs
-belong in this public repository or either image.
+The root Argo kustomization registers this package. Separate digest promotions
+select main-built images. Deployment stays at zero during the one-time import.
+Argo sync waves create protected storage and isolation first (-3), prepare only
+the destination permissions (-2), then import (-1). The web Deployment is enabled
+through a separate GitOps change after the frozen catalog is verified. No tokens,
+production assets, or private inputs belong in this public repository or either image.
+The one-time Jobs use separate frozen image aliases. Later digest promotions
+update the Deployment without mutating the completed Jobs' immutable templates.
+A new import needs a deliberate new catalog/Job version; do not rerun v1 or
+replace the frozen catalog beneath tester history.
 
 The dedicated namespace, Longhorn `memes-data` RWO 10Gi claim, and read-only
 `memes-vk-archive` local PV/PVC are protected from pruning and deletion. The web
@@ -193,16 +193,19 @@ this source goal. Browser/test invites are isolated local fixtures only.
 
 ## Goal 03 prerequisites and rollback
 
-Backup/restore code and CronJob are deferred: current repository checks do not
-require them for this unregistered PVC package. No Vault inputs, Secrets, S3
-prefixes or backup schedule are created here. Goal 03 must establish app-owned
+Backup/restore code and CronJob remain deferred. Existing Longhorn recovery
+operations enumerate existing claims and do not cover `memes-data`; its default
+backup target is unconfigured. No Vault inputs, Secrets, S3 prefixes or backup
+schedule are created here. Catalog deployment may proceed without invites.
+Before the first production invite, establish app-owned
 encrypted off-cluster backup, completed backup evidence, independently held unlock
 material, and an isolated authenticated restore including WAL-aware SQLite,
 catalog/vector/image hashes and existing invite/session identity **before the first
 production invite**. Scheduling alone cannot satisfy this prerequisite.
 
 Promotions change only image digests and cannot enable replicas, unsuspend Jobs or
-register Argo. Goal 03 must also validate node-0 import duration/storage and phone
-access. Restore both tested digests through GitHub to roll back source behavior;
+register Argo. Registration deliberately starts the prepare/import Jobs; a later
+change enables web serving. Goal 03 validates node-0 import duration/storage and
+unauthenticated private HTTP access; goal 04 owns the first invite and phone test. Restore both tested digests through GitHub to roll back source behavior;
 retain frozen catalog, SQLite, PVC/PV and access identity. Never delete durable
 resources or reset source storage as a rollback.

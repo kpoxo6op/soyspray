@@ -7,8 +7,9 @@ metadata:
     app.kubernetes.io/part-of: memes
   annotations:
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: '-1'
 spec:
-  suspend: true
+  suspend: false
   backoffLimit: 1
   activeDeadlineSeconds: 21600
   template:
@@ -29,7 +30,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: import
-        image: ghcr.io/kpoxo6op/memes-import:goal03-unreleased
+        image: memes-import-v1
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -38,8 +39,8 @@ spec:
             - ALL
         resources:
           requests:
-            cpu: 250m
-            memory: 128Mi
+            cpu: '1'
+            memory: 2Gi
           limits:
             cpu: '4'
             memory: 6Gi

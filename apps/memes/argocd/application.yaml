@@ -11,8 +11,8 @@ metadata:
     soyspray.vip/access-url: https://memes.soyspray.vip
     soyspray.vip/access-method: Private LAN/Tailscale invite link
     soyspray.vip/data-claims: memes/memes-data
-    soyspray.vip/backup: Deferred to goal 03; deployment and invites blocked until
-      verified off-cluster backup and isolated restore.
+    soyspray.vip/backup: Not configured; production invites require verified
+      encrypted off-cluster backup and isolated restore.
   namespace: argocd
 spec:
   project: memes
