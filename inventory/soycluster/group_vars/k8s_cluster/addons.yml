@@ -105,7 +105,8 @@ ingress_alb_enabled: false
 # alb_ingress_aws_debug: "false"
 
 # Cert manager deployment
-cert_manager_enabled: true
+# Argo owns these controllers; the upstream addon deletes the namespace.
+cert_manager_enabled: false
 cert_manager_version: "1.17.1"
 # cert_manager_namespace: "cert-manager"
 # cert_manager_tolerations:

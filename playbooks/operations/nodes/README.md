@@ -6,8 +6,9 @@ filesystems. Disk replacement and total-cluster recovery are outside its scope.
 
 ## 1. Prepare
 
-Use merged `main`, its pinned Kubespray ownership protections and the complete
-three-node inventory. No node-only limits, tags, `scale.yml` or check-mode drill.
+Use merged `main`, its upstream Kubespray pin and the complete three-node
+inventory. Keep the cert-manager addon disabled and preserve the existing
+Authentik OIDC inputs. No node-only limits, tags, `scale.yml` or check-mode drill.
 
 - Start with three Ready/schedulable nodes and healthy etcd. Save the target UID,
   filesystem identities, application/storage state and known exceptions.
@@ -36,7 +37,8 @@ source soyspray-venv/bin/activate
 target=node-0  # select the one authorized target
 case "$target" in node-0|node-1|node-2) ;; *) exit 2 ;; esac
 inventory="$PWD/inventory/soycluster/hosts.yml"
-ansible_cmd=(ansible-playbook -i "$inventory" --become --become-user=root --user ubuntu)
+ansible_cmd=(ansible-playbook -i "$inventory" --become --become-user=root --user ubuntu
+  -e @playbooks/operations/security/kubernetes-authentik-oidc-vars.yml)
 session="$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short HEAD)"
 evidence="$HOME/.local/state/soyspray/node-operations/$session"
 umask 077
@@ -109,16 +111,24 @@ Finish recovery before another member's maintenance. Keep one private handoff
 with revisions, identities, failures, assistance and restore results. Use
 [existing app recovery](../recovery/README.md); no new runner or drill is needed.
 
-## Kubespray source migration limit
+## Upstream reconciliation and upgrades
 
-The inventory is now maintained by Soyspray. The existing fork pin is retained:
-upstream v2.31.0 unconditionally deletes the configured cert-manager namespace
-when that addon is enabled, whereas the fork protects it. Inventory variables
-alone do not reproduce that ownership protection. Do not switch provisioners or
-run upstream `cluster.yml` while that safety/parity gap remains.
+Kubespray is pinned to upstream v2.31.0. Argo owns cert-manager v1.17.1; never
+re-enable the Kubespray addon because upstream deletes its namespace. The
+existing DNS autoscaler ConfigMap is retained. Future ConfigMap changes need
+an explicit operation; upstream does not reconcile the old fork's template.
+The upstream kube-vip hostPath uses `File`, with existing `admin.conf` on every
+control plane. The old drill and check-mode patches are retired.
 
-A detached Longhorn volume with unknown robustness also fails the strict
-all-volumes-healthy reconciliation gate. Preserve it; do not delete or force
-attach it to make the gate pass. The inventory move does not authorize a node
-maintenance run. A future version upgrade is a separate tag bump followed by
-full `upgrade-cluster.yml`, with snapshot and health checks first.
+Before full reconciliation, require three Ready nodes, healthy three-member
+etcd, all Applications Synced and Healthy, and healthy attached Longhorn
+volumes. The intentionally retained detached `media/jellyfin-config` volume
+reports unknown robustness; require its identity, spec and detached state to
+stay unchanged. Preserve it without forcing attachment. Take the native etcd
+snapshot above and verify the laptop copy, then run full `cluster.yml` with the
+same inventory and Authentik variable file, without limits or tags.
+
+For a version upgrade, bump the upstream tag through a CI-green PR, repeat the
+health and snapshot gates, then run full `upgrade-cluster.yml`. See the
+[inventory guide](../../../inventory/soycluster/README.md) for commands and
+source rollback. Keep the fork repository untouched as that rollback reference.
