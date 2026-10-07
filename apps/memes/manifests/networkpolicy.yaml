@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: memes-isolation
+  labels:
+    app.kubernetes.io/name: memes
+    app.kubernetes.io/part-of: memes
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: memes
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: ingress-nginx
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: ingress-nginx
+    ports:
+    - protocol: TCP
+      port: 8080
+  egress: []

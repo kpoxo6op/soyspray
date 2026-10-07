@@ -1,0 +1,14 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: memes
+  labels:
+    app.kubernetes.io/name: memes
+    app.kubernetes.io/part-of: memes
+spec:
+  secretName: prod-cert-tls
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  dnsNames:
+  - memes.soyspray.vip

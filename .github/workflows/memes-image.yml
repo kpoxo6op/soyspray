@@ -1,0 +1,107 @@
+name: Memes images
+
+on:
+  push:
+    branches: [main]
+    paths: [apps/memes/**, .github/workflows/memes-image.yml]
+  pull_request:
+    paths: [apps/memes/**, .github/workflows/memes-image.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: memes-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/memes/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12.13"
+      - uses: azure/setup-kubectl@v5
+      - name: Install check dependencies
+        run: |
+          python -m pip install -r apps/memes/check-requirements.lock
+          cd apps/memes
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Check Python, phone and desktop behavior and render manifests
+        run: make check APP=memes PYTHON=python3
+  build:
+    needs: browser
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: memes
+            dockerfile: Dockerfile
+            name: Memes web
+            paths: apps/memes/memes apps/memes/Dockerfile apps/memes/web-requirements.lock apps/memes/.dockerignore
+          - image: memes-import
+            dockerfile: Dockerfile.import
+            name: Memes importer
+            paths: apps/memes/memes/importer.py apps/memes/memes/catalog.py apps/memes/Dockerfile.import apps/memes/import-requirements.lock apps/memes/models.json apps/memes/prepare-models.py apps/memes/.dockerignore
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    env:
+      IMAGE: ghcr.io/kpoxo6op/${{ matrix.image }}
+      IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12.13"
+      - name: Build the pinned image with allowlisted source
+        run: docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" --file apps/memes/${{ matrix.dockerfile }} --tag "$IMAGE:$IMAGE_TAG" apps/memes
+      - name: Check web image without cluster access
+        if: matrix.image == 'memes'
+        run: |
+          python -m pip install -r apps/memes/check-requirements.lock
+          PYTHONPATH=apps/memes python apps/memes/tests/fixture.py "$RUNNER_TEMP/memes-data"
+          chmod 777 "$RUNNER_TEMP/memes-data"
+          docker run --detach --name memes-check --network none --read-only \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --mount "type=bind,source=$RUNNER_TEMP/memes-data,target=/data" --tmpfs /tmp:rw,size=16m \
+            --env MEMES_COOKIE_SECURE=false --env MEMES_ORIGIN=http://127.0.0.1:8080 "$IMAGE:$IMAGE_TAG"
+          docker exec -i memes-check python - < apps/memes/test-image.py
+      - name: Check offline CPU importer with generated pixels
+        if: matrix.image == 'memes-import'
+        run: |
+          docker run --detach --name memes-check --network none --read-only \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,size=128m,uid=1000,gid=1000 \
+            "$IMAGE:$IMAGE_TAG" python -c 'import time; time.sleep(300)'
+          docker exec -i memes-check python - < apps/memes/test-import-image.py
+      - name: Remove isolated container
+        if: always()
+        run: docker rm --force memes-check || true
+      - uses: ./.github/actions/publish-image-promotion
+        with:
+          publish: ${{ github.event_name != 'pull_request' }}
+          app-slug: memes
+          app-name: ${{ matrix.name }}
+          image: ghcr.io/kpoxo6op/${{ matrix.image }}
+          image-tag: ${{ env.IMAGE_TAG }}
+          runtime-paths: ${{ matrix.paths }}
+          manifest: apps/memes/manifests/kustomization.yaml
+          commit-subject: Promote the tested ${{ matrix.name }} image digest
+          promotion-title: Promote the tested ${{ matrix.name }} image
+          evidence: Isolated image checks passed; assets contain only source and public model weights. Workloads remain stopped and the Argo child remains unregistered.
+          verification: Goal 03 must register Argo and deliberately enable workloads after verified private storage/import and off-cluster backup plus isolated restore. No invitation or deployment is approved by this promotion alone.

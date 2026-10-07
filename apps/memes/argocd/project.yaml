@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: memes
+  labels:
+    app.kubernetes.io/name: memes
+    app.kubernetes.io/part-of: memes
+    soyspray.vip/owner: operator
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: '-10'
+  namespace: argocd
+spec:
+  description: Private meme feed and offline frozen catalog importer.
+  sourceRepos:
+  - https://github.com/kpoxo6op/soyspray.git
+  destinations:
+  - server: https://kubernetes.default.svc
+    namespace: memes
+  clusterResourceWhitelist:
+  - group: ''
+    kind: Namespace
+  - group: ''
+    kind: PersistentVolume
+  namespaceResourceWhitelist:
+  - group: ''
+    kind: PersistentVolumeClaim
+  - group: ''
+    kind: Service
+  - group: apps
+    kind: Deployment
+  - group: batch
+    kind: Job
+  - group: networking.k8s.io
+    kind: Ingress
+  - group: networking.k8s.io
+    kind: NetworkPolicy
+  - group: cert-manager.io
+    kind: Certificate

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: memes
+  labels:
+    app.kubernetes.io/name: memes
+    app.kubernetes.io/part-of: memes
+spec:
+  selector:
+    memes.soyspray.vip/role: web
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http

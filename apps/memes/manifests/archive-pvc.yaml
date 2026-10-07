@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: memes-vk-archive
+  labels:
+    app.kubernetes.io/name: memes
+    app.kubernetes.io/part-of: memes
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: local-storage
+  volumeName: memes-vk-archive
+  resources:
+    requests:
+      storage: 100Gi

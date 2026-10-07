@@ -1,0 +1,7 @@
+{
+  "image": {"name": "google/siglip2-base-patch16-224", "revision": "75de2d55ec2d0b4efc50b3e9ad70dba96a7b2fa2", "sha256": "612923381c76ec5a9bed335d1c48827e3f2e506ac31b044b63b2031fadee6a0b"},
+  "text": {"name": "intfloat/multilingual-e5-small", "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3", "sha256": "1a55775f53449dac10a2bcbc312469fac40b96d53198c407081a831f81c98477"},
+  "tesseract": "5.5.0",
+  "tessdata": {"rus": "e16e5e036cce1d9ec2b00063cf8b54472625b9e14d893a169e2b0dedeb4df225", "eng": "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"},
+  "config": {"seed": 20261007, "short_side": 300, "long_side": 1080, "jpeg_quality": 85, "dhash_distance": 6, "template_cosine": 0.92, "ocr_confidence": 60, "ocr_words": 3, "ocr_psm": 11, "text_weight": 0.5, "text_prefix": "query: ", "text_max_tokens": 512, "kmeans_clusters": 15, "kmeans_n_init": 10, "kmeans_max_iter": 100}
+}

@@ -1,0 +1,8 @@
+output/
+.playwright-cli/
+*.sqlite3*
+*.npy
+*.jpg
+*.jpeg
+*.png
+*.webp
