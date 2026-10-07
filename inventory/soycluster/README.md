@@ -1,11 +1,15 @@
 # Cluster inventory
 
-Soyspray owns the three-node inventory and group variables here. Kubespray stays
-pinned separately under `kubespray/`; the fork repository is unchanged. Edit
-`hosts.yml` and `group_vars/` through a CI-checked pull request. Read
-`playbooks/operations/nodes/README.md` before any deliberate node operation.
-The `patches/` files are kubeadm configuration inputs, not patches to Kubespray
-source. The active inline `kubeadm_patches` list is unchanged.
+Soyspray owns the three-node inventory and group variables here. The `kubespray`
+submodule uses upstream `kubernetes-sigs/kubespray` v2.31.0 at
+`1c9add48975060f45396b34d8e022c30d7f80dab`. Edit inventory and source pins through
+a CI-green PR. The `patches/` files are kubeadm configuration inputs, not
+Kubespray source patches; the active inline `kubeadm_patches` list is preserved.
+
+Argo owns cert-manager controllers and CRDs at v1.17.1. Keep
+`cert_manager_enabled: false`: the upstream addon deletes its namespace.
+[Cert-manager checks](../../apps/cert-manager/README.md) cover admission,
+certificate readiness, CA injection and ingress TLS.
 
 ```sh
 source soyspray-venv/bin/activate
@@ -14,22 +18,54 @@ make check
 ```
 
 Keep `credentials/` private and untracked. Preserve the existing
-`kubeadm_certificate_key.creds`; the local credentials directory can point to
-its original private location. Never generate a replacement as part of this
-path migration. Use the standard `--become --become-user=root --user ubuntu`
-options for node operations.
+`kubeadm_certificate_key.creds`; the credentials directory can point to its
+original private location. Never generate a replacement during reconciliation.
+The existing Authentik variable file preserves live API OIDC authentication;
+pass it to every full cluster or upgrade run.
 
-This move changes no versions, memberships, VIPs, SANs, app data, or live owners.
-The upstream v2.31.0 migration is blocked: its enabled cert-manager addon deletes
-the configured namespace during reconciliation, and its DNS autoscaler omits the
-fork's explicitly reconciled ConfigMap. Do not run upstream against this cluster
-until those effects have a native, safe equivalent and static parity is proved.
-The fork and its old inventory remain the rollback reference.
+## Reconcile or upgrade
 
-For a future upgrade, change the upstream tag in a separate reviewed PR and use
-full `upgrade-cluster.yml` after the native snapshot and health gates. This path
-move does not perform or authorize that upgrade.
+Use merged `main` and the complete inventory. Require three Ready nodes,
+healthy three-member etcd, Synced/Healthy Applications and healthy attached
+Longhorn volumes. Preserve the intentionally retained detached Jellyfin config
+volume unchanged; its unknown robustness is expected. Take
+`playbooks/operations/nodes/snapshot-etcd.yml` with an explicit timestamp/SHA
+label, and verify the populated laptop copy before proceeding. See the
+[node operations guide](../../playbooks/operations/nodes/README.md).
 
-Rollback is a Git revert to the old inventory paths and the same provisioner
-pin. Keep both private credential paths available; do not delete claims,
-volumes, namespaces, or credentials during rollback.
+```sh
+ansible-playbook -i inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu kubespray/cluster.yml \
+  -e @playbooks/operations/security/kubernetes-authentik-oidc-vars.yml
+```
+
+For an upgrade, bump the upstream tag through a CI-green PR, repeat those gates
+and snapshot, then run the native upgrade with the same inputs:
+
+```sh
+ansible-playbook -i inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu kubespray/upgrade-cluster.yml \
+  -e @playbooks/operations/security/kubernetes-authentik-oidc-vars.yml
+```
+
+Use no node limit or tags for these full runs. Verify versions, API VIP
+`192.168.20.13:6443`, SANs, etcd, Argo, storage and alerts afterwards. Verify the
+cert-manager namespace UID and Ready Certificates. Stop and inspect any failed
+run; never improvise a reset, removal or volume deletion.
+
+## Accepted upstream behavior and rollback
+
+The DNS autoscaler keeps the existing `kube-system/dns-autoscaler` ConfigMap.
+Upstream does not reconcile the fork's template; future changes to that
+ConfigMap need an explicit reviewed operation. The pinned kube-vip template
+omits `hostPath.type` (the former fork used `FileOrCreate`); `admin.conf` exists
+on every current node, and its pod may restart once. Drill,
+check-mode, containerd-placeholder and stale-proxy cleanup patches are dropped.
+
+The fork repository remains untouched as rollback source:
+`https://github.com/kpoxo6op/kubespray` at
+`53310f52940bea26962d403febcd6f9ac1f20dbf`. Roll back only the submodule URL/pin
+through a CI-green PR, retaining this inventory, private credentials and
+`cert_manager_enabled: false`. Cert-manager stays under Argo. A source revert
+alone does not rerun the foundation; inspect live state before any deliberate
+reconciliation. Preserve memberships, SANs, application data and device identity.

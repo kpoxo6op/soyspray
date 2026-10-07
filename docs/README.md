@@ -18,7 +18,8 @@ it. Detailed implementation and recovery procedures remain beside the code.
 ## Working rule
 
 Changes go through a GitHub pull request. Argo CD owns application workloads.
-Kubespray and Ansible own the cluster foundation and deliberate operations.
+Upstream Kubespray and Ansible own the cluster foundation and deliberate
+operations. Argo also owns cert-manager; its Kubespray addon stays disabled.
 Agents must report missing evidence as unknown instead of assuming success.
 
 ## Technical source

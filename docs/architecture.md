@@ -15,7 +15,8 @@ Git pull request
 - The cluster has three nodes so ordinary maintenance can preserve service
   while one node is unavailable.
 - Kubespray owns Kubernetes installation and cluster-wide configuration.
-- Argo CD owns declared workloads and follows the reviewed `main` branch.
+- Argo CD owns declared workloads and follows the reviewed `main` branch,
+  including cert-manager controllers, CRDs and certificate configuration.
 - The monitoring stack and CRDs retain non-pruning owners. A separate
   `prometheus-config` child may prune only generated dashboards and custom
   alert rules in `monitoring`, so Git removal and rollback remove those inputs.
@@ -25,9 +26,10 @@ Git pull request
 
 The [Argo CD root](https://github.com/kpoxo6op/soyspray/tree/main/argocd)
 contains the application catalogue. The [Kubespray inventory](https://github.com/kpoxo6op/soyspray/tree/main/inventory/soycluster)
-contains the declared cluster membership. The pinned provisioner is unchanged;
-its upstream migration is blocked by cert-manager namespace deletion and
-requires parity before any full reconciliation.
+contains the declared cluster membership. The provisioner is upstream Kubespray
+v2.31.0. Its cert-manager addon stays disabled; Argo owns the adopted v1.17.1
+controllers. [Inventory operations](https://github.com/kpoxo6op/soyspray/tree/main/inventory/soycluster)
+cover full reconciliation, Authentik inputs and tag upgrades.
 
 ## Incident pipeline
 
