@@ -18,7 +18,7 @@ ARG SOURCE_REVISION=local
 LABEL org.opencontainers.image.source="https://github.com/kpoxo6op/soyspray" org.opencontainers.image.revision="${SOURCE_REVISION}"
 RUN apt-get update && apt-get install -y --no-install-recommends liblept5 libgomp1 && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/local/ /usr/local/
-COPY --from=builder /models /models
+COPY --from=builder --chown=1000:1000 /models /models
 COPY --from=builder /tessdata /tessdata
 RUN ldconfig && tesseract --version
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 MEMES_MODELS=/models TESSDATA_PREFIX=/tessdata HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
