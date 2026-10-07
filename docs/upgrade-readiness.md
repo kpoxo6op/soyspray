@@ -10,6 +10,10 @@ Kubernetes to 1.36, preserving data and identities.”** For OS maintenance, ask
 time, with console access and the existing removal/readd gates.”** These are
 separate maintenance requests; stop at a failed safety gate.
 
+Allow at least **72 hours of stable operation after the foundation changes**
+before starting a live upgrade. A new relevant health or recovery failure resets
+that observation gate; this runbook does not shorten it.
+
 Complete the Kubernetes work before **2027-02-28**, Kubernetes 1.35's
 [end of life](https://kubernetes.io/releases/). Complete the OS work before
 **May 2027**, Ubuntu 22.04's end of standard security maintenance; Canonical
