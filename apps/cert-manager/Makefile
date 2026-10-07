@@ -6,4 +6,4 @@ check:
 	cd $(ROOT) && kubectl kustomize apps/cert-manager/argocd >/dev/null
 
 diff:
-	cd $(ROOT) && $(PYTHON) -m scripts.app_diff_sources --app cert-manager
+	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app cert-manager --pushed

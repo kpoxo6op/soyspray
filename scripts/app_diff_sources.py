@@ -39,7 +39,7 @@ def revision_arguments(live, desired, repo, commit):
     for position, (old, new) in enumerate(zip(old_sources, new_sources, strict=True), 1):
         revision = new.get("targetRevision", "")
         if new.get("chart"):
-            if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?", revision):
+            if not re.fullmatch(r"v?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?", revision):
                 raise ValueError("Chart versions must be explicitly pinned.")
             charts += 1
         elif new.get("repoURL") == repo and new.get("ref") and not new.get("path"):

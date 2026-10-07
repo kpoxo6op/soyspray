@@ -30,10 +30,11 @@ def test_chart_and_git_positions_keep_chart_pin_and_use_exact_git_commit():
     assert live == original
 
 
-def test_explicit_chart_upgrade_is_compared_at_its_new_version():
+@pytest.mark.parametrize("version", ["1.15.0", "v1.17.1"])
+def test_explicit_chart_upgrade_is_compared_at_its_new_version(version):
     desired = copy.deepcopy(APP)
-    desired["spec"]["sources"][0]["targetRevision"] = "1.15.0"
-    assert revision_arguments(APP, desired, REPO, COMMIT)[3] == "1.15.0"
+    desired["spec"]["sources"][0]["targetRevision"] = version
+    assert revision_arguments(APP, desired, REPO, COMMIT)[3] == version
 
 
 @pytest.mark.parametrize(
