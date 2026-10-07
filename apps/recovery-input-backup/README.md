@@ -45,3 +45,13 @@ S3 access key pair and repository address together in a password-manager entry
 accessible without this laptop or cluster. Do not rotate them or automate the
 password-manager step. Recovery restores files to a private directory first;
 check disks/interfaces before applying any node configuration.
+
+
+## Verified recovery point
+
+On 2026-10-07, the native service completed snapshot `f9de4179` and an isolated
+restore: all 43 collected files matched checksums and sizes, including all 29
+local private originals. Active/stable/staged/restored voice models matched,
+scratch cleanup completed, and the timer stayed enabled and active. This proves
+that input set at that recovery point; it does not prove a whole-cluster restore
+or independently held unlock material.

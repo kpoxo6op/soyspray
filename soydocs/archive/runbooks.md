@@ -1,3 +1,6 @@
+> Historical archive. Commands below describe former ownership and are not
+> current procedures. Follow `inventory/soycluster/README.md` and app READMEs.
+
 # Runbooks
 
 ## Cluster Creation
@@ -35,6 +38,6 @@ ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root -
 Run Soyspray Runbook
 
 ```sh
-ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu main.yml --tags argocd,storage
+# Retired wrapper: use inventory/soycluster/README.md for foundation and app READMEs for inputs.
 ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/show-hello.yml
 ```

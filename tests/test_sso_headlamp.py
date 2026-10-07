@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
+
 from conftest import ROOT, load_yaml
 
 
@@ -60,19 +64,35 @@ def test_authentik_has_a_headlamp_oidc_client() -> None:
     assert "slug: headlamp" in blueprint
 
 
-def test_kubernetes_oidc_flags_match_the_headlamp_provider() -> None:
-    variables = load_yaml("playbooks/operations/security/kubernetes-authentik-oidc-vars.yml")
-
-    assert variables == {
-        "upgrade_cluster_setup": True,
-        "kube_oidc_auth": True,
-        "kube_oidc_url": "https://auth.soyspray.vip/application/o/headlamp/",
-        "kube_oidc_client_id": "headlamp",
-        "kube_oidc_username_claim": "preferred_username",
-        "kube_oidc_username_prefix": "oidc:",
-        "kube_oidc_groups_claim": "groups",
-        "kube_oidc_groups_prefix": "oidc:",
-    }
+def test_inventory_alone_preserves_oidc_access_on_every_node() -> None:
+    # A standard upstream run without extra-vars must retain OIDC login. The
+    # addon-deletion tests only protect namespace and credential ownership.
+    inventory = json.loads(
+        subprocess.check_output(
+            [
+                sys.executable,
+                "-m",
+                "ansible.cli.inventory",
+                "-i",
+                str(ROOT / "inventory/soycluster/hosts.yml"),
+                "--list",
+            ],
+            cwd=ROOT,
+            text=True,
+        )
+    )
+    hosts = inventory["_meta"]["hostvars"]
+    assert set(hosts) == {"node-0", "node-1", "node-2"}
+    for host, values in hosts.items():
+        assert values.get("kube_oidc_auth") is True, host
+        assert values.get("kube_oidc_url") == "https://auth.soyspray.vip/application/o/headlamp/", (
+            host
+        )
+        assert values.get("kube_oidc_client_id") == "headlamp", host
+        assert values.get("kube_oidc_username_claim") == "preferred_username", host
+        assert values.get("kube_oidc_groups_claim") == "groups", host
+        assert values.get("kube_oidc_username_prefix") == "oidc:", host
+        assert values.get("kube_oidc_groups_prefix") == "oidc:", host
 
 
 def test_authentik_bootstraps_the_existing_headlamp_oidc_secret() -> None:

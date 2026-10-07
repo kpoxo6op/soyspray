@@ -66,8 +66,17 @@ Bootstrap no longer creates or requires the former Argo admin fields.
 `retire-authentik-argo-keys.yml` removes exactly those two fields, after checking
 consumers, with atomic UID/resourceVersion tests and a new private 0600 copy.
 Every unrelated field and the Secret UID must remain unchanged. Supply reviewed
-`authentik_runtime_uid`, `authentik_runtime_version` and `authentik_argo_copy` in
+`authentik_runtime_uid`, `authentik_runtime_version`, `authentik_argo_copy` and
+`authentik_argo_consumers_verified=true` after the consumer audit, in
 a private variables file; run check mode first, then merged-main live execution.
 For rollback, use `authentik_argo_action=restore` with that same private copy and
 fresh identity/version. It refuses a replacement Secret or existing rollback
 fields. This does not restore the old public Argo credential in `argocd-secret`.
+
+
+Verified on 2026-10-07: exactly the two stale fields were removed; all 20 other
+keys, the Secret UID, Argo Secret/configuration and Authentik provider configuration
+were unchanged. Authentik and outpost workloads remained Ready with unchanged
+specifications; all 38 Applications were Synced and Healthy. Installed source
+and blueprints had no references to these fields; envFrom exposes them but no
+runtime code consumes them.

@@ -37,8 +37,7 @@ source soyspray-venv/bin/activate
 target=node-0  # select the one authorized target
 case "$target" in node-0|node-1|node-2) ;; *) exit 2 ;; esac
 inventory="$PWD/inventory/soycluster/hosts.yml"
-ansible_cmd=(ansible-playbook -i "$inventory" --become --become-user=root --user ubuntu
-  -e @playbooks/operations/security/kubernetes-authentik-oidc-vars.yml)
+ansible_cmd=(ansible-playbook -i "$inventory" --become --become-user=root --user ubuntu)
 session="$(date -u +%Y%m%dT%H%M%SZ)-$(git rev-parse --short HEAD)"
 evidence="$HOME/.local/state/soyspray/node-operations/$session"
 umask 077
@@ -132,9 +131,22 @@ volumes. The intentionally retained detached `media/jellyfin-config` volume
 reports unknown robustness; require its identity, spec and detached state to
 stay unchanged. Preserve it without forcing attachment. Take the native etcd
 snapshot above and verify the laptop copy, then run full `cluster.yml` with the
-same inventory and Authentik variable file, without limits or tags.
+same inventory alone, without limits, tags or extra-vars files.
 
-For a version upgrade, bump the upstream tag through a CI-green PR, repeat the
-health and snapshot gates, then run full `upgrade-cluster.yml`. See the
+Follow the [pinned upstream upgrade guide](https://github.com/kubernetes-sigs/kubespray/blob/v2.31.0/docs/operations/upgrades.md):
+
+1. Move one Kubespray tag at a time; never skip a minor release.
+2. Read its release notes and diff our `group_vars` against that tag's `inventory/sample`.
+3. Install that tag's `requirements.txt` (`make setup` also installs compatible repository tooling).
+4. Set inventory `kube_version` within that tag's supported range.
+5. Take an etcd snapshot and verify its private laptop copy after the native health gates.
+6. Run full `kubespray/upgrade-cluster.yml` with the inventory alone, no extra-vars files, limits or tags.
+
+A control-plane flag change also uses `upgrade-cluster.yml`; do not force restarts
+with `upgrade_cluster_setup` on a normal `cluster.yml` run. Upstream's upgrade
+playbook sets that internal flag itself. OIDC lives in inventory alongside the
+other API settings, so a stock upstream invocation preserves authentication.
+
+See the
 [inventory guide](../../../inventory/soycluster/README.md) for commands and
 source rollback. Keep the fork repository untouched as that rollback reference.
