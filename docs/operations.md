@@ -69,6 +69,10 @@ it preserves the PVC and refuses active maps.
 
 ## Foundation runs and Argo access
 
+The [upgrade readiness runbook](upgrade-readiness.md) lists the component
+prerequisites for Kubernetes 1.36 and the separate Ubuntu 24.04 maintenance
+sequence. It is preparation only; no foundation or OS upgrade has run.
+
 Argo manages its own pinned runtime and cert-manager. Both Kubespray addons
 remain disabled, and Authentik bootstrap manages only Argo's OIDC client input.
 Full cluster and upgrade runs use the normal health and snapshot gates in the

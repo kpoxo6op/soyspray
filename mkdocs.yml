@@ -44,6 +44,7 @@ nav:
   - Start here: README.md
   - Services: services.md
   - Everyday operations: operations.md
+  - Upgrade readiness: upgrade-readiness.md
   - Recovery: recovery.md
   - Architecture: architecture.md
   - Ask an agent: ask-an-agent.md

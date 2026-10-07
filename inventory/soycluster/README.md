@@ -1,5 +1,9 @@
 # Cluster inventory
 
+The [upgrade readiness runbook](../../docs/upgrade-readiness.md) prepares the
+next stock Kubespray tag, Kubernetes 1.36 prerequisites and Ubuntu 24.04
+maintenance. It changes no running version.
+
 Soyspray owns the three-node inventory and group variables here. The `kubespray`
 submodule uses upstream `kubernetes-sigs/kubespray` v2.31.0 at
 `1c9add48975060f45396b34d8e022c30d7f80dab`. Edit inventory and source pins through

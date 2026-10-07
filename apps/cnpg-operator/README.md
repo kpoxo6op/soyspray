@@ -1,7 +1,7 @@
 # Barman Cloud plugin
 
 This Kustomize source installs the official CloudNativePG Barman Cloud plugin
-and declares the two future ObjectStores. The existing `cnpg-operator`
+and declares the two active ObjectStores. The existing `cnpg-operator`
 Application keeps its identity and Helm source. It also reads this Git source
 from `cnpg-system` so the plugin and its CRD are owned by the existing native
 CNPG Application.
@@ -33,14 +33,14 @@ The ObjectStores preserve the existing destinations and credential references:
 | `authentik-offsite` | `authentik` | `s3://immich-offsite-archive-au2/authentik/postgresql/` | `authentik-offsite-writer` | `30d` |
 
 Each Secret uses the existing `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
-and `AWS_REGION` keys. `serverName` is intentionally omitted. The migration
-guide requires the server identity to be selected later through the Cluster
-plugin configuration. This change does not modify any Cluster,
-ScheduledBackup, native `barmanObjectStore`, archive identity, or WAL setting.
-
-Root owns the later archive handoff. First verify the plugin and ObjectStore
-health. Then migrate each Cluster and ScheduledBackup through the supported
-plugin procedure, preserving its existing archive identity and schedule.
+and `AWS_REGION` keys. The ObjectStores omit `serverName`; the Cluster plugin
+configuration supplies each existing archive identity. Both
+`authentik/authentik-postgresql` and `postgresql/immich-db-a` now use
+`barman-cloud.cloudnative-pg.io`, without native `barmanObjectStore` backup
+configuration. Their application sources own the Cluster and ScheduledBackup
+settings. Preserve archive identities, credentials, schedules, retention and WAL
+when changing the operator or plugin. Use each database's README for completed
+backup and isolated restore checks; healthy controllers alone are insufficient.
 
 Validate locally:
 
