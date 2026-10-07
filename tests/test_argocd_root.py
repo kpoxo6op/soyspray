@@ -55,7 +55,12 @@ def test_children_have_explicit_projects_and_survive_parent_removal():
             assert metadata["labels"]["soyspray.vip/owner"]
             project = projects[child["spec"]["project"]]
             assert child["spec"]["destination"] in project["spec"]["destinations"]
-            assert child["spec"]["destination"]["namespace"] != "argocd"
+            if child["spec"]["destination"]["namespace"] == "argocd":
+                assert metadata["name"] == "argocd"
+                assert project["metadata"]["name"] == "argocd-runtime"
+                denied = project["spec"]["namespaceResourceBlacklist"]
+                assert {"group": "", "kind": "Secret"} in denied
+                assert {"group": "", "kind": "ConfigMap"} in denied
 
         if child["kind"] == "ApplicationSet":
             template = child["spec"]["template"]
@@ -106,3 +111,25 @@ def test_kubespray_cannot_delete_the_argocd_cert_manager_namespace():
     assert hosts
     for host, variables in hosts.items():
         assert variables.get("cert_manager_enabled") is False, host
+
+
+def test_kubespray_cannot_rewrite_argocd_credentials():
+    inventory = json.loads(
+        subprocess.check_output(
+            [
+                sys.executable,
+                "-m",
+                "ansible.cli.inventory",
+                "-i",
+                str(ROOT / "inventory/soycluster/hosts.yml"),
+                "--list",
+            ],
+            cwd=ROOT,
+            text=True,
+        )
+    )
+    hosts = inventory["_meta"]["hostvars"]
+    assert hosts
+    for host, variables in hosts.items():
+        assert variables.get("argocd_enabled") is False, host
+        assert "argocd_admin_password" not in variables, host
