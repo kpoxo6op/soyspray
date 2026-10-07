@@ -13,6 +13,7 @@ resources:
   - ../apps/vaultwarden/argocd
   - ../apps/obsidian-livesync/argocd
   - ../apps/media-helper/argocd
+  - ../apps/cert-manager/argocd
   - ../apps/cert-manager-config/argocd
   - ../apps/node-backup/argocd
   - ../apps/prometheus/argocd

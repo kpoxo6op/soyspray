@@ -5,6 +5,7 @@ near its source. The native root lists every application in
 [its Kustomization](../argocd/kustomization.yaml). Application ownership records
 are in [`argocd/catalog/`](../argocd/catalog/).
 
+- [Cert-manager](cert-manager): certificate controllers, admission and CRDs.
 - [Certificate configuration](cert-manager-config): issuers, wildcard certificates and TLS reflection.
 - [Media helper](media-helper): internal channel catalog, playlist and guide.
 - [Obsidian sync](obsidian-livesync): CouchDB note sync and recovery.

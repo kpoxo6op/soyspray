@@ -1,0 +1,25 @@
+# Preserve the live arguments and DNS settings during adoption.
+crds:
+  enabled: true
+  keep: true
+global:
+  leaderElection:
+    namespace: kube-system
+extraArgs:
+- --dns01-recursive-nameservers=1.1.1.1:53,8.8.8.8:53
+- --dns01-recursive-nameservers-only=true
+podDnsPolicy: ClusterFirst
+podDnsConfig:
+  nameservers:
+  - 1.1.1.1
+  - 8.8.8.8
+nodeSelector: null
+webhook:
+  nodeSelector: null
+cainjector:
+  nodeSelector: null
+startupapicheck:
+  enabled: false
+acmesolver:
+  image: null
+maxConcurrentChallenges: null
