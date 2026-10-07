@@ -1,4 +1,6 @@
+import json
 import subprocess
+import sys
 
 import yaml
 from conftest import ROOT, load_yaml
@@ -83,3 +85,24 @@ def test_all_soyspray_git_sources_follow_main():
         for source in specs:
             if source.get("repoURL") == "https://github.com/kpoxo6op/soyspray.git":
                 assert source["targetRevision"] == "main"
+
+
+def test_kubespray_cannot_delete_the_argocd_cert_manager_namespace():
+    inventory = json.loads(
+        subprocess.check_output(
+            [
+                sys.executable,
+                "-m",
+                "ansible.cli.inventory",
+                "-i",
+                str(ROOT / "inventory/soycluster/hosts.yml"),
+                "--list",
+            ],
+            cwd=ROOT,
+            text=True,
+        )
+    )
+    hosts = inventory["_meta"]["hostvars"]
+    assert hosts
+    for host, variables in hosts.items():
+        assert variables.get("cert_manager_enabled") is False, host

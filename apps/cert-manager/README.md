@@ -31,8 +31,9 @@ Cascading Application deletion is disabled. CRDs use
 `crds.keep: true`. Argo respects the CA bundles maintained by cainjector.
 Server-side diff asks the API server to compare the live schema, avoiding the
 older Argo controller schema for Kubernetes status fields.
-After verified adoption, disable the Kubespray cert-manager addon before using
-upstream Kubespray. Never run its enabled addon against this namespace.
+The Kubespray cert-manager addon stays disabled. CI resolves the inventory
+locally and requires that explicit false value on every host, preventing
+upstream's namespace deletion. Never run its enabled addon here.
 
 Rollback changes chart values through a CI-green PR. Keep the Application,
 namespace, CRDs, issuers, certificates and Secrets during rollback. Returning

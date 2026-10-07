@@ -23,6 +23,20 @@ original private location. Never generate a replacement during reconciliation.
 The existing Authentik variable file preserves live API OIDC authentication;
 pass it to every full cluster or upgrade run.
 
+## Full-run prerequisite
+
+The verified v2.31.0 run preserved component versions, SANs, OIDC, certificate
+and storage identities. Its native Argo addon nevertheless refreshed the admin
+password hash and modification time. The password stayed the same, but the
+host's `NZDT` timestamp is not RFC3339 and Argo ignores that password-change
+cutoff. Signing, SSO and TLS keys were unchanged.
+
+Further full runs are blocked until this metadata is explicitly protected.
+Keep the original admin fields available privately for a guarded recovery;
+never print or commit them. A source rollback also contains this native addon
+behavior, and repeating a full run does not repair it. Do not change shared
+SSO/signing keys or attempt a node reset for this issue.
+
 ## Reconcile or upgrade
 
 Use merged `main` and the complete inventory. Require three Ready nodes,
