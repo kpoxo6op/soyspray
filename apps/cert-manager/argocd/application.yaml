@@ -27,9 +27,7 @@ spec:
     namespace: cert-manager
   syncPolicy:
     automated:
-      prune: false
       selfHeal: true
-      allowEmpty: false
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
