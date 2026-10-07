@@ -14,7 +14,7 @@ resources:
 - pvc.yaml
 - service.yaml
 images:
-  - name: ghcr.io/kpoxo6op/memes
-    newTag: goal03-unreleased
-  - name: ghcr.io/kpoxo6op/memes-import
-    newTag: goal03-unreleased
+- name: ghcr.io/kpoxo6op/memes
+  digest: sha256:059bebe099e0ea96924d07d6149c13bbbf4e3b24a7bd45e4418002779222cdb6
+- name: ghcr.io/kpoxo6op/memes-import
+  newTag: goal03-unreleased
