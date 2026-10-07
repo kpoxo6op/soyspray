@@ -57,8 +57,9 @@ run; never improvise a reset, removal or volume deletion.
 
 The DNS autoscaler keeps the existing `kube-system/dns-autoscaler` ConfigMap.
 Upstream does not reconcile the fork's template; future changes to that
-ConfigMap need an explicit reviewed operation. Kube-vip uses hostPath `File`;
-`admin.conf` exists on every current node, and its pod may restart once. Drill,
+ConfigMap need an explicit reviewed operation. The pinned kube-vip template
+omits `hostPath.type` (the former fork used `FileOrCreate`); `admin.conf` exists
+on every current node, and its pod may restart once. Drill,
 check-mode, containerd-placeholder and stale-proxy cleanup patches are dropped.
 
 The fork repository remains untouched as rollback source:

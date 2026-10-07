@@ -117,8 +117,8 @@ Kubespray is pinned to upstream v2.31.0. Argo owns cert-manager v1.17.1; never
 re-enable the Kubespray addon because upstream deletes its namespace. The
 existing DNS autoscaler ConfigMap is retained. Future ConfigMap changes need
 an explicit operation; upstream does not reconcile the old fork's template.
-The upstream kube-vip hostPath uses `File`, with existing `admin.conf` on every
-control plane. The old drill and check-mode patches are retired.
+The pinned upstream kube-vip hostPath omits its type, with existing `admin.conf`
+on every control plane. The old drill and check-mode patches are retired.
 
 Before full reconciliation, require three Ready nodes, healthy three-member
 etcd, all Applications Synced and Healthy, and healthy attached Longhorn
