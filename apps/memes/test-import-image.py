@@ -12,8 +12,10 @@ pins = json.loads(Path("/app/models.json").read_text())
 with tempfile.TemporaryDirectory() as directory:
     stage = Path(directory)
     path = stage / "generated.png"
-    image = Image.new("RGB", (600, 600), "white")
-    ImageDraw.Draw(image).text((20, 30), "hello world meme catalog", fill="black", font_size=36)
+    image = Image.new("RGB", (1080, 600), "white")
+    ImageDraw.Draw(image).text(
+        (40, 40), "HELLO WORLD\nMEME CATALOG", fill="black", font_size=72, spacing=40
+    )
     image.save(path)
     text = ocr(path, Path("/tessdata"))
     assert text["passed"], text

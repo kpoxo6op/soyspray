@@ -125,7 +125,8 @@ def ocr(path, tessdata):
             "rus+eng",
             "--psm",
             "11",
-            "tsv",
+            "-c",
+            "tessedit_create_tsv=1",
         ],
         env={**os.environ, "OMP_THREAD_LIMIT": "1", "OMP_NUM_THREADS": "1"},
         capture_output=True,
@@ -133,7 +134,10 @@ def ocr(path, tessdata):
         timeout=90,
     )
     words = []
-    for row in csv.DictReader(io.StringIO(result.stdout.decode()), delimiter="\t"):
+    reader = csv.DictReader(io.StringIO(result.stdout.decode()), delimiter="\t")
+    if not {"conf", "text"} <= set(reader.fieldnames or []):
+        raise ValueError("Tesseract did not return TSV")
+    for row in reader:
         text = row.get("text", "").strip()
         if float(row.get("conf", -1)) >= 60 and re.search(r"[A-Za-zА-Яа-яЁё]{2,}", text):
             words.append(text)
