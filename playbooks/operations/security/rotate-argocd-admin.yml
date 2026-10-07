@@ -1,0 +1,181 @@
+---
+- name: Rotate only the Argo CD local admin credential
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    rotate_argocd_admin: false
+    argocd_admin_fields: [admin.password, admin.passwordMtime]
+    argocd_admin_vault: "{{ lookup('env', 'HOME') }}/.config/soyspray/recovery/argocd-admin.vault.yml"
+  tasks:
+    - name: Require explicit scope and private pre-change destination
+      ansible.builtin.assert:
+        that:
+          - rotate_argocd_admin | bool
+          - argocd_secret_uid | default('') | length > 0
+          - argocd_secret_version | default('') | length > 0
+          - >-
+            argocd_prechange_path | default('') is
+            match('^/home/boris/\.local/state/soyspray/plans/[^/]+\.json$')
+
+    - name: Require delivered operation
+      ansible.builtin.import_tasks: require-delivered.yml
+
+    - name: Inspect the private pre-change destination
+      ansible.builtin.stat:
+        path: "{{ argocd_prechange_path }}"
+        follow: false
+      register: argocd_prechange_file
+
+    - name: Require a new pre-change destination
+      ansible.builtin.assert:
+        that:
+          - not argocd_prechange_file.stat.exists
+
+    - name: Read the private encrypted credential
+      ansible.builtin.include_vars:
+        file: "{{ argocd_admin_vault }}"
+      no_log: true
+
+    - name: Validate a fresh private credential and UTC cutoff
+      ansible.builtin.assert:
+        that:
+          - argocd_admin.password | length >= 40
+          - argocd_admin.password_hash is match('^\$2[aby]\$12\$')
+          - >-
+            argocd_admin.password_mtime is
+            match('^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$')
+          - >-
+            0 <= (now(utc=true) - (argocd_admin.password_mtime |
+            regex_replace('\.\d+Z$', 'Z') |
+            to_datetime('%Y-%m-%dT%H:%M:%SZ'))).total_seconds() < 120
+      no_log: true
+
+    - name: Read only the target Secret
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: argocd
+        name: argocd-secret
+      register: argocd_before
+      no_log: true
+
+    - name: Require the reviewed identity and resource version
+      ansible.builtin.assert:
+        that:
+          - argocd_before.resources | length == 1
+          - argocd_before.resources[0].metadata.uid == argocd_secret_uid
+          - argocd_before.resources[0].metadata.resourceVersion == argocd_secret_version
+          - argocd_admin_fields | difference(argocd_before.resources[0].data.keys() | list) | length == 0
+      no_log: true
+
+    - name: Keep the authorized pre-change fields privately
+      ansible.builtin.copy:
+        content: "{{ argocd_before.resources[0] | to_json }}"
+        dest: "{{ argocd_prechange_path }}"
+        mode: '0600'
+        force: false
+      no_log: true
+
+    - name: Rotate and verify only admin fields
+      when: not ansible_check_mode
+      block:
+        - name: Compare identity and version atomically and replace only admin fields
+          kubernetes.core.k8s_json_patch:
+            api_version: v1
+            kind: Secret
+            namespace: argocd
+            name: argocd-secret
+            patch:
+              - {op: test, path: /metadata/uid, value: "{{ argocd_secret_uid }}"}
+              - {op: test, path: /metadata/resourceVersion, value: "{{ argocd_secret_version }}"}
+              - {op: replace, path: /data/admin.password, value: "{{ argocd_admin.password_hash | b64encode }}"}
+              - {op: replace, path: /data/admin.passwordMtime, value: "{{ argocd_admin.password_mtime | b64encode }}"}
+          no_log: true
+
+        - name: Re-read the rotated Secret
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Secret
+            namespace: argocd
+            name: argocd-secret
+          register: argocd_after
+          no_log: true
+
+        - name: Require intended credential fields and every other key unchanged
+          ansible.builtin.assert:
+            that:
+              - argocd_after.resources | length == 1
+              - argocd_after.resources[0].metadata.uid == argocd_secret_uid
+              - argocd_after.resources[0].data['admin.password'] == argocd_admin.password_hash | b64encode
+              - argocd_after.resources[0].data['admin.passwordMtime'] == argocd_admin.password_mtime | b64encode
+              - >-
+                (argocd_before.resources[0].data | dict2items |
+                rejectattr('key', 'in', argocd_admin_fields) | items2dict) ==
+                (argocd_after.resources[0].data | dict2items |
+                rejectattr('key', 'in', argocd_admin_fields) | items2dict)
+          no_log: true
+      rescue:
+        - name: Read current fields for guarded recovery
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Secret
+            namespace: argocd
+            name: argocd-secret
+          register: argocd_recovery
+          no_log: true
+
+        - name: Require original identity before any recovery
+          ansible.builtin.assert:
+            that:
+              - argocd_recovery.resources | length == 1
+              - argocd_recovery.resources[0].metadata.uid == argocd_secret_uid
+          no_log: true
+
+        - name: Start the identity and version guarded non-admin recovery
+          ansible.builtin.set_fact:
+            argocd_recovery_patch:
+              - {op: test, path: /metadata/uid, value: "{{ argocd_secret_uid }}"}
+              - op: test
+                path: /metadata/resourceVersion
+                value: "{{ argocd_recovery.resources[0].metadata.resourceVersion }}"
+          no_log: true
+
+        - name: Restore only unexpectedly modified original non-admin keys
+          ansible.builtin.set_fact:
+            argocd_recovery_patch: >-
+              {{ argocd_recovery_patch + [{'op': 'add', 'path': '/data/' +
+              (item.key | replace('~', '~0') | replace('/', '~1')), 'value': item.value}] }}
+          loop: "{{ argocd_before.resources[0].data | dict2items }}"
+          when:
+            - item.key not in argocd_admin_fields
+            - argocd_recovery.resources[0].data.get(item.key) != item.value
+          no_log: true
+
+        - name: Remove only unexpected new non-admin keys
+          ansible.builtin.set_fact:
+            argocd_recovery_patch: >-
+              {{ argocd_recovery_patch + [{'op': 'remove', 'path': '/data/' +
+              (item | replace('~', '~0') | replace('/', '~1'))}] }}
+          loop: "{{ argocd_recovery.resources[0].data.keys() | list }}"
+          when:
+            - item not in argocd_admin_fields
+            - item not in argocd_before.resources[0].data
+          no_log: true
+
+        - name: Restore only unintended fields without restoring a compromised admin credential
+          kubernetes.core.k8s_json_patch:
+            api_version: v1
+            kind: Secret
+            namespace: argocd
+            name: argocd-secret
+            patch: "{{ argocd_recovery_patch }}"
+          when: argocd_recovery_patch | length > 2
+          no_log: true
+
+        - name: Stop after a failed credential operation
+          ansible.builtin.fail:
+            msg: >-
+              Credential verification failed. Non-admin recovery was guarded by identity and version.
+              Stop and investigate privately. Never restore the old admin fields.

@@ -1,0 +1,17 @@
+---
+- name: Read local and delivered main revisions
+  ansible.builtin.command:
+    argv: "{{ item }}"
+    chdir: "{{ playbook_dir }}/../../.."
+  loop:
+    - [git, rev-parse, HEAD]
+    - [git, ls-remote, https://github.com/kpoxo6op/soyspray.git, refs/heads/main]
+  register: security_revisions
+  changed_when: false
+  check_mode: false
+
+- name: Require merged main before a live security operation
+  ansible.builtin.assert:
+    that:
+      - security_revisions.results[0].stdout == security_revisions.results[1].stdout.split()[0]
+  when: not ansible_check_mode

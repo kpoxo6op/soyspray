@@ -100,7 +100,10 @@ lint: ## Check Python style and common defects
 		playbooks/operations/recovery/restore-volume.yml playbooks/operations/recovery/cleanup-restore.yml playbooks/operations/recovery/start-restored-app.yml \
 		playbooks/operations/recovery/configure-longhorn.yml playbooks/operations/recovery/backup-daily-now.yml \
 		playbooks/operations/storage/repair-voice-multipath.yml \
-		playbooks/operations/retirement/*.yml
+		playbooks/operations/retirement/*.yml \
+		playbooks/operations/security/require-delivered.yml \
+		playbooks/operations/security/rotate-argocd-admin.yml \
+		playbooks/operations/security/repair-argocd-ingress.yml
 
 validate: validate-skills status-page-check prometheus-check ## Validate YAML and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py
@@ -148,8 +151,8 @@ status-page: go
 status-page-fallback:
 	$(MAKE) --no-print-directory -f apps/status-page/Makefile fallback
 
-argo-login: ## Log in to the home Argo CD instance
-	argocd login argocd.soyspray.vip --username admin --grpc-web
+argo-login: ## Log in using the private Argo recovery Vault
+	$(PYTHON) -m scripts.argocd_login
 
 list-apps: ## List Argo CD applications
 	kubectl --request-timeout=10s -n argocd get applications

@@ -310,7 +310,7 @@
   no_log: true
   tags: authentik
 
-- name: Configure the Argo CD SSO client and local recovery account
+- name: Configure the Argo CD SSO client
   kubernetes.core.k8s:
     state: patched
     kubeconfig: "{{ kubeconfig_path }}"
@@ -322,8 +322,6 @@
         namespace: argocd
       stringData:
         oidc.authentik.clientSecret: "{{ authentik_runtime_values['ARGOCD_OIDC_CLIENT_SECRET'] }}"
-        admin.password: "{{ authentik_runtime_values['ARGOCD_ADMIN_PASSWORD_HASH'] }}"
-        admin.passwordMtime: "{{ authentik_runtime_values['ARGOCD_ADMIN_PASSWORD_MTIME'] }}"
   no_log: true
   tags: authentik
 

@@ -98,6 +98,12 @@ The role preserves generated client secrets. It updates a hashed pod annotation
 to restart existing Authentik consumers when those secrets change. Do not edit
 generated secrets in Git.
 
+Argo's local admin credential belongs to the private recovery Vault and its
+guarded security operation. Bootstrap updates only the Argo OIDC client input.
+The existing `authentik-runtime` Argo admin keys are unused and retained to
+preserve that shared Secret and existing consumers; remove them only through
+a separate reviewed cleanup. See [Argo access](../argocd/README.md).
+
 ## Shutdown and rollback
 
 Authentik has no application-specific shutdown switch. Do not stop identity

@@ -67,11 +67,16 @@ it preserves the PVC and refuses active maps.
 - [Ansible operations](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations)
 - [Repository helper commands](https://github.com/kpoxo6op/soyspray/tree/main/scripts)
 
-## Current foundation limit
+## Foundation runs and Argo access
 
-The full upstream v2.31.0 reconciliation passed its node, version, SAN, OIDC,
-certificate and storage checks. The native Argo addon changed admin password
-metadata to a non-RFC3339 timestamp, although the password and signing/SSO keys
-stayed the same. Further full cluster or upgrade runs need a one-time metadata
-preservation fix. Follow the [inventory prerequisite](https://github.com/kpoxo6op/soyspray/tree/main/inventory/soycluster#full-run-prerequisite);
-repeating a full run is not the repair. Application delivery still follows Argo.
+Argo manages its own pinned runtime and cert-manager. Both Kubespray addons
+remain disabled, and Authentik bootstrap manages only Argo's OIDC client input.
+Full cluster and upgrade runs use the normal health and snapshot gates in the
+[inventory guide](https://github.com/kpoxo6op/soyspray/tree/main/inventory/soycluster).
+Bump the upstream tag through CI, then run full `upgrade-cluster.yml`.
+
+`make argo-login` reads the private recovery Vault without printing a password.
+Deliberate admin rotation uses the
+[guarded security operation](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations/security).
+Preserve signing, OIDC and TLS keys and the valid UTC session cutoff. Never
+restore an exposed credential or re-enable the Kubespray Argo addon.

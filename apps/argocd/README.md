@@ -36,6 +36,22 @@ with the existing complete inventory, OIDC variables and snapshot/health gates.
 
 ## Limits and rollback
 
+Run `make argo-login` for the local recovery account. It decrypts the private
+`~/.config/soyspray/recovery/argocd-admin.vault.yml` and sends the password only
+to the pinned CLI's terminal input, with output discarded. For browser use,
+the owner may view it locally with:
+
+```sh
+ansible-vault view --vault-password-file ~/.config/soyspray/recovery/vault-password \
+  ~/.config/soyspray/recovery/argocd-admin.vault.yml
+```
+
+Do not paste the output into chat, logs or Git. Authentik bootstrap owns the
+OIDC client input and never rewrites the admin fields. Deliberate rotation uses
+the [guarded security operation](../../playbooks/operations/security/README.md).
+The local account remains enabled; prove browser SSO before any future removal.
+The server keeps TLS enabled; the Ingress uses HTTPS to port 443.
+
 Native health does not prove SSO or browser access. Use kubectl as break-glass.
 Keep root pruning disabled. Revert through a CI-green PR without deleting the
 Application, namespace, CRDs or credentials. Never re-enable Kubespray's Argo

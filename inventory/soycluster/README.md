@@ -30,10 +30,12 @@ Argo owns cert-manager and its own v2.14.5 runtime. Keep both
 reconcile either installation. Argo controller settings and private inputs stay
 with Ansible. See [Argo runtime ownership](../../apps/argocd/README.md).
 
-The Argo credential repair is a separate guarded operation. Complete it before
-another full foundation run; never restore the public credential or re-enable
-its Kubespray addon. Preserve signing, OIDC and TLS keys. Once that prerequisite
-passes, the normal snapshot/health gates below govern reconciliation/upgrades.
+The admin credential belongs to its private recovery Vault and guarded Ansible
+operation. Normal Authentik bootstrap never rewrites it. Keep the valid UTC
+session cutoff and preserve signing, OIDC and TLS keys; never restore an exposed
+credential or re-enable the Kubespray addon. Full foundation runs use the normal
+snapshot/health gates below. Inventory checks and native Ansible conditional
+evaluation protect the disabled addons without repeating a live full run.
 
 ## Reconcile or upgrade
 
