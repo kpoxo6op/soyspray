@@ -64,8 +64,8 @@ def test_corrupt_catalog_refuses_startup(tmp_path):
         Catalog(tmp_path / "catalog")
 
 
-def test_staged_deployment_archive_and_private_boundary():
-    """Rendering must preserve source read-only semantics and keep source-only merges inert."""
+def test_deployment_archive_and_private_boundary():
+    """Rendering must preserve read-only source access, private ingress and one-writer rollout."""
     resources = list(
         yaml.safe_load_all(
             subprocess.check_output(["kubectl", "kustomize", str(APP / "manifests")], text=True)
@@ -73,9 +73,30 @@ def test_staged_deployment_archive_and_private_boundary():
     )
     by_name = {(r["kind"], r["metadata"]["name"]): r for r in resources}
     web = by_name[("Deployment", "memes")]
-    assert web["spec"]["replicas"] == 0 and web["spec"]["strategy"]["type"] == "Recreate"
+    assert web["spec"]["replicas"] <= 1 and web["spec"]["strategy"]["type"] == "Recreate"
     jobs = [r for r in resources if r["kind"] == "Job"]
-    assert all(j["spec"]["suspend"] for j in jobs)
+    for job in jobs:
+        for container in job["spec"]["template"]["spec"]["containers"]:
+            if not job["spec"]["suspend"]:
+                assert "@sha256:" in container["image"]
+            requests, limits = container["resources"]["requests"], container["resources"]["limits"]
+
+            def cpu(value):
+                return float(value[:-1]) / 1000 if value.endswith("m") else float(value)
+
+            assert cpu(requests["cpu"]) <= cpu(limits["cpu"])
+
+    def wave(r):
+        return int(r["metadata"].get("annotations", {}).get("argocd.argoproj.io/sync-wave", "0"))
+
+    prepare = by_name[("Job", "memes-prepare-v1")]
+    import_job = by_name[("Job", "memes-import-v1")]
+    assert wave(prepare) < wave(import_job) <= wave(web)
+    assert all(
+        wave(r) < wave(prepare)
+        for r in resources
+        if r["kind"] in ("PersistentVolume", "PersistentVolumeClaim", "Namespace", "NetworkPolicy")
+    )
     importer = by_name[("Job", "memes-import-v1")]["spec"]["template"]["spec"]
     assert "fsGroup" not in importer["securityContext"]
     assert importer["nodeSelector"] == {"kubernetes.io/hostname": "node-0"}
@@ -103,22 +124,45 @@ def test_staged_deployment_archive_and_private_boundary():
             subprocess.check_output(["kubectl", "kustomize", str(ROOT / "argocd")], text=True)
         )
     )
-    assert not any(r["metadata"]["name"] == "memes" for r in root_resources)
+    application = next(
+        r for r in root_resources if r["kind"] == "Application" and r["metadata"]["name"] == "memes"
+    )
+    assert application["spec"]["source"]["targetRevision"] == "main"
+    assert application["spec"]["syncPolicy"]["automated"]["prune"] is False
 
 
 def test_promotion_changes_only_matching_digest(tmp_path):
-    """Two independent image promotions must retain each other's digests and keep workloads stopped."""
+    """A promotion must preserve the other digest and completed Jobs' immutable templates."""
+    import shutil
+
     spec = importlib.util.spec_from_file_location("memes_promotion", APP / "promote-image.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    path = tmp_path / "kustomization.yaml"
-    path.write_text((APP / "manifests/kustomization.yaml").read_text())
+    package = tmp_path / "manifests"
+    shutil.copytree(APP / "manifests", package)
+    path = package / "kustomization.yaml"
+
+    def jobs():
+        resources = yaml.safe_load_all(
+            subprocess.check_output(["kubectl", "kustomize", str(package)], text=True)
+        )
+        return {
+            r["metadata"]["name"]: r["spec"]["template"] for r in resources if r["kind"] == "Job"
+        }
+
+    original_jobs = jobs()
     original = yaml.safe_load(path.read_text())
     for image, char in [("memes", "a"), ("memes-import", "b")]:
         module.promote(f"ghcr.io/kpoxo6op/{image}@sha256:" + char * 64, path)
     promoted = yaml.safe_load(path.read_text())
     assert promoted["resources"] == original["resources"]
-    assert [i["digest"] for i in promoted["images"]] == ["sha256:" + "a" * 64, "sha256:" + "b" * 64]
+    images = {i["name"]: i for i in promoted["images"]}
+    assert images["ghcr.io/kpoxo6op/memes"]["digest"] == "sha256:" + "a" * 64
+    assert images["ghcr.io/kpoxo6op/memes-import"]["digest"] == "sha256:" + "b" * 64
+    assert [i for i in promoted["images"] if i["name"].endswith("-v1")] == [
+        i for i in original["images"] if i["name"].endswith("-v1")
+    ]
+    assert jobs() == original_jobs
     with pytest.raises(ValueError):
         module.promote("ghcr.io/kpoxo6op/memes:latest", path)
 
