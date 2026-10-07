@@ -112,6 +112,11 @@ with revisions, identities, failures, assistance and restore results. Use
 
 ## Upstream reconciliation and upgrades
 
+For the next Kubernetes and OS maintenance, use the
+[upgrade readiness runbook](../../../docs/upgrade-readiness.md). It records
+the required component upgrades, v2.32 inventory migration and the separate
+Ubuntu 24.04 removal/OS-upgrade/readd sequence with console access.
+
 Argo owns its pinned runtime and cert-manager; both Kubespray addons stay
 disabled. Normal Authentik bootstrap never rewrites Argo's admin credential.
 The private recovery Vault and guarded security operation maintain its valid
