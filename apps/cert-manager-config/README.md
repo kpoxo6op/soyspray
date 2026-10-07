@@ -1,8 +1,8 @@
 # Certificate configuration
 
 This app manages the existing Let's Encrypt issuers, wildcard certificates, and
-TLS Secret reflector. Kubespray owns the cert-manager controller, webhook,
-cainjector, CRDs, and namespace. Keep those foundation resources in Kubespray.
+TLS Secret reflector. The separate [cert-manager](../cert-manager) Argo
+Application owns the controller, webhook, cainjector and CRDs.
 
 ```sh
 kubectl -n argocd get application cert-manager-config -o yaml

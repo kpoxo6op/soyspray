@@ -7,8 +7,8 @@ metadata:
     argocd.argoproj.io/sync-wave: '-10'
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
-  description: Manage existing issuers, certificates and TLS reflection; Kubespray
-    owns the controller and CRDs.
+  description: Manage existing issuers, certificates and TLS reflection; the separate cert-manager
+    Application owns the controller and CRDs.
   sourceRepos:
   - https://github.com/kpoxo6op/soyspray.git
   destinations:
