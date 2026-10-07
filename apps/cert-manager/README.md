@@ -25,7 +25,9 @@ namespace. Null solver-image and concurrency overrides retain the binary's
 existing defaults and exact controller arguments. Controllers may roll once to
 adopt chart metadata; no certificate renewal or Secret rotation is requested.
 
-Automated pruning and cascading Application deletion are disabled. CRDs use
+Automated pruning and empty-source deletion retain their false defaults; the
+explicit `Prune=false,Delete=false` sync options prevent resource retirement.
+Cascading Application deletion is disabled. CRDs use
 `crds.keep: true`. Argo respects the CA bundles maintained by cainjector.
 Server-side diff asks the API server to compare the live schema, avoiding the
 older Argo controller schema for Kubernetes status fields.
