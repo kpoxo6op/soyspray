@@ -8,10 +8,10 @@ The meme screen and feed API never disclose assignment arms or scores.
 ## Delivery state
 
 The root Argo kustomization registers this package. Separate digest promotions
-select main-built images. Deployment stays at zero during the one-time import.
+select main-built images. The web Deployment has one SQLite writer after the one-time import.
 Argo sync waves create protected storage and isolation first (-3), prepare only
-the destination permissions (-2), then import (-1). The web Deployment is enabled
-through a separate GitOps change after the frozen catalog is verified. No tokens,
+the destination permissions (-2), then import (-1). Web activation follows a completed import and initial Argo
+sync; missing or corrupt catalog files prevent startup. No tokens,
 production assets, or private inputs belong in this public repository or either image.
 The one-time Jobs use separate frozen image aliases. Later digest promotions
 update the Deployment without mutating the completed Jobs' immutable templates.
@@ -117,6 +117,25 @@ against `/srv/media/downloads/vk`. The declared import Job caps CPU at 4, memory
 at 6Gi, deadline at six hours, and mounts only that source and the app destination.
 There is no periodic import and no image content is copied into Git/GHCR.
 
+## Deployed catalog verification
+
+From the repository root, run the read-only SQL/vector/image check through the
+running web image:
+
+```sh
+kubectl -n memes exec -i deployment/memes -- python - --expect-no-testers \
+  < apps/memes/verify-catalog.py
+curl -sS -w '\n%{http_code}\n' https://memes.soyspray.vip/healthz
+```
+
+Before invites, `--expect-no-testers` verifies that testers, sessions and
+impressions are empty. Omit it after invitations. The command opens SQLite in
+read-only mode, joins vector dimensions/OCR metadata in a TEMP table, checks
+integrity, compares all catalog mappings and verifies every serving-image hash.
+It emits counts, versions and import resource measurements, without image/OCR
+content or access tokens. `--data` and `--min-count` support isolated restores or
+smaller local fixtures. The production dimension is 1152 and warm-up has 15 groups.
+
 ## Selection and logging
 
 Warm-up is one random member from each of 15 k-means clusters, ordered randomly,
@@ -169,7 +188,8 @@ this page does not establish causal significance or real-user success.
 
 ## Operator invites and privacy
 
-After verified recovery in goal 03, run these inside the deployed web image:
+After verified off-cluster recovery and before the first production invite, run
+these inside the deployed web image:
 
 ```sh
 python -m memes.admin invite --name tester-label
