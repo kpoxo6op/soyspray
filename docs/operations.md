@@ -66,3 +66,12 @@ it preserves the PVC and refuses active maps.
 - [Application operations](https://github.com/kpoxo6op/soyspray/tree/main/apps)
 - [Ansible operations](https://github.com/kpoxo6op/soyspray/tree/main/playbooks/operations)
 - [Repository helper commands](https://github.com/kpoxo6op/soyspray/tree/main/scripts)
+
+## Current foundation limit
+
+The full upstream v2.31.0 reconciliation passed its node, version, SAN, OIDC,
+certificate and storage checks. The native Argo addon changed admin password
+metadata to a non-RFC3339 timestamp, although the password and signing/SSO keys
+stayed the same. Further full cluster or upgrade runs need a one-time metadata
+preservation fix. Follow the [inventory prerequisite](https://github.com/kpoxo6op/soyspray/tree/main/inventory/soycluster#full-run-prerequisite);
+repeating a full run is not the repair. Application delivery still follows Argo.

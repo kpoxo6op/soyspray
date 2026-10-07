@@ -113,6 +113,14 @@ with revisions, identities, failures, assistance and restore results. Use
 
 ## Upstream reconciliation and upgrades
 
+The first full upstream run completed, but its native Argo addon wrote an
+admin password modification time with `NZDT`, which Argo ignores instead of
+loading its RFC3339 cutoff. The password, signing key and SSO inputs remained
+the same. Further full cluster/upgrade runs require an explicit metadata
+preservation fix first; see the [inventory prerequisite](../../../inventory/soycluster/README.md#full-run-prerequisite).
+Do not repeat a run or reset a node to repair this credential metadata.
+
+
 Kubespray is pinned to upstream v2.31.0. Argo owns cert-manager v1.17.1; never
 re-enable the Kubespray addon because upstream deletes its namespace. The
 existing DNS autoscaler ConfigMap is retained. Future ConfigMap changes need
