@@ -11,7 +11,9 @@ This source package is **not registered** in the root Argo kustomization.
 Deployment replicas are zero, preparation/import Jobs are suspended, and image
 references await separate digest promotions. Source merges cannot start cluster
 workloads. The image workflow tests and publishes web/import images independently
-and reuses the repository promotion action unchanged. Leave both draft promotions
+and reuses the repository promotion action unchanged. Distinct action directories
+(`memes` and `memes/import`) give the two images separate promotion branches;
+the importer entrypoint delegates to the same digest editor. Leave both draft promotions
 open until goal 03; it must rebase them, retain both image entries, register Argo,
 and deliberately enable workloads. No tokens, production assets, or private inputs
 belong in this public repository or either image.

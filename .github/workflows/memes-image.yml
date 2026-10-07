@@ -47,13 +47,15 @@ jobs:
       matrix:
         include:
           - image: memes
+            slug: memes
             dockerfile: Dockerfile
             name: Memes web
             paths: apps/memes/memes apps/memes/Dockerfile apps/memes/web-requirements.lock apps/memes/.dockerignore
           - image: memes-import
+            slug: memes/import
             dockerfile: Dockerfile.import
             name: Memes importer
-            paths: apps/memes/memes/importer.py apps/memes/memes/catalog.py apps/memes/Dockerfile.import apps/memes/import-requirements.lock apps/memes/models.json apps/memes/prepare-models.py apps/memes/.dockerignore
+            paths: apps/memes/memes/importer.py apps/memes/memes/catalog.py apps/memes/Dockerfile.import apps/memes/import-requirements.lock apps/memes/models.json apps/memes/prepare-models.py apps/memes/import apps/memes/.dockerignore
     permissions:
       contents: write
       packages: write
@@ -95,7 +97,7 @@ jobs:
       - uses: ./.github/actions/publish-image-promotion
         with:
           publish: ${{ github.event_name != 'pull_request' }}
-          app-slug: memes
+          app-slug: ${{ matrix.slug }}
           app-name: ${{ matrix.name }}
           image: ghcr.io/kpoxo6op/${{ matrix.image }}
           image-tag: ${{ env.IMAGE_TAG }}
