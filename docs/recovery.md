@@ -32,6 +32,12 @@ The completed drills do not require repeating. Preserve filesystem, storage,
 and device identities; do not add a recurring manual drill.
 
 The daily [recovery-input backup](https://github.com/kpoxo6op/soyspray/tree/main/apps/recovery-input-backup)
-remains enabled for explicit node configuration and unique voice models. It
+remains enabled for all private recovery inputs, node configuration and unique voice models. It
 verifies restored off-laptop content automatically. The production monitoring
 path uses native backup records and alerts; no laptop evidence job is required.
+
+
+The recovery-input README names the include set and root of trust. One human
+step remains: store the recovery Vault password, Restic password, restricted S3
+AWS key pair and repository address in an independently accessible password
+manager. No independent unlock copy was established by the automated restore.

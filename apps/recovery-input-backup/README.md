@@ -1,34 +1,47 @@
-# Node configuration and unique voice-model recovery
+# Private recovery-input backup
 
-This laptop service collects four explicit files from each existing node:
-`/etc/fstab`, `/etc/hostname`, `/etc/hosts`, and `/etc/netplan/50-cloud-init.yaml`.
-It also collects the active `gi-v7.tflite` and rollback `gi-v2.tflite` models
-from `~/.config/soyspray/recovery/voice-models`. The installer seeds that
-mode-0700 directory from the two immutable live ConfigMaps and then requires
-their declared hashes on every run. The backup does not use pCloud.
+The existing daily laptop service uses the restricted `node/` Restic repository,
+its existing Vault credentials, pinned Python runtime and 30 daily snapshot
+retention. No bucket policy, credentials or production alerts are changed.
 
-The service uses the restricted `node/` Restic repository and the existing
-`node-backup.vault.yml` credentials. It verifies node names and model headers,
-backs up the files, restores them into a private local workspace, and compares
-the live, stable, staged, and restored model hashes plus all file sizes. Restic
-retains 30 daily snapshots for this host and tag.
-It does not collect broad configuration directories or reproducible voice models.
+The short include set covers the whole `~/.config/soyspray/recovery/` directory
+(including the Argo admin Vault, unlock file and preserved voice models), private
+Kubespray credentials, the active kubeconfig and any referenced certificate/key
+files, node SSH identities/configuration/known hosts, and AWS profile configuration
+and a credentials file when present. SSH keys are resolved from `ssh -G` for all
+three nodes. CLI caches, source checkouts and browser state are excluded.
+The collector also fetches fstab, hostname, hosts and netplan from each node.
+Unexpected nested symlinks or missing required inputs stop the backup.
 
-Install through the repository venv:
+Each run stages files in a private workspace, verifies collection checksums,
+backs them up, restores that exact snapshot in isolation and compares every
+file's checksum and size. Local inputs must still match their originals after
+the restore. Active/stable/staged/restored GI model hashes must agree. Temporary
+content is cleaned up; private reports record the snapshot and match counts.
+
+Install from delivered main with the repository Ansible environment:
 
 ```sh
 ansible-playbook apps/recovery-input-backup/install.yml -e recovery_inputs_run_now=true
+systemctl --user status soyspray-recovery-input-backup.timer
 ```
 
-The native user timer runs daily at 03:15 Auckland time and catches missed runs
-when the laptop is available. It invokes no model. Check
-`systemctl --user status soyspray-recovery-input-backup.timer` and the private
-reports under `~/.local/state/soyspray/recovery-input-backup/`.
-The installer must reference the delivered main checkout after merge. This
-independent timer stays enabled; no production scrape or scheduled restore
-depends on it. Run the service once after installation and verify its report
-records a completed off-laptop snapshot and restored content.
+`operations_checkout` can point to an immutable release in the existing private
+runtime directory; use its existing pinned venv. The service must never reference
+a disposable worktree. The persistent timer remains daily at 03:15 Auckland.
+Private reports are under `~/.local/state/soyspray/recovery-input-backup/`.
+No production scrape or scheduled application restore depends on the laptop.
 
-The files can help recover mounts, node networking, and unique model inputs.
-Kubespray still owns the cluster foundation. Do not apply restored configuration
-to a replacement node without checking its disks and network interfaces.
+## Root of trust
+
+`~/.config/soyspray/recovery/node-backup.vault.yml` holds the Restic password and
+restricted S3 AWS access key pair. `vault-password` unlocks that Vault. The AWS
+operator profile uses renewable login; its expiring caches are not recovery
+inputs. A backup cannot independently unlock its own contents. An independent
+copy of the unlock material has not been established by this work.
+
+One human step: store the recovery Vault password, Restic password, restricted
+S3 access key pair and repository address together in a password-manager entry
+accessible without this laptop or cluster. Do not rotate them or automate the
+password-manager step. Recovery restores files to a private directory first;
+check disks/interfaces before applying any node configuration.

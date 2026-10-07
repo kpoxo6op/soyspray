@@ -81,14 +81,6 @@
         {{ (existing['SOYSPRAY_BREAK_GLASS_PASSWORD'] | b64decode)
            if 'SOYSPRAY_BREAK_GLASS_PASSWORD' in existing
            else lookup('env', 'SOYSPRAY_BREAK_GLASS_PASSWORD') }}
-      ARGOCD_ADMIN_PASSWORD_HASH: >-
-        {{ (existing['ARGOCD_ADMIN_PASSWORD_HASH'] | b64decode)
-           if 'ARGOCD_ADMIN_PASSWORD_HASH' in existing
-           else lookup('env', 'SOYSPRAY_ARGOCD_ADMIN_PASSWORD_HASH') }}
-      ARGOCD_ADMIN_PASSWORD_MTIME: >-
-        {{ (existing['ARGOCD_ADMIN_PASSWORD_MTIME'] | b64decode)
-           if 'ARGOCD_ADMIN_PASSWORD_MTIME' in existing
-           else now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ') }}
   vars:
     existing: >-
       {{ authentik_runtime_secret.resources[0].data
@@ -101,10 +93,8 @@
     that:
       - authentik_runtime_values['SSO_PASSWORD'] | length >= 20
       - authentik_runtime_values['SOYSPRAY_BREAK_GLASS_PASSWORD'] | length >= 20
-      - authentik_runtime_values['ARGOCD_ADMIN_PASSWORD_HASH'] | length >= 20
     fail_msg: >-
-      Set SOYSPRAY_SSO_PASSWORD, SOYSPRAY_BREAK_GLASS_PASSWORD, and
-      SOYSPRAY_ARGOCD_ADMIN_PASSWORD_HASH for the first deployment.
+      Set SOYSPRAY_SSO_PASSWORD and SOYSPRAY_BREAK_GLASS_PASSWORD for the first deployment.
   no_log: true
   tags: authentik
 

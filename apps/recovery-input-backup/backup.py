@@ -1,4 +1,4 @@
-"""Back up and restore-check explicit node configuration and unique voice models."""
+"""Back up and restore-check private recovery inputs, node configuration and unique voice models."""
 
 import argparse
 import base64
@@ -75,6 +75,73 @@ def stable_models(seed=False):
     return directory, hashes
 
 
+def local_inputs():
+    """Explicit roots only: no CLI caches, source checkouts or browser state."""
+    home = Path.home()
+    roots = {
+        "recovery": home / ".config/soyspray/recovery",
+        "kubespray": ROOT / "inventory/soycluster/credentials",
+        "kubeconfig": Path(os.environ.get("KUBECONFIG", home / ".kube/config")),
+        "ssh/config": home / ".ssh/config",
+        "ssh/known_hosts": home / ".ssh/known_hosts",
+        "aws/config": home / ".aws/config",
+    }
+    if ":" in str(roots["kubeconfig"]):
+        raise ValueError("Use a single recovery kubeconfig")
+    config = yaml.safe_load(roots["kubeconfig"].read_text())
+    for section, fields in (
+        ("clusters", ("certificate-authority",)),
+        ("users", ("client-certificate", "client-key")),
+    ):
+        for entry in config.get(section, []):
+            for field in fields:
+                value = entry[section[:-1]].get(field)
+                if value:
+                    source = Path(value).expanduser()
+                    if not source.is_absolute():
+                        source = roots["kubeconfig"].parent / source
+                    roots[f"kube-files/{len(roots)}-{source.name}"] = source
+    for node in ("192.168.20.10", "192.168.20.11", "192.168.20.12"):
+        config = subprocess.check_output(
+            ["ssh", "-G", f"ubuntu@{node}"], stderr=subprocess.PIPE, text=True, timeout=10
+        )
+        for line in config.splitlines():
+            if line.startswith("identityfile "):
+                source = Path(line.split(" ", 1)[1]).expanduser()
+                if source.is_file():
+                    roots[f"ssh/{source.name}"] = source
+    if (home / ".aws/credentials").exists():
+        roots["aws/credentials"] = home / ".aws/credentials"
+    files = {}
+    for label, root in roots.items():
+        if not root.exists():
+            raise ValueError("A required private input root is missing")
+        candidates = sorted(root.rglob("*")) if root.is_dir() else [root]
+        for source in candidates:
+            if source.is_symlink():
+                raise ValueError("Private input contains an unexpected symlink")
+            if source.is_file():
+                name = label + "/" + str(source.relative_to(root)) if root.is_dir() else label
+                files[name] = source
+    if not files or not any(name.startswith("kubespray/") for name in files):
+        raise ValueError("Private Kubespray inputs are missing")
+    return files
+
+
+def stage_local_inputs(stage, originals):
+    fingerprints = {}
+    for name, source in originals.items():
+        before = digest(source)
+        destination = stage / "local" / name
+        destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        shutil.copyfile(source, destination)
+        destination.chmod(0o600)
+        if digest(source) != before or digest(destination) != before:
+            raise ValueError("A private input changed while being collected")
+        fingerprints[name] = before
+    return fingerprints
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed-models", action="store_true")
@@ -140,6 +207,8 @@ def main():
                 capture_output=True,
                 timeout=180,
             )
+            originals = local_inputs()
+            original_hashes = stage_local_inputs(stage, originals)
             voice = stage / "voice"
             voice.mkdir()
             for name in MODELS:
@@ -158,8 +227,8 @@ def main():
                 for p in stage.rglob("*")
                 if p.is_file()
             }
-            if len(files) != 14:
-                raise ValueError("The explicit input set is incomplete")
+            if len([name for name in files if name.startswith("nodes/")]) != 12:
+                raise ValueError("The node input set is incomplete")
             (stage / "manifest.json").write_text(json.dumps(files, indent=2))
             output = restic(
                 "backup",
@@ -182,14 +251,18 @@ def main():
             snapshot = summary[0]["snapshot_id"]
             restored = work / "restored"
             restic("restore", snapshot, "--target", str(restored))
-            manifests = list(restored.rglob("manifest.json"))
-            if len(manifests) != 1 or json.loads(manifests[0].read_text()) != files:
+            base = restored / stage.relative_to(stage.anchor)
+            if json.loads((base / "manifest.json").read_text()) != files:
                 raise ValueError("Restored manifest differs")
-            base = manifests[0].parent
             for name, expected in files.items():
                 path = base / name
                 if digest(path) != expected["sha256"] or path.stat().st_size != expected["bytes"]:
                     raise ValueError("Restored input differs")
+            for name, source in originals.items():
+                if digest(source) != original_hashes[name]:
+                    raise ValueError("An original private input changed before verification")
+                if digest(base / "local" / name) != original_hashes[name]:
+                    raise ValueError("Restored private input differs from its original")
             for name in MODELS:
                 model_hashes[name]["restored"] = digest(base / "voice" / name)
                 if len(set(model_hashes[name].values())) != 1:
@@ -216,6 +289,7 @@ def main():
                 verified_files=files,
                 model_hashes=model_hashes,
                 restored_real_content=True,
+                original_checksum_matches=len(originals),
             )
         report["cleanup"] = "completed"
     except BaseException as error:

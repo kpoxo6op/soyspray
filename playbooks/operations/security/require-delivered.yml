@@ -2,7 +2,7 @@
 - name: Read local and delivered main revisions
   ansible.builtin.command:
     argv: "{{ item }}"
-    chdir: "{{ playbook_dir }}/../../.."
+    chdir: "{{ security_checkout | default(playbook_dir + '/../../..') }}"
   loop:
     - [git, rev-parse, HEAD]
     - [git, ls-remote, https://github.com/kpoxo6op/soyspray.git, refs/heads/main]

@@ -103,7 +103,8 @@ lint: ## Check Python style and common defects
 		playbooks/operations/retirement/*.yml \
 		playbooks/operations/security/require-delivered.yml \
 		playbooks/operations/security/rotate-argocd-admin.yml \
-		playbooks/operations/security/repair-argocd-ingress.yml
+		playbooks/operations/security/repair-argocd-ingress.yml \
+		playbooks/operations/security/retire-authentik-argo-keys.yml
 
 validate: validate-skills status-page-check prometheus-check ## Validate YAML and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py

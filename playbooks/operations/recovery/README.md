@@ -390,8 +390,10 @@ pinned dependencies, app entry points, and playbook syntax. It does not rerun
 frontend or browser delivery checks during emergency recovery.
 
 The independent daily [recovery-input backup](../../../apps/recovery-input-backup)
-remains enabled. It collects explicit node configuration and preserved voice
-models, then restores and verifies one off-laptop Restic copy. It does not send
+remains enabled. It collects the whole private recovery directory, Kubespray credentials,
+kubeconfig, SSH identities and AWS profile inputs, plus node configuration and
+preserved voice models, then restores and checksum-verifies every file from one
+off-laptop Restic copy. It does not send
 alerts or export production metrics.
 
 ## PostgreSQL archive migration
@@ -447,3 +449,9 @@ This mode reads the Longhorn backup catalog and disposable scratch resources,
 including the restored Longhorn volume and its storage class. It does not read
 the production application namespace. The private report records
 `production_inputs` as `not read`.
+
+
+The recovery-input README names the include set and root of trust. One human
+step remains: store the recovery Vault password, Restic password, restricted S3
+AWS key pair and repository address in an independently accessible password
+manager. No independent unlock copy was established by the automated restore.
