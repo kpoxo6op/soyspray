@@ -44,6 +44,10 @@ Use `make status-page-check` to validate the external status configuration,
   Longhorn/CNPG custom resources and their UIs. Restore reports remain private
   under `~/.local/state/soyspray/restores/`.
 - `check-ha-stretch.sh` checks the one-node-loss stretch configuration.
+- `argocd_admin_vault.py` creates an encrypted private admin recovery credential
+  or refreshes its rotation cutoff. `argocd_login.py` uses the pinned CLI's
+  terminal input with echo disabled and output suppressed. Run `make argo-login`;
+  use the [security guide](../playbooks/operations/security/README.md) for rotation.
 
 ```sh
 scripts/check-ha-stretch.sh --expect-current --repo-only

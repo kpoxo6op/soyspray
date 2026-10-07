@@ -1,0 +1,71 @@
+---
+- name: Use HTTPS between the existing Argo Ingress and server
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    repair_argocd_ingress: false
+  tasks:
+    - name: Require explicit scope and reviewed identity
+      ansible.builtin.assert:
+        that:
+          - repair_argocd_ingress | bool
+          - argocd_ingress_uid | default('') | length > 0
+          - argocd_ingress_version | default('') | length > 0
+
+    - name: Require delivered operation
+      ansible.builtin.import_tasks: require-delivered.yml
+
+    - name: Read the exact existing Ingress
+      kubernetes.core.k8s_info:
+        api_version: networking.k8s.io/v1
+        kind: Ingress
+        namespace: argocd
+        name: argocd-ingress
+      register: ingress_before
+
+    - name: Require the reviewed single server route
+      ansible.builtin.assert:
+        that:
+          - ingress_before.resources | length == 1
+          - ingress_before.resources[0].metadata.uid == argocd_ingress_uid
+          - ingress_before.resources[0].metadata.resourceVersion == argocd_ingress_version
+          - ingress_before.resources[0].spec.rules | length == 1
+          - ingress_before.resources[0].spec.rules[0].host == 'argocd.soyspray.vip'
+          - ingress_before.resources[0].spec.rules[0].http.paths | length == 1
+          - ingress_before.resources[0].spec.rules[0].http.paths[0].backend.service.name == 'argocd-server'
+          - ingress_before.resources[0].spec.rules[0].http.paths[0].backend.service.port.number == 80
+          - ingress_before.resources[0].metadata.annotations.get('nginx.ingress.kubernetes.io/backend-protocol', '') == ''
+
+    - name: Change only the reviewed annotation and backend port atomically
+      kubernetes.core.k8s_json_patch:
+        api_version: networking.k8s.io/v1
+        kind: Ingress
+        namespace: argocd
+        name: argocd-ingress
+        patch:
+          - {op: test, path: /metadata/uid, value: "{{ argocd_ingress_uid }}"}
+          - {op: test, path: /metadata/resourceVersion, value: "{{ argocd_ingress_version }}"}
+          - op: add
+            path: /metadata/annotations/nginx.ingress.kubernetes.io~1backend-protocol
+            value: HTTPS
+          - {op: replace, path: /spec/rules/0/http/paths/0/backend/service/port/number, value: 443}
+
+    - name: Read the repaired route
+      kubernetes.core.k8s_info:
+        api_version: networking.k8s.io/v1
+        kind: Ingress
+        namespace: argocd
+        name: argocd-ingress
+      register: ingress_after
+      when: not ansible_check_mode
+
+    - name: Require the repaired route and original identity
+      ansible.builtin.assert:
+        that:
+          - ingress_after.resources[0].metadata.uid == argocd_ingress_uid
+          - ingress_after.resources[0].metadata.annotations['nginx.ingress.kubernetes.io/backend-protocol'] == 'HTTPS'
+          - ingress_after.resources[0].spec.rules[0].http.paths[0].backend.service.port.number == 443
+          - ingress_after.resources[0].spec.tls == ingress_before.resources[0].spec.tls
+      when: not ansible_check_mode

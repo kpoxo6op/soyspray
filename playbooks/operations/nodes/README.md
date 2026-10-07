@@ -113,13 +113,11 @@ with revisions, identities, failures, assistance and restore results. Use
 
 ## Upstream reconciliation and upgrades
 
-The first full upstream run completed, but its native Argo addon wrote an
-admin password modification time with `NZDT`, which Argo ignores instead of
-loading its RFC3339 cutoff. The password, signing key and SSO inputs remained
-the same. Further full cluster/upgrade runs require an explicit metadata
-preservation fix first; see the [inventory prerequisite](../../../inventory/soycluster/README.md#full-run-prerequisite).
-Do not repeat a run or reset a node to repair this credential metadata.
-
+Argo owns its pinned runtime and cert-manager; both Kubespray addons stay
+disabled. Normal Authentik bootstrap never rewrites Argo's admin credential.
+The private recovery Vault and guarded security operation maintain its valid
+UTC session cutoff. Full reconciliation and upgrades use the health and snapshot
+gates in the [inventory guide](../../../inventory/soycluster/README.md).
 
 Kubespray is pinned to upstream v2.31.0. Argo owns cert-manager v1.17.1; never
 re-enable the Kubespray addon because upstream deletes its namespace. The
