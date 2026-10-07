@@ -121,3 +121,28 @@ def test_promotion_changes_only_matching_digest(tmp_path):
     assert [i["digest"] for i in promoted["images"]] == ["sha256:" + "a" * 64, "sha256:" + "b" * 64]
     with pytest.raises(ValueError):
         module.promote("ghcr.io/kpoxo6op/memes:latest", path)
+
+
+def test_importer_promotion_action_entrypoint(tmp_path):
+    """Importer action routing must reach the digest editor; helper tests do not exercise its script path."""
+    import shutil
+
+    root = tmp_path / "memes"
+    (root / "import").mkdir(parents=True)
+    (root / "manifests").mkdir()
+    for relative in ("promote-image.py", "import/promote-image.py", "manifests/kustomization.yaml"):
+        shutil.copyfile(APP / relative, root / relative)
+    initial = yaml.safe_load((root / "manifests/kustomization.yaml").read_text())["images"][0]
+    digest = "sha256:" + "b" * 64
+    subprocess.run(
+        [
+            __import__("sys").executable,
+            str(root / "import/promote-image.py"),
+            "ghcr.io/kpoxo6op/memes-import@" + digest,
+        ],
+        check=True,
+    )
+    package = yaml.safe_load((root / "manifests/kustomization.yaml").read_text())
+    images = {i["name"]: i for i in package["images"]}
+    assert images["ghcr.io/kpoxo6op/memes-import"]["digest"] == digest
+    assert images["ghcr.io/kpoxo6op/memes"] == initial
