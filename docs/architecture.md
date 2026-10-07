@@ -38,3 +38,7 @@ alerts to Telegram and keeps the independent Watchdog route. Alloy exports
 bounded failure counters and sends searchable logs to Loki. Inspect logs in
 Grafana when an alert needs context. Missing evidence is unknown; absence of an
 alert does not establish recovery. There is no supplemental diagnosis writer.
+
+Argo CD also owns its own pinned runtime through `apps/argocd/`. Its private
+Secrets, controller ConfigMaps and customized server Service/Ingress remain
+Ansible inputs. Kubespray Argo and cert-manager addons stay explicitly disabled.

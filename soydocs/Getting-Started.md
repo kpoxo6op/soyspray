@@ -62,7 +62,7 @@ ArgoCD setup
 export ARGOCD_CONFIG_DIR="$HOME/.config/argocd"
 
 # Login to ArgoCD
-argocd login argocd.soyspray.vip --grpc-web --username admin --password password
+make argo-login  # Uses the private operator login path; no public credential
 
 # Test argonaut (requires TTY)
 argonaut

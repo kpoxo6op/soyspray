@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: argocd-runtime
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  description: Argo CD runtime; private inputs and controller settings stay with Ansible
+  sourceRepos:
+    - https://github.com/kpoxo6op/soyspray.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+  clusterResourceWhitelist:
+    - {group: apiextensions.k8s.io, kind: CustomResourceDefinition}
+    - {group: rbac.authorization.k8s.io, kind: ClusterRole}
+    - {group: rbac.authorization.k8s.io, kind: ClusterRoleBinding}
+  namespaceResourceWhitelist:
+    - {group: "", kind: ServiceAccount}
+    - {group: "", kind: Service}
+    - {group: apps, kind: Deployment}
+    - {group: apps, kind: StatefulSet}
+    - {group: rbac.authorization.k8s.io, kind: Role}
+    - {group: rbac.authorization.k8s.io, kind: RoleBinding}
+    - {group: networking.k8s.io, kind: NetworkPolicy}
+  namespaceResourceBlacklist:
+    - {group: "", kind: Secret}
+    - {group: "", kind: ConfigMap}
+    - {group: argoproj.io, kind: Application}
+    - {group: argoproj.io, kind: AppProject}

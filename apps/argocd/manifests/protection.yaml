@@ -1,0 +1,9 @@
+apiVersion: builtin
+kind: AnnotationsTransformer
+metadata:
+  name: preserve-runtime
+annotations:
+  argocd.argoproj.io/sync-options: Prune=false,Delete=false
+fieldSpecs:
+  - path: metadata/annotations
+    create: true

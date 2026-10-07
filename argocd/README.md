@@ -7,7 +7,7 @@ the direct Applications and their AppProjects. All Soyspray Git sources follow
 ## Normal change
 
 1. Change a workload or its Application on a topic branch.
-2. Run `make check APP=NAME` and `make go`.
+2. Run `make check APP=NAME`; GitHub CI is the merge gate.
 3. Use `make diff APP=NAME` when that app has a maintained live comparison.
 4. Merge the GitHub pull request.
 5. Confirm the affected Argo Application is `Synced` and `Healthy`.
@@ -41,3 +41,8 @@ private model, or other bootstrap input.
 For rollback, revert the faulty commit through GitHub. Do not delete an
 Application, namespace, claim, or volume as a rollback step. Root health does
 not prove application access or recovery.
+
+The `argocd` child is the sole runtime Application allowed in the controller's
+namespace. Its project excludes Secrets and ConfigMaps, and its pinned upstream
+resources exclude private/controller inputs and the customized server Service.
+See [runtime ownership](../apps/argocd/README.md).
