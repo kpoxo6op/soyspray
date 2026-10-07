@@ -22,7 +22,7 @@ No upstream Secret, including `argocd-secret`, is rendered or adopted.
 
 ```sh
 make check APP=argocd
-make render APP=argocd
+kubectl kustomize apps/argocd/manifests
 make diff APP=argocd
 kubectl -n argocd get applications,deployments,statefulsets,pods
 ```
