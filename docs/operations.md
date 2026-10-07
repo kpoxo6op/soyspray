@@ -73,7 +73,21 @@ Argo manages its own pinned runtime and cert-manager. Both Kubespray addons
 remain disabled, and Authentik bootstrap manages only Argo's OIDC client input.
 Full cluster and upgrade runs use the normal health and snapshot gates in the
 [inventory guide](https://github.com/kpoxo6op/soyspray/tree/main/inventory/soycluster).
-Bump the upstream tag through CI, then run full `upgrade-cluster.yml`.
+
+Follow the [pinned upstream upgrade guide](https://github.com/kubernetes-sigs/kubespray/blob/v2.31.0/docs/operations/upgrades.md):
+
+1. Move one Kubespray tag at a time; never skip a minor release.
+2. Read its release notes and diff our `group_vars` against that tag's `inventory/sample`.
+3. Install that tag's `requirements.txt` (`make setup` also installs compatible repository tooling).
+4. Set inventory `kube_version` within that tag's supported range.
+5. Take an etcd snapshot and verify its private laptop copy after the native health gates.
+6. Run full `kubespray/upgrade-cluster.yml` with the inventory alone, no extra-vars files, limits or tags.
+
+A control-plane flag change also uses `upgrade-cluster.yml`; do not force restarts
+with `upgrade_cluster_setup` on a normal `cluster.yml` run. Upstream's upgrade
+playbook sets that internal flag itself. OIDC lives in inventory alongside the
+other API settings, so a stock upstream invocation preserves authentication.
+
 
 `make argo-login` reads the private recovery Vault without printing a password.
 Deliberate admin rotation uses the

@@ -12,6 +12,7 @@
       ansible.builtin.assert:
         that:
           - authentik_argo_action in ['remove', 'restore']
+          - authentik_argo_fields == ['ARGOCD_ADMIN_PASSWORD_HASH', 'ARGOCD_ADMIN_PASSWORD_MTIME']
           - authentik_argo_consumers_verified | default(false) | bool
           - authentik_runtime_uid | default('') | length > 0
           - authentik_runtime_version | default('') | length > 0

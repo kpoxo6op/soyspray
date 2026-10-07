@@ -40,9 +40,10 @@ help: ## Show the operator commands
 	printf 'Soyspray operator commands\n\n'
 	awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-setup: ## Create the venv and install local tooling
+setup: ## Install the pinned Kubespray and repository toolchain
 	test -d $(VENV) || python3 -m venv $(VENV)
-	$(VENV)/bin/python -m pip install -r requirements-dev.txt
+	git submodule update --init --recursive
+	$(VENV)/bin/python -m pip install -r kubespray/requirements.txt -r requirements-dev.txt
 	$(VENV)/bin/ansible-galaxy collection install -r requirements-ansible.yml
 	cd $(AUTISM_TRAITS_APP) && npm ci
 	cd apps/boys && npm ci && npx playwright install chromium

@@ -162,11 +162,7 @@ https://192.168.20.11:2380
 https://192.168.20.12:2380
 ```
 
-Repair the stale membership record before adding more etcd members:
-
-```bash
-source soyspray-venv/bin/activate
-ansible-playbook -i inventory/soycluster/hosts.yml \
-  --become --become-user=root --user ubuntu \
-  playbooks/operations/kubernetes/repair-etcd-peer-url.yml
-```
+That one-off peer repair completed and its playbook is retired. Current etcd
+has three healthy members on the current LAN. Future membership maintenance
+uses the native removal/readd procedure in `playbooks/operations/nodes/README.md`;
+do not repeat the historical peer-URL repair.

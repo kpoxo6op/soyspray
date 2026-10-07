@@ -9,8 +9,6 @@ Node management and configuration playbooks.
 
 - install-node-tools.yml - Install common tools on nodes
 - restart-node.yml - Restart cluster nodes
-- set-node-labels.yml - Set node labels
-- set-resource-limits.yml - Configure resource limits
 - configure-openwrt-syslog.yml - Configure rsyslog to receive logs from OpenWrt router
 
 ### networking/
@@ -19,11 +17,6 @@ Network setup and tooling playbooks.
 - install-tailscale.yml - Install Tailscale VPN
 - remove-tailscale.yml - Remove Tailscale VPN
 - publish-headlamp-token.yml - Generate and publish Headlamp token
-
-### kubernetes/
-Kubernetes control-plane and cluster membership operations.
-
-- repair-etcd-peer-url.yml - repair stale etcd member peer URLs so they match the current inventory addresses before an HA stretch
 
 ### storage/
 Storage initialization and management playbooks.
@@ -72,5 +65,11 @@ ansible-playbook -i inventory/soycluster/hosts.yml \
 Playbooks use `verb-subject.yml` format:
 - install-node-tools.yml
 - restart-node.yml
-- set-node-labels.yml
 - initialize-longhorn-storage.yml
+
+## Foundation
+
+Use the [stock upstream inventory guide](../../inventory/soycluster/README.md).
+The broken top-level wrapper, label patch, resource patch and one-off etcd repair
+are retired. Node labels and OIDC belong to inventory; workloads follow their
+Argo owners. Host utilities never replace Kubespray component binaries.

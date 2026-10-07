@@ -41,3 +41,8 @@ The recovery-input README names the include set and root of trust. One human
 step remains: store the recovery Vault password, Restic password, restricted S3
 AWS key pair and repository address in an independently accessible password
 manager. No independent unlock copy was established by the automated restore.
+
+
+The 2026-10-07 recovery-input service run verified 43 restored files and all 29
+local originals by checksum, with completed cleanup and an enabled/active timer.
+This is an actual off-laptop input restore, not a whole-cluster restore proof.
