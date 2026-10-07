@@ -7,6 +7,7 @@ metadata:
     soyspray.vip/owner: platform
   annotations:
     argocd.argoproj.io/sync-wave: "-4"
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
     argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
   project: cert-manager
