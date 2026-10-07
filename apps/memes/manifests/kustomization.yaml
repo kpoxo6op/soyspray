@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: memes
+resources:
+- archive-pv.yaml
+- archive-pvc.yaml
+- certificate.yaml
+- deployment.yaml
+- import-job.yaml
+- ingress.yaml
+- namespace.yaml
+- networkpolicy.yaml
+- prepare-job.yaml
+- pvc.yaml
+- service.yaml
+images:
+  - name: ghcr.io/kpoxo6op/memes
+    newTag: goal03-unreleased
+  - name: ghcr.io/kpoxo6op/memes-import
+    newTag: goal03-unreleased

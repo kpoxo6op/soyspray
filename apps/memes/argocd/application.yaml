@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: memes
+  labels:
+    app.kubernetes.io/name: memes
+    app.kubernetes.io/part-of: memes
+    soyspray.vip/owner: operator
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-url: https://memes.soyspray.vip
+    soyspray.vip/access-method: Private LAN/Tailscale invite link
+    soyspray.vip/data-claims: memes/memes-data
+    soyspray.vip/backup: Deferred to goal 03; deployment and invites blocked until
+      verified off-cluster backup and isolated restore.
+  namespace: argocd
+spec:
+  project: memes
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: main
+    path: apps/memes/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: memes
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+    - CreateNamespace=true

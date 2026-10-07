@@ -1,0 +1,29 @@
+FROM python:3.12.13-slim-bookworm@sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2 AS builder
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates cmake ninja-build g++ pkg-config libleptonica-dev && rm -rf /var/lib/apt/lists/*
+WORKDIR /build
+RUN curl -fsSL https://codeload.github.com/tesseract-ocr/tesseract/tar.gz/refs/tags/5.5.0 -o tesseract.tar.gz && \
+    echo 'f2fb34ca035b6d087a42875a35a7a5c4155fa9979c6132365b1e5a28ebc3fc11  tesseract.tar.gz' | sha256sum -c - && \
+    tar -xzf tesseract.tar.gz && cmake -S tesseract-5.5.0 -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TRAINING_TOOLS=OFF -DBUILD_TESTS=OFF -DDISABLE_ARCHIVE=ON -DDISABLE_CURL=ON && \
+    cmake --build build --parallel 4 && cmake --install build
+RUN mkdir /tessdata && \
+    curl -fsSL https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/4.1.0/rus.traineddata -o /tessdata/rus.traineddata && \
+    curl -fsSL https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/4.1.0/eng.traineddata -o /tessdata/eng.traineddata && \
+    echo 'e16e5e036cce1d9ec2b00063cf8b54472625b9e14d893a169e2b0dedeb4df225  /tessdata/rus.traineddata' | sha256sum -c - && \
+    echo '7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2  /tessdata/eng.traineddata' | sha256sum -c -
+COPY import-requirements.lock models.json prepare-models.py ./
+RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu -r import-requirements.lock
+RUN python prepare-models.py && rm -rf /root/.cache/huggingface
+FROM python:3.12.13-slim-bookworm@sha256:4766d8b510c428e595d74b9cc5bbb2fae8e26316fffb4adc89908d79aacd58a2
+ARG SOURCE_REVISION=local
+LABEL org.opencontainers.image.source="https://github.com/kpoxo6op/soyspray" org.opencontainers.image.revision="${SOURCE_REVISION}"
+RUN apt-get update && apt-get install -y --no-install-recommends liblept5 libgomp1 && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /usr/local/ /usr/local/
+COPY --from=builder /models /models
+COPY --from=builder /tessdata /tessdata
+RUN ldconfig && tesseract --version
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 MEMES_MODELS=/models TESSDATA_PREFIX=/tessdata HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 OMP_NUM_THREADS=4 OPENBLAS_NUM_THREADS=4
+WORKDIR /app
+COPY models.json ./
+COPY memes/__init__.py memes/catalog.py memes/recommender.py memes/importer.py ./memes/
+USER 1000:1000
+CMD ["python", "-m", "memes.importer", "--resume"]

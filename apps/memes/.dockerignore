@@ -1,0 +1,14 @@
+*
+!Dockerfile
+!Dockerfile.import
+!web-requirements.lock
+!import-requirements.lock
+!models.json
+!prepare-models.py
+!memes/
+!memes/*.py
+!memes/schema.sql
+!memes/static/
+!memes/static/*.html
+!memes/static/*.js
+!memes/static/*.css

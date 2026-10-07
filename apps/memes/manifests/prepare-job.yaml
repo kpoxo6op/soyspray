@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: memes-prepare-v1
+  labels:
+    app.kubernetes.io/name: memes
+    app.kubernetes.io/part-of: memes
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  suspend: true
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: memes
+        app.kubernetes.io/part-of: memes
+        memes.soyspray.vip/role: prepare
+    spec:
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: node-0
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 1000
+      containers:
+      - name: prepare
+        image: ghcr.io/kpoxo6op/memes:goal03-unreleased
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 250m
+            memory: 128Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: tmp
+          mountPath: /tmp
+        command:
+        - python
+        - -c
+        - from pathlib import Path; Path("/data").mkdir(exist_ok=True); assert Path("/data").is_dir()
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: memes-data
+      - name: tmp
+        emptyDir: {}
+      restartPolicy: Never
