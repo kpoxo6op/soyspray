@@ -27,6 +27,8 @@ adopt chart metadata; no certificate renewal or Secret rotation is requested.
 
 Automated pruning and cascading Application deletion are disabled. CRDs use
 `crds.keep: true`. Argo respects the CA bundles maintained by cainjector.
+Server-side diff asks the API server to compare the live schema, avoiding the
+older Argo controller schema for Kubernetes status fields.
 After verified adoption, disable the Kubespray cert-manager addon before using
 upstream Kubespray. Never run its enabled addon against this namespace.
 
