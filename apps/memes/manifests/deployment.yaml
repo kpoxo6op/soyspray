@@ -20,6 +20,7 @@ spec:
         memes.soyspray.vip/role: web
     spec:
       automountServiceAccountToken: false
+      enableServiceLinks: false
       nodeSelector:
         kubernetes.io/hostname: node-0
       securityContext:

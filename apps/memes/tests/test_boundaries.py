@@ -74,6 +74,8 @@ def test_deployment_archive_and_private_boundary():
     by_name = {(r["kind"], r["metadata"]["name"]): r for r in resources}
     web = by_name[("Deployment", "memes")]
     assert web["spec"]["replicas"] <= 1 and web["spec"]["strategy"]["type"] == "Recreate"
+    # Kubernetes creates MEMES_PORT=tcp://... for the namesake Service; local/image tests lack it.
+    assert web["spec"]["template"]["spec"]["enableServiceLinks"] is False
     jobs = [r for r in resources if r["kind"] == "Job"]
     for job in jobs:
         for container in job["spec"]["template"]["spec"]["containers"]:
