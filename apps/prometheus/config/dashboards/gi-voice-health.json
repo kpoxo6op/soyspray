@@ -450,18 +450,101 @@
       "options": {}
     },
     {
+      "id": 12,
+      "type": "stat",
+      "title": "GI responds",
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max(voice_wake_service_responding{job=\"voice-health\"})",
+          "legendFormat": "GI responds"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "No service response",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Responding",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value_and_name",
+        "colorMode": "value"
+      }
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "Last GI reply age",
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(time() - max(voice_wake_service_last_success_timestamp_seconds{job=\"voice-health\"})) and on() (max(voice_wake_service_last_success_timestamp_seconds{job=\"voice-health\"}) > 0)",
+          "legendFormat": "Seconds since service replied"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
       "id": 11,
       "type": "text",
       "title": "Reading a failure",
       "gridPos": {
         "x": 0,
-        "y": 40,
+        "y": 48,
         "w": 24,
         "h": 5
       },
       "options": {
         "mode": "markdown",
-        "content": "Expected listening with little GI traffic means the voice path is stalled. Fresh microphone callbacks with no GI traffic place the failure after microphone capture; old callbacks point to the device. Use **Recover GI listening** in Home Assistant once and check traffic again. Recovery exhaustion stops automatic reboot attempts. These counters record transport and recovery, without audio or transcripts; they cannot prove wake accuracy, speech recognition or a completed command."
+        "content": "Expected listening with little GI traffic means the voice path is stalled. Fresh microphone callbacks with no GI traffic place the failure after microphone capture; old callbacks point to the device. Use **Recover GI listening** in Home Assistant once and check traffic again. Recovery exhaustion stops automatic reboot attempts. These counters record transport and recovery, without audio or transcripts; they cannot prove wake accuracy, speech recognition or a completed command.\n\n**GI responds** requires a timed response from the running wake service. Kernel TCP acceptance and buffered audio can look healthy while its reader is stopped. This confirms responsiveness; a real spoken command still checks recognition and device action."
       }
     }
   ]

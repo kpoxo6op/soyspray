@@ -11,8 +11,8 @@ Home Assistant uses these local Wyoming services:
 - An openWakeWord service that lists only the installed GI model. It checks the
   SHA-256 of `handler.py` before it applies our patch, and stops if it differs.
 
-The services have no Ingress or LoadBalancer. Only Home Assistant can connect
-to their Wyoming ports.
+The services have no Ingress or LoadBalancer. Home Assistant can connect to all three Wyoming ports; the diagnostics
+observer can also request metadata from GI.
 
 ## Ownership and private data
 
@@ -166,13 +166,16 @@ The observer source also supports a bounded Wyoming Describe/Info check every
 five seconds. Only service metadata is requested; audio events and payloads are
 rejected. TCP acceptance and buffered incoming bytes can remain healthy while
 the reader is stopped, so this check reports application responsiveness
-separately. Deploy it through its tested digest promotion with scoped GI and DNS
-network access; a source merge leaves the running observer unchanged.
+separately. Its deployment permits only device API access, GI TCP 10400 and
+the cluster node-local DNS cache. A source merge leaves the running observer
+unchanged until its tested digest promotion.
 
 The **GI voice health** Grafana dashboard retains the traffic, frame age, phase,
 acknowledgement and recovery timeline. Telegram alerts cover expected listening
 with under 10 kB/s of GI ingress for three minutes, unavailable diagnostics for
 two minutes, automatic recovery attempts and exhaustion of the reboot budget.
+An expected-listening device with no valid GI service response for one minute
+triggers VoiceWakeServiceUnresponsive, even while TCP and ingress look healthy.
 The byte rate includes protocol overhead and is transport evidence; it does
 not prove that the wake engine accepted a spoken GI. Traffic, mute/reply guards,
 missing telemetry and recovery alerts have executable Prometheus fixtures.
