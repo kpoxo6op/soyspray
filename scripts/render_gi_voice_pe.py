@@ -20,6 +20,7 @@ VOICE_PE_SHA256 = "ccd3188da67597ddf461b3c076b049c2c89e3c64e7219a82048de4c08e00e
 MICRO_WAKE_WORD_MODELS_COMMIT = "05b65922cc433c9df13e98e32a7fe520758c837e"
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FIRMWARE_ASSET_DIR = ROOT / "apps/voice-assistant/manifests/firmware"
+HEALTH_ASSET_DIR = ROOT / "apps/voice-assistant/firmware"
 FIRMWARE_ASSETS = {
     "stop.json": "bd13aeb1b83852649dc4fb6135cb160ff68716d14612b06f6a405342c57447aa",
     "stop.tflite": "b5a18c4ad681a89950dfade31011e1631bdcb333e93c84519a1a63ff4f071146",
@@ -204,6 +205,118 @@ def stage_firmware_assets(output: pathlib.Path) -> None:
                 f"Firmware file {name} has SHA-256 {actual_sha256}; expected {expected_sha256}"
             )
         shutil.copyfile(source, target_dir / name)
+    shutil.copyfile(HEALTH_ASSET_DIR / "voice_health.h", output.parent / "voice_health.h")
+
+
+def add_voice_health(source: str) -> str:
+    """Wire the bounded policy into the exact pinned board configuration."""
+    source = replace_once(source, "esphome:\n", "esphome:\n  includes:\n    - voice_health.h\n")
+    parts = re.split(r"(?m)^([a-z_]+):\n", (HEALTH_ASSET_DIR / "voice_health.yaml").read_text())
+    for section, body in zip(parts[1::2], parts[2::2], strict=True):
+        if f"\n{section}:\n" in source:
+            source = replace_once(source, f"\n{section}:\n", f"\n{section}:\n{body.rstrip()}\n")
+        else:
+            source += f"\n{section}:\n{body}"
+    source = replace_once(
+        source,
+        "    - micro_wake_word.start:\n    - voice_assistant.start_continuous:",
+        "    - micro_wake_word.start:\n    - script.execute: restart_streaming_wake_word",
+    )
+    source = replace_once(
+        source,
+        "  on_client_disconnected:\n    - voice_assistant.stop:",
+        "  on_client_disconnected:\n    - lambda: id(gi_ack) = false;\n"
+        "    - script.execute: restart_streaming_wake_word",
+    )
+    source = replace_once(
+        source,
+        "  on_wake_word_detected:\n    - mixer_speaker.apply_ducking:",
+        "  on_start:\n    - lambda: id(gi_ack) = true;\n"
+        "  on_wake_word_detected:\n    - mixer_speaker.apply_ducking:",
+    )
+    source = replace_once(
+        source,
+        "  on_end:\n    - wait_until:\n        condition:\n          lambda: return !id(va).is_running();",
+        "  on_end:\n    - lambda: |-\n        id(gi_ack) = false;\n"
+        "        gi::supervisor().new_run(millis());\n"
+        "    - wait_until:\n        timeout: 5s\n        condition:\n"
+        "          lambda: return !id(va).is_running();",
+    )
+    source = replace_once(
+        source,
+        "  on_error:\n",
+        "  on_error:\n    - lambda: |-\n"
+        '        if (code == "wake-provider-missing" || code == "wake-engine-missing" || code == "not-connected") {\n'
+        "          gi::supervisor().backend_error(millis());\n"
+        '          ESP_LOGW("gi_health", "GI_BACKEND_ERROR retry_backoff=60s");\n'
+        "        }\n",
+    )
+    source = replace_once(
+        source,
+        "    id: i2s_mics\n",
+        "    id: i2s_mics\n    on_data:\n"
+        "      - lambda: if (!x.empty()) gi::supervisor().frame(millis());\n",
+    )
+    source = replace_once(
+        source,
+        "    id: ota_esphome\n",
+        "    id: ota_esphome\n"
+        "    on_begin:\n      - lambda: id(gi_ota) = true;\n"
+        "    on_error:\n      - lambda: id(gi_ota) = false;\n",
+    )
+    source = replace_once(
+        source,
+        "                            - voice_assistant.start:\n"
+        "                                wake_word: !lambda return wake_word;",
+        "                            - script.execute: restart_streaming_wake_word",
+    )
+    script = """  - id: restart_streaming_wake_word
+    mode: queued
+    max_runs: 2
+    then:
+      - lambda: id(gi_ack) = false;
+      - voice_assistant.stop:
+      - if:
+          condition:
+            lambda: return id(gi_reason) == static_cast<uint32_t>(gi::Reason::MIC_STALE);
+          then:
+            - micro_wake_word.stop:
+      - wait_until:
+          timeout: 5s
+          condition:
+            lambda: return !id(va).is_running() && (id(gi_reason) != static_cast<uint32_t>(gi::Reason::MIC_STALE) || id(i2s_mics).is_stopped());
+      - if:
+          condition:
+            lambda: return id(va).is_running() || (id(gi_reason) == static_cast<uint32_t>(gi::Reason::MIC_STALE) && !id(i2s_mics).is_stopped());
+          then:
+            - lambda: gi::supervisor().stop_failed();
+          else:
+            - delay: 500ms
+            - if:
+                condition:
+                  and:
+                    - voice_assistant.connected:
+                    - switch.is_off: master_mute_switch
+                then:
+                  - micro_wake_word.start:
+                  - lambda: |-
+                      id(va).set_use_wake_word(true);
+                      gi::supervisor().new_run(millis());
+                  - voice_assistant.start_continuous:
+                  - lambda: id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+                  - script.execute: control_leds
+
+"""
+    source, count = re.subn(
+        r"  - id: restart_streaming_wake_word\n.*?(?=i2s_audio:\n)",
+        script,
+        source,
+        count=1,
+        flags=re.DOTALL,
+    )
+    if count != 1:
+        raise ValueError("Expected one GI restart script")
+    return source
 
 
 def download_upstream() -> str:
@@ -227,7 +340,9 @@ def main() -> None:
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     stage_firmware_assets(args.output)
-    rendered = patch_voice_pe_config(download_upstream(), args.output.parent / "models/stop.json")
+    rendered = add_voice_health(
+        patch_voice_pe_config(download_upstream(), args.output.parent / "models/stop.json")
+    )
     args.output.write_text(rendered, encoding="utf-8")
     print(args.output)
 

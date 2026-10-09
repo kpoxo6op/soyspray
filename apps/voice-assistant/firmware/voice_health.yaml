@@ -1,0 +1,120 @@
+globals:
+  - id: gi_ack
+    type: bool
+    initial_value: 'false'
+  - id: gi_ota
+    type: bool
+    initial_value: 'false'
+  - id: gi_reboots
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: gi_recoveries
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: gi_reason
+    type: uint32_t
+    restore_value: true
+    initial_value: '0'
+  - id: gi_exhausted
+    type: bool
+    initial_value: 'false'
+
+binary_sensor:
+  - platform: template
+    id: gi_listen_expected
+    name: GI listen expected
+    entity_category: diagnostic
+    lambda: return gi::supervisor().expected;
+  - platform: template
+    name: GI recovery exhausted
+    entity_category: diagnostic
+    lambda: return id(gi_exhausted);
+  - platform: template
+    name: GI pipeline acknowledged
+    entity_category: diagnostic
+    lambda: return id(gi_ack);
+  - platform: template
+    name: GI voice running
+    entity_category: diagnostic
+    lambda: return id(va).is_running();
+
+sensor:
+  - platform: template
+    name: GI microphone frame age
+    entity_category: diagnostic
+    unit_of_measurement: s
+    update_interval: 5s
+    lambda: return std::min(gi::supervisor().frame_age(millis()) / 1000.0f, 3600.0f);
+  - platform: template
+    name: GI recovery count
+    entity_category: diagnostic
+    update_interval: 5s
+    lambda: return id(gi_recoveries);
+  - platform: template
+    name: GI reboot budget used
+    entity_category: diagnostic
+    update_interval: 5s
+    lambda: return id(gi_reboots);
+  - platform: template
+    name: GI recovery reason
+    entity_category: diagnostic
+    update_interval: 5s
+    lambda: return id(gi_reason);
+  - platform: template
+    name: GI voice stage
+    entity_category: diagnostic
+    update_interval: 5s
+    lambda: return id(voice_assistant_phase);
+  - platform: uptime
+    name: GI uptime
+    entity_category: diagnostic
+    update_interval: 5s
+
+button:
+  - platform: template
+    name: Recover GI listening
+    entity_category: config
+    on_press:
+      - lambda: |-
+          id(gi_reason) = static_cast<uint32_t>(gi::Reason::MANUAL);
+          ++id(gi_recoveries);
+          ESP_LOGW("gi_health", "GI_RECOVERY reason=6 action=manual_retry");
+      - script.execute: restart_streaming_wake_word
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          const uint32_t now = millis();
+          uint32_t busy = 0;
+          if (id(voice_assistant_phase) >= 2 && id(voice_assistant_phase) <= 5) busy = 1;
+          if (id(timer_ringing).state ||
+              id(external_media_player).state == media_player::MediaPlayerState::MEDIA_PLAYER_STATE_ANNOUNCING) busy = 2;
+          gi::Input input{now, id(va).get_api_connection() != nullptr,
+                          id(master_mute_switch).state, id(gi_ota),
+                          id(va).is_running(), id(gi_ack), busy, id(gi_reboots)};
+          const auto action = gi::supervisor().tick(input);
+          if (gi::supervisor().reset_budget) { id(gi_reboots) = 0; id(gi_exhausted) = false; }
+          if (action == gi::Action::NONE) return;
+          id(gi_reason) = static_cast<uint32_t>(gi::supervisor().reason);
+          if (action == gi::Action::EXHAUSTED) {
+            if (!id(gi_exhausted)) ESP_LOGE("gi_health", "GI_RECOVERY reason=%u action=exhausted", id(gi_reason));
+            id(gi_exhausted) = true;
+            return;
+          }
+          ++id(gi_recoveries);
+          if (action == gi::Action::RETRY) {
+            ESP_LOGW("gi_health", "GI_RECOVERY reason=%u action=retry attempt=%u", id(gi_reason), gi::supervisor().retries);
+            id(restart_streaming_wake_word).execute();
+          } else {
+            ++id(gi_reboots);
+            ESP_LOGE("gi_health", "GI_RECOVERY reason=%u action=reboot budget=%u", id(gi_reason), id(gi_reboots));
+            // Flush restored globals before requesting the native safe reboot.
+            gi_reboots->loop();
+            gi_recoveries->loop();
+            gi_reason->loop();
+            global_preferences->sync();
+            App.safe_reboot();
+          }
