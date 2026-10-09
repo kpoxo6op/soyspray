@@ -1,0 +1,251 @@
+rule_files:
+- voice-health.yaml
+evaluation_interval: 30s
+tests:
+- name: Quiet microphone audio continues to arrive
+  interval: 1m
+  input_series:
+  - &id001
+    series: kube_deployment_spec_replicas{namespace="home-automation",deployment="voice-health"}
+    values: 1x12
+  - &id002
+    series: voice_diagnostics_ready{job="voice-health"}
+    values: 1x12
+  - series: voice_listen_expected{job="voice-health"}
+    values: 1x12
+  - series: container_network_receive_bytes_total{namespace="home-automation",pod="openwakeword-gi-test",interface="eth0"}
+    values: 0+1920000x12
+  alert_rule_test:
+  - eval_time: 6m
+    alertname: VoiceAudioStalled
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceDiagnosticsUnavailable
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceRecoveryExhausted
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceAutomaticRecovery
+    exp_alerts: []
+- name: Muted or replying devices do not require wake audio
+  interval: 1m
+  input_series:
+  - *id001
+  - *id002
+  - series: voice_listen_expected{job="voice-health"}
+    values: '0x12'
+  - series: container_network_receive_bytes_total{namespace="home-automation",pod="openwakeword-gi-test",interface="eth0"}
+    values: '0x12'
+  alert_rule_test:
+  - eval_time: 6m
+    alertname: VoiceAudioStalled
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceDiagnosticsUnavailable
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceRecoveryExhausted
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceAutomaticRecovery
+    exp_alerts: []
+- name: Expected audio stops despite healthy diagnostics
+  interval: 1m
+  input_series:
+  - *id001
+  - *id002
+  - series: voice_listen_expected{job="voice-health"}
+    values: 1x12
+  - series: container_network_receive_bytes_total{namespace="home-automation",pod="openwakeword-gi-test",interface="eth0"}
+    values: '0x12'
+  alert_rule_test:
+  - eval_time: 6m
+    alertname: VoiceAudioStalled
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations: &id003
+        summary: GI expects microphone audio but the wake service receives too little
+          traffic
+        description: Expected listening has had less than 10 kB/s of GI ingress for
+          three minutes, or ingress evidence is missing. Check the GI voice dashboard
+          for frame age, run acknowledgement, stage and recovery reason. Use Recover
+          GI listening once; if audio remains absent, capture HA pipeline event types
+          and TCP queues before restarting the device. This traffic check does not
+          prove wake accuracy.
+  - eval_time: 6m
+    alertname: VoiceDiagnosticsUnavailable
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceRecoveryExhausted
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceAutomaticRecovery
+    exp_alerts: []
+- name: Missing byte counters cannot hide an expected stream
+  interval: 1m
+  input_series:
+  - *id001
+  - *id002
+  - series: voice_listen_expected{job="voice-health"}
+    values: 1x12
+  alert_rule_test:
+  - eval_time: 6m
+    alertname: VoiceAudioStalled
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations: *id003
+  - eval_time: 6m
+    alertname: VoiceDiagnosticsUnavailable
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceRecoveryExhausted
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceAutomaticRecovery
+    exp_alerts: []
+- name: Lost observer telemetry is unknown health
+  interval: 1m
+  input_series:
+  - *id001
+  alert_rule_test:
+  - eval_time: 6m
+    alertname: VoiceAudioStalled
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceDiagnosticsUnavailable
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations: &id004
+        summary: GI voice diagnostics are unavailable
+        description: The configured observer has no complete current device diagnostics
+          for two minutes. Check its scrape, native API connection and firmware schema.
+          Missing telemetry is unknown voice health and must not be interpreted as
+          recovery.
+  - eval_time: 6m
+    alertname: VoiceRecoveryExhausted
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceAutomaticRecovery
+    exp_alerts: []
+- name: A missing firmware schema is unavailable
+  interval: 1m
+  input_series:
+  - *id001
+  - series: voice_diagnostics_ready{job="voice-health"}
+    values: '0x12'
+  alert_rule_test:
+  - eval_time: 6m
+    alertname: VoiceAudioStalled
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceDiagnosticsUnavailable
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations: *id004
+  - eval_time: 6m
+    alertname: VoiceRecoveryExhausted
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceAutomaticRecovery
+    exp_alerts: []
+- name: No observer deployment does not page before promotion
+  interval: 1m
+  input_series: []
+  alert_rule_test:
+  - eval_time: 6m
+    alertname: VoiceAudioStalled
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceDiagnosticsUnavailable
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceRecoveryExhausted
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceAutomaticRecovery
+    exp_alerts: []
+- name: Reboot exhaustion requires intervention
+  interval: 1m
+  input_series:
+  - *id001
+  - *id002
+  - series: voice_recovery_exhausted{job="voice-health"}
+    values: 1x12
+  alert_rule_test:
+  - eval_time: 6m
+    alertname: VoiceAudioStalled
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceDiagnosticsUnavailable
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceRecoveryExhausted
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+      exp_annotations:
+        summary: GI has exhausted its automatic reboot budget
+        description: The device has stopped automatic recovery after three watchdog
+          reboots. Inspect recovery reason, microphone frame age and HA pipeline event
+          types. Preserve the evidence before a manual recovery or firmware rollback.
+  - eval_time: 6m
+    alertname: VoiceAutomaticRecovery
+    exp_alerts: []
+- name: Automatic recovery leaves an actionable signal
+  interval: 1m
+  input_series:
+  - *id001
+  - *id002
+  - series: voice_recovery_count{job="voice-health"}
+    values: 0 1x11
+  - series: voice_recovery_reason{job="voice-health"}
+    values: 1x12
+  alert_rule_test:
+  - eval_time: 6m
+    alertname: VoiceAudioStalled
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceDiagnosticsUnavailable
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceRecoveryExhausted
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceAutomaticRecovery
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations:
+        summary: GI automatically recovered a listening fault
+        description: The device recovery counter changed. The persisted reason identifies
+          a missing running state (1), missing run acknowledgement (2), stale microphone
+          (3), stop timeout (4), or interaction timeout (5). Check ingress and run
+          a real command; a recovery attempt does not establish successful speech
+          control.
+- name: Manual recovery is not an automatic incident
+  interval: 1m
+  input_series:
+  - *id001
+  - *id002
+  - series: voice_recovery_count{job="voice-health"}
+    values: 0 1x11
+  - series: voice_recovery_reason{job="voice-health"}
+    values: 6x12
+  alert_rule_test:
+  - eval_time: 6m
+    alertname: VoiceAudioStalled
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceDiagnosticsUnavailable
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceRecoveryExhausted
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceAutomaticRecovery
+    exp_alerts: []

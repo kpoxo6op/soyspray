@@ -56,6 +56,18 @@ prometheus:
               storage: 20Gi
 
   additionalServiceMonitors:
+    - name: voice-health
+      jobLabel: app.kubernetes.io/name
+      selector:
+        matchLabels:
+          app.kubernetes.io/name: voice-health
+      namespaceSelector:
+        matchNames:
+          - home-automation
+      endpoints:
+        - port: metrics
+          interval: 30s
+
     - name: cert-manager
       selector:
         matchLabels:

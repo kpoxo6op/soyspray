@@ -9,6 +9,7 @@ resources:
   - services.yaml
   - storage.yaml
   - network-policies.yaml
+  - voice-health.yaml
 
 configMapGenerator:
   - name: openwakeword-gi-patch
