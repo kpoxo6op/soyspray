@@ -55,11 +55,16 @@
       register: serve_before
       changed_when: false
 
+    - name: Parse current Serve configuration
+      ansible.builtin.set_fact:
+        serve_config: "{{ serve_before.stdout | from_json }}"
+
     - name: Protect other routes and reject Funnel
       ansible.builtin.assert:
         that:
-          - (serve_before.stdout | from_json).get('Funnel', {}) | length == 0
-          - (serve_before.stdout | from_json) == {} or assembly_target in serve_before.stdout
+          - serve_config.get('Funnel', {}) | length == 0
+          - serve_config == {} or (serve_config.get('Web', {}) | length == 1 and serve_before.stdout | regex_findall('"Path"') | length == 1 and assembly_target in serve_before.stdout)
+          - serve_config.get('TCP', {}).keys() | list | difference(['80', '443']) | length == 0
         fail_msg: node-1 has a different Serve route or Funnel; no site files were changed.
 
     - name: Create private site directory
@@ -79,10 +84,15 @@
         mode: '0644'
       loop: "{{ assembly_files }}"
 
-    - name: Enable tailnet-only HTTPS for the site
+    - name: Retire only the initial certificate-blocked HTTPS route
       ansible.builtin.command:
-        argv: [tailscale, serve, --bg, --yes, "{{ assembly_target }}"]
-      when: (serve_before.stdout | from_json) == {}
+        argv: [tailscale, serve, reset]
+      when: serve_config.get('TCP', {}).get('443', {}).get('HTTPS', false)
+
+    - name: Enable tailnet-only HTTP for the site
+      ansible.builtin.command:
+        argv: [tailscale, serve, --bg, --http=80, --yes, "{{ assembly_target }}"]
+      when: serve_config == {} or serve_config.get('TCP', {}).get('443', {}).get('HTTPS', false)
 
     - name: Verify the resulting private route
       ansible.builtin.command:
@@ -95,3 +105,5 @@
         that:
           - assembly_target in serve_after.stdout
           - (serve_after.stdout | from_json).get('Funnel', {}) | length == 0
+          - (serve_after.stdout | from_json).get('TCP', {}).get('80', {}).get('HTTP', false)
+          - (serve_after.stdout | from_json).get('TCP', {}).get('443', {}) == {}

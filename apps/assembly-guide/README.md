@@ -5,6 +5,9 @@ This operation copies the three static files of Boris's assembly helper to
 Kubernetes resources, public DNS record, ingress, or Funnel. The private site
 files stay outside this public repository.
 
+This tailnet does not currently issue Tailscale HTTPS certificates on node-1,
+so Serve uses HTTP on port 80 inside Tailscale's encrypted connection.
+
 From the operator laptop, set `ASSEMBLY_GUIDE_SOURCE_DIR` to a directory with
 `index.html`, `app.js`, and `app.css`. Review the target directory and the empty
 Tailscale Serve configuration on `node-1`, then run:
@@ -17,10 +20,11 @@ ASSEMBLY_GUIDE_SOURCE_DIR=/absolute/path/to/site ansible-playbook \
   --become --become-user=root --user ubuntu
 ```
 
-Open the private HTTPS URL reported by `tailscale serve status` on a device
+Open the private HTTP URL reported by `tailscale serve status` on a device
 connected to the tailnet. Re-running the playbook updates the static files without changing an
-existing Serve configuration. It stops if another Serve route or a Funnel is
-present. To retire this dedicated route, first confirm it is still the sole
+existing Serve configuration. It can replace the initial, certificate-blocked
+HTTPS route only when that route is the sole Serve route. It stops if another
+Serve route or a Funnel is present. To retire this dedicated route, first confirm it is still the sole
 Serve route on `node-1`, then run `sudo tailscale serve reset` there; the static
 files can be removed separately. Do not reset a node with unrelated routes.
 
