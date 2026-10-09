@@ -4,7 +4,7 @@ LABEL org.opencontainers.image.source="https://github.com/kpoxo6op/soyspray" \
       org.opencontainers.image.revision="${SOURCE_REVISION}"
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
-COPY requirements.txt /app/requirements.txt
+COPY requirements.lock /app/requirements.txt
 RUN pip install --no-cache-dir --require-hashes -r /app/requirements.txt
 COPY observer.py /app/observer.py
 USER 1000:1000
