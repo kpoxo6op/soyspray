@@ -38,6 +38,8 @@ def test_shared_only_change_keeps_application_checks_optional():
     [
         "Makefile",
         ".github/workflows/ci.yml",
+        ".github/actions/docker-hub-cache/action.yml",
+        ".github/actions/publish-image-promotion/action.yml",
         "argocd/kustomization.yaml",
         "scripts/app_command.py",
         "scripts/app_diff.py",

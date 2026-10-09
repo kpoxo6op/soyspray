@@ -12,6 +12,9 @@ select all three. Deleted paths count, and an unavailable base revision selects
 all application checks. The final `check` job rejects failed, cancelled, or
 unexpectedly skipped required checks. CI does not deploy or modify the cluster.
 
+Changes to local composite actions also select all application checks, so an
+action-only edit cannot bypass the real image-build and publication guards.
+
 The domain health, media helper, and Immich image jobs configure the hosted
 runner's Docker daemon to check Google's public `mirror.gcr.io` cache before
 Docker Hub. This reduces unauthenticated pull-rate failures while retaining the
