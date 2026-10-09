@@ -1,0 +1,17 @@
+{
+  "name": "soyspray-3d-helper",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Soyspray rack 3D assembly helper",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test \"test/*.test.mjs\""
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

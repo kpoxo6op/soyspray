@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0b0c0f">
+<title>Soyspray rack assembly</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main id="app">
+  <div id="stage" class="stage"></div>
+  <div id="hud" class="hud">
+    <div id="caption" class="caption">
+      <h1 class="chapter"><span id="chapterNo" class="chapter-no">01</span><span id="chapterTitle" class="chapter-title">Bottom rectangle</span></h1>
+      <p id="chapterText" class="chapter-text"></p>
+    </div>
+    <div id="live" class="visually-hidden" aria-live="polite"></div>
+    <div id="transport" class="transport">
+      <div id="scrubber" class="scrubber" role="slider" tabindex="0" aria-label="Assembly timeline" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+        <div id="track" class="track"></div>
+        <div id="thumb" class="thumb"></div>
+        <div id="hoverTip" class="hover-tip" aria-hidden="true"><span class="tip-title"></span><span class="tip-time"></span></div>
+      </div>
+      <div class="controls">
+        <div class="group">
+          <button id="btnPrev" class="btn" type="button" aria-label="Previous chapter" title="Previous chapter (↓, Shift+←)"></button>
+          <button id="btnRewind" class="btn" type="button" aria-label="Rewind" aria-pressed="false" title="Rewind (R)"></button>
+          <button id="btnPlay" class="btn btn-play" type="button" aria-label="Play" title="Play (Space)"></button>
+          <button id="btnNext" class="btn" type="button" aria-label="Next chapter" title="Next chapter (↑, Shift+→)"></button>
+          <div class="time"><span id="timeNow">0:00</span><span class="time-sep"> / </span><span id="timeTotal">0:00</span></div>
+        </div>
+        <div class="group">
+          <button id="btnSpeed" class="btn btn-text" type="button" aria-label="Playback speed 1×" title="Playback speed">1×</button>
+          <button id="btnView" class="btn" type="button" aria-label="Reset view" title="Reset view (V)"></button>
+          <button id="btnFull" class="btn" type="button" aria-label="Full screen" title="Full screen (F)"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <noscript><p class="noscript">This page needs JavaScript for the 3D view.</p></noscript>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
