@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: assembly-guide
+  labels:
+    app.kubernetes.io/name: assembly-guide
+    app.kubernetes.io/part-of: assembly-guide
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/ingress-hostname-source: annotation-only
+    external-dns.kubernetes.io/ingress-hostname-source: annotation-only
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - assembly.soyspray.vip
+      secretName: assembly-guide-tls
+  rules:
+    - host: assembly.soyspray.vip
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: assembly-guide
+                port:
+                  name: http

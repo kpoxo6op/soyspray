@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: assembly-guide
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: assembly-guide
+    soyspray.vip/owner: platform
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-url: https://assembly.soyspray.vip
+    soyspray.vip/access-method: Private Tailscale split DNS and LAN ingress; no public DNS or tunnel
+    soyspray.vip/data: none
+    soyspray.vip/backup: not-required
+    soyspray.vip/backup-cause: Static image with no persistent state.
+spec:
+  project: assembly-guide
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: main
+    path: apps/assembly-guide/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: assembly-guide
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: assembly-guide
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: v1.35
+        pod-security.kubernetes.io/warn: restricted
+        pod-security.kubernetes.io/warn-version: v1.35
