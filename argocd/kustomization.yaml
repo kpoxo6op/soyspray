@@ -6,6 +6,7 @@ resources:
   - catalog/project.yaml
   - ../apps/headlamp/argocd
   - ../apps/autism-traits/argocd
+  - ../apps/assembly-guide/argocd
   - ../apps/boys/argocd
   - ../apps/memes/argocd
   - ../apps/external-dns/argocd

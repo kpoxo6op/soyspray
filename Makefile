@@ -20,6 +20,7 @@ KUSTOMIZATIONS := \
 	argocd \
 	apps/prometheus/config \
 	apps/autism-traits/manifests \
+	apps/assembly-guide/manifests \
 	apps/gi/manifests \
 	apps/boys/manifests \
 	apps/domain-health \

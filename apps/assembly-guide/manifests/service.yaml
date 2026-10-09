@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: assembly-guide
+  labels:
+    app.kubernetes.io/name: assembly-guide
+    app.kubernetes.io/part-of: assembly-guide
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: assembly-guide
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
