@@ -30,6 +30,7 @@ jobs:
       IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v7
+      - uses: ./.github/actions/docker-hub-cache
       - name: Test the packaged diagnostics interface
         run: |
           docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" \
@@ -46,6 +47,7 @@ jobs:
                       metrics = response.read().decode()
                       assert 'voice_device_connected 0' in metrics
                       assert 'voice_diagnostics_ready 0' in metrics
+                      assert 'voice_wake_service_responding 0' in metrics
                   break
               except urllib.error.URLError:
                   if attempt == 29: raise

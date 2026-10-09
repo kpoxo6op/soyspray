@@ -161,6 +161,14 @@ audio or sends device commands. Its image is tested and published by
 Prometheus can compare expected listening with the GI pod's received-byte rate.
 An absent diagnostics schema is unavailable evidence, not a healthy stream.
 
+The observer source also supports a bounded Wyoming Describe/Info check every
+15 seconds. A complete response with an available wake model is required within
+five seconds. Only service metadata is requested; audio events and payloads are
+rejected. TCP acceptance and buffered incoming bytes can remain healthy while
+the reader is stopped, so this check reports application responsiveness
+separately. Deploy it through its tested digest promotion with scoped GI and DNS
+network access; a source merge leaves the running observer unchanged.
+
 The **GI voice health** Grafana dashboard retains the traffic, frame age, phase,
 acknowledgement and recovery timeline. Telegram alerts cover expected listening
 with under 10 kB/s of GI ingress for three minutes, unavailable diagnostics for
@@ -169,14 +177,16 @@ The byte rate includes protocol overhead and is transport evidence; it does
 not prove that the wake engine accepted a spoken GI. Traffic, mute/reply guards,
 missing telemetry and recovery alerts have executable Prometheus fixtures.
 The observer has no HA token, Kubernetes credentials, device commands, public
-endpoint or application storage; its only outbound connection is the device's
-native API. Deployment checks protect that restriction because the existing
-voice-backend checks do not cover the observer.
+endpoint or application storage. Deployment checks protect its outbound scope
+because the existing voice-backend checks do not cover the observer.
 
 Run `pytest -q tests/test_voice_health.py` for executable recovery-policy and
 HTTP export checks. They protect quiet/mute/OTA/backend guards, time limits,
 clock wrap, retry/reboot bounds, and stale-state removal. The older renderer
 checks do not execute the policy or exercise the exported HTTP boundary.
+The Wyoming probe checks protect complete Info framing, invalid or oversized
+metadata and audio-payload refusal, and a port that accepts but never responds.
+The existing HTTP export checks do not exercise a remote service response.
 
 After native OTA, verify diagnostics and actual HA-to-GI audio flow, then run
 the [bounded network operation](../../playbooks/operations/networking/README.md).
