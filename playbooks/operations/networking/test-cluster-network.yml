@@ -32,20 +32,20 @@
     - name: Require three Ready nodes and recovered applications and storage
       ansible.builtin.assert:
         that:
-          - (network_test_health.results[0].stdout | from_json).items | length == 3
+          - (network_test_health.results[0].stdout | from_json)['items'] | length == 3
           - >-
-            (network_test_health.results[0].stdout | from_json).items |
+            (network_test_health.results[0].stdout | from_json)['items'] |
             map(attribute='status.conditions') | flatten |
             selectattr('type', 'equalto', 'Ready') | rejectattr('status', 'equalto', 'True') | list | length == 0
           - >-
-            (network_test_health.results[1].stdout | from_json).items |
+            (network_test_health.results[1].stdout | from_json)['items'] |
             selectattr('status.state', 'equalto', 'attached') |
             rejectattr('status.robustness', 'equalto', 'healthy') | list | length == 0
           - >-
-            (network_test_health.results[2].stdout | from_json).items |
+            (network_test_health.results[2].stdout | from_json)['items'] |
             rejectattr('status.sync.status', 'equalto', 'Synced') | list | length == 0
           - >-
-            (network_test_health.results[2].stdout | from_json).items |
+            (network_test_health.results[2].stdout | from_json)['items'] |
             rejectattr('status.health.status', 'equalto', 'Healthy') | list | length == 0
 
     - name: Mark successful controller preflight
