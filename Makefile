@@ -99,6 +99,7 @@ lint: ## Check Python style and common defects
 	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint playbooks/bootstrap-apps.yml \
 		playbooks/bootstrap-app-inputs.yml \
 		playbooks/operations/nodes/snapshot-etcd.yml \
+		playbooks/operations/networking/test-cluster-network.yml \
 		playbooks/operations/recovery/restore-volume.yml playbooks/operations/recovery/cleanup-restore.yml playbooks/operations/recovery/start-restored-app.yml \
 		playbooks/operations/recovery/configure-longhorn.yml playbooks/operations/recovery/backup-daily-now.yml \
 		playbooks/operations/storage/repair-voice-multipath.yml \

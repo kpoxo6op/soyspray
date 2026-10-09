@@ -1,0 +1,146 @@
+---
+- name: Require a delivered and healthy cluster before an authorized network test
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  tasks:
+    - name: Require explicit bounded outage authorization
+      ansible.builtin.assert:
+        that:
+          - temporary_network_disruption | default(false) | bool
+          - network_test_seconds | default(0) | int >= 10
+          - network_test_seconds | default(0) | int <= 120
+          - network_test_id | default('') is match('^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{7,40}$')
+          - not ansible_check_mode
+        fail_msg: This test requires explicit authorization, a unique UTC/revision ID and 10-120 seconds.
+
+    - name: Require merged main
+      ansible.builtin.include_tasks: ../security/require-delivered.yml
+
+    - name: Read native cluster health
+      ansible.builtin.command:
+        argv: "{{ item }}"
+      loop:
+        - [kubectl, get, nodes, -o, json]
+        - [kubectl, -n, longhorn-system, get, volumes.longhorn.io, -o, json]
+        - [kubectl, -n, argocd, get, applications, -o, json]
+      register: network_test_health
+      changed_when: false
+
+    - name: Require three Ready nodes and recovered applications and storage
+      ansible.builtin.assert:
+        that:
+          - (network_test_health.results[0].stdout | from_json).items | length == 3
+          - >-
+            (network_test_health.results[0].stdout | from_json).items |
+            map(attribute='status.conditions') | flatten |
+            selectattr('type', 'equalto', 'Ready') | rejectattr('status', 'equalto', 'True') | list | length == 0
+          - >-
+            (network_test_health.results[1].stdout | from_json).items |
+            selectattr('status.state', 'equalto', 'attached') |
+            rejectattr('status.robustness', 'equalto', 'healthy') | list | length == 0
+          - >-
+            (network_test_health.results[2].stdout | from_json).items |
+            rejectattr('status.sync.status', 'equalto', 'Synced') | list | length == 0
+          - >-
+            (network_test_health.results[2].stdout | from_json).items |
+            rejectattr('status.health.status', 'equalto', 'Healthy') | list | length == 0
+
+    - name: Mark successful controller preflight
+      ansible.builtin.set_fact:
+        network_test_authorized: true
+
+- name: Temporarily disconnect the three physical LAN interfaces with local recovery
+  hosts: kube_node
+  gather_facts: false
+  become: true
+  any_errors_fatal: true
+  vars:
+    network_test_unit: "soyspray-network-{{ network_test_id }}"
+    network_test_script: "/run/{{ network_test_unit }}.sh"
+  tasks:
+    - name: Refuse partial inventories and host limits
+      ansible.builtin.assert:
+        that:
+          - hostvars['localhost'].network_test_authorized | default(false) | bool
+          - ansible_play_hosts_all | sort == ['node-0', 'node-1', 'node-2']
+
+    - name: Discover the physical route to the LAN router
+      ansible.builtin.command:
+        argv: [ip, -j, route, get, '192.168.20.1']
+      register: network_test_route
+      changed_when: false
+
+    - name: Select the verified LAN interface
+      ansible.builtin.set_fact:
+        network_test_interface: "{{ (network_test_route.stdout | from_json)[0].dev }}"
+
+    - name: Read the selected interface
+      ansible.builtin.command:
+        argv: [ip, -j, link, show, dev, "{{ network_test_interface }}"]
+      register: network_test_link
+      changed_when: false
+
+    - name: Check physical device identity
+      ansible.builtin.stat:
+        path: "/sys/class/net/{{ network_test_interface }}/device"
+      register: network_test_physical
+
+    - name: Require the expected active physical Ethernet route
+      ansible.builtin.assert:
+        that:
+          - (network_test_route.stdout | from_json)[0].prefsrc == ansible_host
+          - network_test_interface is match('^en[a-zA-Z0-9_-]+$')
+          - network_test_physical.stat.exists
+          - (network_test_link.stdout | from_json)[0].operstate == 'UP'
+          - (network_test_link.stdout | from_json)[0].link_type == 'ether'
+
+    - name: Stage the bounded outage with independent recovery
+      ansible.builtin.copy:
+        src: network-glitch.sh
+        dest: "{{ network_test_script }}"
+        owner: root
+        group: root
+        mode: '0700'
+
+    - name: Schedule the outage outside the SSH session
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - "--unit={{ network_test_unit }}"
+          - --on-active=10s
+          - --timer-property=AccuracySec=100ms
+          - /bin/bash
+          - "{{ network_test_script }}"
+          - "{{ network_test_interface }}"
+          - "{{ network_test_seconds }}"
+          - "{{ network_test_unit }}"
+      changed_when: true
+
+    - name: Wait for independent network recovery
+      ansible.builtin.wait_for_connection:
+        delay: "{{ network_test_seconds | int + 15 }}"
+        timeout: 120
+
+    - name: Read completed outage evidence
+      ansible.builtin.command:
+        argv: [journalctl, "--unit={{ network_test_unit }}", --no-pager, -o, cat]
+      register: network_test_journal
+      changed_when: false
+
+    - name: Require a completed outage and recovery
+      ansible.builtin.assert:
+        that:
+          - "'NETWORK_DOWN ' in network_test_journal.stdout"
+          - "'NETWORK_UP ' in network_test_journal.stdout"
+
+    - name: Report only outage and recovery times
+      ansible.builtin.debug:
+        msg: "{{ network_test_journal.stdout_lines | select('match', '^NETWORK_(DOWN|UP) ') | list }}"
+
+    - name: Remove the temporary script
+      ansible.builtin.file:
+        path: "{{ network_test_script }}"
+        state: absent
