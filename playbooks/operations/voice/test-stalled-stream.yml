@@ -40,9 +40,16 @@
     - name: Refuse a fault test during application or storage recovery
       ansible.builtin.assert:
         that:
-          - (voice_preflight.results[0].stdout | from_json)['items'] | rejectattr('status.sync.status', 'equalto', 'Synced') | list | length == 0
-          - (voice_preflight.results[0].stdout | from_json)['items'] | rejectattr('status.health.status', 'equalto', 'Healthy') | list | length == 0
-          - (voice_preflight.results[1].stdout | from_json)['items'] | selectattr('status.state', 'equalto', 'attached') | rejectattr('status.robustness', 'equalto', 'healthy') | list | length == 0
+          - >-
+            (voice_preflight.results[0].stdout | from_json)['items']
+            | rejectattr('status.sync.status', 'equalto', 'Synced') | list | length == 0
+          - >-
+            (voice_preflight.results[0].stdout | from_json)['items']
+            | rejectattr('status.health.status', 'equalto', 'Healthy') | list | length == 0
+          - >-
+            (voice_preflight.results[1].stdout | from_json)['items']
+            | selectattr('status.state', 'equalto', 'attached')
+            | rejectattr('status.robustness', 'equalto', 'healthy') | list | length == 0
     - name: Read the native GI pod
       ansible.builtin.command:
         argv: [kubectl, -n, home-automation, get, pods, -l, 'app=openwakeword-gi', -o, json]
