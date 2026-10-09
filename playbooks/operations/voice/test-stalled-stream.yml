@@ -29,6 +29,20 @@
       ansible.builtin.assert:
         that:
           - voice_checkout.stdout == ''
+    - name: Read native application and storage health
+      ansible.builtin.command:
+        argv: "{{ item }}"
+      loop:
+        - [kubectl, -n, argocd, get, applications, -o, json]
+        - [kubectl, -n, longhorn-system, get, volumes.longhorn.io, -o, json]
+      register: voice_preflight
+      changed_when: false
+    - name: Refuse a fault test during application or storage recovery
+      ansible.builtin.assert:
+        that:
+          - (voice_preflight.results[0].stdout | from_json)['items'] | rejectattr('status.sync.status', 'equalto', 'Synced') | list | length == 0
+          - (voice_preflight.results[0].stdout | from_json)['items'] | rejectattr('status.health.status', 'equalto', 'Healthy') | list | length == 0
+          - (voice_preflight.results[1].stdout | from_json)['items'] | selectattr('status.state', 'equalto', 'attached') | rejectattr('status.robustness', 'equalto', 'healthy') | list | length == 0
     - name: Read the native GI pod
       ansible.builtin.command:
         argv: [kubectl, -n, home-automation, get, pods, -l, 'app=openwakeword-gi', -o, json]
