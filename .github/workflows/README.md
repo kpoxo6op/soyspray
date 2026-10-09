@@ -12,6 +12,14 @@ select all three. Deleted paths count, and an unavailable base revision selects
 all application checks. The final `check` job rejects failed, cancelled, or
 unexpectedly skipped required checks. CI does not deploy or modify the cluster.
 
+The domain health, media helper, and Immich image jobs configure the hosted
+runner's Docker daemon to check Google's public `mirror.gcr.io` cache before
+Docker Hub. This reduces unauthenticated pull-rate failures while retaining the
+Dockerfiles' exact digest pins and all packaged runtime and restore checks.
+An uncached image falls back to Docker Hub; a failed pull still fails CI.
+The cache action preserves other daemon settings and verifies the active mirror
+before starting test containers. It uses no registry or cluster credentials.
+
 Run all configured repository checks explicitly:
 
 ```sh
