@@ -4,11 +4,16 @@ The shell boundary can fail even when Ansible syntax passes. These tests run
 the real operation with fake host utilities; they never touch a network.
 """
 
+import json
 import os
 import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
+from ansible.parsing.dataloader import DataLoader
+from ansible.playbook.conditional import Conditional
+from ansible.template import Templar
 
 SCRIPT = Path(__file__).resolve().parents[1] / "playbooks/operations/networking/network-glitch.sh"
 
@@ -59,3 +64,42 @@ def test_invalid_duration_is_rejected_before_host_commands(duration):
     )
     assert result.returncode != 0
     assert "NETWORK_DOWN" not in result.stdout
+
+
+@pytest.mark.parametrize("fault", [None, "missing-node", "not-ready", "storage", "sync", "health"])
+def test_native_health_preflight_accepts_healthy_state_and_refuses_incomplete_recovery(fault):
+    """Syntax cannot catch dictionary-method lookup or a gate accepting an unsafe cluster."""
+    nodes = [{"status": {"conditions": [{"type": "Ready", "status": "True"}]}} for _ in range(3)]
+    volumes = [
+        {"status": {"state": "attached", "robustness": "healthy"}},
+        {"status": {"state": "detached", "robustness": "unknown"}},
+    ]
+    apps = [{"status": {"sync": {"status": "Synced"}, "health": {"status": "Healthy"}}}]
+    if fault == "missing-node":
+        nodes.pop()
+    elif fault == "not-ready":
+        nodes[0]["status"]["conditions"][0]["status"] = "False"
+    elif fault == "storage":
+        volumes[0]["status"]["robustness"] = "degraded"
+    elif fault == "sync":
+        apps[0]["status"]["sync"]["status"] = "OutOfSync"
+    elif fault == "health":
+        apps[0]["status"]["health"]["status"] = "Progressing"
+    variables = {
+        "network_test_health": {
+            "results": [
+                {"stdout": json.dumps({"items": items})} for items in [nodes, volumes, apps]
+            ]
+        }
+    }
+    play = yaml.safe_load((SCRIPT.parent / "test-cluster-network.yml").read_text())[0]
+    task = next(
+        t
+        for t in play["tasks"]
+        if t["name"] == "Require three Ready nodes and recovered applications and storage"
+    )
+    loader = DataLoader()
+    condition = Conditional(loader=loader)
+    condition.when = task["ansible.builtin.assert"]["that"]
+    passed = condition.evaluate_conditional(Templar(loader=loader, variables=variables), variables)
+    assert passed == (fault is None)
