@@ -128,6 +128,51 @@ Upload only after `make voice-pe-check` and `make check` pass:
 make voice-pe-upload
 ```
 
+### Listening recovery and diagnostics
+
+Every continuous-listening start now uses one queued stop/wait/start script.
+The wait is bounded at five seconds. This prevents a start during a previous
+stop from being silently discarded. The pinned ESPHome `on_start` callback
+records Home Assistant's run acknowledgement.
+
+The device supervisor waits three minutes after boot and 45 seconds after a
+Home Assistant connection. It excludes mute, OTA, backend-error backoff,
+normal interactions (up to two minutes), and announcements or timers (up to
+15 minutes). While listening is expected, it retries a missing running state,
+missing run acknowledgement, or stale microphone callbacks. Quiet audio counts
+as progress. Shared-microphone recovery stops both listeners before restarting.
+Two retries are separated by 30 seconds; failed stops or repeated failures can
+request a native reboot. The device persists the reason and a three-reboot
+budget, then stops automatic actions until 30 minutes of healthy listening.
+
+Diagnostic entities expose expected listening, run acknowledgement, running
+state, microphone frame age, stage, recovery reason/count, reboot budget and
+exhaustion. Reason codes are `1` not running, `2` no acknowledgement, `3` stale
+microphone, `4` stop timeout, `5` interaction timeout and `6` manual recovery.
+The **Recover GI listening** button runs the same bounded soft recovery.
+`GI_RECOVERY` logs contain only these codes and actions. Home Assistant records
+the diagnostic entity changes; no audio, transcripts or audio levels are exported.
+
+The microphone callback proves hardware progress, not delivery to Home
+Assistant or GI. The diagnostics observer subscribes only to fixed numeric and
+binary entities through the existing native API. It never subscribes to voice
+audio or sends device commands. Its image is tested and published by
+`voice-health-image.yml`; a separate digest promotion is required to deploy it.
+Prometheus can compare expected listening with the GI pod's received-byte rate.
+An absent diagnostics schema is unavailable evidence, not a healthy stream.
+
+Run `pytest -q tests/test_voice_health.py` for executable recovery-policy and
+HTTP export checks. They protect quiet/mute/OTA/backend guards, time limits,
+clock wrap, retry/reboot bounds, and stale-state removal. The older renderer
+checks do not execute the policy or exercise the exported HTTP boundary.
+
+After native OTA, verify diagnostics and actual HA-to-GI audio flow, then run
+the [bounded network operation](../../playbooks/operations/networking/README.md).
+A real spoken command remains required to prove wake, action and reply.
+Keep the prior compiled binary privately for native OTA rollback. Detection
+and bounded recovery do not establish wake accuracy or a permanent root-cause
+fix; an acoustic test and longer observation are still needed.
+
 The firmware currently uses the unencrypted ESPHome API and native OTA on the
 trusted home LAN. Add API encryption and OTA authentication together in a
 separate tested change.
