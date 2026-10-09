@@ -134,6 +134,7 @@
     - name: Require stop and restoration evidence
       ansible.builtin.assert:
         that:
+          - "'VOICE_RESTORE_ARMED' in voice_journal.stdout"
           - "'VOICE_STOP' in voice_journal.stdout"
           - "'VOICE_CONT' in voice_journal.stdout"
           - "'VOICE_RESTORE_SKIPPED' not in voice_journal.stdout"

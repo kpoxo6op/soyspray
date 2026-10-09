@@ -20,6 +20,7 @@ unit="soyspray-gi-$test_id"
 systemd-run --quiet --collect --unit="$unit-restore" --on-active="${seconds}s" \
   -- /bin/bash "$(realpath "$0")" restore "$voice_pid" "$birth" 0 "$test_id"
 systemctl is-active --quiet "$unit-restore.timer"
+printf 'VOICE_RESTORE_ARMED id=%s utc=%s\n' "$test_id" "$(date -u +%FT%TZ)"
 trap restore EXIT
 same_process || exit 3
 kill -STOP "$voice_pid"
