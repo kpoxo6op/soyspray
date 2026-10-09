@@ -2,6 +2,7 @@
 
 import asyncio
 import importlib.util
+import json
 import subprocess
 from pathlib import Path
 
@@ -48,6 +49,70 @@ def test_http_metrics_stay_available_when_device_is_unavailable():
                 writer.close()
                 await writer.wait_closed()
         finally:
+            server.close()
+            await server.wait_closed()
+
+    asyncio.run(check())
+
+
+@pytest.mark.parametrize(
+    "response,healthy",
+    [
+        (b'{"type":"info","data":{"wake":[{"models":[{"name":"gi"}]}]}}\n', True),
+        (b'{"type":"info","data_length":26}\n' + b'{"wake":[{"models":[{}]}]}', True),
+        (b'{"type":"error","data":{}}\n', False),
+        (b'{"type":"info","data":{"wake":[]}}\n', False),
+        (b'{"type":"info","data_length":20000}\n', False),
+        (b'{"type":"info","payload_length":100}\n', False),
+        (b'{"type":"info","data_length":100}\n{}', False),
+    ],
+)
+def test_wake_probe_requires_complete_metadata_without_audio(response, healthy):
+    async def check():
+        async def peer(reader, writer):
+            request = json.loads(await reader.readline())
+            assert request == {"type": "describe"}
+            writer.write(response)
+            await writer.drain()
+            writer.close()
+            await writer.wait_closed()
+
+        server = await asyncio.start_server(peer, "127.0.0.1", 0)
+        try:
+            assert (
+                await observer.probe_wake("127.0.0.1", server.sockets[0].getsockname()[1])
+                is healthy
+            )
+        finally:
+            server.close()
+            await server.wait_closed()
+
+    asyncio.run(check())
+
+
+def test_wake_probe_times_out_a_port_that_accepts_but_never_responds():
+    async def check():
+        release = asyncio.Event()
+        finished = asyncio.Event()
+
+        async def stopped_reader(reader, writer):
+            try:
+                await reader.readline()
+                await release.wait()
+            finally:
+                writer.close()
+                await writer.wait_closed()
+                finished.set()
+
+        server = await asyncio.start_server(stopped_reader, "127.0.0.1", 0)
+        try:
+            assert not await asyncio.wait_for(
+                observer.probe_wake("127.0.0.1", server.sockets[0].getsockname()[1], timeout=0.05),
+                timeout=0.5,
+            )
+        finally:
+            release.set()
+            await asyncio.wait_for(finished.wait(), timeout=1)
             server.close()
             await server.wait_closed()
 

@@ -1,6 +1,7 @@
 """Export a fixed set of Voice PE diagnostic entities; never subscribe to audio."""
 
 import asyncio
+import json
 import math
 import os
 import time
@@ -23,6 +24,8 @@ class Metrics:
     def __init__(self):
         self.connected = False
         self.values = {}
+        self.wake_responding = False
+        self.wake_last_success = 0
 
     def update(self, object_id, value):
         if object_id in ENTITIES and math.isfinite(float(value)):
@@ -40,9 +43,52 @@ class Metrics:
         values = {
             "voice_device_connected": int(self.connected),
             "voice_diagnostics_ready": int(self.ready),
+            "voice_wake_service_responding": int(self.wake_responding),
+            "voice_wake_service_last_success_timestamp_seconds": self.wake_last_success,
             **{ENTITIES[key]: value for key, value in self.values.items()},
         }
         return "".join(f"# TYPE {key} gauge\n{key} {value}\n" for key, value in values.items())
+
+
+async def probe_wake(host, port=10400, timeout=5):
+    """Require a complete Wyoming Info response; never request or read audio."""
+
+    async def exchange():
+        reader, writer = await asyncio.open_connection(host, port, limit=16384)
+        try:
+            writer.write(b'{"type":"describe"}\n')
+            await writer.drain()
+            event = json.loads(await reader.readline())
+            if event.get("type") != "info" or event.get("payload_length", 0) != 0:
+                return False
+            length = event.get("data_length", 0)
+            if not isinstance(length, int) or not 0 <= length <= 16384:
+                return False
+            data = event.get("data", {})
+            if length:
+                data.update(json.loads(await reader.readexactly(length)))
+            programs = data.get("wake")
+            return isinstance(programs, list) and any(p.get("models") for p in programs)
+        finally:
+            writer.close()
+            await asyncio.wait_for(writer.wait_closed(), timeout=1)
+
+    try:
+        return await asyncio.wait_for(exchange(), timeout=timeout)
+    except Exception:
+        return False
+
+
+async def observe_wake(metrics, host):
+    previous = None
+    while True:
+        metrics.wake_responding = await probe_wake(host)
+        if metrics.wake_responding:
+            metrics.wake_last_success = time.time()
+        if metrics.wake_responding != previous:
+            print(f"VOICE_WAKE_SERVICE responding={int(metrics.wake_responding)}", flush=True)
+            previous = metrics.wake_responding
+        await asyncio.sleep(15)
 
 
 async def observe(metrics, host):
@@ -109,6 +155,12 @@ async def serve(metrics, reader, writer):
 async def main():
     metrics = Metrics()
     observer = asyncio.create_task(observe(metrics, os.environ["VOICE_PE_HOST"]))
+    wake = asyncio.create_task(
+        observe_wake(
+            metrics,
+            os.environ.get("WAKE_HOST", "openwakeword-gi.home-automation.svc.cluster.local"),
+        )
+    )
     server = await asyncio.start_server(
         lambda r, w: serve(metrics, r, w), "0.0.0.0", 8080, limit=4096
     )
@@ -118,6 +170,7 @@ async def main():
             await server.serve_forever()
         finally:
             observer.cancel()
+            wake.cancel()
 
 
 if __name__ == "__main__":
