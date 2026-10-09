@@ -49,12 +49,14 @@ def test_voice_services_have_their_own_kustomize_package() -> None:
         "speech-to-phrase",
         "piper-en",
         "openwakeword-gi",
+        "voice-health",
     }
     assert names_by_kind["Job"] == {"voice-model-bootstrap-v1"}
     assert names_by_kind["Service"] == {
         "speech-to-phrase",
         "piper-en",
         "openwakeword-gi",
+        "voice-health",
     }
     assert names_by_kind["PersistentVolumeClaim"] == {
         "speech-to-phrase-data-v1",
@@ -162,6 +164,7 @@ def test_voice_services_use_local_storage_and_limited_network_access() -> None:
         "piper-en",
         "openwakeword-gi",
         "voice-model-bootstrap",
+        "voice-health",
     }
     for policy in (policies["speech-to-phrase"], policies["piper-en"]):
         assert policy["spec"]["policyTypes"] == ["Ingress", "Egress"]
@@ -183,6 +186,35 @@ def test_voice_services_use_local_storage_and_limited_network_access() -> None:
         for rule in bootstrap["spec"]["egress"]
         for port in rule.get("ports", [])
     )
+
+
+def test_voice_diagnostics_has_no_credentials_or_workload_control():
+    resources = render_voice_stack()
+    deployment = resource(resources, "Deployment", "voice-health")
+    pod = deployment["spec"]["template"]["spec"]
+    container = pod["containers"][0]
+    assert pod["automountServiceAccountToken"] is False
+    assert not pod.get("volumes")
+    assert not container.get("volumeMounts")
+    assert not container.get("envFrom")
+    assert re.fullmatch(r"ghcr\.io/kpoxo6op/voice-health@sha256:[0-9a-f]{64}", container["image"])
+    assert container["securityContext"]["capabilities"]["drop"] == ["ALL"]
+    assert container["securityContext"]["readOnlyRootFilesystem"] is True
+    policy = resource(resources, "NetworkPolicy", "voice-health")["spec"]
+    assert policy["egress"] == [
+        {
+            "to": [{"ipBlock": {"cidr": "192.168.20.165/32"}}],
+            "ports": [{"port": 6053, "protocol": "TCP"}],
+        }
+    ]
+    source = policy["ingress"][0]["from"]
+    assert source == [
+        {
+            "namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "monitoring"}},
+            "podSelector": {"matchLabels": {"app.kubernetes.io/name": "prometheus"}},
+        }
+    ]
+    assert resource(resources, "Service", "voice-health")["spec"]["type"] == "ClusterIP"
 
 
 def test_gi_model_runs_locally_without_wan_access() -> None:

@@ -2,6 +2,13 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 configMapGenerator:
+  - name: grafana-dashboard-gi-voice-health
+    files:
+      - dashboards/gi-voice-health.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
   - name: grafana-dashboard-soyspray-operations
     files:
       - dashboards/soyspray-operations.json
@@ -101,6 +108,7 @@ resources:
   - alerts/authentik.yaml
   - alerts/node-hardware.yaml
   - alerts/runtime-signals.yaml
+  - alerts/voice-health.yaml
 
 generatorOptions:
   disableNameSuffixHash: true

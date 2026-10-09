@@ -1,0 +1,75 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: voice-health
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: voice-health
+      interval: 30s
+      rules:
+        - record: voice:gi_ingress_bytes_per_second
+          expr: |
+            sum(rate(container_network_receive_bytes_total{
+              namespace="home-automation",pod=~"openwakeword-gi-.*",interface="eth0"
+            }[2m]))
+        - alert: VoiceAudioStalled
+          expr: |
+            max(voice_listen_expected{job="voice-health"}) == 1
+            and on() (
+              voice:gi_ingress_bytes_per_second < 10000
+              or absent(voice:gi_ingress_bytes_per_second)
+            )
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "GI expects microphone audio but the wake service receives too little traffic"
+            description: >-
+              Expected listening has had less than 10 kB/s of GI ingress for three minutes,
+              or ingress evidence is missing. Check the GI voice dashboard for frame age,
+              run acknowledgement, stage and recovery reason. Use Recover GI listening once;
+              if audio remains absent, capture HA pipeline event types and TCP queues before
+              restarting the device. This traffic check does not prove wake accuracy.
+        - alert: VoiceDiagnosticsUnavailable
+          expr: |
+            max(kube_deployment_spec_replicas{namespace="home-automation",deployment="voice-health"}) > 0
+            and on() (
+              max(voice_diagnostics_ready{job="voice-health"}) == 0
+              or absent(voice_diagnostics_ready{job="voice-health"})
+            )
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "GI voice diagnostics are unavailable"
+            description: >-
+              The configured observer has no complete current device diagnostics for two
+              minutes. Check its scrape, native API connection and firmware schema. Missing
+              telemetry is unknown voice health and must not be interpreted as recovery.
+        - alert: VoiceRecoveryExhausted
+          expr: max(voice_recovery_exhausted{job="voice-health"}) == 1
+          labels:
+            severity: critical
+          annotations:
+            summary: "GI has exhausted its automatic reboot budget"
+            description: >-
+              The device has stopped automatic recovery after three watchdog reboots.
+              Inspect recovery reason, microphone frame age and HA pipeline event types.
+              Preserve the evidence before a manual recovery or firmware rollback.
+        - alert: VoiceAutomaticRecovery
+          expr: |
+            max(changes(voice_recovery_count{job="voice-health"}[10m])) > 0
+            and on() max(voice_recovery_reason{job="voice-health"}) != 6
+          for: 30s
+          labels:
+            severity: warning
+          annotations:
+            summary: "GI automatically recovered a listening fault"
+            description: >-
+              The device recovery counter changed. The persisted reason identifies a missing
+              running state (1), missing run acknowledgement (2), stale microphone (3), stop
+              timeout (4), or interaction timeout (5). Check ingress and run a real command;
+              a recovery attempt does not establish successful speech control.
