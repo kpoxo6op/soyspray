@@ -1,0 +1,132 @@
+---
+- name: Verify delivered source and select the one GI process
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    voice_test_seconds: 360
+  tasks:
+    - name: Require explicit bounded voice disruption
+      ansible.builtin.assert:
+        that:
+          - temporary_voice_disruption | default(false) | bool
+          - voice_test_seconds | int >= 240
+          - voice_test_seconds | int <= 420
+          - voice_test_id is defined
+          - voice_test_id is match('^[0-9]{8}T[0-9]{6}Z-[0-9a-f]{7,12}$')
+          - not ansible_check_mode
+          - ansible_limit | default('') == ''
+    - name: Require a clean source delivered through main
+      ansible.builtin.include_tasks: ../security/require-delivered.yml
+    - name: Read tracked changes in the operation checkout
+      ansible.builtin.command:
+        argv: [git, status, --porcelain, --untracked-files=no]
+        chdir: "{{ playbook_dir }}/../../.."
+      register: voice_checkout
+      changed_when: false
+    - name: Require unchanged delivered operation code
+      ansible.builtin.assert:
+        that:
+          - voice_checkout.stdout == ''
+    - name: Read the native GI pod
+      ansible.builtin.command:
+        argv: [kubectl, -n, home-automation, get, pods, -l, 'app=openwakeword-gi', -o, json]
+      register: voice_pods
+      changed_when: false
+    - name: Require one ready GI instance
+      ansible.builtin.assert:
+        that:
+          - (voice_pods.stdout | from_json)['items'] | length == 1
+          - (voice_pods.stdout | from_json)['items'][0].status.containerStatuses[0].ready
+          - (voice_pods.stdout | from_json)['items'][0].spec.nodeName in groups['kube_node']
+    - name: Retain the selected instance identity
+      ansible.builtin.set_fact:
+        voice_test_node: "{{ (voice_pods.stdout | from_json)['items'][0].spec.nodeName }}"
+        voice_test_container: "{{ (voice_pods.stdout | from_json)['items'][0].status.containerStatuses[0].containerID.split('://')[-1] }}"
+    - name: Select only the verified host in controller memory
+      ansible.builtin.add_host:
+        name: "{{ voice_test_node }}"
+        groups: voice_stall_target
+
+- name: Pause only the selected GI process with independent restoration
+  hosts: voice_stall_target
+  gather_facts: false
+  become: true
+  vars:
+    voice_test_seconds: 360
+    voice_helper: "/run/soyspray-gi-{{ voice_test_id }}.sh"
+    voice_unit: "soyspray-gi-{{ voice_test_id }}"
+  tasks:
+    - name: Read the exact running container
+      ansible.builtin.command:
+        argv: [crictl, inspect, "{{ hostvars['localhost']['voice_test_container'] }}"]
+      register: voice_container
+      changed_when: false
+    - name: Retain the process ID
+      ansible.builtin.set_fact:
+        voice_pid: "{{ (voice_container.stdout | from_json).info.pid }}"
+    - name: Read the command without executing it
+      ansible.builtin.slurp:
+        src: "/proc/{{ voice_pid }}/cmdline"
+      register: voice_command
+    - name: Require the GI Python process
+      ansible.builtin.assert:
+        that:
+          - voice_pid | int > 1
+          - "'wyoming_openwakeword' in (voice_command.content | b64decode)"
+          - "'python3' in (voice_command.content | b64decode)"
+    - name: Read the process birth identity
+      ansible.builtin.command:
+        argv: [awk, '{print $22}', "/proc/{{ voice_pid }}/stat"]
+      register: voice_birth
+      changed_when: false
+    - name: Install the private bounded helper
+      ansible.builtin.copy:
+        src: gi-pause.sh
+        dest: "{{ voice_helper }}"
+        owner: root
+        group: root
+        mode: '0700'
+    - name: Start the pause outside the controller connection
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --quiet
+          - --collect
+          - "--unit={{ voice_unit }}"
+          - /bin/bash
+          - "{{ voice_helper }}"
+          - freeze
+          - "{{ voice_pid }}"
+          - "{{ voice_birth.stdout }}"
+          - "{{ voice_test_seconds }}"
+          - "{{ voice_test_id }}"
+      changed_when: true
+    - name: Wait for the bounded pause to finish
+      ansible.builtin.command:
+        argv: [systemctl, is-active, "{{ voice_unit }}.service"]
+      register: voice_service
+      changed_when: false
+      failed_when: false
+      until: voice_service.stdout not in ['activating', 'active']
+      retries: 50
+      delay: 10
+    - name: Read the scoped operation journal
+      ansible.builtin.command:
+        argv: [journalctl, -u, "{{ voice_unit }}.service", --no-pager, -o, cat]
+      register: voice_journal
+      changed_when: false
+    - name: Require stop and restoration evidence
+      ansible.builtin.assert:
+        that:
+          - "'VOICE_STOP' in voice_journal.stdout"
+          - "'VOICE_CONT' in voice_journal.stdout"
+          - "'VOICE_RESTORE_SKIPPED' not in voice_journal.stdout"
+    - name: Show only scoped test timestamps
+      ansible.builtin.debug:
+        msg: "{{ voice_journal.stdout_lines | select('match', '^VOICE_') | list }}"
+    - name: Remove the completed helper
+      ansible.builtin.file:
+        path: "{{ voice_helper }}"
+        state: absent
