@@ -40,7 +40,8 @@ SHARED_CONTROLS = {
 
 def select(paths, full=False):
     all_apps = full or any(
-        path in SHARED_CONTROLS or path.startswith((".github/workflows/", "argocd/"))
+        path in SHARED_CONTROLS
+        or path.startswith((".github/workflows/", ".github/actions/", "argocd/"))
         for path in paths
     )
     return {

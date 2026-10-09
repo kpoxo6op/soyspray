@@ -38,6 +38,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
+      - uses: ./.github/actions/docker-hub-cache
       - name: Build the immutable runtime
         run: |
           docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" \
