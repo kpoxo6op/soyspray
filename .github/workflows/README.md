@@ -17,8 +17,9 @@ runner's Docker daemon to check Google's public `mirror.gcr.io` cache before
 Docker Hub. This reduces unauthenticated pull-rate failures while retaining the
 Dockerfiles' exact digest pins and all packaged runtime and restore checks.
 An uncached image falls back to Docker Hub; a failed pull still fails CI.
-The cache action preserves other daemon settings and verifies the active mirror
-before starting test containers. It uses no registry or cluster credentials.
+The cache action clears the hosted runner's shared Docker Hub login, preserves
+other daemon settings and verifies the active mirror before starting test
+containers. It uses no registry or cluster credentials.
 
 Run all configured repository checks explicitly:
 
