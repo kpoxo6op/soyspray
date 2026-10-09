@@ -15,6 +15,8 @@ tests:
     values: 1x12
   - series: container_network_receive_bytes_total{namespace="home-automation",pod="openwakeword-gi-test",interface="eth0"}
     values: 0+1920000x12
+  - series: voice_wake_service_responding{job="voice-health"}
+    values: 1x12
   alert_rule_test:
   - eval_time: 6m
     alertname: VoiceAudioStalled
@@ -27,6 +29,9 @@ tests:
     exp_alerts: []
   - eval_time: 6m
     alertname: VoiceAutomaticRecovery
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceWakeServiceUnresponsive
     exp_alerts: []
 - name: Muted or replying devices do not require wake audio
   interval: 1m
@@ -37,6 +42,8 @@ tests:
     values: '0x12'
   - series: container_network_receive_bytes_total{namespace="home-automation",pod="openwakeword-gi-test",interface="eth0"}
     values: '0x12'
+  - series: voice_wake_service_responding{job="voice-health"}
+    values: 1x12
   alert_rule_test:
   - eval_time: 6m
     alertname: VoiceAudioStalled
@@ -49,6 +56,9 @@ tests:
     exp_alerts: []
   - eval_time: 6m
     alertname: VoiceAutomaticRecovery
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceWakeServiceUnresponsive
     exp_alerts: []
 - name: Expected audio stops despite healthy diagnostics
   interval: 1m
@@ -59,6 +69,8 @@ tests:
     values: 1x12
   - series: container_network_receive_bytes_total{namespace="home-automation",pod="openwakeword-gi-test",interface="eth0"}
     values: '0x12'
+  - series: voice_wake_service_responding{job="voice-health"}
+    values: 1x12
   alert_rule_test:
   - eval_time: 6m
     alertname: VoiceAudioStalled
@@ -66,13 +78,11 @@ tests:
     - exp_labels:
         severity: warning
       exp_annotations: &id003
-        summary: GI expects microphone audio but the wake service receives too little
-          traffic
-        description: Expected listening has had less than 10 kB/s of GI ingress for
-          three minutes, or ingress evidence is missing. Check the GI voice dashboard
-          for frame age, run acknowledgement, stage and recovery reason. Use Recover
-          GI listening once; if audio remains absent, capture HA pipeline event types
-          and TCP queues before restarting the device. This traffic check does not
+        summary: GI expects microphone audio but the wake service receives too little traffic
+        description: Expected listening has had less than 10 kB/s of GI ingress for three minutes, or
+          ingress evidence is missing. Check the GI voice dashboard for frame age, run acknowledgement,
+          stage and recovery reason. Use Recover GI listening once; if audio remains absent, capture HA
+          pipeline event types and TCP queues before restarting the device. This traffic check does not
           prove wake accuracy.
   - eval_time: 6m
     alertname: VoiceDiagnosticsUnavailable
@@ -83,12 +93,17 @@ tests:
   - eval_time: 6m
     alertname: VoiceAutomaticRecovery
     exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
 - name: Missing byte counters cannot hide an expected stream
   interval: 1m
   input_series:
   - *id001
   - *id002
   - series: voice_listen_expected{job="voice-health"}
+    values: 1x12
+  - series: voice_wake_service_responding{job="voice-health"}
     values: 1x12
   alert_rule_test:
   - eval_time: 6m
@@ -106,10 +121,15 @@ tests:
   - eval_time: 6m
     alertname: VoiceAutomaticRecovery
     exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
 - name: Lost observer telemetry is unknown health
   interval: 1m
   input_series:
   - *id001
+  - series: voice_wake_service_responding{job="voice-health"}
+    values: 1x12
   alert_rule_test:
   - eval_time: 6m
     alertname: VoiceAudioStalled
@@ -121,15 +141,17 @@ tests:
         severity: warning
       exp_annotations: &id004
         summary: GI voice diagnostics are unavailable
-        description: The configured observer has no complete current device diagnostics
-          for two minutes. Check its scrape, native API connection and firmware schema.
-          Missing telemetry is unknown voice health and must not be interpreted as
-          recovery.
+        description: The configured observer has no complete current device diagnostics for two minutes.
+          Check its scrape, native API connection and firmware schema. Missing telemetry is unknown voice
+          health and must not be interpreted as recovery.
   - eval_time: 6m
     alertname: VoiceRecoveryExhausted
     exp_alerts: []
   - eval_time: 6m
     alertname: VoiceAutomaticRecovery
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceWakeServiceUnresponsive
     exp_alerts: []
 - name: A missing firmware schema is unavailable
   interval: 1m
@@ -137,6 +159,8 @@ tests:
   - *id001
   - series: voice_diagnostics_ready{job="voice-health"}
     values: '0x12'
+  - series: voice_wake_service_responding{job="voice-health"}
+    values: 1x12
   alert_rule_test:
   - eval_time: 6m
     alertname: VoiceAudioStalled
@@ -153,9 +177,14 @@ tests:
   - eval_time: 6m
     alertname: VoiceAutomaticRecovery
     exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
 - name: No observer deployment does not page before promotion
   interval: 1m
-  input_series: []
+  input_series:
+  - series: voice_wake_service_responding{job="voice-health"}
+    values: 1x12
   alert_rule_test:
   - eval_time: 6m
     alertname: VoiceAudioStalled
@@ -169,12 +198,17 @@ tests:
   - eval_time: 6m
     alertname: VoiceAutomaticRecovery
     exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
 - name: Reboot exhaustion requires intervention
   interval: 1m
   input_series:
   - *id001
   - *id002
   - series: voice_recovery_exhausted{job="voice-health"}
+    values: 1x12
+  - series: voice_wake_service_responding{job="voice-health"}
     values: 1x12
   alert_rule_test:
   - eval_time: 6m
@@ -190,11 +224,14 @@ tests:
         severity: critical
       exp_annotations:
         summary: GI has exhausted its automatic reboot budget
-        description: The device has stopped automatic recovery after three watchdog
-          reboots. Inspect recovery reason, microphone frame age and HA pipeline event
-          types. Preserve the evidence before a manual recovery or firmware rollback.
+        description: The device has stopped automatic recovery after three watchdog reboots. Inspect recovery
+          reason, microphone frame age and HA pipeline event types. Preserve the evidence before a manual
+          recovery or firmware rollback.
   - eval_time: 6m
     alertname: VoiceAutomaticRecovery
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceWakeServiceUnresponsive
     exp_alerts: []
 - name: Automatic recovery leaves an actionable signal
   interval: 1m
@@ -204,6 +241,8 @@ tests:
   - series: voice_recovery_count{job="voice-health"}
     values: 0 1x11
   - series: voice_recovery_reason{job="voice-health"}
+    values: 1x12
+  - series: voice_wake_service_responding{job="voice-health"}
     values: 1x12
   alert_rule_test:
   - eval_time: 6m
@@ -222,11 +261,13 @@ tests:
         severity: warning
       exp_annotations:
         summary: GI automatically recovered a listening fault
-        description: The device recovery counter changed. The persisted reason identifies
-          a missing running state (1), missing run acknowledgement (2), stale microphone
-          (3), stop timeout (4), or interaction timeout (5). Check ingress and run
-          a real command; a recovery attempt does not establish successful speech
-          control.
+        description: The device recovery counter changed. The persisted reason identifies a missing running
+          state (1), missing run acknowledgement (2), stale microphone (3), stop timeout (4), or interaction
+          timeout (5). Check ingress and run a real command; a recovery attempt does not establish successful
+          speech control.
+  - eval_time: 6m
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
 - name: Manual recovery is not an automatic incident
   interval: 1m
   input_series:
@@ -236,6 +277,8 @@ tests:
     values: 0 1x11
   - series: voice_recovery_reason{job="voice-health"}
     values: 6x12
+  - series: voice_wake_service_responding{job="voice-health"}
+    values: 1x12
   alert_rule_test:
   - eval_time: 6m
     alertname: VoiceAudioStalled
@@ -248,4 +291,118 @@ tests:
     exp_alerts: []
   - eval_time: 6m
     alertname: VoiceAutomaticRecovery
+    exp_alerts: []
+  - eval_time: 6m
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
+- name: Stopped reader is detected despite full buffered ingress
+  interval: 30s
+  input_series:
+  - series: voice_listen_expected{job="voice-health"}
+    values: 1x6
+  - series: container_network_receive_bytes_total{namespace="home-automation",pod="openwakeword-gi-test",interface="eth0"}
+    values: 0+960000x6
+  - series: voice_wake_service_responding{job="voice-health"}
+    values: '0x6'
+  alert_rule_test:
+  - eval_time: 30s
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
+  - eval_time: 90s
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations:
+        summary: GI expects listening but the wake service cannot respond
+        description: GI has failed the bounded Wyoming Describe/Info check for one minute while listening
+          is expected. TCP readiness and buffered ingress can remain healthy during a stopped reader.
+          Check the GI dashboard's last service reply, device stage and acknowledgement, then preserve
+          process state and TCP queue sizes before deliberate recovery. This metadata check does not prove
+          spoken wake accuracy.
+  - eval_time: 90s
+    alertname: VoiceAudioStalled
+    exp_alerts: []
+- name: Responsive wake service stays healthy
+  interval: 30s
+  input_series:
+  - series: voice_listen_expected{job="voice-health"}
+    values: 1x6
+  - series: container_network_receive_bytes_total{namespace="home-automation",pod="openwakeword-gi-test",interface="eth0"}
+    values: 0+960000x6
+  - series: voice_wake_service_responding{job="voice-health"}
+    values: 1x6
+  alert_rule_test:
+  - eval_time: 30s
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
+  - eval_time: 90s
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
+  - eval_time: 90s
+    alertname: VoiceAudioStalled
+    exp_alerts: []
+- name: Muted or replying device does not require the wake service
+  interval: 30s
+  input_series:
+  - series: voice_listen_expected{job="voice-health"}
+    values: '0x6'
+  - series: container_network_receive_bytes_total{namespace="home-automation",pod="openwakeword-gi-test",interface="eth0"}
+    values: 0+960000x6
+  - series: voice_wake_service_responding{job="voice-health"}
+    values: '0x6'
+  alert_rule_test:
+  - eval_time: 30s
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
+  - eval_time: 90s
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
+  - eval_time: 90s
+    alertname: VoiceAudioStalled
+    exp_alerts: []
+- name: Missing service response evidence cannot hide a frozen reader
+  interval: 30s
+  input_series:
+  - series: voice_listen_expected{job="voice-health"}
+    values: 1x6
+  - series: container_network_receive_bytes_total{namespace="home-automation",pod="openwakeword-gi-test",interface="eth0"}
+    values: 0+960000x6
+  alert_rule_test:
+  - eval_time: 30s
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
+  - eval_time: 90s
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+      exp_annotations:
+        summary: GI expects listening but the wake service cannot respond
+        description: GI has failed the bounded Wyoming Describe/Info check for one minute while listening
+          is expected. TCP readiness and buffered ingress can remain healthy during a stopped reader.
+          Check the GI dashboard's last service reply, device stage and acknowledgement, then preserve
+          process state and TCP queue sizes before deliberate recovery. This metadata check does not prove
+          spoken wake accuracy.
+  - eval_time: 90s
+    alertname: VoiceAudioStalled
+    exp_alerts: []
+- name: Brief service probe failure does not notify
+  interval: 30s
+  input_series:
+  - series: voice_listen_expected{job="voice-health"}
+    values: 1x6
+  - series: container_network_receive_bytes_total{namespace="home-automation",pod="openwakeword-gi-test",interface="eth0"}
+    values: 0+960000x6
+  - series: voice_wake_service_responding{job="voice-health"}
+    values: 1 0 1x4
+  alert_rule_test:
+  - eval_time: 30s
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
+  - eval_time: 90s
+    alertname: VoiceWakeServiceUnresponsive
+    exp_alerts: []
+  - eval_time: 90s
+    alertname: VoiceAudioStalled
     exp_alerts: []

@@ -73,3 +73,23 @@ spec:
               running state (1), missing run acknowledgement (2), stale microphone (3), stop
               timeout (4), or interaction timeout (5). Check ingress and run a real command;
               a recovery attempt does not establish successful speech control.
+
+        - alert: VoiceWakeServiceUnresponsive
+          expr: |
+            max(voice_listen_expected{job="voice-health"}) == 1
+            and on() (
+              max(voice_wake_service_responding{job="voice-health"}) == 0
+              or absent(voice_wake_service_responding{job="voice-health"})
+            )
+          for: 1m
+          labels:
+            severity: warning
+          annotations:
+            summary: "GI expects listening but the wake service cannot respond"
+            description: >-
+              GI has failed the bounded Wyoming Describe/Info check for one minute
+              while listening is expected. TCP readiness and buffered ingress can
+              remain healthy during a stopped reader. Check the GI dashboard's last
+              service reply, device stage and acknowledgement, then preserve process
+              state and TCP queue sizes before deliberate recovery. This metadata
+              check does not prove spoken wake accuracy.

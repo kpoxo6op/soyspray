@@ -205,7 +205,15 @@ def test_voice_diagnostics_has_no_credentials_or_workload_control():
         {
             "to": [{"ipBlock": {"cidr": "192.168.20.165/32"}}],
             "ports": [{"port": 6053, "protocol": "TCP"}],
-        }
+        },
+        {
+            "to": [{"podSelector": {"matchLabels": {"app": "openwakeword-gi"}}}],
+            "ports": [{"port": 10400, "protocol": "TCP"}],
+        },
+        {
+            "to": [{"ipBlock": {"cidr": "169.254.25.10/32"}}],
+            "ports": [{"port": 53, "protocol": "UDP"}, {"port": 53, "protocol": "TCP"}],
+        },
     ]
     source = policy["ingress"][0]["from"]
     assert source == [
@@ -284,7 +292,10 @@ def test_gi_model_runs_locally_without_wan_access() -> None:
     }
     assert policy["spec"]["ingress"] == [
         {
-            "from": [{"podSelector": {"matchLabels": {"app": "home-assistant"}}}],
+            "from": [
+                {"podSelector": {"matchLabels": {"app": "home-assistant"}}},
+                {"podSelector": {"matchLabels": {"app": "voice-health"}}},
+            ],
             "ports": [{"port": 10400, "protocol": "TCP"}],
         }
     ]

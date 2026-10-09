@@ -63,6 +63,9 @@ spec:
         - podSelector:
             matchLabels:
               app: home-assistant
+        - podSelector:
+            matchLabels:
+              app: voice-health
       ports:
         - port: 10400
           protocol: TCP

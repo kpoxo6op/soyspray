@@ -26,7 +26,9 @@ missing restoration evidence stops the operation; do not improvise repairs.
 
 Before pausing, confirm expected listening, fresh microphone callbacks, run
 acknowledgement and GI ingress. During the pause, verify that the device stays
-healthy, GI ingress eventually falls, and VoiceAudioStalled fires. Check the
+healthy and VoiceWakeServiceUnresponsive fires despite TCP acceptance. GI ingress
+can take minutes to fall as a roughly 6 MB receive buffer fills; VoiceAudioStalled
+may remain pending and clear after restoration. Check the
 native Alertmanager notification counter and failure counter. Close the old
 listening session with Recover GI listening near the end of the test if needed;
 observe actual audio flow after automatic SIGCONT and run a real spoken command.
