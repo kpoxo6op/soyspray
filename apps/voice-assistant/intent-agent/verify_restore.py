@@ -47,6 +47,7 @@ async def main():
     hass = HomeAssistant(str(config))
     hass.config_entries = ConfigEntries(hass, {})
     loader.async_setup(hass)
+    await hass.config_entries.async_initialize()
     assert await async_setup_component(hass, "homeassistant", {})
     assert await async_setup_component(hass, "assist_pipeline", {})
     domains = await loader.async_get_custom_components(hass)
