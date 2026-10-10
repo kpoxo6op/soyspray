@@ -52,9 +52,9 @@ jobs:
               --data-dir /models --download-dir /models --local-files-only \
               --language en --stt-library "$library" --model "$model" \
               --cpu-threads 2 --beam-size 1 --vad-filter)"
-            trap 'docker rm -f "$container" >/dev/null' EXIT
-            docker cp apps/voice-assistant/stt/smoke.py "$container:/tmp/smoke.py"
-            timeout 180 docker exec -e PYTHONPATH=/app "$container" python /tmp/smoke.py
+            trap 'docker logs "$container"; docker rm -f "$container" >/dev/null' EXIT
+            timeout 180 docker exec -i -e PYTHONPATH=/app "$container" python - \
+              < apps/voice-assistant/stt/smoke.py
             docker rm -f "$container" >/dev/null
             trap - EXIT
           done

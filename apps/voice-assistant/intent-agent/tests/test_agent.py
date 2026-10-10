@@ -10,7 +10,7 @@ from custom_components.gi_voice.policy import Interpretation, validate
 from homeassistant.components import conversation
 from homeassistant.components.homeassistant.exposed_entities import async_expose_entity
 from homeassistant.core import Context
-from homeassistant.helpers import intent
+from homeassistant.helpers import chat_session, intent
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -297,3 +297,48 @@ async def test_native_preferred_path_does_not_execute_negated_commands(hass, age
         hass, text, None, Context(), language="en", agent_id="conversation.home_assistant"
     )
     assert calls == []
+
+
+@pytest.mark.parametrize(
+    ("text", "expected_provider_calls"),
+    [("turn on Peanut", 0), ("Please illuminate Peanut", 1)],
+)
+async def test_real_pipeline_prefers_local_control_before_fallback(
+    hass, agent, aioclient_mock, text, expected_provider_calls
+):
+    from homeassistant.components.assist_pipeline.pipeline import (
+        Pipeline,
+        PipelineRun,
+        PipelineStage,
+    )
+
+    assert await async_setup_component(hass, "assist_pipeline", {})
+    calls = []
+
+    async def turn_on(call):
+        calls.append(call.data)
+
+    hass.services.async_register("light", "turn_on", turn_on)
+    aioclient_mock.post(API + "/chat/completions", json=provider(action()))
+    pipeline = Pipeline(
+        conversation_engine=agent.entity_id,
+        conversation_language="en",
+        language="en",
+        name="GI Flex test",
+        stt_engine=None,
+        stt_language=None,
+        tts_engine=None,
+        tts_language=None,
+        tts_voice=None,
+        wake_word_entity=None,
+        wake_word_id=None,
+        prefer_local_intents=True,
+    )
+    run = PipelineRun(
+        hass, Context(), pipeline, PipelineStage.INTENT, PipelineStage.INTENT, lambda event: None
+    )
+    with chat_session.async_get_chat_session(hass, None) as session:
+        await run.prepare_recognize_intent(session)
+        await run.recognize_intent(text, session.conversation_id, None)
+    assert calls == [{"entity_id": ["light.peanut"]}]
+    assert aioclient_mock.call_count == expected_provider_calls
