@@ -3,7 +3,8 @@
 // (x left -> right, y front -> rear, z up), offsets are expressed in the parent node's frame.
 
 import { add3, scale3, qaxis, qfromTo, lerp3, slerp, EASE, clamp } from './math.js';
-import { DEVICES } from './layout.js';
+import { DEVICES, ANTENNA_TILT } from './layout.js';
+import { CABLES, PERIPHERALS } from './wiring.js';
 
 export const FADE = 0.6; // new parts fade in during the last 0.6 s of the previous chapter
 export const HOLD_IN = 0.9; // pause on the staged parts before anything moves
@@ -14,7 +15,7 @@ const SCREW_AXIS = [0, 1, 0]; // screw model: head at the origin, shaft along +Y
 const RECT_LIFT = 322; // the second rectangle is built this far above the bottom one (clears the rails when turned)
 
 const ANTENNA_X = [-62, 0, 62];
-const ANTENNA_FINAL = -50 * (Math.PI / 180); // tilted back from vertical
+const ANTENNA_FINAL = -ANTENNA_TILT * (Math.PI / 180); // tilted back from vertical
 const ANTENNA_FOLDED = -90 * (Math.PI / 180);
 
 function node(id, parent, kind, extra) {
@@ -235,9 +236,9 @@ export const CHAPTERS = [
     },
   },
   {
-    id: 'frame-2024',
-    title: '2024 frame on top',
-    text: 'Lower the 2024 frame onto the joiners, end blocks forward. One M3×12 through the side into each joiner.',
+    id: 'replacement-frame',
+    title: 'Matching upper frame',
+    text: 'Assemble the matching replacement frame with the same rectangle, rail and plate steps. Lower it onto the joiners, end blocks forward. One M3×12 through the side into each joiner.',
     script(c) {
       c.show(['old']);
       const end = c.move('old', HOLD_IN, 3.0, { from: [0, 0, 85], via: [0, 0, 18], viaAt: 0.7 });
@@ -247,45 +248,35 @@ export const CHAPTERS = [
   {
     id: 'node-0',
     title: 'node-0',
-    text: 'Ventilated tray on front-rail holes 1 and 5 from the bottom, four M4×12 into M4 nuts. Set node-0 on it, front panel forward.',
+    text: 'Open the rear lip between the corner ribs for the plugs. Fit the ventilated tray on holes 1 and 5, then slide node-0 in.',
     script: (c) => tier(c, 'tray.L0', [{ id: 'node0' }]),
   },
   {
     id: 'node-1',
     title: 'node-1',
-    text: 'Ventilated tray on rail holes 6 and 10, four M4×12. Set node-1 on it, front panel forward.',
+    text: 'Repeat the rear opening. Fit the ventilated tray on holes 6 and 10 with four M4×12, then slide node-1 in.',
     script: (c) => tier(c, 'tray.L1', [{ id: 'node1' }]),
   },
   {
     id: 'node-2',
     title: 'node-2',
-    text: 'Ventilated tray on rail holes 11 and 15, four M4×12. Set node-2 on it, front panel forward.',
+    text: 'Repeat the rear opening. Fit the ventilated tray on holes 11 and 15 with four M4×12, then slide node-2 in.',
     script: (c) => tier(c, 'tray.L2', [{ id: 'node2' }]),
   },
   {
-    id: 'power-bricks',
-    title: 'Power bricks',
-    text: 'Upper bay: solid tray on rail holes 1 and 4, four M4×12. Lay the three power bricks side by side.',
-    script: (c) => tier(c, 'tray.U0', [
-      { id: 'brick0', via: [0, 0, 10] },
-      { id: 'brick1', via: [0, 0, 10] },
-      { id: 'brick2', via: [0, 0, 10] },
-    ]),
+    id: 'usb-drives', title: 'USB drives',
+    text: 'Solid tray on upper holes 1 and 4. Place the Seagate and Touro side by side, with their USB sockets at the back.',
+    script: (c) => tier(c, 'tray.U0', [{ id: 'usbA', via: [0, 0, 12] }, { id: 'usbB', via: [0, 0, 12] }]),
   },
   {
-    id: 'switch-drives',
-    title: 'Switch and drives',
-    text: 'Solid tray on rail holes 5 and 8, four M4×12. Both USB drives stacked at the back right, then the switch front left, ports forward.',
-    script: (c) => tier(c, 'tray.U1', [
-      { id: 'usbA', via: [0, 0, 10], stagger: 0.75 },
-      { id: 'usbB', via: [0, 0, 14], stagger: 0.75 },
-      { id: 'switch', via: [0, 0, 10] },
-    ]),
+    id: 'switch', title: 'Eight-port switch',
+    text: 'Solid tray on upper holes 5 and 8. Set the switch forward on the tray so the rear plugs and their bends have room.',
+    script: (c) => tier(c, 'tray.U1', [{ id: 'switch', via: [0, 0, 10] }]),
   },
   {
     id: 'openwrt-one',
     title: 'OpenWrt One',
-    text: 'Solid tray on rail holes 10 and 13, four M4×12. Slide OpenWrt One in with its antennas folded back, then tilt them up behind the rack.',
+    text: 'Solid tray on rail holes 10 and 13, four M4×12. Slide OpenWrt One in with its antennas folded back, then tilt them behind the rack, below the top plate.',
     script(c) {
       const end = tier(c, 'tray.U2', [{ id: 'router', via: [0, 0, 10] }]);
       ANTENNA_X.forEach((_, i) => {
@@ -298,15 +289,65 @@ export const CHAPTERS = [
     },
   },
   {
-    id: 'power-board',
-    title: 'Power board',
-    text: 'The power board stays outside the rack, on the right, plugs within reach.',
+    id: 'power-bricks', title: 'Bricks in the service bay', view: 'service',
+    text: 'Lay the three Lenovo bricks on the console floor, with a gap between them. Removable straps hold them; the full leads stay intact.',
     script(c) {
-      c.show(['board']);
+      ['brick0', 'brick1', 'brick2'].forEach((id, i) => { c.showAt([id], 1 + i * 0.65); c.move(id, 1.2 + i * 0.65, 2.1, { from: [0, -160, 30], via: [0, 0, 12] }); });
+    },
+  },
+  {
+    id: 'power-board',
+    title: 'Power board', view: 'service',
+    text: 'Strap the six-outlet board onto its console cleat. Keep its switch and plugs reachable; place the two adapters at the end positions.',
+    script(c) {
+      c.show(['board', 'wallSocket', 'powerline']);
       c.move('board', HOLD_IN, 2.4, { from: [45, -120, 0] });
+      ['psuSwitch', 'psuRouter'].forEach((id, i) => { c.showAt([id], 3.8 + i * 1.3); c.move(id, 4 + i * 1.3, 1.2, { from: [60, -40, 35] }); });
     },
   },
 ];
+
+const WIRE_COPY = {
+  spareCord:['Spare board and cord','Store the unused board with its full cord loosely coiled in the neighbouring compartment. Its plug stays disconnected.'],
+  eth2: ['node-2 Ethernet', 'Plug the third node into the switch. Dress the cable down the left data channel, then seat its rear RJ45 plug.'],
+  eth1: ['node-1 Ethernet', 'Run the second node cable alongside the first. Leave a gentle bend at both plugs.'],
+  eth0: ['node-0 Ethernet', 'Connect node-0 to the switch, following the left data channel to the lowest tray.'],
+  lan: ['Router to switch', 'Connect OpenWrt LAN to the switch. Both sockets are at the rear; the cable loops clear of the trays.'],
+  usbSeagate: ['Seagate USB', 'Plug the stock USB 3 lead into the Seagate and node-0. Its spare length stays in a coil behind the drive.'],
+  usbTouro: ['Touro USB', 'Connect the second stock USB lead to the Touro and another rear USB port on node-0.'],
+  dc0: ['node-0 power lead', 'Pay out the full Lenovo DC lead from its coil. Run it up the right channel and seat the slim-tip plug in node-0.'],
+  dc1: ['node-1 power lead', 'Keep the second Lenovo lead intact. Its spare hangs on the compartment support while the slim tip travels to node-1.'],
+  dc2: ['node-2 power lead', 'Route the third full DC lead beside the others and connect node-2.'],
+  ac0: ['First mains lead', 'Connect the first NZ mains lead to the board and the brick’s cloverleaf inlet. Support the spare on the service bay floor.'],
+  ac1: ['Second mains lead', 'Connect the second stock mains lead, keeping all mains wiring inside the console.'],
+  ac2: ['Third mains lead', 'Connect the third stock mains lead. Keep the three mains runs inside the service compartment.'],
+  swPower: ['Switch power', 'Unwind the switch adapter’s full lead from its compartment support and seat the barrel plug at the switch’s rear.'],
+  routerPower: ['Router power', 'Connect the full USB-C lead from the PD adapter to the rear Power socket on OpenWrt One.'],
+  boardCord: ['Wall power', 'Run the board’s full mains cord to the wall. Keep its spare in a supported coil below the outlet.'],
+  wan: ['House uplink', 'Place the powerline adapter directly in the wall socket. Connect its Ethernet port to OpenWrt WAN through the console cable opening.'],
+  zigbee: ['Zigbee extension', 'Place the Zigbee dongle on the TV unit. Run the full USB extension back to a free rear USB port on node-0.'],
+};
+const roomCables = new Set(['boardCord', 'wan', 'zigbee', 'spareCord']);
+for (const cable of CABLES.filter((c) => !roomCables.has(c.id))) {
+  const [title, text] = WIRE_COPY[cable.id];
+  CHAPTERS.push({ id: `wire-${cable.id}`, title, text, wire: cable.id, view: cable.kind==='ac' ? 'service' : 'rear', script(c) { c.end = c.start + 6.1; } });
+}
+CHAPTERS.push({ id: 'living-placement', title: 'On the TV console',
+  text: 'Secure the rack feet to the console top. The rear cable opening reaches the service compartment; leave the open back accessible.', view: 'installation',
+  script(c) { c.show(['zigbeeEnd', 'zigbee','spareBoard']); c.move('spareBoard',HOLD_IN,2.3,{from:[0,-380,25]}); c.end = c.start + 4.8; } });
+for (const cable of CABLES.filter((c) => roomCables.has(c.id))) {
+  const [title, text] = WIRE_COPY[cable.id];
+  CHAPTERS.push({ id: `wire-${cable.id}`, title, text, wire: cable.id, view: cable.kind==='ac' ? 'service' : 'rear', script(c) { c.end = c.start + 6.1; } });
+}
+CHAPTERS.push({ id: 'zip-ties', title: 'Straps and zip ties',
+  text: 'Gather the spare leads without cutting them. Use loose zip ties on the rear rails. Close removable straps on the supported stock coils and the bricks.', view: 'rear',
+  script(c) { c.end = c.start + 6.2; } });
+CHAPTERS.push({ id: 'installed', title: 'Connected',
+  text: 'All plugs seated, factory leads intact, spare length coiled, and the board switch within reach.', view: 'installation',
+  script(c) { c.end = c.start + 4.8; } });
+CHAPTERS.push({ id: 'room-view', title: 'Living room',
+  text: 'The rack and TV unit face the sofa. Rotate the view, pause anywhere, or rewind a chapter to inspect the wiring.', view: 'room',
+  script(c) { c.end = c.start + 4.8; } });
 
 // ---------------------------------------------------------------- build + evaluate
 
@@ -331,8 +372,8 @@ export function buildTimeline(data, chapterDefs = CHAPTERS) {
       mesh: s.type, dir: s.dir, out: s.out, final: { p: s.head, q: qfromTo(SCREW_AXIS, s.dir) },
     }));
   }
-  for (const d of DEVICES) {
-    add(node(d.id, null, 'device', { mesh: d.model, device: d, final: { p: d.centre, q: ID_Q } }));
+  for (const d of [...DEVICES, ...PERIPHERALS]) {
+    add(node(d.id, null, 'device', { mesh: d.model, device: d, final: { p: d.centre, q: d.q || ID_Q } }));
     if (d.model === 'router') {
       const [w, dp, h] = d.size;
       ANTENNA_X.forEach((x, i) => {
@@ -350,7 +391,7 @@ export function buildTimeline(data, chapterDefs = CHAPTERS) {
     const c = new Chapter(nodes, t, chapters.length);
     def.script(c);
     const end = c.end + HOLD_OUT;
-    chapters.push({ index: chapters.length, id: def.id, title: def.title, text: def.text, start: t, end });
+    chapters.push({ index: chapters.length, id: def.id, title: def.title, text: def.text, start: t, end, wire: def.wire, view: def.view });
     t = end;
   }
 

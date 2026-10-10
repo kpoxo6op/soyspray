@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { createHash } from 'node:crypto';
 import { SITE } from './helpers.mjs';
 import { CHAPTERS } from '../src/timeline.js';
 
@@ -10,16 +11,29 @@ const js = readFileSync(resolve(SITE, 'app.js'), 'utf8');
 const css = readFileSync(resolve(SITE, 'app.css'), 'utf8');
 
 test('every runtime reference in index.html is relative and present', () => {
-  const refs = [...html.matchAll(/\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(refs.sort(), ['app.css', 'app.js']);
+  const refs = [...html.matchAll(/\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]).filter(r => !r.startsWith('data:'));
+  assert.deepEqual(refs.map(r => r.split('?')[0]).sort(), ['app.css', 'app.js']);
   for (const r of refs) {
     assert.ok(!/^[a-z]+:|^\/\//i.test(r), `${r} is relative`);
-    const f = resolve(SITE, r);
+    const f = resolve(SITE, r.split('?')[0]);
     assert.ok(existsSync(f) && statSync(f).size > 0, `${r} exists`);
   }
   // classic script (works from file://), no module loading
-  assert.match(html, /<script src="app\.js"><\/script>/);
+  assert.match(html, /<script src="app\.js(?:\?v=[a-f\d]+)?"><\/script>/);
   assert.doesNotMatch(html, /type="module"/);
+});
+
+// A stale revision can make a returning browser run an older player after promotion.
+// The reference-presence check does not bind the requested version to its bytes.
+test('asset revisions identify the delivered bytes for returning browsers', () => {
+  const refs = [...html.matchAll(/\b(?:src|href)="([^"]+)"/g)].map(m => m[1]).filter(r => !r.startsWith('data:'));
+  for (const ref of refs) {
+    const url = new URL(ref, 'https://assembly.invalid/');
+    const bytes = readFileSync(resolve(SITE, url.pathname.slice(1)));
+    const digest = createHash('sha256').update(bytes).digest('hex');
+    const revision = url.searchParams.get('v');
+    assert.ok(revision && revision.length >= 12 && digest.startsWith(revision), `${ref} identifies its content`);
+  }
 });
 
 test('the bundle carries its own meshes and makes no network requests', () => {
