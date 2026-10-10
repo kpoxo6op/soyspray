@@ -2,10 +2,10 @@ name: GI speech recognition image
 
 on:
   pull_request:
-    paths: [apps/voice-assistant/stt/**, .github/workflows/gi-stt-image.yml]
+    paths: [apps/voice-assistant/stt/**, .github/workflows/gi-stt-image.yml, playbooks/operations/recovery/check-ha-voice-installer*]
   push:
     branches: [main]
-    paths: [apps/voice-assistant/stt/**, .github/workflows/gi-stt-image.yml]
+    paths: [apps/voice-assistant/stt/**, .github/workflows/gi-stt-image.yml, playbooks/operations/recovery/check-ha-voice-installer*]
   workflow_dispatch:
 
 permissions:

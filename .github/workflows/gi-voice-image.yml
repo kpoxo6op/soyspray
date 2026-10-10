@@ -4,11 +4,13 @@ on:
   pull_request:
     paths:
       - apps/voice-assistant/intent-agent/**
+      - playbooks/operations/recovery/check-ha-voice-installer*
       - .github/workflows/gi-voice-image.yml
   push:
     branches: [main]
     paths:
       - apps/voice-assistant/intent-agent/**
+      - playbooks/operations/recovery/check-ha-voice-installer*
       - .github/workflows/gi-voice-image.yml
   workflow_dispatch:
 

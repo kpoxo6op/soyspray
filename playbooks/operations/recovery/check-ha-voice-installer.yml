@@ -51,8 +51,9 @@
           - voice_workspace.results[2].resources[0].status.phase == 'Running'
           - voice_policy.resources | length == 1
           - voice_policy.resources[0].spec.podSelector == {}
-          - voice_policy.resources[0].spec.egress == []
-          - voice_policy.resources[0].spec.ingress == []
+          - voice_policy.resources[0].spec.policyTypes | sort == ['Egress', 'Ingress']
+          - voice_policy.resources[0].spec.egress | default([]) == []
+          - voice_policy.resources[0].spec.ingress | default([]) == []
 
     - name: Refuse a stale or previously attempted verification job
       kubernetes.core.k8s_info:
