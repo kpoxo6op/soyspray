@@ -8,7 +8,7 @@ import tarfile
 from pathlib import Path
 from types import MappingProxyType
 
-from homeassistant import loader
+from homeassistant import bootstrap, core_config, loader
 from homeassistant.components import conversation
 from homeassistant.components.assist_pipeline.pipeline import (
     PipelineRun,
@@ -47,7 +47,8 @@ async def main():
     hass = HomeAssistant(str(config))
     hass.config_entries = ConfigEntries(hass, {})
     loader.async_setup(hass)
-    await hass.config_entries.async_initialize()
+    assert await bootstrap.async_load_base_functionality(hass)
+    await core_config.async_process_ha_core_config(hass, {})
     assert await async_setup_component(hass, "homeassistant", {})
     assert await async_setup_component(hass, "assist_pipeline", {})
     domains = await loader.async_get_custom_components(hass)
