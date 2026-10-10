@@ -1,0 +1,11 @@
+{
+  "domain": "gi_voice",
+  "name": "GI Flex",
+  "version": "0.1.0",
+  "config_flow": true,
+  "documentation": "https://github.com/kpoxo6op/soyspray/tree/main/apps/voice-assistant",
+  "codeowners": ["@kpoxo6op"],
+  "dependencies": ["conversation"],
+  "iot_class": "cloud_polling",
+  "requirements": []
+}

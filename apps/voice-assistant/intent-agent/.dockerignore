@@ -1,0 +1,6 @@
+*
+!custom_components
+!custom_components/**
+!install.py
+**/__pycache__
+**/*.pyc
