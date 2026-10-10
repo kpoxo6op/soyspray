@@ -773,12 +773,7 @@ def test_home_assistant_has_peanut_light_group() -> None:
     }
 
 
-def test_synthetic_speech_benchmark_cannot_mount_data_or_contact_devices() -> None:
-    """The operator job has no credentials/data mounts and denies all device/cloud traffic.
-
-    An accidental PVC or service-account mount would bypass benchmark isolation.
-    Production deployment checks do not cover these disposable operator resources.
-    """
+def render_speech_check(mode):
     import json
 
     from jinja2 import Environment
@@ -787,6 +782,8 @@ def test_synthetic_speech_benchmark_cannot_mount_data_or_contact_devices() -> No
     environment.filters["to_json"] = json.dumps
     template = (ROOT / "playbooks/operations/recovery/check-gi-stt-node.yaml.j2").read_text()
     rendered = environment.from_string(template).render(
+        speech_mode=mode,
+        speech_probe_ip="198.51.100.1",
         speech_namespace="voice-benchmark-test",
         speech_check_id="test",
         speech_node="node-0",
@@ -794,7 +791,16 @@ def test_synthetic_speech_benchmark_cannot_mount_data_or_contact_devices() -> No
         playbook_dir=str(ROOT / "playbooks/operations/recovery"),
         lookup=lambda kind, path: (ROOT / "apps/voice-assistant/stt/benchmark.py").read_text(),
     )
-    resources = list(yaml.safe_load_all(rendered))
+    return list(yaml.safe_load_all(rendered))
+
+
+def test_synthetic_speech_benchmark_cannot_mount_data_or_contact_devices() -> None:
+    """The operator job has no credentials/data mounts and denies all device/cloud traffic.
+
+    An accidental PVC or service-account mount would bypass benchmark isolation.
+    Production deployment checks do not cover these disposable operator resources.
+    """
+    resources = render_speech_check("benchmark")
     assert not any(
         item["kind"] in {"PersistentVolumeClaim", "Secret", "ServiceAccount"} for item in resources
     )
@@ -813,3 +819,54 @@ def test_synthetic_speech_benchmark_cannot_mount_data_or_contact_devices() -> No
     assert container["securityContext"]["allowPrivilegeEscalation"] is False
     assert container["securityContext"]["capabilities"]["drop"] == ["ALL"]
     assert container["resources"]["limits"] == {"cpu": "2", "memory": "3Gi"}
+
+
+def test_network_probe_cannot_report_a_reachable_or_down_service_as_blocked(monkeypatch, capsys):
+    """A negative probe must fail on connectivity or refusal, and only target speech.
+
+    Otherwise a down server can masquerade as an enforced ingress restriction.
+    Existing deployment checks do not execute the operator probe or its egress policy.
+    """
+    import socket
+
+    import pytest
+
+    resources = render_speech_check("network-probe")
+    policy = resource(resources, "NetworkPolicy", "isolate")["spec"]
+    assert policy["ingress"] == []
+    assert policy["egress"] == [
+        {
+            "to": [
+                {
+                    "namespaceSelector": {
+                        "matchLabels": {"kubernetes.io/metadata.name": "home-automation"}
+                    },
+                    "podSelector": {"matchLabels": {"app": "gi-flex-stt"}},
+                }
+            ],
+            "ports": [{"protocol": "TCP", "port": 10300}],
+        }
+    ]
+    job = resource(resources, "Job", "benchmark")["spec"]
+    assert job["activeDeadlineSeconds"] <= 30
+    pod = job["template"]["spec"]
+    assert not pod.get("hostNetwork") and not pod.get("hostPID")
+    assert pod["automountServiceAccountToken"] is False
+    code = pod["containers"][0]["args"][0]
+    monkeypatch.setattr(socket, "create_connection", lambda *args, **kwargs: object())
+    with pytest.raises(AssertionError, match="Unauthorized speech ingress succeeded"):
+        exec(code, {})
+
+    def blocked(*args, **kwargs):
+        raise TimeoutError
+
+    monkeypatch.setattr(socket, "create_connection", blocked)
+    exec(code, {})
+    assert "Unauthorized ingress was blocked" in capsys.readouterr().out
+
+    def refused(*args, **kwargs):
+        raise ConnectionRefusedError
+
+    monkeypatch.setattr(socket, "create_connection", refused)
+    with pytest.raises(ConnectionRefusedError):
+        exec(code, {})

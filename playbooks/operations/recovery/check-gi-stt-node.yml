@@ -5,15 +5,35 @@
   become: true
   vars:
     kubeconfig_path: /etc/kubernetes/admin.conf
+    speech_mode: benchmark
     speech_namespace: "voice-benchmark-{{ speech_check_id }}"
   tasks:
     - name: Validate exact operator inputs
       ansible.builtin.assert:
         that:
           - speech_phase in ['create', 'cleanup']
+          - speech_mode in ['benchmark', 'network-probe']
           - speech_check_id is match('^[a-z0-9][a-z0-9-]{0,23}$')
           - speech_image is match('^ghcr.io/kpoxo6op/gi-stt@sha256:[0-9a-f]{64}$')
           - speech_node in ['node-0', 'node-1', 'node-2']
+
+    - name: Read the exact speech service for the bounded network probe
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Service
+        name: gi-flex-stt
+        namespace: home-automation
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: speech_service
+      when: speech_mode == 'network-probe' and speech_phase == 'create'
+
+    - name: Refuse any probe target other than the deployed speech service
+      ansible.builtin.assert:
+        that:
+          - speech_service.resources | length == 1
+          - speech_service.resources[0].spec.selector.app == 'gi-flex-stt'
+          - speech_probe_ip == speech_service.resources[0].spec.clusterIP
+      when: speech_mode == 'network-probe' and speech_phase == 'create'
 
     - name: Read benchmark namespace ownership
       kubernetes.core.k8s_info:

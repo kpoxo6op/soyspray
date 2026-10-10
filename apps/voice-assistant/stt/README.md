@@ -36,3 +36,14 @@ transcript results private; these are synthetic measurements, not microphone or
 HA-action acceptance. Retire the namespace with the same operation's cleanup
 phase and its observed namespace UID. A completed idle Job alone is not proof:
 require the exec process success and all three benchmark summaries.
+
+
+After deployment, the same isolated operation's `speech_mode=network-probe`
+permits egress only to the actual `gi-flex-stt` service in `home-automation`.
+The operation checks the supplied probe IP against that Service. Its 30-second
+Job succeeds only on a connection timeout from the unrelated pod; a reachable
+or refusing service fails the probe. Verify a positive Wyoming response from HA
+before and after the negative test, then use the normal UID-guarded cleanup.
+Separately verify that STT cannot make an outbound connection while HA can reach
+the same public endpoint. These probes read connectivity and never send an HA
+intent or device command.

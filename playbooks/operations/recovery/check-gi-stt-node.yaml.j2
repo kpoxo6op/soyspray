@@ -15,7 +15,17 @@ spec:
   podSelector: {}
   policyTypes: [Ingress, Egress]
   ingress: []
+{% if speech_mode == 'network-probe' %}
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: home-automation}
+          podSelector:
+            matchLabels: {app: gi-flex-stt}
+      ports: [{protocol: TCP, port: 10300}]
+{% else %}
   egress: []
+{% endif %}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -32,7 +42,7 @@ metadata:
   namespace: {{ speech_namespace }}
 spec:
   backoffLimit: 0
-  activeDeadlineSeconds: 1200
+  activeDeadlineSeconds: {{ 30 if speech_mode == 'network-probe' else 1200 }}
   template:
     spec:
       nodeName: {{ speech_node }}
@@ -50,7 +60,18 @@ spec:
           image: {{ speech_image }}
           command: [python, -c]
           args:
+{% if speech_mode == 'network-probe' %}
+            - |
+              import socket
+              try:
+                  socket.create_connection(({{ speech_probe_ip | to_json }}, 10300), 3)
+              except TimeoutError:
+                  print("Unauthorized ingress was blocked")
+              else:
+                  raise AssertionError("Unauthorized speech ingress succeeded")
+{% else %}
             - 'import time; from pathlib import Path; exec("while not Path(\"/tmp/done\").exists(): time.sleep(1)")'
+{% endif %}
           env:
             - name: BENCHMARK_NODE
               valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
