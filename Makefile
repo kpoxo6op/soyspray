@@ -103,7 +103,7 @@ lint: ## Check Python style and common defects
 		playbooks/operations/voice/test-stalled-stream.yml \
 		playbooks/operations/recovery/restore-volume.yml playbooks/operations/recovery/cleanup-restore.yml playbooks/operations/recovery/start-restored-app.yml \
 		playbooks/operations/recovery/configure-longhorn.yml playbooks/operations/recovery/backup-daily-now.yml \
-		playbooks/operations/recovery/check-ha-voice-installer.yml \
+		playbooks/operations/recovery/check-ha-voice-installer.yml playbooks/operations/recovery/check-gi-stt-node.yml \
 		playbooks/operations/storage/repair-voice-multipath.yml \
 		playbooks/operations/retirement/*.yml \
 		playbooks/operations/security/require-delivered.yml \

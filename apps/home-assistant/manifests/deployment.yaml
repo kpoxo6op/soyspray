@@ -23,6 +23,21 @@ spec:
         component: main
     spec:
       initContainers:
+        - name: install-gi-voice
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 250m, memory: 128Mi}
+          image: ghcr.io/kpoxo6op/gi-voice@sha256:3940ab60be8b08a379e50f9ff2603eacc15ddfa6c572f61394d2f20b2a8cc232
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: config
+              mountPath: /config
         - name: bootstrap-config
           image: busybox:1.36
           command:
