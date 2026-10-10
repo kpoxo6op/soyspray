@@ -4,4 +4,5 @@
 !download_models.py
 !serve.py
 !probe.py
+!warmup.py
 !NOTICE.md

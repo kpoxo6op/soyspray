@@ -1,0 +1,7 @@
+{
+  "config": {
+    "step": {"user": {"title": "GI Flex", "description": "Interpret unfamiliar light commands with DeepSeek. Known Home Assistant commands can still run locally.", "data": {"api_key": "DeepSeek API key", "lights": "Lights this assistant may control"}}},
+    "error": {"cannot_connect": "Cannot connect to DeepSeek", "invalid_auth": "Invalid API key", "model_unavailable": "DeepSeek Flash is unavailable", "invalid_lights": "Choose one to four lights"},
+    "abort": {"already_configured": "GI Flex is already configured"}
+  }
+}

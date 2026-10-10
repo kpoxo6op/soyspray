@@ -1,0 +1,56 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: voice-installer-check
+  namespace: {{ recovery_scratch }}
+data:
+  install.py: {{ lookup('file', voice_source_root ~ '/apps/voice-assistant/intent-agent/install.py') | to_json }}
+  verify.py: {{ lookup('file', voice_source_root ~ '/apps/voice-assistant/intent-agent/verify_restore.py') | to_json }}
+binaryData:
+  component.tar: {{ voice_source_archive }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: voice-installer-check
+  namespace: {{ recovery_scratch }}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 600
+  template:
+    spec:
+      nodeName: {{ voice_workspace.results[2].resources[0].spec.nodeName }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: verify
+          image: {{ voice_ha_image }}
+          command: [python, /test/verify.py]
+          env:
+            - name: SOURCE_REVISION
+              value: {{ voice_source_revision | to_json }}
+            - name: PYTHONDONTWRITEBYTECODE
+              value: '1'
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: 250m, memory: 512Mi}
+            limits: {cpu: '1', memory: 2Gi}
+          volumeMounts:
+            - {name: config, mountPath: /config}
+            - {name: source, mountPath: /test, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: config
+          persistentVolumeClaim: {claimName: restored-data}
+        - name: source
+          configMap: {name: voice-installer-check}
+        - name: tmp
+          emptyDir: {sizeLimit: 256Mi}

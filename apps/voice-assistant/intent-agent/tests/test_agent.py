@@ -10,6 +10,7 @@ from custom_components.gi_voice.policy import Interpretation, validate
 from homeassistant.components import conversation
 from homeassistant.components.homeassistant.exposed_entities import async_expose_entity
 from homeassistant.core import Context
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import chat_session, intent
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -231,6 +232,7 @@ async def test_real_native_intent_calls_only_the_eligible_light(hass, agent, aio
     result = await process(agent)
     assert calls == [{"entity_id": ["light.peanut"]}]
     assert result.response.response_type == intent.IntentResponseType.ACTION_DONE
+    assert result.response.speech["plain"]["speech"] == "Turned on Peanut."
 
 
 async def test_native_error_is_spoken_without_claiming_success(agent, aioclient_mock):
@@ -244,7 +246,9 @@ async def test_native_error_is_spoken_without_claiming_success(agent, aioclient_
         new=AsyncMock(return_value=response),
     ):
         result = await process(agent)
-    assert result.response is response
+    assert result.response.error_code == response.error_code
+    assert result.response.speech["plain"]["speech"] == "I couldn't change Peanut."
+    assert result.response.failed_results[0].id == "light.peanut"
     assert agent.audit[-1]["outcome"] == "execution_failed"
 
 
@@ -301,11 +305,37 @@ async def test_native_preferred_path_does_not_execute_negated_commands(hass, age
 
 @pytest.mark.parametrize(
     ("text", "expected_provider_calls"),
-    [("turn on Peanut", 0), ("Please illuminate Peanut", 1)],
+    [("turn on Peanut", 0), ("Please illuminate Peanut", 1), ("turn on the lights", 1)],
 )
 async def test_real_pipeline_prefers_local_control_before_fallback(
     hass, agent, aioclient_mock, text, expected_provider_calls
 ):
+    calls = []
+
+    async def turn_on(call):
+        calls.append(call.data)
+
+    hass.services.async_register("light", "turn_on", turn_on)
+    generic = text == "turn on the lights"
+    value = (
+        {
+            "kind": "clarify",
+            "intent": None,
+            "targets": [],
+            "brightness_pct": None,
+            "question": "Which light?",
+        }
+        if generic
+        else action()
+    )
+    aioclient_mock.post(API + "/chat/completions", json=provider(value))
+    speech = await pipeline_speech(hass, agent, text)
+    assert speech
+    assert calls == ([] if generic else [{"entity_id": ["light.peanut"]}])
+    assert aioclient_mock.call_count == expected_provider_calls
+
+
+async def pipeline_speech(hass, agent, text):
     from homeassistant.components.assist_pipeline.pipeline import (
         Pipeline,
         PipelineRun,
@@ -313,13 +343,6 @@ async def test_real_pipeline_prefers_local_control_before_fallback(
     )
 
     assert await async_setup_component(hass, "assist_pipeline", {})
-    calls = []
-
-    async def turn_on(call):
-        calls.append(call.data)
-
-    hass.services.async_register("light", "turn_on", turn_on)
-    aioclient_mock.post(API + "/chat/completions", json=provider(action()))
     pipeline = Pipeline(
         conversation_engine=agent.entity_id,
         conversation_language="en",
@@ -339,6 +362,61 @@ async def test_real_pipeline_prefers_local_control_before_fallback(
     )
     with chat_session.async_get_chat_session(hass, None) as session:
         await run.prepare_recognize_intent(session)
-        await run.recognize_intent(text, session.conversation_id, None)
-    assert calls == [{"entity_id": ["light.peanut"]}]
-    assert aioclient_mock.call_count == expected_provider_calls
+        speech, _ = await run.recognize_intent(text, session.conversation_id, None)
+    return speech
+
+
+@pytest.mark.parametrize("fail_top", [False, True])
+async def test_pipeline_spells_out_actual_multi_target_and_partial_results(
+    hass, agent, aioclient_mock, fail_top
+):
+    calls = []
+
+    async def turn_on(call):
+        target = call.data["entity_id"][0]
+        if fail_top and target == "light.top":
+            raise HomeAssistantError("Unavailable")
+        calls.append(target)
+
+    hass.services.async_register("light", "turn_on", turn_on)
+    aioclient_mock.post(
+        API + "/chat/completions", json=provider(action(targets=["light.peanut", "light.top"]))
+    )
+    speech = await pipeline_speech(hass, agent, "Please illuminate Peanut and Top")
+    if fail_top:
+        assert calls == ["light.peanut"]
+        assert speech == "Turned on Peanut. I couldn't change Top."
+        assert agent.audit[-1]["outcome"] == "partial"
+    else:
+        assert calls == ["light.peanut", "light.top"]
+        assert speech == "Turned on Peanut and Top."
+
+
+async def test_remove_entry_deletes_audit_without_delayed_resurrection(hass, agent, hass_storage):
+    await agent._store.async_save({"records": [{"text": "private phrase"}]})
+    agent._store.async_delay_save(lambda: {"records": [{"text": "pending private phrase"}]}, 5)
+    key = agent._store.key
+    assert key in hass_storage
+    assert await hass.config_entries.async_remove(agent.entry.entry_id)
+    assert key not in hass_storage
+    await hass.async_stop()
+    assert key not in hass_storage
+
+
+async def test_contextual_action_without_clarification_never_executes(agent, aioclient_mock):
+    aioclient_mock.post(API + "/chat/completions", json=provider(action()))
+    with patch(
+        "custom_components.gi_voice.conversation.intent.async_handle", new=AsyncMock()
+    ) as execute:
+        result = await process(agent, "Turn it on")
+    assert result.continue_conversation
+    execute.assert_not_awaited()
+
+
+async def test_refusals_record_counts_without_transcripts(hass, agent):
+    await process(agent, "Don't turn on Peanut")
+    async_expose_entity(hass, "conversation", "light.peanut", False)
+    async_expose_entity(hass, "conversation", "light.top", False)
+    await process(agent, "Please illuminate Peanut")
+    assert [r["outcome"] for r in agent.audit] == ["no_action", "no_eligible_lights"]
+    assert all("text" not in r for r in agent.audit)

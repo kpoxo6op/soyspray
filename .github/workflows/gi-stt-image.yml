@@ -38,7 +38,7 @@ jobs:
       - name: Exercise Wyoming metadata and silence with no network access
         run: |
           set -euo pipefail
-          for candidate in parakeet base.en small.en; do
+          for candidate in default parakeet base.en small.en; do
             if [ "$candidate" = parakeet ]; then
               library=sherpa
               model=sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8
@@ -46,12 +46,13 @@ jobs:
               library=faster-whisper
               model="/models/$candidate"
             fi
+            args=(--uri tcp://0.0.0.0:10300 --data-dir /models --download-dir /models \
+              --local-files-only --language en --stt-library "$library" --model "$model" \
+              --cpu-threads 2 --beam-size 1 --compute-type int8 --vad-filter)
+            if [ "$candidate" = default ]; then args=(); fi
             container="$(docker run -d --network none --read-only --cap-drop ALL \
               --security-opt no-new-privileges --tmpfs /tmp:uid=1000,gid=1000,mode=700 \
-              "$IMAGE:$IMAGE_TAG" --uri tcp://0.0.0.0:10300 \
-              --data-dir /models --download-dir /models --local-files-only \
-              --language en --stt-library "$library" --model "$model" \
-              --cpu-threads 2 --beam-size 1 --vad-filter)"
+              "$IMAGE:$IMAGE_TAG" "${args[@]}")"
             trap 'docker logs "$container"; docker rm -f "$container" >/dev/null' EXIT
             timeout 180 docker exec -i -e PYTHONPATH=/app "$container" python - \
               < apps/voice-assistant/stt/smoke.py

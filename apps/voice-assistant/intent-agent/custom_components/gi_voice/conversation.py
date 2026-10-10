@@ -1,6 +1,7 @@
 """Interpret an unmatched phrase once, then use HA's restricted intent boundary."""
 
 import json
+import logging
 import time
 
 import aiohttp
@@ -15,7 +16,9 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 
 from .const import API, CONF_LIGHTS, DOMAIN, MODEL, SCHEMA_VERSION, TIMEOUT_SECONDS
-from .policy import INTENTS, NO_ACTION, validate
+from .policy import CONTEXTUAL, INTENTS, NO_ACTION, Interpretation, validate
+
+_LOGGER = logging.getLogger(__name__)
 
 PROMPT = """Interpret a light command; do not execute anything. Return only JSON with exactly:
 kind (action|clarify|none), intent (turn_on|turn_off|set_brightness|null), targets (entity ID list),
@@ -58,6 +61,7 @@ class GiVoiceAgent(conversation.ConversationEntity):
 
     async def async_load_audit(self, hass):
         self._store = Store(hass, 1, DOMAIN + ".audit." + self.entry.entry_id)
+        hass.data.setdefault(DOMAIN, {})[self.entry.entry_id] = self._store
         data = await self._store.async_load()
         self.audit = (data or {}).get("records", [])[-200:]
 
@@ -73,7 +77,11 @@ class GiVoiceAgent(conversation.ConversationEntity):
             if not async_should_expose(self.hass, conversation.DOMAIN, state.entity_id):
                 continue
             entry = registry.async_get(state.entity_id)
-            names = {state.name, *(entry.aliases if entry else set())}
+            names = (
+                {state.name, *(a for a in entry.aliases if isinstance(a, str))}
+                if entry
+                else {state.name}
+            )
             for name in names:
                 name_owners.setdefault(name.casefold(), set()).add(state.entity_id)
         eligible = {}
@@ -93,7 +101,7 @@ class GiVoiceAgent(conversation.ConversationEntity):
             eligible[entity_id] = {
                 "entity_id": entity_id,
                 "name": state.name,
-                "aliases": sorted(entry.aliases) if entry else [],
+                "aliases": sorted(a for a in entry.aliases if isinstance(a, str)) if entry else [],
                 "area": area.name if area else None,
             }
         return eligible
@@ -155,6 +163,90 @@ class GiVoiceAgent(conversation.ConversationEntity):
         response.async_set_speech(text)
         return conversation.ConversationResult(response, conversation_id, continue_conversation)
 
+    async def execute(self, decision, catalog, user_input, conversation_id):
+        """Report native successes and failures, including a partially completed batch."""
+        succeeded, failed, success_names, failed_names = [], [], [], []
+        error_code = None
+        for target in decision.targets:
+            name = catalog[target]["name"]
+            fallback = intent.IntentResponseTarget(
+                name, intent.IntentResponseTargetType.ENTITY, target
+            )
+            try:
+                if self.catalog() != catalog:
+                    raise ValueError("Eligible lights changed during execution")
+                slots = {"name": {"value": name}, "domain": {"value": "light"}}
+                if decision.brightness_pct is not None:
+                    slots["brightness"] = {"value": decision.brightness_pct}
+                native = await intent.async_handle(
+                    self.hass,
+                    DOMAIN,
+                    INTENTS[decision.intent],
+                    slots,
+                    text_input=user_input.text,
+                    context=user_input.context,
+                    language=user_input.language,
+                    assistant=conversation.DOMAIN,
+                    device_id=user_input.device_id,
+                    satellite_id=user_input.satellite_id,
+                    conversation_agent_id=self.entity_id,
+                )
+                succeeded.extend(native.success_results)
+                failed.extend(native.failed_results)
+                if native.response_type == intent.IntentResponseType.ERROR or native.failed_results:
+                    if not native.failed_results:
+                        failed.append(fallback)
+                    failed_names.append(name)
+                    error_code = native.error_code or error_code
+                else:
+                    if not native.success_results:
+                        succeeded.append(fallback)
+                    success_names.append(name)
+            except Exception as error:
+                _LOGGER.warning("GI Flex action failed (%s)", type(error).__name__)
+                failed.append(fallback)
+                failed_names.append(name)
+        speech = []
+        if success_names:
+            names = " and ".join(success_names)
+            if decision.intent == "set_brightness":
+                speech.append(f"Set {names} to {decision.brightness_pct}%.")
+            else:
+                speech.append(f"Turned {'on' if decision.intent == 'turn_on' else 'off'} {names}.")
+        if failed_names:
+            speech.append("I couldn't change " + " and ".join(failed_names) + ".")
+        response = intent.IntentResponse(language=user_input.language)
+        response.async_set_results(succeeded, failed)
+        if failed_names and not success_names:
+            response.async_set_error(
+                error_code or intent.IntentResponseErrorCode.FAILED_TO_HANDLE, " ".join(speech)
+            )
+        else:
+            response.async_set_speech(" ".join(speech))
+        outcome = (
+            "partial"
+            if success_names and failed_names
+            else "execution_failed"
+            if failed_names
+            else "action"
+        )
+        return conversation.ConversationResult(response, conversation_id), outcome
+
+    def record(self, user_input, decision, outcome, started, keep_text=True):
+        record = {
+            "kind": decision.kind if decision else None,
+            "intent": decision.intent if decision else None,
+            "targets": list(decision.targets) if decision else [],
+            "outcome": outcome,
+            "elapsed_ms": round((time.monotonic() - started) * 1000, 2),
+            "schema_version": SCHEMA_VERSION,
+        }
+        if keep_text:
+            record["text"] = user_input.text
+        self.audit = (self.audit + [record])[-200:]
+        if self._store:
+            self._store.async_delay_save(lambda: {"records": self.audit}, 5)
+
     async def _async_handle_message(self, user_input, chat_log):
         started = time.monotonic()
         conversation_id = chat_log.conversation_id
@@ -164,20 +256,26 @@ class GiVoiceAgent(conversation.ConversationEntity):
             previous = None
         self._pending = {k: v for k, v in self._pending.items() if started - v["time"] < 60}
         if len(user_input.text) > 500 or NO_ACTION.search(user_input.text):
+            self.record(user_input, None, "no_action", started, keep_text=False)
             return self.reply(user_input, "I haven't changed anything.", conversation_id)
-        catalog = self.catalog()
-        if not catalog:
-            return self.reply(user_input, "No eligible lights are available.", conversation_id)
         outcome = "provider_unavailable"
         decision = None
         result = None
         try:
+            catalog = self.catalog()
+            if not catalog:
+                self.record(user_input, None, "no_eligible_lights", started, keep_text=False)
+                return self.reply(user_input, "No eligible lights are available.", conversation_id)
             decision = await self.interpret(
                 user_input.text, catalog, user_input, previous["text"] if previous else None
             )
             current = self.catalog()
             if current != catalog:
                 raise ValueError("The eligible light catalog changed")
+            if decision.kind == "action" and CONTEXTUAL.search(user_input.text) and not previous:
+                decision = Interpretation(
+                    "clarify", None, (), None, "Which light or exact brightness should I use?"
+                )
             if decision.kind == "none":
                 outcome = "no_action"
                 result = self.reply(user_input, "I haven't changed anything.", conversation_id)
@@ -187,64 +285,10 @@ class GiVoiceAgent(conversation.ConversationEntity):
                     self._pending[key] = {"text": user_input.text, "time": started}
                 result = self.reply(user_input, decision.question, conversation_id, not previous)
             else:
-                outcome = "action"
-                responses = []
-                for target in decision.targets:
-                    slots = {
-                        "name": {"value": current[target]["name"]},
-                        "domain": {"value": "light"},
-                    }
-                    if decision.brightness_pct is not None:
-                        slots["brightness"] = {"value": decision.brightness_pct}
-                    responses.append(
-                        await intent.async_handle(
-                            self.hass,
-                            DOMAIN,
-                            INTENTS[decision.intent],
-                            slots,
-                            text_input=user_input.text,
-                            context=user_input.context,
-                            language=user_input.language,
-                            assistant=conversation.DOMAIN,
-                            device_id=user_input.device_id,
-                            satellite_id=user_input.satellite_id,
-                            conversation_agent_id=self.entity_id,
-                        )
-                    )
-                if any(
-                    r.response_type == intent.IntentResponseType.ERROR
-                    or r.as_dict().get("data", {}).get("failed")
-                    for r in responses
-                ):
-                    outcome = "execution_failed"
-                # All returned responses are HA's actual execution results, not model claims.
-                if len(responses) == 1:
-                    result = conversation.ConversationResult(responses[0], conversation_id)
-                else:
-                    speech = " ".join(
-                        r.speech.get("plain", {}).get("speech", "") for r in responses
-                    )
-                    result = self.reply(user_input, speech, conversation_id)
-        except (
-            aiohttp.ClientError,
-            TimeoutError,
-            ValueError,
-            KeyError,
-            TypeError,
-            intent.IntentError,
-        ):
+                result, outcome = await self.execute(decision, catalog, user_input, conversation_id)
+        except Exception as error:
+            _LOGGER.warning("GI Flex interpretation failed (%s)", type(error).__name__)
             outcome = "failed"
             result = self.reply(user_input, "I can't interpret that right now.", conversation_id)
-        record = {
-            "text": user_input.text,
-            "kind": decision.kind if decision else None,
-            "intent": decision.intent if decision else None,
-            "targets": list(decision.targets) if decision else [],
-            "outcome": outcome,
-            "elapsed_ms": round((time.monotonic() - started) * 1000, 2),
-            "schema_version": SCHEMA_VERSION,
-        }
-        self.audit = (self.audit + [record])[-200:]
-        if self._store:
-            self._store.async_delay_save(lambda: {"records": self.audit}, 5)
+        self.record(user_input, decision, outcome, started)
         return result

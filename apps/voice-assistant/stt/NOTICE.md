@@ -15,3 +15,6 @@ https://huggingface.co/Systran/faster-whisper-small.en
 
 The image retains both Whisper candidates for controlled comparisons; the
 default is Parakeet. Model revisions and SHA-256 checksums are in models.lock.json.
+
+The checksum-covered sherpa-onnx archive supplies test_wavs/0.wav for positive
+ASR checks. The same official archive is used without modifying the sample.

@@ -1,0 +1,98 @@
+---
+- name: Check voice installer source only on a guarded disposable HA restore
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    recovery_scratch: "restore-home-assistant-config-{{ recovery_check_id }}"
+  tasks:
+    - name: Require exact scratch and source inputs
+      ansible.builtin.assert:
+        that:
+          - recovery_app == 'home-assistant-config'
+          - recovery_check_id is match('^[a-z0-9][a-z0-9-]{0,23}$')
+          - voice_source_revision is match('^[0-9a-f]{40}$')
+          - voice_ha_image is match('^ghcr.io/home-assistant/home-assistant@sha256:[0-9a-f]{64}$')
+          - voice_source_archive | length < 1000000
+
+    - name: Read the existing isolated workspace
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: "{{ item.kind }}"
+        name: "{{ item.name }}"
+        namespace: "{{ recovery_scratch if item.kind != 'Namespace' else omit }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop:
+        - {kind: Namespace, name: "{{ recovery_scratch }}"}
+        - {kind: PersistentVolumeClaim, name: restored-data}
+        - {kind: Pod, name: inspect}
+      register: voice_workspace
+
+    - name: Read the isolation policy
+      kubernetes.core.k8s_info:
+        api_version: networking.k8s.io/v1
+        kind: NetworkPolicy
+        name: isolate
+        namespace: "{{ recovery_scratch }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: voice_policy
+
+    - name: Require ownership, different storage and total network isolation
+      ansible.builtin.assert:
+        that:
+          - voice_workspace.results | selectattr('resources', 'equalto', []) | list | length == 0
+          - voice_workspace.results[0].resources[0].metadata.labels['soyspray.vip/app'] == recovery_app
+          - voice_workspace.results[0].resources[0].metadata.labels['soyspray.vip/purpose'] == 'restore-check'
+          - voice_workspace.results[0].resources[0].metadata.labels['soyspray.vip/check-id'] == recovery_check_id
+          - voice_workspace.results[0].resources[0].metadata.annotations['soyspray.vip/backup-uid'] == recovery_expected_backup_uid
+          - voice_workspace.results[1].resources[0].spec.storageClassName == recovery_scratch
+          - voice_workspace.results[1].resources[0].spec.volumeName != recovery_source_volume
+          - voice_workspace.results[2].resources[0].status.phase == 'Running'
+          - voice_policy.resources | length == 1
+          - voice_policy.resources[0].spec.podSelector == {}
+          - voice_policy.resources[0].spec.egress == []
+          - voice_policy.resources[0].spec.ingress == []
+
+    - name: Refuse a stale or previously attempted verification job
+      kubernetes.core.k8s_info:
+        api_version: batch/v1
+        kind: Job
+        name: voice-installer-check
+        namespace: "{{ recovery_scratch }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: voice_existing_job
+
+    - name: Require a fresh verification workspace
+      ansible.builtin.assert:
+        that: voice_existing_job.resources | length == 0
+
+    - name: Create disposable source inputs and the isolated verification job
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition: "{{ lookup('template', 'check-ha-voice-installer.yaml.j2') | from_yaml_all | list }}"
+
+    - name: Wait for verification to complete or fail
+      kubernetes.core.k8s_info:
+        api_version: batch/v1
+        kind: Job
+        name: voice-installer-check
+        namespace: "{{ recovery_scratch }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: voice_job
+      until: >-
+        voice_job.resources | length == 1 and
+        (voice_job.resources[0].status.conditions | default([])
+         | selectattr('status', 'equalto', 'True')
+         | selectattr('type', 'in', ['Complete', 'Failed']) | list | length > 0)
+      retries: 120
+      delay: 5
+
+    - name: Require a successful isolated source check
+      ansible.builtin.assert:
+        that:
+          - >-
+            voice_job.resources[0].status.conditions | default([])
+            | selectattr('type', 'equalto', 'Complete') | selectattr('status', 'equalto', 'True')
+            | list | length == 1
