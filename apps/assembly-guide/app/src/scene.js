@@ -36,6 +36,8 @@ import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.j
 import { evaluate } from './timeline.js';
 import { buildDevice } from './devices.js';
 import { FLOOR_Z } from './layout.js';
+import { openNodeTray } from './tray-opening.js';
+import { Installation } from './installation.js';
 
 const GLOW_COLOR = new Color('#ffab5c');
 const GROUND_Z = FLOOR_Z - 0.4; // the floor the feet stand on
@@ -74,8 +76,8 @@ function withGlow(material) {
 const FINISH = {
   // Black PLA, lifted slightly so the shapes stay readable against the dark stage.
   new: { color: 0x3b4048, roughness: 0.56, metalness: 0 },
-  // The existing 2024 frame: same filament look, a shade lighter so the two bays read apart.
-  old: { color: 0x4a4b4f, roughness: 0.6, metalness: 0 },
+  // Matching replacement frame, same filament finish.
+  old: { color: 0x3b4048, roughness: 0.56, metalness: 0 },
 };
 
 function partGeometry(mesh) {
@@ -151,7 +153,7 @@ export class Viewer {
     }
     scene.environmentIntensity = 0.42;
 
-    this.camera = new PerspectiveCamera(30, 1, 20, 20000);
+    this.camera = new PerspectiveCamera(30, 1, 20, 40000);
     this.camera.up.set(0, 1, 0);
 
     // z-up rack frame -> three's y-up world
@@ -172,7 +174,7 @@ export class Viewer {
     controls.zoomToCursor = true;
     controls.screenSpacePanning = true;
     controls.minDistance = 90;
-    controls.maxDistance = 9000;
+    controls.maxDistance = 30000;
     controls.maxPolarAngle = Math.PI * 0.94;
     controls.addEventListener('change', () => {
       this.dirty = true;
@@ -188,6 +190,9 @@ export class Viewer {
     this.installDoubleTap();
 
     this.contentBox = this.computeContentBox();
+    this.installation = new Installation(timeline, this.root);
+    this.installation.root.traverse(o => o.isMesh && this.pickable.push(o));
+    this.setTime(0);
     this.resize();
   }
 
@@ -258,6 +263,7 @@ export class Viewer {
     catcher.receiveShadow = true;
     catcher.renderOrder = -1;
     this.scene.add(catcher);
+    this.stageObjects = [pool, contact, catcher];
   }
 
   buildNodes(meshes, anisotropy) {
@@ -294,7 +300,8 @@ export class Viewer {
         this.inner.set(id, inner);
       } else if (n.kind === 'part') {
         const mat = withGlow(new MeshStandardMaterial({ ...FINISH[n.finish] }));
-        obj = new Mesh(geos[n.mesh], mat);
+        const geometry = n.id.startsWith('tray.L') ? openNodeTray(geos[n.mesh], n.final.p, n.final.p[2] - 21.5) : geos[n.mesh];
+        obj = new Mesh(geometry, mat);
         obj.castShadow = true;
         obj.receiveShadow = true;
         materials = [mat];
@@ -338,6 +345,15 @@ export class Viewer {
       rec.obj.castShadow = s.alpha > 0.6;
     }
     this.root.updateMatrixWorld(true);
+    if (this.installation) {
+      const state = this.installation.setTime(t);
+      this.stageObjects.forEach(o => { o.visible = state.room < 0.01; });
+      const frame = this.installation.camera();
+      if (frame.key !== this.cameraKey) {
+        this.cameraKey = frame.key;
+        if (this.pristine) this.applyHomeView(!this.reducedMotion);
+      }
+    }
     const hidden = new Matrix4().makeScale(0, 0, 0);
     for (const { im, ids } of this.screwSets) {
       ids.forEach((id, i) => {
@@ -359,7 +375,7 @@ export class Viewer {
       this.setTime((i / steps) * this.timeline.duration);
       for (const rec of this.objects.values()) {
         const k = rec.node.kind;
-        if ((k !== 'part' && k !== 'device') || !rec.obj.visible) continue;
+        if ((k !== 'part' && k !== 'device') || rec.node.device?.room || !rec.obj.visible) continue;
         if (this.state.get(rec.node.id).alpha < 0.5) continue;
         box.union(tmp.setFromObject(rec.obj));
       }
@@ -368,7 +384,7 @@ export class Viewer {
     // board's run-in on the right may reach: those moments may brush the frame edge, nothing else.
     const finished = new Box3();
     for (const rec of this.objects.values()) {
-      if ((rec.node.kind === 'part' || rec.node.kind === 'device') && rec.obj.visible) finished.union(tmp.setFromObject(rec.obj));
+      if ((rec.node.kind === 'part' || rec.node.kind === 'device') && !rec.node.device?.room && rec.obj.visible) finished.union(tmp.setFromObject(rec.obj));
     }
     this.frameBox = box.clone();
     this.frameBox.max.y = Math.min(box.max.y, finished.max.y + 15);
@@ -399,11 +415,13 @@ export class Viewer {
   }
 
   homeView() {
-    const box = this.frameBox;
+    const frame = this.installation?.camera();
+    this.root.updateMatrixWorld(true);
+    const box = frame?.box ? frame.box.clone().applyMatrix4(this.root.matrixWorld) : this.frameBox;
     const center = box.getCenter(new Vector3());
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
-    const view = h > w * 1.15 ? VIEW_PORTRAIT : VIEW;
+    const view = frame?.view || (h > w * 1.15 ? VIEW_PORTRAIT : VIEW);
     const dir = new Vector3(
       Math.sin(view.azimuth) * Math.cos(view.elevation),
       Math.sin(view.elevation),

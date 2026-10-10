@@ -1,7 +1,8 @@
 // Bundles the viewer into dist/app.js + dist/app.css and copies dist/index.html.
 // Everything (three.js, meshes, layout data) ends up in local files loaded with relative paths.
 import { build } from 'esbuild';
-import { copyFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,5 +22,10 @@ await build({
   loader: { '.bin': 'binary', '.json': 'json' },
   logLevel: 'info',
 });
-copyFileSync(resolve(here, 'src/index.html'), resolve(out, 'index.html'));
+let html = readFileSync(resolve(here, 'src/index.html'), 'utf8');
+for (const asset of ['app.js', 'app.css']) {
+  const revision = createHash('sha256').update(readFileSync(resolve(out, asset))).digest('hex').slice(0, 16);
+  html = html.replace(`"${asset}"`, `"${asset}?v=${revision}"`);
+}
+writeFileSync(resolve(out, 'index.html'), html);
 console.log('built', out);

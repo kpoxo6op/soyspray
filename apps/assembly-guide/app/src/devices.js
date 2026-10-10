@@ -11,6 +11,7 @@ import {
   SRGBColorSpace,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { addPorts, buildExtraDevice } from './hardware.js';
 
 const PX_PER_MM = 6;
 
@@ -262,6 +263,7 @@ function decal(w, h, map, face, offset, materialOpts = {}) {
  * opacity and highlight values.
  */
 export function buildDevice(spec, anisotropy = 4) {
+  if (['board', 'spareBoard', 'deck', 'psuSwitch', 'psuRouter', 'wallSocket', 'powerline', 'zigbeeEnd', 'zigbee'].includes(spec.model)) return buildExtraDevice(spec);
   const [w, d, h] = spec.size;
   const g = new Group();
   const mats = [];
@@ -288,21 +290,19 @@ export function buildDevice(spec, anisotropy = 4) {
     }
     case 'switch': {
       g.add(box(spec.size, 3, mat({ color: 0xe9e8e3, metalness: 0, roughness: 0.42 })));
-      addDecal(decal(w - 5, h - 4, texture(switchFront(), anisotropy), 'front', [0, -d / 2 - 0.25, 0], { roughness: 0.45 }));
       break;
     }
-    case 'usbA': {
+    case 'seagate': {
       g.add(box(spec.size, 4, mat({ color: 0x17181a, metalness: 0.15, roughness: 0.32 })));
       break;
     }
-    case 'usbB': {
+    case 'touro': {
       g.add(box(spec.size, 4, mat({ color: 0x1f2023, metalness: 0.05, roughness: 0.68 })));
       addDecal(decal(w - 8, d - 8, texture(touroTop(), anisotropy), 'top', [0, 0, h / 2 + 0.25], { roughness: 0.66 }));
       break;
     }
     case 'router': {
       g.add(box(spec.size, 4, mat({ color: 0x2457a0, metalness: 0.62, roughness: 0.36 })));
-      addDecal(decal(w - 6, h - 5, texture(routerFront(), anisotropy), 'front', [0, -d / 2 - 0.25, 0], { roughness: 0.4, metalness: 0.3 }));
       break;
     }
     case 'board': {
@@ -329,5 +329,10 @@ export function buildDevice(spec, anisotropy = 4) {
     default:
       throw new Error(`unknown device model ${spec.model}`);
   }
+  if (spec.model === 'brick') {
+    const stub = new Mesh(new CylinderGeometry(3, 3, 12, 16), mat({ color: 0x171819, roughness: 0.6 }));
+    stub.position.y = -62; g.add(stub);
+  }
+  addPorts(g, spec.model, mats);
   return { object: g, materials: mats };
 }

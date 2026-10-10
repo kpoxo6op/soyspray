@@ -6,7 +6,7 @@ const makeElement = installDomStubs();
 const { Viewer } = await import('../src/scene.js');
 const { buildTimeline } = await import('../src/timeline.js');
 const { decodeMeshes } = await import('../src/meshes.js');
-const { Matrix4, Vector3 } = await import('three');
+const { Matrix4, Vector3, Raycaster, DoubleSide } = await import('three');
 
 const timeline = buildTimeline(placements);
 const container = makeElement();
@@ -23,7 +23,7 @@ test('every timeline node has a scene object; parts use the real meshes', () => 
     assert.ok(timeline.nodes.has(id));
     if (rec.node.kind === 'part') {
       parts++;
-      assert.equal(rec.obj.geometry, viewer.partGeometries[rec.node.mesh]);
+      if (!id.startsWith('tray.L')) assert.ok(rec.obj.geometry === viewer.partGeometries[rec.node.mesh], `${id} keeps the original geometry`);
       assert.ok(rec.obj.geometry.attributes.normal, 'creased normals');
     }
   }
@@ -81,8 +81,25 @@ test('assembled rack matches the derived placements in three.js world space', ()
   }
 });
 
+// Contract: the prepared node trays have a real connector opening, with floor and ribs intact.
+// The CAD-bounds test cannot detect a lip which still obstructs low rear sockets.
+test('node-tray rear openings clear the ports while retaining support', () => {
+  viewer.setTime(timeline.duration);
+  for (let i = 0; i < 3; i++) {
+    const mesh = viewer.objects.get(`tray.L${i}`).obj;
+    mesh.material.side = DoubleSide;
+    const ray = new Raycaster(new Vector3(59.5,33.9+i*50,-220),new Vector3(0,0,1),0,40);
+    assert.equal(ray.intersectObject(mesh).length,0,'rear Ethernet opening');
+    ray.set(new Vector3(34.5,29+i*50,-220),new Vector3(0,0,1));
+    assert.ok(ray.intersectObject(mesh).length>0,'corner rib remains');
+    ray.set(new Vector3(37,40+i*50,-185),new Vector3(0,-1,0));
+    assert.ok(ray.intersectObject(mesh).length>0,'tray floor remains');
+  }
+});
+
 test('home view frames all content above the transport bar', () => {
-  const box = viewer.contentBox;
+  viewer.setTime(0);
+  const box = viewer.frameBox;
   assert.ok(box.min.y < -17 && box.max.y > 400, 'includes floor-level feet and the top of the rack');
   viewer.setBottomInset(220);
   const home = viewer.homeView();
