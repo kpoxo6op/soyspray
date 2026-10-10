@@ -1,0 +1,56 @@
+---
+- name: Create or retire a bounded and network-isolated synthetic speech benchmark
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    speech_namespace: "voice-benchmark-{{ speech_check_id }}"
+  tasks:
+    - name: Validate exact operator inputs
+      ansible.builtin.assert:
+        that:
+          - speech_phase in ['create', 'cleanup']
+          - speech_check_id is match('^[a-z0-9][a-z0-9-]{0,23}$')
+          - speech_image is match('^ghcr.io/kpoxo6op/gi-stt@sha256:[0-9a-f]{64}$')
+          - speech_node in ['node-0', 'node-1', 'node-2']
+
+    - name: Read benchmark namespace ownership
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Namespace
+        name: "{{ speech_namespace }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: speech_workspace
+
+    - name: Require a fresh namespace before creation
+      ansible.builtin.assert:
+        that: speech_workspace.resources | length == 0
+      when: speech_phase == 'create'
+
+    - name: Create only disposable benchmark resources
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition: "{{ lookup('template', 'check-gi-stt-node.yaml.j2') | from_yaml_all | list }}"
+      when: speech_phase == 'create'
+
+    - name: Require exact ownership and identity before namespace retirement
+      ansible.builtin.assert:
+        that:
+          - speech_workspace.resources | length == 1
+          - speech_workspace.resources[0].metadata.uid == speech_namespace_uid
+          - speech_workspace.resources[0].metadata.labels['soyspray.vip/purpose'] == 'voice-benchmark'
+          - speech_workspace.resources[0].metadata.labels['soyspray.vip/check-id'] == speech_check_id
+      when: speech_phase == 'cleanup'
+
+    - name: Retire the verified disposable workspace
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Namespace
+        name: "{{ speech_namespace }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        wait: true
+        wait_timeout: 180
+      when: speech_phase == 'cleanup'

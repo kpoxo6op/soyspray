@@ -50,6 +50,7 @@ def test_voice_services_have_their_own_kustomize_package() -> None:
         "piper-en",
         "openwakeword-gi",
         "voice-health",
+        "gi-flex-stt",
     }
     assert names_by_kind["Job"] == {"voice-model-bootstrap-v1"}
     assert names_by_kind["Service"] == {
@@ -57,6 +58,7 @@ def test_voice_services_have_their_own_kustomize_package() -> None:
         "piper-en",
         "openwakeword-gi",
         "voice-health",
+        "gi-flex-stt",
     }
     assert names_by_kind["PersistentVolumeClaim"] == {
         "speech-to-phrase-data-v1",
@@ -165,6 +167,7 @@ def test_voice_services_use_local_storage_and_limited_network_access() -> None:
         "openwakeword-gi",
         "voice-model-bootstrap",
         "voice-health",
+        "gi-flex-stt",
     }
     for policy in (policies["speech-to-phrase"], policies["piper-en"]):
         assert policy["spec"]["policyTypes"] == ["Ingress", "Egress"]
@@ -223,6 +226,51 @@ def test_voice_diagnostics_has_no_credentials_or_workload_control():
         }
     ]
     assert resource(resources, "Service", "voice-health")["spec"]["type"] == "ClusterIP"
+
+
+def test_flexible_stt_has_no_external_network_credentials_or_persistent_data():
+    """Protect the offline speech boundary that existing GI checks do not cover."""
+    resources = render_voice_stack()
+    pod = resource(resources, "Deployment", "gi-flex-stt")["spec"]["template"]["spec"]
+    container = pod["containers"][0]
+    assert pod["automountServiceAccountToken"] is False
+    assert all("emptyDir" in volume for volume in pod.get("volumes", []))
+    assert not container.get("envFrom")
+    assert not any("valueFrom" in env for env in container.get("env", []))
+    assert re.fullmatch(r"ghcr\.io/kpoxo6op/gi-stt@sha256:[0-9a-f]{64}", container["image"])
+    assert container["securityContext"]["readOnlyRootFilesystem"] is True
+    assert container["securityContext"]["allowPrivilegeEscalation"] is False
+    assert container["securityContext"]["capabilities"]["drop"] == ["ALL"]
+    assert container["startupProbe"]["exec"]["command"] == ["python", "/app/warmup.py"]
+    assert container["startupProbe"]["timeoutSeconds"] >= 12
+    assert container["readinessProbe"].get("exec")
+    assert container["livenessProbe"]["tcpSocket"]["port"] == "wyoming"
+    policy = resource(resources, "NetworkPolicy", "gi-flex-stt")["spec"]
+    assert policy["policyTypes"] == ["Ingress", "Egress"]
+    assert policy["egress"] == []
+    assert policy["ingress"] == [
+        {
+            "from": [{"podSelector": {"matchLabels": {"app": "home-assistant"}}}],
+            "ports": [{"port": 10300, "protocol": "TCP"}],
+        }
+    ]
+    assert resource(resources, "Service", "gi-flex-stt")["spec"]["type"] == "ClusterIP"
+
+
+def test_flex_component_image_installer_mounts_only_existing_ha_configuration():
+    """Protect the new installer mount and secret boundary; code tests cover file scope."""
+    deployment = load_yaml("apps/home-assistant/manifests/deployment.yaml")
+    container = next(
+        item
+        for item in deployment["spec"]["template"]["spec"]["initContainers"]
+        if item["name"] == "install-gi-voice"
+    )
+    assert re.fullmatch(r"ghcr\.io/kpoxo6op/gi-voice@sha256:[0-9a-f]{64}", container["image"])
+    assert container["volumeMounts"] == [{"name": "config", "mountPath": "/config"}]
+    assert not container.get("envFrom") and not container.get("env")
+    assert container["securityContext"]["allowPrivilegeEscalation"] is False
+    assert container["securityContext"]["readOnlyRootFilesystem"] is True
+    assert container["securityContext"]["capabilities"]["drop"] == ["ALL"]
 
 
 def test_gi_model_runs_locally_without_wan_access() -> None:
@@ -723,3 +771,45 @@ def test_home_assistant_has_peanut_light_group() -> None:
         "unique_id": "peanut",
         "entities": ["light.top", "light.middle", "light.bottom"],
     }
+
+
+def test_synthetic_speech_benchmark_cannot_mount_data_or_contact_devices() -> None:
+    """The operator job has no credentials/data mounts and denies all device/cloud traffic.
+
+    An accidental PVC or service-account mount would bypass benchmark isolation.
+    Production deployment checks do not cover these disposable operator resources.
+    """
+    import json
+
+    from jinja2 import Environment
+
+    environment = Environment()
+    environment.filters["to_json"] = json.dumps
+    template = (ROOT / "playbooks/operations/recovery/check-gi-stt-node.yaml.j2").read_text()
+    rendered = environment.from_string(template).render(
+        speech_namespace="voice-benchmark-test",
+        speech_check_id="test",
+        speech_node="node-0",
+        speech_image="ghcr.io/kpoxo6op/gi-stt@sha256:" + "a" * 64,
+        playbook_dir=str(ROOT / "playbooks/operations/recovery"),
+        lookup=lambda kind, path: (ROOT / "apps/voice-assistant/stt/benchmark.py").read_text(),
+    )
+    resources = list(yaml.safe_load_all(rendered))
+    assert not any(
+        item["kind"] in {"PersistentVolumeClaim", "Secret", "ServiceAccount"} for item in resources
+    )
+    policy = resource(resources, "NetworkPolicy", "isolate")["spec"]
+    assert policy["podSelector"] == {}
+    assert policy["policyTypes"] == ["Ingress", "Egress"]
+    assert policy["ingress"] == policy["egress"] == []
+    job = resource(resources, "Job", "benchmark")["spec"]
+    assert job["backoffLimit"] == 0 and job["activeDeadlineSeconds"] <= 1200
+    pod = job["template"]["spec"]
+    assert pod["automountServiceAccountToken"] is False
+    assert pod["securityContext"]["runAsNonRoot"] is True
+    assert all(set(volume) <= {"name", "configMap", "emptyDir"} for volume in pod["volumes"])
+    container = pod["containers"][0]
+    assert container["securityContext"]["readOnlyRootFilesystem"] is True
+    assert container["securityContext"]["allowPrivilegeEscalation"] is False
+    assert container["securityContext"]["capabilities"]["drop"] == ["ALL"]
+    assert container["resources"]["limits"] == {"cpu": "2", "memory": "3Gi"}

@@ -22,3 +22,17 @@ choosing the runtime. Synthetic Piper audio measures transport/decoding only.
 Rollback selects GI and reverts the new stateless deployment promotion.
 
 Model attribution and license links are in NOTICE.md, which ships in the image.
+
+
+The pushed `playbooks/operations/recovery/check-gi-stt-node.yml` creates a disposable
+`voice-benchmark-<check-id>` namespace on an explicitly selected cluster node. It
+has no data PVC, credentials, service account token or device/cloud traffic. Its
+bounded job runs the promoted image with the same CPU limit and sandbox as the
+service. Stream at most 40 synthetic 16 kHz mono PCM clips as JSON lines to
+`python /test/benchmark.py` through the Kubernetes exec channel. Each row has
+`case`, `text`, `rate` and base64 `audio`. It measures warmed Wyoming transcription,
+peak decoder RSS and cgroup CPU throttling for each candidate. Keep audio and
+transcript results private; these are synthetic measurements, not microphone or
+HA-action acceptance. Retire the namespace with the same operation's cleanup
+phase and its observed namespace UID. A completed idle Job alone is not proof:
+require the exec process success and all three benchmark summaries.

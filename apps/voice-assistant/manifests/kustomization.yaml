@@ -10,6 +10,7 @@ resources:
   - storage.yaml
   - network-policies.yaml
   - voice-health.yaml
+  - gi-flex-stt.yaml
 
 configMapGenerator:
   - name: openwakeword-gi-patch

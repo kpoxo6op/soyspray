@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gi-flex-stt
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gi-flex-stt
+  template:
+    metadata:
+      labels:
+        app: gi-flex-stt
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: gi-flex-stt
+        image: ghcr.io/kpoxo6op/gi-stt@sha256:445931e6d9f749688e61da04dc27b619855c1093b17a7bed072ab9f0590dd354
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: wyoming
+          containerPort: 10300
+          protocol: TCP
+        resources:
+          requests:
+            cpu: '1'
+            memory: 1Gi
+          limits:
+            cpu: '2'
+            memory: 3Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        startupProbe:
+          exec:
+            command:
+            - python
+            - /app/warmup.py
+          timeoutSeconds: 15
+          periodSeconds: 10
+          failureThreshold: 60
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - /app/probe.py
+          timeoutSeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          tcpSocket:
+            port: wyoming
+          timeoutSeconds: 5
+          periodSeconds: 30
+          failureThreshold: 3
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir:
+          sizeLimit: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gi-flex-stt
+spec:
+  type: ClusterIP
+  selector:
+    app: gi-flex-stt
+  ports:
+  - name: wyoming
+    port: 10300
+    protocol: TCP
+    targetPort: 10300
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gi-flex-stt
+spec:
+  podSelector:
+    matchLabels:
+      app: gi-flex-stt
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: home-assistant
+    ports:
+    - port: 10300
+      protocol: TCP
+  egress: []

@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ speech_namespace }}
+  labels:
+    soyspray.vip/purpose: voice-benchmark
+    soyspray.vip/check-id: {{ speech_check_id }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: isolate
+  namespace: {{ speech_namespace }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  ingress: []
+  egress: []
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: benchmark
+  namespace: {{ speech_namespace }}
+data:
+  benchmark.py: {{ lookup('file', playbook_dir ~ '/../../../apps/voice-assistant/stt/benchmark.py') | to_json }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: benchmark
+  namespace: {{ speech_namespace }}
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1200
+  template:
+    spec:
+      nodeName: {{ speech_node }}
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: benchmark
+          image: {{ speech_image }}
+          command: [python, -c]
+          args:
+            - 'import time; from pathlib import Path; exec("while not Path(\"/tmp/done\").exists(): time.sleep(1)")'
+          env:
+            - name: BENCHMARK_NODE
+              valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          resources:
+            requests: {cpu: '1', memory: 1Gi}
+            limits: {cpu: '2', memory: 3Gi}
+          volumeMounts:
+            - {name: code, mountPath: /test, readOnly: true}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: code
+          configMap: {name: benchmark}
+        - name: tmp
+          emptyDir: {sizeLimit: 512Mi}
