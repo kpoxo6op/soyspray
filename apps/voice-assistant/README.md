@@ -283,3 +283,9 @@ After the pull request merges, verify the Application from `main`.
 Retirement must use a separate reviewed operation. Preserve the token Secret,
 selected model ConfigMap, and Home Assistant persistent data unless the
 retirement explicitly includes them.
+
+## Flexible phrasing
+
+The [GI Flex agent](intent-agent/README.md) and [open-vocabulary STT image](stt/README.md)
+provide a separately promoted pipeline. Existing GI remains the rollback path.
+Source merges build images; digest promotion and supported HA setup are separate.

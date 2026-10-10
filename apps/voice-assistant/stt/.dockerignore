@@ -1,0 +1,7 @@
+*
+!Dockerfile
+!models.lock.json
+!download_models.py
+!serve.py
+!probe.py
+!NOTICE.md
