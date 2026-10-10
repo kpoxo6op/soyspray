@@ -852,6 +852,7 @@ def test_network_probe_cannot_report_a_reachable_or_down_service_as_blocked(monk
     pod = job["template"]["spec"]
     assert not pod.get("hostNetwork") and not pod.get("hostPID")
     assert pod["automountServiceAccountToken"] is False
+    assert pod["containers"][0]["resources"]["limits"] == {"cpu": "250m", "memory": "128Mi"}
     code = pod["containers"][0]["args"][0]
     monkeypatch.setattr(socket, "create_connection", lambda *args, **kwargs: object())
     with pytest.raises(AssertionError, match="Unauthorized speech ingress succeeded"):
