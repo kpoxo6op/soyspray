@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: agents-intake-1f1852009efe9d50
+  name: agents-intake-b2c592fc681e43f4
   labels:
     app.kubernetes.io/name: agents
     app.kubernetes.io/part-of: agents
@@ -10,81 +10,6 @@ metadata:
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
     argocd.argoproj.io/sync-wave: '-5'
     agents.soyspray.vip/pvc-uid: 90f7d0c7-2090-4269-942e-961d9ceb95d1
-spec:
-  backoffLimit: 0
-  activeDeadlineSeconds: 1800
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: agents-intake
-        app.kubernetes.io/part-of: agents
-        agents.soyspray.vip/pack: 1f1852009efe9d50
-    spec:
-      serviceAccountName: agents-intake-operator
-      automountServiceAccountToken: false
-      enableServiceLinks: false
-      restartPolicy: Never
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 101
-        runAsGroup: 101
-        seccompProfile:
-          type: RuntimeDefault
-        fsGroup: 101
-        fsGroupChangePolicy: OnRootMismatch
-      containers:
-      - name: receiver
-        image: ghcr.io/kpoxo6op/agents@sha256:41c413d25a2b30877cd7a18271a046b0d5ba383d506f44d43256d77af7b81834
-        imagePullPolicy: IfNotPresent
-        command:
-        - python3
-        - /opt/evidence.py
-        - receive
-        env:
-        - name: PACK_HASH
-          value: 1f1852009efe9d501516e9c6f42f7ef40a9b30a6eb8a0a0cf7ab93909e980ac6
-        - name: ARCHIVE_HASH
-          value: 0b7d9e7a822d2228497a339fa851e8a7b62732d686e1bdaa7d6c1303b3c05ce9
-        - name: ARCHIVE_BYTES
-          value: '533606400'
-        securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
-          capabilities:
-            drop:
-            - ALL
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: '1'
-            memory: 1Gi
-        volumeMounts:
-        - name: evidence
-          mountPath: /evidence
-        - name: tmp
-          mountPath: /tmp
-      volumes:
-      - name: evidence
-        persistentVolumeClaim:
-          claimName: agents-evidence
-      - name: tmp
-        emptyDir:
-          sizeLimit: 768Mi
----
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: agents-restore-b2c592fc681e43f4
-  labels:
-    app.kubernetes.io/name: agents
-    app.kubernetes.io/part-of: agents
-  annotations:
-    argocd.argoproj.io/hook: PostSync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
-    argocd.argoproj.io/sync-wave: '5'
-    agents.soyspray.vip/pvc-uid: 67a8598c-d682-4599-9395-60bdd1065bf2
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: 60
@@ -122,6 +47,81 @@ spec:
           value: b1d2cc7621b8570c585925498ff8e2dc450bfca6ef909755ea2d8474a396ec3b
         - name: ARCHIVE_BYTES
           value: '10240'
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        volumeMounts:
+        - name: evidence
+          mountPath: /evidence
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: evidence
+        persistentVolumeClaim:
+          claimName: agents-evidence
+      - name: tmp
+        emptyDir:
+          sizeLimit: 768Mi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: agents-restore-1f1852009efe9d50
+  labels:
+    app.kubernetes.io/name: agents
+    app.kubernetes.io/part-of: agents
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: '5'
+    agents.soyspray.vip/pvc-uid: 67a8598c-d682-4599-9395-60bdd1065bf2
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agents-intake
+        app.kubernetes.io/part-of: agents
+        agents.soyspray.vip/pack: 1f1852009efe9d50
+    spec:
+      serviceAccountName: agents-intake-operator
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+      - name: receiver
+        image: ghcr.io/kpoxo6op/agents@sha256:41c413d25a2b30877cd7a18271a046b0d5ba383d506f44d43256d77af7b81834
+        imagePullPolicy: IfNotPresent
+        command:
+        - python3
+        - /opt/evidence.py
+        - receive
+        env:
+        - name: PACK_HASH
+          value: 1f1852009efe9d501516e9c6f42f7ef40a9b30a6eb8a0a0cf7ab93909e980ac6
+        - name: ARCHIVE_HASH
+          value: 0b7d9e7a822d2228497a339fa851e8a7b62732d686e1bdaa7d6c1303b3c05ce9
+        - name: ARCHIVE_BYTES
+          value: '533606400'
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
