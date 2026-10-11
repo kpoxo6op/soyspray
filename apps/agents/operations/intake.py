@@ -58,6 +58,8 @@ def assert_target(promotion, pvc, job, pod, allow_completed=False):
     if pod["spec"].get("serviceAccountName") != "agents-intake-operator":
         raise ValueError("Receiver service account identity mismatch")
     containers = pod["spec"]["containers"]
+    if pod["spec"].get("initContainers") or pod["spec"].get("ephemeralContainers"):
+        raise ValueError("Receiver unexpectedly has another execution path")
     if (
         len(containers) != 1
         or containers[0]["name"] != "receiver"
@@ -82,6 +84,21 @@ def assert_target(promotion, pvc, job, pod, allow_completed=False):
         or volumes[0]["persistentVolumeClaim"]["claimName"] != promotion["claimName"]
     ):
         raise ValueError("Receiver claim mount mismatch")
+    if any(set(v) - {"name", "persistentVolumeClaim", "emptyDir"} for v in pod["spec"]["volumes"]):
+        raise ValueError("Receiver unexpectedly mounts another source or credential")
+    evidence_mounts = [
+        m for m in containers[0].get("volumeMounts", []) if m["mountPath"] == "/evidence"
+    ]
+    if (
+        len(evidence_mounts) != 1
+        or evidence_mounts[0]["name"] != volumes[0]["name"]
+        or evidence_mounts[0].get("readOnly", False)
+        or evidence_mounts[0].get("subPath")
+        or evidence_mounts[0].get("subPathExpr")
+        or containers[0].get("envFrom")
+        or any("valueFrom" in e for e in containers[0].get("env", []))
+    ):
+        raise ValueError("Receiver evidence path or credential environment mismatch")
 
 
 def pushed(root):
@@ -222,6 +239,7 @@ def run(args):
     if not 0 < remaining <= 1800:
         raise ValueError("Server-issued token lifetime exceeds the reviewed bound")
     operator = copy.deepcopy(admin_configuration)
+    operator.debug = False
     operator.api_key = {"authorization": issued.status.token}
     operator.api_key_prefix = {"authorization": "Bearer"}
     operator.cert_file = operator.key_file = None
