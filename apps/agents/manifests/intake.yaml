@@ -1,0 +1,149 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: agents-intake-880a889d82ebf090
+  labels:
+    app.kubernetes.io/name: agents
+    app.kubernetes.io/part-of: agents
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: '-5'
+    agents.soyspray.vip/pvc-uid: 90f7d0c7-2090-4269-942e-961d9ceb95d1
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agents-intake
+        app.kubernetes.io/part-of: agents
+        agents.soyspray.vip/pack: 880a889d82ebf090
+    spec:
+      serviceAccountName: agents-intake-operator
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+      - name: receiver
+        image: ghcr.io/kpoxo6op/agents@sha256:db81a8b877dd46e776c3aa01d214fa3b56e0871dc4ad4c03e8595372a66e990e
+        imagePullPolicy: IfNotPresent
+        command:
+        - python3
+        - /opt/evidence.py
+        - receive
+        env:
+        - name: PACK_HASH
+          value: 880a889d82ebf090d296ca6ae127f310c8a1ea3badb4b8224fb4a38ddfe9ee9a
+        - name: ARCHIVE_HASH
+          value: 235ef16ac1d4d4993d16195df39ef94468fc16c4db0af5c4bcd1148197cc581f
+        - name: ARCHIVE_BYTES
+          value: '533606400'
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: '1'
+            memory: 192Mi
+        volumeMounts:
+        - name: evidence
+          mountPath: /evidence
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: evidence
+        persistentVolumeClaim:
+          claimName: agents-evidence
+      - name: tmp
+        emptyDir:
+          sizeLimit: 768Mi
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: agents-restore-880a889d82ebf090
+  labels:
+    app.kubernetes.io/name: agents
+    app.kubernetes.io/part-of: agents
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: '5'
+    agents.soyspray.vip/pvc-uid: 67a8598c-d682-4599-9395-60bdd1065bf2
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 1800
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agents-intake
+        app.kubernetes.io/part-of: agents
+        agents.soyspray.vip/pack: 880a889d82ebf090
+    spec:
+      serviceAccountName: agents-intake-operator
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+      - name: receiver
+        image: ghcr.io/kpoxo6op/agents@sha256:db81a8b877dd46e776c3aa01d214fa3b56e0871dc4ad4c03e8595372a66e990e
+        imagePullPolicy: IfNotPresent
+        command:
+        - python3
+        - /opt/evidence.py
+        - receive
+        env:
+        - name: PACK_HASH
+          value: 880a889d82ebf090d296ca6ae127f310c8a1ea3badb4b8224fb4a38ddfe9ee9a
+        - name: ARCHIVE_HASH
+          value: 235ef16ac1d4d4993d16195df39ef94468fc16c4db0af5c4bcd1148197cc581f
+        - name: ARCHIVE_BYTES
+          value: '533606400'
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: '1'
+            memory: 192Mi
+        volumeMounts:
+        - name: evidence
+          mountPath: /evidence
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: evidence
+        persistentVolumeClaim:
+          claimName: agents-restore-test
+      - name: tmp
+        emptyDir:
+          sizeLimit: 768Mi

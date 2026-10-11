@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: agents-evidence-capacity
+  labels:
+    app.kubernetes.io/name: agents
+    app.kubernetes.io/part-of: agents
+    release: kube-prometheus-stack
+spec:
+  groups:
+  - name: agents.evidence
+    rules:
+    - alert: AgentsEvidenceCapacityHigh
+      expr: kubelet_volume_stats_used_bytes{namespace="agents",persistentvolumeclaim=~"agents-(evidence|restore-test)"}
+        / kubelet_volume_stats_capacity_bytes{namespace="agents",persistentvolumeclaim=~"agents-(evidence|restore-test)"}
+        > 0.75
+      for: 15m
+      labels:
+        severity: warning
+      annotations:
+        summary: Agent workshop evidence claim exceeds 75 percent capacity
+        description: Review retained evidence versions and their encrypted recovery
+          proof before any separate retirement operation.
