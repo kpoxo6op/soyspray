@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One reviewed recovery: terminate the obsolete initial sync, never edit workloads."""
+"""Two specific reviewed recoveries; never edit or delete workloads."""
 
 import argparse
 import json
@@ -19,6 +19,19 @@ from operations.intake import assert_target, pushed
 def termination_patch(app, expected, desired_revision):
     metadata, status = app["metadata"], app["status"]
     operation = status["operationState"]
+    scenario = expected.get("scenario", "initial")
+    incidents = {
+        "initial": ("808c39d95657413ff3282f8d03edc17edb345d4e", 4),
+        "writeback-fallback": (
+            "0196736b88e5e7de4d57da4b4038d8a299806c48",
+            expected.get("retryCount"),
+        ),
+    }
+    if scenario not in incidents:
+        raise ValueError("This is not a reviewed recovery incident")
+    old_revision, retry_count = incidents[scenario]
+    if type(retry_count) is not int or not 0 <= retry_count < 5:
+        raise ValueError("No further obsolete retries remain")
     if (
         metadata["name"] != "agents"
         or metadata["namespace"] != "argocd"
@@ -33,8 +46,8 @@ def termination_patch(app, expected, desired_revision):
         or status["sync"]["revision"] != desired_revision
         or operation["phase"] != "Running"
         or operation["startedAt"] != expected["operationStartedAt"]
-        or operation["retryCount"] != 4
-        or operation["syncResult"]["revision"] != "808c39d95657413ff3282f8d03edc17edb345d4e"
+        or operation.get("retryCount", 0) != retry_count
+        or operation["syncResult"]["revision"] != old_revision
     ):
         raise ValueError("The obsolete initial operation identity changed")
     retry = app["spec"]["syncPolicy"].get("retry", {})
@@ -69,8 +82,33 @@ def run(args):
         raise ValueError("Main does not declare the reviewed memory correction")
     expected = json.loads(args.expected.read_text())
     promotion = json.loads(args.promotion.read_text())
-    if promotion["claimName"] != "agents-evidence":
-        raise ValueError("Only the original production intake is in scope")
+    fallback = expected.get("scenario", "initial") == "writeback-fallback"
+    claim = "agents-restore-test" if fallback else "agents-evidence"
+    if promotion["claimName"] != claim:
+        raise ValueError("Claim does not match the specific recovery incident")
+    if fallback:
+        api_evidence = json.loads(Path(expected["nativeApiAvailabilityEvidence"]).read_text())
+        age = (
+            datetime.now(timezone.utc) - datetime.fromisoformat(api_evidence["UTC"])
+        ).total_seconds()
+        if (
+            api_evidence.get("HTTPStatus") != 401
+            or api_evidence.get("server") != "argocd.soyspray.vip"
+            or not 0 <= age <= 300
+        ):
+            raise ValueError("Fresh native Argo API 401 evidence is required")
+        for declared_job in declared:
+            receiver = declared_job["spec"]["template"]["spec"]["containers"][0]
+            if (
+                receiver["image"] != expected["newImage"]
+                or receiver["env"][0]["value"] != expected["newPackHash"]
+            ):
+                raise ValueError("Main does not declare the reviewed fallback pair")
+        if (
+            expected["newImage"] == promotion["image"]
+            or expected["newPackHash"] == promotion["packHash"]
+        ):
+            raise ValueError("Fallback must use the new reviewed image and provenance pack")
     for proc in Path("/proc").iterdir():
         if not proc.name.isdigit():
             continue
@@ -99,17 +137,34 @@ def run(args):
     if len(pods) != 1:
         raise ValueError("Expected exactly the stale hook Pod")
     pod = serialize(pods[0])
-    pvc = serialize(core.read_namespaced_persistent_volume_claim("agents-evidence", "agents"))
-    assert_target(promotion, pvc, job, pod, memory_limit="192Mi")
+    pvc = serialize(core.read_namespaced_persistent_volume_claim(claim, "agents"))
+    old_memory = "1Gi" if fallback else "192Mi"
+    assert_target(promotion, pvc, job, pod, memory_limit=old_memory)
     if job["metadata"]["uid"] != expected["jobUid"] or pod["metadata"]["uid"] != expected["podUid"]:
         raise ValueError("Hook identity changed")
-    if pod["spec"]["containers"][0]["resources"]["limits"]["memory"] != "192Mi":
+    if pod["spec"]["containers"][0]["resources"]["limits"]["memory"] != old_memory:
         raise ValueError("Hook is not the obsolete memory configuration")
-    if (
-        apps.list_namespaced_deployment("agents").items
-        or core.list_namespaced_pod("agents", label_selector="app.kubernetes.io/name=agents").items
-    ):
+    production = {
+        "deployments": serialize(apps.list_namespaced_deployment("agents")),
+        "pods": serialize(
+            core.list_namespaced_pod("agents", label_selector="app.kubernetes.io/name=agents")
+        ),
+    }
+    prior_production_hook = None
+    if fallback:
+        prior_production_hook = serialize(
+            batch.read_namespaced_job("agents-intake-" + promotion["packHash"][:16], "agents")
+        )
+        if prior_production_hook.get("status", {}).get("succeeded") != 1:
+            raise ValueError("The earlier production intake is still running or failed")
+    if not fallback and (production["deployments"]["items"] or production["pods"]["items"]):
         raise ValueError("A production web workload exists")
+    if (
+        fallback
+        and [d["metadata"]["uid"] for d in production["deployments"]["items"]]
+        != expected["productionDeploymentUids"]
+    ):
+        raise ValueError("Recorded production state changed")
     node, uid = pod["spec"]["nodeName"], pod["metadata"]["uid"]
     container = pod["status"]["containerStatuses"][0]["containerID"].removeprefix("containerd://")
     if node not in {"node-0", "node-1", "node-2"} or not re.fullmatch(r"[a-f0-9]{64}", container):
@@ -118,7 +173,7 @@ def run(args):
     inspect = f"""import json,time
 from pathlib import Path
 root=Path('/var/lib/kubelet/pods/{uid}/volumes/kubernetes.io~csi/pvc-{promotion["pvcUid"]}/mount/staging')
-assert root.is_dir()
+assert root.parent.is_dir() and (not root.exists() or root.is_dir())
 def snapshot():
     for p in Path('/proc').iterdir():
         if not p.name.isdigit(): continue
@@ -155,6 +210,9 @@ print(json.dumps({{'stagingUnchanged':True,'fileCount':len(first),'bytes':sum(x[
         "applicationBefore": application,
         "job": job,
         "pod": pod,
+        "productionState": production,
+        "priorProductionHook": prior_production_hook,
+        "nativeApi401Evidence": api_evidence if fallback else None,
         "events": events,
         "idleInspection": inspection,
         "patch": patch,

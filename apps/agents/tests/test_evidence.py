@@ -128,6 +128,22 @@ class EvidenceContract(unittest.TestCase):
             receive(self.volume)
         self.assertEqual(json.loads(output.getvalue())["status"], "already-identical")
 
+    def test_foreign_partial_is_retained_and_cannot_disturb_previous_version(self):
+        original = self.identity.copy()
+        self.intake()
+        (self.source / "recovery-validation.json").write_text('{"schemaVersion":1}\n')
+        self.identity = pack(self.source, self.archive)
+        partial = self.volume / "staging" / f"{self.identity['packHash']}.partial"
+        partial.mkdir()
+        ownership = {"packHash": original["packHash"], "archiveHash": original["archiveHash"]}
+        (partial / ".INTAKE").write_text(json.dumps(ownership))
+        (partial / "sentinel").write_bytes(b"retain unknown data")
+        with self.assertRaisesRegex(ValueError, "Unknown partial"):
+            self.intake()
+        self.assertEqual((partial / "sentinel").read_bytes(), b"retain unknown data")
+        verify(self.volume / "versions" / original["packHash"], original["packHash"])
+        self.assertFalse((self.volume / "versions" / self.identity["packHash"]).exists())
+
     def test_manifest_identity_and_total_are_checked(self):
         doc = json.loads((self.source / "manifest.json").read_bytes())
         doc["totalBytes"] += 1

@@ -15,13 +15,30 @@ from pathlib import Path, PurePosixPath
 MAX_ARCHIVE = 900 * 1024 * 1024
 MAX_MANIFEST = 4 * 1024 * 1024
 MAX_FILES = 5000
+WRITEBACK_BYTES = 8 * 1024 * 1024
+
+
+def discard_cache(stream):
+    os.posix_fadvise(stream.fileno(), 0, 0, os.POSIX_FADV_DONTNEED)
+
+
+def sync_discard(stream):
+    stream.flush()
+    os.fsync(stream.fileno())
+    discard_cache(stream)
 
 
 def digest(path):
     h = hashlib.sha256()
     with path.open("rb") as stream:
+        pending = 0
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             h.update(chunk)
+            pending += len(chunk)
+            if pending >= WRITEBACK_BYTES:
+                discard_cache(stream)
+                pending = 0
+        discard_cache(stream)
     return h.hexdigest()
 
 
@@ -135,7 +152,10 @@ def install(archive, volume, pack_hash, archive_hash):
     for child in ("staging", "versions"):
         if (volume / child).is_symlink():
             raise ValueError("Symlinked intake parent")
-    with tarfile.open(archive, mode="r:") as tar:
+    with (
+        archive.open("rb") as archive_stream,
+        tarfile.open(fileobj=archive_stream, mode="r:") as tar,
+    ):
         members = tar.getmembers()
         if len(members) > MAX_FILES + 1:
             raise ValueError("Too many archive members")
@@ -198,9 +218,16 @@ def install(archive, volume, pack_hash, archive_hash):
             destination = stage / member.name
             destination.parent.mkdir(parents=True, exist_ok=True)
             with destination.open("xb") as output, tar.extractfile(member) as source:
-                shutil.copyfileobj(source, output, length=1024 * 1024)
-                output.flush()
-                os.fsync(output.fileno())
+                pending = 0
+                while chunk := source.read(1024 * 1024):
+                    output.write(chunk)
+                    pending += len(chunk)
+                    if pending >= WRITEBACK_BYTES:
+                        sync_discard(output)
+                        discard_cache(archive_stream)
+                        pending = 0
+                sync_discard(output)
+                discard_cache(archive_stream)
             destination.chmod(0o444)
         (stage / ".INTAKE").unlink()
     verify(stage, pack_hash, require_complete=False)
@@ -259,13 +286,17 @@ def receive(root=Path("/evidence")):
         connection, _ = server.accept()
         with connection, Path("/tmp/intake.tar").open("xb") as output:
             count = 0
+            pending = 0
             while chunk := connection.recv(1024 * 1024):
                 count += len(chunk)
                 if count > MAX_ARCHIVE:
                     raise ValueError("Intake exceeds archive bound")
                 output.write(chunk)
-            output.flush()
-            os.fsync(output.fileno())
+                pending += len(chunk)
+                if pending >= WRITEBACK_BYTES:
+                    sync_discard(output)
+                    pending = 0
+            sync_discard(output)
     print(
         json.dumps(install(Path("/tmp/intake.tar"), root, pack_hash, archive_hash)),
         flush=True,

@@ -66,3 +66,17 @@ class StaleSyncScope(unittest.TestCase):
                 change(app)
                 with self.assertRaises(ValueError):
                     termination_patch(app, self.expected, "new-main")
+
+    def test_only_the_reviewed_writeback_operation_can_use_fallback_recovery(self):
+        self.expected.update(scenario="writeback-fallback", retryCount=0)
+        operation = self.app["status"]["operationState"]
+        operation.update(retryCount=0)
+        operation.pop("retryCount")  # The live API omits the zero value.
+        operation["syncResult"]["revision"] = "0196736b88e5e7de4d57da4b4038d8a299806c48"
+        self.assertEqual(
+            termination_patch(self.app, self.expected, "new-main")["status"],
+            {"operationState": {"phase": "Terminating"}},
+        )
+        operation["syncResult"]["revision"] = "another-deployment"
+        with self.assertRaises(ValueError):
+            termination_patch(self.app, self.expected, "new-main")
