@@ -18,7 +18,14 @@ def command(root, *args, expected=0):
         cwd=root,
         text=True,
         capture_output=True,
-        env={**os.environ, "GIT_CONFIG_NOSYSTEM": "1", "GIT_TERMINAL_PROMPT": "0"},
+        env={
+            **{k: v for k, v in os.environ.items() if not k.startswith("GIT_")},
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_TEMPLATE_DIR": "",
+            "GIT_CONFIG_COUNT": "0",
+            "GIT_TERMINAL_PROMPT": "0",
+        },
     )
     if result.returncode != expected:
         raise RuntimeError(f"{args[0]} failed ({result.returncode}): {result.stderr[:200]}")

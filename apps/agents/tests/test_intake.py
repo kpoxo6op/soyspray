@@ -45,12 +45,15 @@ class IntakeScope(unittest.TestCase):
                 "nodeName": "node-test",
                 "serviceAccountName": "agents-intake-operator",
                 "automountServiceAccountToken": False,
-                "volumes": [{"persistentVolumeClaim": {"claimName": "agents-evidence"}}],
+                "volumes": [
+                    {"name": "evidence", "persistentVolumeClaim": {"claimName": "agents-evidence"}}
+                ],
                 "containers": [
                     {
                         "name": "receiver",
                         "image": self.promotion["image"],
                         "command": ["python3", "/opt/evidence.py", "receive"],
+                        "volumeMounts": [{"name": "evidence", "mountPath": "/evidence"}],
                         "env": [
                             {"name": "PACK_HASH", "value": "a" * 64},
                             {"name": "ARCHIVE_HASH", "value": "c" * 64},
@@ -101,6 +104,22 @@ class IntakeScope(unittest.TestCase):
                 change(pvc, job, pod)
                 with self.assertRaises(ValueError):
                     guard.assert_target(self.promotion, pvc, job, pod)
+
+    def test_receiver_path_and_credentials_cannot_be_substituted(self):
+        # Claim-name checks alone do not prove that /evidence uses that claim,
+        # or exclude manually projected credentials and extra execution paths.
+        changes = [
+            lambda p: p["spec"]["containers"][0]["volumeMounts"][0].update(name="scratch"),
+            lambda p: p["spec"]["containers"][0]["volumeMounts"][0].update(subPath="foreign"),
+            lambda p: p["spec"]["volumes"].append({"name": "token", "projected": {"sources": []}}),
+            lambda p: p["spec"].update(initContainers=[{"name": "other"}]),
+            lambda p: p["spec"]["containers"][0].update(envFrom=[{"secretRef": {"name": "other"}}]),
+        ]
+        for change in changes:
+            pod = copy.deepcopy(self.pod)
+            change(pod)
+            with self.assertRaises(ValueError):
+                guard.assert_target(self.promotion, self.pvc, self.job, pod)
 
 
 if __name__ == "__main__":
