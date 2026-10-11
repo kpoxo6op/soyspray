@@ -220,7 +220,7 @@ def run(args):
     if job.get("status", {}).get("succeeded") == 1:
         report_completed(job, [], noop=True)
         return
-    request = client.V1TokenRequest(
+    request = client.AuthenticationV1TokenRequest(
         spec=client.V1TokenRequestSpec(
             audiences=["https://kubernetes.default.svc.cluster.local"],
             expiration_seconds=1200,
