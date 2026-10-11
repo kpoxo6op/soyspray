@@ -4,7 +4,9 @@ RUN apt-get update && apt-get install --yes --no-install-recommends python3 git 
 COPY app/package.json app/package-lock.json ./
 RUN npm ci
 COPY app/ ./
+COPY tests/test_lab.py ./qa/test_lab.py
 RUN npm run build && npm test
+RUN --network=none AGENTS_LAB_SCRIPT=/build/src/lab.py python3 -I -m unittest discover -s qa -v
 RUN --network=none python3 -I src/lab.py run --root /build/offline-lab \
     && python3 -I src/lab.py verify --root /build/offline-lab \
     && python3 -I src/lab.py cleanup --root /build/offline-lab \

@@ -31,7 +31,8 @@ not constitute WCAG conformance.
 
 Receiver tests own the data boundary: an archive attack or incomplete intake
 must never publish a completed pack. Lab tests own refusal before writes and
-cleanup confinement. Scenario tests own observable effects of the controls.
+cleanup confinement, including rerun after a real process interruption during reset.
+Scenario tests own observable effects of the controls.
 
 ## Ownership and release
 
@@ -54,6 +55,14 @@ it cannot read secrets or mutate workloads. The reviewed operation verifies
 the controller archive, PVC UID, retained PV, Job owner, pod labels, running
 phase, fixed receiver command and image digest before its one fixed transfer.
 No operator shell is invoked, and no token is printed or written to disk.
+
+Production intake is a Sync hook in a wave before the web Deployment. Restore
+intake is a separate PostSync hook on the restore-test claim. Both use fixed
+names, BeforeHookCreation only, a bounded deadline and no TTL. Completed and
+failed Jobs remain for diagnosis until the next declared sync. An identical
+completed pack is fully verified and the receiver exits without opening a
+transfer socket. The operator records Job and Pod UIDs, node, digest, claim/PV,
+completion log and the matching Argo hook result before any subsequent sync.
 
 Run the pushed operation with the repository environment:
 
@@ -87,12 +96,18 @@ old pod serves. Web and receiver Pods keep zero egress; kubelet's Longhorn NFS
 mount path must be proven live without loosening their policy. The restore-test
 claim is distinct and must never be mounted by the web Deployment.
 
-Private text history goes to a private evidence repository with Actions, Pages,
-forks, collaborators, deploy keys and hooks disabled or absent. Media release
+Private backup history goes to a private evidence repository with Actions disabled,
+no Pages, no forks, only the owner as collaborator, no pending invitations,
+deploy keys or hooks, and no GitHub App with all-repositories access. The personal
+account's allow-forking flag cannot be disabled; actual access and fork count
+are checked at backup and restore. Media release
 assets are age-encrypted, with ciphertext hash/size recorded privately. The
-identity stays outside every Git repo with a verified password-manager or
-offline copy. Delivery requires a completed upload, independent download,
-decryption from that second copy, full hash comparison and identical intake
+identity stays outside every Git repo and has a verified local keyring copy
+plus an off-device copy in a dedicated private account folder. That folder has
+no sharing or upload links, collaborators, archive or repository credentials.
+Server listing and a fresh server download prove custody; only hashes are logged.
+Delivery requires a completed encrypted upload, independent download,
+decryption from both recovery copies, full hash comparison and identical intake
 into the protected restore-test claim.
 
 Rollback promotes the previous tested image and manifest ID together. Keep the

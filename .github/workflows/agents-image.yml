@@ -74,6 +74,8 @@ jobs:
           range_url="http://127.0.0.1:4173/evidence/versions/$PACK_HASH/video.mp4"
           test "$(curl -s -H 'Range: bytes=8-15' -o "$RUNNER_TEMP/range" -w '%{http_code}' "$range_url")" = 206
           test "$(cat "$RUNNER_TEMP/range")" = 89abcdef
+          curl --fail --head "$range_url" | tr -d '\r' | grep -qi 'Content-Security-Policy:.*frame-ancestors'
+          curl --fail --head "$range_url" | tr -d '\r' | grep -qi 'Permissions-Policy:.*microphone=()'
           curl --fail --head http://127.0.0.1:4173/ | tr -d '\r' | grep -qi 'Content-Security-Policy:.*frame-ancestors'
       - name: Remove isolated test container
         if: always()

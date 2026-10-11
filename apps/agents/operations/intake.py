@@ -10,13 +10,14 @@ import subprocess
 import sys
 import tempfile
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from evidence import digest, install
 
 
-def assert_target(promotion, pvc, job, pod):
+def assert_target(promotion, pvc, job, pod, allow_completed=False):
     expected_job = promotion["jobName"]
     image = promotion["image"]
     if not re.fullmatch(r"ghcr\.io/kpoxo6op/agents@sha256:[a-f0-9]{64}", image):
@@ -47,8 +48,15 @@ def assert_target(promotion, pvc, job, pod):
         or labels.get("agents.soyspray.vip/pack") != promotion["packHash"][:16]
     ):
         raise ValueError("Pod label mismatch")
-    if pod["status"]["phase"] != "Running" or not pod["spec"].get("nodeName"):
-        raise ValueError("Receiver pod is not running on a node")
+    complete = (
+        allow_completed
+        and pod["status"]["phase"] == "Succeeded"
+        and job.get("status", {}).get("succeeded") == 1
+    )
+    if (pod["status"]["phase"] != "Running" and not complete) or not pod["spec"].get("nodeName"):
+        raise ValueError("Receiver pod is not running or a verified completed hook")
+    if pod["spec"].get("serviceAccountName") != "agents-intake-operator":
+        raise ValueError("Receiver service account identity mismatch")
     containers = pod["spec"]["containers"]
     if (
         len(containers) != 1
@@ -127,11 +135,78 @@ def run(args):
     if len(pods) != 1:
         raise ValueError("Expected exactly one bounded Job pod")
     pod = as_dict(pods[0])
-    assert_target(promotion, pvc, job, pod)
+    assert_target(promotion, pvc, job, pod, allow_completed=True)
+    node = admin_core.read_node(pod["spec"]["nodeName"])
+    if not any(c.type == "Ready" and c.status == "True" for c in node.status.conditions):
+        raise ValueError("Receiver node is not Ready")
+    start = time.monotonic()
+
+    def report_completed(completed, matrix, token_expiration=None, noop=False):
+        log = admin_core.read_namespaced_pod_log(
+            pod["metadata"]["name"], namespace, container="receiver"
+        )
+        result = json.loads(log.strip().splitlines()[-1])
+        if result.get("packHash") != promotion["packHash"] or result.get("status") not in (
+            "installed",
+            "already-identical",
+        ):
+            raise ValueError("Receiver completion log does not prove the pinned pack")
+        if noop and result["status"] != "already-identical":
+            raise ValueError("Completed hook is not an identical no-op")
+        custom = client.CustomObjectsApi()
+        app = None
+        for _ in range(30):
+            app = custom.get_namespaced_custom_object(
+                "argoproj.io", "v1alpha1", "argocd", "applications", "agents"
+            )
+            operation = app.get("status", {}).get("operationState", {})
+            hooks = operation.get("syncResult", {}).get("resources", [])
+            if any(
+                h.get("kind") == "Job"
+                and h.get("name") == promotion["jobName"]
+                and h.get("hookPhase") == "Succeeded"
+                for h in hooks
+            ):
+                break
+            time.sleep(1)
+        else:
+            raise ValueError("Argo has not recorded the hook's successful completion")
+        report = {
+            "sourceRevision": revision,
+            "jobName": promotion["jobName"],
+            "jobUid": job["metadata"]["uid"],
+            "podUid": pod["metadata"]["uid"],
+            "node": pod["spec"]["nodeName"],
+            "image": promotion["image"],
+            "pvcUid": pvc["metadata"]["uid"],
+            "boundPV": pvc["spec"]["volumeName"],
+            "pvReclaimPolicy": "Retain",
+            "packHash": promotion["packHash"],
+            "archiveHash": promotion["archiveHash"],
+            "bytes": promotion["archiveBytes"],
+            "tokenPersisted": False,
+            "tokenExpiration": token_expiration,
+            "rbac": matrix,
+            "jobComplete": True,
+            "noop": noop,
+            "execPerformed": not noop,
+            "startTime": completed.get("status", {}).get("startTime"),
+            "completionTime": completed.get("status", {}).get("completionTime"),
+            "receiverResult": result,
+            "argoOperationState": operation,
+            "elapsedSeconds": round(time.monotonic() - start, 2),
+        }
+        args.report.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        args.report.write_text(json.dumps(report, indent=2) + "\n")
+        args.report.chmod(0o600)
+
+    if job.get("status", {}).get("succeeded") == 1:
+        report_completed(job, [], noop=True)
+        return
     request = client.V1TokenRequest(
         spec=client.V1TokenRequestSpec(
             audiences=["https://kubernetes.default.svc.cluster.local"],
-            expiration_seconds=1800,
+            expiration_seconds=1200,
             bound_object_ref=client.V1BoundObjectReference(
                 api_version="v1",
                 kind="Pod",
@@ -143,6 +218,9 @@ def run(args):
     issued = admin_core.create_namespaced_service_account_token(
         "agents-intake-operator", namespace, request
     )
+    remaining = (issued.status.expiration_timestamp - datetime.now(timezone.utc)).total_seconds()
+    if not 0 < remaining <= 1800:
+        raise ValueError("Server-issued token lifetime exceeds the reviewed bound")
     operator = copy.deepcopy(admin_configuration)
     operator.api_key = {"authorization": issued.status.token}
     operator.api_key_prefix = {"authorization": "Bearer"}
@@ -195,7 +273,6 @@ def run(args):
     current_pod = as_dict(core.read_namespaced_pod(pod["metadata"]["name"], namespace))
     current_job = as_dict(batch.read_namespaced_job(promotion["jobName"], namespace))
     assert_target(promotion, pvc, current_job, current_pod)
-    start = time.monotonic()
     channel = stream(
         core.connect_post_namespaced_pod_exec,
         pod["metadata"]["name"],
@@ -224,27 +301,12 @@ def run(args):
         channel.close()
     # Credential goes out of scope; TokenRequest is pod-bound and expires within 30 minutes.
     for _ in range(120):
-        status = batch.read_namespaced_job(promotion["jobName"], namespace).status
-        if status.failed:
+        completed = as_dict(batch.read_namespaced_job(promotion["jobName"], namespace))
+        status = completed.get("status", {})
+        if status.get("failed"):
             raise ValueError("Receiver rejected the transferred pack")
-        if status.succeeded:
-            report = {
-                "sourceRevision": revision,
-                "jobName": promotion["jobName"],
-                "podUid": pod["metadata"]["uid"],
-                "pvcUid": pvc["metadata"]["uid"],
-                "pvReclaimPolicy": "Retain",
-                "packHash": promotion["packHash"],
-                "archiveHash": promotion["archiveHash"],
-                "bytes": promotion["archiveBytes"],
-                "tokenPersisted": False,
-                "tokenExpiration": issued.status.expiration_timestamp.isoformat(),
-                "rbac": matrix,
-                "jobComplete": True,
-                "elapsedSeconds": round(time.monotonic() - start, 2),
-            }
-            args.report.parent.mkdir(parents=True, exist_ok=True)
-            args.report.write_text(json.dumps(report, indent=2) + "\n")
+        if status.get("succeeded"):
+            report_completed(completed, matrix, issued.status.expiration_timestamp.isoformat())
             return
         time.sleep(3)
     raise ValueError("Receiver did not complete within six minutes")

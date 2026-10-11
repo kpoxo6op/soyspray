@@ -2,15 +2,18 @@ import hashlib
 import io
 import json
 import multiprocessing
+import os
 import sys
 import tarfile
 import tempfile
 import time
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from evidence import digest, install, manifest, verify
+from evidence import digest, install, manifest, receive, verify
 from pack import pack
 
 
@@ -107,6 +110,23 @@ class EvidenceContract(unittest.TestCase):
                     self.intake(self.malformed(attack))
                 self.assertFalse((self.volume / "versions" / self.identity["packHash"]).exists())
                 self.assertFalse((self.root / "outside").exists())
+
+    def test_completed_hook_retry_exits_without_opening_transfer_socket(self):
+        self.intake()
+        output = io.StringIO()
+        with (
+            patch.dict(
+                os.environ,
+                {
+                    "PACK_HASH": self.identity["packHash"],
+                    "ARCHIVE_HASH": self.identity["archiveHash"],
+                },
+            ),
+            patch("evidence.socket.socket", side_effect=AssertionError("no transfer allowed")),
+            redirect_stdout(output),
+        ):
+            receive(self.volume)
+        self.assertEqual(json.loads(output.getvalue())["status"], "already-identical")
 
     def test_manifest_identity_and_total_are_checked(self):
         doc = json.loads((self.source / "manifest.json").read_bytes())

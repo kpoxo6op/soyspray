@@ -1,34 +1,93 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
-  <meta name="description" content="A practical workshop on coding-agent verification, coordination and safe delivery.">
-  <title>Agent workshop · Soyspray</title>
-  <link rel="stylesheet" href="style.css">
-  <script type="module" src="main.js"></script>
-</head>
-<body>
-  <a class="skip" href="#main">Skip to content</a>
-  <header class="topbar">
-    <a class="brand" href="#start"><span class="brand-mark" aria-hidden="true">↗</span><span>SOYSPRAY <small>AGENT WORKSHOP</small></span></a>
-    <div class="settings">
-      <label>Depth <select id="depth"><option value="practitioner">Practitioner</option><option value="basics">+ Basics</option><option value="deep">+ Deep</option></select></label>
-      <label>Theme <select id="theme"><option value="auto">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
-      <button id="search-open">Search <kbd>/</kbd></button>
-    </div>
-  </header>
-  <nav class="primary" aria-label="Workshop areas">
-    <a href="#start">Start</a><a href="#talk">Talk</a><a href="#lessons">Lessons</a><a href="#simulator">Simulator</a><a href="#lab">Lab</a><a href="#ledger">Ledger</a>
-  </nav>
-  <main id="main" tabindex="-1"><p class="loading">Loading the workshop…</p></main>
-  <aside id="mini-player" class="mini-player" hidden aria-label="Replay controls">
-    <button id="mini-play">Play</button><span id="mini-time">00:00</span><a href="#talk">Open replay</a><button id="mini-hide" aria-label="Hide replay controls">×</button>
-  </aside>
-  <footer><span>Private learning workspace · no cloud calls</span><span>Settings and progress stay in this browser.</span></footer>
-  <dialog id="search-dialog" aria-labelledby="search-title"><div class="dialog-head"><h2 id="search-title">Find in the workshop</h2><button data-close aria-label="Close search">×</button></div><label for="search-query">Search lessons, transcripts, frames and glossary</label><input id="search-query" type="search" autocomplete="off"><div id="search-results" aria-live="polite"></div></dialog>
-  <dialog id="frame-dialog" aria-labelledby="frame-title"><div class="dialog-head"><h2 id="frame-title">Keyframe</h2><button data-close aria-label="Close keyframe">×</button></div><div id="frame-detail"></div></dialog>
-  <noscript>This workshop needs JavaScript for replay navigation and the local simulator. It makes no remote model calls.</noscript>
-</body>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="color-scheme" content="light dark" />
+        <meta
+            name="description"
+            content="A practical workshop on coding-agent verification, coordination and safe delivery."
+        />
+        <title>Agent workshop · Soyspray</title>
+        <link rel="stylesheet" href="style.css" />
+        <script type="module" src="main.js"></script>
+    </head>
+    <body>
+        <a class="skip" href="#main">Skip to content</a>
+        <header class="topbar">
+            <a class="brand" href="#start"
+                ><span class="brand-mark" aria-hidden="true">↗</span
+                ><span>SOYSPRAY <small>AGENT WORKSHOP</small></span></a
+            >
+            <div class="settings">
+                <label
+                    >Depth
+                    <select id="depth">
+                        <option value="practitioner">Practitioner</option>
+                        <option value="basics">+ Basics</option>
+                        <option value="deep">+ Deep</option>
+                    </select></label
+                >
+                <label
+                    >Theme
+                    <select id="theme">
+                        <option value="auto">System</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select></label
+                >
+                <button id="search-open">Search <kbd>/</kbd></button>
+            </div>
+        </header>
+        <nav class="primary" aria-label="Workshop areas">
+            <a href="#start">Start</a><a href="#talk">Talk</a
+            ><a href="#lessons">Lessons</a><a href="#simulator">Simulator</a
+            ><a href="#lab">Lab</a><a href="#ledger">Ledger</a>
+        </nav>
+        <main id="main" tabindex="-1">
+            <p class="loading">Loading the workshop…</p>
+        </main>
+        <aside
+            id="mini-player"
+            class="mini-player"
+            hidden
+            aria-label="Replay controls"
+        >
+            <button id="mini-play">Play</button><span id="mini-time">00:00</span
+            ><a href="#talk">Open replay</a
+            ><button id="mini-hide" aria-label="Hide replay controls">×</button>
+        </aside>
+        <div
+            id="description-announcement"
+            class="description-text"
+            role="status"
+            aria-live="polite"
+            hidden
+        ></div>
+        <footer>
+            <span>Private learning workspace · no cloud calls</span
+            ><span>Settings and progress stay in this browser.</span>
+        </footer>
+        <dialog id="search-dialog" aria-labelledby="search-title">
+            <div class="dialog-head">
+                <h2 id="search-title">Find in the workshop</h2>
+                <button data-close aria-label="Close search">×</button>
+            </div>
+            <label for="search-query"
+                >Search lessons, transcripts, frames and glossary</label
+            ><input id="search-query" type="search" autocomplete="off" />
+            <div id="search-results" aria-live="polite"></div>
+        </dialog>
+        <dialog id="frame-dialog" aria-labelledby="frame-title">
+            <div class="dialog-head">
+                <h2 id="frame-title">Keyframe</h2>
+                <button data-close aria-label="Close keyframe">×</button>
+            </div>
+            <div id="frame-detail"></div>
+        </dialog>
+        <noscript
+            >This workshop needs JavaScript for replay navigation and the local
+            simulator. It makes no remote model calls.</noscript
+        >
+    </body>
 </html>

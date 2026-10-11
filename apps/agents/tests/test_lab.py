@@ -1,10 +1,14 @@
+import os
+import select
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-LAB = Path(__file__).resolve().parents[1] / "app/src/lab.py"
+LAB = Path(
+    os.environ.get("AGENTS_LAB_SCRIPT", Path(__file__).resolve().parents[1] / "app/src/lab.py")
+)
 
 
 class LabContract(unittest.TestCase):
@@ -37,6 +41,45 @@ class LabContract(unittest.TestCase):
         result = self.call()
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(list(self.root.iterdir()), [sentinel])
+
+    def test_killed_mid_reset_can_rerun_verify_and_cleanup(self):
+        self.assertEqual(self.call().returncode, 0)
+        sentinel = self.parent / "outside"
+        sentinel.write_text("preserve")
+        wrapper = self.parent / "interrupt.py"
+        wrapper.write_text(
+            "import importlib.util, os, signal, sys\n"
+            "from pathlib import Path\n"
+            "spec=importlib.util.spec_from_file_location('lab', sys.argv[1])\n"
+            "lab=importlib.util.module_from_spec(spec); spec.loader.exec_module(lab)\n"
+            "remove=lab.shutil.rmtree\n"
+            "def interrupt(path):\n"
+            " remove(path)\n"
+            " if path.name=='wt-a':\n"
+            "  print('reset-paused', file=sys.stderr, flush=True)\n"
+            "  os.kill(os.getpid(), signal.SIGSTOP)\n"
+            "lab.shutil.rmtree=interrupt\n"
+            "lab.run(Path(sys.argv[2]))\n"
+        )
+        process = subprocess.Popen(
+            [sys.executable, "-I", str(wrapper), str(LAB), str(self.root)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        self.addCleanup(lambda: process.poll() is None and process.kill())
+        ready, _, _ = select.select([process.stderr], [], [], 10)
+        self.assertTrue(ready, "reset failed to reach interruption point")
+        line = process.stderr.readline()
+        self.assertEqual(line.strip(), b"reset-paused")
+        process.kill()
+        process.communicate(timeout=10)
+        self.assertTrue((self.root / "repo/.git").exists())
+        self.assertFalse((self.root / "wt-a").exists())
+        for action in ["run", "verify", "cleanup"]:
+            result = self.call(action)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(sentinel.read_text(), "preserve")
+        self.assertFalse(self.root.exists())
 
     def test_remote_and_symlink_refuse_before_any_write(self):
         subprocess.run(["git", "init", "-q", str(self.parent)], check=True)

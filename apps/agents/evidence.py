@@ -233,8 +233,23 @@ def install(archive, volume, pack_hash, archive_hash):
     }
 
 
-def receive():
+def receive(root=Path("/evidence")):
     pack_hash, archive_hash = expected("PACK_HASH"), expected("ARCHIVE_HASH")
+    final = root / "versions" / pack_hash
+    if final.exists():
+        doc = verify(final, pack_hash)
+        print(
+            json.dumps(
+                {
+                    "status": "already-identical",
+                    "packHash": pack_hash,
+                    "files": doc["fileCount"],
+                    "bytes": doc["totalBytes"],
+                }
+            ),
+            flush=True,
+        )
+        return
     sockpath = "/tmp/evidence-intake.sock"
     with socket.socket(socket.AF_UNIX) as server:
         server.bind(sockpath)
@@ -252,7 +267,7 @@ def receive():
             output.flush()
             os.fsync(output.fileno())
     print(
-        json.dumps(install(Path("/tmp/intake.tar"), Path("/evidence"), pack_hash, archive_hash)),
+        json.dumps(install(Path("/tmp/intake.tar"), root, pack_hash, archive_hash)),
         flush=True,
     )
 

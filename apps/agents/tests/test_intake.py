@@ -43,6 +43,7 @@ class IntakeScope(unittest.TestCase):
             },
             "spec": {
                 "nodeName": "node-test",
+                "serviceAccountName": "agents-intake-operator",
                 "automountServiceAccountToken": False,
                 "volumes": [{"persistentVolumeClaim": {"claimName": "agents-evidence"}}],
                 "containers": [
@@ -64,9 +65,19 @@ class IntakeScope(unittest.TestCase):
     def test_matching_receiver_is_accepted(self):
         guard.assert_target(self.promotion, self.pvc, self.job, self.pod)
 
+    def test_completed_hook_is_accepted_only_when_both_job_and_pod_succeeded(self):
+        self.pod["status"]["phase"] = "Succeeded"
+        with self.assertRaises(ValueError):
+            guard.assert_target(self.promotion, self.pvc, self.job, self.pod, allow_completed=True)
+        self.job["status"] = {"succeeded": 1}
+        guard.assert_target(self.promotion, self.pvc, self.job, self.pod, allow_completed=True)
+        with self.assertRaises(ValueError):
+            guard.assert_target(self.promotion, self.pvc, self.job, self.pod)
+
     def test_wrong_identity_or_authority_aborts_before_exec(self):
         # The receiver tests cannot own controller pod selection or namespace capability guards.
         changes = [
+            lambda pvc, job, pod: pod["spec"].update(serviceAccountName="foreign"),
             lambda pvc, job, pod: pvc["metadata"].update(uid="foreign-claim"),
             lambda pvc, job, pod: pod["metadata"]["ownerReferences"][0].update(uid="foreign-job"),
             lambda pvc, job, pod: pod["metadata"]["labels"].update(

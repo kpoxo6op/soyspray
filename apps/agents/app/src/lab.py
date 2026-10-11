@@ -65,15 +65,15 @@ def run(root):
     ownership(root, create=True)
     print("PREFLIGHT: owned root; no symlinks or Git remotes; stub agents only")
     repo = root / "repo"
-    if repo.exists():
-        # Only our disposable repo is reset; evidence logs are retained until this run finishes.
-        shutil.rmtree(repo)
     for child in ("wt-a", "wt-b", "claims"):
         path = root / child
         if path.exists():
             if path.is_symlink():
                 raise RuntimeError("Unexpected symlink in lab")
             shutil.rmtree(path)
+    if repo.exists():
+        # Remove linked worktrees first so interruption cannot leave broken gitdir links.
+        shutil.rmtree(repo)
     repo.mkdir()
     command(repo, "git", "init", "-q", "-b", "main")
     command(repo, "git", "config", "--local", "user.name", "lab")
@@ -130,9 +130,9 @@ def run(root):
     check.write_text(
         "from pathlib import Path\nimport sys\nbad=any('main/' in p.read_text() for p in Path('renderer').glob('*.sh'))\nprint('FAIL-boundary' if bad else 'PASS-boundary')\nsys.exit(1 if bad else 0)\n"
     )
-    command(repo, sys.executable, str(check))
+    command(repo, sys.executable, "-I", str(check))
     (repo / "renderer/view.sh").write_text(". ../main/heavy.sh\necho draw\n")
-    command(repo, sys.executable, str(check), expected=1)
+    command(repo, sys.executable, "-I", str(check), expected=1)
     results.append({"step": "boundary", "result": "PASS allowed path; BLOCKED shortcut import"})
     print("RETRY: atomic mkdir claims/R7 succeeds once; repeated claim is skipped")
     claims = root / "claims"
