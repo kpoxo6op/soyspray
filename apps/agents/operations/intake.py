@@ -113,6 +113,37 @@ def pushed(root):
     return head
 
 
+def token_request(pod):
+    from kubernetes import client
+
+    return client.AuthenticationV1TokenRequest(
+        spec=client.V1TokenRequestSpec(
+            audiences=["https://kubernetes.default.svc.cluster.local"],
+            expiration_seconds=1200,
+            bound_object_ref=client.V1BoundObjectReference(
+                api_version="v1",
+                kind="Pod",
+                name=pod["metadata"]["name"],
+                uid=pod["metadata"]["uid"],
+            ),
+        )
+    )
+
+
+def operator_configuration(base, token):
+    operator = copy.deepcopy(base)
+    operator.debug = False
+    operator.api_key = {"BearerToken": token}
+    operator.api_key_prefix = {"BearerToken": "Bearer"}
+    operator.cert_file = operator.key_file = None
+    operator.username = operator.password = None
+    operator.refresh_api_key_hook = None
+    auth = operator.auth_settings().get("BearerToken", {})
+    if auth.get("key") != "authorization" or auth.get("value") != "Bearer " + token:
+        raise ValueError("Installed SDK does not attach the scoped credential correctly")
+    return operator
+
+
 def run(args):
     from kubernetes.stream import stream
 
@@ -220,31 +251,14 @@ def run(args):
     if job.get("status", {}).get("succeeded") == 1:
         report_completed(job, [], noop=True)
         return
-    request = client.AuthenticationV1TokenRequest(
-        spec=client.V1TokenRequestSpec(
-            audiences=["https://kubernetes.default.svc.cluster.local"],
-            expiration_seconds=1200,
-            bound_object_ref=client.V1BoundObjectReference(
-                api_version="v1",
-                kind="Pod",
-                name=pod["metadata"]["name"],
-                uid=pod["metadata"]["uid"],
-            ),
-        )
-    )
+    request = token_request(pod)
     issued = admin_core.create_namespaced_service_account_token(
         "agents-intake-operator", namespace, request
     )
     remaining = (issued.status.expiration_timestamp - datetime.now(timezone.utc)).total_seconds()
     if not 0 < remaining <= 1800:
         raise ValueError("Server-issued token lifetime exceeds the reviewed bound")
-    operator = copy.deepcopy(admin_configuration)
-    operator.debug = False
-    operator.api_key = {"authorization": issued.status.token}
-    operator.api_key_prefix = {"authorization": "Bearer"}
-    operator.cert_file = operator.key_file = None
-    operator.username = operator.password = None
-    operator.refresh_api_key_hook = None
+    operator = operator_configuration(admin_configuration, issued.status.token)
     api = client.ApiClient(operator)
     auth = client.AuthorizationV1Api(api)
     matrix = []
