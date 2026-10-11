@@ -1,0 +1,91 @@
+name: Agent workshop image
+
+on:
+  push:
+    branches: [main]
+    paths: [apps/agents/**, .github/workflows/agents-image.yml]
+  pull_request:
+    paths: [apps/agents/**, .github/workflows/agents-image.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agents-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/kpoxo6op/agents
+      IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check data boundaries and build immutable runtime
+        run: |
+          python3 -m pip install PyYAML==6.0.3
+          python3 -m unittest discover -s apps/agents/tests -v
+          ! grep -R -F 'FIXTURE' apps/agents/app/src
+          docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" --tag "$IMAGE:$IMAGE_TAG" apps/agents
+      - name: Preserve the built image for a private release scan
+        run: docker save --output "$RUNNER_TEMP/agents-runtime.tar" "$IMAGE:$IMAGE_TAG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agents-runtime-image
+          path: ${{ runner.temp }}/agents-runtime.tar
+          retention-days: 3
+      - name: Check actual HTTP entrypoint and media headers
+        run: |
+          mkdir -p "$RUNNER_TEMP/pack" "$RUNNER_TEMP/evidence"
+          printf '{"schemaVersion":1}\n' > "$RUNNER_TEMP/pack/index.json"
+          printf 'WEBVTT\n\n' > "$RUNNER_TEMP/pack/transcript.vtt"
+          printf '0123456789abcdef' > "$RUNNER_TEMP/pack/video.mp4"
+          python3 apps/agents/pack.py "$RUNNER_TEMP/pack" "$RUNNER_TEMP/check.tar" > "$RUNNER_TEMP/pack-id.json"
+          export PACK_HASH="$(python3 -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"]+"/pack-id.json"))["packHash"])')"
+          python3 - "$RUNNER_TEMP" <<'PY'
+          import json, pathlib, sys
+          sys.path.insert(0, 'apps/agents')
+          from evidence import install
+          root = pathlib.Path(sys.argv[1])
+          identity = json.loads((root/'pack-id.json').read_text())
+          install(root/'check.tar', root/'evidence', identity['packHash'], identity['archiveHash'])
+          PY
+          docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
+            -e PACK_HASH --mount "type=bind,src=$RUNNER_TEMP/evidence,dst=/evidence,readonly" \
+            --entrypoint python3 "$IMAGE:$IMAGE_TAG" /opt/evidence.py verify
+          docker run --detach --name agents-image-check --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --tmpfs /tmp:rw,size=16m,uid=101,gid=101 \
+            -e PACK_HASH --mount "type=bind,src=$RUNNER_TEMP/evidence,dst=/evidence,readonly" \
+            -p 127.0.0.1:4173:8080 "$IMAGE:$IMAGE_TAG"
+          curl --fail --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:4173/ -o "$RUNNER_TEMP/index.html"
+          curl --fail http://127.0.0.1:4173/main.js -o "$RUNNER_TEMP/main.js"
+          curl --fail http://127.0.0.1:4173/style.css -o "$RUNNER_TEMP/style.css"
+          curl --fail http://127.0.0.1:4173/config.json -o "$RUNNER_TEMP/config.json"
+          test -s "$RUNNER_TEMP/index.html"
+          test -s "$RUNNER_TEMP/main.js"
+          test -s "$RUNNER_TEMP/style.css"
+          test "$(curl -s -o /dev/null -w '%{content_type}' "http://127.0.0.1:4173/evidence/versions/$PACK_HASH/transcript.vtt")" = text/vtt
+          range_url="http://127.0.0.1:4173/evidence/versions/$PACK_HASH/video.mp4"
+          test "$(curl -s -H 'Range: bytes=8-15' -o "$RUNNER_TEMP/range" -w '%{http_code}' "$range_url")" = 206
+          test "$(cat "$RUNNER_TEMP/range")" = 89abcdef
+          curl --fail --head "$range_url" | tr -d '\r' | grep -qi 'Content-Security-Policy:.*frame-ancestors'
+          curl --fail --head "$range_url" | tr -d '\r' | grep -qi 'Permissions-Policy:.*microphone=()'
+          curl --fail --head http://127.0.0.1:4173/ | tr -d '\r' | grep -qi 'Content-Security-Policy:.*frame-ancestors'
+      - name: Remove isolated test container
+        if: always()
+        run: docker rm --force agents-image-check || true
+      - name: Publish tested image for separate promotion
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE:$IMAGE_TAG"
+          digest="$(docker image inspect "$IMAGE:$IMAGE_TAG" --format '{{index .RepoDigests 0}}')"
+          printf 'Tested image: `%s`\nSource: `%s`\n' "$digest" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"

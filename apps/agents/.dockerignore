@@ -1,0 +1,9 @@
+app/node_modules
+app/dist
+app/test-results
+**/__pycache__
+manifests
+argocd
+operations
+tests/*
+!tests/test_lab.py

@@ -1,0 +1,14 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: agents-evidence-rwx-retain
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    storageclass.kubernetes.io/is-default-class: 'false'
+provisioner: driver.longhorn.io
+parameters:
+  numberOfReplicas: '3'
+  share: 'true'
+allowVolumeExpansion: true
+volumeBindingMode: Immediate
+reclaimPolicy: Retain
