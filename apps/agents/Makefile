@@ -9,9 +9,11 @@ check:
 	cd $(ROOT) && kubectl kustomize apps/agents/storage >/dev/null
 	cd $(ROOT) && kubectl kustomize apps/agents/provision >/dev/null
 	cd $(ROOT) && kubectl kustomize apps/agents/argocd-provision >/dev/null
+	cd $(ROOT) && kubectl kustomize apps/agents/manifests >/dev/null
+	cd $(ROOT) && kubectl kustomize apps/agents/argocd >/dev/null
 
 diff:
-	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app agents --package apps/agents/provision
+	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app agents --package apps/agents/manifests
 
 smoke:
 	@printf 'unknown: inspect replay, captions, range seeking and controls from a tailnet device.\n'; exit 2

@@ -41,3 +41,4 @@ resources:
   - catalog/voice-assistant.yaml
   - catalog/zigbee2mqtt.yaml
   - ../apps/agents/argocd-provision
+  - ../apps/agents/argocd

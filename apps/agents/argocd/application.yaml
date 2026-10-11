@@ -1,0 +1,61 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: agents
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: '-10'
+spec:
+  description: Private agent workshop runtime, evidence claims provisioned separately.
+  sourceRepos:
+  - https://github.com/kpoxo6op/soyspray.git
+  destinations:
+  - server: https://kubernetes.default.svc
+    namespace: agents
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+  - group: apps
+    kind: Deployment
+  - group: batch
+    kind: Job
+  - group: ''
+    kind: Service
+  - group: networking.k8s.io
+    kind: Ingress
+  - group: networking.k8s.io
+    kind: NetworkPolicy
+  - group: monitoring.coreos.com
+    kind: PrometheusRule
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agents
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: agents
+    soyspray.vip/owner: platform
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-url: https://agents.soyspray.vip
+    soyspray.vip/access-method: Private Tailscale split DNS and LAN ingress; no public
+      DNS or tunnel
+    soyspray.vip/data: Two protected evidence claims; immutable versioned packs
+    soyspray.vip/backup: Private encrypted evidence repository and verified off-device
+      key custody
+spec:
+  project: agents
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: main
+    path: apps/agents/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: agents
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - PruneLast=true
