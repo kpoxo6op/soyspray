@@ -5,4 +5,5 @@ app/test-results
 manifests
 argocd
 operations
-tests
+tests/*
+!tests/test_lab.py
