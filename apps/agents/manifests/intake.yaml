@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: agents-intake-b2c592fc681e43f4
+  name: agents-intake-1f1852009efe9d50
   labels:
     app.kubernetes.io/name: agents
     app.kubernetes.io/part-of: agents
@@ -12,13 +12,13 @@ metadata:
     agents.soyspray.vip/pvc-uid: 90f7d0c7-2090-4269-942e-961d9ceb95d1
 spec:
   backoffLimit: 0
-  activeDeadlineSeconds: 60
+  activeDeadlineSeconds: 1800
   template:
     metadata:
       labels:
         app.kubernetes.io/name: agents-intake
         app.kubernetes.io/part-of: agents
-        agents.soyspray.vip/pack: b2c592fc681e43f4
+        agents.soyspray.vip/pack: 1f1852009efe9d50
     spec:
       serviceAccountName: agents-intake-operator
       automountServiceAccountToken: false
@@ -42,11 +42,11 @@ spec:
         - receive
         env:
         - name: PACK_HASH
-          value: b2c592fc681e43f4076c91c0bba9b8b684721b1423140db61fb1eeba3b5ae95b
+          value: 1f1852009efe9d501516e9c6f42f7ef40a9b30a6eb8a0a0cf7ab93909e980ac6
         - name: ARCHIVE_HASH
-          value: b1d2cc7621b8570c585925498ff8e2dc450bfca6ef909755ea2d8474a396ec3b
+          value: 0b7d9e7a822d2228497a339fa851e8a7b62732d686e1bdaa7d6c1303b3c05ce9
         - name: ARCHIVE_BYTES
-          value: '10240'
+          value: '533606400'
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true

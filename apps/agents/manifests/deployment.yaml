@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/part-of: agents
   annotations:
     argocd.argoproj.io/sync-wave: '0'
-    agents.soyspray.vip/release-check: production-failure-v1
+    agents.soyspray.vip/release-check: rollback-v1
 spec:
   replicas: 1
   revisionHistoryLimit: 3
@@ -25,7 +25,7 @@ spec:
         app.kubernetes.io/name: agents
         app.kubernetes.io/part-of: agents
       annotations:
-        agents.soyspray.vip/pack: b2c592fc681e43f4076c91c0bba9b8b684721b1423140db61fb1eeba3b5ae95b
+        agents.soyspray.vip/pack: 1f1852009efe9d501516e9c6f42f7ef40a9b30a6eb8a0a0cf7ab93909e980ac6
         agents.soyspray.vip/pvc-uid: 90f7d0c7-2090-4269-942e-961d9ceb95d1
     spec:
       automountServiceAccountToken: false
@@ -45,7 +45,7 @@ spec:
         - verify
         env: &id001
         - name: PACK_HASH
-          value: b2c592fc681e43f4076c91c0bba9b8b684721b1423140db61fb1eeba3b5ae95b
+          value: 1f1852009efe9d501516e9c6f42f7ef40a9b30a6eb8a0a0cf7ab93909e980ac6
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
