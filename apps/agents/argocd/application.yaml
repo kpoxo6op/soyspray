@@ -54,6 +54,8 @@ spec:
     server: https://kubernetes.default.svc
     namespace: agents
   syncPolicy:
+    retry:
+      limit: 0
     automated:
       prune: true
       selfHeal: true

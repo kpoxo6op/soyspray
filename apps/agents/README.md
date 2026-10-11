@@ -62,7 +62,9 @@ and checked with the issued credential before transfer.
 Production intake is a Sync hook in a wave before the web Deployment. Restore
 intake is a separate PostSync hook on the restore-test claim. Both use fixed
 names, BeforeHookCreation only, a bounded deadline and no TTL. Completed and
-failed Jobs remain for diagnosis until the next declared sync. An identical
+failed Jobs remain for diagnosis until the next declared sync. Automated sync retries
+are disabled after the measured rollout: a failed sync needs a new declared
+commit to recover, preserving its diagnostic evidence in the meantime. An identical
 completed pack is fully verified and the receiver exits without opening a
 transfer socket. The operator records Job and Pod UIDs, node, digest, claim/PV,
 completion log and the matching Argo hook result before any subsequent sync.
