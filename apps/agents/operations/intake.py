@@ -164,6 +164,21 @@ def stream_archive(channel, archive, timeout=120):
         raise ValueError("Fixed intake sender did not exit successfully")
 
 
+def receiver_result(core, name, namespace):
+    # The SDK's str deserializer parses JSON then stringifies the resulting dict.
+    # Read the actual log bytes so single-line receiver JSON stays valid JSON.
+    response = core.read_namespaced_pod_log(
+        name, namespace, container="receiver", _preload_content=False
+    )
+    try:
+        data = response.read(4097)
+    finally:
+        response.release_conn()
+    if len(data) > 4096:
+        raise ValueError("Receiver completion log exceeds the reviewed bound")
+    return json.loads(data.decode("utf-8").strip().splitlines()[-1])
+
+
 def run(args):
     from kubernetes.stream import stream
 
@@ -210,10 +225,7 @@ def run(args):
     start = time.monotonic()
 
     def report_completed(completed, matrix, token_expiration=None):
-        log = admin_core.read_namespaced_pod_log(
-            pod["metadata"]["name"], namespace, container="receiver"
-        )
-        result = json.loads(log.strip().splitlines()[-1])
+        result = receiver_result(admin_core, pod["metadata"]["name"], namespace)
         if result.get("packHash") != promotion["packHash"] or result.get("status") not in (
             "installed",
             "already-identical",

@@ -12,7 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from kubernetes.stream.ws_client import WSClient
-from operations.intake import stream_archive
+from operations.intake import receiver_result, stream_archive
 
 from kubernetes import client
 
@@ -22,6 +22,14 @@ class ExecPeer(BaseHTTPRequestHandler):
         pass
 
     def do_GET(self):
+        if self.path.split("?", 1)[0].endswith("/log"):
+            body = json.dumps({"status": "installed", "packHash": "a" * 64}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         key = self.headers["Sec-WebSocket-Key"]
         accept = base64.b64encode(
             hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest()
@@ -85,3 +93,22 @@ class IntakeStream(unittest.TestCase):
     def test_protocol_without_half_close_is_rejected_before_transfer(self):
         with self.assertRaisesRegex(ValueError, "half-close"):
             stream_archive(SimpleNamespace(subprotocol="v4.channel.k8s.io"), Path("unused"))
+
+    def test_pinned_sdk_receiver_log_keeps_wire_json_intact(self):
+        server = HTTPServer(("127.0.0.1", 0), ExecPeer)
+        worker = threading.Thread(target=server.serve_forever, daemon=True)
+        worker.start()
+        config = client.Configuration()
+        config.host = f"http://127.0.0.1:{server.server_port}"
+        config.no_proxy = "127.0.0.1,localhost"
+        api = client.ApiClient(config)
+        try:
+            self.assertEqual(
+                receiver_result(client.CoreV1Api(api), "receiver", "agents"),
+                {"status": "installed", "packHash": "a" * 64},
+            )
+        finally:
+            api.close()
+            server.shutdown()
+            server.server_close()
+            worker.join(timeout=3)

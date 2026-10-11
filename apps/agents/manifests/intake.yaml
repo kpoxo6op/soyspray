@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: agents-intake-880a889d82ebf090
+  name: agents-intake-1f1852009efe9d50
   labels:
     app.kubernetes.io/name: agents
     app.kubernetes.io/part-of: agents
@@ -18,7 +18,7 @@ spec:
       labels:
         app.kubernetes.io/name: agents-intake
         app.kubernetes.io/part-of: agents
-        agents.soyspray.vip/pack: 880a889d82ebf090
+        agents.soyspray.vip/pack: 1f1852009efe9d50
     spec:
       serviceAccountName: agents-intake-operator
       automountServiceAccountToken: false
@@ -34,7 +34,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
       - name: receiver
-        image: ghcr.io/kpoxo6op/agents@sha256:db81a8b877dd46e776c3aa01d214fa3b56e0871dc4ad4c03e8595372a66e990e
+        image: ghcr.io/kpoxo6op/agents@sha256:41c413d25a2b30877cd7a18271a046b0d5ba383d506f44d43256d77af7b81834
         imagePullPolicy: IfNotPresent
         command:
         - python3
@@ -42,9 +42,9 @@ spec:
         - receive
         env:
         - name: PACK_HASH
-          value: 880a889d82ebf090d296ca6ae127f310c8a1ea3badb4b8224fb4a38ddfe9ee9a
+          value: 1f1852009efe9d501516e9c6f42f7ef40a9b30a6eb8a0a0cf7ab93909e980ac6
         - name: ARCHIVE_HASH
-          value: 235ef16ac1d4d4993d16195df39ef94468fc16c4db0af5c4bcd1148197cc581f
+          value: 0b7d9e7a822d2228497a339fa851e8a7b62732d686e1bdaa7d6c1303b3c05ce9
         - name: ARCHIVE_BYTES
           value: '533606400'
         securityContext:
@@ -76,7 +76,7 @@ spec:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: agents-restore-880a889d82ebf090
+  name: agents-restore-1f1852009efe9d50
   labels:
     app.kubernetes.io/name: agents
     app.kubernetes.io/part-of: agents
@@ -93,7 +93,7 @@ spec:
       labels:
         app.kubernetes.io/name: agents-intake
         app.kubernetes.io/part-of: agents
-        agents.soyspray.vip/pack: 880a889d82ebf090
+        agents.soyspray.vip/pack: 1f1852009efe9d50
     spec:
       serviceAccountName: agents-intake-operator
       automountServiceAccountToken: false
@@ -109,7 +109,7 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
       - name: receiver
-        image: ghcr.io/kpoxo6op/agents@sha256:db81a8b877dd46e776c3aa01d214fa3b56e0871dc4ad4c03e8595372a66e990e
+        image: ghcr.io/kpoxo6op/agents@sha256:41c413d25a2b30877cd7a18271a046b0d5ba383d506f44d43256d77af7b81834
         imagePullPolicy: IfNotPresent
         command:
         - python3
@@ -117,9 +117,9 @@ spec:
         - receive
         env:
         - name: PACK_HASH
-          value: 880a889d82ebf090d296ca6ae127f310c8a1ea3badb4b8224fb4a38ddfe9ee9a
+          value: 1f1852009efe9d501516e9c6f42f7ef40a9b30a6eb8a0a0cf7ab93909e980ac6
         - name: ARCHIVE_HASH
-          value: 235ef16ac1d4d4993d16195df39ef94468fc16c4db0af5c4bcd1148197cc581f
+          value: 0b7d9e7a822d2228497a339fa851e8a7b62732d686e1bdaa7d6c1303b3c05ce9
         - name: ARCHIVE_BYTES
           value: '533606400'
         securityContext:
