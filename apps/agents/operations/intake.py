@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from evidence import digest, install
 
 
-def assert_target(promotion, pvc, job, pod, allow_completed=False):
+def assert_target(promotion, pvc, job, pod, allow_completed=False, memory_limit="1Gi"):
     expected_job = promotion["jobName"]
     image = promotion["image"]
     if not re.fullmatch(r"ghcr\.io/kpoxo6op/agents@sha256:[a-f0-9]{64}", image):
@@ -68,6 +68,8 @@ def assert_target(promotion, pvc, job, pod, allow_completed=False):
         raise ValueError("Pod digest mismatch")
     if containers[0]["command"] != ["python3", "/opt/evidence.py", "receive"]:
         raise ValueError("Receiver command mismatch")
+    if containers[0].get("resources", {}).get("limits", {}).get("memory") != memory_limit:
+        raise ValueError("Receiver memory budget is not the reviewed configuration")
     env = {e["name"]: e.get("value") for e in containers[0].get("env", [])}
     for key, field in [
         ("PACK_HASH", "packHash"),

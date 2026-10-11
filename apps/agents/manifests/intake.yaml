@@ -56,10 +56,10 @@ spec:
         resources:
           requests:
             cpu: 100m
-            memory: 64Mi
+            memory: 128Mi
           limits:
             cpu: '1'
-            memory: 192Mi
+            memory: 1Gi
         volumeMounts:
         - name: evidence
           mountPath: /evidence
@@ -131,10 +131,10 @@ spec:
         resources:
           requests:
             cpu: 100m
-            memory: 64Mi
+            memory: 128Mi
           limits:
             cpu: '1'
-            memory: 192Mi
+            memory: 1Gi
         volumeMounts:
         - name: evidence
           mountPath: /evidence

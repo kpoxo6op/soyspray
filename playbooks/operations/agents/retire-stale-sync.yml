@@ -1,0 +1,26 @@
+---
+- name: Retire only the reviewed obsolete initial agents sync
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Require private reviewed identities and evidence destination
+      ansible.builtin.assert:
+        that:
+          - agents_expected is defined
+          - agents_promotion is defined
+          - agents_report is defined
+    - name: Request guarded native Argo termination without workload mutations
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - "{{ playbook_dir }}/../../../apps/agents/operations/retire_stale_sync.py"
+          - --expected
+          - "{{ agents_expected }}"
+          - --promotion
+          - "{{ agents_promotion }}"
+          - --report
+          - "{{ agents_report }}"
+      changed_when: true
+      no_log: true
