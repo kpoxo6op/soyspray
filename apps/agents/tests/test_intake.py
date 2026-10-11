@@ -122,5 +122,32 @@ class IntakeScope(unittest.TestCase):
                 guard.assert_target(self.promotion, self.pvc, self.job, pod)
 
 
+class InstalledSDKContract(unittest.TestCase):
+    def test_real_sdk_builds_pod_bound_token_and_attaches_only_scoped_bearer(self):
+        # Dict-only pod guards cannot catch SDK model or auth-scheme changes:
+        # a missing bearer header becomes anonymous, while a retained admin
+        # certificate would silently defeat the intended capability boundary.
+        from kubernetes import client
+
+        pod = {"metadata": {"name": "receiver-test", "uid": "receiver-uid"}}
+        body = client.ApiClient().sanitize_for_serialization(guard.token_request(pod))
+        self.assertEqual(body["spec"]["boundObjectRef"]["uid"], "receiver-uid")
+        self.assertEqual(body["spec"]["boundObjectRef"]["kind"], "Pod")
+        self.assertLessEqual(body["spec"]["expirationSeconds"], 1800)
+        base = client.Configuration()
+        base.cert_file, base.key_file = "admin-cert", "admin-key"
+        base.username, base.password = "admin", "admin-password-fixture"
+        base.api_key = {"BearerToken": "admin-token-fixture"}
+        base.debug = True
+        operator = guard.operator_configuration(base, "scoped-token-fixture")
+        auth = operator.auth_settings()["BearerToken"]
+        self.assertEqual(auth["key"], "authorization")
+        self.assertEqual(auth["value"], "Bearer scoped-token-fixture")
+        for field in ("cert_file", "key_file", "username", "password", "refresh_api_key_hook"):
+            self.assertIsNone(getattr(operator, field))
+        self.assertFalse(operator.debug)
+        self.assertEqual(base.cert_file, "admin-cert")
+
+
 if __name__ == "__main__":
     unittest.main()
