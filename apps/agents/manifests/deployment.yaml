@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/part-of: agents
   annotations:
     argocd.argoproj.io/sync-wave: '0'
-    agents.soyspray.vip/release-check: identical-pack-noop-v2
+    agents.soyspray.vip/release-check: restore-failure-v1
 spec:
   replicas: 1
   revisionHistoryLimit: 3
