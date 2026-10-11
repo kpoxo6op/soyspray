@@ -146,6 +146,24 @@ def operator_configuration(base, token):
     return operator
 
 
+def stream_archive(channel, archive, timeout=120):
+    """Send binary bytes and half-close stdin before expecting exec completion."""
+    if channel.subprotocol != "v5.channel.k8s.io":
+        raise ValueError("Intake requires the negotiated stdin half-close protocol")
+    with archive.open("rb") as source:
+        for chunk in iter(lambda: source.read(256 * 1024), b""):
+            if not channel.is_open():
+                raise ValueError("Intake exec closed before transfer finished")
+            channel.write_stdin(chunk)
+            channel.update(timeout=0)
+    channel.close_channel(0)
+    deadline = time.monotonic() + timeout
+    while channel.is_open() and time.monotonic() < deadline:
+        channel.update(timeout=1)
+    if channel.is_open() or channel.returncode != 0:
+        raise ValueError("Fixed intake sender did not exit successfully")
+
+
 def run(args):
     from kubernetes.stream import stream
 
@@ -191,7 +209,7 @@ def run(args):
         raise ValueError("Receiver node is not Ready")
     start = time.monotonic()
 
-    def report_completed(completed, matrix, token_expiration=None, noop=False):
+    def report_completed(completed, matrix, token_expiration=None):
         log = admin_core.read_namespaced_pod_log(
             pod["metadata"]["name"], namespace, container="receiver"
         )
@@ -201,8 +219,6 @@ def run(args):
             "already-identical",
         ):
             raise ValueError("Receiver completion log does not prove the pinned pack")
-        if noop and result["status"] != "already-identical":
-            raise ValueError("Completed hook is not an identical no-op")
         custom = client.CustomObjectsApi()
         app = None
         for _ in range(30):
@@ -238,8 +254,9 @@ def run(args):
             "tokenExpiration": token_expiration,
             "rbac": matrix,
             "jobComplete": True,
-            "noop": noop,
-            "execPerformed": not noop,
+            "noop": result["status"] == "already-identical",
+            "execPerformed": token_expiration is not None,
+            "tokenRequested": token_expiration is not None,
             "startTime": completed.get("status", {}).get("startTime"),
             "completionTime": completed.get("status", {}).get("completionTime"),
             "receiverResult": result,
@@ -251,7 +268,7 @@ def run(args):
         args.report.chmod(0o600)
 
     if job.get("status", {}).get("succeeded") == 1:
-        report_completed(job, [], noop=True)
+        report_completed(job, [])
         return
     request = token_request(pod)
     issued = admin_core.create_namespaced_service_account_token(
@@ -322,17 +339,7 @@ def run(args):
         _preload_content=False,
     )
     try:
-        with args.archive.open("rb") as archive:
-            for chunk in iter(lambda: archive.read(256 * 1024), b""):
-                if not channel.is_open():
-                    raise ValueError("Intake exec closed before transfer finished")
-                channel.write_stdin(chunk)
-                channel.update(timeout=0)
-        deadline = time.monotonic() + 120
-        while channel.is_open() and time.monotonic() < deadline:
-            channel.update(timeout=1)
-        if channel.is_open() or channel.returncode != 0:
-            raise ValueError("Fixed intake sender did not exit successfully")
+        stream_archive(channel, args.archive)
     finally:
         channel.close()
     # Credential goes out of scope; TokenRequest is pod-bound and expires within 30 minutes.

@@ -108,6 +108,10 @@ Record IDs, timing, sample gaps and the sampled maximum. Verification requires
 oom, oom_kill and max counters to remain zero at both levels, a sampled maximum
 at most 640Mi, and the completed full-hash proof. A breach requires reviewed
 bounded writeback code, a new scanned image and another real NFS proof.
+The receiver now fsyncs and discards its completed write cache every 8Mi; hashing
+and archive extraction also discard clean read cache periodically. These Linux
+hints change cache residency, not file contents or the durable publication order.
+Live memory measurements remain mandatory because NFS behaviour is kernel-specific.
 
 `retire-stale-sync.yml` documents the one-time recovery from the obsolete initial
 192Mi operation when another Argo retry remains. Run only from clean, pushed main
@@ -117,6 +121,11 @@ unchanged staging, and records hook/operation/events before requesting native
 Argo termination. Its only write changes that obsolete operation's status phase;
 Argo owns cleanup and the subsequent main sync. It never edits or deletes Jobs,
 claims, deployments or Application spec. Do not reuse it as a general sync shortcut.
+Its second reviewed incident is the memory-unverified operation at `0196736b`,
+waiting at its original restore hook. It requires the new bounded-writeback image
+and provenance-only pack on main, a completed earlier production hook, recorded
+production state, and fresh native-API 401 evidence before the status-only route.
+Both incidents have fixed original revisions and exact private identity guards.
 
 The private backup repository contains only age ciphertext and allowlisted
 metadata: schema version, manifest ID, archive/ciphertext/source-video SHA256,
