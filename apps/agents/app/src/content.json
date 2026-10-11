@@ -1,0 +1,1223 @@
+{
+  "title": "Earning Trust in Coding Agents",
+  "subtitle": "Verification, skills and agent-friendly architecture: a practitioner's study guide to Lauren Tan's Grokbot session",
+  "startSummary": "A recorded session of about 57 minutes in which Lauren Tan, who says she joined Cursor about five months before recording, explains how she moved from watching every agent action to letting agents land changes she reviews after the fact. Her central idea is trust, and she argues trust is earned through three things: agents that can verify their own work by running the real application; skills, which are written instructions refined by watching agent failures and tested with evals (packaged in her pstack plugin); and a codebase whose architecture and CI make the easiest change also the correct one (the Dune architecture behind Grokbot). A host asks questions throughout, and the session ends on token cost and on non-engineers contributing. This guide separates what was said from our interpretation. It maps each idea to operations practice you already know, lets you break a deterministic model of an agent fleet, and ends with an offline lab that rehearses the same controls in a scratch repository. Machine transcript: not yet human-certified.",
+  "learningAim": "Run a small fleet of coding agents behind the controls you would demand of any production change system: admitted work, isolated workspaces, real verification, hard architectural checks, human review, and a gated promotion. Justify each control from what this talk says, and from what the simulator shows breaking without it.",
+  "talkChapters": [
+    {
+      "id": "c01",
+      "title": "Opening: agents as colleagues",
+      "start": 0,
+      "end": 51.9,
+      "summary": "Pre-roll remarks: the goal of agents that fix bugs unattended, the engineer as a manager of agents, and a duty to keep the codebase safe for non-engineers to change."
+    },
+    {
+      "id": "c02",
+      "title": "The trust problem and the trust curve",
+      "start": 51.9,
+      "end": 198.4,
+      "summary": "Screen share begins. Overconfident agents erode trust; low trust forces micromanagement, the manager parallel; a self-described unscientific chart of trust against parallelism."
+    },
+    {
+      "id": "c03",
+      "title": "From supervising to auto-merge",
+      "start": 198.4,
+      "end": 346.0,
+      "summary": "Five months up the curve: agents now auto-merge and she reviews on main. A personal contribution chart and self-reported PR counts."
+    },
+    {
+      "id": "c04",
+      "title": "Verification as the core skill",
+      "start": 346.0,
+      "end": 556.9,
+      "summary": "Verification means the agent runs the real app, traces and profiles. An early performance story where she, not the agent, was the verifier and bottleneck."
+    },
+    {
+      "id": "c05",
+      "title": "The control skill and the feature map",
+      "start": 556.9,
+      "end": 816.0,
+      "summary": "The Control Glass skill drives the app through debugging protocols. A feature map tells agents where each feature lives and how to reach it, and handles vague bug reports."
+    },
+    {
+      "id": "c06",
+      "title": "What pstack is and how it grew",
+      "start": 816.0,
+      "end": 1038.4,
+      "summary": "The origin of the plugin's name. It grew one skill at a time from observed failure modes, such as agents claiming causes without reading the relevant code."
+    },
+    {
+      "id": "c07",
+      "title": "Maintaining skills with evals",
+      "start": 1038.4,
+      "end": 1431.5,
+      "summary": "Evals as unit tests for skills: a coordinator rubric, sub-agents in disguised directories, cross-model matrices, judge models and looping to a target score. Includes a brief screen-annotation interruption. Closes on the head-chef analogy."
+    },
+    {
+      "id": "c08",
+      "title": "Start local, then cloud agents",
+      "start": 1431.5,
+      "end": 1658.2,
+      "summary": "Build verification locally where you can watch it, then move to cloud agents. An automated bug-reproduction agent and a warning against jumping straight to huge fleets."
+    },
+    {
+      "id": "c09",
+      "title": "Recap: there is no shortcut up the curve",
+      "start": 1658.2,
+      "end": 1807.2,
+      "summary": "The host recaps the path; she adds that trust is personal and urges forking and adapting skills rather than trusting hers blindly."
+    },
+    {
+      "id": "c10",
+      "title": "The case for rewriting greenfield code",
+      "start": 1807.2,
+      "end": 2185.8,
+      "summary": "Big-tech guardrails already suit agents; vibe-coded greenfield apps drift without them. The Grokbot refactor and why strict CI lets non-engineers contribute."
+    },
+    {
+      "id": "c11",
+      "title": "PR size and atomic history",
+      "start": 2185.8,
+      "end": 2326.7,
+      "summary": "No hard cap on PR size, but agents are encouraged to split work so history stays informative and reverts stay easy."
+    },
+    {
+      "id": "c12",
+      "title": "Dune: CI that bans what agents get wrong",
+      "start": 2326.7,
+      "end": 2612.9,
+      "summary": "Bans on a React hook and on code comments; process isolation in Electron and the frame budget; dependency-graph checks between main and renderer directories."
+    },
+    {
+      "id": "c13",
+      "title": "Layers of enforcement",
+      "start": 2612.9,
+      "end": 2952.7,
+      "summary": "Conventional, co-located feature directories; the shortest path made the right path; hard checks versus soft rules; strict compilers; repeated review comments as a smell."
+    },
+    {
+      "id": "c14",
+      "title": "Tokens, cost and ROI",
+      "start": 2952.7,
+      "end": 3245.4,
+      "summary": "She acknowledges unlimited tokens at her employer and frames setup cost as an ROI question. An aside announcing a new model release."
+    },
+    {
+      "id": "c15",
+      "title": "Non-engineers shipping through Grokbot",
+      "start": 3245.4,
+      "end": 3412.1,
+      "summary": "Product and design colleagues use Grokbot's chat-style agents and ship fixes; she credits the strict architecture. Session ends."
+    }
+  ],
+  "lessons": [
+    {
+      "id": "l1-trust-curve",
+      "title": "Trust is the throttle on parallelism",
+      "question": "Why can't I simply run more agents, and what actually lets me add them?",
+      "minutes": 6,
+      "summary": "The talk treats trust, not compute, as the limit on how many agents one person can run. Trust is earned by evidence that agents behave correctly without you watching.",
+      "practitioner": [
+        "Tan opens with the problem rather than the tools. Agents that guess, invent causes and announce they have found the culprit again and again teach you to distrust them (63.1-95.1). She compares the result to managing engineers you do not trust: you end up hovering over every change (103.2-131.4).",
+        "Her hand-drawn chart, which she calls unscientific, plots this as a curve (131.4-196.4). At the low end you supervise one or a few agents and read every output. You cannot fan out, because spawning many agents is pointless when you do not trust the output of one (190.2-196.4). Over about five months she says she climbed the curve to the point where agents merge their own PRs and she reviews what has already landed on main (198.4-232.0).",
+        "For an operator this is a familiar shape. You do not raise a deployment's replica count until its readiness probe actually means something. Here, adding agents is safe only after something other than your eyes can tell good output from bad. She also warns against skipping the climb: jumping to hundreds of cloud agents mostly burns tokens (1639.9-1657.3).",
+        "Treat her numbers as one person's self-report under unusual conditions. She mentions around a thousand PRs in a month and about 800 by the twelfth of the next (292.3-315.6), and openly invites skepticism about their quality (315.6-329.4). The transferable claim is the ordering, not the volume."
+      ],
+      "basics": [
+        "An agent here means a language model that can run tools, such as editing files, running commands or opening a browser, in a loop until it decides it is done. Its confident tone tells you nothing about whether it is right.",
+        "Auto-merge means a change lands on the main branch without a person approving it first. Review happens afterwards, if at all."
+      ],
+      "deep": [
+        "Model the curve as a control loop whose gain you raise only as your measurement improves. Without a trustworthy sensor (verification), raising gain (agent count) amplifies error; you just see it later. The talk's later sections are all about improving that sensor.",
+        "Note what she does not claim. She does not offer an error rate for the auto-merged PRs, and the 20-PRs-overnight figure (222.2-232.0, repeated at 2099.2-2106.1) is an anecdote. If you adopt auto-merge, define your own escaped-defect measure first; for example, reverts per landed change, measured by you."
+      ],
+      "analogyBreaks": [
+        "Replicas of a service are identical; agent runs are not, because the same task can produce a different change each time.",
+        "A failing pod usually fails loudly. A failing agent often reports success, which is the whole trust problem.",
+        "Human trust in an engineer accumulates in that person. Agent trust lives mostly in your skills, checks and architecture, and resets when you change models or repositories."
+      ],
+      "evidence": [
+        {
+          "start": 63.1,
+          "end": 95.1,
+          "label": "SAID",
+          "paraphrase": "Agents that guess and overclaim root causes destroy an experienced engineer's trust.",
+          "why": "Defines the core problem."
+        },
+        {
+          "start": 103.2,
+          "end": 131.4,
+          "label": "SAID",
+          "paraphrase": "Distrusting your agents pushes you into micromanagement, as with a distrusted team.",
+          "why": "Management parallel used throughout."
+        },
+        {
+          "start": 131.4,
+          "end": 196.4,
+          "label": "SAID",
+          "paraphrase": "An informal chart: heavy supervision of a few agents; no parallelism without trust.",
+          "why": "The trust curve itself."
+        },
+        {
+          "start": 198.4,
+          "end": 232.0,
+          "label": "SAID",
+          "paraphrase": "After about five months, agents auto-merge and she reviews landed changes on main; about 20 landed overnight.",
+          "why": "The top of the curve, self-reported."
+        },
+        {
+          "start": 292.3,
+          "end": 329.4,
+          "label": "SAID",
+          "paraphrase": "Self-reported PR volume, with an explicit acknowledgment that quality is fair to question.",
+          "why": "Numbers with the speaker's own caveat."
+        },
+        {
+          "start": 1639.9,
+          "end": 1657.3,
+          "label": "SAID",
+          "paraphrase": "Do not jump from close supervision straight to huge cloud fleets; it wastes tokens.",
+          "why": "No shortcut."
+        }
+      ],
+      "scenarioId": "s3-review-backlog",
+      "labStep": "lab-0-preflight",
+      "checks": [
+        {
+          "question": "According to the talk, what should limit how many agents you run in parallel?",
+          "options": [
+            "Available CPU on the build machine",
+            "How much you can trust each agent's output without watching it",
+            "The number of open issues",
+            "Model context length"
+          ],
+          "answer": 1,
+          "explanation": "She ties parallelism to trust (190.2-196.4). The other options are constraints, but not the one she argues from."
+        },
+        {
+          "question": "Which of these is the speaker's own framing of her PR counts?",
+          "options": [
+            "A controlled benchmark",
+            "A reason to be fair-minded and question code quality",
+            "A guarantee for any team",
+            "A company-wide average"
+          ],
+          "answer": 1,
+          "explanation": "She invites the question of quality herself (315.6-329.4); the counts are personal and self-reported."
+        }
+      ],
+      "docs": [
+        {
+          "title": "Grok Bot overview (xAI docs)",
+          "url": "https://docs.x.ai/grok-bot/overview",
+          "date": "pending-capture",
+          "relation": "unclassified",
+          "note": "Supplementary and dated; describes the current product, not the talk. To be classified after capture."
+        }
+      ]
+    },
+    {
+      "id": "l2-verification",
+      "title": "Verification closes the loop",
+      "question": "What does it mean for an agent to verify its own work, and why does that matter more than code quality?",
+      "minutes": 7,
+      "summary": "Verification means the agent exercises the real system as a user or profiler would. Without it, you become the verifier and the bottleneck.",
+      "practitioner": [
+        "Tan names verification as the most important skill to give agents (346.0-360.4). She means real execution: running the code, capturing CPU traces or heap snapshots, driving an iOS simulator, using the product the way users do (360.4-382.7). Her careful claim is that verification does not make agents write good code; it makes them write correct code, and that is the step that earns trust (382.7-398.5).",
+        "Her early performance story shows the alternative (439.9-551.3). New to the codebase and under deadline, she captured traces by hand and passed screenshots to an agent. It confidently named a cause, and fixing it did nothing. In that workflow the human runs the build, spots the failure and pastes errors back. You are the loop's sensor, so nothing parallelises (523.6-556.9).",
+        "Operations translation: an agent that only edits code is an actuator with no feedback. Verification gives each agent its own probe, so that 'done' means the system was observed in the target state, the same standard as a reconciliation loop comparing observed with desired state. Her later evals section (lesson 4) is the next layer: checking that the verification itself works.",
+        "Practical rule for adoption: an agent may not report a task done without attaching evidence from running the thing. That evidence is a test run, a trace, a screenshot from automation or a command output. 'I changed the code that should fix it' is a hypothesis, not a result."
+      ],
+      "basics": [
+        "A trace is a recording of what a program did over time, often shown as a flame graph where wide blocks used the most time. A heap snapshot records memory in use.",
+        "A simulator or debugging protocol lets software click, type and measure inside an application the way a person would."
+      ],
+      "deep": [
+        "Distinguish three claims an agent can make. Proposed: here is a change. Plausible: the change matches the described symptom. Verified: the symptom was reproduced, then shown absent after the change, using the same probe. Most agent overconfidence lives in the gap between plausible and verified. Make your check harness reproduce the failure before the fix, or you only test that something runs.",
+        "Verification has its own failure modes: probes that always pass, environments that differ from production, flaky measurements. Treat a verifier like a monitoring check. Prove it fires on a known-bad case before trusting its green."
+      ],
+      "analogyBreaks": [
+        "A readiness probe is written by you. An agent may write or edit its own check, so it can quietly weaken the verification it reports.",
+        "Correct is not the same as maintainable; she says so directly, which is why the architecture lessons exist."
+      ],
+      "evidence": [
+        {
+          "start": 346.0,
+          "end": 360.4,
+          "label": "SAID",
+          "paraphrase": "Verification is the most important skill to give an agent.",
+          "why": "Central thesis."
+        },
+        {
+          "start": 360.4,
+          "end": 398.5,
+          "label": "SAID",
+          "paraphrase": "Agents should run the real app, profile and simulate as users would; this yields correct, not necessarily good, code.",
+          "why": "Defines verification and its limit."
+        },
+        {
+          "start": 495.2,
+          "end": 514.2,
+          "label": "SAID",
+          "paraphrase": "Given screenshots and traces, the agent confidently named a cause that was wrong.",
+          "why": "Failure of unverified diagnosis."
+        },
+        {
+          "start": 517.9,
+          "end": 556.9,
+          "label": "SAID",
+          "paraphrase": "Without a verification skill, the human becomes the verifier and bottleneck, and nothing parallelises.",
+          "why": "Why verification unlocks scale."
+        }
+      ],
+      "scenarioId": "s2-plausible-vs-verified",
+      "labStep": "lab-2-verify",
+      "checks": [
+        {
+          "question": "What does the speaker say verification gives you?",
+          "options": [
+            "Good, idiomatic code",
+            "At least correct code",
+            "Faster models",
+            "Fewer tokens"
+          ],
+          "answer": 1,
+          "explanation": "She separates correct from good (382.7-398.5)."
+        },
+        {
+          "question": "An agent says it found the bug and edited the file. Under this lesson's rule, what is missing?",
+          "options": [
+            "Nothing",
+            "Evidence that the symptom was reproduced and then observed absent",
+            "A longer explanation",
+            "A second model's opinion"
+          ],
+          "answer": 1,
+          "explanation": "Verified means observed in the running system, before and after."
+        }
+      ],
+      "docs": []
+    },
+    {
+      "id": "l3-feature-map",
+      "title": "Control skills and feature maps: giving agents a map of the product",
+      "question": "How does an agent find the feature a vague bug report is about, and reach it in the running app?",
+      "minutes": 6,
+      "summary": "The ability to drive the app is not enough; agents also need a maintained map from user-visible features to UI paths, shortcuts, selectors and code.",
+      "practitioner": [
+        "Her first skill drove Cursor's agents window, internally called Glass, through the Chrome DevTools Protocol. She notes Apple tools serve a similar role for iOS (556.9-601.9). She says the skill's code is unremarkable and an agent can write one for you (573.4-579.4).",
+        "Once agents could run the app, they still did not know the app. A report about a laggy sidebar or a broken PR tab left agents searching code and clicking aimlessly (626.3-679.0). Her fix was a feature map file shipped with the skill. It describes each feature from the user's side: where it is, how to reach it, keyboard shortcuts, and the DOM attributes used to select it through the protocol (606.7-626.3, 771.2-804.4).",
+        "The map's payoff is triage of poor input. Internal feedback often arrives as a screenshot plus question marks, and with the map an agent can locate the feature anyway (724.9-771.2). pstack, she says, includes a skill to create such a verification setup, including an initial map built by exploring the code, and another to maintain it (692.9-718.9, 804.4-813.5).",
+        "Operations translation: this is a service catalog or runbook index for a UI. On-call engineers with a good catalog resolve 'the dashboard is slow' quickly. Without one they search. And like a catalog, a stale map misleads, which is why maintenance is a separate, named skill."
+      ],
+      "basics": [
+        "DOM attributes are labels on page elements that automation uses to find a button or panel reliably.",
+        "A skill, in this talk, is mostly a markdown file of instructions that an agent loads for a kind of task (963.8-972.4)."
+      ],
+      "deep": [
+        "Make the map checkable. Every entry should name a selector or path that a script can resolve, so CI can flag entries that no longer exist. A map you cannot test drifts silently, which is the same failure as an undocumented runbook.",
+        "The map is also a context-budget tool. Pointing the agent at the right files and UI path replaces open-ended searching, which spends tokens and invites wrong guesses."
+      ],
+      "analogyBreaks": [
+        "A service catalog is read by people who ask when unsure; agents act on stale entries without hesitation.",
+        "UI paths change with every redesign far more often than service endpoints do."
+      ],
+      "evidence": [
+        {
+          "start": 556.9,
+          "end": 601.9,
+          "label": "SAID",
+          "paraphrase": "The control skill lets agents run and inspect the app via debugging protocols, and similar tools exist for iOS.",
+          "why": "What the control skill is."
+        },
+        {
+          "start": 626.3,
+          "end": 679.0,
+          "label": "SAID",
+          "paraphrase": "Able to run the app but ignorant of it, agents flailed on feature-specific reports.",
+          "why": "The gap the map fills."
+        },
+        {
+          "start": 771.2,
+          "end": 804.4,
+          "label": "SAID",
+          "paraphrase": "Map entries cover location, navigation, shortcuts and selector attributes from the user's view.",
+          "why": "Map contents."
+        },
+        {
+          "start": 692.9,
+          "end": 724.9,
+          "label": "SAID",
+          "paraphrase": "pstack includes a skill to create a verification setup and an initial feature map by exploring code.",
+          "why": "Tooling claim, to check against the pinned repo."
+        },
+        {
+          "start": 804.4,
+          "end": 813.5,
+          "label": "SAID",
+          "paraphrase": "A companion skill maintains the verification setup over time.",
+          "why": "Maintenance."
+        }
+      ],
+      "scenarioId": "s2-plausible-vs-verified",
+      "labStep": "lab-3-feature-map",
+      "checks": [
+        {
+          "question": "After agents could launch the app, what problem remained?",
+          "options": [
+            "Slow builds",
+            "They did not know where features were or how to reach them",
+            "Missing credentials",
+            "Merge conflicts"
+          ],
+          "answer": 1,
+          "explanation": "See 626.3-679.0."
+        },
+        {
+          "question": "What is the best way to keep a feature map trustworthy?",
+          "options": [
+            "Rewrite it yearly",
+            "Make each entry machine-checkable so stale entries fail a check",
+            "Keep it private",
+            "Let any agent edit it freely"
+          ],
+          "answer": 1,
+          "explanation": "Interpretation: treat the map like monitored configuration."
+        }
+      ],
+      "docs": [
+        {
+          "title": "pstack plugin (pinned commit)",
+          "url": "https://github.com/cursor/plugins/tree/978ca6e9c0e012047cd5058b8e829240336e704e/pstack",
+          "date": "pending-capture",
+          "relation": "unclassified",
+          "note": "Confirm the skill names for creating and maintaining verification at this commit before the site states them as current."
+        }
+      ]
+    },
+    {
+      "id": "l4-pstack-evals",
+      "title": "pstack: skills grown from failures, tested with evals",
+      "question": "Where do good agent skills come from, and how do I know a skill still works after I change it?",
+      "minutes": 8,
+      "summary": "pstack started as individual skills, each written after watching a specific agent failure. Changes are tested with evals, which are unit tests for agent behaviour, run across models and judged independently.",
+      "practitioner": [
+        "pstack is Tan's plugin, a bundle of skills reflecting her engineering practices. She explains the name as a joke, a riff on another engineer's similarly named plugin, and says she never set out to build it (824.6-875.0). It accreted from individual skills, starting with the control skill (871.1-886.6).",
+        "Her method is observation. Early on she read the agent's tool calls and saw it assert a cause without ever opening the code she expected it to inspect (906.2-930.1). Each such failure mode became a skill: go read the code, stop guessing (1012.2-1035.2). She frames a skill as onboarding a strong coder who has no business context, and as markdown that steers the model with better starting context (942.8-1004.6).",
+        "Maintenance uses evals, which she describes as unit tests for agents that need no special framework (1086.4-1098.4). pstack includes an eval playbook (1137.6-1144.2). In her process, a coordinator agent writes a rubric and spawns sub-agents in directories named so they cannot tell they are being tested, because she says agents act differently when they suspect a test (1154.9-1184.0). She runs the eval across several models (1196.6-1216.2). A judge agent from a different model cross-checks scoring (1320.0-1338.0), and a loop repeats until the rubric is met (1338.0-1353.7). She reruns evals whenever she modifies a skill (1218.1-1228.7), and calls maintenance hard, requiring close, critical observation, like an active pairing partner (1229.6-1287.2).",
+        "Operations translation: a skill is configuration that changes system behaviour, so changes need tests, canaries and review like any config. Evals are your regression suite. Running across models is a compatibility matrix. A different-model judge is separation of duties: the component under test does not grade itself."
+      ],
+      "basics": [
+        "A plugin here is a package of skills and settings you install into an agent tool.",
+        "A rubric is a written list of what a good result must include, used to score attempts consistently."
+      ],
+      "deep": [
+        "Looping on a score invites overfitting: the skill learns the rubric, not the job. Keep a held-out set of tasks the loop never sees, and track at least one outcome that cannot be argued with, such as tests passing in a clean checkout.",
+        "Disguising eval directories addresses evaluation awareness. In your own setup, also isolate side effects: eval runs belong in disposable worktrees or containers with no credentials, so a test agent cannot touch anything real.",
+        "Pin what you evaluated: model identifier, skill commit, tool versions. An eval result without that context, like a load test without the build ID, cannot be reproduced."
+      ],
+      "analogyBreaks": [
+        "Unit tests are deterministic; eval runs are sampled, so a single pass proves little and you need repetitions.",
+        "A config change has bounded effects; a skill wording change can alter behaviour on tasks it never mentions."
+      ],
+      "evidence": [
+        {
+          "start": 824.6,
+          "end": 875.0,
+          "label": "SAID",
+          "paraphrase": "pstack is her plugin encoding her practices; it grew without a plan.",
+          "why": "What pstack is."
+        },
+        {
+          "start": 906.2,
+          "end": 930.1,
+          "label": "SAID",
+          "paraphrase": "Reading tool calls revealed agents asserting causes without reading the relevant code.",
+          "why": "Observation method."
+        },
+        {
+          "start": 1012.2,
+          "end": 1035.2,
+          "label": "SAID",
+          "paraphrase": "Each observed failure mode became a new skill.",
+          "why": "How skills are born."
+        },
+        {
+          "start": 1086.4,
+          "end": 1098.4,
+          "label": "SAID",
+          "paraphrase": "Evals are like unit tests for agents and need no special framework.",
+          "why": "Eval definition."
+        },
+        {
+          "start": 1154.9,
+          "end": 1216.2,
+          "label": "SAID",
+          "paraphrase": "A coordinator writes a rubric and spawns disguised sub-agents; evals run across models.",
+          "why": "Eval mechanics."
+        },
+        {
+          "start": 1320.0,
+          "end": 1353.7,
+          "label": "SAID",
+          "paraphrase": "A judge from another model cross-checks scores, and a loop iterates toward the target.",
+          "why": "Independence and hill climbing."
+        },
+        {
+          "start": 1229.6,
+          "end": 1287.2,
+          "label": "SAID",
+          "paraphrase": "Maintaining skills is hard and demands active, critical observation of agent behaviour.",
+          "why": "Honest cost."
+        }
+      ],
+      "scenarioId": "s2-plausible-vs-verified",
+      "labStep": "lab-2-verify",
+      "checks": [
+        {
+          "question": "Why use a judge from a different model?",
+          "options": [
+            "It is cheaper",
+            "To reduce one model grading itself favourably",
+            "Required by Git",
+            "To speed up the loop"
+          ],
+          "answer": 1,
+          "explanation": "Cross-checking for bias (1320.0-1338.0); in ops terms, separation of duties."
+        },
+        {
+          "question": "Which risk does looping toward a perfect score create?",
+          "options": [
+            "None",
+            "Optimising to the rubric rather than the task",
+            "Merge conflicts",
+            "Lost credentials"
+          ],
+          "answer": 1,
+          "explanation": "Interpretation: keep held-out tasks and hard outcomes."
+        }
+      ],
+      "docs": [
+        {
+          "title": "pstack plugin (pinned commit)",
+          "url": "https://github.com/cursor/plugins/tree/978ca6e9c0e012047cd5058b8e829240336e704e/pstack",
+          "date": "pending-capture",
+          "relation": "unclassified",
+          "note": "Verify that the eval playbook exists at this commit and how it is named; the transcript spells the plugin several ways."
+        }
+      ]
+    },
+    {
+      "id": "l5-agent-friendly-architecture",
+      "title": "Agent-friendly architecture: make the shortest path the right path",
+      "question": "How can a codebase stop agents from producing plausible but harmful changes before any human reads them?",
+      "minutes": 9,
+      "summary": "Agents copy patterns and take shortcuts. Dune, the architecture behind Grokbot, turns lessons into hard CI failures and conventional structure, leaving soft rules as backup only.",
+      "practitioner": [
+        "Tan argues established big-company codebases already suit agents. They were built around guardrails, conventions and restricted credentials so the least experienced contributor cannot cause damage (1886.4-1970.7). The risk is greenfield code written quickly by agents with nobody reading it. With no guardrails, agents solve each task by the most convenient route until the codebase spirals (1975.9-2071.9). She describes a refactor of Grokbot onto a new architecture of over 600 PRs (2106.1-2124.4), after which she says she no longer reads the code (2124.4-2138.2).",
+        "Dune, described as something like Next.js for Electron apps and designed for agents to write (2346.3-2389.5), encodes lessons as CI failures. Examples: a React hook that commonly causes bugs is banned (2352.8-2399.9); code comments are banned because agents fill them with stale, misattributed history (2404.1-2441.4); Electron main and renderer code live in separate directories, and a dependency-graph check fails any import across the boundary (2499.6-2587.8). The reason is concrete: work leaking onto the renderer competes with a frame budget of about 16 ms, causing jank and long tasks (2525.2-2559.5). She says the existing agents window lacks this isolation and regresses often (2462.7-2499.6).",
+        "She describes layers of enforcement (2612.9-2812.6). The strongest is conventional structure: each feature lives in one directory, because agents copy existing patterns (2618.9-2684.8). Her principle is to make the shortest path the best path, since agents take shortcuts anyway (2695.8-2715.6). Next come static analysis, lint and compiler diagnostics, which fail CI. Rules, skills and the AI review bot are soft, because agents forget them (2762.2-2817.3). She points to strict compilers as a source of trust (2823.9-2869.4). And she treats a repeated human review comment as a smell: turn it into a lint rule, a CI failure, or remove the possibility entirely (2869.4-2914.7).",
+        "Operations translation: this is admission control for code. Policy-as-code rejects a pod that runs as root; the review comment 'please don't run as root' would not. Network segmentation is the main and renderer import boundary. Soyspray already lives this way, with NetworkPolicy, non-root images and digest promotion. The lesson is to apply the same reflex to the code agents write."
+      ],
+      "basics": [
+        "CI is the automated pipeline that runs checks on every proposed change and can block it.",
+        "Lint rules are automated style and safety checks that flag known-bad patterns.",
+        "An Electron app has a main process and a renderer process that draws the UI; heavy work in the renderer makes the UI stutter."
+      ],
+      "deep": [
+        "Rank every invariant by enforcement strength: impossible by construction, then compile error, then CI failure, then review-bot warning, then written rule. Push each one as high as is affordable. Anything enforced only by written rules will eventually be violated at agent volume.",
+        "Encoding is not free. Every hard rule needs a clear failure message telling an agent how to fix it, or agents will work around the check, for example by moving code to dodge an import rule. Review the workarounds as seriously as the rules.",
+        "Bans like no comments are local choices with tradeoffs, made for her codebase. Copy the method of observing a recurring agent failure and making it unrepresentable, not the specific bans."
+      ],
+      "analogyBreaks": [
+        "Admission policies govern a small, stable schema; code-level rules must anticipate creative violations by an agent optimising to pass.",
+        "A human intern learns the reason behind a guardrail; an agent mostly learns only that the check fails."
+      ],
+      "evidence": [
+        {
+          "start": 1886.4,
+          "end": 1970.7,
+          "label": "SAID",
+          "paraphrase": "Big-company guardrails and restricted credentials already let agents work with limited damage.",
+          "why": "Brownfield argument."
+        },
+        {
+          "start": 1975.9,
+          "end": 2071.9,
+          "label": "SAID",
+          "paraphrase": "Unread, quickly generated greenfield code lacks guardrails and drifts into shortcut-driven chaos.",
+          "why": "Greenfield risk."
+        },
+        {
+          "start": 2106.1,
+          "end": 2138.2,
+          "label": "SAID",
+          "paraphrase": "A refactor of over 600 PRs; she says she no longer reads the code.",
+          "why": "Self-reported investment."
+        },
+        {
+          "start": 2352.8,
+          "end": 2441.4,
+          "label": "SAID",
+          "paraphrase": "Dune's CI bans a risky React hook and code comments.",
+          "why": "Concrete hard rules."
+        },
+        {
+          "start": 2499.6,
+          "end": 2587.8,
+          "label": "SAID",
+          "paraphrase": "Main and renderer code are separated, and CI checks the dependency graph to block crossing imports.",
+          "why": "Architectural boundary as a check."
+        },
+        {
+          "start": 2618.9,
+          "end": 2715.6,
+          "label": "SAID",
+          "paraphrase": "Co-located feature directories and making the shortest path the best one.",
+          "why": "Convention as strongest layer."
+        },
+        {
+          "start": 2762.2,
+          "end": 2817.3,
+          "label": "SAID",
+          "paraphrase": "Static checks make CI fail; rules, skills and the review bot are soft and get forgotten.",
+          "why": "Hard versus soft."
+        },
+        {
+          "start": 2869.4,
+          "end": 2914.7,
+          "label": "SAID",
+          "paraphrase": "Repeating a review comment signals a missing lint rule or CI check.",
+          "why": "Review as smell."
+        }
+      ],
+      "scenarioId": "s5-architecture-gate",
+      "labStep": "lab-4-boundary",
+      "checks": [
+        {
+          "question": "Which layer does the speaker call the strongest enforcement?",
+          "options": [
+            "A style guide",
+            "A strict, conventional codebase architecture",
+            "Code review comments",
+            "Agent memory"
+          ],
+          "answer": 1,
+          "explanation": "Convention plus hard checks (2612.9-2684.8)."
+        },
+        {
+          "question": "You keep writing the same review comment. What does the talk suggest?",
+          "options": [
+            "Write it louder",
+            "Turn it into a lint rule or CI failure, or make it impossible",
+            "Add it to a code comment",
+            "Ignore it"
+          ],
+          "answer": 1,
+          "explanation": "See 2869.4-2914.7."
+        }
+      ],
+      "docs": []
+    },
+    {
+      "id": "l6-fleet-operations",
+      "title": "Operating the fleet: local first, cloud agents, small atomic PRs",
+      "question": "Once verification exists, how do agents pick up work and land it safely at volume?",
+      "minutes": 7,
+      "summary": "Build and watch verification locally, then let cloud agents act on signals such as bug reports. Keep changes small and revertible, and promote only through hard gates.",
+      "practitioner": [
+        "Asked where to start, Tan says start locally, where you can watch the agent operate the app and its interfaces (1467.7-1503.1). She herself mostly uses cloud agents, and argues verification skills pay off team-wide once agents run remotely (1505.7-1548.4).",
+        "Her example is an internal agent she calls Benny. It takes incoming bug reports, runs the app on its own cloud machine with the same control skills, and tries to reproduce the issue. In one case it found the bug reproduced on a release but already fixed on the main branch, so the answer was just to ship a build (1554.5-1617.9). That is verification used for triage, not only for fixes. The host's recap orders the path as verification, local trust, cloud agents responding to signals, then auto-merge, and she agrees (1658.2-1713.6).",
+        "On PR size there is no hard cap. Agents are encouraged to split work, because she values history in which each PR describes one small change, easy to revert and to bisect (2276.1-2325.5).",
+        "Operations translation for Soyspray: signals are your queue. Each task needs a claim so it is not done twice, an isolated worktree, a check that runs the real thing, a small reviewable PR, and the existing digest promotion PR as the only path to the cluster. Agents never hold cluster credentials. Auto-merge, if you ever adopt it, applies to source PRs behind hard checks, never to promotion."
+      ],
+      "basics": [
+        "A cloud agent runs on a remote machine rather than your laptop, so it can work while you are away.",
+        "A git worktree is a second working directory attached to the same repository, letting several agents edit in parallel without overwriting each other."
+      ],
+      "deep": [
+        "Retries in agent pipelines are not idempotent by default: re-sending a bug report can spawn a second agent and a second PR. Key each task by a stable identifier, such as report ID plus repository, and make claiming atomic.",
+        "Reproduction before fixing doubles as deduplication: if the issue does not reproduce on main, the right output is a note, not a PR. Her Benny example shows this outcome.",
+        "The talk's question about worktrees and isolated sub-agents (1437.1-1464.4) is answered with practical advice rather than a described isolation design. Treat isolation specifics as our recommendation, not her claim."
+      ],
+      "analogyBreaks": [
+        "Queue consumers process identical message types; agent tasks vary widely and some cannot be finished.",
+        "Kubernetes rollouts can be undone automatically; a merged bad change needs a revert PR and someone to notice."
+      ],
+      "evidence": [
+        {
+          "start": 1467.7,
+          "end": 1503.1,
+          "label": "SAID",
+          "paraphrase": "Start local so you can observe how the agent drives the application.",
+          "why": "Starting point."
+        },
+        {
+          "start": 1505.7,
+          "end": 1548.4,
+          "label": "SAID",
+          "paraphrase": "She mostly uses cloud agents; verification skills benefit the whole team there.",
+          "why": "Scaling step."
+        },
+        {
+          "start": 1554.5,
+          "end": 1617.9,
+          "label": "SAID",
+          "paraphrase": "An internal agent reproduces bug reports in the cloud and found one already fixed on main.",
+          "why": "Signal-driven agent example."
+        },
+        {
+          "start": 1658.2,
+          "end": 1713.6,
+          "label": "SAID",
+          "paraphrase": "The host recaps the path from verification to auto-merge; she agrees.",
+          "why": "Sequence; host's paraphrase."
+        },
+        {
+          "start": 2276.1,
+          "end": 2325.5,
+          "label": "SAID",
+          "paraphrase": "No hard PR size cap; agents split work so history stays atomic and revertible.",
+          "why": "Change sizing."
+        }
+      ],
+      "scenarioId": "s4-naive-retry",
+      "labStep": "lab-5-idempotent-claim",
+      "checks": [
+        {
+          "question": "What did the bug-reproduction agent conclude in her example?",
+          "options": [
+            "The bug was unfixable",
+            "It reproduced on a release but was already fixed on main",
+            "It needed a rewrite",
+            "It was a duplicate PR"
+          ],
+          "answer": 1,
+          "explanation": "See 1584.8-1602.5."
+        },
+        {
+          "question": "Where should auto-merge stop in Soyspray's model?",
+          "options": [
+            "Nowhere",
+            "Before the digest promotion that activates a workload",
+            "After cluster sync",
+            "At secret rotation"
+          ],
+          "answer": 1,
+          "explanation": "Interpretation: promotion stays a reviewed human step."
+        }
+      ],
+      "docs": [
+        {
+          "title": "git worktree",
+          "url": "https://git-scm.com/docs/git-worktree",
+          "date": "pending-capture",
+          "relation": "background",
+          "note": "Documents the isolation mechanism used in the lab; the talk does not describe its own isolation setup."
+        }
+      ]
+    },
+    {
+      "id": "l7-cost-and-adoption",
+      "title": "Cost, leverage and deciding for yourself",
+      "question": "Is this worth it without unlimited tokens, and what should I adopt first?",
+      "minutes": 5,
+      "summary": "She is candid that her token budget is unusual and frames setup as an ROI question. The cheap, transferable parts are verification and hard checks; volume comes last.",
+      "practitioner": [
+        "Asked whether this is realistic on a normal budget, Tan says she works at an AI lab with effectively unlimited tokens, so her approach should not be copied wholesale, though she thinks it can be done without breaking the bank (2973.8-2992.4). She frames it as ROI: setup and refactoring consume many tokens up front, in exchange for a codebase where even weaker agents do good work, and for being able to enforce constraints one person could never maintain alone (3000.3-3126.8).",
+        "She credits the strict architecture with letting product managers and designers ship fixes through Grokbot's chat-style interface, which she likens to a messaging app with named agents (3274.3-3402.4). She also announced a new model release during the session, and herself hedged her statement about its price (3149.5-3192.6). Treat that as time-sensitive; check current docs.",
+        "For a home cluster the order matters more than the scale. First, require verification evidence for every agent task. Second, convert repeated review comments into checks. Third, add isolation and claims for parallel work. Only then consider unattended agents, and keep the promotion boundary human."
+      ],
+      "basics": [
+        "Tokens are the units that model usage is billed in; long contexts and many parallel agents multiply them."
+      ],
+      "deep": [
+        "Estimate cost per verified, merged change rather than per agent run: wasted runs, failed verifications and duplicates are all cost. The simulator's abstract cost units let you see how gates shift spending from rework to checks."
+      ],
+      "analogyBreaks": [
+        "Infrastructure cost is predictable per resource; agent cost varies with task difficulty and failure loops."
+      ],
+      "evidence": [
+        {
+          "start": 2973.8,
+          "end": 2992.4,
+          "label": "SAID",
+          "paraphrase": "She has effectively unlimited tokens at work and cautions against copying her approach exactly.",
+          "why": "Context for all numbers."
+        },
+        {
+          "start": 3000.3,
+          "end": 3126.8,
+          "label": "SAID",
+          "paraphrase": "Up-front token spend is an ROI decision that lets weaker agents and fewer people do good work.",
+          "why": "Economic argument."
+        },
+        {
+          "start": 3149.5,
+          "end": 3192.6,
+          "label": "SAID",
+          "paraphrase": "A model release announced in the session; she hedges the pricing statement.",
+          "why": "Time-sensitive aside."
+        },
+        {
+          "start": 3274.3,
+          "end": 3402.4,
+          "label": "SAID",
+          "paraphrase": "Non-engineers ship fixes via Grokbot, which she attributes to the strict architecture.",
+          "why": "Claimed payoff."
+        }
+      ],
+      "scenarioId": "s3-review-backlog",
+      "labStep": "lab-6-promotion",
+      "checks": [
+        {
+          "question": "Which context does the speaker give about her token use?",
+          "options": [
+            "Strictly budgeted",
+            "Effectively unlimited, so not a template to copy exactly",
+            "Free for everyone",
+            "Not mentioned"
+          ],
+          "answer": 1,
+          "explanation": "See 2973.8-2992.4."
+        }
+      ],
+      "docs": [
+        {
+          "title": "xAI build overview",
+          "url": "https://docs.x.ai/build/overview",
+          "date": "pending-capture",
+          "relation": "unclassified",
+          "note": "Use for current model and pricing facts; the talk's aside is dated and hedged."
+        }
+      ]
+    }
+  ],
+  "glossary": [
+    {
+      "term": "Trust curve",
+      "plain": "Her informal picture of moving from watching every agent step to letting agents work unattended.",
+      "practitioner": "Parallelism is gated by how much evidence you have that output is correct.",
+      "deep": "Raise loop gain only as sensor quality improves.",
+      "start": 131.4
+    },
+    {
+      "term": "Verification",
+      "plain": "The agent checks its work by running the real app.",
+      "practitioner": "Real execution, traces, profiling or simulation; yields correct, not necessarily good, code.",
+      "deep": "Reproduce the symptom before the fix, observe it absent after, with the same probe.",
+      "start": 346.0
+    },
+    {
+      "term": "Skill",
+      "plain": "A written instruction file an agent loads for a type of task.",
+      "practitioner": "Mostly markdown encoding context and procedure; born from observed failures.",
+      "deep": "Configuration that changes behaviour; version, test and review it.",
+      "start": 963.8
+    },
+    {
+      "term": "Control skill",
+      "plain": "Lets an agent drive and inspect the running app.",
+      "practitioner": "Uses debugging protocols such as Chrome DevTools Protocol, or Apple simulator tooling.",
+      "deep": "The actuator-and-sensor half of a verification loop.",
+      "start": 556.9
+    },
+    {
+      "term": "Feature map",
+      "plain": "A guide telling agents where each feature is and how to reach it.",
+      "practitioner": "Location, navigation, shortcuts and selector attributes for each feature.",
+      "deep": "Make entries machine-checkable to catch drift.",
+      "start": 606.7
+    },
+    {
+      "term": "pstack",
+      "plain": "Tan's plugin of skills, named partly as a joke.",
+      "practitioner": "Includes skills for creating and maintaining verification setups and an eval playbook, per the talk.",
+      "deep": "Confirm contents at the pinned commit; transcript spellings vary.",
+      "start": 824.6
+    },
+    {
+      "term": "Eval",
+      "plain": "A test of whether an agent with a skill behaves as intended.",
+      "practitioner": "Unit tests for agents; rubric, sub-agents, multiple models, independent judge.",
+      "deep": "Sampled, not deterministic; use repetitions and held-out tasks.",
+      "start": 1086.4
+    },
+    {
+      "term": "Judge agent",
+      "plain": "A second agent that scores the first one's work.",
+      "practitioner": "She uses a different model to reduce bias.",
+      "deep": "Separation of duties for evaluation.",
+      "start": 1320.0
+    },
+    {
+      "term": "Cloud agent",
+      "plain": "An agent working on a remote machine.",
+      "practitioner": "Can act on signals such as bug reports without you present.",
+      "deep": "Needs isolation, scoped credentials and idempotent task claims.",
+      "start": 1505.7
+    },
+    {
+      "term": "Auto-merge",
+      "plain": "Changes land without prior human approval.",
+      "practitioner": "She reviews after landing; only advisable behind hard checks.",
+      "deep": "Never apply to the cluster promotion boundary.",
+      "start": 215.2
+    },
+    {
+      "term": "Dune",
+      "plain": "Code name for the agent-oriented architecture behind Grokbot.",
+      "practitioner": "Conventional feature directories plus CI bans on known-bad patterns.",
+      "deep": "A collection of principles, not an open-source framework, per the talk.",
+      "start": 2346.3
+    },
+    {
+      "term": "Hard versus soft enforcement",
+      "plain": "Checks that block versus advice that can be ignored.",
+      "practitioner": "CI, lint and compiler errors block; rules, skills and review bots can be forgotten.",
+      "deep": "Push each invariant to the strongest affordable layer.",
+      "start": 2762.2
+    },
+    {
+      "term": "Main and renderer process",
+      "plain": "The two halves of an Electron app; the renderer draws the UI.",
+      "practitioner": "Heavy work in the renderer causes stutter; CI blocks crossing imports.",
+      "deep": "About 16 ms per frame at 60 fps.",
+      "start": 2499.6
+    },
+    {
+      "term": "Git worktree",
+      "plain": "An extra working folder on the same repository.",
+      "practitioner": "Lets parallel agents edit without overwriting each other.",
+      "deep": "Branches cannot be checked out in two worktrees at once.",
+      "start": 1449.8
+    }
+  ],
+  "simulator": [
+    {
+      "id": "s1-shared-vs-isolated",
+      "title": "Two agents, one file",
+      "lessonId": "l6-fleet-operations",
+      "predictionQuestion": "Agents A and B both edit config line 1 in a shared working tree. What happens to A's change?",
+      "choices": [
+        "Git reports a conflict",
+        "A's edit is silently overwritten by B",
+        "Both edits merge cleanly",
+        "CI rejects both"
+      ],
+      "answer": 1,
+      "explanation": "In a shared tree the last writer wins with no signal. With per-agent worktrees the same edits surface as a merge conflict at integration, where a reviewer sees them.",
+      "parameters": {
+        "seed": 1,
+        "agents": 2,
+        "workspaceMode": [
+          "shared",
+          "worktree"
+        ],
+        "tasks": [
+          {
+            "id": "T1",
+            "files": [
+              "config.txt"
+            ]
+          },
+          {
+            "id": "T2",
+            "files": [
+              "config.txt"
+            ]
+          }
+        ],
+        "ticks": 6,
+        "costUnitsPerRun": 3
+      },
+      "expectedContract": "shared: tick 3 A writes, tick 4 B overwrites, event lost_update(T1), merged=1, wasted=1. worktree: tick 5 merge_conflict(T1,T2), routed to review, lost_update=0. Golden logs per mode."
+    },
+    {
+      "id": "s2-plausible-vs-verified",
+      "title": "Done, or verified?",
+      "lessonId": "l2-verification",
+      "predictionQuestion": "Three agent reports say 'fixed'. One change does not fix the symptom. With the verification gate off, how many fixes reach main?",
+      "choices": [
+        "Two",
+        "Three, including the non-fix",
+        "Zero",
+        "One"
+      ],
+      "answer": 1,
+      "explanation": "Without a probe that reproduces the symptom, self-reports are accepted. With the gate on, task T3 fails reproduction-after and returns to the queue. Illustrative outcome, not a measured rate.",
+      "parameters": {
+        "seed": 2,
+        "agents": 3,
+        "verificationGate": [
+          "off",
+          "on"
+        ],
+        "scriptedOutcomes": {
+          "T1": "fixes",
+          "T2": "fixes",
+          "T3": "plausible_no_fix"
+        },
+        "costUnitsPerRun": 3,
+        "costUnitsPerVerify": 1
+      },
+      "expectedContract": "off: merged=3, defects_reaching_main=1 (T3), detection deferred. on: verify_fail(T3) at tick 4, retry, merged=2 plus T3 pending, defects_reaching_main=0, extra cost=3 verify units. T3's outcome is a scripted event, not a probability."
+    },
+    {
+      "id": "s3-review-backlog",
+      "title": "The reviewer is the bottleneck",
+      "lessonId": "l1-trust-curve",
+      "predictionQuestion": "Four agents produce 12 PRs; one reviewer clears 2 per tick. Hard checks catch 4 of the PRs automatically. What changes?",
+      "choices": [
+        "Nothing",
+        "The review queue shrinks because checks reject 4 before review",
+        "Agents get faster",
+        "More defects merge"
+      ],
+      "answer": 1,
+      "explanation": "Adding agents without automated gates only grows the human queue. Converting review comments into checks removes scripted bad PRs before review.",
+      "parameters": {
+        "seed": 3,
+        "agents": [
+          1,
+          4
+        ],
+        "prsPerAgent": 3,
+        "reviewerCapacityPerTick": 2,
+        "hardChecks": [
+          "off",
+          "on"
+        ],
+        "scriptedCheckFailures": [
+          "P2",
+          "P5",
+          "P7",
+          "P11"
+        ],
+        "ticks": 10
+      },
+      "expectedContract": "agents=4, checks off: queue peaks at 10, last review at tick 6. Checks on: 4 auto-rejected, queue peak 6, last review at tick 4. Deterministic schedule; not a throughput prediction."
+    },
+    {
+      "id": "s4-naive-retry",
+      "title": "Retry without a claim",
+      "lessonId": "l6-fleet-operations",
+      "predictionQuestion": "A bug report is delivered twice after a timeout. With naive retry, how many PRs appear?",
+      "choices": [
+        "One",
+        "Two duplicates",
+        "Zero",
+        "Three"
+      ],
+      "answer": 1,
+      "explanation": "Each delivery spawns its own agent and branch. With an atomic claim keyed by report ID, the second delivery logs skip_already_claimed.",
+      "parameters": {
+        "seed": 4,
+        "deliveries": [
+          {
+            "report": "R7",
+            "tick": 1
+          },
+          {
+            "report": "R7",
+            "tick": 3
+          }
+        ],
+        "retryPolicy": [
+          "naive",
+          "idempotent_claim"
+        ],
+        "costUnitsPerRun": 3
+      },
+      "expectedContract": "naive: PR-a and PR-b for R7, wasted=3 units, reviewer sees a duplicate. idempotent: claim(R7) at tick 1, skip at tick 3, PRs=1."
+    },
+    {
+      "id": "s5-architecture-gate",
+      "title": "The shortcut import",
+      "lessonId": "l5-agent-friendly-architecture",
+      "predictionQuestion": "An agent's quickest fix imports heavy main-process code into the renderer. With the boundary check on, where is it caught?",
+      "choices": [
+        "In production",
+        "At CI, before review",
+        "At review only if the reviewer notices",
+        "Never"
+      ],
+      "answer": 1,
+      "explanation": "Hard checks fail the build. With soft rules only, catching it depends on the reviewer; the scenario scripts the reviewer missing it, to illustrate the gap, not as a measured miss rate.",
+      "parameters": {
+        "seed": 5,
+        "change": {
+          "id": "C1",
+          "importsAcrossBoundary": true
+        },
+        "enforcement": [
+          "soft_rule_only",
+          "ci_boundary_check"
+        ],
+        "scriptedReviewerNotices": false
+      },
+      "expectedContract": "soft: C1 merged, event boundary_violation_in_main, later jank_report(tick 8). ci: ci_fail(C1, import_boundary) at tick 2, agent revises via the allowed path, merged clean."
+    }
+  ],
+  "lab": [
+    {
+      "id": "lab-0-preflight",
+      "title": "Preflight and scratch repository",
+      "goal": "Create a disposable repository with no remotes, outside any real project.",
+      "minutes": 5,
+      "evidenceStart": 1467.7,
+      "steps": [
+        "mkdir -p ~/agent-lab/repo && cd ~/agent-lab/repo",
+        "case $PWD in $HOME/agent-lab/*) echo ok-in-lab;; *) echo STOP-outside-lab;; esac",
+        "git init -q -b main && git config user.name lab && git config user.email lab@example.invalid",
+        "printf 'greeting=hi\\n' > config.txt && printf 'cut -d= -f2 config.txt\\n' > app.sh && git add . && git commit -qm init",
+        "git remote | grep -q . && echo STOP-has-remote || echo ok-no-remote",
+        "env | grep -E '^(KUBECONFIG|AWS_|GOOGLE_|AZURE_|SSH_AUTH_SOCK|GH_TOKEN|GITHUB_TOKEN)' >/dev/null && echo WARN-credentials-visible || echo ok-clean-env"
+      ],
+      "expected": "ok-in-lab, ok-no-remote; sh app.sh prints hi. Credential visibility is a warning for stub runs and a hard stop for any real-model rerun.",
+      "verify": "sh app.sh",
+      "failureVariant": "Run the remote check inside a clone of a real repository: it prints STOP-has-remote. Do not continue there.",
+      "transfer": "Equivalent to a fresh, uncredentialed workspace; agents never get your kube context or registry tokens.",
+      "cleanup": "rm -rf ~/agent-lab"
+    },
+    {
+      "id": "lab-1-worktrees",
+      "title": "Shared tree versus worktrees",
+      "goal": "See a silent lost update become a visible conflict.",
+      "minutes": 10,
+      "evidenceStart": 1437.1,
+      "steps": [
+        "cd ~/agent-lab/repo",
+        "git worktree add -q ../wt-a -b agent-a && git worktree add -q ../wt-b -b agent-b",
+        "(cd ../wt-a && printf 'greeting=hi there\\n' > config.txt && git commit -qam 'agent-a: friendlier greeting')",
+        "(cd ../wt-b && printf 'greeting=hello\\n' > config.txt && git commit -qam 'agent-b: formal greeting')",
+        "git merge -q agent-a && git merge agent-b || echo CONFLICT-SURFACED",
+        "git merge --abort"
+      ],
+      "expected": "agent-a merges; agent-b reports a conflict on config.txt.",
+      "verify": "git log --oneline --all | head",
+      "failureVariant": "In the main tree, write each greeting to config.txt one after another: only the last survives, with no warning.",
+      "transfer": "Each Soyspray agent task gets its own worktree and branch; conflicts surface at PR review.",
+      "cleanup": "git worktree remove --force ../wt-a; git worktree remove --force ../wt-b; git branch -D agent-a agent-b"
+    },
+    {
+      "id": "lab-2-verify",
+      "title": "A check that runs the real thing",
+      "goal": "Reject a plausible but wrong change with a verification script.",
+      "minutes": 10,
+      "evidenceStart": 346.0,
+      "steps": [
+        "cd ~/agent-lab/repo",
+        "printf 'sh app.sh | grep -qx hi && echo PASS || { echo FAIL; exit 1; }\\n' > check.sh && git add check.sh && git commit -qm 'add check'",
+        "sh check.sh",
+        "git switch -q -c agent-c && printf 'greeting=hey\\n' > config.txt && git commit -qam 'agent-c: fixed greeting, verified'",
+        "sh check.sh || echo REJECT-despite-claim",
+        "git switch -q main"
+      ],
+      "expected": "PASS on main; FAIL on agent-c even though its commit message claims verification.",
+      "verify": "sh check.sh",
+      "failureVariant": "Change check.sh to always print PASS and rerun: the gate is now useless. Prove a check fails on a known-bad case before trusting it.",
+      "transfer": "Soyspray CI and harness checks are the probe; require their output, not an agent's claim.",
+      "cleanup": "git branch -D agent-c"
+    },
+    {
+      "id": "lab-3-feature-map",
+      "title": "A checkable feature map",
+      "goal": "Write a map whose entries a script can validate.",
+      "minutes": 8,
+      "evidenceStart": 606.7,
+      "steps": [
+        "cd ~/agent-lab/repo",
+        "printf 'greeting|config.txt|edit greeting value\\napp|app.sh|prints greeting\\nbilling|billing.sh|missing on purpose\\n' > feature-map.txt",
+        "cut -d'|' -f2 feature-map.txt | while read f; do [ -e \"$f\" ] && echo ok:$f || echo STALE:$f; done"
+      ],
+      "expected": "ok for config.txt and app.sh; STALE for billing.sh.",
+      "verify": "Run the loop again after removing the billing line: no STALE output.",
+      "failureVariant": "Rename app.sh without updating the map; the check reports STALE.",
+      "transfer": "A Soyspray map from app name to apps/NAME/app, manifests and checks, validated in CI.",
+      "cleanup": "rm feature-map.txt"
+    },
+    {
+      "id": "lab-4-boundary",
+      "title": "Make the shortcut fail",
+      "goal": "Enforce an architectural boundary as a hard check.",
+      "minutes": 10,
+      "evidenceStart": 2575.3,
+      "steps": [
+        "cd ~/agent-lab/repo && mkdir -p main renderer",
+        "printf 'echo heavy-work\\n' > main/heavy.sh && printf 'echo draw\\n' > renderer/view.sh",
+        "printf 'grep -rn main/ renderer && { echo FAIL-boundary; exit 1; } || echo PASS-boundary\\n' > check-boundary.sh",
+        "sh check-boundary.sh",
+        "printf '. ../main/heavy.sh\\necho draw\\n' > renderer/view.sh && sh check-boundary.sh || echo BLOCKED"
+      ],
+      "expected": "PASS first; BLOCKED after the shortcut import.",
+      "verify": "sh check-boundary.sh",
+      "failureVariant": "Replace the check with a note in a README asking agents not to import main: nothing stops the change.",
+      "transfer": "Equivalent to Soyspray's policy gates: non-root, read-only, no egress, enforced rather than requested.",
+      "cleanup": "rm -rf main renderer check-boundary.sh"
+    },
+    {
+      "id": "lab-5-idempotent-claim",
+      "title": "Claim tasks idempotently",
+      "goal": "Prevent duplicate work when a task is delivered twice.",
+      "minutes": 8,
+      "evidenceStart": 1554.5,
+      "steps": [
+        "cd ~/agent-lab/repo && mkdir -p ../claims",
+        "claim() { mkdir ../claims/$1 2>/dev/null && git worktree add -q ../wt-$1 -b task-$1 && echo claimed:$1 || echo skip:$1; }",
+        "claim R7; claim R7"
+      ],
+      "expected": "claimed:R7 then skip:R7; one branch named task-R7.",
+      "verify": "git branch --list 'task-*'",
+      "failureVariant": "Use branch names with a timestamp and no claim directory: two branches appear for the same report.",
+      "transfer": "Key agent work by issue ID; a re-sent signal must not open a second PR.",
+      "cleanup": "git worktree remove --force ../wt-R7; git branch -D task-R7; rm -rf ../claims"
+    },
+    {
+      "id": "lab-6-promotion",
+      "title": "Rehearse the promotion boundary, then optionally use a real model",
+      "goal": "Keep activation a separate, human-approved change.",
+      "minutes": 12,
+      "evidenceStart": 2869.4,
+      "steps": [
+        "cd ~/agent-lab/repo",
+        "git switch -q -c promote && printf 'image=sha256:STUB-%s\\n' $(git rev-parse --short main) > promotion.txt && git add promotion.txt && git commit -qm 'promote: pin stub digest (HUMAN APPROVES)'",
+        "git switch -q main",
+        "OPTIONAL real-model rerun: only in a container or VM with no kube config, cloud or registry credentials, SSH agent or network beyond the model API. Rerun the preflight env check first and require ok-clean-env. Point your own agent CLI at a fresh worktree, in its most restrictive sandbox and approval mode, with flags taken from its current dated docs. Ask it to make check.sh pass, then run check.sh yourself."
+      ],
+      "expected": "A promote branch containing only promotion.txt; main untouched. Optional rerun: the agent's work is judged by check.sh output, not its message.",
+      "verify": "git diff --stat main promote",
+      "failureVariant": "Commit promotion.txt together with a source change on one branch: review now mixes activation with code, which is the coupling Soyspray's separate promotion PR avoids.",
+      "transfer": "Source PR, then CI builds the image, then a separate digest promotion PR, then Argo. No agent pushes, merges a promotion or touches the cluster.",
+      "cleanup": "git branch -D promote; finally rm -rf ~/agent-lab"
+    }
+  ],
+  "adoptionPrompts": [
+    "Which agent tasks will require attached verification evidence, and what counts as evidence for each?",
+    "Which review comments have I written more than twice, and what check will replace each one?",
+    "Which invariant will I make impossible by construction first?",
+    "How will each agent get an isolated workspace, and how are tasks claimed so a retry cannot duplicate work?",
+    "Which credentials, contexts and networks must an agent never see? How do I prove they cannot?",
+    "Where does agent autonomy stop: branch, PR, merge, or never beyond PR? Why?",
+    "The digest promotion stays human. Who approves it, and what must they check?",
+    "How will I measure escaped defects, for example reverts per landed change, before raising agent count?",
+    "What is my monthly token budget, and what cost per verified merged change is acceptable?",
+    "When I change a skill or model, what eval or rerun confirms behaviour did not regress?"
+  ],
+  "contentCautions": [
+    "The wrapper's '21+ GrokBot agents' framing does not appear in this recording. The nearest spoken figures are about 20 PRs landed overnight (222.2-232.0, 2099.2-2106.1). Do not state 21+ agents anywhere unless OCR shows it.",
+    "Product spelling is unresolved: ASR yields Grockbot, Grokbot, Grogbot and Rockbot. The docs path uses grok-bot. Confirm on-screen spelling via OCR; until then use 'Grokbot (spelling pending)' in the private evidence view.",
+    "pstack also appears as PSAC, PStack and P-stack in ASR; the pinned GitHub path uses pstack. The review bot is heard as Bugbot or Bogbot; confirm before naming.",
+    "The phrase 'SpaceX AI' at about 3185 and 'fable size' at about 3124 are likely recognition errors. Mark them UNCLEAR pending the medium.en disagreement report; do not interpret them.",
+    "The model release and pricing remarks (3149-3192) are dated and hedged by the speaker; present them only as said, and point to current docs.",
+    "All PR counts, the five-month timeline and the 600-PR refactor are self-reported anecdotes, not measurements.",
+    "Recording date is unknown. She says 'the 12th' (300.5-307.1) and 'launched yesterday' (1995.8). These are relative to the recording, not the wrapper post.",
+    "Speakers: the host is not reliably named by ASR (possibly at 242.8). Use 'host' until confirmed. A third participant comments on screen annotation around 1110.",
+    "Her employer and role statements (Cursor, prior Meta; 271.8-279.1, 1890.9-1899.7) are self-descriptions; attribute rather than assert.",
+    "She mentions another public figure's similarly named plugin when explaining pstack's name. Omit the person from lessons; it is not needed for learning.",
+    "Docs entries are supplementary, dated at capture, and not yet read by me. Their relation fields stay unclassified until Codex supplies captured text with retrieval timestamps.",
+    "Do not use summaries of other talks by the speaker; every number and chapter must come from this recording.",
+    "The last segment ends at 3411.65 s against 3412.10 s of audio. Document the 0.45 s tail and any picture-duration difference in provenance.",
+    "First-pass ASR is not human-certified. Re-check every evidence range against the medium.en pass and word timings, with \u00b11 s tolerance, before release."
+  ]
+}

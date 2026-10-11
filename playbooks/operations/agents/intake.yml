@@ -1,0 +1,27 @@
+---
+- name: Guarded private evidence intake into Argo-owned claims
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Require explicit private input and report paths
+      ansible.builtin.assert:
+        that:
+          - agents_promotion is defined
+          - agents_archive is defined
+          - agents_report is defined
+        fail_msg: Provide the reviewed promotion record, private archive and private report path.
+    - name: Validate identities and stream through a short-lived scoped credential
+      ansible.builtin.command:
+        argv:
+          - "{{ ansible_playbook_python }}"
+          - "{{ playbook_dir }}/../../../apps/agents/operations/intake.py"
+          - --promotion
+          - "{{ agents_promotion }}"
+          - --archive
+          - "{{ agents_archive }}"
+          - --report
+          - "{{ agents_report }}"
+      changed_when: true
+      no_log: true

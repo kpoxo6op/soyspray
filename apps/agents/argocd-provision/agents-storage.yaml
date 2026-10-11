@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: agents-storage
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: '-15'
+  namespace: argocd
+spec:
+  description: Private agent workshop protected storage provisioning.
+  sourceRepos:
+    - https://github.com/kpoxo6op/soyspray.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: agents
+  clusterResourceWhitelist:
+    - group: storage.k8s.io
+      kind: StorageClass
+  namespaceResourceWhitelist: []
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agents-storage
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    argocd.argoproj.io/sync-wave: '-15'
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: agents
+    soyspray.vip/owner: platform
+spec:
+  project: agents-storage
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: main
+    path: apps/agents/storage
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: agents
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - PruneLast=true
