@@ -3,6 +3,7 @@
 import re
 import unittest
 
+from evidence import MAX_ARCHIVE
 from test_storage_scope import documents
 
 
@@ -77,6 +78,15 @@ class RuntimeScope(unittest.TestCase):
         self.assertFalse(any(re.search(r"external-dns.*hostname$", k) for k in annotations))
         for prefix in ("external-dns.alpha.kubernetes.io", "external-dns.kubernetes.io"):
             self.assertEqual(annotations[prefix + "/ingress-hostname-source"], "annotation-only")
+
+    def test_receiver_memory_covers_bounded_archive_writeback(self):
+        for job in (d for d in documents("manifests") if d["kind"] == "Job"):
+            receiver = job["spec"]["template"]["spec"]["containers"][0]
+            value = receiver["resources"]["limits"]["memory"]
+            match = re.fullmatch(r"([0-9]+)(Mi|Gi)", value)
+            self.assertIsNotNone(match)
+            limit = int(match[1]) * {"Mi": 1024**2, "Gi": 1024**3}[match[2]]
+            self.assertGreaterEqual(limit, MAX_ARCHIVE + 100 * 1024**2)
 
 
 if __name__ == "__main__":

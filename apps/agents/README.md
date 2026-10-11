@@ -99,6 +99,16 @@ old pod serves. Web and receiver Pods keep zero egress; kubelet's Longhorn NFS
 mount path must be proven live without loosening their policy. The restore-test
 claim is distinct and must never be mounted by the web Deployment.
 
+Both receiver hooks request 128Mi and limit memory to 1Gi, at least 100Mi above
+the 900Mi archive bound. Longhorn NFS writeback pages count against that limit;
+record node capacity before promotion. On kernels without `memory.peak`, a
+read-only node watcher samples the exact Pod and container cgroups every 10ms
+from before transfer until exit, with memory.stat at least every 100ms.
+Record IDs, timing, sample gaps and the sampled maximum. Verification requires
+oom, oom_kill and max counters to remain zero at both levels, a sampled maximum
+at most 640Mi, and the completed full-hash proof. A breach requires reviewed
+bounded writeback code, a new scanned image and another real NFS proof.
+
 The private backup repository contains only age ciphertext and allowlisted
 metadata: schema version, manifest ID, archive/ciphertext/source-video SHA256,
 ciphertext size, age version, public recipient, archive-derived asset name and UTC.
