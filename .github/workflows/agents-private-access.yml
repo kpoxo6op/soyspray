@@ -1,0 +1,52 @@
+name: Agent workshop private access
+
+on:
+  push:
+    branches: [main]
+    paths: [apps/agents/**, .github/workflows/agents-private-access.yml]
+  pull_request:
+    paths: [apps/agents/**, .github/workflows/agents-private-access.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  external-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify the workshop is unreachable from an external runner
+        run: |
+          python3 - <<'PY'
+          import datetime,json,socket,urllib.request,urllib.error
+          from pathlib import Path
+          host='agents.soyspray.vip'
+          interfaces=[p.name for p in Path('/sys/class/net').iterdir()]
+          assert not any(n.startswith('tailscale') for n in interfaces)
+          assert socket.getaddrinfo('github.com',443)
+          with urllib.request.urlopen('https://github.com',timeout=15) as response:
+              assert response.status==200
+          try:
+              addresses=socket.getaddrinfo(host,443)
+          except socket.gaierror as error:
+              assert error.errno in [socket.EAI_NONAME,socket.EAI_NODATA]
+              dns={'resolved':False,'errno':error.errno}
+          else:
+              raise AssertionError('Private workshop resolved on an external runner')
+          try:
+              urllib.request.urlopen('https://'+host+'/',timeout=15)
+          except urllib.error.URLError as error:
+              assert isinstance(error.reason,socket.gaierror),str(error)
+              https={'reachable':False,'failure':'DNS name unavailable'}
+          else:
+              raise AssertionError('Private workshop was externally reachable')
+          report={'UTC':datetime.datetime.now(datetime.timezone.utc).isoformat(),'host':host,'interfaces':interfaces,'externalDNSAndHTTPSPositiveControl':True,'workshopDNS':dns,'workshopHTTPS':https,'credentialsUsed':False}
+          Path('private-access.json').write_text(json.dumps(report,indent=2)+'\n')
+          print(json.dumps(report))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agents-external-private-access
+          path: private-access.json
+          retention-days: 3
