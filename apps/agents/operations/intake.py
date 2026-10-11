@@ -266,11 +266,13 @@ def run(args):
         ("agents", "", "pods", "get", "", True),
         ("agents", "batch", "jobs", "get", "", True),
         ("agents", "", "pods", "create", "exec", True),
+        ("agents", "", "pods", "get", "exec", True),
         ("agents", "", "secrets", "get", "", False),
         ("agents", "", "pods", "list", "", False),
         ("agents", "", "pods", "create", "", False),
         ("agents", "apps", "deployments", "patch", "", False),
         ("default", "", "pods", "create", "exec", False),
+        ("default", "", "pods", "get", "exec", False),
         ("argocd", "", "secrets", "get", "", False),
         ("", "", "nodes", "get", "", False),
     ]
@@ -306,7 +308,7 @@ def run(args):
     current_job = as_dict(batch.read_namespaced_job(promotion["jobName"], namespace))
     assert_target(promotion, pvc, current_job, current_pod)
     channel = stream(
-        core.connect_post_namespaced_pod_exec,
+        core.connect_get_namespaced_pod_exec,
         pod["metadata"]["name"],
         namespace,
         container="receiver",
