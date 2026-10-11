@@ -499,7 +499,17 @@ async def test_exact_clarification_normalizes_politeness_and_current_top(
 
 
 @pytest.mark.parametrize(
-    "collision", ["alias", "area", "floor", "nonlight", "normalized_light", "reserved"]
+    "collision",
+    [
+        "alias",
+        "area",
+        "floor",
+        "area_alias",
+        "floor_alias",
+        "nonlight",
+        "normalized_light",
+        "reserved",
+    ],
 )
 async def test_exact_clarification_declines_name_collisions(hass, agent, aioclient_mock, collision):
     """A matching light is insufficient when the reply could mean another object or place."""
@@ -514,6 +524,14 @@ async def test_exact_clarification_declines_name_collisions(hass, agent, aioclie
         ar.async_get(hass).async_create("Ｐｅａｎｕｔ!")
     elif collision == "floor":
         fr.async_get(hass).async_create("Peanut")
+    elif collision == "area_alias":
+        registry = ar.async_get(hass)
+        area = registry.async_create("Kitchen & Dining")
+        registry.async_update(area.id, aliases={"Ｐｅａｎｕｔ!"})
+    elif collision == "floor_alias":
+        registry = fr.async_get(hass)
+        floor = registry.async_create("Ground")
+        registry.async_update(floor.floor_id, aliases={"Ｐｅａｎｕｔ!"})
     elif collision in ("nonlight", "normalized_light"):
         other = "sensor.other" if collision == "nonlight" else "light.other"
         hass.states.async_set(other, "off", {"friendly_name": "Ｐｅａｎｕｔ!"})

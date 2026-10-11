@@ -145,7 +145,15 @@ class GiVoiceAgent(conversation.ConversationEntity):
         ):
             return None
         for places in (ar.async_get(self.hass).areas, fr.async_get(self.hass).floors):
-            if any(normalize_clarification(place.name) == answer for place in places.values()):
+            if any(
+                normalize_clarification(place.name) == answer
+                or any(
+                    normalize_clarification(alias) == answer
+                    for alias in place.aliases
+                    if isinstance(alias, str)
+                )
+                for place in places.values()
+            ):
                 return None
         return validate(
             {
