@@ -71,6 +71,7 @@ class StaleSyncScope(unittest.TestCase):
         self.expected.update(scenario="writeback-fallback", retryCount=0)
         operation = self.app["status"]["operationState"]
         operation.update(retryCount=0)
+        operation.pop("retryCount")  # The live API omits the zero value.
         operation["syncResult"]["revision"] = "0196736b88e5e7de4d57da4b4038d8a299806c48"
         self.assertEqual(
             termination_patch(self.app, self.expected, "new-main")["status"],

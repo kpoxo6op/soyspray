@@ -46,7 +46,7 @@ def termination_patch(app, expected, desired_revision):
         or status["sync"]["revision"] != desired_revision
         or operation["phase"] != "Running"
         or operation["startedAt"] != expected["operationStartedAt"]
-        or operation["retryCount"] != retry_count
+        or operation.get("retryCount", 0) != retry_count
         or operation["syncResult"]["revision"] != old_revision
     ):
         raise ValueError("The obsolete initial operation identity changed")
@@ -91,7 +91,11 @@ def run(args):
         age = (
             datetime.now(timezone.utc) - datetime.fromisoformat(api_evidence["UTC"])
         ).total_seconds()
-        if api_evidence.get("HTTPStatus") != 401 or not 0 <= age <= 300:
+        if (
+            api_evidence.get("HTTPStatus") != 401
+            or api_evidence.get("server") != "argocd.soyspray.vip"
+            or not 0 <= age <= 300
+        ):
             raise ValueError("Fresh native Argo API 401 evidence is required")
         for declared_job in declared:
             receiver = declared_job["spec"]["template"]["spec"]["containers"][0]
