@@ -11,12 +11,22 @@ from homeassistant.const import CONF_API_KEY
 from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import floor_registry as fr
 from homeassistant.helpers import intent
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 
 from .const import API, CONF_LIGHTS, DOMAIN, MODEL, SCHEMA_VERSION, TIMEOUT_SECONDS
-from .policy import CONTEXTUAL, INTENTS, NO_ACTION, Interpretation, validate
+from .policy import (
+    CLARIFICATION_RESERVED,
+    CONTEXTUAL,
+    INTENTS,
+    NO_ACTION,
+    Interpretation,
+    clarification_intent,
+    normalize_clarification,
+    validate,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -105,6 +115,56 @@ class GiVoiceAgent(conversation.ConversationEntity):
                 "area": area.name if area else None,
             }
         return eligible
+
+    def exact_clarification(self, text, previous, catalog):
+        """Complete a scoped canonical request with one unambiguous current name."""
+        if previous is None or (action := clarification_intent(previous)) is None:
+            return None
+        answer = normalize_clarification(text)
+        matches = [
+            eid
+            for eid, light in catalog.items()
+            if normalize_clarification(light["name"]) == answer
+        ]
+        if len(matches) != 1 or answer in CLARIFICATION_RESERVED:
+            return None
+        target = matches[0]
+        registry = er.async_get(self.hass)
+        if any(
+            normalize_clarification(alias) == answer
+            for entry in registry.entities.values()
+            for alias in entry.aliases
+            if isinstance(alias, str)
+        ):
+            return None
+        if any(
+            state.entity_id != target
+            and async_should_expose(self.hass, conversation.DOMAIN, state.entity_id)
+            and normalize_clarification(state.name) == answer
+            for state in self.hass.states.async_all()
+        ):
+            return None
+        for places in (ar.async_get(self.hass).areas, fr.async_get(self.hass).floors):
+            if any(
+                normalize_clarification(place.name) == answer
+                or any(
+                    normalize_clarification(alias) == answer
+                    for alias in place.aliases
+                    if isinstance(alias, str)
+                )
+                for place in places.values()
+            ):
+                return None
+        return validate(
+            {
+                "kind": "action",
+                "intent": action,
+                "targets": [target],
+                "brightness_pct": None,
+                "question": None,
+            },
+            catalog,
+        )
 
     async def interpret(self, text, catalog, user_input, previous=None):
         """Make one non-thinking request; never retry or accept truncated output."""
@@ -232,7 +292,7 @@ class GiVoiceAgent(conversation.ConversationEntity):
         )
         return conversation.ConversationResult(response, conversation_id), outcome
 
-    def record(self, user_input, decision, outcome, started, keep_text=True):
+    def record(self, user_input, decision, outcome, started, keep_text=True, route=None):
         record = {
             "kind": decision.kind if decision else None,
             "intent": decision.intent if decision else None,
@@ -243,16 +303,29 @@ class GiVoiceAgent(conversation.ConversationEntity):
         }
         if keep_text:
             record["text"] = user_input.text
+        if route == "exact_clarification":
+            record.update({"route": route, "provider_calls": 0})
         self.audit = (self.audit + [record])[-200:]
         if self._store:
             self._store.async_delay_save(lambda: {"records": self.audit}, 5)
 
     async def _async_handle_message(self, user_input, chat_log):
+        result = await self._process_message(user_input, chat_log)
+        chat_log.async_add_assistant_content_without_tools(
+            conversation.AssistantContent(
+                agent_id=self.entity_id,
+                content=result.response.speech.get("plain", {}).get("speech", ""),
+            )
+        )
+        return result
+
+    async def _process_message(self, user_input, chat_log):
         started = time.monotonic()
         conversation_id = chat_log.conversation_id
         key = (conversation_id, user_input.satellite_id, user_input.context.user_id)
         previous = self._pending.pop(key, None)
-        if previous and started - previous["time"] > 60:
+        user_turn = sum(message.role == "user" for message in chat_log.content)
+        if previous and (started - previous["time"] > 60 or previous["user_turn"] != user_turn - 1):
             previous = None
         self._pending = {k: v for k, v in self._pending.items() if started - v["time"] < 60}
         if len(user_input.text) > 500 or NO_ACTION.search(user_input.text):
@@ -261,14 +334,20 @@ class GiVoiceAgent(conversation.ConversationEntity):
         outcome = "provider_unavailable"
         decision = None
         result = None
+        route = None
         try:
             catalog = self.catalog()
             if not catalog:
                 self.record(user_input, None, "no_eligible_lights", started, keep_text=False)
                 return self.reply(user_input, "No eligible lights are available.", conversation_id)
-            decision = await self.interpret(
-                user_input.text, catalog, user_input, previous["text"] if previous else None
-            )
+            if previous and user_input.language == "en":
+                decision = self.exact_clarification(user_input.text, previous["text"], catalog)
+            if decision is not None:
+                route = "exact_clarification"
+            else:
+                decision = await self.interpret(
+                    user_input.text, catalog, user_input, previous["text"] if previous else None
+                )
             current = self.catalog()
             if current != catalog:
                 raise ValueError("The eligible light catalog changed")
@@ -282,7 +361,11 @@ class GiVoiceAgent(conversation.ConversationEntity):
             elif decision.kind == "clarify":
                 outcome = "clarify"
                 if not previous:
-                    self._pending[key] = {"text": user_input.text, "time": started}
+                    self._pending[key] = {
+                        "text": user_input.text,
+                        "time": started,
+                        "user_turn": user_turn,
+                    }
                 result = self.reply(user_input, decision.question, conversation_id, not previous)
             else:
                 result, outcome = await self.execute(decision, catalog, user_input, conversation_id)
@@ -290,5 +373,5 @@ class GiVoiceAgent(conversation.ConversationEntity):
             _LOGGER.warning("GI Flex interpretation failed (%s)", type(error).__name__)
             outcome = "failed"
             result = self.reply(user_input, "I can't interpret that right now.", conversation_id)
-        self.record(user_input, decision, outcome, started)
+        self.record(user_input, decision, outcome, started, route=route)
         return result
