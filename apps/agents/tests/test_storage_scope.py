@@ -89,7 +89,12 @@ class StorageScope(unittest.TestCase):
         }
         self.assertEqual(
             permissions,
-            {("", "pods", "get"), ("batch", "jobs", "get"), ("", "pods/exec", "create")},
+            {
+                ("", "pods", "get"),
+                ("batch", "jobs", "get"),
+                ("", "pods/exec", "create"),
+                ("", "pods/exec", "get"),
+            },
         )
         sa = next(d for d in documents("provision") if d["kind"] == "ServiceAccount")
         self.assertFalse(sa["automountServiceAccountToken"])

@@ -50,11 +50,14 @@ claims, scoped RBAC and default-deny NetworkPolicy. Root catalog entries and
 durable resources are protected from pruning and cascading deletion.
 
 The intake credential exists in memory for at most 30 minutes and is bound to
-the receiver Pod. It can get Pods and Jobs and create Pod exec in this namespace;
+the receiver Pod. It can get Pods and Jobs and get/create Pod exec in this namespace;
 it cannot read secrets or mutate workloads. The reviewed operation verifies
 the controller archive, PVC UID, retained PV, Job owner, pod labels, running
 phase, fixed receiver command and image digest before its one fixed transfer.
 No operator shell is invoked, and no token is printed or written to disk.
+The WebSocket handshake uses HTTP GET; Kubernetes 1.35 also checks create
+permission for this same exec subresource. Both verbs are scoped to this namespace
+and checked with the issued credential before transfer.
 
 Production intake is a Sync hook in a wave before the web Deployment. Restore
 intake is a separate PostSync hook on the restore-test claim. Both use fixed
@@ -96,16 +99,35 @@ old pod serves. Web and receiver Pods keep zero egress; kubelet's Longhorn NFS
 mount path must be proven live without loosening their policy. The restore-test
 claim is distinct and must never be mounted by the web Deployment.
 
-Private backup history goes to a private evidence repository with Actions disabled,
-no Pages, no forks, only the owner as collaborator, no pending invitations,
-deploy keys or hooks, and no GitHub App with all-repositories access. The personal
-account's allow-forking flag cannot be disabled; actual access and fork count
-are checked at backup and restore. Media release
-assets are age-encrypted, with ciphertext hash/size recorded privately. The
-identity stays outside every Git repo and has a verified local keyring copy
-plus an off-device copy in a dedicated private account folder. That folder has
-no sharing or upload links, collaborators, archive or repository credentials.
-Server listing and a fresh server download prove custody; only hashes are logged.
+The private backup repository contains only age ciphertext and allowlisted
+metadata: schema version, manifest ID, archive/ciphertext/source-video SHA256,
+ciphertext size, age version, public recipient, archive-derived asset name and UTC.
+Audit every commit on every ref, tag message, release text and asset name; scan
+history and release text for transcript/OCR phrases and private profile strings.
+No talk-derived material, identity, identity hash, key location or hostname mapping
+belongs in GitHub. Every asset must have an age header and one X25519 stanza,
+with its bytes and size matching the server and immutable controller pins.
+The stanza contains an ephemeral key; successful independent decryption binds
+the encrypted asset to the enrolled recovery identity.
+
+At backup and restore, timestamp the installed-App repository selections and
+Contents permissions and compare the baseline. Newly granted backup-repository
+or all-repository access blocks verification until reviewed; do not change grants
+automatically. Existing Apps were reviewed and left unchanged. Apps can read
+ciphertext and, with write permission, alter or delete it. Confidentiality rests
+on age and separate key custody, integrity on controller-pinned hashes, and
+availability on the immutable controller inputs. A missing or mismatched asset
+requires re-upload and a complete independent restore.
+
+Audit that the repository is private, owner-only, with zero invitations, deploy
+keys, hooks and forks; Actions, Pages, Issues, Wiki, Projects and Discussions are
+disabled. The account's allow-forking flag cannot be disabled; check actual forks.
+The recovery identity stays outside Git, CI, the cluster, Telegram and logs.
+Its desktop Secret Service keyring copy and off-device private pCloud copy are
+verified independently. The pCloud account has two-factor authentication and
+the dedicated folder has no shares, public/upload links or collaborators.
+Server listing and a fresh server download prove custody. Key-location evidence
+stays on the private controller.
 Delivery requires a completed encrypted upload, independent download,
 decryption from both recovery copies, full hash comparison and identical intake
 into the protected restore-test claim.
