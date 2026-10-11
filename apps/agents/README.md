@@ -129,11 +129,19 @@ and provenance-only pack on main, a completed earlier production hook, recorded
 production state, and fresh native-API 401 evidence before the status-only route.
 Both incidents have fixed original revisions and exact private identity guards.
 
-The private backup repository contains only age ciphertext and allowlisted
-metadata: schema version, manifest ID, archive/ciphertext/source-video SHA256,
+Reachable history in the private backup repository contains only age ciphertext
+and allowlisted metadata: schema version, manifest ID, archive/ciphertext/source-video SHA256,
 ciphertext size, age version, public recipient, archive-derived asset name and UTC.
-Audit every commit on every ref, tag message, release text and asset name; scan
-history and release text for transcript/OCR phrases and private profile strings.
+Audit every remote ref (including pull refs), release target, reachable commit,
+blob, tag message, release text and asset name; scan history and release text for
+transcript/OCR phrases and private profile strings. Two pinned, unreachable legacy
+commits have a reviewed exception for a generic README and existing public commit
+attribution, recorded with exact object hashes in the private recovery runbook.
+Audit every known legacy object from recorded history and local reflogs. GitHub
+cannot enumerate all unreachable objects; do not claim exhaustive coverage of
+unknown orphan objects. Keep this backup repository append-only: no force-push,
+branch deletion, history rewrite or draft-tag rewrite. Any operation that could
+orphan a new object requires review before execution.
 No talk-derived material, identity, identity hash, key location or hostname mapping
 belongs in GitHub. Every asset must have an age header and one X25519 stanza,
 with its bytes and size matching the server and immutable controller pins.
