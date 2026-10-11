@@ -13,7 +13,26 @@ const esc = (v) =>
             })[c],
     );
 const paragraphs = (values) =>
-    (values || []).map((p) => `<p>${esc(p)}</p>`).join("");
+    (values || [])
+        .map((value) => {
+            let html = "",
+                list = false;
+            for (const line of String(value).split("\n")) {
+                if (line.startsWith("- ")) {
+                    if (!list) html += "<ul>";
+                    list = true;
+                    html += `<li>${esc(line.slice(2))}</li>`;
+                } else if (line.trim()) {
+                    if (list) {
+                        html += "</ul>";
+                        list = false;
+                    }
+                    html += `<p>${esc(line)}</p>`;
+                }
+            }
+            return html + (list ? "</ul>" : "");
+        })
+        .join("");
 const time = (seconds) =>
     `${Math.floor(seconds / 60)
         .toString()
@@ -239,7 +258,7 @@ function simOutput(finish = false) {
 function labPage(id) {
     return `${pageTitle("Offline · disposable · no credentials", "Rehearse the controls", "Deterministic stub agents operate only in an owned scratch repository. No tokens, remotes, cluster changes or downloaded executables.")}<div class="panel"><h2>Run the complete safe lab</h2><p>Save the script, inspect it, then run it with Python 3 and Git. It refuses an existing foreign directory, symlinks and repositories with remotes. Repeated runs use the same owned lab root.</p><a class="action" href="lab.py" download>Download the readable lab script</a><pre><code>python3 -I lab.py run --root ~/agent-lab
 python3 -I lab.py verify --root ~/agent-lab
-python3 -I lab.py cleanup --root ~/agent-lab</code></pre><button data-copy="python3 -I lab.py run --root ~/agent-lab">Copy run command</button><p class="muted">Only the downloaded script executes the steps below. A real-model rerun is optional and requires a separate uncredentialed VM or container; it is never started by this site.</p></div><h2>Offline practice steps</h2><div class="grid">${content.lab.map((l, i) => `<article class="card" id="${l.id}"><span class="number">STEP ${i + 1} · ${l.minutes} MIN</span><h3>${esc(l.title)}</h3><p>${esc(l.goal)}</p>${stamp(l.evidenceStart)}<details ${id === l.id ? "open" : ""}><summary>Plan, expected result and transfer</summary><p>${esc(l.expected)}</p><h4>Failure to rehearse</h4><p>${esc(l.failureVariant)}</p><h4>Transfer to Soyspray</h4><p>${esc(l.transfer)}</p></details></article>`).join("")}</div><h2>Your adoption decision</h2><p class="muted">This browser only. Export a Markdown decision sheet when you’re ready.</p><form id="adoption-form">${content.adoptionPrompts.map((p, i) => `<p><label for="adoption-${i}">${esc(p)}</label><textarea id="adoption-${i}" data-adoption="${i}">${esc(state.adoption[i] || "")}</textarea></p>`).join("")}</form><button id="adoption-export">Export adoption decision</button>`;
+python3 -I lab.py cleanup --root ~/agent-lab</code></pre><button data-copy="python3 -I lab.py run --root ~/agent-lab">Copy run command</button><p class="muted">Only the downloaded script executes the steps below. A real-model rerun is optional and requires a separate uncredentialed VM or container; it is never started by this site.</p></div><h2>Offline practice steps</h2><div class="grid">${content.lab.map((l, i) => `<article class="card" id="${l.id}"><span class="number">STEP ${i + 1} · ${l.minutes} MIN</span><h3>${esc(l.title)}</h3><p>${esc(l.goal)}</p>${stamp(l.evidenceStart)}<details ${id === l.id ? "open" : ""}><summary>Steps, verification and expected result</summary><ol>${l.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol><h4>Expected result</h4><p>${esc(l.expected)}</p><h4>Inspect and verify</h4><pre><code>${esc(l.verify)}</code></pre><h4>Failure to rehearse</h4><p>${esc(l.failureVariant)}</p><h4>Cleanup</h4><p>${esc(l.cleanup)}</p><h4>Transfer to Soyspray</h4><p>${esc(l.transfer)}</p></details></article>`).join("")}</div><h2>Your adoption decision</h2><p class="muted">This browser only. Export a Markdown decision sheet when you’re ready.</p><form id="adoption-form">${content.adoptionPrompts.map((p, i) => `<p><label for="adoption-${i}">${esc(p)}</label><textarea id="adoption-${i}" data-adoption="${i}">${esc(state.adoption[i] || "")}</textarea></p>`).join("")}</form><button id="adoption-export">Export adoption decision</button>`;
 }
 function ledgerPage() {
     const claims = content.lessons.flatMap((l) =>
