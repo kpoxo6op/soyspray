@@ -109,6 +109,15 @@ oom, oom_kill and max counters to remain zero at both levels, a sampled maximum
 at most 640Mi, and the completed full-hash proof. A breach requires reviewed
 bounded writeback code, a new scanned image and another real NFS proof.
 
+`retire-stale-sync.yml` documents the one-time recovery from the obsolete initial
+192Mi operation when another Argo retry remains. Run only from clean, pushed main
+with the merged 1Gi configuration and private reviewed Application/Job/Pod IDs.
+It refuses a changed operation, existing web workload or active sender, checks
+unchanged staging, and records hook/operation/events before requesting native
+Argo termination. Its only write changes that obsolete operation's status phase;
+Argo owns cleanup and the subsequent main sync. It never edits or deletes Jobs,
+claims, deployments or Application spec. Do not reuse it as a general sync shortcut.
+
 The private backup repository contains only age ciphertext and allowlisted
 metadata: schema version, manifest ID, archive/ciphertext/source-video SHA256,
 ciphertext size, age version, public recipient, archive-derived asset name and UTC.

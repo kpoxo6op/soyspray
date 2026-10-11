@@ -53,6 +53,7 @@ class IntakeScope(unittest.TestCase):
                         "name": "receiver",
                         "image": self.promotion["image"],
                         "command": ["python3", "/opt/evidence.py", "receive"],
+                        "resources": {"limits": {"memory": "1Gi"}},
                         "volumeMounts": [{"name": "evidence", "mountPath": "/evidence"}],
                         "env": [
                             {"name": "PACK_HASH", "value": "a" * 64},
@@ -94,6 +95,9 @@ class IntakeScope(unittest.TestCase):
             lambda pvc, job, pod: pod["spec"]["containers"][0]["env"][0].update(value="d" * 64),
             lambda pvc, job, pod: pod["spec"]["containers"][0]["env"][1].update(value="e" * 64),
             lambda pvc, job, pod: pod["spec"]["containers"][0].update(command=["sh"]),
+            lambda pvc, job, pod: pod["spec"]["containers"][0]["resources"]["limits"].update(
+                memory="192Mi"
+            ),
             lambda pvc, job, pod: pod["spec"]["volumes"][0]["persistentVolumeClaim"].update(
                 claimName="foreign-data"
             ),
