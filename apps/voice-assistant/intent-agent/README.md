@@ -14,6 +14,17 @@ Provider timeout is 2.5 seconds without a retry. Replies describe HA
 successes and failures, including partially completed requests. No arbitrary services, toggles, scripts, state values or non-light
 entities are sent to or accepted from the provider.
 
+During the next English turn of a live clarification, an exact current light
+name can complete a canonical `turn`/`switch` on/off request without another
+provider call. This covers pronouns and generic light requests, with one leading
+or trailing `please`. Names use Unicode normalization, case and punctuation;
+aliases, rooms, floors, reserved words and conflicting exposed names decline
+the shortcut. Other replies retain the existing provider path. A native-handled
+or unrelated intervening turn invalidates the original clarification, as do
+expiry and a different conversation, satellite or user. The local route records
+`exact_clarification` and zero provider calls in the existing private audit.
+It does not repair speech recognition or complete an unknown first target name.
+
 The API key enters a supported HA config flow from private Vault inputs. It is
 kept in the HA config entry and existing protected PVC, never in an image or
 public Git. `gi_voice.audit.*` is bounded private HA Store data used to assess

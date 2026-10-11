@@ -11,7 +11,10 @@ from homeassistant.components import conversation
 from homeassistant.components.homeassistant.exposed_entities import async_expose_entity
 from homeassistant.core import Context
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import area_registry as ar
 from homeassistant.helpers import chat_session, intent
+from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import floor_registry as fr
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -45,14 +48,22 @@ async def agent(hass):
     return entry.runtime_data
 
 
-async def process(agent, text="Please illuminate Peanut", conversation_id=None):
+async def process(
+    agent,
+    text="Please illuminate Peanut",
+    conversation_id=None,
+    *,
+    satellite_id=None,
+    user_id=None,
+    language="en",
+):
     user = conversation.ConversationInput(
         text=text,
-        context=Context(),
+        context=Context(user_id=user_id),
         conversation_id=conversation_id,
         device_id=None,
-        satellite_id=None,
-        language="en",
+        satellite_id=satellite_id,
+        language=language,
         agent_id=agent.entity_id,
     )
     return await agent.async_process(user)
@@ -335,7 +346,7 @@ async def test_real_pipeline_prefers_local_control_before_fallback(
     assert aioclient_mock.call_count == expected_provider_calls
 
 
-async def pipeline_speech(hass, agent, text):
+async def pipeline_speech(hass, agent, text, conversation_id=None):
     from homeassistant.components.assist_pipeline.pipeline import (
         Pipeline,
         PipelineRun,
@@ -360,7 +371,7 @@ async def pipeline_speech(hass, agent, text):
     run = PipelineRun(
         hass, Context(), pipeline, PipelineStage.INTENT, PipelineStage.INTENT, lambda event: None
     )
-    with chat_session.async_get_chat_session(hass, None) as session:
+    with chat_session.async_get_chat_session(hass, conversation_id) as session:
         await run.prepare_recognize_intent(session)
         speech, _ = await run.recognize_intent(text, session.conversation_id, None)
     return speech
@@ -420,3 +431,311 @@ async def test_refusals_record_counts_without_transcripts(hass, agent):
     await process(agent, "Please illuminate Peanut")
     assert [r["outcome"] for r in agent.audit] == ["no_action", "no_eligible_lights"]
     assert all("text" not in r for r in agent.audit)
+
+
+def clarification():
+    return action(kind="clarify", intent=None, targets=[], question="Which light?")
+
+
+ON_OFF_REQUESTS = [
+    f"{verb} {reference} {{mode}}"
+    for verb in ("turn", "switch")
+    for reference in ("it", "them", "light", "lights", "the light", "the lights")
+] + [
+    f"{verb} {{mode}} {reference}"
+    for verb in ("turn", "switch")
+    for reference in ("light", "lights", "the light", "the lights")
+]
+
+
+@pytest.mark.parametrize("prior_text", ON_OFF_REQUESTS)
+@pytest.mark.parametrize("mode", ["on", "off"])
+@pytest.mark.parametrize("answer", ["Peanut!", " peanut. ", "Peanut?"])
+async def test_exact_clarification_dispatches_once_without_a_second_provider(
+    hass, agent, aioclient_mock, prior_text, mode, answer
+):
+    """Real intent dispatch owns correct scoped completion; old tests only rejected retries."""
+    calls = []
+
+    async def collect(call):
+        calls.append((call.service, dict(call.data)))
+
+    hass.services.async_register("light", "turn_" + mode, collect)
+    aioclient_mock.post(API + "/chat/completions", json=provider(clarification()))
+    first = await process(agent, prior_text.format(mode=mode))
+    result = await process(agent, answer, first.conversation_id)
+    assert calls == [("turn_" + mode, {"entity_id": ["light.peanut"]})]
+    assert aioclient_mock.call_count == 1
+    assert not result.continue_conversation
+    assert agent.audit[-1]["route"] == "exact_clarification"
+    assert agent.audit[-1]["provider_calls"] == 0
+
+
+@pytest.mark.parametrize(
+    "prior_text",
+    [
+        "Please turn the lights on!",
+        "Switch off the light please.",
+        "Ｓｗｉｔｃｈ   ｉｔ   ｏｆｆ！",
+    ],
+)
+async def test_exact_clarification_normalizes_politeness_and_current_top(
+    hass, agent, aioclient_mock, prior_text
+):
+    """Polite and normalized speech still chooses the named light, never a fixed example target."""
+    calls = []
+
+    async def collect(call):
+        calls.append((call.service, dict(call.data)))
+
+    for service in ("turn_on", "turn_off"):
+        hass.services.async_register("light", service, collect)
+    aioclient_mock.post(API + "/chat/completions", json=provider(clarification()))
+    first = await process(agent, prior_text)
+    await process(agent, "Ｔｏｐ！", first.conversation_id)
+    expected = "turn_on" if " on" in prior_text else "turn_off"
+    assert calls == [(expected, {"entity_id": ["light.top"]})]
+    assert aioclient_mock.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "collision", ["alias", "area", "floor", "nonlight", "normalized_light", "reserved"]
+)
+async def test_exact_clarification_declines_name_collisions(hass, agent, aioclient_mock, collision):
+    """A matching light is insufficient when the reply could mean another object or place."""
+    aioclient_mock.post(API + "/chat/completions", json=provider(clarification()))
+    first = await process(agent, "Turn it off")
+    answer = "Peanut"
+    if collision == "alias":
+        registry = er.async_get(hass)
+        other = registry.async_get_or_create("sensor", "test", "shadow")
+        registry.async_update_entity(other.entity_id, aliases={"Ｐｅａｎｕｔ!"})
+    elif collision == "area":
+        ar.async_get(hass).async_create("Ｐｅａｎｕｔ!")
+    elif collision == "floor":
+        fr.async_get(hass).async_create("Peanut")
+    elif collision in ("nonlight", "normalized_light"):
+        other = "sensor.other" if collision == "nonlight" else "light.other"
+        hass.states.async_set(other, "off", {"friendly_name": "Ｐｅａｎｕｔ!"})
+        async_expose_entity(hass, "conversation", other, True)
+    else:
+        hass.states.async_set("light.peanut", "off", {"friendly_name": "All"})
+        answer = "All"
+    aioclient_mock.post(
+        API + "/chat/completions", json=provider(action(kind="none", intent=None, targets=[]))
+    )
+    with patch(
+        "custom_components.gi_voice.conversation.intent.async_handle", new=AsyncMock()
+    ) as execute:
+        await process(agent, answer, first.conversation_id)
+    execute.assert_not_awaited()
+    assert aioclient_mock.call_count == 2
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        "the Peanut",
+        "Peanut please",
+        "Peanut light",
+        "Peanuts",
+        "P-nut",
+        "be enough",
+        "you",
+        "all",
+        "",
+    ],
+)
+async def test_exact_clarification_does_not_repair_or_invent_a_reply(agent, aioclient_mock, answer):
+    """Neutral and approximate replies cannot acquire a target from the new local path."""
+    aioclient_mock.post(API + "/chat/completions", json=provider(clarification()))
+    first = await process(agent, "Turn it off")
+    aioclient_mock.post(
+        API + "/chat/completions", json=provider(action(kind="none", intent=None, targets=[]))
+    )
+    with patch(
+        "custom_components.gi_voice.conversation.intent.async_handle", new=AsyncMock()
+    ) as execute:
+        await process(agent, answer, first.conversation_id)
+    execute.assert_not_awaited()
+    assert aioclient_mock.call_count == 2
+
+
+@pytest.mark.parametrize(
+    "prior_text",
+    [
+        "don't turn it off",
+        "turn it off in five minutes",
+        "turn it off?",
+        "turn it off and on",
+        "turn on button",
+        "dim it",
+        "set it to 50%",
+        "please turn it off please",
+    ],
+)
+async def test_exact_clarification_cannot_supply_an_action_from_an_unsupported_request(
+    agent, aioclient_mock, prior_text
+):
+    """A valid light answer cannot erase prior qualifiers or manufacture an on/off request."""
+    aioclient_mock.post(API + "/chat/completions", json=provider(clarification()))
+    first = await process(agent, prior_text)
+    before = aioclient_mock.call_count
+    aioclient_mock.post(
+        API + "/chat/completions", json=provider(action(kind="none", intent=None, targets=[]))
+    )
+    with patch(
+        "custom_components.gi_voice.conversation.intent.async_handle", new=AsyncMock()
+    ) as execute:
+        await process(agent, "Peanut", first.conversation_id)
+    execute.assert_not_awaited()
+    assert aioclient_mock.call_count == before + 1
+
+
+@pytest.mark.parametrize("age", [59, 61])
+async def test_exact_clarification_observes_expiry(agent, aioclient_mock, age):
+    """The new provider-free path must not bypass the existing time boundary."""
+    aioclient_mock.post(API + "/chat/completions", json=provider(clarification()))
+    with patch("custom_components.gi_voice.conversation.time") as clock:
+        clock.monotonic.return_value = 100
+        first = await process(agent, "Turn it off")
+        clock.monotonic.return_value = 100 + age
+        aioclient_mock.post(
+            API + "/chat/completions", json=provider(action(kind="none", intent=None, targets=[]))
+        )
+        with patch(
+            "custom_components.gi_voice.conversation.intent.async_handle",
+            new=AsyncMock(return_value=success()),
+        ) as execute:
+            await process(agent, "Peanut", first.conversation_id)
+    assert execute.await_count == (1 if age == 59 else 0)
+    assert aioclient_mock.call_count == (1 if age == 59 else 2)
+
+
+@pytest.mark.parametrize("different", ["conversation", "satellite", "user", "language"])
+async def test_exact_clarification_requires_the_original_caller_and_language(
+    agent, aioclient_mock, different
+):
+    """A recognized name from another caller or language cannot consume the local completion."""
+    aioclient_mock.post(API + "/chat/completions", json=provider(clarification()))
+    first = await process(agent, "Turn it off", satellite_id="speaker-a", user_id="user-a")
+    aioclient_mock.post(
+        API + "/chat/completions", json=provider(action(kind="none", intent=None, targets=[]))
+    )
+    with patch(
+        "custom_components.gi_voice.conversation.intent.async_handle", new=AsyncMock()
+    ) as execute:
+        await process(
+            agent,
+            "Peanut",
+            None if different == "conversation" else first.conversation_id,
+            satellite_id="speaker-b" if different == "satellite" else "speaker-a",
+            user_id="user-b" if different == "user" else "user-a",
+            language="fr" if different == "language" else "en",
+        )
+    execute.assert_not_awaited()
+    assert aioclient_mock.call_count == 2
+
+
+async def test_exact_clarification_cannot_be_replayed_or_revived(agent, aioclient_mock):
+    """Existing one-question tests do not protect local completion after consumption or a third turn."""
+    aioclient_mock.post(API + "/chat/completions", json=provider(clarification()))
+    first = await process(agent, "Turn it off")
+    with patch(
+        "custom_components.gi_voice.conversation.intent.async_handle",
+        new=AsyncMock(return_value=success()),
+    ) as execute:
+        await process(agent, "Peanut", first.conversation_id)
+        aioclient_mock.post(
+            API + "/chat/completions", json=provider(action(kind="none", intent=None, targets=[]))
+        )
+        await process(agent, "Peanut", first.conversation_id)
+    assert execute.await_count == 1
+    aioclient_mock.post(API + "/chat/completions", json=provider(clarification()))
+    first = await process(agent, "Turn it off")
+    second = await process(agent, "you", first.conversation_id)
+    assert not second.continue_conversation
+    aioclient_mock.post(
+        API + "/chat/completions", json=provider(action(kind="none", intent=None, targets=[]))
+    )
+    with patch(
+        "custom_components.gi_voice.conversation.intent.async_handle", new=AsyncMock()
+    ) as execute:
+        await process(agent, "Peanut", first.conversation_id)
+    execute.assert_not_awaited()
+
+
+@pytest.mark.parametrize("remove", [False, True])
+async def test_exact_clarification_rereads_exposure_and_entity_presence(
+    hass, agent, aioclient_mock, remove
+):
+    """The reply cannot act from a catalog saved on the first turn."""
+    aioclient_mock.post(API + "/chat/completions", json=provider(clarification()))
+    first = await process(agent, "Turn it off")
+    if remove:
+        hass.states.async_remove("light.peanut")
+    else:
+        async_expose_entity(hass, "conversation", "light.peanut", False)
+    aioclient_mock.post(
+        API + "/chat/completions", json=provider(action(kind="none", intent=None, targets=[]))
+    )
+    with patch(
+        "custom_components.gi_voice.conversation.intent.async_handle", new=AsyncMock()
+    ) as execute:
+        await process(agent, "Peanut", first.conversation_id)
+    execute.assert_not_awaited()
+    assert aioclient_mock.call_count == 2
+
+
+async def test_exact_clarification_execution_race_never_falls_back(hass, agent, aioclient_mock):
+    """Once locally selected, a revoked target cannot trigger a second provider decision."""
+    aioclient_mock.post(API + "/chat/completions", json=provider(clarification()))
+    first = await process(agent, "Turn it off")
+    original = agent.execute
+
+    async def revoke(*args):
+        async_expose_entity(hass, "conversation", "light.peanut", False)
+        return await original(*args)
+
+    with (
+        patch.object(agent, "execute", side_effect=revoke),
+        patch(
+            "custom_components.gi_voice.conversation.intent.async_handle", new=AsyncMock()
+        ) as execute,
+    ):
+        result = await process(agent, "Peanut", first.conversation_id)
+    execute.assert_not_awaited()
+    assert aioclient_mock.call_count == 1
+    assert "couldn't change" in result.response.speech["plain"]["speech"]
+    assert agent.audit[-1]["provider_calls"] == 0
+
+
+async def test_native_turn_precedes_and_invalidates_pending_clarification(
+    hass, agent, aioclient_mock
+):
+    """Native handling bypasses this agent; its turn must still invalidate stale local completion."""
+    calls = []
+
+    async def collect(call):
+        calls.append(dict(call.data))
+
+    hass.services.async_register("light", "turn_on", collect)
+    aioclient_mock.post(API + "/chat/completions", json=provider(clarification()))
+    first = await process(agent, "Turn it off")
+    audit_before = len(agent.audit)
+    await pipeline_speech(hass, agent, "turn on Top", first.conversation_id)
+    assert calls == [{"entity_id": ["light.top"]}]
+    assert len(agent.audit) == audit_before
+    assert aioclient_mock.call_count == 1
+    aioclient_mock.post(
+        API + "/chat/completions", json=provider(action(kind="none", intent=None, targets=[]))
+    )
+    with patch(
+        "custom_components.gi_voice.conversation.intent.async_handle", new=AsyncMock()
+    ) as execute:
+        await process(agent, "Peanut", first.conversation_id)
+    execute.assert_not_awaited()
+    assert (
+        json.loads(aioclient_mock.mock_calls[-1][2]["messages"][1]["content"])["clarification_of"]
+        is None
+    )

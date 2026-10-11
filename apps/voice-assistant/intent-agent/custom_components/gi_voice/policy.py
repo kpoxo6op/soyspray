@@ -1,6 +1,7 @@
 """Validate interpretations before any Home Assistant intent is called."""
 
 import re
+import unicodedata
 from dataclasses import dataclass
 
 FIELDS = {"kind", "intent", "targets", "brightness_pct", "question"}
@@ -11,6 +12,44 @@ NO_ACTION = re.compile(
     re.IGNORECASE,
 )
 CONTEXTUAL = re.compile(r"\b(it|them|those|that|again|brighter|dimmer|more|less)\b", re.I)
+CLARIFICATION_ON_OFF = re.compile(
+    r"(?:turn|switch) (?:(?:it|them|(?:the )?lights?) (on|off)|(on|off) (?:the )?lights?)"
+)
+CLARIFICATION_RESERVED = {
+    "all",
+    "everything",
+    "both",
+    "it",
+    "them",
+    "light",
+    "lights",
+    "on",
+    "off",
+    "yes",
+    "no",
+    "stop",
+    "cancel",
+    "never mind",
+}
+
+
+def normalize_clarification(text):
+    """Normalize exact speech names without phonetic or alias matching."""
+    return " ".join(unicodedata.normalize("NFKC", text).casefold().strip().split()).rstrip(".!?")
+
+
+def clarification_intent(text):
+    """Extract only a complete immediate canonical on/off request."""
+    if "?" in text or "？" in text:
+        return None
+    request = normalize_clarification(text)
+    if request.startswith("please "):
+        request = request.removeprefix("please ")
+    elif request.endswith(" please"):
+        request = request.removesuffix(" please")
+    if match := CLARIFICATION_ON_OFF.fullmatch(request):
+        return "turn_" + (match[1] or match[2])
+    return None
 
 
 @dataclass(frozen=True)
