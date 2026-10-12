@@ -4,90 +4,718 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="light dark" />
-        <meta
-            name="description"
-            content="A practical workshop on coding-agent verification, coordination and safe delivery."
-        />
-        <title>Agent workshop · Soyspray</title>
+        <meta name="description" content="Learn how verification, skills and hard checks earn trust in coding agents. A study guide to Lauren Tan’s talk, with five experiments and an offline lab." />
+        <title>Earning trust in coding agents</title>
+        <link rel="preload" href="fonts/NotoSerif-Regular.2f37efc6a47c431b.woff2" as="font" type="font/woff2" crossorigin />
+        <link rel="preload" href="fonts/NotoSerifDisplay-Regular.bbba50c3def3e9b8.woff2" as="font" type="font/woff2" crossorigin />
         <link rel="stylesheet" href="style.css" />
-        <script type="module" src="main.js"></script>
+        <script src="main.js" type="module"></script>
     </head>
     <body>
         <a class="skip" href="#main">Skip to content</a>
-        <header class="topbar">
-            <a class="brand" href="#start"
-                ><span class="brand-mark" aria-hidden="true">↗</span
-                ><span>SOYSPRAY <small>AGENT WORKSHOP</small></span></a
-            >
-            <div class="settings">
-                <label
-                    >Depth
-                    <select id="depth">
-                        <option value="practitioner">Practitioner</option>
-                        <option value="basics">+ Basics</option>
-                        <option value="deep">+ Deep</option>
-                    </select></label
-                >
-                <label
-                    >Theme
-                    <select id="theme">
-                        <option value="auto">System</option>
-                        <option value="light">Light</option>
-                        <option value="dark">Dark</option>
-                    </select></label
-                >
-                <button id="search-open">Search <kbd>/</kbd></button>
+
+        <header class="site-header">
+            <div class="site-header__inner">
+                <a class="wordmark" href="#home">Earning trust<span class="wordmark__rest"> in coding agents</span></a>
+                <nav class="nav" aria-label="Main">
+                    <a href="#home" data-nav="lessons">Lessons</a>
+                    <a href="#practice" data-nav="practice">Practice</a>
+                    <a href="#recording" data-nav="recording">Recording</a>
+                </nav>
+                <div class="header-tools">
+                    <button class="tool-btn" type="button" data-open="search" aria-haspopup="dialog" aria-keyshortcuts="/">
+                        <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M12.6 12.6 17 17" /></svg>
+                        <span class="tool-btn__label">Search</span>
+                        <kbd aria-hidden="true">/</kbd>
+                    </button>
+                    <button class="tool-btn" type="button" data-open="settings" aria-haspopup="dialog">
+                        <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6h2M9 6h8M3 14h8M15 14h2" /><circle cx="7" cy="6" r="2" /><circle cx="13" cy="14" r="2" /></svg>
+                        <span class="tool-btn__label">Settings</span>
+                    </button>
+                </div>
             </div>
         </header>
-        <nav class="primary" aria-label="Workshop areas">
-            <a href="#start">Start</a><a href="#talk">Talk</a
-            ><a href="#lessons">Lessons</a><a href="#simulator">Simulator</a
-            ><a href="#lab">Lab</a><a href="#ledger">Ledger</a>
-        </nav>
+        <section class="playbar" aria-label="Playback" data-playback-shelf hidden>
+            <div class="playbar__inner">
+                <p class="playbar__status"><span class="dot dot--signal" aria-hidden="true"></span><span data-playback-position></span><span class="visually-hidden" data-playback-description></span></p>
+                <button class="btn btn--text" type="button" data-playback-pause>Pause</button>
+                <a class="link-quiet" href="#recording" data-playback-recording>Recording</a>
+            </div>
+        </section>
+
         <main id="main" tabindex="-1">
-            <p class="loading">Loading the workshop…</p>
+            <!-- ============================================================ HOME -->
+            <section class="screen" data-screen="home" aria-labelledby="home-title">
+                <div class="page">
+                    <div class="hero">
+                        <h1 class="display-1" id="home-title" tabindex="-1">Earning trust in coding agents</h1>
+                        <p class="deck hero__deck">A study guide to Lauren Tan’s talk on letting coding agents land changes you review afterwards, and on what has to be true before you can.</p>
+                        <p class="hero__intro">Her answer is trust earned with evidence: agents that verify their own work, skills grown from watching agents fail, and checks that make the easy change the correct one.</p>
+                        <div class="hero__actions" data-variant="fresh">
+                            <a class="btn btn--primary" href="#lesson/l1-trust-curve">Begin with lesson 1</a>
+                            <a class="link-quiet" href="#recording">Watch the recording · 56:52</a>
+                        </div>
+                        <div class="hero__actions" data-variant="resume" hidden>
+                            <a class="btn btn--primary" href="#lesson/l2-verification">Continue lesson 2</a>
+                            <a class="link-quiet" href="#lesson/l1-trust-curve">Start from lesson 1</a>
+                            <p class="hero__resume-meta meta">Verification closes the loop · 1 of 7 lessons finished</p>
+                        </div>
+                    </div>
+
+                    <section class="section" aria-labelledby="path-title">
+                        <h2 class="h2" id="path-title">The path of one agent change</h2>
+                        <p class="section__intro">Each lesson adds one control to the path a change takes from a bug report to your cluster. Select a station to see what it guards.</p>
+
+                        <div class="path" data-path>
+                            <div class="path__groups" aria-hidden="true">
+                                <span class="path__group path__group--admit">Admit</span>
+                                <span class="path__group path__group--build">Build</span>
+                                <span class="path__group path__group--land">Land</span>
+                                <span class="path__group path__group--release">Release</span>
+                            </div>
+                            <div class="path__track" role="tablist" aria-label="Stations on the path of one agent change">
+                                <span class="path__gate" aria-hidden="true"></span>
+                                <span class="path__gate-label" aria-hidden="true">human<br />gate</span>
+                                <span class="path__arrow" aria-hidden="true"></span>
+                                <button class="path__station" role="tab" type="button" id="st-signal" data-station="signal" aria-selected="false" aria-controls="station-panel" tabindex="-1"><span class="path__dot"></span>Signal</button>
+                                <button class="path__station" role="tab" type="button" id="st-claim" data-station="claim" aria-selected="false" aria-controls="station-panel" tabindex="-1"><span class="path__dot"></span>Claim</button>
+                                <button class="path__station" role="tab" type="button" id="st-worktree" data-station="worktree" aria-selected="false" aria-controls="station-panel" tabindex="-1"><span class="path__dot"></span>Worktree</button>
+                                <button class="path__station" role="tab" type="button" id="st-agent" data-station="agent" aria-selected="false" aria-controls="station-panel" tabindex="-1"><span class="path__dot"></span>Agent</button>
+                                <button class="path__station" role="tab" type="button" id="st-verify" data-station="verify" aria-selected="true" aria-controls="station-panel" tabindex="0"><span class="path__dot"></span>Verify</button>
+                                <button class="path__station" role="tab" type="button" id="st-checks" data-station="checks" aria-selected="false" aria-controls="station-panel" tabindex="-1"><span class="path__dot"></span>Checks</button>
+                                <button class="path__station" role="tab" type="button" id="st-review" data-station="review" aria-selected="false" aria-controls="station-panel" tabindex="-1"><span class="path__dot"></span>Review</button>
+                                <button class="path__station" role="tab" type="button" id="st-merge" data-station="merge" aria-selected="false" aria-controls="station-panel" tabindex="-1"><span class="path__dot"></span>Merge</button>
+                                <button class="path__station" role="tab" type="button" id="st-promote" data-station="promote" aria-selected="false" aria-controls="station-panel" tabindex="-1"><span class="path__dot"></span>Promote</button>
+                                <span class="path__terminus" aria-hidden="true"><span class="path__square"></span>Cluster</span>
+                            </div>
+                            <div class="path__panel" role="tabpanel" id="station-panel" aria-labelledby="st-verify" tabindex="0">
+                                <div class="path__panel-name">
+                                    <h3 class="h2" data-panel="name">Verify</h3>
+                                    <p class="meta" data-panel="group">Build · station 5 of 9</p>
+                                </div>
+                                <p class="path__panel-def" data-panel="def">The agent reproduces the symptom, makes the change, then observes the symptom gone with the same probe. “Done” means observed, not claimed.</p>
+                                <ul class="path__panel-links" data-panel="links">
+                                    <li><span class="label">Lesson 2</span><a href="#lesson/l2-verification">Verification closes the loop</a></li>
+                                    <li><span class="label">Experiment</span><a href="#practice/s2-plausible-vs-verified">Done, or verified?</a></li>
+                                    <li><span class="label">Lab step 3</span><a href="#lab/lab-2-verify">A check that runs the real thing</a></li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <ol class="path-list" aria-label="Stations on the path of one agent change">
+                            <li class="path-list__item">
+                                <span class="path-list__group">Admit</span>
+                                <details class="path-list__disclosure"><summary><span class="path-list__name">Signal</span></summary>
+                                <p class="path-list__def">Work arrives as a signal: a bug report, an issue, a failing check. Agents act on signals rather than on your keystrokes.</p>
+                                <p class="path-list__links"><a href="#lesson/l6-fleet-operations">Lesson 6</a></p>
+                            </details></li>
+                            <li class="path-list__item">
+                                <details class="path-list__disclosure"><summary><span class="path-list__name">Claim</span></summary>
+                                <p class="path-list__def">One agent owns each task. A retried delivery finds the claim and stops, so one report cannot open two PRs.</p>
+                                <p class="path-list__links"><a href="#lesson/l6-fleet-operations">Lesson 6</a> · <a href="#practice/s4-naive-retry">Experiment</a> · <a href="#lab/lab-5-idempotent-claim">Lab step 6</a></p>
+                            </details></li>
+                            <li class="path-list__item">
+                                <details class="path-list__disclosure"><summary><span class="path-list__name">Worktree</span></summary>
+                                <p class="path-list__def">Each agent edits in its own isolated workspace with no credentials, so parallel edits surface as conflicts instead of silent overwrites.</p>
+                                <p class="path-list__links"><a href="#lesson/l6-fleet-operations">Lesson 6</a> · <a href="#practice/s1-shared-vs-isolated">Experiment</a> · <a href="#lab/lab-1-worktrees">Lab step 2</a></p>
+                            </details></li>
+                            <li class="path-list__item">
+                                <span class="path-list__group">Build</span>
+                                <details class="path-list__disclosure"><summary><span class="path-list__name">Agent</span></summary>
+                                <p class="path-list__def">The agent works from skills grown out of observed failures and a feature map that tells it where things are.</p>
+                                <p class="path-list__links"><a href="#lesson/l3-feature-map">Lesson 3</a> · <a href="#lesson/l4-pstack-evals">Lesson 4</a> · <a href="#lab/lab-3-feature-map">Lab step 4</a></p>
+                            </details></li>
+                            <li class="path-list__item">
+                                <details class="path-list__disclosure" open><summary><span class="path-list__name">Verify</span></summary>
+                                <p class="path-list__def">The agent reproduces the symptom, makes the change, then observes the symptom gone with the same probe. “Done” means observed, not claimed.</p>
+                                <p class="path-list__links"><a href="#lesson/l2-verification">Lesson 2</a> · <a href="#practice/s2-plausible-vs-verified">Experiment</a> · <a href="#lab/lab-2-verify">Lab step 3</a></p>
+                            </details></li>
+                            <li class="path-list__item">
+                                <span class="path-list__group">Land</span>
+                                <details class="path-list__disclosure"><summary><span class="path-list__name">Checks</span></summary>
+                                <p class="path-list__def">Hard checks fail the build: lint, compiler, dependency boundaries. The shortest path an agent can take must also be the right one.</p>
+                                <p class="path-list__links"><a href="#lesson/l5-agent-friendly-architecture">Lesson 5</a> · <a href="#practice/s5-architecture-gate">Experiment</a> · <a href="#lab/lab-4-boundary">Lab step 5</a></p>
+                            </details></li>
+                            <li class="path-list__item">
+                                <details class="path-list__disclosure"><summary><span class="path-list__name">Review</span></summary>
+                                <p class="path-list__def">A person reviews small, revertible changes. Every check that rejects bad work first makes this queue shorter.</p>
+                                <p class="path-list__links"><a href="#lesson/l1-trust-curve">Lesson 1</a> · <a href="#practice/s3-review-backlog">Experiment</a></p>
+                            </details></li>
+                            <li class="path-list__item">
+                                <details class="path-list__disclosure"><summary><span class="path-list__name">Merge</span></summary>
+                                <p class="path-list__def">Changes land on main. Auto-merge belongs only behind hard checks, with review after landing.</p>
+                                <p class="path-list__links"><a href="#lesson/l1-trust-curve">Lesson 1</a> · <a href="#lesson/l6-fleet-operations">Lesson 6</a></p>
+                            </details></li>
+                            <li class="path-list__item path-list__item--gate">
+                                <span class="path-list__group">Release, after human approval</span>
+                                <details class="path-list__disclosure"><summary><span class="path-list__name">Promote</span></summary>
+                                <p class="path-list__def">A separate, human-approved change activates a build. Source and activation never travel together.</p>
+                                <p class="path-list__links"><a href="#lesson/l6-fleet-operations">Lesson 6</a> · <a href="#lesson/l7-cost-and-adoption">Lesson 7</a> · <a href="#lab/lab-6-promotion">Lab step 7</a></p>
+                            </details></li>
+                            <li class="path-list__item path-list__item--terminus">
+                                <h3 class="path-list__name">Cluster</h3>
+                            </li>
+                        </ol>
+
+                        <p class="caption">Our model, assembled from the talk. She covers verification, skills, feature maps, hard checks, review and auto-merge; task claims and the separate promotion step are our operations translation.</p>
+                    </section>
+
+                    <section class="section" id="lessons" aria-labelledby="lessons-title">
+                        <div class="section__head">
+                            <h2 class="h2" id="lessons-title" tabindex="-1">Seven lessons</h2>
+                            <p class="meta">About 48 minutes of reading</p>
+                        </div>
+                        <ol class="toc">
+                            <li class="toc__item">
+                                <span class="toc__num" aria-hidden="true">1</span>
+                                <div>
+                                    <h3 class="toc__title"><a href="#lesson/l1-trust-curve">Trust is the throttle on parallelism</a></h3>
+                                    <p class="toc__deck">Why can’t I simply run more agents, and what actually lets me add them?</p>
+                                </div>
+                                <p class="toc__meta"><span>Review · Merge</span><span>6 min</span><span>Experiment: The reviewer is the bottleneck</span><span class="toc__status" data-status="l1-trust-curve"></span></p>
+                            </li>
+                            <li class="toc__item">
+                                <span class="toc__num" aria-hidden="true">2</span>
+                                <div>
+                                    <h3 class="toc__title"><a href="#lesson/l2-verification">Verification closes the loop</a></h3>
+                                    <p class="toc__deck">What does it mean for an agent to verify its own work, and why does that matter more than code quality?</p>
+                                </div>
+                                <p class="toc__meta"><span>Verify</span><span>7 min</span><span>Experiment: Done, or verified?</span><span class="toc__status" data-status="l2-verification"></span></p>
+                            </li>
+                            <li class="toc__item">
+                                <span class="toc__num" aria-hidden="true">3</span>
+                                <div>
+                                    <h3 class="toc__title"><a href="#lesson/l3-feature-map">Agents need a map of the product</a></h3>
+                                    <p class="toc__deck">How does an agent find the feature a vague bug report is about, and reach it in the running app?</p>
+                                </div>
+                                <p class="toc__meta"><span>Agent · Verify</span><span>6 min</span><span>Lab: A checkable feature map</span><span class="toc__status" data-status="l3-feature-map"></span></p>
+                            </li>
+                            <li class="toc__item">
+                                <span class="toc__num" aria-hidden="true">4</span>
+                                <div>
+                                    <h3 class="toc__title"><a href="#lesson/l4-pstack-evals">Skills grow from failures; evals keep them honest</a></h3>
+                                    <p class="toc__deck">Where do good agent skills come from, and how do I know a skill still works after I change it?</p>
+                                </div>
+                                <p class="toc__meta"><span>Agent</span><span>8 min</span><span>Lab: A check that runs the real thing</span><span class="toc__status" data-status="l4-pstack-evals"></span></p>
+                            </li>
+                            <li class="toc__item">
+                                <span class="toc__num" aria-hidden="true">5</span>
+                                <div>
+                                    <h3 class="toc__title"><a href="#lesson/l5-agent-friendly-architecture">Make the shortest path the right path</a></h3>
+                                    <p class="toc__deck">How can a codebase stop agents from producing plausible but harmful changes before any human reads them?</p>
+                                </div>
+                                <p class="toc__meta"><span>Checks</span><span>9 min</span><span>Experiment: The shortcut import</span><span class="toc__status" data-status="l5-agent-friendly-architecture"></span></p>
+                            </li>
+                            <li class="toc__item">
+                                <span class="toc__num" aria-hidden="true">6</span>
+                                <div>
+                                    <h3 class="toc__title"><a href="#lesson/l6-fleet-operations">Start local, then scale on signals</a></h3>
+                                    <p class="toc__deck">Once verification exists, how do agents pick up work and land it safely at volume?</p>
+                                </div>
+                                <p class="toc__meta"><span>Signal · Claim · Worktree · Promote</span><span>7 min</span><span>Experiments: Retry without a claim; Two agents, one file</span><span class="toc__status" data-status="l6-fleet-operations"></span></p>
+                            </li>
+                            <li class="toc__item">
+                                <span class="toc__num" aria-hidden="true">7</span>
+                                <div>
+                                    <h3 class="toc__title"><a href="#lesson/l7-cost-and-adoption">Verification first, volume last</a></h3>
+                                    <p class="toc__deck">Is this worth it without unlimited tokens, and what should I adopt first?</p>
+                                </div>
+                                <p class="toc__meta"><span>The whole path</span><span>5 min</span><span>Your adoption decision</span><span class="toc__status" data-status="l7-cost-and-adoption"></span></p>
+                            </li>
+                        </ol>
+                    </section>
+
+                    <section class="section split" aria-label="Practice and the recording">
+                        <div>
+                            <h2 class="h2">Practice</h2>
+                            <p>Five experiments show what breaks when a control is missing. Predict, run with the control off, then on, and compare. Every outcome is scripted to show a cause; none is a measured rate.</p>
+                            <p>The offline lab rehearses the same controls with stub agents in a scratch Git repository on your own machine. No network, no credentials.</p>
+                            <p class="meta"><a href="#practice">Open the experiments</a> · <a href="#lab">Open the lab</a></p>
+                        </div>
+                        <div>
+                            <h2 class="h2">The recording</h2>
+                            <p>Watch any moment the lessons cite, read the machine transcript chapter by chapter, and see what was on screen. The lessons paraphrase; only the transcript uses the machine’s words.</p>
+                            <p>Lauren Tan, with a host asking questions. About 57 minutes. The recording date is unknown.</p>
+                            <p class="meta"><a href="#recording">Open the recording</a></p>
+                        </div>
+                    </section>
+
+                    <section class="section" id="terms" aria-labelledby="terms-title">
+                        <h2 class="h2" id="terms-title" tabindex="-1">Terms you’ll meet</h2>
+                        <p class="section__intro">In the order the talk introduces them. Each time opens that moment of the recording.</p>
+                        <dl class="terms">
+                            <div class="terms__entry"><dt>Trust curve</dt><dd>Her informal picture of moving from watching every agent step to letting agents work unattended.</dd><dd class="terms__ops">Parallelism is gated by how much evidence you have that output is correct.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="133.2">2:13</button></dd></div>
+                            <div class="terms__entry"><dt>Auto-merge</dt><dd>Changes land without prior human approval.</dd><dd class="terms__ops">She reviews after landing; only advisable behind hard checks.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="215.7">3:35</button></dd></div>
+                            <div class="terms__entry"><dt>Verification</dt><dd>The agent checks its work by running the real app.</dd><dd class="terms__ops">Real execution, traces, profiling or simulation; yields correct, not necessarily good, code.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="346.0">5:46</button></dd></div>
+                            <div class="terms__entry"><dt>Control skill</dt><dd>Lets an agent drive and inspect the running app.</dd><dd class="terms__ops">Uses debugging protocols such as Chrome DevTools Protocol, or Apple simulator tooling.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="556.9">9:16</button></dd></div>
+                            <div class="terms__entry"><dt>Feature map</dt><dd>A guide telling agents where each feature is and how to reach it.</dd><dd class="terms__ops">Location, navigation, shortcuts and selector attributes for each feature.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="606.7">10:06</button></dd></div>
+                            <div class="terms__entry"><dt>pstack</dt><dd>Tan’s plugin of skills, named partly as a joke.</dd><dd class="terms__ops">Includes skills for creating and maintaining verification setups and an eval playbook, per the talk.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="824.6">13:44</button></dd></div>
+                            <div class="terms__entry"><dt>Skill</dt><dd>A written instruction file an agent loads for a type of task.</dd><dd class="terms__ops">Mostly markdown encoding context and procedure; born from observed failures.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="963.8">16:03</button></dd></div>
+                            <div class="terms__entry"><dt>Eval</dt><dd>A test of whether an agent with a skill behaves as intended.</dd><dd class="terms__ops">Unit tests for agents; rubric, sub-agents, multiple models, independent judge.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="1084.5">18:04</button></dd></div>
+                            <div class="terms__entry"><dt>Judge agent</dt><dd>A second agent that scores the first one’s work.</dd><dd class="terms__ops">She uses a different model to reduce bias.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="1320.0">22:00</button></dd></div>
+                            <div class="terms__entry"><dt>Git worktree</dt><dd>An extra working folder on the same repository.</dd><dd class="terms__ops">Lets parallel agents edit without overwriting each other.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="1447.1">24:07</button></dd></div>
+                            <div class="terms__entry"><dt>Cloud agent</dt><dd>An agent working on a remote machine.</dd><dd class="terms__ops">Can act on signals such as bug reports without you present.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="1505.7">25:05</button></dd></div>
+                            <div class="terms__entry"><dt>Dune</dt><dd>Code name for the agent-oriented architecture behind Grok Bot.</dd><dd class="terms__ops">Conventional feature directories plus CI bans on known-bad patterns.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="2346.3">39:06</button></dd></div>
+                            <div class="terms__entry"><dt>Main and renderer process</dt><dd>The two halves of an Electron app; the renderer draws the UI.</dd><dd class="terms__ops">Heavy work in the renderer causes stutter; CI blocks crossing imports.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="2499.6">41:39</button></dd></div>
+                            <div class="terms__entry"><dt>Hard versus soft enforcement</dt><dd>Checks that block versus advice that can be ignored.</dd><dd class="terms__ops">CI, lint and compiler errors block; rules, skills and review bots can be forgotten.</dd><dd class="terms__time"><button class="time-link" type="button" data-time="2761.4">46:01</button></dd></div>
+                        </dl>
+                    </section>
+
+                    <section class="section" id="about" aria-labelledby="about-title">
+                        <h2 class="h2" id="about-title">About this guide</h2>
+                        <div class="about">
+                            <p>A private study guide. It makes no cloud or model calls. Finished lessons, your adoption notes, playback position and preferences stay in this browser; export or reset them in Settings.</p>
+                            <p data-checked-about>Designed toward WCAG 2.2 AA. This is not a formal conformance claim.</p>
+                            <p>Set in Noto Serif, Noto Serif Display and Noto Sans Mono, self-hosted under the <a href="fonts/OFL-1.1.txt">SIL Open Font Licence 1.1</a>.</p>
+                        </div>
+                    </section>
+                </div>
+            </section>
+
+            <!-- ======================================================= LESSON -->
+            <section class="screen" data-screen="lesson" aria-labelledby="lesson-title" hidden>
+                <div class="page">
+                    <header class="lesson-head">
+                        <p class="kicker" data-lesson-field="kicker"></p>
+                        <h1 class="display-2" id="lesson-title" tabindex="-1" data-lesson-field="title"></h1>
+                        <p class="deck" data-lesson-field="deck"></p>
+                    </header>
+                    <div class="strip" data-lesson-field="strip"></div>
+                    <div class="lesson-body"></div>
+                </div>
+            </section>
+
+            <!-- ======================================================= PRACTICE -->
+            <section class="screen" data-screen="practice" aria-labelledby="practice-title" hidden>
+                <div class="page">
+                    <header class="page-head">
+                        <p class="kicker">Practice</p>
+                        <h1 class="display-2" id="practice-title" tabindex="-1">Break a control, see what it was for</h1>
+                        <p class="deck">Each experiment changes one control and shows where a bad change is caught, or isn’t.</p>
+                    </header>
+                    <div class="index-body">
+                        <p class="section__intro">Each experiment is a deterministic model with a fixed schedule. Predict the outcome, run it with the control off, then on, and compare. The failures are scripted to show cause and effect; they are not measured rates or predictions of agent performance.</p>
+                        <ol class="exp-list">
+                            <li class="exp">
+                                <span class="exp__station"><span class="dot"></span>Claim</span>
+                                <div>
+                                    <h2 class="exp__title"><a href="#practice/s4-naive-retry">Retry without a claim</a></h2>
+                                    <p class="exp__q">A bug report is delivered twice after a timeout. With naive retry, how many PRs appear?</p>
+                                </div>
+                                <p class="exp__meta">Lesson 6 · about 2 min</p>
+                            </li>
+                            <li class="exp">
+                                <span class="exp__station"><span class="dot"></span>Worktree</span>
+                                <div>
+                                    <h2 class="exp__title"><a href="#practice/s1-shared-vs-isolated">Two agents, one file</a></h2>
+                                    <p class="exp__q">Agents A and B both edit config line 1 in a shared working tree. What happens to A’s change?</p>
+                                </div>
+                                <p class="exp__meta">Lesson 6 · about 2 min</p>
+                            </li>
+                            <li class="exp">
+                                <span class="exp__station"><span class="dot dot--signal"></span>Verify</span>
+                                <div>
+                                    <h2 class="exp__title"><a href="#practice/s2-plausible-vs-verified">Done, or verified?</a></h2>
+                                    <p class="exp__q">Three agent reports say “fixed”. One change does not fix the symptom. With the verification gate off, how many fixes reach main?</p>
+                                </div>
+                                <p class="exp__meta">Lesson 2 · about 2 min</p>
+                            </li>
+                            <li class="exp">
+                                <span class="exp__station"><span class="dot"></span>Checks</span>
+                                <div>
+                                    <h2 class="exp__title"><a href="#practice/s5-architecture-gate">The shortcut import</a></h2>
+                                    <p class="exp__q">An agent’s quickest fix imports heavy main-process code into the renderer. With the boundary check on, where is it caught?</p>
+                                </div>
+                                <p class="exp__meta">Lesson 5 · about 2 min</p>
+                            </li>
+                            <li class="exp">
+                                <span class="exp__station"><span class="dot"></span>Review</span>
+                                <div>
+                                    <h2 class="exp__title"><a href="#practice/s3-review-backlog">The reviewer is the bottleneck</a></h2>
+                                    <p class="exp__q">Four agents produce 12 PRs; one reviewer clears 2 per tick. Hard checks catch 4 of the PRs automatically. What changes?</p>
+                                </div>
+                                <p class="exp__meta">Lesson 1 · about 3 min</p>
+                            </li>
+                        </ol>
+                        <section class="section split" aria-label="The offline lab">
+                            <div>
+                                <h2 class="h2">The offline lab</h2>
+                                <p>Rehearse the same controls on your own machine: a Python script drives deterministic stub agents through worktrees, a real check, a feature map, an import boundary, a task claim and a promotion branch, all inside one scratch folder it owns.</p>
+                                <a class="btn" href="#lab">Open the lab</a>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ======================================================= SCENARIO -->
+            <section class="screen" data-screen="scenario" aria-labelledby="scenario-title" hidden>
+                <div class="page">
+                    <header class="page-head">
+                        <p class="kicker" data-scn="kicker">Experiment</p>
+                        <h1 class="display-2" id="scenario-title" tabindex="-1" data-scn="title"></h1>
+                        <p class="deck" data-scn="setup"></p>
+                        <p class="meta" data-scn="from"></p>
+                    </header>
+                    <div class="lesson-body">
+                        <div class="block">
+                            <div class="side side--quiet" role="note"><p>A deterministic teaching model with a fixed schedule. Failures are scripted to show a cause; they are not measured rates. Ticks and cost units are abstract.</p></div>
+                            <div class="practice" data-context="page"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================================= LAB -->
+            <section class="screen" data-screen="lab" aria-labelledby="lab-title" hidden>
+                <div class="page page--narrow">
+                    <header class="page-head">
+                        <p class="kicker">Practice · on your machine</p>
+                        <h1 class="display-2" id="lab-title" tabindex="-1">The offline lab</h1>
+                        <p class="deck">Rehearse every control in a scratch Git repository: deterministic stub agents, no network, no credentials.</p>
+                        <p class="facts meta">Python 3 and Git · about 50 minutes · one folder you choose</p>
+                    </header>
+                    <ol class="procedure">
+                        <li class="proc">
+                            <h2 class="proc__title"><span class="proc__num">1</span>Get the script</h2>
+                            <p>Download lab.py into a directory of its own, outside any repository, and read it before running it. It uses only the Python standard library, opens no network connection and never runs a shell string. It does not look for credentials because it needs none.</p>
+                            <a class="btn" href="lab.py" download>Download lab.py</a>
+                        </li>
+                        <li class="proc">
+                            <h2 class="proc__title"><span class="proc__num">2</span>Run it</h2>
+                            <p>Choose a lab root whose parent already exists and which does not exist yet, for example <code>~/agent-lab</code>. The script refuses your home directory itself and the filesystem root.</p>
+                            <div class="cmd"><pre><code>python3 -I lab.py run --root ~/agent-lab</code></pre><button class="btn btn--text" type="button" data-copy="python3 -I lab.py run --root ~/agent-lab">Copy</button></div>
+                            <p>Before writing anything, the script checks the root and every parent for symlinks and for Git repositories that have a remote. Only then does it create the root with mode 0700 and an ownership marker that records the path and your user ID.</p>
+                        </li>
+                        <li class="proc">
+                            <h2 class="proc__title"><span class="proc__num">3</span>Read the output</h2>
+                            <p>The run prints one line per control, then a JSON summary in which <code>offline</code> is true and seven steps are listed. Each line below says what it proved and how to check it yourself.</p>
+                            <ol class="out">
+                                <li class="out__item" id="lab-0-preflight">
+                                    <div class="out__line"><pre><code>PREFLIGHT: owned root; no symlinks or Git remotes; stub agents only</code></pre></div>
+                                    <h3 class="out__title">Preflight and ownership<span class="meta">5 min · Worktree</span></h3>
+                                    <p class="out__result">Create an owned, disposable lab root that the script refuses to leave.</p>
+                                    <details class="out__details">
+                                        <summary>What happens, how to check it, how it transfers</summary>
+                                        <h4>The failure it rehearses</h4>
+                                        <p>Point --root at a new folder inside a clone that has a remote, or at your home directory. The script prints STOP and creates nothing. Point it at an existing folder it did not create, and it also stops, because the ownership marker is missing.</p>
+                                        <h4>In your cluster</h4>
+                                        <p>Equivalent to a fresh, uncredentialed workspace; agents never get your kube context or registry tokens.</p>
+                                    </details>
+                                    <p class="out__links"><a href="#lesson/l1-trust-curve">Lesson 1</a></p>
+                                </li>
+                                <li class="out__item" id="lab-1-worktrees">
+                                    <div class="out__line"><pre><code>WORKTREES: git worktree add; independent edits; git merge reports a conflict</code></pre></div>
+                                    <h3 class="out__title">Shared tree versus worktrees<span class="meta">8 min · Worktree</span></h3>
+                                    <p class="out__result"><span class="label">Results entry</span>CONFLICT-SURFACED: config.txt</p>
+                                    <details class="out__details">
+                                        <summary>What happens, how to check it, how it transfers</summary>
+                                        <ol>
+                                            <li>The script creates two worktrees, wt-a and wt-b, on branches agent-a and agent-b. Each stub agent commits a different greeting to config.txt.</li>
+                                            <li>It merges agent-a into main, then attempts agent-b. Git reports a conflict on config.txt. The script confirms that config.txt is the only unmerged file, then aborts the merge.</li>
+                                            <li>It resets main to the initial commit, so later exercises start from the verified baseline rather than from either agent’s greeting.</li>
+                                        </ol>
+                                        <h4>Check it yourself</h4>
+                                        <pre><code>git -C ~/agent-lab/repo worktree list
+git -C ~/agent-lab/repo log --oneline --all</code></pre>
+                                        <h4>The failure it rehearses</h4>
+                                        <p>Contrast this with a shared tree. If both stubs had written config.txt in one directory, the second write would have replaced the first with no error. Worktrees turn that silent loss into a conflict a reviewer must resolve.</p>
+                                        <h4>In your cluster</h4>
+                                        <p>Each Soyspray agent task gets its own worktree and branch; conflicts surface at PR review.</p>
+                                    </details>
+                                    <p class="out__links"><a href="#lesson/l6-fleet-operations">Lesson 6</a> · <a href="#practice/s1-shared-vs-isolated">Experiment: Two agents, one file</a></p>
+                                </li>
+                                <li class="out__item" id="lab-2-verify">
+                                    <div class="out__line"><pre><code>VERIFICATION: sh check.sh proves PASS on baseline and FAIL on a known-bad branch</code></pre></div>
+                                    <h3 class="out__title">A check that runs the real thing<span class="meta">8 min · Verify</span></h3>
+                                    <p class="out__result"><span class="label">Results entry</span>PASS baseline; REJECT claimed but wrong change</p>
+                                    <details class="out__details">
+                                        <summary>What happens, how to check it, how it transfers</summary>
+                                        <ol>
+                                            <li>The script commits check.sh, which runs app.sh and passes only if the printed value is hi.</li>
+                                            <li>Known-good case: on main, <code>sh check.sh</code> prints PASS.</li>
+                                            <li>Known-bad case: on branch agent-c, a stub agent changes the greeting and writes a commit message claiming the fix is done. On that branch check.sh prints nothing and exits 1, and the script requires that failure.</li>
+                                            <li>The script switches back to main.</li>
+                                        </ol>
+                                        <h4>Expected</h4>
+                                        <p>The agent-c commit message claims a fix, but its config.txt reads greeting=hey.</p>
+                                        <h4>Check it yourself</h4>
+                                        <pre><code>git -C ~/agent-lab/repo log --oneline -1 agent-c
+git -C ~/agent-lab/repo show agent-c:config.txt
+(cd ~/agent-lab/repo &amp;&amp; sh check.sh)</code></pre>
+                                        <h4>The failure it rehearses</h4>
+                                        <p>This one is built in. If check.sh ever passed on agent-c, the run would stop with STOP. A check that cannot fail on a known-bad change proves nothing.</p>
+                                        <h4>In your cluster</h4>
+                                        <p>Soyspray CI and harness checks are the probe; require their output, not an agent’s claim.</p>
+                                    </details>
+                                    <p class="out__links"><a href="#lesson/l2-verification">Lesson 2</a> · <a href="#practice/s2-plausible-vs-verified">Experiment: Done, or verified?</a></p>
+                                </li>
+                                <li class="out__item" id="lab-3-feature-map">
+                                    <div class="out__line"><pre><code>FEATURE MAP: check listed paths exist; billing.sh is the known stale entry</code></pre></div>
+                                    <h3 class="out__title">A checkable feature map<span class="meta">6 min · Agent</span></h3>
+                                    <p class="out__result"><span class="label">Results entry</span>STALE: billing.sh; real paths exist</p>
+                                    <details class="out__details">
+                                        <summary>What happens, how to check it, how it transfers</summary>
+                                        <ol>
+                                            <li>The script writes feature-map.txt with three entries, each mapping a feature name to a path: greeting to config.txt, app to app.sh, and billing to billing.sh.</li>
+                                            <li>It checks every listed path. Known-good: config.txt and app.sh exist. Known-bad: billing.sh is deliberately missing, and the script requires exactly that one stale entry.</li>
+                                            <li>The map stays untracked, so it never enters a commit.</li>
+                                        </ol>
+                                        <h4>Check it yourself</h4>
+                                        <pre><code>cat ~/agent-lab/repo/feature-map.txt
+git -C ~/agent-lab/repo status --short</code></pre>
+                                        <h4>In your cluster</h4>
+                                        <p>A Soyspray map from app name to apps/NAME/app, manifests and checks, validated in CI.</p>
+                                    </details>
+                                    <p class="out__links"><a href="#lesson/l3-feature-map">Lesson 3</a></p>
+                                </li>
+                                <li class="out__item" id="lab-4-boundary">
+                                    <div class="out__line"><pre><code>BOUNDARY: execute check-boundary.py; allowed import passes, shortcut fails</code></pre></div>
+                                    <h3 class="out__title">Make the shortcut fail<span class="meta">8 min · Checks</span></h3>
+                                    <p class="out__result"><span class="label">Results entry</span>PASS allowed path; BLOCKED shortcut import</p>
+                                    <details class="out__details">
+                                        <summary>What happens, how to check it, how it transfers</summary>
+                                        <ol>
+                                            <li>The script creates main/heavy.sh and renderer/view.sh, then writes check-boundary.py, which fails if any renderer script refers to main/.</li>
+                                            <li>Known-good case: while the renderer only draws, the check prints PASS-boundary and exits 0.</li>
+                                            <li>Known-bad case: the stub agent takes the shortcut and makes the renderer source the main script. The check prints FAIL-boundary and exits 1, and the script requires that failure.</li>
+                                        </ol>
+                                        <h4>Check it yourself</h4>
+                                        <pre><code>cat ~/agent-lab/repo/renderer/view.sh</code></pre>
+                                        <h4>The failure it rehearses</h4>
+                                        <p>Imagine replacing the check with a README sentence asking agents not to import main: nothing would stop the shortcut. The script deliberately does not include that soft-rule version.</p>
+                                        <h4>In your cluster</h4>
+                                        <p>Equivalent to Soyspray’s policy gates: non-root, read-only, no egress, enforced rather than requested.</p>
+                                    </details>
+                                    <p class="out__links"><a href="#lesson/l5-agent-friendly-architecture">Lesson 5</a> · <a href="#practice/s5-architecture-gate">Experiment: The shortcut import</a></p>
+                                </li>
+                                <li class="out__item" id="lab-5-idempotent-claim">
+                                    <div class="out__line"><pre><code>RETRY: atomic mkdir claims/R7 succeeds once; repeated claim is skipped</code></pre></div>
+                                    <h3 class="out__title">Claim tasks atomically<span class="meta">6 min · Claim</span></h3>
+                                    <p class="out__result"><span class="label">Results entry</span>claimed:R7 then skip:R7; one claim</p>
+                                    <details class="out__details">
+                                        <summary>What happens, how to check it, how it transfers</summary>
+                                        <ol>
+                                            <li>The script creates claims/ in the lab root, then claims report R7 by creating the directory claims/R7. Creating a directory either succeeds or fails as one operation, so only one delivery can win.</li>
+                                            <li>A second delivery of R7 tries to create the same directory, fails because it already exists, and is skipped. If that second claim ever succeeded, the script would stop with STOP.</li>
+                                            <li>No branch or worktree is opened for R7; the exercise isolates the claim itself.</li>
+                                        </ol>
+                                        <h4>Check it yourself</h4>
+                                        <pre><code>ls ~/agent-lab/claims</code></pre>
+                                        <h4>In your cluster</h4>
+                                        <p>Key agent work by report or issue ID and claim it atomically before any agent starts; a re-sent signal must not open a second PR.</p>
+                                    </details>
+                                    <p class="out__links"><a href="#lesson/l6-fleet-operations">Lesson 6</a> · <a href="#practice/s4-naive-retry">Experiment: Retry without a claim</a></p>
+                                </li>
+                                <li class="out__item" id="lab-6-promotion">
+                                    <div class="out__line"><pre><code>PROMOTION: git diff main promote -- contains only promotion.json</code></pre></div>
+                                    <h3 class="out__title">Rehearse the promotion boundary<span class="meta">8 min · Promote</span></h3>
+                                    <p class="out__result"><span class="label">Results entry</span>promotion.json only; source main unchanged</p>
+                                    <details class="out__details">
+                                        <summary>What happens, how to check it, how it transfers</summary>
+                                        <ol>
+                                            <li>The script creates branch promote from main and commits only promotion.json, which records a stub image digest and that human approval is required.</li>
+                                            <li>It returns to main and confirms that promotion.json is the only file that differs between main and promote. Source and activation never travel together.</li>
+                                            <li>The run writes results.json in the lab root, then runs verify itself. No step contacts a model, registry, cluster or remote.</li>
+                                        </ol>
+                                        <h4>Check it yourself</h4>
+                                        <pre><code>git -C ~/agent-lab/repo diff --name-only main promote --</code></pre>
+                                        <h4>In your cluster</h4>
+                                        <p>Source PR, then CI builds the image, then a separate digest promotion PR, then Argo. No agent pushes, merges a promotion or touches the cluster.</p>
+                                    </details>
+                                    <p class="out__links"><a href="#lesson/l6-fleet-operations">Lesson 6</a> · <a href="#lesson/l7-cost-and-adoption">Lesson 7</a></p>
+                                </li>
+                            </ol>
+                        </li>
+                        <li class="proc">
+                            <h2 class="proc__title"><span class="proc__num">4</span>Verify and clean up</h2>
+                            <div class="cmd"><pre><code>python3 -I lab.py verify --root ~/agent-lab</code></pre><button class="btn btn--text" type="button" data-copy="python3 -I lab.py verify --root ~/agent-lab">Copy</button></div>
+                            <p>Verify rechecks ownership, the seven recorded steps, check.sh PASS on main and the promotion-only diff, then prints the same seven-step summary.</p>
+                            <div class="cmd"><pre><code>python3 -I lab.py cleanup --root ~/agent-lab</code></pre><button class="btn btn--text" type="button" data-copy="python3 -I lab.py cleanup --root ~/agent-lab">Copy</button></div>
+                            <p>Cleanup rechecks the ownership marker, deletes only that root and prints that it removed the owned lab root. Then delete lab.py yourself.</p>
+                        </li>
+                        <li class="proc">
+                            <h2 class="proc__title"><span class="proc__num">5</span>If it prints STOP</h2>
+                            <p>A refusal prints a line starting with <code>STOP:</code> on stderr, exits with status 1 and creates nothing. That is the lab working: it found a symlink, a repository with a remote, a missing ownership marker or a location it will not touch.</p>
+                        </li>
+                    </ol>
+                    <p class="lab-next">Then decide what you will adopt: <a href="#lesson/l7-cost-and-adoption/adopt">Lesson 7 · Your adoption decision</a></p>
+                </div>
+            </section>
+
+            <!-- ====================================================== RECORDING -->
+            <section class="screen" data-screen="recording" aria-labelledby="rec-title" hidden>
+                <div class="page">
+                    <header class="page-head">
+                        <p class="kicker">Lauren Tan, with a host · 56:52 · recording date unknown</p>
+                        <h1 class="display-2" id="rec-title" tabindex="-1">The recording</h1>
+                        <p class="deck">Watch any moment, read what the machine transcribed, and see what was on screen. The lessons paraphrase; this is the only place that shows the machine’s words.</p>
+                    </header>
+
+                    <div class="unavailable" data-rec="unavailable" role="status" hidden>
+                        <h2 class="h2">The recording isn’t available right now</h2>
+                        <p>The video, transcript and frames are stored separately from this guide and could not be loaded. The lessons, experiments and lab work without them, and every note still shows its time.</p>
+                        <p class="meta"><button class="btn btn--text" type="button" data-recording-retry>Try again</button> · <a href="https://x.com/i/status/2108938132934533123" target="_blank" rel="noreferrer">Original post on X ↗</a></p>
+                    </div>
+
+                    <div class="rec" data-rec="available">
+                        <div class="rec__player">
+                            <div class="video-wrap">
+                                <div class="media-loading" data-rec="loading"><span>Loading the recording…</span></div>
+                                <video class="video" controls preload="none" aria-label="Recording of the talk"></video>
+                            </div>
+                            <div class="rec__options" role="group" aria-label="Playback options">
+                                <label class="check"><input type="checkbox" checked data-opt="captions" /><span>Captions</span></label>
+                                <label class="check"><input type="checkbox" data-opt="describe" /><span>Describe visuals</span></label>
+                                <label class="check"><input type="checkbox" data-opt="details" /><span>Transcript details</span></label>
+                            </div>
+                            <p class="meta rec__hint" data-rec="describe-hint" hidden>Playback pauses at each of the 14 described moments, reads the description aloud, then continues.</p>
+                            <p class="rec__now meta"></p>
+                            <p class="meta" data-description-status hidden></p>
+                            <button class="btn btn--text" type="button" data-narration-toggle hidden>Pause description</button>
+                            <button class="btn btn--text" type="button" data-recording-resume hidden></button>
+                            <div class="rec__chnav">
+                                <button class="btn btn--text" type="button">Previous chapter</button>
+                                <button class="btn btn--text" type="button">Next chapter</button>
+                            </div>
+                        </div>
+
+                        <div class="rec__body">
+                            <div class="recording-aids">
+                            <details class="about-tx" id="about-transcript">
+                                <summary>About this transcript</summary>
+                                <div class="about-tx__body"></div>
+                            </details>
+
+                            <details class="about-tx" id="cited-moments">
+                                <summary>Every moment the guide cites <span data-cited-total></span></summary>
+                                <div class="about-tx__body" data-cited-index></div>
+                            </details>
+                            </div>
+                            <ol class="outline" data-transcript></ol>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
         </main>
-        <aside
-            id="mini-player"
-            class="mini-player"
-            hidden
-            aria-label="Replay controls"
-        >
-            <button id="mini-play">Play</button><span id="mini-time">00:00</span
-            ><a href="#talk">Open replay</a
-            ><button id="mini-hide" aria-label="Hide replay controls">×</button>
-        </aside>
-        <div
-            id="description-announcement"
-            class="description-text"
-            role="status"
-            aria-live="polite"
-            hidden
-        ></div>
-        <footer>
-            <span>Private learning workspace · no cloud calls</span
-            ><span>Settings and progress stay in this browser.</span>
+        <footer class="site-footer">
+            <div class="site-footer__inner">
+                <span>Earning trust in coding agents · Soyspray</span>
+                <span>No model calls · progress stays in this browser</span>
+                <button class="btn btn--text" type="button" data-open="settings" aria-haspopup="dialog">Settings</button>
+
+            </div>
         </footer>
-        <dialog id="search-dialog" aria-labelledby="search-title">
-            <div class="dialog-head">
-                <h2 id="search-title">Find in the workshop</h2>
-                <button data-close aria-label="Close search">×</button>
+
+        <!-- ======================================================== SOURCE PANEL -->
+        <dialog class="source" id="source" aria-labelledby="source-title">
+            <div class="source__bar">
+                <h2 class="source__title" id="source-title" tabindex="-1" autofocus>Recording <span data-src="range">· 6:00–6:38</span></h2>
+                <button class="close" type="button" data-close aria-label="Close the recording panel">
+                    <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
+                </button>
             </div>
-            <label for="search-query"
-                >Search lessons, transcripts, frames and glossary</label
-            ><input id="search-query" type="search" autocomplete="off" />
-            <div id="search-results" aria-live="polite"></div>
-        </dialog>
-        <dialog id="frame-dialog" aria-labelledby="frame-title">
-            <div class="dialog-head">
-                <h2 id="frame-title">Keyframe</h2>
-                <button data-close aria-label="Close keyframe">×</button>
+            <div class="source__body">
+                <p class="source__kind meta" data-src="kind">Our paraphrase · said at 6:00</p>
+                <p class="source__para" data-src="para"></p>
+                <div class="source__media" data-src="media"></div>
+                <p class="meta" data-src-description-now hidden></p>
+                <p class="meta" data-src-description-text hidden></p>
+                <button class="btn btn--text" type="button" data-narration-toggle hidden>Pause description</button>
+                <div class="source__actions" data-src="actions">
+                    <button class="btn btn--primary" type="button" data-src="play"><span class="icon-play" aria-hidden="true"></span><span data-src="play-label">Play from 6:00</span></button>
+                    <a class="link-quiet" href="#recording" data-src="open">Open in the recording</a>
+                </div>
+                <div class="source__tx" data-src="tx">
+                    <span class="label" data-src="tx-label">Machine transcript · 5:52–6:46</span>
+                    <div data-src="tx-text"></div>
+                    <p class="source__caveat">Automatic transcription; it may contain errors and is never a verified quote. <a href="#recording/about">About this transcript</a></p>
+                </div>
+                <div class="source__unavailable" data-src="unavailable" hidden>
+                    <p>The recording isn’t available right now, so this note shows our paraphrase and its time only. The lessons and experiments still work.</p>
+                </div>
             </div>
-            <div id="frame-detail"></div>
         </dialog>
-        <noscript
-            >This workshop needs JavaScript for replay navigation and the local
-            simulator. It makes no remote model calls.</noscript
-        >
+
+        <!-- ============================================================= SEARCH -->
+        <dialog class="dlg dlg--search" id="search" aria-labelledby="search-title">
+            <div class="dlg__head">
+                <h2 class="dlg__title" id="search-title">Search</h2>
+                <button class="close" type="button" data-close aria-label="Close search">
+                    <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
+                </button>
+            </div>
+            <div class="search__field">
+                <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M12.6 12.6 17 17" /></svg>
+                <input class="search__input" id="search-input" type="search" autocomplete="off" spellcheck="false" autofocus placeholder="Lessons, terms, the recording" aria-labelledby="search-title" aria-describedby="search-help" />
+            </div>
+            <div class="dlg__body">
+                <p class="search__status" id="search-help">Search the lessons, experiments, terms, transcript and text shown on screen.</p>
+                <p class="search__status" id="search-status" role="status" hidden></p>
+                <div class="search__suggest" data-search="suggest">
+                    <button class="btn btn--text" type="button" data-q="verification">verification</button>
+                    <button class="btn btn--text" type="button" data-q="worktree">worktree</button>
+                    <button class="btn btn--text" type="button" data-q="pstack">pstack</button>
+                    <button class="btn btn--text" type="button" data-q="feature map">feature map</button>
+                    <button class="btn btn--text" type="button" data-q="promotion">promotion</button>
+                </div>
+                <div data-search="results"></div>
+            </div>
+        </dialog>
+
+        <!-- =========================================================== SETTINGS -->
+        <dialog class="dlg dlg--settings" id="settings" aria-labelledby="settings-title">
+            <div class="dlg__head">
+                <h2 class="dlg__title" id="settings-title">Settings</h2>
+                <button class="close" type="button" data-close aria-label="Close settings">
+                    <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
+                </button>
+            </div>
+            <div class="dlg__body">
+                <fieldset class="set">
+                    <legend>Appearance</legend>
+                    <label class="choice"><input type="radio" name="theme" value="auto" checked /><span>Follow the system</span></label>
+                    <label class="choice"><input type="radio" name="theme" value="light" /><span>Light</span></label>
+                    <label class="choice"><input type="radio" name="theme" value="dark" /><span>Dark</span></label>
+                </fieldset>
+                <fieldset class="set">
+                    <legend>When a lesson opens</legend>
+                    <label class="choice"><input type="radio" name="depth" value="practitioner" checked /><span>Keep its disclosures closed</span></label>
+                    <label class="choice"><input type="radio" name="depth" value="basics" /><span>Open Terms in this lesson</span></label>
+                    <label class="choice"><input type="radio" name="depth" value="deep" /><span>Open Limits of the evidence</span></label>
+                </fieldset>
+                <div class="set">
+                    <h3 class="set__title">Your progress</h3>
+                    <p>Finished lessons, your adoption notes, playback position and preferences are saved in this browser only. Nothing leaves it.</p>
+                    <div class="set__row">
+                        <button class="btn" type="button" data-set="export">Export progress</button>
+                        <button class="btn" type="button" data-set="import">Import progress…</button>
+                        <button class="btn btn--text" type="button" data-set="reset">Reset…</button>
+                    </div>
+                    <div class="set__row" data-set="confirm" hidden>
+                        <p>This clears finished lessons, notes and preferences in this browser.</p>
+                        <button class="btn btn--primary" type="button" data-set="reset-yes">Reset progress</button>
+                        <button class="btn btn--text" type="button" data-set="reset-no">Keep it</button>
+                    </div>
+                    <p class="meta" data-storage-unavailable hidden>This browser isn’t saving progress.</p><input id="progress-import" type="file" accept="application/json,.json" hidden /><p class="set__status" role="status" data-set="status"></p>
+                </div>
+                <div class="set">
+                    <h3 class="set__title">Accessibility</h3>
+                    <p>Designed toward WCAG 2.2 AA; no formal conformance claim. Motion follows your system’s reduce-motion setting.</p>
+                </div>
+            </div>
+        </dialog>
+
+        <!-- ============================================================= FRAME -->
+        <dialog class="dlg dlg--frame" id="frame" aria-labelledby="frame-title">
+            <div class="dlg__head">
+                <h2 class="dlg__title" id="frame-title">Shown on screen</h2>
+                <button class="close" type="button" data-close aria-label="Close frame viewer">
+                    <svg class="icon" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg>
+                </button>
+            </div>
+            <div class="dlg__body"></div>
+        </dialog>
     </body>
 </html>

@@ -1,4 +1,4 @@
-# Agent workshop
+# Earning trust in coding agents
 
 Private learning site for studying coding-agent verification, skills, coordination
 and safe delivery. The static application includes evidence-linked lessons,
@@ -13,12 +13,28 @@ assessment and source account evidence remain private controller inputs.
 ## Normal use
 
 The intended private host is `https://agents.soyspray.vip`, through the same
-Tailscale split DNS and nginx ingress pattern as the assembly helper. The Talk
-area synchronizes replay, captions, transcript and keyframes. Lessons have
-additive Basics and Deep layers. The simulator is illustrative, with scripted
-outcomes rather than measured error rates. The lab executes only owned local
-scratch files with Python's standard library and Git; a real-model rerun is a
-separate optional activity in an uncredentialed VM or container.
+Tailscale split DNS and nginx ingress pattern as the assembly helper. The guide
+follows one change from a reported symptom through verification, review and
+deployment.
+
+- Lessons explain seven parts of that workflow and link each claim to its source.
+  The reading preference adds foundations or further detail to the same lesson.
+- Practice contains five experiments: predict an outcome, run or step through
+  the fixed schedule, then compare the effect of one control. Every outcome is
+  scripted. The seven-step offline lab applies those controls in owned local
+  scratch files with Python's standard library and Git. A real-model rerun is
+  a separate optional activity in an uncredentialed VM or container.
+- Recording groups the video, captions, readable transcript passages and cited
+  moments. Contextual source panels preserve the lesson's place. One native
+  player retains its playback state as it moves between these views; playback
+  starts when the reader chooses Play. Frame/OCR inspection, original machine
+  wording, corrections and gaps remain available through explicit controls.
+
+Search finds lessons, terms and recording passages; machine recognition results
+are labelled. Settings holds theme, reading preference, captions, spoken visual
+descriptions and local-state import, export and reset. Progress, adoption notes
+and preferences stay in this browser. Existing lesson/scenario IDs and legacy
+deep links remain supported.
 
 ## Checks
 
@@ -26,8 +42,13 @@ Run `make check APP=agents` with the repository Python environment. Image CI run
 the offline lab in a clean build container with networking disabled, checks the
 real nginx entrypoint and publishes only the tested immutable image. Browser QA
 must cover replay, deep timestamps, caption MIME type, reduced motion, keyboard
-navigation, reflow, axe and a truthful screen-reader report. Automated scans do
-not constitute WCAG conformance.
+navigation, reflow, axe and actual Orca and Pixel/TalkBack checks. Compare the
+implemented typography, spacing and motion with the approved design reference
+at matching viewport, theme and state. Verify all eight self-hosted font faces,
+320px layouts, native 200% browser zoom, unobscured focus, unavailable evidence
+and preservation of existing local state. Keep matched old/new captures and
+the designer's explanation privately. Automated scans do not constitute WCAG
+conformance.
 
 Receiver tests own the data boundary: an archive attack or incomplete intake
 must never publish a completed pack. Lab tests own refusal before writes and
