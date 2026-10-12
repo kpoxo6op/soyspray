@@ -1,0 +1,4 @@
+Noto Serif and Noto Sans Mono: Copyright 2015 Google LLC. All Rights Reserved.
+Noto Serif Display: Copyright 2016 Google Inc. All Rights Reserved.
+
+Distributed under the SIL Open Font License, Version 1.1. See OFL-1.1.txt.

@@ -1,744 +1,1150 @@
-import { simulateScenario } from "./simulator.js";
-const $ = (s) => document.querySelector(s);
-const esc = (v) =>
-    String(v ?? "").replace(
-        /[&<>"']/g,
-        (c) =>
-            ({
-                "&": "&amp;",
-                "<": "&lt;",
-                ">": "&gt;",
-                '"': "&quot;",
-                "'": "&#39;",
-            })[c],
-    );
-const paragraphs = (values) =>
-    (values || [])
-        .map((value) => {
-            let html = "",
-                list = false;
-            for (const line of String(value).split("\n")) {
-                if (line.startsWith("- ")) {
-                    if (!list) html += "<ul>";
-                    list = true;
-                    html += `<li>${esc(line.slice(2))}</li>`;
-                } else if (line.trim()) {
-                    if (list) {
-                        html += "</ul>";
-                        list = false;
-                    }
-                    html += `<p>${esc(line)}</p>`;
-                }
-            }
-            return html + (list ? "</ul>" : "");
-        })
-        .join("");
-const time = (seconds) =>
-    `${Math.floor(seconds / 60)
-        .toString()
-        .padStart(2, "0")}:${Math.floor(seconds % 60)
-        .toString()
-        .padStart(2, "0")}`;
-const playName = (seconds) =>
-    `Play from ${Math.floor(seconds / 60)} minutes ${Math.floor(seconds % 60)} seconds`;
-const stamp = (seconds) =>
-    `<button class="time-button" data-seek="${Number(seconds)}" aria-label="${time(seconds)} — ${playName(seconds)}">${time(seconds)} <span aria-hidden="true">↗</span></button>`;
-const frameKind = (kind) =>
-    ({
-        periodic: "20-second sample",
-        scene: "scene change",
-        transition: "visual transition",
-        claim_start: "claim evidence",
-        random_uniform: "timestamp sample",
-        visual_review: "visual evidence",
-        visual: "visual evidence",
-    })[kind] || "source frame";
-const tags = {
-    SAID: ["◷", "said"],
-    SHOWN: ["▣", "shown"],
-    "OUR READ": ["↗", "read"],
-    DOCS: ["⌑", "docs"],
-    UNCLEAR: ["?", "unclear"],
-};
-const tag = (label) =>
-    `<span class="tag ${tags[label]?.[1] || "unclear"}"><span aria-hidden="true">${tags[label]?.[0] || "?"}</span>${esc(label)}</span>`;
-const storageKey = "soyspray-agents:v1";
-let saved;
-try {
-    saved = JSON.parse(localStorage.getItem(storageKey) || "{}");
-} catch {
-    saved = {};
-}
-let state = {
-    depth: "practitioner",
-    theme: "auto",
-    descriptions: false,
-    completed: [],
-    adoption: {},
-    ...saved,
-};
-function save() {
-    try {
-        localStorage.setItem(storageKey, JSON.stringify(state));
-    } catch {
-        /* Private mode can deny storage. */
-    }
-}
-function theme() {
-    document.documentElement.dataset.theme = state.theme;
-    $("#theme").value = state.theme;
-    $("#depth").value = state.depth;
-}
-theme();
-let content,
-    pack,
-    packBase = "",
-    packError = "",
-    route = "",
-    follow = true,
-    transcriptMode = "corrected",
-    scenarioId,
-    simResult,
-    simStep = 0,
-    simTimer;
-let narrationCue = null,
-    lastTime = 0;
-const narrated = new Set();
-const video = document.createElement("video");
-video.controls = true;
-video.preload = "metadata";
-video.playsInline = true;
-video.setAttribute("aria-label", "Replay the full talk");
-const dock = document.createElement("div");
-dock.hidden = true;
-document.body.append(dock);
-dock.append(video);
-const narration = new Audio();
-function status() {
-    return pack
-        ? '<div class="evidence-status">Full replay, transcript and frame evidence available. Machine transcription; uncertainties remain visible.</div>'
-        : `<div class="evidence-status unavailable" role="status">Evidence pack unavailable. Original teaching content is still readable. ${esc(packError)} <a href="https://x.com/i/status/2108938132934533123" rel="noreferrer" target="_blank">Open source post</a></div>`;
-}
-function pageTitle(kicker, title, text) {
-    return `<div class="page-title"><p class="eyebrow">${esc(kicker)}</p><h1>${esc(title)}</h1><p class="lead">${esc(text)}</p></div>`;
-}
-function evidenceCard(e, index) {
-    const segment = pack?.segments?.find(
-        (s) => s.end > e.start && s.start < e.end,
-    );
-    const frameIndex = pack?.frames?.findIndex((f) => f.id === e.frameId) ?? -1;
-    const source =
-        e.label === "SHOWN"
-            ? frameIndex >= 0
-                ? `<button data-frame="${frameIndex}">Inspect the cited frame · ${time(pack.frames[frameIndex].start)}</button>`
-                : `<p class="muted">Cited frame unavailable with this evidence pack.</p>`
-            : segment
-              ? `<details><summary>Read source wording</summary><p>${esc(segment.corrected || segment.raw)}</p><small>Machine transcript · ${time(segment.start)}–${time(segment.end)}</small></details>`
-              : "";
-    return `<article class="evidence-card">${tag(e.label)} ${stamp(e.start)}<p>${esc(e.paraphrase)}</p><small>${esc(e.why)}</small>${source}</article>`;
-}
-function lessonCard(l, i) {
-    return `<article class="card"><span class="number">${String(i + 1).padStart(2, "0")} / ${esc(l.minutes)} MIN</span><h3>${esc(l.title)}</h3><p>${esc(l.summary)}</p><a class="action" href="#lesson/${encodeURIComponent(l.id)}">Explore lesson ${state.completed.includes(l.id) ? "✓" : "↗"}</a></article>`;
-}
-function startPage() {
-    const summary = Array.isArray(content.startSummary)
-        ? content.startSummary.join(" ")
-        : content.startSummary;
-    const opening =
-        summary.match(/^[\s\S]*?[.!?](?:\s|$)[\s\S]*?[.!?](?:\s|$)/)?.[0] ||
-        summary;
-    return `<section class="hero"><div><p class="eyebrow">Watch · test · apply</p><h1>${esc(content.title)}</h1><p class="lead">${esc(content.subtitle)}</p>${paragraphs([opening])}<div class="actions"><a class="action primary-action" href="#lessons">Start the lessons ↗</a><a class="action" href="#talk">Watch the full talk · 56:52</a></div><small>Lauren Tan · source recording via <a href="https://x.com/i/status/2108938132934533123" rel="noreferrer" target="_blank">X</a>. Recording date unknown.</small></div><aside class="panel"><p class="eyebrow">Your route through the topic</p><h2>From claims to controls</h2><ol><li>Locate the evidence in the replay.</li><li>Predict what happens without a control.</li><li>Run the model and compare.</li><li>Rehearse safely in the offline lab.</li><li>Write your adoption decision.</li></ol><small>Practitioner is the default. Basics and Deep add explanations; evidence is always visible.</small></aside></section>${status()}<details><summary>About this recording and study guide</summary>${paragraphs([summary])}</details><h2>What you’ll be able to do</h2>${paragraphs(Array.isArray(content.learningAim) ? content.learningAim : [content.learningAim])}<div class="legend">${Object.keys(tags).map(tag).join("")}</div><p class="muted">Said and Shown point to the recording. Our Read is an interpretation. Docs are dated external references. Unclear stays unresolved.</p><h2>The learning path</h2><div class="grid">${content.lessons.map(lessonCard).join("")}</div>`;
-}
-function talkPage() {
-    return `${pageTitle("Source recording", "Watch with the evidence beside you", "Every chapter covers part of the full recording. Timestamp buttons seek the same player; playback starts only when you choose.")} ${status()}<div class="talk-layout"><section aria-label="Replay and transcript"><div id="video-slot" class="video-shell"></div><div class="player-tools"><label><input id="descriptions" type="checkbox" ${state.descriptions ? "checked" : ""}> Spoken visual descriptions</label><label>Transcript <select id="transcript-mode"><option value="corrected">Corrected</option><option value="raw">Raw ASR</option><option value="diff">Corrections and reasons</option></select></label><button id="resume-follow">${follow ? "Following playback" : "Resume following"}</button></div><div id="description-cue" class="description-text" aria-live="polite" hidden></div><p class="muted">Machine transcript · ${esc(pack?.captionStatus || "unreviewed")}. Playback and captions may contain transcription errors.</p><div id="transcript" class="transcript" tabindex="0" aria-label="Timestamped transcript">${transcriptHTML()}</div><div class="actions">${pack ? `<a class="action" href="${packBase}/transcript.vtt" download>Download captions</a><a class="action" href="${packBase}/transcript.txt" download>Download transcript</a>` : ""}</div></section><aside><h2>Full time map</h2><div class="chapters">${content.talkChapters.map((c) => `<button class="chapter-button" data-seek="${c.start}"><small>${time(c.start)}</small><span>${esc(c.title)}</span></button>`).join("")}</div><p class="muted">Opening preview included. Chapter summaries are original paraphrases.</p></aside></div><h2>Keyframes</h2><p class="muted">Real frames from scene changes and 20-second intervals. Enlarge a frame to inspect its OCR and visual description.</p><div class="filmstrip">${(pack?.frames || []).map((f, i) => `<article class="frame-card"><button data-frame="${i}" aria-label="${time(f.start)} · ${esc(frameKind(f.kind))} — Inspect frame"><img loading="lazy" width="1924" height="1080" src="${packBase}/${esc(f.path)}" alt="${esc(f.description || `Frame at ${time(f.start)}; inspect for OCR`)}"><small>${time(f.start)} · ${esc(frameKind(f.kind))}</small></button></article>`).join("") || '<p class="empty">Frames are unavailable while the evidence pack is offline.</p>'}</div>`;
-}
-function transcriptHTML() {
-    if (!pack)
-        return '<p class="empty">The full transcript is in the private evidence pack. Use the source link or read the lessons while it is unavailable.</p>';
-    if (transcriptMode === "diff")
-        return (
-            (pack.corrections || [])
-                .map(
-                    (c) =>
-                        `<article class="transcript-row">${stamp(c.start)}<div><del>${esc(c.raw)}</del><p>${esc(c.corrected)}</p><small>${esc(c.reason)} · ${esc(c.reviewStatus)} · ${esc(c.evidenceFrameId || "no frame evidence")}</small></div></article>`,
-                )
-                .join("") ||
-            '<p class="empty">No reviewed corrections recorded for this version.</p>'
-        );
-    const rows = pack.segments.map((s) => ({
-        start: s.start,
-        html: `<article class="transcript-row" data-start="${s.start}" data-end="${s.end}">${stamp(s.start)}<div><p>${esc(transcriptMode === "raw" ? s.raw : s.corrected || s.raw)}</p>${s.uncertain ? `<small>${tag("UNCLEAR")} Low-confidence machine wording; check the audio.</small>` : ""}</div></article>`,
-    }));
-    for (const cue of pack.narrationCues || []) {
-        rows.push({
-            start: cue.start,
-            html: `<aside class="description-row">${tag("SHOWN")} ${stamp(cue.start)}<p>Visual description: ${esc(cue.text)}</p></aside>`,
-        });
-    }
-    return rows
-        .sort((a, b) => a.start - b.start)
-        .map((r) => r.html)
-        .join("");
-}
-function checksHTML(checks, prefix) {
-    return (checks || [])
-        .map(
-            (c, i) =>
-                `<form class="check" data-check="${prefix}:${i}"><fieldset><legend>${esc(c.question)}</legend>${(c.options || c.choices).map((o, j) => `<label><input type="radio" name="answer" value="${j}" required><span>${esc(o)}</span></label>`).join("")}</fieldset><button type="submit">Check my reasoning</button><p class="feedback" role="status"></p></form>`,
-        )
-        .join("");
-}
-function docsHTML(docs) {
-    return (docs || [])
-        .filter(
-            (d) =>
-                d.date !== "pending-capture" && d.relation !== "unclassified",
-        )
-        .map(
-            (d) =>
-                `<p>${tag("DOCS")} <a href="${esc(d.url)}" target="_blank" rel="noreferrer">${esc(d.title)}</a><br><small>${esc(d.date)} · ${esc(d.relation)} · ${esc(d.note)}</small></p>`,
-        )
-        .join("");
-}
-function lessonPage(id) {
-    const l = content.lessons.find((l) => l.id === id);
-    if (!l)
-        return '<h1>Lesson unavailable</h1><a href="#lessons">Return to lessons</a>';
-    const index = content.lessons.indexOf(l);
-    return `${pageTitle(`Lesson ${index + 1} · ${l.minutes} minutes`, l.title, l.question)}<div class="lesson-layout"><article>${tag("OUR READ")}${paragraphs(l.practitioner)}<details class="layer" ${state.depth === "basics" || state.depth === "deep" ? "open" : ""}><summary>Basics · the terms behind the workflow</summary>${paragraphs(l.basics)}</details><details class="layer" ${state.depth === "deep" ? "open" : ""}><summary>Deep · controls and limits</summary>${paragraphs(l.deep)}</details><h2>Where the analogy breaks</h2><ul>${l.analogyBreaks.map((p) => `<li>${esc(p)}</li>`).join("")}</ul><div class="actions">${l.scenarioId ? `<a class="action primary-action" href="#simulator/${l.scenarioId}">Predict, then run ↗</a>` : ""}${l.labStep ? `<a class="action" href="#lab/${l.labStep}">Rehearse in the lab ↗</a>` : ""}</div><h2>Retrieve it from memory</h2><p class="muted">Feedback for understanding. No scores.</p>${checksHTML(l.checks, l.id)}<h2>Dated references</h2>${docsHTML(l.docs) || '<p class="muted">Document comparisons await evidence classification. The recording remains the source for this lesson.</p>'}<button data-complete="${l.id}" aria-pressed="${state.completed.includes(l.id)}">${state.completed.includes(l.id) ? "Marked explored ✓" : "Mark lesson explored"}</button><div class="actions">${content.lessons[index + 1] ? `<a class="action" href="#lesson/${content.lessons[index + 1].id}">Next: ${esc(content.lessons[index + 1].title)} ↗</a>` : '<a class="action" href="#lab">Move to the lab ↗</a>'}</div></article><aside class="evidence-rail" aria-label="Recording evidence"><h2>Back to the source</h2>${l.evidence.map(evidenceCard).join("")}</aside></div>`;
-}
-function simulatorPage(id) {
-    const scenario =
-        content.simulator.find((s) => s.id === id) || content.simulator[0];
-    scenarioId = scenario.id;
-    const controlNames = {
-        "s1-shared-vs-isolated": [
-            "Workspace",
-            "Shared tree",
-            "Separate worktrees",
-        ],
-        "s2-plausible-vs-verified": [
-            "Verification",
-            "Accept reports",
-            "Run the symptom probe",
-        ],
-        "s3-review-backlog": ["Hard checks", "Off", "Reject scripted bad PRs"],
-        "s4-naive-retry": ["Retry", "Naive delivery", "Atomic task claim"],
-        "s5-architecture-gate": [
-            "Boundary enforcement",
-            "Soft guidance",
-            "Hard CI check",
-        ],
+import { scenarioPresentation as SCENARIOS } from "./scenario-data.js";
+import { projectScenario, compareScenario } from "./scenario-view.js";
+import { loadWorkshop } from "./workshop-data.js";
+import { createProgress, downloadText } from "./progress.js";
+import { createSourceView } from "./source-view.js";
+import { renderLessonBody } from "./lesson-view.js";
+import { editorialLessons } from "./lesson-content.js";
+import { lessonMetadata as LESSONS } from "./guide-content.js";
+(async () => {
+    "use strict";
+
+    const $ = (s, r = document) => r.querySelector(s);
+    const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+    const esc = (v) =>
+        String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+    const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const wide = () => matchMedia("(min-width: 1180px)").matches;
+    const fmt = (seconds) => {
+        const s = Math.floor(seconds);
+        return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
     };
-    const names = controlNames[scenarioId];
-    return `${pageTitle("Predict · run · compare", "The coordination simulator", "A deterministic teaching model. Every bad outcome is scripted, never a measured probability or a prediction of agent performance.")}<label for="scenario">Choose a scenario</label><select id="scenario">${content.simulator.map((s) => `<option value="${s.id}" ${s.id === scenarioId ? "selected" : ""}>${esc(s.title)}</option>`).join("")}</select>${checksHTML([{ ...scenario, options: scenario.choices }], scenario.id)}<div class="panel"><h2>Change one control</h2><div class="sim-controls"><label>${names[0]}<select id="scenario-control"><option value="false">${names[1]}</option><option value="true">${names[2]}</option></select></label>${scenarioId === "s3-review-backlog" ? '<label>Agents<select id="scenario-agents"><option value="4">Four agents · 12 PRs</option><option value="1">One agent · 3 PRs</option></select></label>' : ""}</div><div class="actions"><button id="sim-run">Run this model</button><button id="sim-baseline">Compare with control enabled</button><button id="sim-next" disabled>Next event</button><button id="sim-finish" disabled>Show full event log</button></div><p class="muted">Fixed schedule · seed ${scenario.parameters.seed}. Ticks and cost units are abstract. A worktree isolates edits; competing changes still require integration review.</p></div><section id="sim-output" aria-label="Simulation results"></section><p id="sim-live" class="sr-only" aria-live="polite" aria-atomic="true"></p>`;
-}
-function simOutput(finish = false) {
-    if (!simResult) return;
-    if (finish) simStep = simResult.events.length;
-    const shown = simResult.events.slice(0, simStep),
-        m = simResult.metrics;
-    $("#sim-output").innerHTML =
-        `<h2>${simStep === simResult.events.length ? "Completed model" : "Event replay"}</h2><div class="run-visual">${simResult.tasks.map((t) => `<span class="task-chip ${t.state}">${esc(t.id)} · ${esc(t.state)}</span>`).join("")}</div><div class="metrics">${Object.entries(
-            m,
-        )
-            .map(
-                ([k, v]) =>
-                    `<div class="metric"><strong>${v}</strong><span>${esc({ merged: "Merged changes", wasted: "Wasted attempts", conflicts: "Conflicts", defects: "Defects on main", reviewQueue: "Peak review queue", detectionLatency: "Detection ticks", cost: "Abstract cost units" }[k])}</span></div>`,
-            )
-            .join(
-                "",
-            )}</div><p class="muted">Metrics show the complete run. The event replay below reveals the sequence.</p><div class="table-scroll"><table class="event-table"><caption class="sr-only">Deterministic event log</caption><thead><tr><th>Tick</th><th>Task</th><th>Event</th><th>What happened</th></tr></thead><tbody>${shown.map((e) => `<tr><td>${e.tick}</td><td>${esc(e.task)}</td><td>${esc(e.kind)}</td><td>${esc(e.message)}</td></tr>`).join("")}</tbody></table></div>`;
-    $("#sim-next").disabled = simStep >= simResult.events.length;
-    $("#sim-finish").disabled = simStep >= simResult.events.length;
-    $("#sim-live").textContent = shown.length
-        ? `Event ${simStep} of ${simResult.events.length}. ${shown.at(-1).message}`
-        : "Model ready. Advance the first event.";
-}
-function labPage(id) {
-    return `${pageTitle("Offline · disposable · no credentials", "Rehearse the controls", "Deterministic stub agents operate only in an owned scratch repository. No tokens, remotes, cluster changes or downloaded executables.")}<div class="panel"><h2>Run the complete safe lab</h2><p>Save the script, inspect it, then run it with Python 3 and Git. It refuses an existing foreign directory, symlinks and repositories with remotes. Repeated runs use the same owned lab root.</p><a class="action" href="lab.py" download>Download the readable lab script</a><pre><code>python3 -I lab.py run --root ~/agent-lab
-python3 -I lab.py verify --root ~/agent-lab
-python3 -I lab.py cleanup --root ~/agent-lab</code></pre><button data-copy="python3 -I lab.py run --root ~/agent-lab">Copy run command</button><p class="muted">Only the downloaded script executes the steps below. A real-model rerun is optional and requires a separate uncredentialed VM or container; it is never started by this site.</p></div><h2>Offline practice steps</h2><div class="grid">${content.lab.map((l, i) => `<article class="card" id="${l.id}"><span class="number">STEP ${i + 1} · ${l.minutes} MIN</span><h3>${esc(l.title)}</h3><p>${esc(l.goal)}</p>${stamp(l.evidenceStart)}<details ${id === l.id ? "open" : ""}><summary>Steps, verification and expected result</summary><ol>${l.steps.map((step) => `<li>${esc(step)}</li>`).join("")}</ol><h4>Expected result</h4><p>${esc(l.expected)}</p><h4>Inspect and verify</h4><pre><code>${esc(l.verify)}</code></pre><h4>Failure to rehearse</h4><p>${esc(l.failureVariant)}</p><h4>Cleanup</h4><p>${esc(l.cleanup)}</p><h4>Transfer to Soyspray</h4><p>${esc(l.transfer)}</p></details></article>`).join("")}</div><h2>Your adoption decision</h2><p class="muted">This browser only. Export a Markdown decision sheet when you’re ready.</p><form id="adoption-form">${content.adoptionPrompts.map((p, i) => `<p><label for="adoption-${i}">${esc(p)}</label><textarea id="adoption-${i}" data-adoption="${i}">${esc(state.adoption[i] || "")}</textarea></p>`).join("")}</form><button id="adoption-export">Export adoption decision</button>`;
-}
-function ledgerPage() {
-    const claims = content.lessons.flatMap((l) =>
-        l.evidence.map((e) => ({ ...e, lesson: l })),
-    );
-    return `${pageTitle("Traceability · uncertainty · provenance", "The evidence ledger", "Every lesson points back to the recording. Interpretations and current documentation remain visibly separate.")} ${status()}<label for="ledger-filter">Filter claims</label><input id="ledger-filter" type="search" placeholder="Search a claim or lesson"><h2>Recording claims</h2><div id="claim-list">${claims.map((e) => `<article class="ledger-row" data-claim="${esc((e.paraphrase + " " + e.lesson.title).toLowerCase())}">${tag(e.label)} ${stamp(e.start)}<h3>${esc(e.paraphrase)}</h3><small>${time(e.start)}–${time(e.end)} · <a href="#lesson/${e.lesson.id}">${esc(e.lesson.title)}</a></small><p>${esc(e.why)}</p></article>`).join("")}</div><h2>Glossary</h2><div class="grid">${content.glossary.map((g) => `<article class="card"><h3>${esc(g.term)}</h3><p>${esc(g.plain)}</p><p>${esc(g.practitioner)}</p><details><summary>Deep</summary><p>${esc(g.deep)}</p></details>${g.start != null ? stamp(g.start) : ""}</article>`).join("")}</div><h2>Corrections and gaps</h2>${paragraphs(content.contentCautions)}${pack ? `<details><summary>Pack provenance and coverage</summary><pre>${esc(JSON.stringify(pack.provenance, null, 2))}</pre>${paragraphs((pack.gaps || []).map((g) => `${time(g.start)}–${time(g.end)} · ${g.kind}: ${g.note}`))}</details>` : ""}<h2>Accessibility checks</h2><p id="accessibility-status">Designed toward WCAG 2.2 Level AA. Validation is in progress; no formal conformance claim.</p><h2>Your local state</h2><div class="actions"><button id="state-export">Export settings and progress</button><label class="action">Import state<input id="state-import" type="file" accept="application/json" hidden></label><button id="state-reset">Reset local state</button></div><p id="state-message" role="status"></p>`;
-}
-function render() {
-    clearInterval(simTimer);
-    simTimer = null;
-    dock.append(video);
-    dock.hidden = true;
-    const [area, id] = location.hash.slice(1).split("/");
-    route = area || "start";
-    $(".primary")
-        .querySelectorAll("a")
-        .forEach((a) => {
-            const active =
-                a.hash === `#${route === "lesson" ? "lessons" : route}`;
-            if (active) a.setAttribute("aria-current", "page");
+
+    const data = await loadWorkshop();
+    const { content } = data;
+    const progress = createProgress(content.lessons.map(lesson => lesson.id));
+    const sourceView = createSourceView(data, progress);
+    function applyTheme(t) {
+        if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+        else delete document.documentElement.dataset.theme;
+        $$('input[name="theme"]').forEach(input => input.checked = input.value === (["light", "dark"].includes(t) ? t : "auto"));
+        const depth = ["basics", "practitioner", "deep"].includes(progress.state.depth) ? progress.state.depth : "practitioner";
+        $$("input[name=depth]").forEach(input => input.checked = input.value === depth);
+    }
+    applyTheme(progress.state.theme);
+    /* ------------------------------------------------------------- data */
+    const STATIONS = {
+        signal: {
+            name: "Signal",
+            group: "Admit · station 1 of 9",
+            def: "Work arrives as a signal: a bug report, an issue, a failing check. Agents act on signals rather than on your keystrokes.",
+            links: [["Lesson 6", "Start local, then scale on signals", "#lesson/l6-fleet-operations"]],
+        },
+        claim: {
+            name: "Claim",
+            group: "Admit · station 2 of 9",
+            def: "One agent owns each task. A retried delivery finds the claim and stops, so one report cannot open two PRs.",
+            links: [
+                ["Lesson 6", "Start local, then scale on signals", "#lesson/l6-fleet-operations"],
+                ["Experiment", "Retry without a claim", "#practice/s4-naive-retry"],
+                ["Lab step 6", "Claim tasks atomically", "#lab/lab-5-idempotent-claim"],
+            ],
+        },
+        worktree: {
+            name: "Worktree",
+            group: "Admit · station 3 of 9",
+            def: "Each agent edits in its own isolated workspace with no credentials, so parallel edits surface as conflicts instead of silent overwrites.",
+            links: [
+                ["Lesson 6", "Start local, then scale on signals", "#lesson/l6-fleet-operations"],
+                ["Experiment", "Two agents, one file", "#practice/s1-shared-vs-isolated"],
+                ["Lab step 2", "Shared tree versus worktrees", "#lab/lab-1-worktrees"],
+            ],
+        },
+        agent: {
+            name: "Agent",
+            group: "Build · station 4 of 9",
+            def: "The agent works from skills grown out of observed failures and a feature map that tells it where things are.",
+            links: [
+                ["Lesson 3", "Agents need a map of the product", "#lesson/l3-feature-map"],
+                ["Lesson 4", "Skills grow from failures, and evals keep them honest", "#lesson/l4-pstack-evals"],
+                ["Lab step 4", "A checkable feature map", "#lab/lab-3-feature-map"],
+            ],
+        },
+        verify: {
+            name: "Verify",
+            group: "Build · station 5 of 9",
+            def: "The agent reproduces the symptom, makes the change, then observes the symptom gone with the same probe. “Done” means observed, not claimed.",
+            links: [
+                ["Lesson 2", "Verification closes the loop", "#lesson/l2-verification"],
+                ["Experiment", "Done, or verified?", "#practice/s2-plausible-vs-verified"],
+                ["Lab step 3", "A check that runs the real thing", "#lab/lab-2-verify"],
+            ],
+        },
+        checks: {
+            name: "Checks",
+            group: "Land · station 6 of 9",
+            def: "Hard checks fail the build: lint, compiler, dependency boundaries. The shortest path an agent can take must also be the right one.",
+            links: [
+                ["Lesson 5", "Make the shortest path the right path", "#lesson/l5-agent-friendly-architecture"],
+                ["Experiment", "The shortcut import", "#practice/s5-architecture-gate"],
+                ["Lab step 5", "Make the shortcut fail", "#lab/lab-4-boundary"],
+            ],
+        },
+        review: {
+            name: "Review",
+            group: "Land · station 7 of 9",
+            def: "A person reviews small, revertible changes. Every check that rejects bad work first makes this queue shorter.",
+            links: [
+                ["Lesson 1", "Trust is the throttle on parallelism", "#lesson/l1-trust-curve"],
+                ["Experiment", "The reviewer is the bottleneck", "#practice/s3-review-backlog"],
+            ],
+        },
+        merge: {
+            name: "Merge",
+            group: "Land · station 8 of 9",
+            def: "Changes land on main. Auto-merge belongs only behind hard checks, with review after landing.",
+            links: [
+                ["Lesson 1", "Trust is the throttle on parallelism", "#lesson/l1-trust-curve"],
+                ["Lesson 6", "Start local, then scale on signals", "#lesson/l6-fleet-operations"],
+            ],
+        },
+        promote: {
+            name: "Promote",
+            group: "Release · station 9 of 9",
+            def: "A separate, human-approved change activates a build. Source and activation never travel together.",
+            links: [
+                ["Lesson 6", "Start local, then scale on signals", "#lesson/l6-fleet-operations"],
+                ["Lesson 7", "Verification first, volume last", "#lesson/l7-cost-and-adoption"],
+                ["Lab step 7", "Rehearse the promotion boundary", "#lab/lab-6-promotion"],
+            ],
+        },
+    };
+    const STATION_ORDER = ["signal", "claim", "worktree", "agent", "verify", "checks", "review", "merge", "promote"];
+
+    const NOTES = Object.create(null);
+
+    /* ------------------------------------------------------------ router */
+    const SCREEN_NAV = { home: "lessons", lesson: "lessons", practice: "practice", scenario: "practice", lab: "practice", recording: "recording" };
+    let searchArrival = null;
+    let firstRoute = true;
+    let renderedUrl = null;
+    let historyEntry = null;
+    let restoringScroll = false;
+    let scrollSaveTimer = null;
+    let fullscreenRouteFocus = null;
+    const savedScroll = new Map();
+    function focusRouteTarget(target) {
+        if (!target) return;
+        if (document.fullscreenElement) fullscreenRouteFocus = { target, href: location.href };
+        else target.focus({ preventScroll: true });
+    }
+    window.addEventListener("fullscreenchange", () => {
+        if (document.fullscreenElement || !fullscreenRouteFocus) return;
+        const { target, href } = fullscreenRouteFocus;
+        fullscreenRouteFocus = null;
+        const active = document.activeElement;
+        if (location.href === href && target.isConnected && target.getClientRects().length &&
+            (!active || active === document.body || sourceView.video.contains(active))) target.focus({ preventScroll: true });
+    });
+    history.scrollRestoration = "manual";
+    const entryState = () => history.state?.agentsScroll;
+    function rememberScroll() {
+        if (restoringScroll || location.href !== renderedUrl || entryState()?.entry !== historyEntry) return;
+        savedScroll.set(historyEntry, window.scrollY);
+        history.replaceState({ ...history.state, agentsScroll: { entry: historyEntry, y: window.scrollY } }, "");
+    }
+    window.addEventListener("scroll", () => {
+        if (restoringScroll || location.href !== renderedUrl || entryState()?.entry !== historyEntry) return;
+        savedScroll.set(historyEntry, window.scrollY);
+        clearTimeout(scrollSaveTimer);
+        scrollSaveTimer = setTimeout(rememberScroll, 150);
+    }, { passive: true });
+    window.addEventListener("scrollend", rememberScroll);
+    window.addEventListener("pagehide", rememberScroll);
+    document.addEventListener("click", rememberScroll, { capture: true });
+
+    function parseHash() {
+        const raw = location.hash.slice(1) || "home";
+        const separator = raw.indexOf("?");
+        const path = separator < 0 ? raw : raw.slice(0, separator);
+        const query = separator < 0 ? "" : raw.slice(separator + 1);
+        const parts = path.split("/").filter(Boolean).map(part => {
+            try { return decodeURIComponent(part); } catch { return part; }
+        });
+        const params = new URLSearchParams(query);
+        for (const flag of ["resume", "note", "unavailable", "checked", "finished", "done", "details", "about", "frame", "search", "settings"]) {
+            params.delete(flag);
+        }
+        return { parts, params };
+    }
+
+    function route({ restoreY = null } = {}) {
+        flushAdoption();
+        const initialRoute = firstRoute;
+        restoringScroll = true;
+        fullscreenRouteFocus = null;
+        const { parts, params } = parseHash();
+        let screen = parts[0] || "home";
+        const id = parts[1];
+        const aliases = { start: "home", lessons: "home", talk: "recording", ledger: "recording/cited", simulator: "practice" };
+        if (Object.hasOwn(aliases, screen)) {
+            const suffix = ["talk", "simulator"].includes(screen) && id ? `/${encodeURIComponent(id)}` : "";
+            const query = params.toString();
+            history.replaceState(history.state, "", `#${aliases[screen]}${suffix}${query ? `?${query}` : ""}`);
+        }
+        if (screen === "start" || screen === "lessons") screen = "home";
+        if (screen === "talk") screen = "recording";
+        if (screen === "ledger") { screen = "recording"; params.set("cited", ""); }
+        if (screen === "simulator") screen = "practice";
+        if (screen === "recording") {
+            if (id === "about" || id === "cited") params.set(id, "");
+            else if (id && Number.isFinite(Number(id))) params.set("t", id);
+        }
+        if (screen === "practice" && id) screen = "scenario";
+        if (screen === "terms") screen = "home";
+        const unknownItem = ["lesson"].includes(screen) && !Object.hasOwn(LESSONS, id)
+            || screen === "scenario" && !Object.hasOwn(SCENARIOS, id)
+            || screen === "lab" && id && !content.lab.some(step => step.id === id)
+            || screen === "recording" && id && !["about", "cited"].includes(id) && !Number.isFinite(Number(id));
+        if (!Object.hasOwn(SCREEN_NAV, screen) || unknownItem) {
+            screen = "home";
+            history.replaceState(history.state, "", "#home");
+        }
+
+        stopAllPractice();
+        sourceTrigger = null;
+        if ($("#source").open && screen === "recording" && params.has("t")) sourceView.retainPanelPlayhead();
+        for (const d of $$("dialog[open]")) d.close();
+
+        $$(".screen").forEach((s) => (s.hidden = s.dataset.screen !== screen));
+        $$("[data-nav]").forEach((a) => {
+            if (a.dataset.nav === SCREEN_NAV[screen]) a.setAttribute("aria-current", "page");
             else a.removeAttribute("aria-current");
         });
-    const views = {
-        start: startPage,
-        talk: talkPage,
-        lessons: () =>
-            `${pageTitle("The learning path", "Work from evidence to a safe workflow", "Selective lessons, each grounded in this recording. Use the Talk time map to explore every part of the video.")}<h2>Choose a lesson</h2><div class="grid">${content.lessons.map(lessonCard).join("")}</div>`,
-        lesson: () => lessonPage(decodeURIComponent(id || "")),
-        simulator: () => simulatorPage(id),
-        lab: () => labPage(id),
-        ledger: ledgerPage,
-    };
-    $("#main").innerHTML = (views[route] || startPage)();
-    if (route === "talk") {
-        $("#video-slot").append(video);
-        $("#transcript-mode").value = transcriptMode;
-        $("#transcript").addEventListener("wheel", () => pauseFollow(), {
-            passive: true,
-        });
-        $("#transcript").addEventListener("touchstart", () => pauseFollow(), {
-            passive: true,
-        });
-        $("#transcript").addEventListener("keydown", (e) => {
-            if (
-                [
-                    "PageDown",
-                    "PageUp",
-                    "ArrowDown",
-                    "ArrowUp",
-                    "Home",
-                    "End",
-                ].includes(e.key)
-            )
-                pauseFollow();
-        });
-        highlight();
-    }
-    if (id && route === "lab") document.getElementById(id)?.scrollIntoView();
-    document.title = `${route === "lesson" ? content.lessons.find((l) => l.id === id)?.title || "Lesson" : route[0].toUpperCase() + route.slice(1)} · Agent workshop`;
-}
-function pauseFollow() {
-    follow = false;
-    if ($("#resume-follow"))
-        $("#resume-follow").textContent = "Resume following";
-}
-function highlight() {
-    if (route !== "talk") return;
-    const rows = [...document.querySelectorAll(".transcript-row[data-start]")];
-    const row = rows.find(
-        (r) =>
-            Number(r.dataset.start) <= video.currentTime &&
-            Number(r.dataset.end) > video.currentTime,
-    );
-    const old = $(".transcript-row.active");
-    if (old === row) return;
-    old?.classList.remove("active");
-    row?.classList.add("active");
-    if (row && follow)
-        $("#transcript").scrollTop = Math.max(
-            0,
-            row.offsetTop - $("#transcript").offsetTop - 80,
-        );
-}
-function seek(seconds) {
-    for (const dialog of document.querySelectorAll("dialog[open]"))
-        dialog.close();
-    const t = Math.max(0, Math.min(3412.1, Number(seconds)));
-    narration.pause();
-    narrationCue = null;
-    narrated.clear();
-    const url = new URL(location.href);
-    url.searchParams.set("t", t.toFixed(1));
-    url.hash = "talk";
-    history.pushState({}, "", url);
-    if (route !== "talk") render();
-    video.currentTime = t;
-    lastTime = t;
-    follow = true;
-    highlight();
-    $("#mini-player").hidden = false;
-}
-async function describe(cue) {
-    narrationCue = cue;
-    narrated.add(cue.id);
-    const wasPlaying = !video.paused;
-    video.pause();
-    const live = $("#description-announcement");
-    if (live) {
-        live.hidden = false;
-        live.textContent = cue.text;
-    }
-    const inline = $("#description-cue");
-    if (inline) {
-        inline.hidden = false;
-        inline.textContent = cue.text;
-    }
-    const finish = () => {
-        if (narrationCue !== cue) return;
-        narrationCue = null;
-        if (wasPlaying) video.play().catch(() => {});
-    };
-    if (cue.audio) {
-        narration.src = `${packBase}/${cue.audio}`;
-        narration.onended = finish;
-        narration.onerror = finish;
-        try {
-            await narration.play();
-        } catch {
-            finish();
+
+        const view = $(`.screen[data-screen="${screen}"]`);
+        let title = "Earning trust in coding agents";
+        if (screen === "home") renderHome(params);
+        if (screen === "lesson") title = `${renderLesson(id)} · ${title}`;
+        if (screen === "practice") title = `Practice · ${title}`;
+        if (screen === "scenario") title = `${renderScenarioPage(id === undefined ? "s2-plausible-vs-verified" : id, params)} · ${title}`;
+        if (screen === "lab") title = `The offline lab · ${title}`;
+        if (screen === "recording") {
+            renderRecording(params);
+            title = `The recording · ${title}`;
         }
-    } else {
-        if (live)
-            live.textContent = `Visual description: ${cue.text}. Resume replay when ready.`;
-        narrationCue = null;
-    }
-}
-video.addEventListener("timeupdate", () => {
-    $("#mini-time").textContent = time(video.currentTime);
-    highlight();
-    if (state.descriptions && !video.paused && !narrationCue) {
-        const cue = pack?.narrationCues?.find(
-            (c) =>
-                !narrated.has(c.id) &&
-                lastTime <= c.start &&
-                video.currentTime >= c.start &&
-                video.currentTime - c.start < 1,
-        );
-        if (cue) describe(cue);
-    }
-    lastTime = video.currentTime;
-});
-video.addEventListener("seeking", () => {
-    if (Math.abs(video.currentTime - lastTime) > 2) {
-        narrated.clear();
-        lastTime = video.currentTime;
-        narration.pause();
-        narrationCue = null;
-    }
-});
-video.addEventListener("play", () => {
-    $("#mini-play").textContent = "Pause";
-    $("#mini-player").hidden = false;
-});
-video.addEventListener("pause", () => {
-    $("#mini-play").textContent = "Play";
-});
-$("#mini-play").onclick = () =>
-    video.paused ? video.play().catch(() => {}) : video.pause();
-$("#mini-hide").onclick = () => {
-    $("#mini-player").hidden = true;
-};
-document.addEventListener("click", async (e) => {
-    const target = e.target.closest("button,a");
-    if (!target) return;
-    if (target.dataset.seek != null) {
-        seek(target.dataset.seek);
-        return;
-    }
-    if (target.dataset.frame != null) {
-        const f = pack.frames[Number(target.dataset.frame)];
-        $("#frame-title").textContent = `Frame at ${time(f.start)}`;
-        $("#frame-detail").innerHTML =
-            `<img width="1924" height="1080" src="${packBase}/${esc(f.path)}" alt="${esc(f.description || "Unreviewed frame; OCR text follows")}"><p>${esc(f.description)}</p>${stamp(f.start)}<h3>Machine OCR</h3><pre>${esc(f.ocr)}</pre><small>Machine OCR may contain errors. The bottom caption band is excluded from the searchable OCR; its words are not independent evidence. Frame hash: ${esc(f.sha256)}</small>`;
-        $("#frame-dialog").showModal();
-    }
-    if (target.hasAttribute("data-close")) target.closest("dialog").close();
-    if (target.dataset.complete) {
-        const id = target.dataset.complete;
-        state.completed = state.completed.includes(id)
-            ? state.completed.filter((x) => x !== id)
-            : [...state.completed, id];
-        save();
-        target.setAttribute("aria-pressed", state.completed.includes(id));
-        target.textContent = state.completed.includes(id)
-            ? "Marked explored ✓"
-            : "Mark lesson explored";
-    }
-    if (target.dataset.copy) {
-        try {
-            await navigator.clipboard.writeText(target.dataset.copy);
-            target.textContent = "Copied ✓";
-        } catch {
-            target.textContent = "Copy unavailable; select the command above";
+        document.title = title;
+
+        if (["lesson"].includes(screen)) prepareLesson(params);
+        sourceView.updateNow();
+        mountPracticeIn(view, params);
+
+        if (restoreY !== null) {
+            window.scrollTo(0, restoreY);
+            if (!initialRoute) focusRouteTarget($("h1", view));
+        } else if (!initialRoute) {
+            const h1 = $("h1", view);
+            if (screen === "lab" && id) {
+                const step = document.getElementById(id);
+                if (step) {
+                    $$(".out__item.is-target").forEach((s) => s.classList.remove("is-target"));
+                    step.classList.add("is-target");
+                    $(".out__details", step)?.setAttribute("open", "");
+                    step.scrollIntoView({ block: "start" });
+                    focusRouteTarget($("summary", step));
+                }
+            } else {
+                window.scrollTo(0, 0);
+                focusRouteTarget(h1);
+            }
+        } else if (screen === "lab" && id) {
+            const step = document.getElementById(id);
+            step?.classList.add("is-target");
+            $(".out__details", step)?.setAttribute("open", "");
+            requestAnimationFrame(() => step?.scrollIntoView({ block: "start" }));
         }
+        firstRoute = false;
+        // Old #lessons links and the glossary anchor land on the home page section.
+        if (restoreY === null && screen === "home" && ["lessons", "terms"].includes(parts[0])) {
+            const heading = document.getElementById(`${parts[0]}-title`);
+            heading?.scrollIntoView({ block: "start" });
+            if (!initialRoute) focusRouteTarget(heading);
+        }
+
+        if (restoreY === null && screen === "lesson" && parts[2]) {
+            const section = editorialLessons[id].sections.find(item => item.slug === parts[2]);
+            const h1Target = !section || section.target === "h1";
+            const target = h1Target ? $("h1", view) : document.getElementById(section.id);
+            if (h1Target) history.replaceState(history.state, "", `#lesson/${id}`);
+            if (target) {
+                const block = h1Target ? $('[data-section="in-short"]', view) : target.closest("[data-section]") || target;
+                if (searchArrival?.id === id) {
+                    const query = searchArrival.query.toLowerCase();
+                    $$("details", block).forEach(details => { if (details.textContent.toLowerCase().includes(query)) details.open = true; });
+                }
+                (h1Target ? target : block).scrollIntoView({ block: "start" });
+                focusRouteTarget(target);
+            }
+        }
+        searchArrival = null;
+        if (screen === "recording" && (params.has("cited") || params.has("about"))) {
+            const target = $(params.has("cited") ? "#cited-moments" : "#about-transcript");
+            target.open = true;
+            if (restoreY === null) target.scrollIntoView({ block: "start" });
+            if (!initialRoute) focusRouteTarget($("summary", target));
+        }
+        if (restoreY === null && screen === "recording" && params.has("t")) sourceView.scrollToTime(Number(params.get("t")));
+        const previousEntry = entryState();
+        historyEntry = (initialRoute || restoreY !== null) && typeof previousEntry?.entry === "string"
+            ? previousEntry.entry : crypto.randomUUID();
+        renderedUrl = location.href;
+        savedScroll.set(historyEntry, restoreY ?? window.scrollY);
+        history.replaceState({ ...history.state, agentsScroll: { entry: historyEntry, y: restoreY ?? window.scrollY } }, "");
+        const entry = historyEntry;
+        requestAnimationFrame(() => {
+            if (entry !== historyEntry) return;
+            if (restoreY !== null) window.scrollTo(0, restoreY);
+            restoringScroll = false;
+            rememberScroll();
+        });
     }
-    if (target.id === "resume-follow") {
-        follow = true;
-        target.textContent = "Following playback";
-        highlight();
+
+    /* -------------------------------------------------------------- home */
+    function renderHome() {
+        const unfinished = content.lessons.find(lesson => !progress.state.completed.includes(lesson.id));
+        const id = unfinished?.id || content.lessons[0].id;
+        const resume = progress.state.completed.length > 0;
+        $$(".hero__actions").forEach(el => el.hidden = (el.dataset.variant === "resume") !== resume);
+        if (resume) {
+            const action = $('.hero__actions[data-variant="resume"] .btn');
+            action.href = `#lesson/${id}`;
+            action.textContent = `${unfinished ? "Continue" : "Revisit"} lesson ${LESSONS[id].n}`;
+            const quiet = $('.hero__actions[data-variant="resume"] .link-quiet');
+            quiet.href = unfinished ? "#lesson/l1-trust-curve" : "#lesson/l7-cost-and-adoption/adopt";
+            quiet.textContent = unfinished ? "Start from lesson 1" : "Your adoption decision";
+            $(".hero__resume-meta").textContent = unfinished ? `${LESSONS[id].title} · ${progress.state.completed.length} of 7 lessons finished` : "All 7 lessons finished";
+        }
+        $$(".toc__status[data-status]", $('.screen[data-screen="home"]')).forEach(el => {
+            const done = progress.state.completed.includes(el.dataset.status);
+            el.className = "toc__status";
+            el.textContent = done ? "Finished" : el.dataset.status === progress.state.lastLesson ? "In progress" : "";
+            el.classList.toggle("toc__status--progress", !done && el.dataset.status === progress.state.lastLesson);
+        });
     }
-    if (target.id === "sim-run" || target.id === "sim-baseline") {
-        clearInterval(simTimer);
-        const controlled =
-            target.id === "sim-baseline" ||
-            $("#scenario-control").value === "true";
-        simResult = simulateScenario(
-            scenarioId,
-            controlled,
-            Number($("#scenario-agents")?.value || 4),
-        );
-        simStep = 0;
-        simOutput();
-        $("#sim-next").disabled = false;
-        $("#sim-finish").disabled = false;
-        if (!matchMedia("(prefers-reduced-motion: reduce)").matches)
-            simTimer = setInterval(() => {
-                simStep++;
-                simOutput();
-                if (simStep >= simResult.events.length) clearInterval(simTimer);
-            }, 1200);
+
+    function selectStation(key, focus) {
+        const tabs = $$(".path__station");
+        tabs.forEach((t) => {
+            const on = t.dataset.station === key;
+            t.setAttribute("aria-selected", String(on));
+            t.tabIndex = on ? 0 : -1;
+            if (on && focus) t.focus();
+        });
+        const d = STATIONS[key];
+        const panel = $("#station-panel");
+        panel.setAttribute("aria-labelledby", `st-${key}`);
+        $('[data-panel="name"]', panel).textContent = d.name;
+        $('[data-panel="group"]', panel).textContent = d.group;
+        $('[data-panel="def"]', panel).textContent = d.def;
+        $('[data-panel="links"]', panel).innerHTML = d.links
+            .map(([label, text, href]) => `<li><span class="label">${esc(label)}</span><a href="${esc(href)}">${esc(text)}</a></li>`)
+            .join("");
+        panel.classList.remove("is-swapping");
+        void panel.offsetWidth;
+        panel.classList.add("is-swapping");
     }
-    if (target.id === "sim-next") {
-        clearInterval(simTimer);
-        simStep++;
-        simOutput();
+    $$(".path__station").forEach((tab) => {
+        tab.addEventListener("click", () => selectStation(tab.dataset.station, false));
+        tab.addEventListener("keydown", (e) => {
+            const i = STATION_ORDER.indexOf(tab.dataset.station);
+            let next = null;
+            if (e.key === "ArrowRight" || e.key === "ArrowDown") next = STATION_ORDER[(i + 1) % STATION_ORDER.length];
+            if (e.key === "ArrowLeft" || e.key === "ArrowUp") next = STATION_ORDER[(i - 1 + STATION_ORDER.length) % STATION_ORDER.length];
+            if (e.key === "Home") next = STATION_ORDER[0];
+            if (e.key === "End") next = STATION_ORDER[STATION_ORDER.length - 1];
+            if (next) {
+                e.preventDefault();
+                selectStation(next, true);
+            }
+        });
+    });
+
+    /* ------------------------------------------------------------ lesson */
+    function stripHTML(here, sentence) {
+        const stops = STATION_ORDER.map(k => `<span aria-hidden="true" class="strip__stop${here.includes(k) ? " is-here" : ""}"><span class="strip__dot"></span>${esc(STATIONS[k].name)}</span>`).join("");
+        return `<span class="strip__label" aria-hidden="true">Where this fits</span>${stops}<span class="strip__stop strip__stop--end" aria-hidden="true"><span class="strip__dot"></span>Cluster</span><p class="strip__sentence">${sentence}</p>`;
     }
-    if (target.id === "sim-finish") {
-        clearInterval(simTimer);
-        simOutput(true);
+    function renderLesson(id) {
+        const lesson = editorialLessons[id];
+        const view = $('.screen[data-screen="lesson"]');
+        view.dataset.lesson = id;
+        $('[data-lesson-field="kicker"]', view).textContent = `Lesson ${lesson.n} of 7\u00a0· ${lesson.minutes} min`;
+        $('[data-lesson-field="title"]', view).textContent = lesson.title;
+        $('[data-lesson-field="deck"]', view).textContent = lesson.deck;
+        $('[data-lesson-field="strip"]', view).innerHTML = stripHTML(lesson.here, lesson.strip.sentenceHtml);
+        $(".lesson-body", view).innerHTML = renderLessonBody(lesson);
+        $$("textarea[data-adoption]", view).forEach(field => {
+            field.maxLength = 10000;
+            field.value = progress.state.adoption?.[field.dataset.adoption] ?? "";
+        });
+        applyReadingDepth(view);
+        return lesson.title;
     }
-    if (target.id === "adoption-export") {
-        const text = `# Agent adoption decision\n\n${content.adoptionPrompts.map((p, i) => `## ${p}\n\n${state.adoption[i] || "Not yet decided."}`).join("\n\n")}\n`;
-        download("agent-adoption.md", text, "text/markdown");
+
+    function setFinished(btn, on) {
+        btn.setAttribute("aria-pressed", String(on));
+        $("[data-finish-label]", btn).textContent = on ? "Finished" : "Mark lesson as finished";
+        $$("[data-progress-count]").forEach(line => {
+            line.textContent = progress.state.completed.length === 7 ? "All 7 lessons finished" : `${progress.state.completed.length} of 7 lessons finished`;
+            line.hidden = progress.state.completed.length === 0;
+        });
     }
-    if (target.id === "state-export")
-        download(
-            "agent-workshop-state.json",
-            JSON.stringify({ version: 1, state }, null, 2),
-            "application/json",
-        );
-    if (target.id === "state-reset") {
-        state = {
-            depth: "practitioner",
-            theme: "auto",
-            descriptions: false,
-            completed: [],
-            adoption: {},
+    document.addEventListener("click", event => {
+        const button = event.target.closest("[data-finish]");
+        if (!button) return;
+        const on = button.getAttribute("aria-pressed") !== "true";
+        progress.finish(button.dataset.finish, on);
+        setFinished(button, on);
+        renderHome();
+    });
+    function prepareLesson() {
+        const id = parseHash().parts[1] || "l7-cost-and-adoption";
+        if (!Object.hasOwn(LESSONS, id)) return;
+        progress.set("lastLesson", id);
+        $$(`[data-finish="${id}"]`).forEach(button => setFinished(button, progress.state.completed.includes(id)));
+    }
+
+    /* ---------------------------------------------------- source panel */
+    const source = $("#source");
+    let sourceTrigger = null;
+    function setActiveNote(key) {
+        $$(".cite.is-active, .note.is-active").forEach((el) => el.classList.remove("is-active"));
+        if (key == null) return;
+        $$(`.cite[data-note="${key}"]`).forEach((el) => el.classList.add("is-active"));
+        $$(`.note[data-note-box="${key}"]`).forEach((el) => el.classList.add("is-active"));
+        $$(`[data-lesson-source="${key}"]`).forEach(el => {
+            if (el.matches(".cite")) el.classList.add("is-active");
+            el.closest(".note")?.classList.add("is-active");
+        });
+    }
+    function openSource(key, trigger) {
+        const n = Object.hasOwn(NOTES, key) ? NOTES[key] : { kind: "Recording", range: fmt(Number(key)), start: Number(key), para: "" };
+        sourceTrigger = trigger || sourceTrigger;
+        $('[data-src="range"]', source).textContent = `· ${n.range}`;
+        $('[data-src="kind"]', source).textContent = n.kind;
+        const para = $('[data-src="para"]', source);
+        para.textContent = n.para || n.sub || "";
+        para.hidden = !(n.para || n.sub);
+        $('[data-src="play-label"]', source).textContent = `Play from ${fmt(n.start)}`;
+        sourceView.fillSource(n);
+        setActiveNote(Object.hasOwn(NOTES, key) ? key : null);
+        if (!source.open) {
+            const lessonVisible = $$('.screen[data-screen="lesson"]').some(view => !view.hidden);
+            if (wide() && lessonVisible) { source.show(); document.body.classList.add("is-source-open"); }
+            else source.showModal();
+        } else $("#source-title").focus({ preventScroll: true });
+        sourceView.updateNow();
+    }
+    function closeSource() {
+        if (source.open) source.close();
+    }
+    source.addEventListener("close", () => {
+        document.body.classList.remove("is-source-open");
+        setActiveNote(null);
+        if (sourceTrigger && document.contains(sourceTrigger)) sourceTrigger.focus({ preventScroll: true });
+        sourceTrigger = null;
+        sourceView.restoreVideo();
+    });
+
+    document.addEventListener("click", (e) => {
+        const t = e.target.closest("button, a");
+        if (!t) return;
+        if (t.matches("[data-note]")) {
+            e.preventDefault();
+            openSource(t.dataset.note, t);
+            return;
+        }
+        if (t.matches("[data-play-from]") && t.closest("#frame")) {
+            e.preventDefault();
+            $("#frame").close();
+            const seconds = Number(t.dataset.time);
+            if (!source.open && $('.screen[data-screen="recording"]').hidden) location.hash = `#recording/${seconds}`;
+            sourceView.playFrom(seconds);
+            return;
+        }
+        if (t.matches("[data-time]") && t.closest("#search")) {
+            // Transcript hits go to the recording page at that moment.
+            e.preventDefault();
+            $("#search").close();
+            const seconds = Number(t.dataset.time);
+            const destination = `#recording/${seconds}`;
+            if (location.hash === destination) {
+                sourceView.seek(seconds);
+                sourceView.scrollToTime(seconds);
+                $("#rec-title").focus({ preventScroll: true });
+            } else location.hash = destination;
+            return;
+        }
+        if (t.matches("[data-time]") && !t.closest('.screen[data-screen="recording"]')) {
+            e.preventDefault();
+            if (t.closest("dialog") && t.closest("dialog") !== source) t.closest("dialog").close();
+            openSource(t.dataset.time, t);
+            return;
+        }
+        if (t.matches('[data-open]') && t.closest("#search")) $("#search").close();
+        if (t.matches("[data-time]")) {
+            e.preventDefault();
+            sourceView.seek(Number(t.dataset.time), t.hasAttribute("data-play-from"));
+            return;
+        }
+        if (t.matches("[data-close]")) {
+            t.closest("dialog").close();
+            return;
+        }
+        if (t.matches('[data-open="search"]')) openSearch("");
+        if (t.matches('[data-open="settings"]')) openDialog($("#settings"));
+        if (t.matches('[data-open="frame"]')) openDialog($("#frame"));
+        if (t.matches("[data-copy]")) copy(t);
+        if (t.matches("[data-theme-set]")) setTheme(t.dataset.themeSet);
+        if (t.closest("#search") && t.matches("a")) $("#search").close();
+    });
+    document.addEventListener("keydown", (e) => {
+        if (e.isComposing) return;
+        if (e.key === "Escape") {
+            const modal = document.activeElement.closest("dialog:modal");
+            if (modal) { e.preventDefault(); modal.close(); return; }
+        }
+        if (e.key === "Escape" && source.open && !source.matches(":modal")) {
+            e.preventDefault();
+            closeSource();
+        }
+        if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+            const tag = document.activeElement?.tagName;
+            if (["INPUT", "TEXTAREA", "SELECT"].includes(tag) || document.activeElement?.isContentEditable) return;
+            if ($("dialog[open]:modal")) return;
+            e.preventDefault();
+            openSearch("");
+        }
+    });
+
+    function copy(btn) {
+        const label = btn.textContent;
+        const done = (text) => {
+            btn.textContent = text;
+            setTimeout(() => (btn.textContent = label), 1600);
         };
-        save();
-        theme();
-        render();
-        $("#state-message").textContent = "Local state reset.";
+        if (navigator.clipboard) navigator.clipboard.writeText(btn.dataset.copy).then(() => done("Copied"), () => done("Select the command"));
+        else done("Select the command");
     }
-});
-document.addEventListener("submit", (e) => {
-    if (!e.target.matches("[data-check]")) return;
-    e.preventDefault();
-    const [id, index] = e.target.dataset.check.split(":");
-    const c =
-        content.lessons.find((l) => l.id === id)?.checks[Number(index)] ||
-        content.simulator.find((s) => s.id === id);
-    const value = Number(new FormData(e.target).get("answer"));
-    e.target.querySelector(".feedback").textContent =
-        `${value === c.answer ? "That matches the reasoning." : "Compare your prediction with the explanation."} ${c.explanation}`;
-});
-document.addEventListener("change", async (e) => {
-    if (e.target.id === "depth") {
-        state.depth = e.target.value;
-        save();
-        render();
-    }
-    if (e.target.id === "theme") {
-        state.theme = e.target.value;
-        save();
-        theme();
-    }
-    if (e.target.id === "transcript-mode") {
-        transcriptMode = e.target.value;
-        $("#transcript").innerHTML = transcriptHTML();
-        highlight();
-    }
-    if (e.target.id === "descriptions") {
-        state.descriptions = e.target.checked;
-        save();
-        if (!state.descriptions) {
-            narration.pause();
-            narrationCue = null;
+
+    /* ---------------------------------------------------------- dialogs */
+    function openDialog(d) {
+        if (d.id === "settings") {
+            $("[data-storage-unavailable]").hidden = progress.storageAvailable;
+            $$("input[name=theme]", d).forEach(input => input.autofocus = input.checked);
         }
+        if (!d.open) d.showModal();
     }
-    if (e.target.id === "scenario")
-        location.hash = `simulator/${e.target.value}`;
-    if (e.target.id === "state-import") {
+    function setTheme(t) {
+        progress.set("theme", t);
+        applyTheme(t);
+    }
+    $$('input[name="theme"]').forEach((i) => i.addEventListener("change", () => setTheme(i.value)));
+    function refreshProgress() {
+        renderHome();
+        const { parts } = parseHash();
+        if (parts[0] === "lesson" && editorialLessons[parts[1]]) { renderLesson(parts[1]); mountPracticeIn($('.screen[data-screen="lesson"]')); }
+        $$("[data-finish]").forEach(button => setFinished(button, progress.state.completed.includes(button.dataset.finish)));
+    }
+    document.addEventListener("click", event => {
+        const button = event.target.closest("[data-set]");
+        if (!button) return;
+        const status = $('[data-set="status"]');
+        const confirm = $('[data-set="confirm"]');
+        const act = button.dataset.set;
+        if (act === "export") {
+            flushAdoption();
+            downloadText("agent-workshop-state.json", progress.export(), "application/json");
+            status.textContent = "Saved agent-workshop-state.json.";
+        }
+        if (act === "import") $("#progress-import").click();
+        if (act === "reset") confirm.hidden = false;
+        if (act === "reset-no") confirm.hidden = true;
+        if (act === "reset-yes") {
+            cancelAdoption(); progress.reset(); sourceView.syncProgress(); applyTheme(progress.state.theme); refreshProgress();
+            confirm.hidden = true;
+            status.textContent = "Progress reset in this browser.";
+        }
+    });
+    $("#progress-import").addEventListener("change", async event => {
+        const file = event.target.files[0];
+        if (!file) return;
         try {
-            const imported = JSON.parse(await e.target.files[0].text());
-            if (
-                imported.version !== 1 ||
-                !["basics", "practitioner", "deep"].includes(
-                    imported.state.depth,
-                ) ||
-                !["auto", "light", "dark"].includes(imported.state.theme) ||
-                !Array.isArray(imported.state.completed) ||
-                !imported.state.adoption ||
-                Array.isArray(imported.state.adoption) ||
-                typeof imported.state.adoption !== "object" ||
-                !Object.values(imported.state.adoption).every(
-                    (v) => typeof v === "string" && v.length <= 10000,
-                ) ||
-                !imported.state.completed.every((v) =>
-                    content.lessons.some((l) => l.id === v),
-                )
-            )
-                throw Error("Invalid state format");
-            state = { ...state, ...imported.state };
-            save();
-            theme();
-            render();
-            $("#state-message").textContent = "Imported local state.";
-        } catch (err) {
-            $("#state-message").textContent = err.message;
+            if (file.size > 1500000) throw new Error("This progress file is too large.");
+            const imported = JSON.parse(await file.text());
+            flushAdoption();
+            progress.import(imported); sourceView.syncProgress();
+            applyTheme(progress.state.theme); refreshProgress();
+            $('[data-set="status"]').textContent = "Imported your progress.";
+        } catch { $('[data-set="status"]').textContent = "That file isn’t a progress export from this guide."; }
+        event.target.value = "";
+    });
+    function applyReadingDepth(view) {
+        $$("details[data-depth-open]", view).forEach(disclosure => disclosure.open = disclosure.dataset.depthOpen === progress.state.depth);
+    }
+    $$("input[name=depth]").forEach(input => input.addEventListener("change", () => {
+        progress.set("depth", input.value);
+        applyReadingDepth($(".screen:not([hidden])"));
+    }));
+    const pendingAdoption = new Map();
+    let adoptionTimer;
+    function cancelAdoption() { clearTimeout(adoptionTimer); pendingAdoption.clear(); }
+    function flushAdoption() {
+        clearTimeout(adoptionTimer);
+        for (const [key, value] of pendingAdoption) progress.note(key, value);
+        pendingAdoption.clear();
+        if (!progress.storageAvailable) {
+            const status = $("[data-adoption-status]");
+            if (status) status.textContent = "This browser isn’t saving your answers. Download them before you leave.";
         }
     }
-});
-document.addEventListener("input", (e) => {
-    if (e.target.dataset.adoption != null) {
-        state.adoption[e.target.dataset.adoption] = e.target.value;
-        save();
-    }
-    if (e.target.id === "ledger-filter")
-        document.querySelectorAll("[data-claim]").forEach((el) => {
-            el.hidden = !el.dataset.claim.includes(
-                e.target.value.toLowerCase(),
-            );
+    document.addEventListener("input", event => {
+        if (event.target.dataset.adoption == null) return;
+        pendingAdoption.set(event.target.dataset.adoption, event.target.value);
+        clearTimeout(adoptionTimer);
+        adoptionTimer = setTimeout(flushAdoption, 500);
+    });
+    document.addEventListener("change", event => {
+        if (event.target.dataset.adoption != null) flushAdoption();
+    });
+    window.addEventListener("pagehide", flushAdoption);
+    document.addEventListener("click", event => {
+        if (event.target.closest("[data-adoption-export]")) {
+            flushAdoption();
+            const status = $("[data-adoption-status]");
+            try {
+                downloadText("agent-adoption.md", `# Agent adoption decision\n\n${content.adoptionPrompts.map((prompt, index) => `## ${prompt}\n\n${progress.state.adoption[index] || "Not yet decided."}`).join("\n\n")}\n`, "text/markdown");
+                status.textContent = "Downloaded agent-adoption.md.";
+            } catch { status.textContent = "The download didn’t start. Your answers are still saved in this browser."; }
+        }
+        const sourceButton = event.target.closest("[data-lesson-source]");
+        if (sourceButton) {
+            const [id, index] = sourceButton.dataset.lessonSource.split(":");
+            const evidence = content.lessons.find(lesson => lesson.id === id).evidence[Number(index)];
+            const key = sourceButton.dataset.lessonSource;
+            const context = sourceButton.closest(".screen")?.dataset.lesson;
+            const note = editorialLessons[context]?.notes.find(note => note.source === key) || editorialLessons[id]?.notes.find(note => note.source === key);
+            NOTES[key] = { kind: note?.panelKind || (evidence.label === "SHOWN" ? "Shown on screen" : "Our paraphrase"), range: note?.range || `${fmt(evidence.start)}–${fmt(evidence.end)}`, start: evidence.start, end: evidence.end, para: note?.paraphrase || evidence.paraphrase, frame: evidence.label === "SHOWN", frameId: evidence.frameId };
+            openSource(key, sourceButton);
+        }
+    });
+    document.addEventListener("submit", event => {
+        const form = event.target.closest("[data-lesson-quiz]");
+        if (!form) return;
+        event.preventDefault();
+        const [id, index] = form.dataset.lessonQuiz.split(":");
+        const check = (editorialLessons[id]?.checks || content.lessons.find(lesson => lesson.id === id).checks)[Number(index)];
+        const picked = $("input:checked", form);
+        const out = $(".quiz__feedback", form);
+        const choices = $$(".choice", form);
+        choices.forEach(choice => {
+            choice.classList.remove("is-right", "is-wrong");
+            $(".choice__verdict", choice).textContent = "";
         });
-});
-function download(name, text, mime) {
-    const url = URL.createObjectURL(new Blob([text], { type: mime }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-function openSearch() {
-    $("#search-dialog").showModal();
-    $("#search-query").focus();
-}
-$("#search-open").onclick = openSearch;
-document.addEventListener("keydown", (e) => {
-    if (
-        e.key === "/" &&
-        !["INPUT", "TEXTAREA", "SELECT"].includes(
-            document.activeElement.tagName,
-        )
-    ) {
-        e.preventDefault();
-        openSearch();
-    }
-});
-$("#search-query").addEventListener("input", (e) => {
-    const q = e.target.value.toLowerCase().trim();
-    if (q.length < 2) {
-        $("#search-results").textContent = "Type at least two characters.";
-        return;
-    }
-    const groups = [
-        [
-            "Lessons",
-            content.lessons
-                .filter((l) =>
-                    JSON.stringify([l.title, l.practitioner, l.basics, l.deep])
-                        .toLowerCase()
-                        .includes(q),
-                )
-                .map(
-                    (l) =>
-                        `<a class="search-result action" href="#lesson/${l.id}">${esc(l.title)}</a>`,
-                ),
-        ],
-        [
-            "Transcript (corrected and raw)",
-            (pack?.segments || [])
-                .filter((s) =>
-                    `${s.raw} ${s.corrected}`.toLowerCase().includes(q),
-                )
-                .slice(0, 30)
-                .map(
-                    (s) =>
-                        `<button class="search-result" data-seek="${s.start}">${time(s.start)}<small>${esc(s.corrected || s.raw)}</small></button>`,
-                ),
-        ],
-        [
-            "Frame OCR",
-            (pack?.frames || [])
-                .map((f, i) => ({ ...f, i }))
-                .filter((f) => f.ocr?.toLowerCase().includes(q))
-                .slice(0, 20)
-                .map(
-                    (f) =>
-                        `<button class="search-result" data-frame="${f.i}">Frame ${time(f.start)}<small>${esc(f.ocr.slice(0, 160))}</small></button>`,
-                ),
-        ],
-        [
-            "Glossary",
-            content.glossary
-                .filter((g) => JSON.stringify(g).toLowerCase().includes(q))
-                .map(
-                    (g) =>
-                        `<a class="search-result action" href="#ledger">${esc(g.term)}<small>${esc(g.plain)}</small></a>`,
-                ),
-        ],
-    ];
-    $("#search-results").innerHTML = groups
-        .map(
-            ([title, results]) =>
-                `<section class="search-group"><h3>${title} · ${results.length}</h3>${results.join("") || '<p class="muted">No matches.</p>'}</section>`,
-        )
-        .join("");
-});
-$("#search-dialog").addEventListener("click", (e) => {
-    if (e.target.closest("[data-seek],a")) $("#search-dialog").close();
-});
-window.addEventListener("hashchange", () => {
-    render();
-    $("#main").focus({ preventScroll: true });
-    window.scrollTo(0, 0);
-});
-window.addEventListener("popstate", render);
-async function boot() {
-    try {
-        const response = await fetch("content.json");
-        if (!response.ok) throw Error("Teaching content unavailable");
-        content = await response.json();
-        try {
-            const configResponse = await fetch("config.json", {
-                cache: "no-store",
-            });
-            if (!configResponse.ok)
-                throw Error("Pack configuration unavailable.");
-            const config = await configResponse.json();
-            if (!/^[a-f0-9]{64}$/.test(config.packHash))
-                throw Error("Pack hash is not configured.");
-            packBase = `/evidence/versions/${config.packHash}`;
-            const response = await fetch(`${packBase}/index.json`);
-            if (!response.ok)
-                throw Error(`Pack request returned ${response.status}.`);
-            pack = await response.json();
-            if (pack.schemaVersion !== 1)
-                throw Error("Unsupported evidence schema.");
-            video.src = `${packBase}/video.mp4`;
-            const track = document.createElement("track");
-            track.kind = "captions";
-            track.label = `English · machine transcript (${pack.captionStatus || "unreviewed"})`;
-            track.srclang = "en";
-            track.src = `${packBase}/transcript.vtt`;
-            track.default = true;
-            video.append(track);
-            const chapters = document.createElement("track");
-            chapters.kind = "chapters";
-            chapters.src = `${packBase}/chapters.vtt`;
-            chapters.srclang = "en";
-            video.append(chapters);
-        } catch (err) {
-            pack = null;
-            packError = err.message;
+        if (!picked) { out.textContent = "Choose an answer first."; return; }
+        const value = Number(picked.value);
+        const correct = value === check.answer;
+        choices[check.answer].classList.add("is-right");
+        $(".choice__verdict", choices[check.answer]).textContent = correct ? "Your answer · correct" : "The answer";
+        if (!correct) {
+            choices[value].classList.add("is-wrong");
+            $(".choice__verdict", choices[value]).textContent = "Your answer";
         }
-        render();
-        const t = Number(new URL(location.href).searchParams.get("t"));
-        if (t > 0) seek(t);
-    } catch (err) {
-        $("#main").textContent = err.message;
+        const explanation = check.explanationHtml || esc(check.explanation);
+        out.innerHTML = correct ? `<strong>That’s it.</strong> ${explanation}`
+            : `<strong>Not quite.</strong> The answer is “${esc(check.options[check.answer])}”. ${explanation}`;
+    });
+
+    /* search */
+    // Index what a reader reads: prose, figure titles and tables, and Terms
+    // and Limits whether open or closed. Margin notes, citation numerals,
+    // section headings (they become the result title), drawings, experiments,
+    // checks and controls stay out. Every element boundary except inline text
+    // becomes a space, so a numeral or a time can never fuse with a word.
+    const SEARCH_SKIP = ".side, .cite, h2, svg, .practice, form, .lesson-end, a.btn, button, summary, textarea, .label, .adopt__num, .adopt__from, .adopt__actions, .num-list__where, .ladder__where";
+    const SEARCH_INLINE = new Set(["A", "ABBR", "B", "CODE", "EM", "I", "KBD", "MARK", "Q", "SMALL", "STRONG", "SUB", "SUP"]);
+    function readingText(nodes) {
+        const parts = [];
+        const walk = node => {
+            if (node.nodeType === Node.TEXT_NODE) { parts.push(node.data); return; }
+            if (node.nodeType !== Node.ELEMENT_NODE || node.matches(SEARCH_SKIP)) return;
+            const inline = SEARCH_INLINE.has(node.tagName) || node.matches("span.nobr");
+            if (!inline) parts.push(" ");
+            node.childNodes.forEach(walk);
+            if (!inline) parts.push(" ");
+        };
+        nodes.forEach(walk);
+        return parts.join("").replace(/\s+/gu, " ").replace(/\s([.,;:!?’”)])/gu, "$1").trim();
     }
-}
-boot();
+    function lessonSearchRecords(lesson, index) {
+        const authored = editorialLessons[lesson.id];
+        const template = document.createElement("template");
+        template.innerHTML = authored.bodyHtml.join("\n");
+        // A block without data-section, such as a figure, belongs to the section above it.
+        const blocks = new Map(authored.sections.map(section => [section.slug, []]));
+        let current = null;
+        for (const block of template.content.children) {
+            if (blocks.has(block.dataset.section)) current = block.dataset.section;
+            if (current) blocks.get(current).push(block);
+        }
+        return authored.sections.map(section => {
+            const lead = section.target === "h1";
+            const text = [lead ? authored.deck : "", readingText(blocks.get(section.slug))].join(" ").trim();
+            return { g: "Lessons", title: lead ? authored.title : section.heading, text,
+                search: lead ? `${lesson.title} ${text}` : text,
+                meta: `Lesson ${index + 1}\u00a0· ${lead ? "In short" : authored.title}`,
+                href: `#lesson/${lesson.id}/${section.slug}` };
+        }).filter(record => record.text);
+    }
+    const SEARCH = [
+        ...content.lessons.flatMap(lessonSearchRecords),
+        ...Object.entries(SCENARIOS).map(([id, scenario]) => ({ g: "Practice and lab", title: scenario.title, text: `${scenario.setup} ${scenario.question}`, meta: "Experiment", href: `#practice/${id}` })),
+        ...content.lab.map(step => ({ g: "Practice and lab", title: step.title, text: `${step.goal} ${step.verify} ${step.expected}`, meta: "Offline lab", href: `#lab/${step.id}` })),
+        ...content.glossary.map(term => ({ g: "Terms", title: term.term, text: `${term.plain} ${term.practitioner} ${term.deep}`, meta: "Term", href: "#terms" })),
+
+    ];
+    let searchQuery = "";
+    const expandedSearchGroups = new Set();
+    function snippet(text, q) {
+        // A window opens and closes on word boundaries.
+        const wordStart = at => { const space = text.lastIndexOf(" ", at); return space < 0 ? 0 : space + 1; };
+        const wordEnd = at => { const space = text.indexOf(" ", at); return space < 0 ? text.length : space; };
+        const i = text.toLowerCase().indexOf(q);
+        if (i < 0) {
+            const end = text.length > 150 ? wordEnd(150) : text.length;
+            return esc(text.slice(0, end)) + (end < text.length ? "…" : "");
+        }
+        const start = i > 60 ? wordStart(i - 60) : 0;
+        const end = i + q.length + 90 < text.length ? wordEnd(i + q.length + 90) : text.length;
+        return `${start ? "…" : ""}${esc(text.slice(start, i))}<mark>${esc(text.slice(i, i + q.length))}</mark>${esc(text.slice(i + q.length, end))}${end < text.length ? "…" : ""}`;
+    }
+    let searchStatusTimer;
+    function announceSearch(text, immediate = false) {
+        clearTimeout(searchStatusTimer);
+        if (immediate) $("#search-status").textContent = text;
+        else searchStatusTimer = setTimeout(() => $("#search-status").textContent = text, 400);
+    }
+    function runSearch(raw, immediate = false) {
+        const q = raw.trim().toLowerCase();
+        if (q !== searchQuery) expandedSearchGroups.clear();
+        searchQuery = q;
+        const out = $('[data-search="results"]');
+        const status = $("#search-status");
+        const help = $("#search-help");
+        const activeKey = out.contains(document.activeElement) ? document.activeElement.dataset.searchKey : null;
+        $('[data-search="suggest"]').hidden = q.length >= 2;
+        if (q.length < 2) {
+            out.innerHTML = "";
+            clearTimeout(searchStatusTimer);
+            status.textContent = "";
+            status.hidden = true;
+            help.hidden = false;
+            return;
+        }
+        help.hidden = true;
+        status.hidden = false;
+        const hits = [...SEARCH, ...sourceView.searchRecords].filter(record => `${record.title} ${record.search || record.text}`.toLowerCase().includes(q));
+        const relevance = record => record.title.toLowerCase() === q ? 0 : record.title.toLowerCase().includes(q) ? 1 : 2;
+        hits.sort((a, b) => relevance(a) - relevance(b));
+        out.innerHTML = ["Lessons", "Practice and lab", "Terms", "Recording", "Shown on screen"].map(group => {
+            const rows = hits.filter(hit => hit.g === group);
+            if (!rows.length) return "";
+            const label = group === "Recording" ? "Recording · machine transcript"
+                : group === "Shown on screen" ? "Shown on screen · machine OCR" : group;
+            return `<section class="rgroup" data-search-group="${esc(group)}"><h3 class="rgroup__title">${esc(label)} · ${rows.length}</h3><ul>${rows.slice(0, expandedSearchGroups.has(group) ? rows.length : 5).map(row => {
+                const inside = `<span class="result__title">${esc(row.title)}</span><span class="result__snippet">${snippet(row.text, q)}</span><span class="result__meta">${esc(row.meta || `${row.frame ? "Machine OCR" : "Machine transcript"} · ${fmt(row.t)}`)}</span>`;
+                const key = esc(JSON.stringify([row.g, row.href ?? row.frame ?? row.t]));
+                return `<li>${row.frame ? `<button class="result" type="button" data-search-key="${key}" data-frame="${esc(row.frame)}">${inside}</button>` : row.t != null ? `<button class="result" type="button" data-search-key="${key}" data-time="${row.t}">${inside}</button>` : `<a class="result" data-search-key="${key}" href="${esc(row.href)}">${inside}</a>`}</li>`;
+            }).join("")}</ul>${rows.length > 5 && !expandedSearchGroups.has(group) ? `<button class="btn btn--text" type="button" data-search-expand="${esc(group)}">Show all ${rows.length}</button>` : ""}</section>`;
+        }).join("") || '<p class="search__status">Nothing matches. Try a shorter word.</p>';
+        if (activeKey) $$("[data-search-key]", out).find(row => row.dataset.searchKey === activeKey)?.focus({ preventScroll: true });
+        const suffix = data.status === "ready" ? "" : data.status === "unavailable" ? " · transcript unavailable" : " · transcript still loading";
+        announceSearch(`${hits.length === 0 ? "No results" : hits.length === 1 ? "1 result" : `${hits.length} results`}${suffix}`, immediate);
+    }
+    function openSearch(q) {
+        const d = $("#search");
+        const input = $("#search-input");
+        const alreadyOpen = d.open;
+        input.value = q;
+        runSearch(q, true);
+        openDialog(d);
+        if (alreadyOpen) input.focus();
+    }
+    $('[data-search="results"]').addEventListener("click", event => {
+        const link = event.target.closest('a[href^="#lesson/"]');
+        if (link && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) searchArrival = { id: decodeURIComponent(link.hash.split("/")[1]), query: $("#search-input").value.trim() };
+        const button = event.target.closest("[data-search-expand]");
+        if (!button) return;
+        const group = button.dataset.searchExpand;
+        expandedSearchGroups.add(group);
+        runSearch($("#search-input").value, true);
+        $$(`[data-search-group="${CSS.escape(group)}"] .result`)[5]?.focus();
+    });
+    data.subscribe(() => { if ($("#search").open) runSearch($("#search-input").value); });
+    $("#search-input").addEventListener("input", (e) => runSearch(e.target.value));
+    $$("[data-q]").forEach((b) =>
+        b.addEventListener("click", () => {
+            $("#search-input").value = b.dataset.q;
+            runSearch(b.dataset.q, true);
+            $("#search-input").focus();
+        }),
+    );
+
+    /* -------------------------------------------------------- recording */
+    function renderRecording(params) {
+        sourceView.render(params);
+    }
+    function seekRecording(t) { sourceView.seek(t, true); }
+
+    /* ---------------------------------------------------------- practice */
+    const practiceStates = new Set();
+    function stopAllPractice() {
+        for (const st of practiceStates) {
+            clearTimeout(st.timer);
+            st.running = false;
+            if (!st.el.isConnected) practiceStates.delete(st);
+        }
+    }
+    function renderScenarioPage(id, params) {
+        const sc = Object.hasOwn(SCENARIOS, id) ? SCENARIOS[id] : SCENARIOS["s2-plausible-vs-verified"];
+        const view = $('.screen[data-screen="scenario"]');
+        $('[data-scn="kicker"]', view).textContent = `Experiment\u00a0· ${sc.station} station`;
+        $('[data-scn="title"]', view).textContent = sc.title;
+        $('[data-scn="setup"]', view).textContent = sc.setup;
+        $('[data-scn="from"]', view).innerHTML = `From <a href="${esc(sc.lesson[2])}">${esc(sc.lesson[0])}\u00a0· ${esc(sc.lesson[1])}</a>`;
+        $(".practice", view).dataset.scenario = Object.hasOwn(SCENARIOS, id) ? id : "s2-plausible-vs-verified";
+        return sc.title;
+    }
+    function mountPracticeIn(view, params) {
+        $$(".practice", view).forEach((el) => mountPractice(el, el.dataset.scenario));
+    }
+
+    function practiceHTML(id, sc, context) {
+        const head =
+            context === "lesson"
+                ? `<p class="practice__station meta"><span class="dot dot--signal"></span>${esc(sc.station)} station</p><h3 class="practice__title">${esc(sc.title)}</h3><p class="practice__setup">${esc(sc.setup)}</p>`
+                : "";
+        const choices = sc.choices.map((c, i) => `<label class="choice"><input type="radio" name="pred-${id}-${context}" value="${i}" /><span>${esc(c)}</span></label>`).join("");
+        const seg = (name, legend, options) =>
+            `<fieldset class="segmented"><legend class="segmented__legend">${esc(legend)}</legend><span class="segmented__options">${options
+                .map(([value, label, checked]) => `<input type="radio" id="${name}-${value}" name="${name}" value="${value}"${checked ? " checked" : ""} /><label for="${name}-${value}">${esc(label)}</label>`)
+                .join("")}</span></fieldset>`;
+        const controls =
+            seg(`ctl-${id}-${context}`, sc.control.legend, [
+                ["off", sc.control.off, true],
+                ["on", sc.control.on, false],
+            ]) +
+            (sc.queue
+                ? seg(`agents-${id}-${context}`, "Agents", [
+                      ["4", "4", true],
+                      ["1", "1", false],
+                  ])
+                : "");
+        const diagram = sc.queue ? queueHTML() : lanesHTML(sc);
+        return `${head}<ol class="steps">
+<li class="step"><h4 class="step__label"><span class="step__num">1</span>Predict</h4><fieldset class="choices"><legend>${esc(sc.question)}</legend>${choices}</fieldset></li>
+<li class="step"><h4 class="step__label"><span class="step__num">2</span>Run</h4><p class="step__hint">Start with the control off. Run plays the fixed schedule; Step goes one tick at a time.</p><div class="instrument"><div class="controls"><div class="controls__set">${controls}</div><div class="controls__actions"><button class="btn btn--primary btn--run" type="button" data-act="run">Run</button><button class="btn" type="button" data-act="step">Step</button><button class="btn btn--text" type="button" data-act="reset">Reset</button></div></div>${diagram}<div class="readout"><p class="readout__tick" aria-hidden="true">Ready</p><ul class="readout__events" aria-hidden="true"><li>Choose a prediction, then run the model.</li></ul><span class="visually-hidden" role="status" aria-live="polite" aria-atomic="true" data-prediction-live></span></div></div></li>
+<li class="step"><h4 class="step__label"><span class="step__num">3</span>Compare</h4><table class="compare"><caption class="visually-hidden">Outcomes with the control off and on</caption><thead><tr><th scope="col">Outcome</th><th scope="col" class="num">${esc(sc.control.colOff)}</th><th scope="col" class="num">${esc(sc.control.colOn)}</th></tr></thead><tbody></tbody></table><div class="feedback"></div><details class="log"><summary>Event log</summary><table><caption class="visually-hidden">Every event in tick order</caption><thead><tr><th scope="col">Tick</th><th scope="col">Task</th><th scope="col">Event</th><th scope="col">What happened</th></tr></thead><tbody></tbody></table></details></li>
+</ol>`;
+    }
+    function lanesHTML(sc) {
+        const n = sc.stations.length;
+        const guides = sc.stations.map(() => '<span class="guide"></span>').join("");
+        const lanes = sc.lanes
+            .map(([key, label]) => `<span class="lane__label">${esc(label)}</span><div class="lane__track" data-lane="${esc(key)}"><span class="token is-idle" data-token="${esc(key)}"><span class="token__mark"></span></span></div>`)
+            .join("");
+        const stations = sc.stations.map((s) => `<span class="station">${esc(s)}<small></small></span>`).join("");
+        return `<div class="lanes lanes--n${n}" aria-hidden="true"><div class="lanes__grid"><div class="lanes__guides">${guides}</div>${lanes}</div><div class="lanes__stations"><span></span>${stations}</div></div>`;
+    }
+    function queueHTML() {
+        return `<div class="queue" aria-hidden="true">${[
+            ["rejected", "Rejected by checks"],
+            ["waiting", "Waiting for review"],
+            ["merged", "Merged"],
+        ]
+            .map(([k, label]) => `<div class="queue__zone" data-zone="${k}"><p class="queue__name">${label} <span class="queue__count">0</span></p><ul class="queue__items"></ul>${k === "waiting" ? '<p class="queue__peak">Peak 0</p>' : ""}</div>`)
+            .join("")}</div>`;
+    }
+
+    function mountPractice(el, id) {
+        const sc = SCENARIOS[id];
+        if (!sc) return;
+        if (el._practice) practiceStates.delete(el._practice);
+        const context = el.dataset.context || "page";
+        el.innerHTML = practiceHTML(id, sc, context);
+        const st = { el, id, sc, mode: "off", agents: 4, tick: 0, timer: null, running: false, done: {}, shown: [] };
+        el._practice = st;
+        practiceStates.add(st);
+        $$(`input[name="ctl-${id}-${context}"]`, el).forEach((i) =>
+            i.addEventListener("change", () => {
+                st.mode = i.value;
+                resetRun(st);
+            }),
+        );
+        $$(`input[name="agents-${id}-${context}"]`, el).forEach((i) =>
+            i.addEventListener("change", () => {
+                st.agents = Number(i.value);
+                resetRun(st);
+                renderCompare(st);
+            }),
+        );
+        $('[data-act="run"]', el).addEventListener("click", () => (st.running ? pause(st) : play(st)));
+        $('[data-act="step"]', el).addEventListener("click", () => {
+            pause(st);
+            if (st.tick >= maxTick(st)) resetRun(st);
+            stepTick(st, true);
+        });
+        $('[data-act="reset"]', el).addEventListener("click", () => resetRun(st));
+        resetRun(st);
+        renderCompare(st);
+    }
+
+    function eventsFor(st) { return projectScenario(st.id, st.mode === "on", st.agents).events; }
+    function maxTick(st) {
+        return Math.max(...eventsFor(st).map((e) => e[0]));
+    }
+    function setRunLabel(st, text) {
+        $('[data-act="run"]', st.el).textContent = text;
+    }
+    function play(st) {
+        if (st.tick >= maxTick(st)) resetRun(st);
+        if (reduced()) {
+            while (st.tick < maxTick(st)) stepTick(st, false);
+            const r = $(".readout__tick", st.el);
+            r.textContent = `All ${maxTick(st)} ticks shown · use Step to go through them one at a time`;
+            setRunLabel(st, "Run again");
+            announcePractice(st);
+            return;
+        }
+        st.running = true;
+        setRunLabel(st, "Pause");
+        const loop = () => {
+            const had = stepTick(st, true);
+            if (st.tick >= maxTick(st)) {
+                st.running = false;
+                setRunLabel(st, "Run again");
+                return;
+            }
+            st.timer = setTimeout(loop, had ? 1400 : 360);
+        };
+        st.timer = setTimeout(loop, 0);
+    }
+    function pause(st) {
+        clearTimeout(st.timer);
+        if (st.running) {
+            st.running = false;
+            setRunLabel(st, st.tick >= maxTick(st) ? "Run again" : "Resume");
+        }
+    }
+    function resetRun(st) {
+        clearTimeout(st.timer);
+        st.running = false;
+        st.tick = 0;
+        st.shown = [];
+        setRunLabel(st, "Run");
+        const el = st.el;
+        if (st.sc.queue) {
+            $$(".queue__items", el).forEach((u) => (u.innerHTML = ""));
+            $$(".queue__count", el).forEach((c) => (c.textContent = "0"));
+            $(".queue__peak", el).textContent = "Peak 0";
+            st.q = { rejected: [], waiting: [], merged: [], peak: 0 };
+        } else {
+            const lanes = $(".lanes", el);
+            lanes.classList.add("is-resetting");
+            $$(".token", el).forEach((tok) => {
+                tok.className = "token is-idle";
+                tok.style.setProperty("--x", "0");
+                $(".token__mark", tok).textContent = "";
+            });
+            $$(".pass", el).forEach((p) => p.remove());
+            const bypass = st.sc.bypass[st.mode] || [];
+            $$(".guide", el).forEach((g, i) => g.classList.toggle("guide--off", bypass.includes(i)));
+            $$(".station", el).forEach((s, i) => {
+                s.classList.toggle("station--off", bypass.includes(i));
+                $("small", s).textContent = (st.sc.sub[st.mode] || {})[i] || "";
+            });
+            void lanes.offsetWidth;
+            lanes.classList.remove("is-resetting");
+        }
+        $(".readout__tick", el).textContent = `Ready · ${st.sc.control.legend.toLowerCase()} ${st.mode === "on" ? st.sc.control.on.toLowerCase() : st.sc.control.off.toLowerCase()} · ${maxTick(st)} ticks`;
+        st.prediction = "";
+        $(".readout__events", el).innerHTML = `<li>${st.done[doneKey(st)] ? "Run it again, step through it, or switch the control." : "Choose a prediction, then run the model."}</li>`;
+        renderLog(st);
+        announcePractice(st);
+    }
+    function doneKey(st) {
+        return st.sc.queue ? `${st.agents}-${st.mode}` : st.mode;
+    }
+
+    function stepTick(st, animate) {
+        st.tick += 1;
+        const events = eventsFor(st).filter((e) => e[0] === st.tick);
+        st.shown.push(...events);
+        const el = st.el;
+        if (st.sc.queue) applyQueue(st, events, animate);
+        else
+            for (const e of events) {
+                const p = e[4];
+                const tok = $(`.token[data-token="${p.lane}"]`, el);
+                const n = st.sc.stations.length;
+                tok.classList.remove("is-idle", "token--done", "token--pending", "token--lost", "token--caught", "token--defect", "token--stopped", "is-marked");
+                if (p.s) tok.classList.add(`token--${p.s}`);
+                tok.classList.toggle("is-flipped", p.x >= n - 1);
+                tok.style.setProperty("--x", String(p.x));
+                const mark = $(".token__mark", tok);
+                mark.textContent = p.m || "";
+                if (p.m) {
+                    void tok.offsetWidth;
+                    tok.classList.add("is-marked");
+                }
+                for (const x of p.pass || []) {
+                    const pass = document.createElement("span");
+                    pass.className = "pass";
+                    pass.style.setProperty("--x", String(x));
+                    tok.parentElement.append(pass);
+                }
+            }
+        renderReadout(st, events, animate);
+        renderLog(st);
+        if (st.tick >= maxTick(st)) complete(st);
+        announcePractice(st);
+        return events.length > 0;
+    }
+
+    function applyQueue(st, events, animate) {
+        const q = st.q;
+        const fresh = new Set();
+        for (const [, task, kind] of events) {
+            if (kind === "check_reject") q.rejected.push(task);
+            if (kind === "review_ready") q.waiting.push(task);
+            if (kind === "reviewed") {
+                q.waiting = q.waiting.filter((t) => t !== task);
+                q.merged.push(task);
+            }
+            fresh.add(task);
+        }
+        // Same measure as simulateScenario: queue length after this tick's reviews.
+        q.peak = Math.max(q.peak, q.waiting.length);
+        const zone = (k, cls) => {
+            const z = $(`[data-zone="${k}"]`, st.el);
+            $(".queue__items", z).innerHTML = q[k].map((t) => `<li class="qtok ${cls}${animate && fresh.has(t) ? " is-new" : ""}" title="${esc(t)}"></li>`).join("");
+            $(".queue__count", z).textContent = String(q[k].length);
+        };
+        zone("rejected", "qtok--rejected");
+        zone("waiting", "");
+        zone("merged", "qtok--merged");
+        $(".queue__peak", st.el).textContent = `Peak ${q.peak}`;
+    }
+
+    function announcePractice(st) {
+        // One text update keeps the tick, events and verdict together in
+        // Chrome's accessibility tree, including repeated queue messages.
+        const parts = [$(".readout__tick", st.el).textContent,
+            ...$$(".readout__events li", st.el).map(node => node.textContent),
+            st.prediction];
+        $("[data-prediction-live]", st.el).textContent = parts.filter(Boolean).map(text => text.replace(/\.+$/u, "")).join(". ").replace(/\s+/gu, " ").trim() + ".";
+    }
+
+    function renderReadout(st, events, animate) {
+        const box = $(".readout", st.el);
+        $(".readout__tick", st.el).textContent = `Tick ${st.tick} of ${maxTick(st)}`;
+        const list = $(".readout__events", st.el);
+        if (!events.length) list.innerHTML = "<li>Nothing happens this tick.</li>";
+        else {
+            const groups = [];
+            for (const [, task, , message] of events) {
+                const g = groups.find((x) => x.message === message);
+                if (g) g.tasks.push(task);
+                else groups.push({ message, tasks: [task] });
+            }
+            list.innerHTML = groups.map((g) => `<li><span class="readout__task">${esc(g.tasks.join(", "))}</span> ${esc(g.message)}</li>`).join("");
+        }
+        if (animate) {
+            box.classList.remove("is-swapping");
+            void box.offsetWidth;
+            box.classList.add("is-swapping");
+        }
+    }
+    function renderLog(st) {
+        $(".log tbody", st.el).innerHTML = st.shown.map(([tick, task, kind, message]) => `<tr><td>${tick}</td><td>${esc(task)}</td><td>${esc(kind)}</td><td>${esc(message)}</td></tr>`).join("");
+        $(".log summary", st.el).textContent = st.shown.length ? `Event log · ${st.shown.length} events` : "Event log";
+    }
+
+    function compareRows(st) { return compareScenario(st.id, st.agents); }
+    function renderCompare(st, fresh) {
+        const key = (m) => (st.sc.queue ? `${st.agents}-${m}` : m);
+        const cell = (v, m) => {
+            const done = st.done[key(m)];
+            return `<td class="num${done ? "" : " is-empty"}${done && fresh === m ? " is-fresh" : ""}">${done ? esc(v) : "–"}</td>`;
+        };
+        $(".compare tbody", st.el).innerHTML = compareRows(st)
+            .map(([label, off, on]) => `<tr><th scope="row">${esc(label)}</th>${cell(off, "off")}${cell(on, "on")}</tr>`)
+            .join("");
+    }
+    function complete(st) {
+        st.done[doneKey(st)] = true;
+        renderCompare(st, st.mode);
+        const sc = st.sc;
+        const picked = $(`.choices input:checked`, st.el);
+        const both = st.done[st.sc.queue ? `${st.agents}-off` : "off"] && st.done[st.sc.queue ? `${st.agents}-on` : "on"];
+        const ready = sc.predictOn === "both" ? both : st.done[sc.queue ? `${st.agents}-${sc.predictOn}` : sc.predictOn];
+        const fb = $(".feedback", st.el);
+        let html = "";
+        if (ready) {
+            if (picked) {
+                const v = Number(picked.value);
+                html += v === sc.answer
+                    ? `<p><span class="feedback__verdict">Your prediction matches the run.</span> You chose “${esc(sc.choices[v])}”.</p>`
+                    : `<p><span class="feedback__verdict">The run disagrees with your prediction.</span> You chose “${esc(sc.choices[v])}”; the model shows “${esc(sc.choices[sc.answer])}”.</p>`;
+            }
+            html += `<p>${esc(sc.explanation)}</p>`;
+        }
+        const otherMode = st.mode === "off" ? "on" : "off";
+        if (!st.done[sc.queue ? `${st.agents}-${otherMode}` : otherMode]) {
+            const label = otherMode === "on" ? `Run with ${sc.control.colOn.toLowerCase()}` : `Run with ${sc.control.colOff.toLowerCase()}`;
+            html += `<p class="feedback__next"><button class="btn" type="button" data-act="other">${esc(label)}</button></p>`;
+        }
+        fb.innerHTML = html;
+        st.prediction = ready && picked ? Number(picked.value) === sc.answer ? "Your prediction matches the run." : "The run disagrees with your prediction." : "";
+        const next = $('[data-act="other"]', fb);
+        if (next)
+            next.addEventListener("click", () => {
+                const input = $(`input[name^="ctl-${st.id}-"][value="${otherMode}"]`, st.el);
+                input.checked = true;
+                st.mode = otherMode;
+                resetRun(st);
+                $(".instrument", st.el).scrollIntoView({ block: "nearest", behavior: reduced() ? "auto" : "smooth" });
+                play(st);
+            });
+    }
+
+    /* ------------------------------------------------------------- boot */
+    $(".skip").addEventListener("click", event => {
+        event.preventDefault();
+        const heading = $(".screen:not([hidden]) h1") || $("#main");
+        heading.focus({ preventScroll: true });
+        heading.scrollIntoView({ block: "nearest" });
+    });
+    window.addEventListener("popstate", event => {
+        const saved = event.state?.agentsScroll;
+        if (typeof saved?.entry !== "string" || saved.entry === historyEntry || !Number.isFinite(saved.y)) return;
+        route({ restoreY: savedScroll.get(saved.entry) ?? Math.max(0, saved.y) });
+    });
+    window.addEventListener("hashchange", () => {
+        if (location.href !== renderedUrl || entryState()?.entry !== historyEntry) route();
+    });
+    route();
+    requestAnimationFrame(() => setTimeout(() => data.startPrivate(), 0));
+})().catch(error => {
+    document.querySelector("#main").textContent = error.message;
+});
