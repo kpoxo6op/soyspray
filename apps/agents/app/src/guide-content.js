@@ -45,7 +45,7 @@ export const lessonMetadata = {
   },
   "l4-pstack-evals": {
     "n": 4,
-    "title": "Skills grow from failures; evals keep them honest",
+    "title": "Skills grow from failures, and evals keep them honest",
     "deck": "Where do good agent skills come from, and how do I know a skill still works after I change it?",
     "minutes": 8,
     "here": [

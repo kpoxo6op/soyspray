@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { editorialLessons } from '../src/lesson-content.js';
 import { simulateScenario } from '../src/simulator.js';
+import { scenarioPresentation } from '../src/scenario-data.js';
 const source = JSON.parse(readFileSync(new URL('../src/content.json', import.meta.url), 'utf8'));
 const html = lesson => lesson.bodyHtml.join('\n');
 const decode = value => value.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (_, entity) => {
@@ -99,8 +100,24 @@ test('quizzes show the declared choices and retain the original answer', () => {
             const choices = [...form[2].matchAll(/<label\b[^>]*>([\s\S]*?)<\/label>/g)];
             assert.deepEqual(choices.map(m => text(m[1])), check.options);
             assert.deepEqual(choices.map(m => Number(tags(m[1]).find(t => t.name === 'input').attributes.value)), check.options.map((_, n) => n));
-            assert.equal(check.answer, original.checks[i].answer);
+            assert.equal(check.options[check.answer].replace(/’/g, "'"), original.checks[i].options[original.checks[i].answer].replace(/’/g, "'"));
+            assert.deepEqual(choices.map(m => tags(m[1]).find(t => t.name === 'input').attributes.name), check.options.map(() => `q-${lesson.id}-${i}`));
         }
+    }
+});
+
+// Contract: answer positions and lengths cannot reveal the answer. A publisher
+// can regress that teaching boundary while grading and the engine stay correct.
+test('checks and predictions do not reveal answers by position or length', () => {
+    const checks = Object.values(editorialLessons).flatMap(l => l.checks);
+    for (const index of [0, 1, 2, 3]) {
+        const count = checks.filter(c => c.answer === index).length;
+        assert.ok(count >= 2 && count <= 4);
+    }
+    const predictions = Object.values(scenarioPresentation);
+    assert.ok(new Set(predictions.map(s => s.answer)).size >= 3);
+    for (const c of [...checks, ...predictions.map(s => ({ options: s.choices, answer: s.answer }))]) {
+        assert.ok(c.options.some((option, i) => i !== c.answer && option.length >= c.options[c.answer].length));
     }
 });
 

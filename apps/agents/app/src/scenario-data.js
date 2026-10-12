@@ -12,12 +12,12 @@ export const scenarioPresentation = {
         "setup": "Agents A and B both edit config line 1 in a shared working tree.",
         "question": "What happens to A’s change?",
         "choices": [
-            "Git reports a conflict",
+            "Git stops B with a merge conflict",
+            "CI rejects both edits before they merge",
             "A’s edit is silently overwritten by B",
-            "Both edits merge cleanly",
-            "CI rejects both"
+            "Both edits are kept and merge cleanly"
         ],
-        "answer": 1,
+        "answer": 2,
         "predictOn": "off",
         "explanation": "In a shared tree the last writer wins with no signal. With per-agent worktrees the same edits surface as a merge conflict at integration, where a reviewer sees them.",
         "control": {
@@ -128,12 +128,12 @@ export const scenarioPresentation = {
         "setup": "Three agent reports say “fixed”. One change does not fix the symptom.",
         "question": "With the verification gate off, how many fixes reach main?",
         "choices": [
-            "Two",
-            "Three, including the non-fix",
-            "Zero",
-            "One"
+            "None until someone checks them",
+            "One, the others are still running",
+            "Two, only the real fixes",
+            "Three, including the non-fix"
         ],
-        "answer": 1,
+        "answer": 3,
         "predictOn": "off",
         "explanation": "Without a probe that reproduces the symptom, self-reports are accepted. With the gate on, task T3 fails reproduction-after and returns to the queue. Illustrative outcome, not a measured rate.",
         "control": {
@@ -248,17 +248,17 @@ export const scenarioPresentation = {
         ],
         "station": "Review",
         "title": "The reviewer is the bottleneck",
-        "setup": "Four agents produce 12 PRs; one reviewer clears 2 per tick. Hard checks catch 4 of the PRs automatically.",
-        "question": "What changes?",
+        "setup": "Each agent opens three PRs at once, and one reviewer clears two per tick. One PR in three has a fault a hard check would catch.",
+        "question": "With hard checks on, what changes?",
         "choices": [
-            "Nothing",
-            "The review queue shrinks because checks reject 4 before review",
-            "Agents get faster",
-            "More defects merge"
+            "The review queue shrinks because checks reject faulty PRs first",
+            "Nothing changes, since the reviewer still has to read every one",
+            "The queue grows, because every PR now has to wait for checks",
+            "Agents work faster, so their PRs reach review sooner"
         ],
-        "answer": 1,
+        "answer": 0,
         "predictOn": "both",
-        "explanation": "Adding agents without automated gates only grows the human queue. Converting review comments into checks removes scripted bad PRs before review.",
+        "explanation": "Adding agents without automated gates only grows the human queue. Hard checks reject the scripted faulty PRs before review, and the more agents you run, the more they save.",
         "control": {
             "legend": "Hard checks",
             "off": "Off",
@@ -281,10 +281,10 @@ export const scenarioPresentation = {
         "setup": "A bug report is delivered twice after a timeout.",
         "question": "With naive retry, how many PRs appear?",
         "choices": [
-            "One",
+            "One, the retry is skipped",
             "Two duplicates",
-            "Zero",
-            "Three"
+            "One PR with two commits",
+            "None, both time out"
         ],
         "answer": 1,
         "predictOn": "off",
@@ -410,12 +410,12 @@ export const scenarioPresentation = {
         "setup": "An agent’s quickest fix imports heavy main-process code into the renderer.",
         "question": "With the boundary check on, where is it caught?",
         "choices": [
-            "In production",
+            "In production, by a user",
+            "At review, if the reviewer notices",
             "At CI, before review",
-            "At review only if the reviewer notices",
-            "Never"
+            "In the agent’s own test run"
         ],
-        "answer": 1,
+        "answer": 2,
         "predictOn": "on",
         "explanation": "Hard checks fail the build. With soft rules only, catching it depends on the reviewer; the scenario scripts the reviewer missing it, to illustrate the gap, not as a measured miss rate.",
         "control": {

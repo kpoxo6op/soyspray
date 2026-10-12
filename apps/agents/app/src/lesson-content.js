@@ -146,7 +146,7 @@ export const editorialLessons = {
       "</ul>",
       "</section>",
       "<section class='block section-block' data-section='try' aria-labelledby='l1-try'>",
-      "<div class='side side--quiet' role='note'><p>A deterministic teaching model with a fixed schedule. The four rejected PRs are scripted to show a cause, not a measured rate. Ticks are abstract.</p></div>",
+      "<div class='side side--quiet' role='note'><p>A deterministic teaching model with a fixed schedule. The rejected PRs are scripted to show a cause, not a measured rate. Ticks are abstract.</p></div>",
       "<h2 class='h2' id='l1-try' tabindex='-1'>Try it</h2>",
       "<p class='para'>The curve in miniature: more agents help only if something other than the reviewer rejects bad work first. Run it with four agents, then switch to one.</p>",
       "<div class='practice' data-scenario='s3-review-backlog' data-context='lesson'></div>",
@@ -169,10 +169,10 @@ export const editorialLessons = {
       "<form class='quiz' data-lesson-quiz='l1-trust-curve:0' novalidate>",
       "<fieldset class='choices'>",
       "<legend>According to the talk, what should limit how many agents you run in parallel?</legend>",
-      "<label class='choice'><input type='radio' name='q-l1-trust-curve-0' value='0' /><span>Available CPU on the build machine<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l1-trust-curve-0' value='1' /><span>How much you can trust each agent’s output without watching it<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l1-trust-curve-0' value='2' /><span>The number of open issues<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l1-trust-curve-0' value='3' /><span>Model context length<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l1-trust-curve-0' value='0' /><span>How much CPU and memory your build machine can spare<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l1-trust-curve-0' value='1' /><span>How many open issues are waiting in your backlog<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l1-trust-curve-0' value='2' /><span>How much you can trust each agent’s output without watching it<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l1-trust-curve-0' value='3' /><span>How much context the model can hold before it starts forgetting<span class='choice__verdict'></span></span></label>",
       "</fieldset>",
       "<div class='quiz__actions'><button class='btn' type='submit'>Check</button></div>",
       "<div class='quiz__feedback' role='status'></div>",
@@ -180,10 +180,10 @@ export const editorialLessons = {
       "<form class='quiz' data-lesson-quiz='l1-trust-curve:1' novalidate>",
       "<fieldset class='choices'>",
       "<legend>Which of these is the speaker’s own framing of her PR counts?</legend>",
-      "<label class='choice'><input type='radio' name='q-l1-trust-curve-1' value='0' /><span>A controlled benchmark<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l1-trust-curve-1' value='1' /><span>An invitation to question how good the code is<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l1-trust-curve-1' value='2' /><span>A guarantee for any team<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l1-trust-curve-1' value='3' /><span>A company-wide average<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l1-trust-curve-1' value='0' /><span>An invitation to question how good the code is<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l1-trust-curve-1' value='1' /><span>A controlled benchmark of agent productivity<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l1-trust-curve-1' value='2' /><span>A guarantee of what any team will get from agents<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l1-trust-curve-1' value='3' /><span>A company-wide average across every engineer<span class='choice__verdict'></span></span></label>",
       "</fieldset>",
       "<div class='quiz__actions'><button class='btn' type='submit'>Check</button></div>",
       "<div class='quiz__feedback' role='status'></div>",
@@ -325,12 +325,12 @@ export const editorialLessons = {
         "index": 0,
         "question": "According to the talk, what should limit how many agents you run in parallel?",
         "options": [
-          "Available CPU on the build machine",
+          "How much CPU and memory your build machine can spare",
+          "How many open issues are waiting in your backlog",
           "How much you can trust each agent’s output without watching it",
-          "The number of open issues",
-          "Model context length"
+          "How much context the model can hold before it starts forgetting"
         ],
-        "answer": 1,
+        "answer": 2,
         "explanationHtml": "She ties parallelism to trust: spawning many agents is pointless while you cannot trust the output of one. CPU, open issues and context length are real limits, but not the one she argues from. She says so at <button class='time-link' type='button' data-lesson-source='l1-trust-curve:2' aria-label='Note 3, said from 2:13 to 3:16'>2:13</button>.",
         "status": "question, options and answer verbatim (typographic apostrophe); explanation rewritten without the numeric range"
       },
@@ -338,13 +338,13 @@ export const editorialLessons = {
         "index": 1,
         "question": "Which of these is the speaker’s own framing of her PR counts?",
         "options": [
-          "A controlled benchmark",
           "An invitation to question how good the code is",
-          "A guarantee for any team",
-          "A company-wide average"
+          "A controlled benchmark of agent productivity",
+          "A guarantee of what any team will get from agents",
+          "A company-wide average across every engineer"
         ],
-        "answer": 1,
-        "explanationHtml": "She raises the question of quality herself, at <button class='time-link' type='button' data-lesson-source='l1-trust-curve:5' aria-label='Note 7, said at 4:52'>4:52</button>. The counts are one person’s self-report, not a benchmark, a guarantee or a team average.",
+        "answer": 0,
+        "explanationHtml": "She raises the question of quality herself, at <button class='time-link' type='button' data-lesson-source='l1-trust-curve:5' aria-label='Note 7, said at 4:52'>4:52</button>. The counts are one person’s self-report, not a benchmark, a guarantee or a company-wide average.",
         "status": "question, options and answer verbatim (typographic apostrophe); explanation rewritten without the numeric range"
       }
     ],
@@ -596,9 +596,9 @@ export const editorialLessons = {
       "<fieldset class='choices'>",
       "<legend>What does the speaker say verification gives you?</legend>",
       "<label class='choice'><input type='radio' name='q-l2-verification-0' value='0' /><span>Good, idiomatic code<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l2-verification-0' value='1' /><span>At least correct code<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l2-verification-0' value='2' /><span>Faster models<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l2-verification-0' value='3' /><span>Fewer tokens<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l2-verification-0' value='1' /><span>Fewer tokens per task<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l2-verification-0' value='2' /><span>Faster agent runs<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l2-verification-0' value='3' /><span>At least correct code<span class='choice__verdict'></span></span></label>",
       "</fieldset>",
       "<div class='quiz__actions'><button class='btn' type='submit'>Check</button></div>",
       "<div class='quiz__feedback' role='status'></div>",
@@ -606,10 +606,10 @@ export const editorialLessons = {
       "<form class='quiz' data-lesson-quiz='l2-verification:1' novalidate>",
       "<fieldset class='choices'>",
       "<legend>An agent says it found the bug and edited the file. Under this lesson’s rule, what is missing?</legend>",
-      "<label class='choice'><input type='radio' name='q-l2-verification-1' value='0' /><span>Nothing<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l2-verification-1' value='0' /><span>Nothing, as long as the edited code still compiles and passes lint<span class='choice__verdict'></span></span></label>",
       "<label class='choice'><input type='radio' name='q-l2-verification-1' value='1' /><span>Evidence that the symptom was reproduced and then observed absent<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l2-verification-1' value='2' /><span>A longer explanation<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l2-verification-1' value='3' /><span>A second model’s opinion<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l2-verification-1' value='2' /><span>A detailed explanation of why the edit removes the root cause<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l2-verification-1' value='3' /><span>A second model’s review of the diff and the reasoning behind it<span class='choice__verdict'></span></span></label>",
       "</fieldset>",
       "<div class='quiz__actions'><button class='btn' type='submit'>Check</button></div>",
       "<div class='quiz__feedback' role='status'></div>",
@@ -708,11 +708,11 @@ export const editorialLessons = {
         "question": "What does the speaker say verification gives you?",
         "options": [
           "Good, idiomatic code",
-          "At least correct code",
-          "Faster models",
-          "Fewer tokens"
+          "Fewer tokens per task",
+          "Faster agent runs",
+          "At least correct code"
         ],
-        "answer": 1,
+        "answer": 3,
         "explanationHtml": "Verification makes agents write correct code, she says, not necessarily good code; good code is what the architecture lesson is for. She draws the line at <button class='time-link' type='button' data-lesson-source='l2-verification:1' aria-label='Note 2, said at 6:00'>6:00</button>.",
         "status": "question, options and answer verbatim; explanation rewritten without the numeric range"
       },
@@ -720,13 +720,13 @@ export const editorialLessons = {
         "index": 1,
         "question": "An agent says it found the bug and edited the file. Under this lesson’s rule, what is missing?",
         "options": [
-          "Nothing",
+          "Nothing, as long as the edited code still compiles and passes lint",
           "Evidence that the symptom was reproduced and then observed absent",
-          "A longer explanation",
-          "A second model’s opinion"
+          "A detailed explanation of why the edit removes the root cause",
+          "A second model’s review of the diff and the reasoning behind it"
         ],
         "answer": 1,
-        "explanationHtml": "Editing the file is a proposed change, not a result. Verified means the symptom was reproduced first, then observed absent after the change, using the same probe.",
+        "explanationHtml": "Editing the file is a proposed change, not a result. A clean compile, a careful explanation or a second model’s opinion is still a claim. Verified means the symptom was reproduced first, then observed absent after the change, using the same probe.",
         "status": "question, options and answer verbatim (typographic apostrophes); explanation expanded with the same answer"
       }
     ],
@@ -923,10 +923,10 @@ export const editorialLessons = {
       "<form class='quiz' data-lesson-quiz='l3-feature-map:0' novalidate>",
       "<fieldset class='choices'>",
       "<legend>After agents could launch the app, what problem remained?</legend>",
-      "<label class='choice'><input type='radio' name='q-l3-feature-map-0' value='0' /><span>Slow builds<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l3-feature-map-0' value='1' /><span>They did not know where features were or how to reach them<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l3-feature-map-0' value='2' /><span>Missing credentials<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l3-feature-map-0' value='3' /><span>Merge conflicts<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l3-feature-map-0' value='0' /><span>They did not know where features were or how to reach them<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l3-feature-map-0' value='1' /><span>Builds took too long to run after every agent change<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l3-feature-map-0' value='2' /><span>They lacked the credentials needed to sign in as a real user<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l3-feature-map-0' value='3' /><span>Their parallel branches kept colliding in merge conflicts<span class='choice__verdict'></span></span></label>",
       "</fieldset>",
       "<div class='quiz__actions'><button class='btn' type='submit'>Check</button></div>",
       "<div class='quiz__feedback' role='status'></div>",
@@ -934,10 +934,10 @@ export const editorialLessons = {
       "<form class='quiz' data-lesson-quiz='l3-feature-map:1' novalidate>",
       "<fieldset class='choices'>",
       "<legend>What is the best way to keep a feature map trustworthy?</legend>",
-      "<label class='choice'><input type='radio' name='q-l3-feature-map-1' value='0' /><span>Rewrite it yearly<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l3-feature-map-1' value='1' /><span>Make each entry machine-checkable so stale entries fail a check<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l3-feature-map-1' value='2' /><span>Keep it private<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l3-feature-map-1' value='3' /><span>Let any agent edit it freely<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l3-feature-map-1' value='0' /><span>Have someone rewrite the whole map from scratch once a year<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l3-feature-map-1' value='1' /><span>Keep it in a private wiki that only senior engineers can edit<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l3-feature-map-1' value='2' /><span>Let any agent rewrite any entry whenever it likes, with no review<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l3-feature-map-1' value='3' /><span>Make each entry machine-checkable so stale entries fail a check<span class='choice__verdict'></span></span></label>",
       "</fieldset>",
       "<div class='quiz__actions'><button class='btn' type='submit'>Check</button></div>",
       "<div class='quiz__feedback' role='status'></div>",
@@ -952,7 +952,7 @@ export const editorialLessons = {
       "<div class='lesson-end'>",
       "<div class='lesson-end__finish'><button class='btn finish' type='button' aria-pressed='false' data-finish='l3-feature-map'><span class='finish__mark' aria-hidden='true'></span><span data-finish-label>Mark lesson as finished</span></button><p class='lesson-end__progress meta' data-progress-count hidden></p></div>",
       "<nav class='lesson-end__nav' aria-label='Lesson navigation'>",
-      "<a class='next' href='#lesson/l4-pstack-evals'><span class='next__label'>Next · Lesson 4 · 8 min</span><span class='next__title'>Skills grow from failures; evals keep them honest<span class='next__arrow' aria-hidden='true'>→</span></span></a>",
+      "<a class='next' href='#lesson/l4-pstack-evals'><span class='next__label'>Next · Lesson 4 · 8 min</span><span class='next__title'>Skills grow from failures, and evals keep them honest<span class='next__arrow' aria-hidden='true'>→</span></span></a>",
       "<a class='prev' href='#lesson/l2-verification'>Previous: Verification closes the loop</a>",
       "</nav>",
       "</div>"
@@ -1064,12 +1064,12 @@ export const editorialLessons = {
         "index": 0,
         "question": "After agents could launch the app, what problem remained?",
         "options": [
-          "Slow builds",
           "They did not know where features were or how to reach them",
-          "Missing credentials",
-          "Merge conflicts"
+          "Builds took too long to run after every agent change",
+          "They lacked the credentials needed to sign in as a real user",
+          "Their parallel branches kept colliding in merge conflicts"
         ],
-        "answer": 1,
+        "answer": 0,
         "explanationHtml": "Once they could run the app, agents still did not know where a laggy sidebar or a broken PR tab lived, so they searched code and clicked around. She describes it at <button class='time-link' type='button' data-lesson-source='l3-feature-map:2' aria-label='Note 3, said at 10:23'>10:23</button>.",
         "status": "question, options and answer verbatim; explanation rewritten without the numeric range"
       },
@@ -1077,12 +1077,12 @@ export const editorialLessons = {
         "index": 1,
         "question": "What is the best way to keep a feature map trustworthy?",
         "options": [
-          "Rewrite it yearly",
-          "Make each entry machine-checkable so stale entries fail a check",
-          "Keep it private",
-          "Let any agent edit it freely"
+          "Have someone rewrite the whole map from scratch once a year",
+          "Keep it in a private wiki that only senior engineers can edit",
+          "Let any agent rewrite any entry whenever it likes, with no review",
+          "Make each entry machine-checkable so stale entries fail a check"
         ],
-        "answer": 1,
+        "answer": 3,
         "explanationHtml": "This is our recommendation rather than something she says: give every entry a path or selector that a script can resolve, so a check flags entries that no longer exist. She does make maintenance a skill of its own.",
         "status": "question, options and answer verbatim; explanation rewritten, still labelled as interpretation"
       }
@@ -1104,7 +1104,7 @@ export const editorialLessons = {
       "next": {
         "href": "#lesson/l4-pstack-evals",
         "label": "Next · Lesson 4 · 8 min",
-        "title": "Skills grow from failures; evals keep them honest"
+        "title": "Skills grow from failures, and evals keep them honest"
       },
       "previous": {
         "href": "#lesson/l2-verification",
@@ -1116,7 +1116,7 @@ export const editorialLessons = {
     "schemaVersion": 1,
     "id": "l4-pstack-evals",
     "n": 4,
-    "title": "Skills grow from failures; evals keep them honest",
+    "title": "Skills grow from failures, and evals keep them honest",
     "deck": "Where do good agent skills come from, and how do I know a skill still works after I change it?",
     "summary": "pstack started as individual skills, each written after watching a specific agent failure. Changes are tested with evals, which are unit tests for agent behaviour, run across models and judged independently.",
     "minutes": 8,
@@ -1267,10 +1267,10 @@ export const editorialLessons = {
       "<form class='quiz' data-lesson-quiz='l4-pstack-evals:0' novalidate>",
       "<fieldset class='choices'>",
       "<legend>Why use a judge from a different model?</legend>",
-      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-0' value='0' /><span>It is cheaper<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-0' value='0' /><span>To cut the cost of scoring each eval run<span class='choice__verdict'></span></span></label>",
       "<label class='choice'><input type='radio' name='q-l4-pstack-evals-0' value='1' /><span>To reduce one model grading itself favourably<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-0' value='2' /><span>Required by Git<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-0' value='3' /><span>To speed up the loop<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-0' value='2' /><span>To make each eval run finish in less time<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-0' value='3' /><span>To have a second model write a stricter rubric<span class='choice__verdict'></span></span></label>",
       "</fieldset>",
       "<div class='quiz__actions'><button class='btn' type='submit'>Check</button></div>",
       "<div class='quiz__feedback' role='status'></div>",
@@ -1278,10 +1278,10 @@ export const editorialLessons = {
       "<form class='quiz' data-lesson-quiz='l4-pstack-evals:1' novalidate>",
       "<fieldset class='choices'>",
       "<legend>Which risk does looping toward a perfect score create?</legend>",
-      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-1' value='0' /><span>None<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-1' value='1' /><span>Optimising to the rubric rather than the task<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-1' value='2' /><span>Merge conflicts<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-1' value='3' /><span>Lost credentials<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-1' value='0' /><span>None, if the judge comes from a different model<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-1' value='1' /><span>Needing a special framework to run the evals<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-1' value='2' /><span>Optimising to the rubric rather than the task<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l4-pstack-evals-1' value='3' /><span>Each model scoring the same skill differently<span class='choice__verdict'></span></span></label>",
       "</fieldset>",
       "<div class='quiz__actions'><button class='btn' type='submit'>Check</button></div>",
       "<div class='quiz__feedback' role='status'></div>",
@@ -1406,10 +1406,10 @@ export const editorialLessons = {
         "index": 0,
         "question": "Why use a judge from a different model?",
         "options": [
-          "It is cheaper",
+          "To cut the cost of scoring each eval run",
           "To reduce one model grading itself favourably",
-          "Required by Git",
-          "To speed up the loop"
+          "To make each eval run finish in less time",
+          "To have a second model write a stricter rubric"
         ],
         "answer": 1,
         "explanationHtml": "She has a judge from a different model cross-check the scores, so the model under test does not grade its own work; in operations terms, separation of duties. She explains it at <button class='time-link' type='button' data-lesson-source='l4-pstack-evals:5' aria-label='Note 6, said at 22:00'>22:00</button>.",
@@ -1419,13 +1419,13 @@ export const editorialLessons = {
         "index": 1,
         "question": "Which risk does looping toward a perfect score create?",
         "options": [
-          "None",
+          "None, if the judge comes from a different model",
+          "Needing a special framework to run the evals",
           "Optimising to the rubric rather than the task",
-          "Merge conflicts",
-          "Lost credentials"
+          "Each model scoring the same skill differently"
         ],
-        "answer": 1,
-        "explanationHtml": "Our reading, not hers: a loop that climbs a score can learn the rubric instead of the job. Keep held-out tasks the loop never sees, and one outcome that cannot be argued with, such as tests passing in a clean checkout.",
+        "answer": 2,
+        "explanationHtml": "Our reading, not hers: a loop that climbs a score can learn the rubric instead of the job, and a judge from another model checks the scoring, not the rubric. Keep held-out tasks the loop never sees, and one outcome that cannot be argued with, such as tests passing in a clean checkout.",
         "status": "question, options and answer verbatim; explanation expanded, still labelled as interpretation"
       }
     ],
@@ -1628,10 +1628,10 @@ export const editorialLessons = {
       "<form class='quiz' data-lesson-quiz='l5-agent-friendly-architecture:0' novalidate>",
       "<fieldset class='choices'>",
       "<legend>Which layer does the speaker call the strongest enforcement?</legend>",
-      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-0' value='0' /><span>A style guide<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-0' value='1' /><span>A strict, conventional codebase architecture<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-0' value='2' /><span>Code review comments<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-0' value='3' /><span>Agent memory<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-0' value='0' /><span>A detailed style guide the agents must read<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-0' value='1' /><span>Careful human review of every single pull request<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-0' value='2' /><span>Rules stored in each agent’s memory file<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-0' value='3' /><span>A strict, conventional codebase architecture<span class='choice__verdict'></span></span></label>",
       "</fieldset>",
       "<div class='quiz__actions'><button class='btn' type='submit'>Check</button></div>",
       "<div class='quiz__feedback' role='status'></div>",
@@ -1639,10 +1639,10 @@ export const editorialLessons = {
       "<form class='quiz' data-lesson-quiz='l5-agent-friendly-architecture:1' novalidate>",
       "<fieldset class='choices'>",
       "<legend>You keep writing the same review comment. What does the talk suggest?</legend>",
-      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-1' value='0' /><span>Write it louder<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-1' value='1' /><span>Turn it into a lint rule or CI failure, or make it impossible<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-1' value='2' /><span>Add it to a code comment<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-1' value='3' /><span>Ignore it<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-1' value='0' /><span>Put it in the agent instructions in capitals, with an example<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-1' value='1' /><span>Keep repeating it in review until the agents learn it<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-1' value='2' /><span>Turn it into a lint rule or CI failure, or make it impossible<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l5-agent-friendly-architecture-1' value='3' /><span>Add a code comment beside every place the rule applies<span class='choice__verdict'></span></span></label>",
       "</fieldset>",
       "<div class='quiz__actions'><button class='btn' type='submit'>Check</button></div>",
       "<div class='quiz__feedback' role='status'></div>",
@@ -1658,7 +1658,7 @@ export const editorialLessons = {
       "<div class='lesson-end__finish'><button class='btn finish' type='button' aria-pressed='false' data-finish='l5-agent-friendly-architecture'><span class='finish__mark' aria-hidden='true'></span><span data-finish-label>Mark lesson as finished</span></button><p class='lesson-end__progress meta' data-progress-count hidden></p></div>",
       "<nav class='lesson-end__nav' aria-label='Lesson navigation'>",
       "<a class='next' href='#lesson/l6-fleet-operations'><span class='next__label'>Next · Lesson 6 · 7 min</span><span class='next__title'>Start local, then scale on signals<span class='next__arrow' aria-hidden='true'>→</span></span></a>",
-      "<a class='prev' href='#lesson/l4-pstack-evals'>Previous: Skills grow from failures; evals keep them honest</a>",
+      "<a class='prev' href='#lesson/l4-pstack-evals'>Previous: Skills grow from failures, and evals keep them honest</a>",
       "</nav>",
       "</div>"
     ],
@@ -1811,12 +1811,12 @@ export const editorialLessons = {
         "index": 0,
         "question": "Which layer does the speaker call the strongest enforcement?",
         "options": [
-          "A style guide",
-          "A strict, conventional codebase architecture",
-          "Code review comments",
-          "Agent memory"
+          "A detailed style guide the agents must read",
+          "Careful human review of every single pull request",
+          "Rules stored in each agent’s memory file",
+          "A strict, conventional codebase architecture"
         ],
-        "answer": 1,
+        "answer": 3,
         "explanationHtml": "Her handwritten list puts the codebase first: a strict, conventional structure that agents copy. Static analysis comes next, and a style guide last. She explains why at <button class='time-link' type='button' data-lesson-source='l5-agent-friendly-architecture:6' aria-label='Note 8, said from 43:38 to 45:15'>43:38</button>.",
         "status": "question, options and answer verbatim; explanation rewritten without the numeric range"
       },
@@ -1824,12 +1824,12 @@ export const editorialLessons = {
         "index": 1,
         "question": "You keep writing the same review comment. What does the talk suggest?",
         "options": [
-          "Write it louder",
+          "Put it in the agent instructions in capitals, with an example",
+          "Keep repeating it in review until the agents learn it",
           "Turn it into a lint rule or CI failure, or make it impossible",
-          "Add it to a code comment",
-          "Ignore it"
+          "Add a code comment beside every place the rule applies"
         ],
-        "answer": 1,
+        "answer": 2,
         "explanationHtml": "She treats a repeated review comment as a smell: turn it into a lint rule or a CI failure, or remove the possibility entirely. She says so at <button class='time-link' type='button' data-lesson-source='l5-agent-friendly-architecture:9' aria-label='Note 10, said at 47:49'>47:49</button>.",
         "status": "question, options and answer verbatim; explanation rewritten without the numeric range"
       }
@@ -1861,7 +1861,7 @@ export const editorialLessons = {
       },
       "previous": {
         "href": "#lesson/l4-pstack-evals",
-        "text": "Previous: Skills grow from failures; evals keep them honest"
+        "text": "Previous: Skills grow from failures, and evals keep them honest"
       }
     }
   },
@@ -2014,7 +2014,7 @@ export const editorialLessons = {
       "<h2 class='h2' id='l6-try' tabindex='-1'>Try it</h2>",
       "<p class='para'>Two ways work goes wrong on the way in: one report delivered twice, then two agents editing the same line.</p>",
       "<div class='practice' data-scenario='s4-naive-retry' data-context='lesson'></div>",
-      "<div class='practice' data-scenario='s1-shared-vs-isolated' data-context='lesson'></div>",
+      "<details class='practice-more'><summary>Second experiment&nbsp;· Two agents, one file</summary><div class='practice' data-scenario='s1-shared-vs-isolated' data-context='lesson'></div></details>",
       "</section>",
       "<section class='block section-block' data-section='further' aria-labelledby='l6-further'>",
       "<div class='side notes' role='group' aria-label='Notes from the talk'>",
@@ -2025,7 +2025,6 @@ export const editorialLessons = {
       "</div>",
       "<h2 class='h2' id='l6-further' tabindex='-1'>Going further</h2>",
       "<p class='para'>Retries in agent pipelines are not idempotent by default: re-sending a bug report can spawn a second agent and a second PR. Key each task by a stable identifier, such as report ID plus repository, and make claiming atomic.</p>",
-      "<p class='para'>Reproduction before fixing doubles as deduplication: if the issue does not reproduce on main, the right output is a note, not a PR. Her Benny example shows this outcome.</p>",
       "<p class='para'>The host asks about worktrees and isolated sub-agents, and the spoken answer is practical advice, not an isolation design. The only isolation detail is on screen: the control skill’s documentation describes worktree-isolated instances, which she does not <span class='nobr'>narrate<button class='cite' type='button' data-lesson-source='l3-feature-map:1' aria-label='Note 9, shown at 7:20'>9</button>.</span> Treat everything else about isolation in this lesson as our recommendation.</p>",
       "<details class='limits' data-depth-open='deep'>",
       "<summary>Limits of the evidence · 2</summary>",
@@ -2040,10 +2039,10 @@ export const editorialLessons = {
       "<form class='quiz' data-lesson-quiz='l6-fleet-operations:0' novalidate>",
       "<fieldset class='choices'>",
       "<legend>What did the bug-reproduction agent conclude in her example?</legend>",
-      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-0' value='0' /><span>The bug was unfixable<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-0' value='1' /><span>It reproduced the bug, which was already fixed on main<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-0' value='2' /><span>It needed a rewrite<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-0' value='3' /><span>It was a duplicate PR<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-0' value='0' /><span>It reproduced the bug, which was already fixed on main<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-0' value='1' /><span>It found the bug on main and opened a PR with a new fix<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-0' value='2' /><span>It traced the bug to a feature that needs a rewrite<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-0' value='3' /><span>It flagged the report as a duplicate of an open PR<span class='choice__verdict'></span></span></label>",
       "</fieldset>",
       "<div class='quiz__actions'><button class='btn' type='submit'>Check</button></div>",
       "<div class='quiz__feedback' role='status'></div>",
@@ -2051,10 +2050,10 @@ export const editorialLessons = {
       "<form class='quiz' data-lesson-quiz='l6-fleet-operations:1' novalidate>",
       "<fieldset class='choices'>",
       "<legend>Where should auto-merge stop in Soyspray’s model?</legend>",
-      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-1' value='0' /><span>Nowhere<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-1' value='1' /><span>Before the digest promotion that activates a workload<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-1' value='2' /><span>After cluster sync<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-1' value='3' /><span>At secret rotation<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-1' value='0' /><span>Nowhere, once every hard check on the PR passes<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-1' value='1' /><span>After the change has synced to the cluster and is healthy<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-1' value='2' /><span>Only at changes that rotate secrets or credentials<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l6-fleet-operations-1' value='3' /><span>Before the digest promotion that activates a workload<span class='choice__verdict'></span></span></label>",
       "</fieldset>",
       "<div class='quiz__actions'><button class='btn' type='submit'>Check</button></div>",
       "<div class='quiz__feedback' role='status'></div>",
@@ -2213,12 +2212,12 @@ export const editorialLessons = {
         "index": 0,
         "question": "What did the bug-reproduction agent conclude in her example?",
         "options": [
-          "The bug was unfixable",
           "It reproduced the bug, which was already fixed on main",
-          "It needed a rewrite",
-          "It was a duplicate PR"
+          "It found the bug on main and opened a PR with a new fix",
+          "It traced the bug to a feature that needs a rewrite",
+          "It flagged the report as a duplicate of an open PR"
         ],
-        "answer": 1,
+        "answer": 0,
         "explanationHtml": "Her bug-reproduction agent reproduced the report on the earlier commit and found it gone on main, so the answer was to ship a build. Verification did the triage. She tells it at <button class='time-link' type='button' data-lesson-source='l6-fleet-operations:2' aria-label='Note 3, said from 25:54 to 26:57'>25:54</button>.",
         "status": "question, options and answer verbatim; explanation rewritten without the numeric ranges"
       },
@@ -2226,12 +2225,12 @@ export const editorialLessons = {
         "index": 1,
         "question": "Where should auto-merge stop in Soyspray’s model?",
         "options": [
-          "Nowhere",
-          "Before the digest promotion that activates a workload",
-          "After cluster sync",
-          "At secret rotation"
+          "Nowhere, once every hard check on the PR passes",
+          "After the change has synced to the cluster and is healthy",
+          "Only at changes that rotate secrets or credentials",
+          "Before the digest promotion that activates a workload"
         ],
-        "answer": 1,
+        "answer": 3,
         "explanationHtml": "This is our Soyspray rule, not hers: auto-merge may apply to source PRs behind hard checks, but the digest promotion that activates a workload stays a reviewed human step.",
         "status": "question, options and answer verbatim (typographic apostrophe); explanation expanded, still labelled as interpretation"
       }
@@ -2282,18 +2281,11 @@ export const editorialLessons = {
     "summary": "She is candid that her token budget is unusual and frames setup as an ROI question. The cheap, transferable parts are verification and hard checks; volume comes last.",
     "minutes": 5,
     "here": [
-      "signal",
-      "claim",
-      "worktree",
-      "agent",
       "verify",
-      "checks",
-      "review",
-      "merge",
-      "promote"
+      "checks"
     ],
     "strip": {
-      "sentenceHtml": "Where this fits: <strong>the whole path</strong>, in the order you adopt it."
+      "sentenceHtml": "Where this fits: <strong>Verify · Checks</strong>, the two stations to adopt first, before you add agents."
     },
     "decision": "Adopt in order: verification evidence, then checks from repeated review comments, then isolation and claims, and only then unattended agents, with promotion kept human.",
     "sections": [
@@ -2427,10 +2419,10 @@ export const editorialLessons = {
       "<form class='quiz' data-lesson-quiz='l7-cost-and-adoption:0' novalidate>",
       "<fieldset class='choices'>",
       "<legend>Which context does the speaker give about her token use?</legend>",
-      "<label class='choice'><input type='radio' name='q-l7-cost-and-adoption-0' value='0' /><span>Strictly budgeted<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l7-cost-and-adoption-0' value='0' /><span>Strictly budgeted, so every agent run has to be rationed<span class='choice__verdict'></span></span></label>",
       "<label class='choice'><input type='radio' name='q-l7-cost-and-adoption-0' value='1' /><span>Effectively unlimited, so not a template to copy exactly<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l7-cost-and-adoption-0' value='2' /><span>Free for everyone<span class='choice__verdict'></span></span></label>",
-      "<label class='choice'><input type='radio' name='q-l7-cost-and-adoption-0' value='3' /><span>Not mentioned<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l7-cost-and-adoption-0' value='2' /><span>Free for everyone while the new model launches<span class='choice__verdict'></span></span></label>",
+      "<label class='choice'><input type='radio' name='q-l7-cost-and-adoption-0' value='3' /><span>Not discussed, since cost was outside the talk’s scope<span class='choice__verdict'></span></span></label>",
       "</fieldset>",
       "<div class='quiz__actions'><button class='btn' type='submit'>Check</button></div>",
       "<div class='quiz__feedback' role='status'></div>",
@@ -2531,10 +2523,10 @@ export const editorialLessons = {
         "index": 0,
         "question": "Which context does the speaker give about her token use?",
         "options": [
-          "Strictly budgeted",
+          "Strictly budgeted, so every agent run has to be rationed",
           "Effectively unlimited, so not a template to copy exactly",
-          "Free for everyone",
-          "Not mentioned"
+          "Free for everyone while the new model launches",
+          "Not discussed, since cost was outside the talk’s scope"
         ],
         "answer": 1,
         "explanationHtml": "She says she works at an AI lab with effectively unlimited tokens, so her approach should not be copied wholesale, though she thinks it can be done without breaking the bank. She says so at <button class='time-link' type='button' data-lesson-source='l7-cost-and-adoption:0' aria-label='Note 1, said at 49:33'>49:33</button>.",

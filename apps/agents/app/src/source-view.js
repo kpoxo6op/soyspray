@@ -1,3 +1,4 @@
+import { lessonMetadata } from "./guide-content.js";
 import { chapterPassages, sourceExcerpt, sourceSearch } from "./workshop-data.js";
 import { downloadText } from "./progress.js";
 import { createMediaPlayer } from "./media-player.js";
@@ -9,6 +10,7 @@ const esc = value => String(value ?? "").replace(/[&<>"']/g, character =>
 const time = seconds => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 const playButton = (seconds, label = `Play from ${time(seconds)}`) =>
     `<button class="btn btn--text" type="button" data-time="${seconds}" data-play-from>${esc(label)}</button>`;
+const lessonTitle = lesson => lessonMetadata[lesson.id]?.title ?? lesson.title;
 
 export function createSourceView(data, progress) {
     const { content } = data;
@@ -130,8 +132,11 @@ export function createSourceView(data, progress) {
         const description = player.description;
         const describing = player.describing;
         const now = describing ? `Describing the screen at ${time(description.start)}`
-            : `At ${time(seconds)} · chapter ${index + 1} of ${chapters.length}`;
+            : `At ${time(seconds)}\u00a0· chapter ${index + 1} of ${chapters.length}`;
         $(".rec__now", recording).textContent = now;
+        const [previousChapter, nextChapter] = $$(".rec__chnav button", recording);
+        previousChapter?.setAttribute("aria-disabled", String(index === 0));
+        nextChapter?.setAttribute("aria-disabled", String(index === chapters.length - 1));
         const text = $("[data-description-status]", recording);
         text.textContent = description?.text || "";
         text.hidden = !description;
@@ -249,7 +254,7 @@ export function createSourceView(data, progress) {
         const chapter = chapters[index];
         const citations = citationsIn(chapter);
         return `<p class="chapter__summary">${esc(chapter.summary)}</p><div class="chapter__actions" data-private-play ${pack ? "" : "hidden"}>${playButton(chapter.start)}</div>
-            ${citations.length ? `<div class="cited"><h3 class="label">Cited in the guide</h3><ul>${citations.map(evidence => `<li><button class="time-link" type="button" data-time="${evidence.start}">${time(evidence.start)}</button><span>${esc(evidence.paraphrase)}<a class="cited__lesson" href="#lesson/${evidence.lesson.id}">${esc(evidence.lesson.title)}</a></span></li>`).join("")}</ul></div>` : ""}
+            ${citations.length ? `<div class="cited"><h3 class="label">Cited in the guide</h3><ul>${citations.map(evidence => `<li><button class="time-link" type="button" data-time="${evidence.start}">${time(evidence.start)}</button><span>${esc(evidence.paraphrase)}<a class="cited__lesson" href="#lesson/${evidence.lesson.id}">${esc(lessonTitle(evidence.lesson))}</a></span></li>`).join("")}</ul></div>` : ""}
             <div data-private-chapter="${index}" data-status="${data.status}">${privateChapterHTML(index)}</div>
             ${index + 1 < chapters.length ? `<div class="chapter__next"><button class="btn btn--text" type="button" data-chapter="${index + 1}">Next chapter: ${index + 2} · ${esc(chapters[index + 1].title)}</button></div>` : ""}`;
     }
@@ -285,9 +290,9 @@ export function createSourceView(data, progress) {
     citedIndex.innerHTML = `<p class="cited-index__lead">Each line is our paraphrase, with the time it was said or shown and the lesson that cites it. Corrections, gaps and provenance are in <a href="#recording/about">About this transcript</a>; <a href="#terms">terms</a> are on the home page; your saved progress is in <button class="btn btn--text" type="button" data-open="settings">Settings</button>.</p>
         <label class="label" for="cited-filter">Filter</label><input type="search" id="cited-filter" placeholder="A word, a time or a lesson" />
         <p class="meta cited-index__count" role="status" data-cited-count>${allCitations.length} moments</p>
-        ${content.lessons.map((lesson, lessonIndex) => `<section class="cited cited-index__group"><h3 class="label">Lesson ${lessonIndex + 1} · ${esc(lesson.title)}</h3><ul>${allCitations.filter(note => note.lesson === lesson).map(note => {
+        ${content.lessons.map((lesson, lessonIndex) => `<section class="cited cited-index__group"><h3 class="label">Lesson ${lessonIndex + 1}\u00a0· ${esc(lessonTitle(lesson))}</h3><ul>${allCitations.filter(note => note.lesson === lesson).map(note => {
             const kind = note.label === "SHOWN" ? "shown on screen" : "said";
-            const search = `${note.paraphrase} ${lesson.title} ${time(note.start)} ${time(note.end)} ${kind} ${lessonIndex + 1}`;
+            const search = `${note.paraphrase} ${lessonTitle(lesson)} ${lesson.title} ${time(note.start)} ${time(note.end)} ${kind} ${lessonIndex + 1}`;
             return `<li data-cited-search="${esc(search)}"><button class="time-link" type="button" data-time="${note.start}">${time(note.start)}</button><span>${esc(note.paraphrase)}<a class="cited__lesson" href="#lesson/${lesson.id}/in-short">${kind} · note ${note.noteIndex + 1}</a></span></li>`;
         }).join("")}</ul></section>`).join("")}`;
     let citedTimer;
@@ -308,6 +313,7 @@ export function createSourceView(data, progress) {
     $("[data-transcript]", recording).innerHTML = chapters.map((chapter, index) =>
         `<li class="chapter"><h2 class="chapter__h"><button class="chapter__btn" type="button" data-chapter="${index}" aria-expanded="false" aria-controls="ch${index + 1}"><span class="chapter__num">${index + 1}</span><span class="chapter__title">${esc(chapter.title)}</span><span class="chapter__time">${time(chapter.start)}–${time(chapter.end)}</span></button></h2><div class="chapter__panel" id="ch${index + 1}" hidden></div></li>`).join("");
     $$(".rec__chnav button", recording).forEach((button, index) => button.addEventListener("click", () => {
+        if (button.getAttribute("aria-disabled") === "true") return;
         const next = Math.max(0, Math.min(chapters.length - 1, chapterAt(video.currentTime) + (index ? 1 : -1)));
         openChapter(next);
         seek(chapters[next].start);

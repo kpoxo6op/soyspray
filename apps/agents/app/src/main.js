@@ -66,7 +66,7 @@ import { lessonMetadata as LESSONS } from "./guide-content.js";
             def: "The agent works from skills grown out of observed failures and a feature map that tells it where things are.",
             links: [
                 ["Lesson 3", "Agents need a map of the product", "#lesson/l3-feature-map"],
-                ["Lesson 4", "Skills grow from failures; evals keep them honest", "#lesson/l4-pstack-evals"],
+                ["Lesson 4", "Skills grow from failures, and evals keep them honest", "#lesson/l4-pstack-evals"],
                 ["Lab step 4", "A checkable feature map", "#lab/lab-3-feature-map"],
             ],
         },
@@ -378,7 +378,7 @@ import { lessonMetadata as LESSONS } from "./guide-content.js";
         const lesson = editorialLessons[id];
         const view = $('.screen[data-screen="lesson"]');
         view.dataset.lesson = id;
-        $('[data-lesson-field="kicker"]', view).textContent = `Lesson ${lesson.n} of 7 · ${lesson.minutes} min`;
+        $('[data-lesson-field="kicker"]', view).textContent = `Lesson ${lesson.n} of 7\u00a0· ${lesson.minutes} min`;
         $('[data-lesson-field="title"]', view).textContent = lesson.title;
         $('[data-lesson-field="deck"]', view).textContent = lesson.deck;
         $('[data-lesson-field="strip"]', view).innerHTML = stripHTML(lesson.here, lesson.strip.sentenceHtml);
@@ -666,18 +666,45 @@ import { lessonMetadata as LESSONS } from "./guide-content.js";
     });
 
     /* search */
+    // Index what a reader reads: prose, figure titles and tables, and Terms
+    // and Limits whether open or closed. Margin notes, citation numerals,
+    // section headings (they become the result title), drawings, experiments,
+    // checks and controls stay out. Every element boundary except inline text
+    // becomes a space, so a numeral or a time can never fuse with a word.
+    const SEARCH_SKIP = ".side, .cite, h2, svg, .practice, form, .lesson-end, a.btn, button, summary, textarea, .label, .adopt__num, .adopt__from, .adopt__actions, .num-list__where, .ladder__where";
+    const SEARCH_INLINE = new Set(["A", "ABBR", "B", "CODE", "EM", "I", "KBD", "MARK", "Q", "SMALL", "STRONG", "SUB", "SUP"]);
+    function readingText(nodes) {
+        const parts = [];
+        const walk = node => {
+            if (node.nodeType === Node.TEXT_NODE) { parts.push(node.data); return; }
+            if (node.nodeType !== Node.ELEMENT_NODE || node.matches(SEARCH_SKIP)) return;
+            const inline = SEARCH_INLINE.has(node.tagName) || node.matches("span.nobr");
+            if (!inline) parts.push(" ");
+            node.childNodes.forEach(walk);
+            if (!inline) parts.push(" ");
+        };
+        nodes.forEach(walk);
+        return parts.join("").replace(/\s+/gu, " ").replace(/\s([.,;:!?’”)])/gu, "$1").trim();
+    }
     function lessonSearchRecords(lesson, index) {
         const authored = editorialLessons[lesson.id];
         const template = document.createElement("template");
         template.innerHTML = authored.bodyHtml.join("\n");
-        template.content.querySelectorAll(".side--intro, .practice").forEach(node => node.remove());
+        // A block without data-section, such as a figure, belongs to the section above it.
+        const blocks = new Map(authored.sections.map(section => [section.slug, []]));
+        let current = null;
+        for (const block of template.content.children) {
+            if (blocks.has(block.dataset.section)) current = block.dataset.section;
+            if (current) blocks.get(current).push(block);
+        }
         return authored.sections.map(section => {
-            const node = template.content.querySelector(`[data-section="${CSS.escape(section.slug)}"]`);
-            const text = [section.target === "h1" ? authored.deck : "", node?.textContent || ""].join(" ").replace(/\s+/gu, " ").trim();
-            return { g: "Lessons", title: authored.title, text,
-                search: section.target === "h1" ? `${lesson.title} ${text}` : text,
-                meta: `Lesson ${index + 1} · ${section.heading || "In short"}`, href: `#lesson/${lesson.id}/${section.slug}` };
-        });
+            const lead = section.target === "h1";
+            const text = [lead ? authored.deck : "", readingText(blocks.get(section.slug))].join(" ").trim();
+            return { g: "Lessons", title: lead ? authored.title : section.heading, text,
+                search: lead ? `${lesson.title} ${text}` : text,
+                meta: `Lesson ${index + 1}\u00a0· ${lead ? "In short" : authored.title}`,
+                href: `#lesson/${lesson.id}/${section.slug}` };
+        }).filter(record => record.text);
     }
     const SEARCH = [
         ...content.lessons.flatMap(lessonSearchRecords),
@@ -689,13 +716,17 @@ import { lessonMetadata as LESSONS } from "./guide-content.js";
     let searchQuery = "";
     const expandedSearchGroups = new Set();
     function snippet(text, q) {
+        // A window opens and closes on word boundaries.
+        const wordStart = at => { const space = text.lastIndexOf(" ", at); return space < 0 ? 0 : space + 1; };
+        const wordEnd = at => { const space = text.indexOf(" ", at); return space < 0 ? text.length : space; };
         const i = text.toLowerCase().indexOf(q);
-        if (i < 0) return esc(text.slice(0, 150));
-        const start = Math.max(0, i - 60);
-        const pre = (start ? "…" : "") + text.slice(start, i);
-        const hit = text.slice(i, i + q.length);
-        const post = text.slice(i + q.length, i + q.length + 90) + (i + q.length + 90 < text.length ? "…" : "");
-        return `${esc(pre)}<mark>${esc(hit)}</mark>${esc(post)}`;
+        if (i < 0) {
+            const end = text.length > 150 ? wordEnd(150) : text.length;
+            return esc(text.slice(0, end)) + (end < text.length ? "…" : "");
+        }
+        const start = i > 60 ? wordStart(i - 60) : 0;
+        const end = i + q.length + 90 < text.length ? wordEnd(i + q.length + 90) : text.length;
+        return `${start ? "…" : ""}${esc(text.slice(start, i))}<mark>${esc(text.slice(i, i + q.length))}</mark>${esc(text.slice(i + q.length, end))}${end < text.length ? "…" : ""}`;
     }
     let searchStatusTimer;
     function announceSearch(text, immediate = false) {
@@ -787,10 +818,10 @@ import { lessonMetadata as LESSONS } from "./guide-content.js";
     function renderScenarioPage(id, params) {
         const sc = Object.hasOwn(SCENARIOS, id) ? SCENARIOS[id] : SCENARIOS["s2-plausible-vs-verified"];
         const view = $('.screen[data-screen="scenario"]');
-        $('[data-scn="kicker"]', view).textContent = `Experiment · ${sc.station} station`;
+        $('[data-scn="kicker"]', view).textContent = `Experiment\u00a0· ${sc.station} station`;
         $('[data-scn="title"]', view).textContent = sc.title;
         $('[data-scn="setup"]', view).textContent = sc.setup;
-        $('[data-scn="from"]', view).innerHTML = `From <a href="${esc(sc.lesson[2])}">${esc(sc.lesson[0])} · ${esc(sc.lesson[1])}</a>`;
+        $('[data-scn="from"]', view).innerHTML = `From <a href="${esc(sc.lesson[2])}">${esc(sc.lesson[0])}\u00a0· ${esc(sc.lesson[1])}</a>`;
         $(".practice", view).dataset.scenario = Object.hasOwn(SCENARIOS, id) ? id : "s2-plausible-vs-verified";
         return sc.title;
     }
