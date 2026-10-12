@@ -38,7 +38,7 @@ spec:
           type: RuntimeDefault
       initContainers:
       - name: verify-evidence
-        image: ghcr.io/kpoxo6op/agents@sha256:41c413d25a2b30877cd7a18271a046b0d5ba383d506f44d43256d77af7b81834
+        image: ghcr.io/kpoxo6op/agents@sha256:e8d1b23a0ecfec89319c29a55726a833e50d5739fa5450e896eee08d5a59af2c
         command:
         - python3
         - /opt/evidence.py
@@ -67,7 +67,7 @@ spec:
           mountPath: /tmp
       containers:
       - name: web
-        image: ghcr.io/kpoxo6op/agents@sha256:41c413d25a2b30877cd7a18271a046b0d5ba383d506f44d43256d77af7b81834
+        image: ghcr.io/kpoxo6op/agents@sha256:e8d1b23a0ecfec89319c29a55726a833e50d5739fa5450e896eee08d5a59af2c
         imagePullPolicy: IfNotPresent
         env: *id001
         ports:
