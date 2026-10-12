@@ -1,0 +1,7 @@
+These Noto fonts are self-hosted for this guide.
+The WOFF2 files retain the complete glyph sets, Unicode maps and metrics of
+the installed Noto TTF faces. Only the container format was converted;
+no subsetting or outline edits were made. Guide Text, Guide Display and
+Guide Mono are CSS aliases.
+
+See COPYRIGHT.txt and OFL-1.1.txt for copyright and licence notices.
