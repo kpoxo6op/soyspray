@@ -822,7 +822,7 @@ import { lessonMetadata as LESSONS } from "./guide-content.js";
         const diagram = sc.queue ? queueHTML() : lanesHTML(sc);
         return `${head}<ol class="steps">
 <li class="step"><h4 class="step__label"><span class="step__num">1</span>Predict</h4><fieldset class="choices"><legend>${esc(sc.question)}</legend>${choices}</fieldset></li>
-<li class="step"><h4 class="step__label"><span class="step__num">2</span>Run</h4><p class="step__hint">Start with the control off. Run plays the fixed schedule; Step goes one tick at a time.</p><div class="instrument"><div class="controls"><div class="controls__set">${controls}</div><div class="controls__actions"><button class="btn btn--primary btn--run" type="button" data-act="run">Run</button><button class="btn" type="button" data-act="step">Step</button><button class="btn btn--text" type="button" data-act="reset">Reset</button></div></div>${diagram}<div class="readout" aria-live="polite" aria-atomic="true"><p class="readout__tick">Ready</p><ul class="readout__events"><li>Choose a prediction, then run the model.</li></ul><span class="visually-hidden" data-prediction-live></span></div></div></li>
+<li class="step"><h4 class="step__label"><span class="step__num">2</span>Run</h4><p class="step__hint">Start with the control off. Run plays the fixed schedule; Step goes one tick at a time.</p><div class="instrument"><div class="controls"><div class="controls__set">${controls}</div><div class="controls__actions"><button class="btn btn--primary btn--run" type="button" data-act="run">Run</button><button class="btn" type="button" data-act="step">Step</button><button class="btn btn--text" type="button" data-act="reset">Reset</button></div></div>${diagram}<div class="readout"><p class="readout__tick" aria-hidden="true">Ready</p><ul class="readout__events" aria-hidden="true"><li>Choose a prediction, then run the model.</li></ul><span class="visually-hidden" role="status" aria-live="polite" aria-atomic="true" data-prediction-live></span></div></div></li>
 <li class="step"><h4 class="step__label"><span class="step__num">3</span>Compare</h4><table class="compare"><caption class="visually-hidden">Outcomes with the control off and on</caption><thead><tr><th scope="col">Outcome</th><th scope="col" class="num">${esc(sc.control.colOff)}</th><th scope="col" class="num">${esc(sc.control.colOn)}</th></tr></thead><tbody></tbody></table><div class="feedback"></div><details class="log"><summary>Event log</summary><table><caption class="visually-hidden">Every event in tick order</caption><thead><tr><th scope="col">Tick</th><th scope="col">Task</th><th scope="col">Event</th><th scope="col">What happened</th></tr></thead><tbody></tbody></table></details></li>
 </ol>`;
     }
@@ -892,6 +892,7 @@ import { lessonMetadata as LESSONS } from "./guide-content.js";
             const r = $(".readout__tick", st.el);
             r.textContent = `All ${maxTick(st)} ticks shown · use Step to go through them one at a time`;
             setRunLabel(st, "Run again");
+            announcePractice(st);
             return;
         }
         st.running = true;
@@ -945,9 +946,10 @@ import { lessonMetadata as LESSONS } from "./guide-content.js";
             lanes.classList.remove("is-resetting");
         }
         $(".readout__tick", el).textContent = `Ready · ${st.sc.control.legend.toLowerCase()} ${st.mode === "on" ? st.sc.control.on.toLowerCase() : st.sc.control.off.toLowerCase()} · ${maxTick(st)} ticks`;
-        $("[data-prediction-live]", el).textContent = "";
+        st.prediction = "";
         $(".readout__events", el).innerHTML = `<li>${st.done[doneKey(st)] ? "Run it again, step through it, or switch the control." : "Choose a prediction, then run the model."}</li>`;
         renderLog(st);
+        announcePractice(st);
     }
     function doneKey(st) {
         return st.sc.queue ? `${st.agents}-${st.mode}` : st.mode;
@@ -984,6 +986,7 @@ import { lessonMetadata as LESSONS } from "./guide-content.js";
         renderReadout(st, events, animate);
         renderLog(st);
         if (st.tick >= maxTick(st)) complete(st);
+        announcePractice(st);
         return events.length > 0;
     }
 
@@ -1010,6 +1013,15 @@ import { lessonMetadata as LESSONS } from "./guide-content.js";
         zone("waiting", "");
         zone("merged", "qtok--merged");
         $(".queue__peak", st.el).textContent = `Peak ${q.peak}`;
+    }
+
+    function announcePractice(st) {
+        // One text update keeps the tick, events and verdict together in
+        // Chrome's accessibility tree, including repeated queue messages.
+        const parts = [$(".readout__tick", st.el).textContent,
+            ...$$(".readout__events li", st.el).map(node => node.textContent),
+            st.prediction];
+        $("[data-prediction-live]", st.el).textContent = parts.filter(Boolean).map(text => text.replace(/\.+$/u, "")).join(". ").replace(/\s+/gu, " ").trim() + ".";
     }
 
     function renderReadout(st, events, animate) {
@@ -1072,7 +1084,7 @@ import { lessonMetadata as LESSONS } from "./guide-content.js";
             html += `<p class="feedback__next"><button class="btn" type="button" data-act="other">${esc(label)}</button></p>`;
         }
         fb.innerHTML = html;
-        $("[data-prediction-live]", st.el).textContent = ready && picked ? Number(picked.value) === sc.answer ? "Your prediction matches the run." : "The run disagrees with your prediction." : "";
+        st.prediction = ready && picked ? Number(picked.value) === sc.answer ? "Your prediction matches the run." : "The run disagrees with your prediction." : "";
         const next = $('[data-act="other"]', fb);
         if (next)
             next.addEventListener("click", () => {
