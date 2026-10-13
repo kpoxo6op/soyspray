@@ -7,6 +7,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+from apps.vaultwarden import agent_secret
+
 ROOT = Path(__file__).resolve().parents[3]
 
 AGENT_SECRET = ROOT / "scripts/agent-secret"
@@ -17,7 +21,12 @@ def write_executable(path, content: str) -> None:
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
 
 
-def test_agent_secret_reads_only_the_hays_item_without_password_arguments(tmp_path) -> None:
+@pytest.mark.parametrize(
+    "name",
+    ["hays-online-timesheets", "Phone unlock PIN", "ASB app login", "BNZ app login"],
+)
+def test_agent_secret_reads_allowlisted_items_without_password_arguments(tmp_path, name) -> None:
+    """CLI returns approved credentials after fresh login and cached unlock, never on argv."""
     call_log = tmp_path / "calls.log"
     write_executable(
         tmp_path / "kubectl",
@@ -67,8 +76,13 @@ elif command == "unlock":
     assert "--passwordenv" in sys.argv
     assert os.environ["BW_PASSWORD"] == "bootstrap-password"
     print("test-session")
-elif command == "get":
-    print(json.dumps({"login": {"username": "hays-user", "password": "hays-pass"}}))
+elif command in ("get", "list"):
+    name = sys.argv[3] if command == "get" else sys.argv[4]
+    item = {"name": name, "login": {
+        "username": "hays-user" if name == "hays-online-timesheets" else None,
+        "password": "hays-pass",
+    }}
+    print(json.dumps(item if command == "get" else [item]))
 """,
     )
     environment = os.environ.copy()
@@ -78,7 +92,7 @@ elif command == "get":
 
     results = [
         subprocess.run(
-            [sys.executable, AGENT_SECRET, "read", "hays-online-timesheets"],
+            [sys.executable, AGENT_SECRET, "read", name],
             cwd=tmp_path,
             env=environment,
             check=True,
@@ -89,16 +103,19 @@ elif command == "get":
     ]
 
     for result in results:
-        assert json.loads(result.stdout) == {
-            "username": "hays-user",
-            "password": "hays-pass",
-        }
+        expected = {"username": "hays-user", "password": "hays-pass"}
+        if name != "hays-online-timesheets":
+            expected.update(username="", pin="hays-pass")
+        assert json.loads(result.stdout) == expected
     calls = call_log.read_text()
     assert calls.count("config server https://vault.soyspray.vip") == 1
     assert calls.count("login agent@example.test --passwordenv BW_PASSWORD --raw") == 1
     assert calls.count("unlock --passwordenv BW_PASSWORD --raw") == 1
     assert "sync" in calls
-    assert "get item hays-online-timesheets" in calls
+    if name == "hays-online-timesheets":
+        assert f"get item {name}" in calls
+    else:
+        assert f"list items --search {name}" in calls
     assert "kubectl -n vaultwarden get secret vaultwarden-agent-login -o json" in calls
     assert "vaultwarden-agent-bootstrap" not in calls
     assert "bootstrap-password" not in calls
@@ -159,7 +176,7 @@ elif command == "login":
 elif command == "unlock":
     raise SystemExit(9)
 elif command == "get":
-    print(json.dumps({"login": {"username": "hays-user", "password": "hays-pass"}}))
+    print(json.dumps({"name": "hays-online-timesheets", "login": {"username": "hays-user", "password": "hays-pass"}}))
 """,
     )
     environment = os.environ.copy()
@@ -183,3 +200,51 @@ elif command == "get":
     calls = call_log.read_text()
     assert calls.index("logout") < calls.index("login agent@example.test")
     assert "unlock" not in calls
+
+
+@pytest.mark.parametrize(
+    "fault", ["different-name", "duplicate-name", "deleted", "duplicate-pin", "invalid-pin"]
+)
+def test_reader_rejects_unsafe_phone_response_and_locks(tmp_path, monkeypatch, fault):
+    """A wrong/deleted item or ambiguous field must never leave credentials usable."""
+    item = {"name": "Phone unlock PIN", "login": {"password": "test-only", "username": None}}
+    if fault == "different-name":
+        item["name"] = "unapproved record"
+    elif fault == "deleted":
+        item["deletedDate"] = "2026-01-01"
+    elif fault == "duplicate-pin":
+        item["fields"] = [{"name": "pin", "value": "test-only"}, {"name": "PIN", "value": "other"}]
+    elif fault == "invalid-pin":
+        item["fields"] = [{"name": "pin", "value": None}]
+    calls = []
+
+    def fake_run(command, environment=None):
+        calls.append(command[:2])
+        if command[1] == "status":
+            return json.dumps({"status": "locked", "userEmail": "agent@example.test"})
+        if command[1] == "unlock":
+            assert "BW_SESSION" not in environment
+            return "test-session"
+        if command[1] == "list":
+            return json.dumps([item, item] if fault == "duplicate-name" else [item])
+        return ""
+
+    monkeypatch.setenv("BW_SESSION", "inherited-human-session")
+    monkeypatch.setattr(agent_secret.shutil, "which", lambda name: name)
+    monkeypatch.setattr(agent_secret, "appdata_directory", lambda: tmp_path)
+    monkeypatch.setattr(agent_secret, "read_bootstrap", lambda: ("agent@example.test", "test-only"))
+    monkeypatch.setattr(agent_secret, "run", fake_run)
+    with pytest.raises(agent_secret.AgentSecretError):
+        agent_secret.read_item("Phone unlock PIN")
+    assert calls[-1] == ["bw", "lock"]
+
+
+def test_import_rejects_unapproved_name_before_bootstrap(monkeypatch):
+    """Import callers cannot bypass the CLI allowlist to read another record."""
+
+    def forbidden():
+        pytest.fail("unapproved name reached bootstrap")
+
+    monkeypatch.setattr(agent_secret, "read_bootstrap", forbidden)
+    with pytest.raises(agent_secret.AgentSecretError, match="not allowed"):
+        agent_secret.read_item("another-item")

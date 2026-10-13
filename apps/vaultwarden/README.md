@@ -78,9 +78,11 @@ promotion. Replacing the current pin with stable 1.37.2 would remove this behavi
 
 ## Restricted reader
 
-The `automation@vault.soyspray.vip` account can view the existing shared item in
-`Hays timesheets`. It cannot edit or manage the collection. The app-local
-`agent_secret.py` keeps this one-item limit. The installed `agent-secret` command
+The restricted account can view the existing shared item in `Hays timesheets`
+and three approved login records in `Phone finance`: `Phone unlock PIN`,
+`ASB app login`, and `BNZ app login`. Its collection permissions are **View items**,
+with password viewing and without edit or manage access. The app-local
+`agent_secret.py` permits exactly these four names. The installed `agent-secret` command
 and `scripts/agent-secret` still use the same command path and private CLI state.
 
 With `bw`, `kubectl`, and cluster access, check the restricted record silently:
@@ -93,6 +95,15 @@ Without redirection, this command prints the username and password as plaintext
 JSON. Keep that output out of logs, GitHub, and shell arguments. A process with
 the same cluster access can read the agent password; this does not grant the
 human master password.
+
+The Hays command and `read_hays_item()` import still return only `username` and
+`password`. Phone items can have an empty username; their JSON also contains
+`pin`, using a named custom field when present and otherwise the login password.
+The local phone helper consumes this output privately and reports only lengths.
+Both workflows unlock the restricted account from its existing Kubernetes login
+Secret; neither requires a human vault session. Item names outside the allowlist
+are rejected before accessing Kubernetes or Bitwarden. The reader refuses a
+different returned name and locks its private CLI state after every read.
 
 For the existing Hays workflow, run `scripts/hays-open-submitted-timesheet`. It
 opens the latest submitted timesheet in its dedicated Chrome profile and leaves

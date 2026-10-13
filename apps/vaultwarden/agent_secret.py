@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read the one credential allowed in the Vaultwarden MVP."""
+"""Read only the explicitly approved credentials through the restricted account."""
 
 from __future__ import annotations
 
@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 
 ITEM_NAME = "hays-online-timesheets"
+PHONE_ITEMS = ("Phone unlock PIN", "ASB app login", "BNZ app login")
+ALLOWED_ITEMS = (ITEM_NAME, *PHONE_ITEMS)
 VAULT_URL = "https://vault.soyspray.vip"
 BOOTSTRAP_SECRET = "vaultwarden-agent-login"
 
@@ -30,12 +32,16 @@ def run(command: list[str], environment: dict[str, str] | None = None) -> str:
             check=True,
             capture_output=True,
             text=True,
+            stdin=subprocess.DEVNULL,
+            timeout=180,
         )
     except FileNotFoundError as error:
         raise AgentSecretError(f"required command is missing: {command[0]}") from error
     except subprocess.CalledProcessError as error:
         action = " ".join(command[:2])
         raise AgentSecretError(f"command failed: {action}") from error
+    except subprocess.TimeoutExpired as error:
+        raise AgentSecretError("credential command timed out") from error
     return result.stdout.strip()
 
 
@@ -71,7 +77,9 @@ def appdata_directory() -> Path:
     return directory
 
 
-def read_hays_item() -> dict[str, str]:
+def read_item(name: str) -> dict[str, str]:
+    if name not in ALLOWED_ITEMS:
+        raise AgentSecretError("item is not allowed")
     if shutil.which("kubectl") is None:
         raise AgentSecretError("required command is missing: kubectl")
     if shutil.which("bw") is None:
@@ -84,6 +92,7 @@ def read_hays_item() -> dict[str, str]:
         fcntl.flock(lock_file, fcntl.LOCK_EX)
         email, password = read_bootstrap()
         environment = os.environ.copy()
+        environment.pop("BW_SESSION", None)
         environment["BITWARDENCLI_APPDATA_DIR"] = str(directory)
         environment["BW_PASSWORD"] = password
 
@@ -133,17 +142,50 @@ def read_hays_item() -> dict[str, str]:
             environment.pop("BW_PASSWORD", None)
             environment["BW_SESSION"] = session
             run(["bw", "sync", "--quiet", "--nointeraction"], environment)
-            item = json.loads(run(["bw", "get", "item", ITEM_NAME, "--nointeraction"], environment))
+            if name == ITEM_NAME:
+                item = json.loads(run(["bw", "get", "item", name, "--nointeraction"], environment))
+            else:
+                items = json.loads(
+                    run(["bw", "list", "items", "--search", name, "--nointeraction"], environment)
+                )
+                matches = [
+                    entry
+                    for entry in items
+                    if entry.get("name") == name and not entry.get("deletedDate")
+                ]
+                if len(matches) != 1:
+                    raise AgentSecretError("the requested item is missing or ambiguous")
+                item = matches[0]
+            if item.get("name") != name or item.get("deletedDate"):
+                raise AgentSecretError("the requested item does not match")
             login = item["login"]
-            username = login["username"]
+            username = login.get("username") or ""
             item_password = login["password"]
-            if not isinstance(username, str) or not username:
+            if not isinstance(username, str) or (name == ITEM_NAME and not username):
                 raise AgentSecretError("the Hays item has no username")
             if not isinstance(item_password, str) or not item_password:
                 raise AgentSecretError("the Hays item has no password")
-            return {"username": username, "password": item_password}
-        except (KeyError, json.JSONDecodeError) as error:
-            raise AgentSecretError("the Hays item is invalid") from error
+            result = {"username": username, "password": item_password}
+            if name in PHONE_ITEMS:
+                for field in ("password", "pin", "username"):
+                    custom = [
+                        entry.get("value")
+                        for entry in item.get("fields") or []
+                        if str(entry.get("name", "")).casefold() == field
+                    ]
+                    if len(custom) > 1:
+                        raise AgentSecretError("the requested item has ambiguous fields")
+                    value = (
+                        custom[0]
+                        if custom
+                        else (item_password if field == "pin" else login.get(field) or "")
+                    )
+                    if not isinstance(value, str) or "\x00" in value:
+                        raise AgentSecretError("the requested item has an invalid field")
+                    result[field] = value
+            return result
+        except (KeyError, TypeError, AttributeError, json.JSONDecodeError) as error:
+            raise AgentSecretError("the requested item is invalid") from error
         finally:
             environment.pop("BW_PASSWORD", None)
             try:
@@ -153,13 +195,18 @@ def read_hays_item() -> dict[str, str]:
             environment.pop("BW_SESSION", None)
 
 
+def read_hays_item() -> dict[str, str]:
+    """Preserve the Hays import API and its two-field output."""
+    return read_item(ITEM_NAME)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="agent-secret")
     parser.add_argument("action", choices=["read"])
-    parser.add_argument("name", choices=[ITEM_NAME])
-    parser.parse_args()
+    parser.add_argument("name", choices=ALLOWED_ITEMS)
+    arguments = parser.parse_args()
     try:
-        print(json.dumps(read_hays_item(), separators=(",", ":")))
+        print(json.dumps(read_item(arguments.name), separators=(",", ":")))
     except AgentSecretError as error:
         print(f"agent-secret: {error}", file=sys.stderr)
         return 1
