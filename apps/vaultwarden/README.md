@@ -79,7 +79,7 @@ promotion. Replacing the current pin with stable 1.37.2 would remove this behavi
 ## Restricted reader
 
 The restricted account can view the existing shared item in `Hays timesheets`
-and three approved login records in `Phone finance`: `Phone unlock PIN`,
+and three approved login records in `Errands`: `Phone unlock PIN`,
 `ASB app login`, and `BNZ app login`. Its collection permissions are **View items**,
 with password viewing and without edit or manage access. The app-local
 `agent_secret.py` permits exactly these four names. The installed `agent-secret` command

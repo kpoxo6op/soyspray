@@ -14,8 +14,8 @@ import sys
 from pathlib import Path
 
 ITEM_NAME = "hays-online-timesheets"
-PHONE_ITEMS = ("Phone unlock PIN", "ASB app login", "BNZ app login")
-ALLOWED_ITEMS = (ITEM_NAME, *PHONE_ITEMS)
+ERRANDS_ITEMS = ("Phone unlock PIN", "ASB app login", "BNZ app login")
+ALLOWED_ITEMS = (ITEM_NAME, *ERRANDS_ITEMS)
 VAULT_URL = "https://vault.soyspray.vip"
 BOOTSTRAP_SECRET = "vaultwarden-agent-login"
 
@@ -166,7 +166,7 @@ def read_item(name: str) -> dict[str, str]:
             if not isinstance(item_password, str) or not item_password:
                 raise AgentSecretError("the Hays item has no password")
             result = {"username": username, "password": item_password}
-            if name in PHONE_ITEMS:
+            if name in ERRANDS_ITEMS:
                 for field in ("password", "pin", "username"):
                     custom = [
                         entry.get("value")
