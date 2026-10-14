@@ -2,9 +2,10 @@
 // spare length lives and which ONE-WRAP ties hold it. Coordinates are rack millimetres.
 //
 // Stock leads remain intact; only Ethernet is crimped to fit. Rear bundles lie against
-// the rail posts. Service leads use the factory rear opening, then roll over the uncut top.
-// Magnetic hooks carry compartment coils and the Zigbee extension on steel faces.
+// the rail posts. v1 uses the optional drilled hole; v2 rises entirely outside the back.
+// Magnetic hooks carry coils and the Zigbee extension on steel faces.
 
+import { DRILLED } from './variant.js';
 import { DEVICE_BY_ID, DEVICES, ROOM, UNIT } from './layout.js';
 import { portFrame, seatedPose, exitPoint } from './ports.js';
 import { add3, scale3, normalize3, qaxis, basisQuat } from './math.js';
@@ -136,13 +137,17 @@ export const RAILS = { left: { x0:12,x1:24,y0:179,y1:206 }, right: { x0:229,x1:2
 const DATA_X = [15, 21, 27];
 const DATA_Y = 214;
 const DC_X = [233, 229, 225];
-// Every service lead crosses the low factory opening, then rises outside the back and top.
+// v1 exits through the optional drilled hole. v2 never enters the cupboard.
 export function serviceExit(i = 0) {
+  if(!DRILLED) {
+    const x=225+i*4;
+    return [P(x,268,-277),P(x,268,-60),P(x,268,16)];
+  }
   const x = UNIT.opening.x + (i - 2) * 4, z = UNIT.opening.z + (i % 2) * 6;
   return [P(x,210,z), P(x,UNIT.back,z), P(x,268,z), P(x,268,z+32),
     P(x,268,-60), P(x,268,16)];
 }
-export const COIL_MOUNTS = {
+export const COIL_MOUNTS = DRILLED ? {
   dc0: {face:'left',centre:[-43,-95,-425],radius:30},
   dc1: {face:'left',centre:[-43,15,-425],radius:30},
   dc2: {face:'left',centre:[-43,145,-425],radius:30},
@@ -154,6 +159,18 @@ export const COIL_MOUNTS = {
   boardCord: {face:'partition',centre:[308,155,-425],radius:25},
   spareCord: {face:'inside-back',centre:[925,215,-380],radius:35},
   zigbee: {face:'back',centre:[1040,253,-85],radius:25},
+} : {
+  dc0:{face:'back',centre:[40,260,-425],radius:30},
+  dc1:{face:'back',centre:[130,260,-425],radius:30},
+  dc2:{face:'back',centre:[220,260,-425],radius:30},
+  ac0:{face:'back',centre:[350,260,-440],radius:30},
+  ac1:{face:'back',centre:[430,260,-440],radius:30},
+  ac2:{face:'back',centre:[510,260,-440],radius:30},
+  swPower:{face:'back',centre:[330,260,-355],radius:20},
+  routerPower:{face:'back',centre:[420,260,-355],radius:20},
+  boardCord:{face:'back',centre:[600,260,-425],radius:25},
+  spareCord:{face:'back',centre:[925,260,-380],radius:35},
+  zigbee:{face:'back',centre:[1040,253,-85],radius:25},
 };
 function mountedCoil(id, pitch) {
   const m=COIL_MOUNTS[id], [x,y,z]=m.centre, r=m.radius;
@@ -202,7 +219,7 @@ const wan = cable({
   a:{plug:'rj45',at:['router','wan'],hover:16},
   aLead:[P(163.5,186,338),P(200,222,350)],
   coil:coil(P(220,244,350),[1,0,0],DOWN,[0,1,0],16,6.4,{tight:1}),
-  route:[P(248,292,330),P(248,310,260),P(248,310,-510),P(248,340,-545),P(248,373.5,-545)],
+  route:DRILLED ? [P(248,292,330),P(248,310,260),P(248,310,-510),P(248,340,-545),P(248,373.5,-545)] : [P(248,285,330),P(248,285,260),P(248,285,-565),P(248,ROOM.wallY-51.5,-565)],
   b:{plug:'rj45',at:['powerline','eth'],hover:24},
 });
 
@@ -238,9 +255,9 @@ function brickDc(i) {
   return cable({
     id:`dc${i}`,kind:'dc',colour:0x24252a,od:4.5,stock:1800,
     a:{fixed:[`brick${i}`,'dcOut']},
-    aLead:[P(x,-110,-500),P(-43,-135,-480),P(-43,-135,-430)],
+    aLead:DRILLED ? [P(x,-110,-500),P(-43,-135,-480),P(-43,-135,-430)] : [P(x,20,-605.5),P(x-30,260,-590),P(x-30,260,-445)],
     coil:mountedCoil(`dc${i}`,5.2),
-    route:[P(-25,220,-425),...serviceExit(i),
+    route:[...(DRILLED ? [P(-25,220,-425)] : [P(COIL_MOUNTS[`dc${i}`].centre[0],300,-385)]),...serviceExit(i),
       P(DC_X[i],245,20),P(DC_X[i],218,ROW_Z[i]+15),P(DC_X[i],218,ROW_Z[i]+45),P(DC_X[i],252,ROW_Z[i]+45),P(206,266,ROW_Z[i]+22),P(192.1,266,ROW_Z[i])],
     b:{plug:'slim',at:[`node${i}`,'power'],hover:24},
   });
@@ -252,9 +269,9 @@ function brickAc(i) {
   return cable({
     id:`ac${i}`,kind:'ac',colour:0x27282c,od:7,stock:1000,
     a:{plug:'nz',at:['board',AC_OUTLET[i]],hover:22},
-    aLead:[P(280,f.pos[1],-260),P(300,222,-280),P(290,222,-395)],
+    aLead:DRILLED ? [P(280,f.pos[1],-260),P(300,222,-280),P(290,222,-395)] : [P(555,f.pos[1],-570),P(555,300,-575),P(COIL_MOUNTS[`ac${i}`].centre[0]-30,260,-475)],
     coil:mountedCoil(`ac${i}`,8),
-    route:[P(x,170,-465),P(x,160,-495)],
+    route:DRILLED ? [P(x,170,-465),P(x,160,-495)] : [P(COIL_MOUNTS[`ac${i}`].centre[0],300,-480),P(x,300,-585),P(x,245,-605.5)],
     b:{plug:'c5',at:[`brick${i}`,'c5'],hover:20},
   });
 }
@@ -262,36 +279,36 @@ const ac=[0,1,2].map(brickAc);
 const swPower=cable({
   id:'swPower',kind:'dc',colour:0xefeee9,od:3.5,stock:1500,
   a:{fixed:['psuSwitch','dcOut']},
-  aLead:[P(115,-10,-304),P(120,220,-295),P(195,222,-335)],
+  aLead:DRILLED ? [P(115,-10,-304),P(120,220,-295),P(195,222,-335)] : [P(380,65,-603),P(380,300,-585),P(310,260,-385)],
   coil:mountedCoil('swPower',4.1),
-  route:[P(150,222,-380),...serviceExit(3),
+  route:[...(DRILLED ? [P(150,222,-380)] : [P(300,300,-320)]),...serviceExit(3),
     P(237,248,26),P(237,218,120),P(237,218,240),P(210,225,290)],
   b:{plug:'barrel',at:['switch','dc'],hover:20},
 });
 const routerPower=cable({
   id:'routerPower',kind:'dc',colour:0x303136,od:4,stock:1500,
   a:{plug:'usbC',at:['psuRouter','usbc'],hover:16},
-  aLead:[P(80,220,-270),P(45,222,-335)],
+  aLead:DRILLED ? [P(80,220,-270),P(45,222,-335)] : [P(430,220,-570),P(430,300,-560),P(400,260,-385)],
   coil:mountedCoil('routerPower',4.6),
-  route:[P(150,222,-380),...serviceExit(4),
+  route:[...(DRILLED ? [P(150,222,-380)] : [P(390,300,-320)]),...serviceExit(4),
     P(241,248,26),P(241,222,120),P(241,222,310),P(210,232,347)],
   b:{plug:'usbC',at:['router','power'],hover:16},
 });
 const boardCord=cable({
   id:'boardCord',kind:'ac',colour:0xefeee9,od:7.5,stock:1500,room:true,
   a:{fixed:['board','cordOut']},
-  aLead:[P(190,220,-296),P(307,222,-365)],
+  aLead:DRILLED ? [P(190,220,-296),P(307,222,-365)] : [P(480,300,-606.5),P(575,300,-470)],
   coil:mountedCoil('boardCord',8.2),
-  route:[P(290,220,-425),P(150,222,-425),P(150,UNIT.back,-425),P(150,255,-425),P(192,310,-405),P(192,330,-395)],
+  route:DRILLED ? [P(290,220,-425),P(150,222,-425),P(150,UNIT.back,-425),P(150,255,-425),P(192,310,-405),P(192,330,-395)] : [P(580,300,-400),P(192,280,-400),P(192,ROOM.wallY-95,-380)],
   b:{plug:'nz',at:['wallSocket','L'],hover:22},
 });
 const spareCord=cable({
   id:'spareCord',kind:'ac',colour:0x27282c,od:7.5,stock:1500,room:true,
   a:{fixed:['spareBoard','cordOut']},
-  aLead:[P(745,120,-485),P(815,200,-440)],
+  aLead:DRILLED ? [P(745,120,-485),P(815,200,-440)] : [P(735,125,-607),P(735,300,-580),P(890,260,-420)],
   coil:mountedCoil('spareCord',8.2),
-  route:[P(1020,170,-460),P(1040,120,-475)],
-  b:{plug:'nz',free:{type:'nz',pos:[1060,90,-480],n:[-1,0,0],u:UP},hover:12},
+  route:DRILLED ? [P(1020,170,-460),P(1040,120,-475)] : [P(1020,300,-470),P(1040,300,-565)],
+  b:{plug:'nz',free:{type:'nz',pos:DRILLED ? [1060,90,-480] : [1060,300,-600],n:[-1,0,0],u:UP},hover:12},
 });
 
 export const CABLES = [...eth, lan, usbSeagate, usbTouro, ...dc, ...ac, swPower, routerPower, boardCord, wan, zigbee, spareCord];

@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Box3, Vector3, Raycaster, DoubleSide } from 'three';
 import { installDomStubs, placements } from './helpers.mjs';
-import { UNIT, RACK, PADS } from '../src/layout.js';
+import { DRILLED } from '../src/variant.js';
+import { UNIT, RACK, PADS, ROOM, HOUSE_FLOOR_Z } from '../src/layout.js';
 import { CABLES, RAILS, POSES } from '../src/wiring.js';
 import { cableCentreline, polyLength } from '../src/cablepath.js';
 import { RETAINERS, retainerState } from '../src/retainers.js';
@@ -21,31 +22,59 @@ function panelAt(point) {
   if(solids.some(b=>b.containsPoint(p)))return true;
   const [x,y,z]=point;
   if(x>=UNIT.bodyX0&&x<=UNIT.bodyX1&&y>=UNIT.back-2&&y<=UNIT.back&&z>=UNIT.bottom&&z<=UNIT.top-25)
-    return Math.hypot(x-UNIT.opening.x,z-UNIT.opening.z)>=UNIT.opening.radius;
+    return !DRILLED || Math.hypot(x-UNIT.opening.x,z-UNIT.opening.z)>=UNIT.opening.radius;
   return false;
 }
-// Contract: final and paying-out leads use the real rear opening, never a door gap or steel.
+// Contract: payout and dressed leads clear steel; v1 may use its one drilled hole,
+// v2 never enters a cupboard. An exterior endpoint alone cannot prove a safe route.
 // Existing socket/length tests cannot detect a path which cuts through cabinet panels.
 test('all cable samples clear the closed steel unit during payout and after dressing',()=>{
   for(const c of CABLES){
     const chapter=timeline.chapters.find(ch=>ch.wire===c.id);
     const times=[timeline.duration,...Array.from({length:25},(_,i)=>chapter.start+i*6.1/24)];
-    for(const t of times)for(const point of cableCentreline(c,wireState(timeline,c,t)).points)
+    const snug=timeline.chapters.find(ch=>ch.id==='snug-ties');
+    times.push(...Array.from({length:25},(_,i)=>snug.start+i*6.2/24));
+    for(const t of times)for(const point of cableCentreline(c,wireState(timeline,c,t)).points) {
       assert.ok(!panelAt(point),`${c.id} intersects steel at ${point.map(v=>v.toFixed(2))}, t=${t}`);
+      if(!DRILLED) {
+        const [x,y,z]=point;
+        const cupboard=x>UNIT.bodyX0&&x<UNIT.bodyX1&&y>UNIT.front&&y<UNIT.back&&z>UNIT.bottom&&z<UNIT.top-UNIT.topThickness;
+        assert.ok(!cupboard,`${c.id} enters a cupboard at ${point}, t=${t}`);
+        assert.ok(y+c.od/2<ROOM.wallY,`${c.id} reaches the wall at ${point}, t=${t}`);
+      }
+    }
   }
 });
 // Contract: the visible top is uncut, while the modelled back opening actually passes a lead.
 // The point collision check alone could pass when a renderer accidentally omits a steel face.
-test('rendered top is solid and only the factory back opening passes through steel',()=>{
+test('rendered panels have no apertures except the single optional v1 drilled hole',()=>{
   room.userData.top.material.side=DoubleSide;room.userData.back.material.side=DoubleSide;
   for(const x of [30,150,300,700,1100])for(const y of [-100,40,220]){
     const ray=new Raycaster(new Vector3(x,y,50),new Vector3(0,0,-1),0,120);
     assert.ok(ray.intersectObject(room.userData.top).length>0,`solid top ${x},${y}`);
   }
-  const ray=new Raycaster(new Vector3(UNIT.opening.x,300,UNIT.opening.z),new Vector3(0,-1,0),0,100);
-  assert.equal(ray.intersectObject(room.userData.back).length,0,'factory opening');
-  ray.set(new Vector3(UNIT.opening.x+40,300,UNIT.opening.z),new Vector3(0,-1,0));
-  assert.ok(ray.intersectObject(room.userData.back).length>0,'steel beside opening');
+  const hole=UNIT.opening;
+  const ray=new Raycaster(new Vector3(150,300,-425),new Vector3(0,-1,0),0,100);
+  assert.equal(ray.intersectObject(room.userData.back).length>0,!DRILLED,'only v1 has an aperture');
+  for(const m of room.userData.panels.filter(m=>m.parent===room.userData.cabinet)) {
+    const shapes=m.geometry.parameters.shapes;
+    if(shapes)assert.equal(shapes.holes.length,m===room.userData.back&&DRILLED?1:0,'no extra apertures');
+    else assert.ok(['BoxGeometry','RoundedBoxGeometry'].includes(m.geometry.type),'solid bevelled panel');
+  }
+  for(const x of [0,150,500,900,1100])for(const z of [-490,-425,-200,-60]) {
+    ray.set(new Vector3(x,300,z),new Vector3(0,-1,0));
+    const inHole=hole&&Math.hypot(x-hole.x,z-hole.z)<hole.radius;
+    assert.equal(ray.intersectObject(room.userData.back).length>0,!inHole,`back ${x},${z}`);
+  }
+});
+// Contract: v1 retains the cupboard power option and actually uses its single hole.
+// Clearance alone could pass after accidentally replacing v1 with exterior routes.
+test('v1 service leads cross the back through the drilled hole', {skip:!DRILLED},()=>{
+  for(const id of ['dc0','dc1','dc2','swPower','routerPower','boardCord']) {
+    const c=CABLES.find(c=>c.id===id),hole=UNIT.opening;
+    const crossings=cableCentreline(c,wireState(timeline,c,timeline.duration)).points.filter(([x,y,z])=>y>=UNIT.back-2&&y<=UNIT.back&&Math.hypot(x-hole.x,z-hole.z)<hole.radius);
+    assert.ok(crossings.length>0,id+' uses the drilled hole');
+  }
 });
 // Contract: purchase-sized rail ties wrap a real post rather than hovering behind the rack;
 // every stock coil gets exactly one keeper and every magnet contacts steel. Cable tests omit supports.
@@ -106,5 +135,36 @@ test('every retainer installs during a wire chapter and arbitrary seek reverses 
     assert.ok(states.some(s=>s.glow>0),r.id+' glows');
     assert.equal(retainerState(r,timeline,timeline.duration).closed,1,r.id+' installed');
     for(let i=samples.length-1;i>=0;i--)assert.deepEqual(retainerState(r,timeline,samples[i]),states[i]);
+  }
+});
+
+// Contract: v2 powered equipment fits outside closed cupboards, above the room floor
+// and in front of the wall. Cable-centreline tests cannot detect a penetrating device body.
+test('v2 powered device envelopes clear the unit, floor and wall', {skip:DRILLED},()=>{
+  const boxes=[];
+  for(const id of ['brick0','brick1','brick2','board','psuSwitch','psuRouter','powerline']) {
+    const d=POSES[id],corners=[];
+    for(let i=0;i<8;i++)corners.push(new Vector3(...qrotate(d.q,d.size.map((v,k)=>(i&(1<<k)?1:-1)*v/2)).map((v,k)=>v+d.p[k])));
+    const b=new Box3().setFromPoints(corners);boxes.push([id,b]);
+    assert.ok(b.min.z>=HOUSE_FLOOR_Z-.01,id+' above floor');
+    assert.ok(b.max.y<ROOM.wallY,id+' before wall');
+    for(const solid of [...solids,new Box3().setFromObject(room.userData.back)])assert.ok(!b.intersectsBox(solid),id+' clear of steel');
+    assert.ok(b.max.z<=UNIT.bottom||b.min.y>=UNIT.back,id+' outside cupboards');
+  }
+  for(let i=0;i<boxes.length;i++)for(let j=i+1;j<boxes.length;j++) {
+    // Plug-in adapters mate with the board's sloped faces, within its rectangular envelope.
+    if(boxes[i][0]==='board'&&['psuSwitch','psuRouter'].includes(boxes[j][0]))continue;
+    assert.ok(!boxes[i][1].intersectsBox(boxes[j][1]),boxes[i][0]+' clear of '+boxes[j][0]);
+  }
+});
+// Contract: all v2 doors stay closed through installation; no lead blocks a shut door.
+// The original scene tests own rack transforms, not door state during service chapters.
+test('v2 doors remain shut through every chapter', {skip:DRILLED},async()=>{
+  const {Installation}=await import('../src/installation.js');
+  const {Group}=await import('three');
+  const installation=new Installation(timeline,new Group());
+  for(let t=0;t<=timeline.duration;t+=.5){
+    installation.setTime(t);
+    for(const door of installation.room.userData.doors)assert.equal(door.rotation.z,0);
   }
 });

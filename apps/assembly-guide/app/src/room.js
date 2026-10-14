@@ -1,5 +1,6 @@
 import { Group, Mesh, BoxGeometry, ExtrudeGeometry, Shape, Path, MeshStandardMaterial, MeshPhysicalMaterial, DirectionalLight, TubeGeometry, CatmullRomCurve3, Vector3, PlaneGeometry, CanvasTexture, MeshBasicMaterial } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { DRILLED } from './variant.js';
 import { HOUSE_FLOOR_Z as GROUND, ROOM, UNIT, PADS, houseToRack } from './layout.js';
 
 export function buildLivingRoom() {
@@ -31,10 +32,12 @@ export function buildLivingRoom() {
   box([1190,390,2],[cx,cy,UNIT.bottom+1],steel,cabinet,true);
   for(const x of [UNIT.bodyX0+1,...UNIT.partitions,UNIT.bodyX1-1])
     box([2,390,475],[x,cy,(UNIT.bottom-45)/2],steel,cabinet,true);
-  // One factory opening in the back. The top is a single solid slab.
+  // v1 has one optional drilled hole. v2 and the top have no apertures.
   const back=new Shape();back.moveTo(UNIT.bodyX0,UNIT.bottom);back.lineTo(UNIT.bodyX1,UNIT.bottom);
   back.lineTo(UNIT.bodyX1,-45);back.lineTo(UNIT.bodyX0,-45);back.closePath();
-  const opening=new Path();opening.absarc(UNIT.opening.x,UNIT.opening.z,UNIT.opening.radius,0,Math.PI*2,true);back.holes.push(opening);
+  if(DRILLED) {
+    const opening=new Path();opening.absarc(UNIT.opening.x,UNIT.opening.z,UNIT.opening.radius,0,Math.PI*2,true);back.holes.push(opening);
+  }
   const rear=new Mesh(new ExtrudeGeometry(back,{depth:2,bevelEnabled:false,curveSegments:48}),steel);
   rear.rotation.x=Math.PI/2;rear.position.y=UNIT.back;rear.castShadow=rear.receiveShadow=true;cabinet.add(rear);panels.push(rear);
   root.userData.back=rear;
