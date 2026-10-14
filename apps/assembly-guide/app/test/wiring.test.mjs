@@ -46,7 +46,7 @@ test('equipment wiring uses compatible, unique sockets and covers power and data
 // Contract: deployment, dressing and rewind retain the full length, not a stretching tube.
 test('cables keep their nominal arc length throughout payout and dressing', () => {
   for (const c of CABLES) {
-    const chapter = timeline.chapters.find(x=>x.wire===c.id), ties=timeline.chapters.find(x=>x.id==='zip-ties');
+    const chapter = timeline.chapters.find(x=>x.wire===c.id), ties=timeline.chapters.find(x=>x.id==='snug-ties');
     for (const start of [chapter.start,ties.start]) for (let i=0;i<=30;i++) {
       const s=wireState(timeline,c,start+i*6.2/30), curve=cableCentreline(c,s);
       assert.ok(Math.abs(polyLength(curve.points)-c.length)<0.3,`${c.id} arc length at ${start+i*6.2/30}: ${curve.length}`);

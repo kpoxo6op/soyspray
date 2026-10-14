@@ -288,9 +288,12 @@ export const CHAPTERS = [
       });
     },
   },
+  { id: 'living-placement', title: 'Onto the loose pads',
+  text: 'Lower the rack onto loose grip-mat pads, rear feet 30 mm from the edge. Estimated load 7 kg; top rating assumed 20 kg. Confirm both. No screws or adhesive.', view: 'installation',
+  script(c) { c.show(['zigbeeEnd', 'zigbee','spareBoard']); c.move('spareBoard',HOLD_IN,2.3,{from:[0,-380,25]}); c.end = c.start + 4.8; } },
   {
     id: 'power-bricks', title: 'Bricks in the service bay', view: 'service',
-    text: 'Lay the three Lenovo bricks on the console floor, with a gap between them. Removable straps hold them; the full leads stay intact.',
+    text: 'Lay the three Lenovo bricks on the steel compartment floor, with a gap between them. They rest by gravity; keep the full leads intact.',
     script(c) {
       ['brick0', 'brick1', 'brick2'].forEach((id, i) => { c.showAt([id], 1 + i * 0.65); c.move(id, 1.2 + i * 0.65, 2.1, { from: [0, -160, 30], via: [0, 0, 12] }); });
     },
@@ -298,7 +301,7 @@ export const CHAPTERS = [
   {
     id: 'power-board',
     title: 'Power board', view: 'service',
-    text: 'Strap the six-outlet board onto its console cleat. Keep its switch and plugs reachable; place the two adapters at the end positions.',
+    text: 'Rest the six-outlet board on the steel shelf, switch toward the door. Plug the adapters into its end outlets.',
     script(c) {
       c.show(['board', 'wallSocket', 'powerline']);
       c.move('board', HOLD_IN, 2.4, { from: [45, -120, 0] });
@@ -307,43 +310,42 @@ export const CHAPTERS = [
   },
 ];
 
-const WIRE_COPY = {
-  spareCord:['Spare board and cord','Store the unused board with its full cord loosely coiled in the neighbouring compartment. Its plug stays disconnected.'],
-  eth2: ['node-2 Ethernet', 'Plug the third node into the switch. Dress the cable down the left data channel, then seat its rear RJ45 plug.'],
-  eth1: ['node-1 Ethernet', 'Run the second node cable alongside the first. Leave a gentle bend at both plugs.'],
-  eth0: ['node-0 Ethernet', 'Connect node-0 to the switch, following the left data channel to the lowest tray.'],
-  lan: ['Router to switch', 'Connect OpenWrt LAN to the switch. Both sockets are at the rear; the cable loops clear of the trays.'],
-  usbSeagate: ['Seagate USB', 'Plug the stock USB 3 lead into the Seagate and node-0. Its spare length stays in a coil behind the drive.'],
-  usbTouro: ['Touro USB', 'Connect the second stock USB lead to the Touro and another rear USB port on node-0.'],
-  dc0: ['node-0 power lead', 'Pay out the full Lenovo DC lead from its coil. Run it up the right channel and seat the slim-tip plug in node-0.'],
-  dc1: ['node-1 power lead', 'Keep the second Lenovo lead intact. Its spare hangs on the compartment support while the slim tip travels to node-1.'],
-  dc2: ['node-2 power lead', 'Route the third full DC lead beside the others and connect node-2.'],
-  ac0: ['First mains lead', 'Connect the first NZ mains lead to the board and the brick’s cloverleaf inlet. Support the spare on the service bay floor.'],
-  ac1: ['Second mains lead', 'Connect the second stock mains lead, keeping all mains wiring inside the console.'],
-  ac2: ['Third mains lead', 'Connect the third stock mains lead. Keep the three mains runs inside the service compartment.'],
-  swPower: ['Switch power', 'Unwind the switch adapter’s full lead from its compartment support and seat the barrel plug at the switch’s rear.'],
-  routerPower: ['Router power', 'Connect the full USB-C lead from the PD adapter to the rear Power socket on OpenWrt One.'],
-  boardCord: ['Wall power', 'Run the board’s full mains cord to the wall. Keep its spare in a supported coil below the outlet.'],
-  wan: ['House uplink', 'Place the powerline adapter directly in the wall socket. Connect its Ethernet port to OpenWrt WAN through the console cable opening.'],
-  zigbee: ['Zigbee extension', 'Place the Zigbee dongle on the TV unit. Run the full USB extension back to a free rear USB port on node-0.'],
+CHAPTERS.push({id:'retainer-kit',title:'Retainer kit',view:'kit',text:'Thread a ONE-WRAP tie around the rail and cable, pull snug, then wrap the surplus tail back onto itself and press closed. Snap a Magnet Source hook onto steel. No tools.',script(c){c.end=c.start+8.6;}});
+
+export const WIRE_COPY = {
+  spareCord:['Spare board and cord','Store the unused board with its full cord loosely coiled in the neighbouring compartment. A ONE-WRAP coil keeper hangs on a Magnet Source hook. Its plug stays disconnected.'],
+  eth2: ['node-2 Ethernet', 'Plug the third node into the switch. Dress the cable down the rear-left rail with ONE-WRAP ties, then seat its rear RJ45 plug.'],
+  eth1: ['node-1 Ethernet', 'Run the second node cable alongside the first. ONE-WRAP rail ties keep it flat; leave a gentle bend at both plugs.'],
+  eth0: ['node-0 Ethernet', 'Connect node-0 to the switch, following ONE-WRAP rail ties to the lowest tray.'],
+  lan: ['Router to switch', 'Connect OpenWrt LAN to the switch. Both sockets are at the rear; the cable bends clear of the trays.'],
+  usbSeagate: ['Seagate USB', 'Plug the stock USB 3 lead into the Seagate and node-0. A ONE-WRAP coil keeper wraps the spare and the rear-left rail.'],
+  usbTouro: ['Touro USB', 'Connect the second stock USB lead to the Touro and another rear USB port on node-0. A ONE-WRAP coil keeper holds it to the rear-left rail.'],
+  dc0: ['node-0 power lead', 'Pay out the full Lenovo DC lead from its coil. Magnet Source hooks carry it through the factory opening; ONE-WRAP rail ties hold it on the right rail. Seat the slim-tip plug in node-0.'],
+  dc1: ['node-1 power lead', 'Keep the second Lenovo lead intact. Its spare hangs on a Magnet Source hook while the slim tip travels to node-1.'],
+  dc2: ['node-2 power lead', 'Route the third full DC lead through the factory opening and ONE-WRAP rail ties; connect node-2.'],
+  ac0: ['First mains lead', 'Connect the first NZ mains lead to the board and the brick’s cloverleaf inlet. Hang the spare with a ONE-WRAP coil keeper on a Magnet Source hook.'],
+  ac1: ['Second mains lead', 'Connect the second stock mains lead, with a ONE-WRAP coil keeper and Magnet Source hook inside the steel compartment.'],
+  ac2: ['Third mains lead', 'Connect the third stock mains lead. Hang the spare with a ONE-WRAP coil keeper on its Magnet Source hook.'],
+  swPower: ['Switch power', 'Unwind the switch adapter’s full lead from its Magnet Source hook and seat the barrel plug at the switch’s rear.'],
+  routerPower: ['Router power', 'Connect the full USB-C lead through the factory opening. Magnet Source hooks and ONE-WRAP rail ties carry it to the router.'],
+  boardCord: ['Wall power', 'Run the board’s full mains cord to the wall. Use the factory rear opening; hang the spare with a ONE-WRAP coil keeper on a Magnet Source hook.'],
+  wan: ['House uplink', 'Place the powerline adapter directly in the wall socket. Connect its Ethernet port to OpenWrt WAN straight up the wall gap.'],
+  zigbee: ['Zigbee extension', 'Rest the Zigbee dongle at the far end of the top. Magnet Source hooks carry its extension. About 940 mm from the nearest antenna here: the maximum useful spacing, below 1 m.'],
 };
 const roomCables = new Set(['boardCord', 'wan', 'zigbee', 'spareCord']);
 for (const cable of CABLES.filter((c) => !roomCables.has(c.id))) {
   const [title, text] = WIRE_COPY[cable.id];
   CHAPTERS.push({ id: `wire-${cable.id}`, title, text, wire: cable.id, view: cable.kind==='ac' ? 'service' : 'rear', script(c) { c.end = c.start + 6.1; } });
 }
-CHAPTERS.push({ id: 'living-placement', title: 'On the TV console',
-  text: 'Secure the rack feet to the console top. The rear cable opening reaches the service compartment; leave the open back accessible.', view: 'installation',
-  script(c) { c.show(['zigbeeEnd', 'zigbee','spareBoard']); c.move('spareBoard',HOLD_IN,2.3,{from:[0,-380,25]}); c.end = c.start + 4.8; } });
 for (const cable of CABLES.filter((c) => roomCables.has(c.id))) {
   const [title, text] = WIRE_COPY[cable.id];
   CHAPTERS.push({ id: `wire-${cable.id}`, title, text, wire: cable.id, view: cable.kind==='ac' ? 'service' : 'rear', script(c) { c.end = c.start + 6.1; } });
 }
-CHAPTERS.push({ id: 'zip-ties', title: 'Straps and zip ties',
-  text: 'Gather the spare leads without cutting them. Use loose zip ties on the rear rails. Close removable straps on the supported stock coils and the bricks.', view: 'rear',
+CHAPTERS.push({ id: 'snug-ties', title: 'Snug the ties',
+  text: 'Press each ONE-WRAP rail tie closed without crushing the bundle. One ONE-WRAP coil keeper per stock lead; Magnet Source hooks carry the spare coils. Bricks rest by gravity.', view: 'rear',
   script(c) { c.end = c.start + 6.2; } });
 CHAPTERS.push({ id: 'installed', title: 'Connected',
-  text: 'All plugs seated, factory leads intact, spare length coiled, and the board switch within reach.', view: 'installation',
+  text: 'All plugs seated, full leads intact and doors shut. Cables leave through the factory rear opening, never a door gap. No holes, cuts or adhesive on the unit.', view: 'installation',
   script(c) { c.end = c.start + 4.8; } });
 CHAPTERS.push({ id: 'room-view', title: 'Living room',
   text: 'The rack and TV unit face the sofa. Rotate the view, pause anywhere, or rewind a chapter to inspect the wiring.', view: 'room',
@@ -390,7 +392,7 @@ export function buildTimeline(data, chapterDefs = CHAPTERS) {
   for (const def of chapterDefs) {
     const c = new Chapter(nodes, t, chapters.length);
     def.script(c);
-    const end = c.end + HOLD_OUT;
+    const end = Math.round((c.end + HOLD_OUT)*1e9)/1e9;
     chapters.push({ index: chapters.length, id: def.id, title: def.title, text: def.text, start: t, end, wire: def.wire, view: def.view });
     t = end;
   }

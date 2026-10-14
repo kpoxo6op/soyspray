@@ -450,3 +450,36 @@ body {
     transition: none !important;
   }
 }
+
+/* Product labels stay attached to their models as the camera moves. */
+.kit-cards { position:absolute;inset:20px 24px auto;display:grid;grid-template-columns:230px 230px;justify-content:space-between;gap:18px;pointer-events:none; }
+.kit-cards[hidden] { display:none; }
+.kit-card { display:flex;flex-direction:column;gap:5px;padding:16px 18px;border:1px solid rgba(198,222,220,.2);border-radius:16px;background:linear-gradient(135deg,rgba(51,67,73,.7),rgba(17,23,29,.8));box-shadow:0 8px 30px rgba(0,0,0,.15);backdrop-filter:blur(18px);font-size:13px;pointer-events:auto; }
+.kit-card strong {font-size:15px;font-weight:620;} .kit-card span:not(.kit-count) {color:var(--ink-dim);}
+.kit-count {font-size:12px;letter-spacing:.06em;color:var(--accent);}
+.kit-card a,#partsSheet a {color:#bcd9d1;text-underline-offset:3px;font-size:12px;}
+.kit-leaders {position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:hidden;}
+.kit-leaders path {fill:none;stroke:rgba(173,207,196,.4);stroke-width:1;} .kit-leaders circle {fill:#ffab5c;}
+#partsSheet {width:min(620px,calc(100vw - 24px));max-height:calc(100dvh - 36px);margin:auto;padding:0;color:var(--ink);background:#171d22;border:1px solid #42504e;border-radius:20px;box-shadow:0 20px 80px #0009;overflow:hidden;}
+#partsSheet::backdrop {background:rgba(2,6,9,.72);backdrop-filter:blur(8px);}
+#partsSheet header {display:flex;align-items:center;justify-content:space-between;padding:22px 24px 18px;border-bottom:1px solid #ffffff14;}
+#partsSheet h2 {font-size:23px;margin:5px 0 0;font-weight:620;}
+.sheet-eyebrow {color:var(--accent);font-size:10px;letter-spacing:.15em;}
+#closeParts {color:var(--ink);font-size:26px;border:0;background:#ffffff0b;border-radius:50%;width:42px;height:42px;cursor:pointer;flex-shrink:0;}
+.sheet-body {padding:6px 24px 24px;overflow:auto;max-height:calc(100dvh - 144px);overscroll-behavior:contain;}
+.sheet-intro,.sheet-note,.assumptions {font-size:13px;line-height:1.55;color:var(--ink-dim);}
+#partsSheet h3 {font-size:15px;margin:24px 0 12px;color:#d9e8df;}
+.parts-list {list-style:none;padding:0;margin:0;} .parts-list li {display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #ffffff0b;font-size:14px;}
+.part-qty {flex:0 0 30px;font-variant-numeric:tabular-nums;color:var(--accent);}
+.parts-list p {margin:4px 0;color:var(--ink-dim);font-size:12px;}
+.assumptions {padding-left:18px;} .assumptions li {margin:8px 0;}
+@media(max-width:640px) {
+  .kit-cards {inset:12px 14px auto;grid-template-columns:1fr 1fr;gap:8px;}
+  .kit-card {padding:10px;border-radius:12px;gap:3px;font-size:11px;}
+  .kit-card strong {font-size:12px;} .kit-card a {font-size:10px;} .kit-count{font-size:10px;}
+  .controls {flex-wrap:wrap;height:auto;min-height:80px;gap:0;}
+  .controls>.group:first-child {justify-content:space-between;width:100%;}
+  .controls>.group:last-child {justify-content:flex-end;width:100%;}
+  #partsSheet header {padding:18px;} #partsSheet h2 {font-size:20px;}
+  .sheet-body {padding:4px 18px 20px;} .parts-list li {font-size:13px;}
+}

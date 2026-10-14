@@ -52,9 +52,9 @@ export function pointAt(pts, cum, s) {
   return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
 }
 
-export function tangentAt(pts, cum, s) {
+export function tangentAt(pts, cum, s, window = 2) {
   const total = cum[cum.length - 1];
-  return normalize3(sub3(pointAt(pts, cum, Math.min(total, s + 2)), pointAt(pts, cum, Math.max(0, s - 2))));
+  return normalize3(sub3(pointAt(pts, cum, Math.min(total, s + window)), pointAt(pts, cum, Math.max(0, s - window))));
 }
 
 /** The part of a polyline between arclengths s0 and s1, with exact cut points. */
@@ -91,52 +91,34 @@ export function resample(pts, n, out = []) {
 
 // ---------------------------------------------------------------- curves
 
-/**
- * Dense centripetal Catmull-Rom curve through `ctrl`. Optional start/end directions add phantom
- * points so the curve leaves and arrives along those directions.
- */
-export function spline(ctrl, { startDir = null, endDir = null, step = 3 } = {}) {
-  const n = ctrl.length;
-  if (n < 2) return ctrl.map((p) => [...p]);
-  const first = startDir
-    ? sub3(ctrl[0], scale3(normalize3(startDir), Math.max(8, len3(sub3(ctrl[1], ctrl[0])))))
-    : sub3(scale3(ctrl[0], 2), ctrl[1]);
-  const last = endDir
-    ? add3(ctrl[n - 1], scale3(normalize3(endDir), Math.max(8, len3(sub3(ctrl[n - 1], ctrl[n - 2])))))
-    : sub3(scale3(ctrl[n - 1], 2), ctrl[n - 2]);
-  const P = [first, ...ctrl, last];
-  const out = [[...ctrl[0]]];
-  for (let i = 1; i < P.length - 2; i++) {
-    const p0 = P[i - 1];
-    const p1 = P[i];
-    const p2 = P[i + 1];
-    const p3 = P[i + 2];
-    const t01 = Math.pow(len3(sub3(p1, p0)) || 1e-3, 0.5);
-    const t12 = Math.pow(len3(sub3(p2, p1)) || 1e-3, 0.5);
-    const t23 = Math.pow(len3(sub3(p3, p2)) || 1e-3, 0.5);
-    // tangents (Barry-Goldman form for centripetal Catmull-Rom)
-    const m1 = [0, 0, 0];
-    const m2 = [0, 0, 0];
-    for (let k = 0; k < 3; k++) {
-      m1[k] = t12 * ((p1[k] - p0[k]) / t01 - (p2[k] - p0[k]) / (t01 + t12) + (p2[k] - p1[k]) / t12);
-      m2[k] = t12 * ((p2[k] - p1[k]) / t12 - (p3[k] - p1[k]) / (t12 + t23) + (p3[k] - p2[k]) / t23);
-    }
-    const segLen = len3(sub3(p2, p1));
-    if (i === 1 && startDir) m1.splice(0, 3, ...scale3(normalize3(startDir), segLen));
-    if (i === P.length - 3 && endDir) m2.splice(0, 3, ...scale3(normalize3(endDir), segLen));
-    const steps = Math.max(2, Math.ceil(segLen / step));
-    for (let s = 1; s <= steps; s++) {
-      const t = s / steps;
-      const t2 = t * t;
-      const t3 = t2 * t;
-      const h00 = 2 * t3 - 3 * t2 + 1;
-      const h10 = t3 - 2 * t2 + t;
-      const h01 = -2 * t3 + 3 * t2;
-      const h11 = t3 - t2;
-      out.push([0, 1, 2].map((k) => h00 * p1[k] + h10 * m1[k] + h01 * p2[k] + h11 * m2[k]));
+/** Rounded routing polyline. Fillets stay inside each corner's control triangle,
+ * so smoothing cannot bulge into steel or reverse a moving connector at a tight join. */
+export function spline(ctrl, {startDir=null,endDir=null,step=2}={}) {
+  if(ctrl.length<2)return ctrl.map(p=>[...p]);
+  const controls=ctrl.map(p=>[...p]);
+  if(startDir)controls.splice(1,0,add3(controls[0],scale3(normalize3(startDir),12)));
+  if(endDir)controls.splice(controls.length-1,0,sub3(controls.at(-1),scale3(normalize3(endDir),12)));
+  const points=controls.filter((p,i)=>!i||len3(sub3(p,controls[i-1]))>.05);
+  const out=[points[0]];
+  const lineTo=p=>{
+    const from=out.at(-1),n=Math.max(1,Math.ceil(len3(sub3(p,from))/step));
+    for(let i=1;i<=n;i++)out.push(lerp3(from,p,i/n));
+  };
+  for(let i=1;i<points.length-1;i++){
+    const before=points[i-1],corner=points[i],after=points[i+1];
+    const incoming=normalize3(sub3(corner,before)),outgoing=normalize3(sub3(after,corner));
+    const turn=Math.acos(Math.max(-1,Math.min(1,dot3(incoming,outgoing))));
+    const cut=Math.min(24*Math.tan(turn/2),len3(sub3(corner,before))*.42,len3(sub3(after,corner))*.42);
+    if(cut<.1){lineTo(corner);continue;}
+    const a=sub3(corner,scale3(incoming,cut)),b=add3(corner,scale3(outgoing,cut));
+    lineTo(a);
+    const n=Math.max(6,Math.ceil(cut*2/step));
+    for(let j=1;j<=n;j++){
+      const t=j/n;
+      out.push([0,1,2].map(k=>(1-t)**2*a[k]+2*(1-t)*t*corner[k]+t*t*b[k]));
     }
   }
-  return out;
+  lineTo(points.at(-1));return out;
 }
 
 /** Cubic Hermite join from a (leaving along da) to b (arriving along db). */
@@ -260,12 +242,12 @@ function transportedUp(pts, cum, s, finalUp, direction) {
     ups = new Array(pts.length);
     const anchor = direction === 1 ? 0 : pts.length - 1;
     const increment = direction === 1 ? 1 : -1;
-    let n = scale3(tangentAt(pts, cum, cum[anchor]), direction);
+    let n = scale3(tangentAt(pts, cum, cum[anchor], 12), direction);
     let u = sub3(finalUp, scale3(n, dot3(finalUp, n)));
     if (len3(u) < 1e-5) u = cross3(n, [1, 0, 0]);
     ups[anchor] = normalize3(u);
     for (let i = anchor + increment; i >= 0 && i < pts.length; i += increment) {
-      const next = scale3(tangentAt(pts, cum, cum[i]), direction);
+      const next = scale3(tangentAt(pts, cum, cum[i], 12), direction);
       u = qrotate(qfromTo(n, next), ups[i - increment]);
       ups[i] = normalize3(sub3(u, scale3(next, dot3(u, next))));
       n = next;
@@ -279,14 +261,14 @@ function transportedUp(pts, cum, s, finalUp, direction) {
 /** Pose of a plug whose cable exit sits at arclength s on `pts`, leading along +s (plug B). */
 export function leadingPlugPose(pts, cum, s, up, len) {
   const exit = pointAt(pts, cum, s);
-  const t = tangentAt(pts, cum, Math.min(s, cum[cum.length - 1] - 1e-3));
+  const t = tangentAt(pts, cum, Math.min(s, cum[cum.length - 1] - 1e-3), 12);
   return plugPose(exit, scale3(t, -1), transportedUp(pts, cum, s, up, -1), len);
 }
 
 /** Pose of a plug whose cable leaves along +s from arclength s (plug A, trailing). */
 export function trailingPlugPose(pts, cum, s, up, len) {
   const exit = pointAt(pts, cum, s);
-  const t = tangentAt(pts, cum, s);
+  const t = tangentAt(pts, cum, s, 12);
   return plugPose(exit, t, transportedUp(pts, cum, s, up, 1), len);
 }
 

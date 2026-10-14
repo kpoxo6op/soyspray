@@ -83,7 +83,7 @@ test('start shows only the first chapter; end shows everything assembled', () =>
 });
 
 test('each chapter introduces its parts and leaves them assembled', () => {
-  for (const c of tl.chapters.filter(c => !c.wire && !['zip-ties','installed','room-view'].includes(c.id))) {
+  for (const c of tl.chapters.filter(c => !c.wire && !['retainer-kit','snug-ties','installed','room-view'].includes(c.id))) {
     const before = snapshot(Math.max(0, c.start - FADE - 0.01));
     // Sample before the next chapter's parts start fading in.
     const settled = snapshot(c.end - FADE - 0.01);

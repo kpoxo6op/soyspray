@@ -299,7 +299,7 @@ export function createUI({ root, player, timeline, viewer, reducedMotion, onUser
 
   // ---------------------------------------------------------- keyboard
   window.addEventListener('keydown', (e) => {
-    if (e.defaultPrevented) return;
+    if (e.defaultPrevented || document.getElementById('partsSheet')?.open) return;
     // Leave browser shortcuts alone (Ctrl/Cmd+R, Ctrl+F, Alt+letters ...); modifiers only combine with arrows.
     if ((e.ctrlKey || e.metaKey || e.altKey) && !e.key.startsWith('Arrow')) return;
     const tag = e.target?.tagName;
