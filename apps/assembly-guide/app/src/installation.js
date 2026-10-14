@@ -148,6 +148,7 @@ export class Installation {
     this.time=time;const state=installationState(this.timeline,time);
     this.room.visible=state.room>.001;
     this.room.userData.context.visible=time>=this.timeline.chapters.find(c=>c.id==='room-view').start-.6;
+    this.room.userData.socketWall.visible=!this.room.userData.context.visible;
     const installed=this.timeline.chapters.find(c=>c.id==='installed');
     const close=Math.max(0,Math.min(1,(time-installed.start)/2));
     this.room.userData.doors.forEach((door,i)=>{door.rotation.z=i===0?(Math.PI*.55)*(1-close*close*(3-2*close)):0;});

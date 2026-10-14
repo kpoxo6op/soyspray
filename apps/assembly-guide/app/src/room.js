@@ -15,7 +15,8 @@ export function buildLivingRoom() {
   function box(size,p,mat,parent=cabinet,panel=false) {
     const soft=mat===cloth||mat===cushion;
     const radius=soft?Math.min(42,Math.min(...size)/4):Math.min(1,Math.min(...size)/4);
-    const o=new Mesh(new RoundedBoxGeometry(...size,2,radius),mat);
+    const bevel=soft||mat===steel||mat===metal||mat===padMat;
+    const o=new Mesh(bevel?new RoundedBoxGeometry(...size,2,radius):new BoxGeometry(...size),mat);
     o.position.set(...p);o.receiveShadow=true;o.castShadow=true;parent.add(o);
     if(panel)panels.push(o);return o;
   }
@@ -48,7 +49,7 @@ export function buildLivingRoom() {
   for(const x of [UNIT.bodyX0+15,UNIT.bodyX1-15])for(const y of [UNIT.front+15,UNIT.back-15])
     box([30,30,100],[x,y,GROUND+50],steel);
   const socketWall=new Mesh(new BoxGeometry(1360,8,1100),new MeshStandardMaterial({color:0x68787b,roughness:1,transparent:true,opacity:.085,depthWrite:false}));
-  socketWall.position.set(500,ROOM.wallY+4,GROUND+550);root.add(socketWall);
+  socketWall.position.set(500,ROOM.wallY+4,GROUND+550);root.add(socketWall);root.userData.socketWall=socketWall;
   const doors=[];root.userData.doors=doors;
   for(let i=0;i<3;i++) {
     const width=edges[i+1]-edges[i]-UNIT.doorGap*2, height=470;
