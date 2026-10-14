@@ -324,13 +324,14 @@ export class Viewer {
   /** Apply the timeline state at time t. */
   setTime(t) {
     evaluate(this.timeline, t, this.state);
+    const inKit=this.timeline.chapters.some(c=>c.id==='retainer-kit'&&t>=c.start&&t<c.end);
     for (const [id, rec] of this.objects) {
       const s = this.state.get(id);
       rec.obj.position.set(s.p[0], s.p[1], s.p[2]);
       rec.obj.quaternion.set(s.q[0], s.q[1], s.q[2], s.q[3]);
       const kind = rec.node.kind;
       if (kind === 'group' || kind === 'screw') continue;
-      const visible = s.alpha > 0.004;
+      const visible = s.alpha > 0.004 && !(inKit&&rec.node.device?.room);
       if (rec.obj.visible !== visible) rec.obj.visible = visible;
       if (!visible) continue;
       const transparent = s.alpha < 0.995;
@@ -344,6 +345,10 @@ export class Viewer {
       }
       rec.obj.castShadow = s.alpha > 0.6;
     }
+    const placement=this.timeline.chapters.find(c=>c.id==='living-placement');
+    const f=Math.max(0,Math.min(1,(t-placement.start-1)/2.4));
+    const lift=t>=placement.start&&t<placement.end?38*(1-f*f*(3-2*f)):0;
+    for(const rec of this.objects.values())if(!rec.node.parent&&rec.node.kind!=='screw'&& !rec.node.device?.room)rec.obj.position.z+=lift;
     this.root.updateMatrixWorld(true);
     if (this.installation) {
       const state = this.installation.setTime(t);
@@ -351,6 +356,9 @@ export class Viewer {
       const frame = this.installation.camera();
       if (frame.key !== this.cameraKey) {
         this.cameraKey = frame.key;
+        const w=this.container.clientWidth||window.innerWidth,h=this.container.clientHeight||window.innerHeight;
+        const top=frame.key==='kit'&&h>w*1.15?210:0;
+        this.camera.setViewOffset(w,h,0,(this.bottomInset-top)/2,w,h);this.camera.updateProjectionMatrix();
         if (this.pristine) this.applyHomeView(!this.reducedMotion);
       }
     }
@@ -408,7 +416,8 @@ export class Viewer {
     this.camera.fov = portrait ? 40 : 30;
     this.camera.aspect = w / h;
     // Keep the content centred in the area above the transport bar.
-    this.camera.setViewOffset(w, h, 0, this.bottomInset / 2, w, h);
+    const top=this.installation?.camera().key==='kit'&&portrait?210:0;
+    this.camera.setViewOffset(w, h, 0, (this.bottomInset-top) / 2, w, h);
     this.camera.updateProjectionMatrix();
     if (this.pristine) this.applyHomeView(false);
     this.dirty = true;
@@ -432,7 +441,8 @@ export class Viewer {
     const camUp = new Vector3().crossVectors(dir, right).normalize();
     const tanV = Math.tan((this.camera.fov * Math.PI) / 360);
     const tanH = tanV * (w / h);
-    const tanVAvail = tanV * Math.max(0.35, 1 - this.bottomInset / h);
+    const top=frame?.key==='kit'&&h>w*1.15?210:0;
+    const tanVAvail = tanV * Math.max(0.35, 1 - (this.bottomInset+top) / h);
     let dist = 0;
     const v = new Vector3();
     for (let i = 0; i < 8; i++) {
@@ -449,6 +459,13 @@ export class Viewer {
   applyHomeView(animate) {
     const home = this.homeView();
     this.moveCamera(home.position, home.target, animate);
+  }
+
+  projectRackPoint(p) {
+    this.root.updateMatrixWorld(true);
+    const v=p.clone().applyMatrix4(this.root.matrixWorld).project(this.camera);
+    const rect=this.canvas.getBoundingClientRect();
+    return {x:(v.x+1)*rect.width/2,y:(1-v.y)*rect.height/2,visible:Math.abs(v.x)<1&&Math.abs(v.y)<1&&v.z<1};
   }
 
   resetView() {
@@ -526,6 +543,10 @@ export class Viewer {
   /** Advance camera easing and damping; returns true while the view still needs frames. */
   update(dt) {
     let active = false;
+    const frame=this.installation?.camera();
+    if(this.pristine&&frame?.key==='kit'&&!this.tween&&!this.reducedMotion){
+      const home=this.homeView();this.camera.position.copy(home.position);this.controls.target.copy(home.target);this.dirty=true;
+    }
     if (this.tween) {
       const tw = this.tween;
       tw.t = Math.min(1, tw.t + dt / tw.dur);

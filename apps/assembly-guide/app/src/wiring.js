@@ -1,14 +1,13 @@
 // Every lead in the installation: where it plugs in, the path it is dressed along, where its
-// spare length lives and which zip ties hold it. Coordinates are rack millimetres.
+// spare length lives and which ONE-WRAP ties hold it. Coordinates are rack millimetres.
 //
-// Stock leads keep their real length; only Ethernet is crimped to fit. Data runs down behind
-// the rear-left rail; the Lenovo DC leads come down, and the two adapter leads go up, behind the
-// rear-right rail; mains runs down the outside of the right-hand frame to the board; the uplink
-// and the Zigbee extension follow the skirting. Lanes are ordered so no lead crosses another.
+// Stock leads remain intact; only Ethernet is crimped to fit. Rear bundles lie against
+// the rail posts. Service leads use the factory rear opening, then roll over the uncut top.
+// Magnetic hooks carry compartment coils and the Zigbee extension on steel faces.
 
-import { DEVICE_BY_ID, DEVICES, FLOOR_Z, ROOM, SERVICE } from './layout.js';
+import { DEVICE_BY_ID, DEVICES, ROOM, UNIT } from './layout.js';
 import { portFrame, seatedPose, exitPoint } from './ports.js';
-import { add3, scale3, sub3, normalize3, qaxis, basisQuat } from './math.js';
+import { add3, scale3, normalize3, qaxis, basisQuat } from './math.js';
 import { spline, cumulative, polyLength, cableCentreline } from './cablepath.js';
 
 const ID_Q = [0, 0, 0, 1];
@@ -26,17 +25,17 @@ const psuSwitchPose = onBoardOutlet('L1', 20.5);
 const psuRouterPose = onBoardOutlet('L3', 15.5);
 
 // Double wall socket on the service wall (indicative position from the house model).
-export const WALL = { faceY: ROOM.wallY, plate: [300, ROOM.wallY - 14.5, -258], plateSize: [114, 12, 74] };
-const powerlinePose = { p: [328, WALL.plate[1] - 6 - 21, WALL.plate[2] - 30], q: basisQuat([0, -1, 0], [0, 0, 1]) };
+export const WALL = { faceY: ROOM.wallY, plate: [220, ROOM.wallY - 14.5, -378], plateSize: [114, 12, 74] };
+const powerlinePose = { p: [248, WALL.plate[1] - 6 - 21, WALL.plate[2] - 30], q: basisQuat([0, -1, 0], [0, 0, 1]) };
 
-// Proposed console; the feet sit on its top and the service bay stays open-backed.
-export const TV = { x0: -60, x1: 1740, y0: -60, y1: 390, top: FLOOR_Z };
-const zigEndPose = { p: [1270, 388, TV.top + 5], q: qaxis([0,0,1],Math.PI) };
-const zigPose = { p: [1270, 342, TV.top + 5.5], q: qaxis([0,0,1],Math.PI) };
+export const TV = { x0: UNIT.x0, x1: UNIT.x1, y0: UNIT.y0, y1: UNIT.y1, top: UNIT.top };
+const zigEndPose = { p: [1105, 218, TV.top + 7], q: qaxis([0,0,1],Math.PI) };
+const zigPose = { p: [1105, 172, TV.top + 7.5], q: qaxis([0,0,1],Math.PI) };
+export const ZIGBEE_SEPARATION_MM = 940; // maximum useful spacing on the provisional top, below 1 m
 
 export const PERIPHERALS = [
-  { id: 'psuSwitch', model: 'psuSwitch', size: [46, 40, 62], centre: psuSwitchPose.p, q: psuSwitchPose.q },
-  { id: 'psuRouter', model: 'psuRouter', size: [44, 30, 44], centre: psuRouterPose.p, q: psuRouterPose.q },
+  { id: 'psuSwitch', model: 'psuSwitch', size: [46, 40, 62], centre: psuSwitchPose.p, q: psuSwitchPose.q, room:true },
+  { id: 'psuRouter', model: 'psuRouter', size: [44, 30, 44], centre: psuRouterPose.p, q: psuRouterPose.q, room:true },
   { id: 'wallSocket', model: 'wallSocket', size: WALL.plateSize, centre: WALL.plate, q: ID_Q, room: true },
   { id: 'powerline', model: 'powerline', size: [60, 42, 110], centre: powerlinePose.p, q: powerlinePose.q, room: true },
   { id: 'zigbeeEnd', model: 'zigbeeEnd', size: [18, 40, 10], centre: zigEndPose.p, q: zigEndPose.q, room: true },
@@ -64,7 +63,6 @@ function frame(device, port) {
 const UP = [0, 0, 1];
 const DOWN = [0, 0, -1];
 const P = (x, y, z) => [x, y, z];
-const onFloor = (r) => FLOOR_Z + r + 0.5;
 
 /** Coil from `entry`, leaving along `heading`, centre towards `toCentre`, turns advancing along `stack`. */
 function coil(entry, heading, toCentre, stack, r, pitch, { b = r, tight = 0.9 } = {}) {
@@ -116,7 +114,7 @@ function cable(def) {
     out.plugs.a = { id: `${def.id}.a`, type: def.a.plug, port: def.a.at, frame: f, hover: def.a.hover };
   }
   const aStart = straight(aExit, aDir, aStraight);
-  out.aLead = join(aStart, spline([aStart.at(-1), ...def.aLead, def.coil.entry], { startDir: aDir, endDir: def.coil.V }));
+  out.aLead = join(aStart, spline([aStart.at(-1), ...def.aLead, def.coil.entry], { startDir: def.a.fixed ? null : aDir, endDir: def.coil.V }));
   out.aCum = cumulative(out.aLead);
   const fb = def.b.free || frame(...def.b.at);
   if (fb.type !== def.b.plug) throw new Error(`${def.id}: B plug ${def.b.plug} does not fit ${fb.type}`);
@@ -134,22 +132,42 @@ function cable(def) {
 const NODE_Z = [42, 92, 142]; // node centres
 const RJ_Z = NODE_Z.map((z) => z - 8.1);
 const ROW_Z = NODE_Z.map((z) => z - 6.6);
-const DATA_X = [18, 25, 32]; // eth0..eth2 in the data channel, behind the rear-left rail
-const DATA_Y = 228;
-const DC_X = [237, 231, 225]; // dc0..dc2 behind the rear-right rail
-const DC_Y = 226;
-const ADP_X = { sw: 214, rt: 205 }; // adapter leads, inside the DC channel
-const ADP_Y = 246;
-const AC_X = [286, 276, 266]; // brick0..2 leads down the outside of the right-hand frame
-const AC_Y = [246, 236, 226];
-const LANE = { sw: 275, rt: 287, wan: 299, zig: 319 }; // along the skirting
+export const RAILS = { left: { x0:12,x1:24,y0:179,y1:206 }, right: { x0:229,x1:241,y0:179,y1:206 } };
+const DATA_X = [15, 21, 27];
+const DATA_Y = 214;
+const DC_X = [233, 229, 225];
+// Every service lead crosses the low factory opening, then rises outside the back and top.
+export function serviceExit(i = 0) {
+  const x = UNIT.opening.x + (i - 2) * 4, z = UNIT.opening.z + (i % 2) * 6;
+  return [P(x,210,z), P(x,UNIT.back,z), P(x,268,z), P(x,268,z+32),
+    P(x,268,-60), P(x,268,16)];
+}
+export const COIL_MOUNTS = {
+  dc0: {face:'left',centre:[-43,-95,-425],radius:30},
+  dc1: {face:'left',centre:[-43,15,-425],radius:30},
+  dc2: {face:'left',centre:[-43,145,-425],radius:30},
+  ac0: {face:'inside-back',centre:[30,215,-440],radius:30},
+  ac1: {face:'inside-back',centre:[130,215,-440],radius:30},
+  ac2: {face:'inside-back',centre:[230,215,-440],radius:30},
+  swPower: {face:'inside-back',centre:[215,215,-355],radius:20},
+  routerPower: {face:'inside-back',centre:[65,215,-355],radius:20},
+  boardCord: {face:'partition',centre:[308,155,-425],radius:25},
+  spareCord: {face:'inside-back',centre:[925,215,-380],radius:35},
+  zigbee: {face:'back',centre:[1040,253,-85],radius:25},
+};
+function mountedCoil(id, pitch) {
+  const m=COIL_MOUNTS[id], [x,y,z]=m.centre, r=m.radius;
+  if (m.face==='left' || m.face==='partition')
+    return coil(P(x,y-r,z), UP, [0,1,0], [m.face==='left'?1:-1,0,0], r, pitch, {tight:1});
+  return coil(P(x-r,y,z), UP, [1,0,0], [0,m.face==='back'?1:-1,0], r, pitch, {tight:1});
+}
 
 // ---------------------------------------------------------------- data
 
 function nodeEthernet(i, port, laneY, laneZ) {
   const f = frame('switch', port);
   const x = f.pos[0];
-  const dropY = DATA_Y + i * 10;
+  const dropY = DATA_Y + i * 4;
   return cable({
     id: `eth${i}`, kind: 'data', colour: 0xe6e5e0, od: 6, custom: true,
     a: { plug: 'rj45', at: ['switch', port], hover: 20 },
@@ -167,7 +185,7 @@ function nodeEthernet(i, port, laneY, laneZ) {
   });
 }
 
-const eth = [nodeEthernet(2, 'p2', 244, 311), nodeEthernet(1, 'p3', 229, 299), nodeEthernet(0, 'p4', 214, 287)];
+const eth = [nodeEthernet(2, 'p2', 222, 311), nodeEthernet(1, 'p3', 218, 299), nodeEthernet(0, 'p4', 214, 287)];
 
 const lan = cable({
   id: 'lan', kind: 'data', colour: 0x2f6fd6, od: 6, custom: true,
@@ -178,44 +196,39 @@ const lan = cable({
   b: { plug: 'rj45', at: ['switch', 'p1'], hover: 20 },
 });
 
-// WAN descends the data rail, passes through the cable hole and ends at the wall adapter.
+// WAN stays outside the unit: straight up the wall gap from the wall adapter.
 const wan = cable({
   id:'wan',kind:'data',colour:0xf0c232,od:6,custom:true,room:true,
   a:{plug:'rj45',at:['router','wan'],hover:16},
-  aLead:[P(163.5,186,338),P(169,210,358)],
-  coil:coil(P(172,295,359),[-1,0,-0.3],DOWN,[0,1,0],26,6.4,{tight:1}),
-  route:[P(170,316,335),P(11,310,286),P(11,289,70),P(40,290,35),P(144,283,18),P(182,292,8),
-    P(186,300,-72),P(230,390,-75),P(365,390,-125),P(365,398,-430),P(328,408.5,-420)],
+  aLead:[P(163.5,186,338),P(200,222,350)],
+  coil:coil(P(220,244,350),[1,0,0],DOWN,[0,1,0],16,6.4,{tight:1}),
+  route:[P(248,292,330),P(248,310,260),P(248,310,-510),P(248,340,-545),P(248,373.5,-545)],
   b:{plug:'rj45',at:['powerline','eth'],hover:24},
 });
 
 // ---------------------------------------------------------------- USB
 
-function driveUsb(id, drive, nodePort, xDrop) {
-  const f = frame(drive, 'usb');
-  const x = f.pos[0];
-  const z = f.pos[2];
-  const nx = frame('node0', nodePort).pos[0];
+function driveUsb(id, drive, nodePort, zCoil) {
+  const f=frame(drive,'usb'), nx=frame('node0',nodePort).pos[0];
   return cable({
-    id, kind: 'data', colour: 0x1b1c1f, od: 4.5, stock: 460,
-    a: { plug: 'microB3', at: [drive, 'usb'], hover: 16 },
-    aLead: [P(x, 182, z + 8), P(x, 194, z + 12), P(x, 222, z + 4)],
-    coil: coil(P(x, 236, z - 10), DOWN, [-1, 0, 0], [0, 1, 0], 14, 5),
-    route: [P(xDrop, 240, z - 60), P(xDrop, 240, 130), P(xDrop, 240, 72), P(nx, 240, 46)],
-    b: { plug: 'usbA', at: ['node0', nodePort], hover: 22 },
+    id,kind:'data',colour:0x1b1c1f,od:4.5,stock:460,
+    a:{plug:'microB3',at:[drive,'usb'],hover:16},
+    aLead:[P(f.pos[0]-20,190,f.pos[2]+3)],
+    coil:coil(P(18,214,zCoil),[-1,0,0],[0,0,1],[0,1,0],10,4.8,{tight:1}),
+    route:[P(18,220,zCoil),P((18+nx)/2,245,(zCoil+ROW_Z[0])/2),P(nx,265,ROW_Z[0]+12)],
+    b:{plug:'usbA',at:['node0',nodePort],hover:22},
   });
 }
+const usbSeagate=driveUsb('usbSeagate','usbA','usbG2b',245);
+const usbTouro=driveUsb('usbTouro','usbB','usbG1a',120);
 
-const usbSeagate = driveUsb('usbSeagate', 'usbA', 'usbG2b', 78);
-const usbTouro = driveUsb('usbTouro', 'usbB', 'usbG1a', 158);
-
-// Uncut extension runs in clips along the rear edge, over a metre from the antennas.
-const zigbee = cable({
+// The extension hangs on magnetic hooks on the steel back, then rolls over the edge.
+const zigbee=cable({
   id:'zigbee',kind:'data',colour:0xeceae4,od:4,stock:1500,room:true,
   a:{fixed:['zigbeeEnd','cordOut']},
-  aLead:[P(1270,421,12),P(1235,418,18)],
-  coil:coil(P(1190,410,18),[-1,0,0],[0,-1,0],UP,30,4.2),
-  route:[P(1135,396,16),P(900,396,10),P(600,396,10),P(330,396,10),P(138,358,25),P(111.1,280,45),P(111.1,246,42)],
+  aLead:[P(1105,262,-13),P(1105,270,-60),P(1060,253,-75)],
+  coil:mountedCoil('zigbee',4.5),
+  route:[P(990,253,-60),P(760,253,-60),P(430,253,-60),P(111.1,266,-60),P(111.1,266,5),P(111.1,266,35.4)],
   b:{plug:'usbA',at:['node0','usbG1b'],hover:22},
 });
 
@@ -225,10 +238,10 @@ function brickDc(i) {
   return cable({
     id:`dc${i}`,kind:'dc',colour:0x24252a,od:4.5,stock:1800,
     a:{fixed:[`brick${i}`,'dcOut']},
-    aLead:[P(x,58,-347),P(x-48,82,-296)],
-    coil:coil(P(x-50,120,-205),UP,[1,0,0],[0,-1,0],50,5.2,{tight:1}),
-    route:[P(x+20,100,-110-i*25),P(150+i*22,190,-85-i*25),P(DC_X[i],280+i*8,-60-i*25),
-      P(DC_X[i],280+i*8,ROW_Z[i]-10),P(DC_X[i],260,ROW_Z[i]+12),P(DC_X[i]-7,248,ROW_Z[i]+18),P(206,242,ROW_Z[i]+3)],
+    aLead:[P(x,-110,-500),P(-43,-135,-480),P(-43,-135,-430)],
+    coil:mountedCoil(`dc${i}`,5.2),
+    route:[P(-25,220,-425),...serviceExit(i),
+      P(DC_X[i],245,20),P(DC_X[i],218,ROW_Z[i]+15),P(DC_X[i],218,ROW_Z[i]+45),P(DC_X[i],252,ROW_Z[i]+45),P(206,266,ROW_Z[i]+22),P(192.1,266,ROW_Z[i])],
     b:{plug:'slim',at:[`node${i}`,'power'],hover:24},
   });
 }
@@ -239,9 +252,9 @@ function brickAc(i) {
   return cable({
     id:`ac${i}`,kind:'ac',colour:0x27282c,od:7,stock:1000,
     a:{plug:'nz',at:['board',AC_OUTLET[i]],hover:22},
-    aLead:[P(402-i*7,300-i*12,f.pos[2]-35),P(402-i*7,280-i*14,-330-i*15),P(x-45,228+i*14,-345-i*15),P(x-45,266+i*14,-380)],
-    coil:coil(P(x-45,310,-382),[0,1,0],[1,0,0],UP,45,8,{tight:1}),
-    route:[P(x-10,360,-365),P(x-10,300,-365),P(x,280,-375)],
+    aLead:[P(280,f.pos[1],-260),P(300,222,-280),P(290,222,-395)],
+    coil:mountedCoil(`ac${i}`,8),
+    route:[P(x,170,-465),P(x,160,-495)],
     b:{plug:'c5',at:[`brick${i}`,'c5'],hover:20},
   });
 }
@@ -249,36 +262,36 @@ const ac=[0,1,2].map(brickAc);
 const swPower=cable({
   id:'swPower',kind:'dc',colour:0xefeee9,od:3.5,stock:1500,
   a:{fixed:['psuSwitch','dcOut']},
-  aLead:[P(232,373,-285),P(235,390,-300),P(20,390,-300),P(10,330,-205)],
-  coil:coil(P(20,268,-105),UP,[1,0,0],[0,-1,0],45,4.1,{tight:1}),
-  route:[P(90,245,-90),P(ADP_X.sw,304,-70),P(ADP_X.sw,304,30),P(ADP_X.sw,ADP_Y,262),P(206,238,299),P(193.5,205,291)],
+  aLead:[P(115,-10,-304),P(120,220,-295),P(195,222,-335)],
+  coil:mountedCoil('swPower',4.1),
+  route:[P(150,222,-380),...serviceExit(3),
+    P(237,248,26),P(237,218,120),P(237,218,240),P(210,225,290)],
   b:{plug:'barrel',at:['switch','dc'],hover:20},
 });
 const routerPower=cable({
   id:'routerPower',kind:'dc',colour:0x303136,od:4,stock:1500,
   a:{plug:'usbC',at:['psuRouter','usbc'],hover:16},
-  aLead:[P(235,311,-165),P(132,368,-191)],
-  coil:coil(P(130,340,-105),UP,[1,0,0],[0,-1,0],45,4.6,{tight:1}),
-  route:[P(180,320,-65),P(ADP_X.rt,318,-50),P(ADP_X.rt,318,30),P(ADP_X.rt,276,318),P(210,266,350),P(194,215,347)],
+  aLead:[P(80,220,-270),P(45,222,-335)],
+  coil:mountedCoil('routerPower',4.6),
+  route:[P(150,222,-380),...serviceExit(4),
+    P(241,248,26),P(241,222,120),P(241,222,310),P(210,232,347)],
   b:{plug:'usbC',at:['router','power'],hover:16},
 });
 const boardCord=cable({
   id:'boardCord',kind:'ac',colour:0xefeee9,od:7.5,stock:1500,room:true,
   a:{fixed:['board','cordOut']},
-  aLead:[P(310,381,-65),P(175,405,-70),P(150,432,-180),P(145,432,-350)],
-  coil:coil(P(155,418,-268),UP,[1,0,0],[0,-1,0],50,8.2,{tight:1}),
-  route:[P(221,408,-184),P(234,380,-220),P(256,392,-220)],
+  aLead:[P(190,220,-296),P(307,222,-365)],
+  coil:mountedCoil('boardCord',8.2),
+  route:[P(290,220,-425),P(150,222,-425),P(150,UNIT.back,-425),P(150,255,-425),P(192,310,-405),P(192,330,-395)],
   b:{plug:'nz',at:['wallSocket','L'],hover:22},
 });
-
-// Spare board stays unplugged; its complete stock cord and loose NZ plug are stowed.
 const spareCord=cable({
   id:'spareCord',kind:'ac',colour:0x27282c,od:7.5,stock:1500,room:true,
   a:{fixed:['spareBoard','cordOut']},
-  aLead:[P(735,240,-366),P(850,399,-366),P(1025,380,-378)],
-  coil:coil(P(1050,285,-383),[0,-1,0],[1,0,0],UP,50,8.2,{tight:1}),
-  route:[P(1150,280,-345),P(1190,295,-345)],
-  b:{plug:'nz',free:{type:'nz',pos:[1240,330,-355],n:[-1,0,0],u:UP},hover:12},
+  aLead:[P(745,120,-485),P(815,200,-440)],
+  coil:mountedCoil('spareCord',8.2),
+  route:[P(1020,170,-460),P(1040,120,-475)],
+  b:{plug:'nz',free:{type:'nz',pos:[1060,90,-480],n:[-1,0,0],u:UP},hover:12},
 });
 
 export const CABLES = [...eth, lan, usbSeagate, usbTouro, ...dc, ...ac, swPower, routerPower, boardCord, wan, zigbee, spareCord];

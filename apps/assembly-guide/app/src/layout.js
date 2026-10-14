@@ -7,8 +7,27 @@
 export const FLOOR_Z = -18; // underside of the rackFeet
 export const FRAME_TOP_Z = 400;
 export const TOP_Z = 400;
-export const HOUSE_FLOOR_Z = -518; // cabinet is 500 mm high; rack feet land at -18
-export const SERVICE = { x0: -35, x1: 415, y0: -15, y1: 385, floor: -393, roof: -43, hole: [215, 290], holeRadius: 40 };
+export const HOUSE_FLOOR_Z = -620;
+// Provisional older Nood locker, not the current Irvine. Rack feet rest on 2 mm loose pads.
+export const UNIT = {
+  x0: -70, x1: 1130, y0: -155, y1: 245, top: -20, topThickness: 25,
+  bodyX0: -65, bodyX1: 1125, front: -150, back: 240, bottom: -520,
+  steel: 2, leg: 30, clearance: 100, doorGap: 2.5, shelf: -310,
+  partitions: [331.6667, 728.3333], opening: { x: 150, z: -425, radius: 25 },
+  rackMassKg: 7, topRatingKg: 20, wallGap: 180,
+};
+export const SERVICE = { x0: -63, x1: 328, y0: -148, y1: 238, floor: -518, roof: -45 };
+export const PROVISIONAL = [
+  'Unit 1200 × 400 × 600 mm; top 25 mm, overhang 5 mm.',
+  'Four 30 mm square corner legs; floor clearance 100 mm.',
+  'Steel 2 mm; door gaps 2.5 mm; shelf height 310 mm above the floor.',
+  'Left factory rear opening Ø50 mm; centre 195 mm above the floor, 220 mm from the left edge. Verify it exists before assembly.',
+  'Wall gap 180 mm; socket centre 242 mm above the floor; adapter 60 × 42 × 110 mm and port position assumed.',
+  'Loaded rack mass estimated 7 kg against an assumed 20 kg top rating. Weigh the rack and confirm the rating.',
+  'Shelf depth 350 mm with a 30 mm rear gap; grip-mat pad thickness 2 mm; hook projection 28 mm assumed.',
+  'Equipment envelopes, stock lead lengths and bend radii are illustrative; check fit before dressing.',
+];
+export const PADS = [4.5, 204.5].map(y => ({ size: [253, 21, 2], p: [126.5, y, -19] }));
 export const RACK = { width: 253, depth: 209, bayHeight: 200 };
 
 // Inner tray area (world): x 34..215, y 3..187.
@@ -27,11 +46,11 @@ const node = (i) => ({
   centre: [TRAY_CX, TRAY_CY, LOWER_BASE[i] + 18.5],
 });
 
-// Three full-size bricks sit on the compartment floor, secured by removable straps.
-export const BRICK_X = [65, 175, 285];
+// Bricks rest by gravity on the steel floor, with 49 mm gaps.
+export const BRICK_X = [35, 130, 225];
 const brick = (i) => ({
   id: `brick${i}`, model: 'brick', size: [46, 112, 29],
-  centre: [BRICK_X[i], 150, SERVICE.floor + 14.5], room: true,
+  centre: [BRICK_X[i], 45, SERVICE.floor + 14.5], room: true,
 });
 
 export const DEVICES = [
@@ -47,8 +66,8 @@ export const DEVICES = [
   ...[0, 1, 2].map(brick),
   // Six sockets are established by the clear June hardware photo. Use this board,
   // with the hidden-count black board retained unpowered as a spare.
-  { id:'board',model:'board',size:[90,250,55],centre:[310,335,-225],q:[Math.SQRT1_2,0,0,Math.SQRT1_2],room:true },
-  { id:'spareBoard',model:'spareBoard',size:[60,360,40],centre:[950,200,-373],q:[0,0,Math.SQRT1_2,Math.SQRT1_2],room:true },
+  { id:'board',model:'board',size:[90,250,55],centre:[190,30,UNIT.shelf + 27.5],room:true },
+  { id:'spareBoard',model:'spareBoard',size:[60,360,40],centre:[940,25,SERVICE.floor + 20],q:[0,0,Math.SQRT1_2,Math.SQRT1_2],room:true },
 ];
 
 export const ANTENNA_TILT = 65; // authentic top plate blocks upright outer antennas; tilted rods clear below the rear bar
@@ -56,13 +75,11 @@ export const ANTENNA_TILT = 65; // authentic top plate blocks upright outer ante
 export const DEVICE_BY_ID = Object.fromEntries(DEVICES.map((d) => [d.id, d]));
 
 // ---------------------------------------------------------------- living room
-// House model axes (metres): X across the plan, Y from the kitchen to the garden end.
-// The rack stands against the service wall (house X = 1.2), front to the room, so
-// rack +x = house +Y, rack +y = house -X. ROOM.X0/Y0 place the rack origin.
+// Illustrative room context, independent of the unit fit.
 export const ROOM = {
-  X0: 1.66, // house X of the rack front plane (y = 0)
-  Y0: 6.4, // house Y of the rack's left side (x = 0)
-  wallY: 460, // service wall face in rack y (house X 1.200)
+  X0: 1.66,
+  Y0: 6.4,
+  wallY: UNIT.y1 + UNIT.wallGap,
   skirting: { depth: 16, height: 70 },
 };
 

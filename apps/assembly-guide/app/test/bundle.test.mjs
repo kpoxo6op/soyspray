@@ -4,6 +4,8 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { SITE } from './helpers.mjs';
+import { FASTENER_LINKS } from '../src/parts.js';
+import { SOURCES } from '../src/retainers.js';
 import { CHAPTERS } from '../src/timeline.js';
 
 const html = readFileSync(resolve(SITE, 'index.html'), 'utf8');
@@ -43,7 +45,8 @@ test('the bundle carries its own meshes and makes no network requests', () => {
   for (const pat of ['@import', 'url(', 'http:', 'https:']) assert.ok(!css.includes(pat), `app.css contains ${pat}`);
   const urls = [...new Set(js.match(/https?:\/\/[^"'`\s)]+/g) || [])];
   const allowed = [/^http:\/\/www\.w3\.org\//, /^https:\/\/jcgt\.org\//]; // XML namespace and a shader comment
-  for (const u of urls) assert.ok(allowed.some((re) => re.test(u)), `unexpected URL in bundle: ${u}`);
+  const purchaseLinks=Object.values(SOURCES).map(s=>s.url).concat(Object.values(FASTENER_LINKS),'https://github.com/jazwa/rackstack');
+  for (const u of urls) assert.ok(purchaseLinks.includes(u)||allowed.some((re) => re.test(u)), `unexpected URL in bundle: ${u}`);
   assert.ok(js.length > 500_000, 'three.js and mesh data are bundled');
 });
 
@@ -54,7 +57,7 @@ test('visible copy stays on the assembly task', () => {
     html.replace(/<[^>]+>/g, ' '),
   ].join('\n');
   const banned = [
-    /\bsources?\b/i, /\bagents?\b/i, /\bmodels?\b/i, /provenance/i, /warning/i, /caution/i, /\bheat\b/i, /thermal/i,
+    /\bagents?\b/i, /\bmodels?\b/i, /provenance/i, /warning/i, /caution/i, /\bheat\b/i, /thermal/i,
     /temperature/i, /verif/i, /\bprompt/i, /\bAI\b/, /claude/i, /gpt/i, /openscad/i, /\bscad\b/i, /\bCAD\b/,
     /photo/i, /inventory/i, /ikea/i, /clearance/i, /not tested/i, /\bTODO\b/,
   ];

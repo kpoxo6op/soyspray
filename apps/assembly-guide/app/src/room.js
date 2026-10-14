@@ -1,20 +1,24 @@
-import { Group, Mesh, BoxGeometry, CylinderGeometry, ExtrudeGeometry, Shape, Path, MeshStandardMaterial, DirectionalLight } from 'three';
+import { Group, Mesh, BoxGeometry, ExtrudeGeometry, Shape, Path, MeshStandardMaterial, MeshPhysicalMaterial, DirectionalLight, TubeGeometry, CatmullRomCurve3, Vector3, PlaneGeometry, CanvasTexture, MeshBasicMaterial } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { FLOOR_Z, HOUSE_FLOOR_Z as GROUND, ROOM, SERVICE, houseToRack } from './layout.js';
-import { TV } from './wiring.js';
+import { HOUSE_FLOOR_Z as GROUND, ROOM, UNIT, PADS, houseToRack } from './layout.js';
 
-// Current-house cutaway and proposed console. Provisional dimensions are in README.
 export function buildLivingRoom() {
-  const root=new Group(),context=new Group();root.add(context);root.userData.context=context;
-  const extension=new Group();root.add(extension);root.userData.extension=extension;
+  const root=new Group(),context=new Group(),cabinet=new Group();root.add(context,cabinet);
+  root.userData.context=context;root.userData.cabinet=cabinet;
+  const steel=new MeshPhysicalMaterial({color:0xa4b2a6,roughness:.78,metalness:.32,clearcoat:.12,clearcoatRoughness:.8});
+  const metal=new MeshStandardMaterial({color:0xbfc8c0,roughness:.4,metalness:.75});
   const oak=new MeshStandardMaterial({color:0xb19272,roughness:.83}),wood=new MeshStandardMaterial({color:0x997754,roughness:.68});
   const cloth=new MeshStandardMaterial({color:0x797b7d,roughness:.97}),cushion=new MeshStandardMaterial({color:0xa09c97,roughness:.96});
   const wall=new MeshStandardMaterial({color:0xd7d5ce,roughness:1,transparent:true,opacity:.055,depthWrite:false});
-  const white=new MeshStandardMaterial({color:0xcac7bf,roughness:.83}),strap=new MeshStandardMaterial({color:0x323d3d,roughness:.9}),metal=new MeshStandardMaterial({color:0x737d7e,roughness:.42,metalness:.55});
-  function box(size,p,mat,parent=root) {
-    const round=mat===cloth||mat===cushion;
-    const o=new Mesh(round?new RoundedBoxGeometry(...size,3,Math.min(42,Math.min(...size)/4)):new BoxGeometry(...size),mat);
-    o.position.set(...p);o.receiveShadow=true;o.castShadow=true;parent.add(o);return o;
+  const white=new MeshStandardMaterial({color:0xcac7bf,roughness:.83}),padMat=new MeshStandardMaterial({color:0x343e3d,roughness:.95});
+  const panels=[];root.userData.panels=panels;
+  function box(size,p,mat,parent=cabinet,panel=false) {
+    const soft=mat===cloth||mat===cushion;
+    const radius=soft?Math.min(42,Math.min(...size)/4):Math.min(1,Math.min(...size)/4);
+    const bevel=soft||mat===steel||mat===metal||mat===padMat;
+    const o=new Mesh(bevel?new RoundedBoxGeometry(...size,2,radius):new BoxGeometry(...size),mat);
+    o.position.set(...p);o.receiveShadow=true;o.castShadow=true;parent.add(o);
+    if(panel)panels.push(o);return o;
   }
   for(let y=-3670;y<ROOM.wallY;y+=180)box([5600,178,12],[450,y+89,GROUND-6.4],oak,context);
   box([5600,16,70],[450,ROOM.wallY-8,GROUND+35],white,context);
@@ -22,41 +26,61 @@ export function buildLivingRoom() {
   box([30,4000,70],[3250,-1570,GROUND+35],white,context);
   for(let y=-2940;y<=60;y+=1500)box([28,26,1900],[3250,y,GROUND+950],white,context);
   box([28,3026,26],[3250,-1440,GROUND+1900],white,context);
-  const cabinet=new Group();root.add(cabinet);
-  const cx=(TV.x0+TV.x1)/2,cy=(TV.y0+TV.y1)/2;
-  const top=new Shape();top.moveTo(TV.x0,TV.y0);top.lineTo(440,TV.y0);top.lineTo(440,TV.y1);top.lineTo(TV.x0,TV.y1);top.closePath();
-  const hole=new Path();hole.absarc(...SERVICE.hole,SERVICE.holeRadius,0,Math.PI*2,true);top.holes.push(hole);
-  const tm=new Mesh(new ExtrudeGeometry(top,{depth:25,bevelEnabled:false,curveSegments:48}),wood);tm.position.z=TV.top-25;tm.castShadow=true;tm.receiveShadow=true;cabinet.add(tm);
-  box([500,450,25],[190,cy,SERVICE.floor-12.5],wood,cabinet);
-  box([1300,450,25],[1090,cy,TV.top-12.5],wood,extension);
-  box([1300,450,25],[1090,cy,SERVICE.floor-12.5],wood,extension);
-  for(const x of [TV.x0+12.5,427.5])box([25,450,350],[x,cy,-218],wood,cabinet);
-  for(const x of [TV.x0+65,427.5,TV.x1-65])for(const y of [TV.y0+55,TV.y1-55])box([38,38,100],[x,y,GROUND+50],wood,x>440?extension:cabinet);
-  // No back panel in the service bay. No power-board daisy chain.
-  box([1265,420,25],[1095,cy,-205],wood,extension);
-  box([25,450,350],[TV.x1-12.5,cy,-218],wood,extension);
-  const door=new Group();door.position.set(-35,TV.y0-1,-218);root.add(door);root.userData.door=door;
-  for(let x=8;x<445;x+=20)box([12,18,334],[x,0,0],wood,door);
-  box([445,20,15],[222.5,0,-166],wood,door);box([445,20,15],[222.5,0,166],wood,door);box([8,25,50],[417,-13,0],metal,door);
-  const boardBands=new Group(),brickBands=new Group();root.add(boardBands,brickBands);root.userData.boardBands=boardBands;root.userData.brickBands=brickBands;
-  // Cleat attaches to the floor and end panel; its face supports the photographed board.
-  box([155,15,300],[337.5,370,-243],wood);
-  for(const z of [-342,-108]) {
-    box([96,12,3],[310,332,z],strap,boardBands);box([3,44,12],[262,348,z],strap,boardBands);box([3,44,12],[358,348,z],strap,boardBands);
-    for(const x of [262,358])box([16,3,16],[x,361,z],metal);
+  const cx=(UNIT.x0+UNIT.x1)/2,cy=(UNIT.front+UNIT.back)/2;
+  root.userData.top=box([UNIT.x1-UNIT.x0,UNIT.y1-UNIT.y0,UNIT.topThickness],[cx,(UNIT.y0+UNIT.y1)/2,UNIT.top-UNIT.topThickness/2],steel,cabinet,true);
+  box([1190,390,2],[cx,cy,UNIT.bottom+1],steel,cabinet,true);
+  for(const x of [UNIT.bodyX0+1,...UNIT.partitions,UNIT.bodyX1-1])
+    box([2,390,475],[x,cy,(UNIT.bottom-45)/2],steel,cabinet,true);
+  // One factory opening in the back. The top is a single solid slab.
+  const back=new Shape();back.moveTo(UNIT.bodyX0,UNIT.bottom);back.lineTo(UNIT.bodyX1,UNIT.bottom);
+  back.lineTo(UNIT.bodyX1,-45);back.lineTo(UNIT.bodyX0,-45);back.closePath();
+  const opening=new Path();opening.absarc(UNIT.opening.x,UNIT.opening.z,UNIT.opening.radius,0,Math.PI*2,true);back.holes.push(opening);
+  const rear=new Mesh(new ExtrudeGeometry(back,{depth:2,bevelEnabled:false,curveSegments:48}),steel);
+  rear.rotation.x=Math.PI/2;rear.position.y=UNIT.back;rear.castShadow=rear.receiveShadow=true;cabinet.add(rear);panels.push(rear);
+  root.userData.back=rear;
+  const edges=[UNIT.bodyX0,...UNIT.partitions,UNIT.bodyX1];
+  for(let i=0;i<3;i++) {
+    const lo=edges[i]+7,hi=edges[i+1]-7;
+    box([hi-lo,350,2],[(lo+hi)/2,35,UNIT.shelf-1],steel,cabinet,true);
+    for(const x of [lo+2,hi-2])for(const z of [-370,-310,-250])
+      box([2,9,4],[x,35,z],metal);
   }
-  for(const [x,y,z] of [[65,120,-155],[175,120,-155],[285,120,-155],[65,268,-60],[175,340,-60]]) {
-    box([25,25,3],[x,y,-44.5],metal);box([10,2,Math.max(4,-46-z)],[x,y+19,(-46+z)/2],strap);box([10,27,3],[x,y+8,z-2],metal);
-    const screw=new Mesh(new CylinderGeometry(2.5,2.5,2,12),metal);screw.rotation.x=Math.PI/2;screw.position.set(x,y,-46);root.add(screw);
+  // The folded side panels continue into four square corner legs. No middle legs.
+  for(const x of [UNIT.bodyX0+15,UNIT.bodyX1-15])for(const y of [UNIT.front+15,UNIT.back-15])
+    box([30,30,100],[x,y,GROUND+50],steel);
+  const socketWall=new Mesh(new BoxGeometry(1360,8,1100),new MeshStandardMaterial({color:0x68787b,roughness:1,transparent:true,opacity:.085,depthWrite:false}));
+  socketWall.position.set(500,ROOM.wallY+4,GROUND+550);root.add(socketWall);root.userData.socketWall=socketWall;
+  const doors=[];root.userData.doors=doors;
+  for(let i=0;i<3;i++) {
+    const width=edges[i+1]-edges[i]-UNIT.doorGap*2, height=470;
+    const door=new Group();door.position.set(edges[i+1]-UNIT.doorGap,UNIT.front,-282.5);cabinet.add(door);doors.push(door);
+    const face=new Shape();face.moveTo(-width,-height/2);face.lineTo(0,-height/2);face.lineTo(0,height/2);face.lineTo(-width,height/2);face.closePath();
+    for(const bank of [-120,110])for(let slot=0;slot<5;slot++) {
+      const z=bank+slot*11;
+      const hole=new Path();hole.moveTo(-145,z);hole.lineTo(-40,z);hole.lineTo(-40,z+5);hole.lineTo(-145,z+5);hole.closePath();face.holes.push(hole);
+      // A pressed return lip behind each opening gives real depth and a self shadow.
+      const lip=box([105,6,1],[-92.5,4,z+4],steel,door);lip.rotation.x=-.55;lip.receiveShadow=false;
+    }
+    const panel=new Mesh(new ExtrudeGeometry(face,{depth:2,bevelEnabled:true,bevelSize:.35,bevelThickness:.35,bevelSegments:2,steps:1}),steel);
+    panel.rotation.x=Math.PI/2;panel.castShadow=true;panel.receiveShadow=false;door.add(panel);panels.push(panel);
+    const x=-width+35;
+    const curve=new CatmullRomCurve3([new Vector3(x,-2,-35),new Vector3(x,-18,-30),new Vector3(x,-22,0),new Vector3(x,-18,30),new Vector3(x,-2,35)]);
+    const pull=new Mesh(new TubeGeometry(curve,24,4,10,false),metal);pull.castShadow=true;door.add(pull);
+    for(const z of [-180,180])box([5,5,22],[-2,0,z],metal,door);
   }
-  for(const x of [65,175,285]) {
-    box([42,72,1.2],[x,150,SERVICE.floor+.6],strap);box([55,12,2],[x,150,-348.8],strap,brickBands);
-    for(const dx of [-27,27])box([2,12,43],[x+dx,150,-371.5],strap,brickBands);
-    for(const dx of [-32,32])box([14,18,2],[x+dx,150,SERVICE.floor+1],metal);
+  const pads=new Group();root.add(pads);root.userData.pads=pads;
+  for(const p of PADS)box(p.size,p.p,padMat,pads);
+  // Soft contact shadows supplement the stage's directional shadows at both contact planes.
+  function contact(size,p,opacity,parent=root) {
+    const canvas=document.createElement('canvas');canvas.width=canvas.height=128;
+    const ctx=canvas.getContext('2d'),grad=ctx.createRadialGradient(64,64,0,64,64,64);
+    grad.addColorStop(0,`rgba(0,0,0,${opacity})`);grad.addColorStop(.6,`rgba(0,0,0,${opacity*.55})`);grad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grad;ctx.fillRect(0,0,128,128);
+    const o=new Mesh(new PlaneGeometry(...size),new MeshBasicMaterial({map:new CanvasTexture(canvas),transparent:true,depthWrite:false}));
+    o.position.set(...p);parent.add(o);
   }
-  for(const y of [12,197])box([192,12,1],[126.5,y,FLOOR_Z+.5],strap);
-  for(const x of [350,750,1150])box([20,12,12],[x,TV.y1-1,FLOOR_Z+6],metal,x>440?extension:root);
-  for(const [x,z] of [[63,224],[158,227.5]]) {box([6,70,4],[x,215,z-23],metal);box([6,4,28],[x,189,z-10],metal);}
+  contact([1340,480],[cx,45,GROUND+.2],.6);
+  contact([290,250],[126,104,UNIT.top+.2],.32);
   const sofa=houseToRack([4.2,7.2,0]);
   box([2220,1110,260],[sofa[0],sofa[1],GROUND+240],cloth,context);box([2220,190,610],[sofa[0],sofa[1]-455,GROUND+540],cloth,context);
   for(const x of [sofa[0]-1010,sofa[0]+1010])box([200,1110,530],[x,sofa[1],GROUND+395],cloth,context);

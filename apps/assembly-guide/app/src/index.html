@@ -33,6 +33,7 @@
           <div class="time"><span id="timeNow">0:00</span><span class="time-sep"> / </span><span id="timeTotal">0:00</span></div>
         </div>
         <div class="group">
+          <button id="btnParts" class="btn btn-text" type="button" aria-label="Parts and where to buy" title="Parts and where to buy">Parts</button>
           <button id="btnSpeed" class="btn btn-text" type="button" aria-label="Playback speed 1×" title="Playback speed">1×</button>
           <button id="btnView" class="btn" type="button" aria-label="Reset view" title="Reset view (V)"></button>
           <button id="btnFull" class="btn" type="button" aria-label="Full screen" title="Full screen (F)"></button>
@@ -40,6 +41,7 @@
       </div>
     </div>
   </div>
+  <dialog id="partsSheet" aria-labelledby="partsTitle"></dialog>
   <noscript><p class="noscript">This page needs JavaScript for the 3D view.</p></noscript>
 </main>
 <script src="app.js"></script>

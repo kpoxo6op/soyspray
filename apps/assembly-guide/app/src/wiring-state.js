@@ -5,7 +5,7 @@ const smooth = (t) => { const x = clamp(t, 0, 1); return x * x * (3 - 2 * x); };
 export function wireState(timeline, cable, time) {
   const chapter = timeline.chapters.find(c => c.wire === cable.id);
   const dt = time - chapter.start;
-  const ties = timeline.chapters.find(c => c.id === 'zip-ties');
+  const ties = timeline.chapters.find(c => c.id === 'snug-ties');
   return {
     alpha: smooth((dt - 0.1) / 0.45),
     sA: (cable.plugs.a?.hover || 0) * (1 - smooth((dt - 0.6) / 1.0)),
@@ -15,8 +15,8 @@ export function wireState(timeline, cable, time) {
   };
 }
 export function installationState(timeline, time) {
-  const room = timeline.chapters.find(c => c.id === 'power-bricks');
-  const ties = timeline.chapters.find(c => c.id === 'zip-ties');
+  const room = timeline.chapters.find(c => c.id === 'living-placement');
+  const ties = timeline.chapters.find(c => c.id === 'snug-ties');
   return { room: smooth((time - room.start) / 1.4), ties: smooth((time - ties.start - 0.2) / 4.2),
     wires: Object.fromEntries(CABLES.map(c => [c.id, wireState(timeline, c, time)])) };
 }

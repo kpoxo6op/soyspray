@@ -5,6 +5,7 @@ import { buildTimeline } from './timeline.js';
 import { decodeMeshes } from './meshes.js';
 import { Player } from './player.js';
 import { createUI } from './ui.js';
+import { createKitUI } from './kit-ui.js';
 import { Viewer } from './scene.js';
 
 const root = document.getElementById('app');
@@ -34,6 +35,8 @@ try {
 
 const ui = createUI({ root, player, timeline, viewer, reducedMotion, onUserActivity: () => schedule() });
 
+const kitUI=createKitUI({root,player,timeline,viewer});
+
 // Keep the 3D content centred in the area above the caption and transport bar.
 const caption = document.getElementById('caption');
 function syncInset() {
@@ -57,6 +60,7 @@ function frame(now) {
   if (player.tick(dt)) viewer.setTime(player.time);
   const cameraMoving = viewer.update(dt);
   if (viewer.dirty) viewer.render();
+  kitUI.update();
   if (player.playing || cameraMoving || viewer.tween) {
     raf = requestAnimationFrame(frame);
   } else {
