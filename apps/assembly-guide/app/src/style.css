@@ -483,3 +483,7 @@ body {
   #partsSheet header {padding:18px;} #partsSheet h2 {font-size:20px;}
   .sheet-body {padding:4px 18px 20px;} .parts-list li {font-size:13px;}
 }
+
+.layout-choice {display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:2px 0 4px;font-size:12px;color:var(--ink-dim);}
+.layout-choice select {appearance:auto;border:1px solid #ffffff22;border-radius:20px;background:#20282e;color:var(--ink);padding:7px 12px;font:600 12px var(--font);cursor:pointer;}
+.layout-choice select:focus-visible {outline:2px solid var(--accent);outline-offset:2px;}

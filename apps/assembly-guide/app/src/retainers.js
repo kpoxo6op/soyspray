@@ -1,5 +1,6 @@
 // Physical purchase parts shared by geometry, animation and the shopping sheet.
 import { CABLES, COIL_MOUNTS, RAILS } from './wiring.js';
+import { DRILLED } from './variant.js';
 import { UNIT } from './layout.js';
 import { cableCentreline, coilPoints } from './cablepath.js';
 import { clamp } from './math.js';
@@ -44,7 +45,7 @@ for(const c of CABLES.filter(c=>c.stock)) {
     RETAINERS.push({id:`hook-${c.id}`,kind:'hook',coil:c.id,face:m.face,wires:[c.id],p,n});
   }
 }
-for(const z of [-72,-277])RETAINERS.push({id:`hook-rise-${z}`,kind:'hook',face:'back',p:[150,UNIT.back,z],n:[0,1,0],wires:['dc0','dc1','dc2','swPower','routerPower']});
+for(const z of [-72,-277])RETAINERS.push({id:`hook-rise-${z}`,kind:'hook',face:'back',p:[DRILLED ? 150 : 233,UNIT.back,z],n:[0,1,0],wires:['dc0','dc1','dc2','swPower','routerPower']});
 for(const x of [430,760,1070])RETAINERS.push({id:`hook-zig-${x}`,kind:'hook',face:'back',p:[x,UNIT.back,-52],n:[0,1,0],wires:['zigbee']});
 
 export const RETAINER_COUNTS = {

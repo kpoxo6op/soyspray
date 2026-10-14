@@ -1,4 +1,5 @@
 import './style.css';
+import { VARIANT } from './variant.js';
 import placements from '../data/placements.json';
 import meshBytes from '../data/meshes.bin';
 import { buildTimeline } from './timeline.js';
@@ -16,6 +17,15 @@ const phone = window.matchMedia('(max-width: 700px), (pointer: coarse)').matches
 
 const timeline = buildTimeline(placements);
 const player = new Player(timeline);
+const variantControl = document.getElementById('layoutVariant');
+variantControl.value = VARIANT;
+variantControl.addEventListener('change', () => {
+  const url = new URL(window.location.href);
+  url.searchParams.set('layout', variantControl.value);
+  url.hash = `t=${player.time.toFixed(1)}`;
+  // Load a complete installation, preserving the playhead. No mixed scene state.
+  window.location.assign(url.href);
+});
 
 function readHashTime() {
   const m = /(?:^|[#&])t=(\d+(?:\.\d+)?)/.exec(window.location.hash);

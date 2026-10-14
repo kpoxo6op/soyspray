@@ -303,6 +303,7 @@ export function createUI({ root, player, timeline, viewer, reducedMotion, onUser
     // Leave browser shortcuts alone (Ctrl/Cmd+R, Ctrl+F, Alt+letters ...); modifiers only combine with arrows.
     if ((e.ctrlKey || e.metaKey || e.altKey) && !e.key.startsWith('Arrow')) return;
     const tag = e.target?.tagName;
+    if (['SELECT','INPUT','TEXTAREA'].includes(tag)) return;
     const onButton = tag === 'BUTTON';
     const k = e.key;
     let handled = true;

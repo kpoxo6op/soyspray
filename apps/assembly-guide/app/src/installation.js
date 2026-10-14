@@ -7,6 +7,7 @@ import { installationState } from './wiring-state.js';
 import { buildConnector } from './hardware.js';
 import { buildLivingRoom } from './room.js';
 import { RETAINERS, retainerState } from './retainers.js';
+import { DRILLED } from './variant.js';
 import { UNIT } from './layout.js';
 import { chapterAt } from './timeline.js';
 
@@ -151,7 +152,7 @@ export class Installation {
     this.room.userData.socketWall.visible=!this.room.userData.context.visible;
     const installed=this.timeline.chapters.find(c=>c.id==='installed');
     const close=Math.max(0,Math.min(1,(time-installed.start)/2));
-    this.room.userData.doors.forEach((door,i)=>{door.rotation.z=i===0?(Math.PI*.55)*(1-close*close*(3-2*close)):0;});
+    this.room.userData.doors.forEach((door,i)=>{door.rotation.z=DRILLED&&i===0?(Math.PI*.55)*(1-close*close*(3-2*close)):0;});
     for(const [material,original] of this.roomMaterials) {
       material.opacity=original.opacity*state.room;
       const transparent=original.transparent||material.opacity<.995;
@@ -173,6 +174,9 @@ export class Installation {
     const box = (min,max) => new Box3(new Vector3(...min),new Vector3(...max));
     if(c.view==='kit') {const dt=(this.time-c.start)/(c.end-c.start);return {key:'kit',box:box([-20,165,-110],[280,290,285]),view:{azimuth:2.85+dt*.08,elevation:.2}};}
     if (c.view === 'room') return {key:c.id,box:box([-2500,-3720,-520],[3670,490,580]),view:{azimuth:0.2,elevation:0.77}};
+    if (!DRILLED && c.wire === 'spareCord') return {key:'spare-board',box:box([700,80,-625],[1135,340,-285]),view:{azimuth:2.65,elevation:.2}};
+    if (!DRILLED && c.view === 'service') return {key:'floor-power',box:box([-30,0,-625],[670,355,-285]),view:{azimuth:2.9,elevation:.16}};
+    if (!DRILLED && (c.wire?.startsWith('dc') || ['swPower','routerPower','boardCord','wan'].includes(c.wire))) return {key:'power-wiring',box:box([-30,-20,-625],[670,355,440]),view:{azimuth:2.7,elevation:.18}};
     if (c.wire === 'spareCord') return {key:'spare-board',box:box([725,-190,-530],[1135,250,-295]),view:{azimuth:0.2,elevation:0.15}};
     if (c.view === 'service') return {key:'service',box:box([-85,-560,-535],[405,250,-35]),view:{azimuth:-0.35,elevation:0.16}};
     if (c.view === 'installation' || c.wire === 'zigbee') return {key:'installation',box:box([-90,-180,-625],[1140,430,440]),view:{azimuth:0.22,elevation:0.38}};

@@ -3,6 +3,7 @@
 // (x left -> right, y front -> rear, z up), offsets are expressed in the parent node's frame.
 
 import { add3, scale3, qaxis, qfromTo, lerp3, slerp, EASE, clamp } from './math.js';
+import { DRILLED } from './variant.js';
 import { DEVICES, ANTENNA_TILT } from './layout.js';
 import { CABLES, PERIPHERALS } from './wiring.js';
 
@@ -254,13 +255,13 @@ export const CHAPTERS = [
   {
     id: 'node-1',
     title: 'node-1',
-    text: 'Repeat the rear opening. Fit the ventilated tray on holes 6 and 10 with four M4×12, then slide node-1 in.',
+    text: 'Repeat the tray lip cut-out. Fit the ventilated tray on holes 6 and 10 with four M4×12, then slide node-1 in.',
     script: (c) => tier(c, 'tray.L1', [{ id: 'node1' }]),
   },
   {
     id: 'node-2',
     title: 'node-2',
-    text: 'Repeat the rear opening. Fit the ventilated tray on holes 11 and 15 with four M4×12, then slide node-2 in.',
+    text: 'Repeat the tray lip cut-out. Fit the ventilated tray on holes 11 and 15 with four M4×12, then slide node-2 in.',
     script: (c) => tier(c, 'tray.L2', [{ id: 'node2' }]),
   },
   {
@@ -292,20 +293,20 @@ export const CHAPTERS = [
   text: 'Lower the rack onto loose grip-mat pads, rear feet 30 mm from the edge. Estimated load 7 kg; top rating assumed 20 kg. Confirm both. No screws or adhesive.', view: 'installation',
   script(c) { c.show(['zigbeeEnd', 'zigbee','spareBoard']); c.move('spareBoard',HOLD_IN,2.3,{from:[0,-380,25]}); c.end = c.start + 4.8; } },
   {
-    id: 'power-bricks', title: 'Bricks in the service bay', view: 'service',
-    text: 'Lay the three Lenovo bricks on the steel compartment floor, with a gap between them. They rest by gravity; keep the full leads intact.',
+    id: 'power-bricks', title: DRILLED ? 'Bricks in the service bay' : 'Power under the unit', view: 'service',
+    text: DRILLED ? 'v1 only: one drilled Ø50 mm hole in the left back panel. Deburr it and fit a 50 mm cable grommet. Rest the bricks on the steel floor, with gaps.' : 'Rest the three Lenovo bricks on the room floor under the rear half. Leave gaps between them. All doors stay shut; nothing goes through the unit.',
     script(c) {
-      ['brick0', 'brick1', 'brick2'].forEach((id, i) => { c.showAt([id], 1 + i * 0.65); c.move(id, 1.2 + i * 0.65, 2.1, { from: [0, -160, 30], via: [0, 0, 12] }); });
+      ['brick0', 'brick1', 'brick2'].forEach((id, i) => { c.showAt([id], 1 + i * 0.65); c.move(id, 1.2 + i * 0.65, 2.1, { from: [0, DRILLED ? -160 : 120, DRILLED ? 30 : 6], via: [0, 0, DRILLED ? 12 : 6] }); });
     },
   },
   {
     id: 'power-board',
     title: 'Power board', view: 'service',
-    text: 'Rest the six-outlet board on the steel shelf, switch toward the door. Plug the adapters into its end outlets.',
+    text: DRILLED ? 'v1 only: rest the six-outlet board on the steel shelf, switch toward the door. Plug the adapters into its end outlets.' : 'Rest the six-outlet board on the room floor, switch reachable from behind. Its two adapters sit clear of the bricks. Keep the cupboards empty of connected equipment.',
     script(c) {
       c.show(['board', 'wallSocket', 'powerline']);
-      c.move('board', HOLD_IN, 2.4, { from: [45, -120, 0] });
-      ['psuSwitch', 'psuRouter'].forEach((id, i) => { c.showAt([id], 3.8 + i * 1.3); c.move(id, 4 + i * 1.3, 1.2, { from: [60, -40, 35] }); });
+      c.move('board', HOLD_IN, 2.4, { from: [45, DRILLED ? -120 : -80, 0] });
+      ['psuSwitch', 'psuRouter'].forEach((id, i) => { c.showAt([id], 3.8 + i * 1.3); c.move(id, 4 + i * 1.3, 1.2, { from: [60, DRILLED ? -40 : 40, DRILLED ? 35 : 8] }); });
     },
   },
 ];
@@ -320,18 +321,27 @@ export const WIRE_COPY = {
   lan: ['Router to switch', 'Connect OpenWrt LAN to the switch. Both sockets are at the rear; the cable bends clear of the trays.'],
   usbSeagate: ['Seagate USB', 'Plug the stock USB 3 lead into the Seagate and node-0. A ONE-WRAP coil keeper wraps the spare and the rear-left rail.'],
   usbTouro: ['Touro USB', 'Connect the second stock USB lead to the Touro and another rear USB port on node-0. A ONE-WRAP coil keeper holds it to the rear-left rail.'],
-  dc0: ['node-0 power lead', 'Pay out the full Lenovo DC lead from its coil. Magnet Source hooks carry it through the factory opening; ONE-WRAP rail ties hold it on the right rail. Seat the slim-tip plug in node-0.'],
+  dc0: ['node-0 power lead', 'Pay out the full Lenovo DC lead from its coil. Magnet Source hooks carry it through the drilled Ø50 mm hole (v1 only); ONE-WRAP rail ties hold it on the right rail. Seat the slim-tip plug in node-0.'],
   dc1: ['node-1 power lead', 'Keep the second Lenovo lead intact. Its spare hangs on a Magnet Source hook while the slim tip travels to node-1.'],
-  dc2: ['node-2 power lead', 'Route the third full DC lead through the factory opening and ONE-WRAP rail ties; connect node-2.'],
+  dc2: ['node-2 power lead', 'Route the third full DC lead through the drilled Ø50 mm hole (v1 only) and ONE-WRAP rail ties; connect node-2.'],
   ac0: ['First mains lead', 'Connect the first NZ mains lead to the board and the brick’s cloverleaf inlet. Hang the spare with a ONE-WRAP coil keeper on a Magnet Source hook.'],
   ac1: ['Second mains lead', 'Connect the second stock mains lead, with a ONE-WRAP coil keeper and Magnet Source hook inside the steel compartment.'],
   ac2: ['Third mains lead', 'Connect the third stock mains lead. Hang the spare with a ONE-WRAP coil keeper on its Magnet Source hook.'],
   swPower: ['Switch power', 'Unwind the switch adapter’s full lead from its Magnet Source hook and seat the barrel plug at the switch’s rear.'],
-  routerPower: ['Router power', 'Connect the full USB-C lead through the factory opening. Magnet Source hooks and ONE-WRAP rail ties carry it to the router.'],
-  boardCord: ['Wall power', 'Run the board’s full mains cord to the wall. Use the factory rear opening; hang the spare with a ONE-WRAP coil keeper on a Magnet Source hook.'],
+  routerPower: ['Router power', 'Connect the full USB-C lead through the drilled Ø50 mm hole (v1 only). Magnet Source hooks and ONE-WRAP rail ties carry it to the router.'],
+  boardCord: ['Wall power', 'Run the board’s full mains cord to the wall. Use the drilled Ø50 mm hole (v1 only); hang the spare with a ONE-WRAP coil keeper on a Magnet Source hook.'],
   wan: ['House uplink', 'Place the powerline adapter directly in the wall socket. Connect its Ethernet port to OpenWrt WAN straight up the wall gap.'],
   zigbee: ['Zigbee extension', 'Rest the Zigbee dongle at the far end of the top. Magnet Source hooks carry its extension. About 940 mm from the nearest antenna here: the maximum useful spacing, below 1 m.'],
 };
+if(!DRILLED) Object.assign(WIRE_COPY, {
+  spareCord:['Spare board and cord','Park the unused board under the right rear end, unplugged. Its full cord has one ONE-WRAP coil keeper on an outside Magnet Source hook.'],
+  dc0:['node-0 power lead','Pay out the full Lenovo DC lead. Outside Magnet Source hooks carry it up the wall gap and over the back edge; ONE-WRAP rail ties hold it at node-0.'],
+  dc1:['node-1 power lead','Keep the second Lenovo lead intact. Its ONE-WRAP coil keeper hangs on an outside Magnet Source hook; the lead rolls over the back edge to node-1.'],
+  dc2:['node-2 power lead','Route the full DC lead up the outside Magnet Source hooks and over the back edge. Close the ONE-WRAP rail ties, then connect node-2.'],
+  ac1:['Second mains lead','Connect the second stock mains lead below the unit. A ONE-WRAP coil keeper and outside Magnet Source hook carry its spare.'],
+  routerPower:['Router power','Run the full USB-C lead up the outside Magnet Source hooks, over the back edge and through ONE-WRAP rail ties to the router.'],
+  boardCord:['Wall power','Run the full board cord through the wall gap to the socket. An outside Magnet Source hook and ONE-WRAP coil keeper carry its spare. Nothing enters the cupboards.'],
+});
 const roomCables = new Set(['boardCord', 'wan', 'zigbee', 'spareCord']);
 for (const cable of CABLES.filter((c) => !roomCables.has(c.id))) {
   const [title, text] = WIRE_COPY[cable.id];
@@ -345,7 +355,7 @@ CHAPTERS.push({ id: 'snug-ties', title: 'Snug the ties',
   text: 'Press each ONE-WRAP rail tie closed without crushing the bundle. One ONE-WRAP coil keeper per stock lead; Magnet Source hooks carry the spare coils. Bricks rest by gravity.', view: 'rear',
   script(c) { c.end = c.start + 6.2; } });
 CHAPTERS.push({ id: 'installed', title: 'Connected',
-  text: 'All plugs seated, full leads intact and doors shut. Cables leave through the factory rear opening, never a door gap. No holes, cuts or adhesive on the unit.', view: 'installation',
+  text: DRILLED ? 'v1: full leads pass through one drilled Ø50 mm hole, deburred and fitted with a cable grommet. Doors shut; no lead in a door gap. Optional modification.' : 'v2: all plugs seated and full leads intact. Power stays on the room floor; Magnet Source hooks carry leads outside and over the back edge. Doors shut. No holes or leads through the unit.', view: 'installation',
   script(c) { c.end = c.start + 4.8; } });
 CHAPTERS.push({ id: 'room-view', title: 'Living room',
   text: 'The rack and TV unit face the sofa. Rotate the view, pause anywhere, or rewind a chapter to inspect the wiring.', view: 'room',
