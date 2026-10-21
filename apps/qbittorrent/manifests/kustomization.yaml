@@ -10,10 +10,17 @@ resources:
   - pvc-downloads.yaml
   - deployment.yaml
   - service.yaml
+  - service-peers.yaml
   - ingress.yaml
   - pvc-config.yaml
-  - configmap.yaml
   - bootstrap-job.yaml
+
+# The init container copies this file over the live config at every start.
+# The generated name changes with the content, so edits restart the pod.
+configMapGenerator:
+  - name: qbittorrent-conf
+    files:
+      - qBittorrent.conf
 
 labels:
   - pairs:

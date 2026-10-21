@@ -275,6 +275,9 @@ def test_prometheus_and_qbittorrent_have_no_direct_web_load_balancer_bypass() ->
     assert qbittorrent["type"] == "ClusterIP"
     assert "loadBalancerIP" not in qbittorrent
 
+    peers = load_yaml("apps/qbittorrent/manifests/service-peers.yaml")["spec"]
+    assert {(port["port"], port["targetPort"]) for port in peers["ports"]} == {(49160, 49160)}
+
 
 def test_authentik_role_mounts_proxy_configuration_and_argo_owns_the_apps() -> None:
     tasks = (ROOT / "apps/authentik/bootstrap/tasks/main.yml").read_text()
