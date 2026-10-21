@@ -52,12 +52,13 @@ announces, so `qBittorrent.conf` sets no announce IP.
 ```sh
 kubectl -n media get svc qbittorrent-peers     # EXTERNAL-IP 192.168.20.30
 ssh openwrt 'ifstatus wan | jsonfilter -e "@[\"ipv4-address\"][0].address"'
-curl -s https://portcheck.transmissionbt.com/49160; echo   # 1 = open from outside
+curl -s -4 https://portcheck.transmissionbt.com/49160; echo   # 1 = open from outside
 ```
 
-The status bar in the web UI shows a green connection icon when peers reach
-the port. The Peers tab of a seeding torrent lists inbound peers with the `I`
-flag.
+Keep `-4`: on the dual-stack LAN the checker otherwise tests the laptop's IPv6
+address and reports 0. The Peers tab of a seeding torrent lists inbound peers
+with the `I` flag (`I P` over uTP). The green status icon is not proof, because
+uTP hole punching turned it green even behind CGNAT.
 
 ## Create a password hash
 
