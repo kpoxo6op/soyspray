@@ -1,0 +1,23 @@
+# BitTorrent peer port. OpenWrt forwards TCP and UDP 49160 on the public
+# static IPv4 to this address. Local traffic policy keeps real peer addresses.
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-peers
+  namespace: media
+spec:
+  type: LoadBalancer
+  loadBalancerIP: 192.168.20.30
+  externalTrafficPolicy: Local
+  allocateLoadBalancerNodePorts: false
+  ports:
+    - name: peers-tcp
+      port: 49160
+      targetPort: 49160
+      protocol: TCP
+    - name: peers-udp
+      port: 49160
+      targetPort: 49160
+      protocol: UDP
+  selector:
+    app: qbittorrent

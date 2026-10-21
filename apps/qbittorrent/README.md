@@ -1,8 +1,8 @@
 # qBittorrent (Raw K8s Manifests)
 
-Router port forwarding and the dedicated BitTorrent peer LoadBalancer are
-disabled after the house move because this upstream connection has no static
-public IP.
+qBittorrent downloads and seeds into `/downloads` on `node-0`. The web UI is
+<https://torrent.soyspray.vip> behind Authentik; the native API stays on
+`/api/v2`.
 
 admin / 123
 
@@ -12,18 +12,52 @@ including:
 1. Namespace `media`
 2. PVCs for config and downloads
 3. A Deployment with environment variables and resource limits
-4. A LAN-only web UI Service of type LoadBalancer with IP 192.168.20.30
+4. A ClusterIP web UI Service behind the ingress
+5. The `qbittorrent-peers` LoadBalancer at 192.168.20.30, TCP and UDP 49160
+6. `qBittorrent.conf`, copied over the live config at every pod start
 
 The `media-downloads` claim is bound to a static local PersistentVolume at
 `/srv/media/downloads` on `node-0`. Prepare and mount the USB disk on the host
 before syncing this app.
 
-## Validation Steps
+## Peer port
 
-1. Wait for the Service to assign the LoadBalancer IP **192.168.20.30**.
-2. Visit <http://192.168.20.30:8080> in the browser.
-3. Log into qBittorrent (default user/pass is usually admin/adminadmin or per image doc).
-4. Torrent peer reachability is intentionally out of scope on the new network.
+Mercury gives the home connection a static public IPv4 address. OpenWrt gets
+it by DHCP on VLAN 10 (`network.wan.proto='dhcp'`, device `eth0.10`); the old
+PPPoE login only returns a shared CGNAT address. The router forwards the peer
+port to the LoadBalancer, which keeps real peer addresses
+(`externalTrafficPolicy: Local`):
+
+```sh
+ssh openwrt '
+uci set firewall.qbittorrent_k8s=redirect
+uci set firewall.qbittorrent_k8s.name=qbittorrent-k8s
+uci set firewall.qbittorrent_k8s.src=wan
+uci set firewall.qbittorrent_k8s.src_dport=49160
+uci set firewall.qbittorrent_k8s.dest=lan
+uci set firewall.qbittorrent_k8s.dest_ip=192.168.20.30
+uci set firewall.qbittorrent_k8s.dest_port=49160
+uci set firewall.qbittorrent_k8s.proto="tcp udp"
+uci set firewall.qbittorrent_k8s.family=ipv4
+uci set firewall.qbittorrent_k8s.target=DNAT
+uci commit firewall && fw4 check && /etc/init.d/firewall reload'
+```
+
+Back up the router first with `sysupgrade -b` into the ignored
+`.router-backups/` folder. Trackers see the static address as the source of
+announces, so `qBittorrent.conf` sets no announce IP.
+
+## Checks
+
+```sh
+kubectl -n media get svc qbittorrent-peers     # EXTERNAL-IP 192.168.20.30
+ssh openwrt 'ifstatus wan | jsonfilter -e "@[\"ipv4-address\"][0].address"'
+curl -s https://portcheck.transmissionbt.com/49160; echo   # 1 = open from outside
+```
+
+The status bar in the web UI shows a green connection icon when peers reach
+the port. The Peers tab of a seeding torrent lists inbound peers with the `I`
+flag.
 
 ## Create a password hash
 
@@ -56,7 +90,7 @@ kubectl patch application qbittorrent -n argocd -p '{"metadata":{"finalizers":[]
 kubectl delete deployment qbittorrent -n media
 kubectl delete job qbittorrent-bootstrap -n media
 kubectl delete service qbittorrent qbittorrent-peers -n media
-kubectl delete configmap qbittorrent-conf -n media
+kubectl delete configmap -n media -l app=qbittorrent
 kubectl delete ingress qbittorrent-ingress -n media
 kubectl delete pvc qbittorrent-config media-downloads -n media
 ```
