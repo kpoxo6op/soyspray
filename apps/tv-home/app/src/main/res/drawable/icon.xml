@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Four rounded squares, the home screen's own mark. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path android:fillColor="#7B4DFF" android:pathData="M20,20h24v24h-24z" />
+    <path android:fillColor="#FF1E3C" android:pathData="M52,20h24v24h-24z" />
+    <path android:fillColor="#FF7A3C" android:pathData="M20,52h24v24h-24z" />
+    <path android:fillColor="#8890A0" android:pathData="M52,52h24v24h-24z" />
+</vector>
