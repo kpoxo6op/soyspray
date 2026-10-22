@@ -85,6 +85,9 @@ public class MainActivity extends Activity {
         float dp = getResources().getDisplayMetrics().density;
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
+        // Lets Chrome DevTools attach over adb when the site changes; only adb's
+        // shell user can open the socket.
+        WebView.setWebContentsDebuggingEnabled(true);
         web = new WebView(this);
         web.setBackgroundColor(Color.BLACK);
         WebSettings settings = web.getSettings();
