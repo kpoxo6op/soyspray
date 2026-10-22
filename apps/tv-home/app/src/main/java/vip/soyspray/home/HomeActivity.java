@@ -373,6 +373,9 @@ public class HomeActivity extends Activity {
         guide.setVisibility(View.VISIBLE);
         guide.animate().alpha(1f).setDuration(200).start();
         guide.requestFocus();
+        // Only the video stays behind the guide; the home text would show through.
+        chrome.animate().alpha(0f).setDuration(200).withEndAction(() ->
+                chrome.setVisibility(View.INVISIBLE)).start();
     }
 
     private void picked(Live.Channel picked) {
