@@ -24,16 +24,21 @@ public class MainActivity extends Activity {
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
                     + "Chrome/98.0.4758.101 Safari/537.36";
 
-    // Start with sound, hide the chat and queue panels, and reload when no
-    // video has advanced for a minute. OK on the remote toggles the panels.
+    // Start with sound, hide the splash, the end-of-event banner and the chat
+    // and queue panels, and reload when no video has advanced for a minute.
+    // OK on the remote toggles the panels.
     private static final String KIOSK = """
             (() => {
               if (window.soyKiosk) return;
               window.soyKiosk = true;
               const byId = (id) => document.getElementById(id);
               const start = () => {
+                // The splash is position: fixed, so offsetParent is always null;
+                // clicking it removes it.
                 const splash = byId('splash');
-                if (splash && splash.offsetParent !== null) splash.click();
+                if (splash) splash.click();
+                const ended = byId('endbanner');
+                if (ended) ended.remove();
                 const mute = byId('mute');
                 if (mute && /unmute/i.test(mute.textContent)) mute.click();
               };
