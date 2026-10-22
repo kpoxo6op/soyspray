@@ -8,7 +8,7 @@ The PostSync job reconciles one M3U account, one guide source, and one Streamlin
 
 The managed Streamlink profile prefers `720p50`, `720p`, `480p50`, and `480p` before `best`. This gives 25 Region a 720p50 preference. The setting selects an upstream rendition. It does not transcode video.
 
-The reconcile job uses that Streamlink profile only when a channel contains a `streamlink_page` source. A channel made only from `direct_hls` sources uses Dispatcharr's locked `ffmpeg` profile. FFmpeg copies the original codecs into MPEG-TS and preserves the timeline across declared HLS discontinuities. This keeps Infinite Slop's separate generated clips continuous for Jellyfin without re-encoding them.
+The reconcile job uses that Streamlink profile only when a channel contains a `streamlink_page` source. A channel made only from `direct_hls` sources uses Dispatcharr's locked `ffmpeg` profile. FFmpeg copies the original codecs into MPEG-TS and preserves the timeline across declared HLS discontinuities. This keeps streams with declared discontinuities continuous for Jellyfin without re-encoding them.
 
 The job requires Dispatcharr's normal URL stream identity setting. It stops with a clear error if that global setting was changed. It does not rewrite global stream identity or the default profile for unmanaged accounts.
 
