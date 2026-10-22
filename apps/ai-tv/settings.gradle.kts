@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "infinite-slop-tv"
+rootProject.name = "ai-tv"
 include(":app")

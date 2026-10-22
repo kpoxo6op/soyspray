@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "vip.soyspray.infiniteslop"
+    namespace = "vip.soyspray.aitv"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "vip.soyspray.infiniteslop"
+        applicationId = "vip.soyspray.aitv"
         minSdk = 26
         targetSdk = 35
         versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
