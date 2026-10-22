@@ -86,8 +86,12 @@
   let page = { ok() {}, step() {}, name: () => '', gate: () => false, tick() {} };
 
   if (location.hostname === 'fal.live') {
-    // Mouse-only controls; the remote and the TV's own volume replace them.
-    css('button[aria-label="Open menu"],button[aria-label^="Turn sound"]{display:none!important}');
+    // The stage fills the screen over the site's banner and footer once the
+    // entry dialog is gone. Mouse-only controls are hidden; the remote and the
+    // TV's own volume replace them.
+    css('body.soy-stage section#live{position:fixed!important;inset:0!important;'
+      + 'z-index:2147483000!important;background:#000!important}'
+      + 'button[aria-label="Open menu"],button[aria-label^="Turn sound"]{display:none!important}');
     const consent = () => {
       const dialog = document.querySelector('dialog[open]');
       return dialog && [...dialog.querySelectorAll('button')].find((b) => text(b) === 'Enter');
@@ -117,7 +121,9 @@
       // Sound is a player setting, not a terms prompt, so it starts as soon as
       // the site offers it.
       tick() {
-        if (consent()) return;
+        const gate = !!consent();
+        document.body.classList.toggle('soy-stage', !gate);
+        if (gate) return;
         const b = buttons().find((x) => text(x) === 'Enter with sound' && shown(x));
         if (b) b.click();
       },

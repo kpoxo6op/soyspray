@@ -60,10 +60,13 @@ public class MainActivity extends Activity {
 
     // Twitch plays an embed only inside a page from the domain it names as parent.
     private static final String TWITCH_BASE = "https://soyspray.vip/";
+    // soyRetry reloads the player when its page fails to load, up to five times.
     private static final String TWITCH_PAGE = "<!doctype html><body style=\"margin:0;background:#000\">"
             + "<iframe src=\"https://player.twitch.tv/?channel=watchmeforever&parent=soyspray.vip"
             + "&autoplay=true&muted=false\" allow=\"autoplay; fullscreen\" style=\"position:fixed;"
-            + "inset:0;width:100vw;height:100vh;border:0\"></iframe></body>";
+            + "inset:0;width:100vw;height:100vh;border:0\"></iframe><script>let tries=0;"
+            + "window.soyRetry=()=>{if(tries++<5)setTimeout(()=>{const f=document.querySelector("
+            + "'iframe');f.src=f.src},2000*tries)}</script></body>";
 
     // The sites lay out their large-screen views for desktop browsers.
     private static final String DESKTOP_AGENT =
@@ -150,6 +153,8 @@ public class MainActivity extends Activity {
                     WebView view, WebResourceRequest request, WebResourceError error) {
                 if (request.isForMainFrame()) {
                     handler.postDelayed(() -> open(network), 10_000);
+                } else if ("player.twitch.tv".equals(request.getUrl().getHost())) {
+                    view.evaluateJavascript("window.soyRetry && soyRetry()", null);
                 }
             }
 
