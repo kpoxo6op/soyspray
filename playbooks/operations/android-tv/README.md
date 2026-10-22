@@ -63,8 +63,9 @@ allowed so casting keeps working.
 ## Limits
 
 AirPlay is a persistent Sony app that starts even when disabled and crash-loops
-without the Vewd engine, so both stay enabled. Couchy stays installed as a
-fallback launcher in case the home screen app is removed.
+without the Vewd engine, so both stay enabled. No other launcher is installed:
+if the home screen app breaks, `adb shell pm enable com.google.android.tvlauncher`
+brings Google's home screen back.
 Sony firmware updates may rename screens; `tv_ui.py` then fails with the visible
 texts. A factory reset needs the remote for setup, Developer options and the
 first ADB approval before this playbook can run again.

@@ -23,7 +23,7 @@ and opts out of advertising personalisation.
 ## Apps
 
 The home screen (`apps/tv-home`), SmartTube, the official Jellyfin client,
-SmartTwitchTV and the Infinite Slop app (`apps/infinite-slop-tv`) are pinned in
+SmartTwitchTV and AI TV (`apps/ai-tv`) are pinned in
 `playbooks/operations/android-tv/living-room-tv.yml` by version, SHA-256 and
 signing certificate. SmartTwitchTV is the TV-remote Twitch client; ReVanced
 Twitch is built for phones. SmartTube comes from F-Droid because the upstream README
