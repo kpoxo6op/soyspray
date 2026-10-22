@@ -23,6 +23,7 @@ def test_project_covers_only_existing_stateless_workload_kinds():
         ("", "Service"),
         ("apps", "Deployment"),
         ("networking.k8s.io", "NetworkPolicy"),
+        ("networking.k8s.io", "Ingress"),
     }
     assert project["spec"]["clusterResourceWhitelist"] == []
     assert application["spec"]["destination"] in project["spec"]["destinations"]
