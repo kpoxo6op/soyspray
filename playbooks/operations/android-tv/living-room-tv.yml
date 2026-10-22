@@ -1,0 +1,99 @@
+---
+# Desired state of the living-room Sony KD-65X8500G (Android TV 10).
+# sync-android-tv.yml enforces it over network ADB from the laptop.
+
+android_tv:
+  name: sony-tv
+  address: 192.168.20.232
+  mac: "38:18:4c:36:bf:cf"
+  adb_port: 5555
+  product: BRAVIA_UR2_4K_PA
+
+# Disabled for user 0 with `pm disable-user`. `pm enable PACKAGE` restores one.
+# Keep com.vewd.core.service and com.sony.dtv.airplayapp enabled: AirPlay is a
+# persistent system app that starts even when disabled and crash-loops without
+# the Vewd engine.
+android_tv_disabled_packages:
+  # Streaming and store apps that are not used here
+  - com.netflix.ninja
+  - com.netflix.partner.ncm
+  - com.amazon.amazonvideo.livingroom
+  - com.apple.atve.sony.appletv
+  - com.google.android.youtube.tv
+  - com.google.android.youtube.tvmusic
+  - com.google.android.videos
+  - com.google.android.play.games
+  - com.android.vending
+  - android.autoinstalls.config.sony.bravia
+  # Advertising, promotions and recommendation feeds
+  - com.google.android.tvlauncher
+  - com.sony.dtv.sonyselect
+  - com.sony.dtv.promos
+  - com.sony.dtv.bivlinfo
+  - com.sony.dtv.livingfit
+  - com.sony.dtv.smarthelp
+  - com.google.android.tvrecommendations
+  - com.google.android.backdrop
+  # Viewing analytics, telemetry, remote support and cloud agents
+  - tv.samba.ssm
+  - com.sony.dtv.interactivetvutil
+  - com.sony.dtv.interactivetvutil.output
+  - com.sony.dtv.usercontext
+  - com.sonyericsson.idd.agent
+  - com.sony.dtv.sonybugreportsys
+  - com.sony.dtv.customersupport
+  - com.sony.dtv.da.service
+  - com.qterics.da.product
+  - com.sony.dtv.seeds.auth
+  - com.sony.dtv.seeds.iot
+  - com.uei.quicksetsdk.sony
+  - com.google.android.feedback
+  - com.google.android.tv.bugreportsender
+  # Voice assistant, broadcast interactivity, HomeKit and retail demos
+  - com.google.android.katniss
+  - com.sony.dtv.assistantadapter
+  - com.sony.dtv.hbbtvplayer
+  - com.vewd.core.integration.dia
+  - com.sony.dtv.homekit
+  - com.sony.dtv.multiscreendemo
+  - com.sony.dtv.demosupport
+
+# Android settings written with `settings put NAMESPACE KEY VALUE`.
+android_tv_settings:
+  - {namespace: secure, key: screensaver_enabled, value: "0"}
+  - {namespace: secure, key: location_mode, value: "0"}
+  - {namespace: global, key: wifi_scan_always_enabled, value: "0"}
+  - {namespace: global, key: ble_scan_always_enabled, value: "0"}
+  - {namespace: global, key: package_verifier_enable, value: "0"}
+  - {namespace: global, key: verifier_verify_adb_installs, value: "0"}
+
+# Options that exist only as settings screens. `open` is an intent action and
+# `path` the rows to enter; `label` names the toggle row, or `*` for a screen
+# with one toggle.
+android_tv_screen_switches:
+  - {name: Remote start, open: android.settings.WIFI_SETTINGS, path: [], label: Remote start, state: "on"}
+  - {name: Google usage and diagnostics, open: android.settings.SETTINGS, path: [Privacy, Usage & diagnostics], label: "*", state: "off"}
+  - {name: Ads personalisation opt-out, open: android.settings.SETTINGS, path: [Privacy, Ads], label: Opt out of Ads Personalisation, state: "on"}
+
+# Couchy, an open-source launcher without ads or tracking, replaces the Google
+# home screen.
+android_tv_home: com.conreo.couchytv/.MainActivity
+
+# Installed when the TV lacks this version name. The download must match
+# `sha256`, and its signing certificate must match `signer_sha256`.
+android_tv_apps:
+  - package: app.smarttube.fdroid
+    version_name: "32.56"
+    url: https://f-droid.org/repo/app.smarttube.fdroid_2446.apk
+    sha256: 04884ce41c43671120fbaa81bc8953dfb617380dc038f12aca649a3d5b446a33
+    signer_sha256: 33791872daccf601a31bd73d329245f80f69044f76e1a794586fb857f09deaa8
+  - package: org.jellyfin.androidtv
+    version_name: "0.19.10"
+    url: https://github.com/jellyfin/jellyfin-androidtv/releases/download/v0.19.10/jellyfin-androidtv-v0.19.10-release.apk
+    sha256: 8510a517c99927076082917f41bf306dd7a2546c59d492dd11bde18d6e2e4628
+    signer_sha256: d881796ed2a67ff6ef9f676828723c6b1fa18e09388962cba4abc4a594a69131
+  - package: com.conreo.couchytv
+    version_name: "1.0.6"
+    url: https://f-droid.org/repo/com.conreo.couchytv_7.apk
+    sha256: 5afcfd21635fd81ae155999766f3dd8c11d511d76a8be2af9b3e4d1663876c12
+    signer_sha256: 54fab15e1c7500bbea288a89204277efb8244ba81e84c8f98d4cd9c3c18379eb

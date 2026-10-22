@@ -1,0 +1,50 @@
+---
+# Let LAN-only devices open *.soyspray.vip.
+# OpenWrt answers those names with its Tailscale address 100.96.77.28 and
+# forwards ports 80 and 443 to the ingress VIP. A LAN client's forwarded
+# connection also needs its source rewritten to the router, or the ingress
+# replies straight to the client and the connection times out.
+- name: Set the OpenWrt LAN ingress hairpin
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    hairpin_section: soyspray_lan_hairpin
+    ingress_vip: 192.168.20.20
+    lan_subnet: 192.168.20.0/24
+    router_lan_ip: 192.168.20.1
+  tasks:
+    - name: Add the router to this run
+      ansible.builtin.add_host:
+        name: openwrt
+        ansible_host: "{{ router_lan_ip }}"
+        ansible_user: root
+        ansible_connection: ssh
+      changed_when: false
+
+    - name: Rewrite forwarded LAN connections to the ingress VIP
+      ansible.builtin.raw: >-
+        s={{ hairpin_section }};
+        if [ "$(uci -q get firewall.$s.dest_ip)" = "{{ ingress_vip }}" ] &&
+        [ "$(uci -q get firewall.$s.snat_ip)" = "{{ router_lan_ip }}" ];
+        then echo hairpin-unchanged; else
+        uci set firewall.$s=nat &&
+        uci set firewall.$s.name='soyspray-lan-hairpin' &&
+        uci set firewall.$s.family='ipv4' &&
+        uci set firewall.$s.src='lan' &&
+        uci set firewall.$s.src_ip='{{ lan_subnet }}' &&
+        uci set firewall.$s.dest_ip='{{ ingress_vip }}' &&
+        uci set firewall.$s.proto='tcp' &&
+        uci set firewall.$s.target='SNAT' &&
+        uci set firewall.$s.snat_ip='{{ router_lan_ip }}' &&
+        uci commit firewall && fw4 reload && echo hairpin-set; fi
+      delegate_to: openwrt
+      register: hairpin
+      changed_when: "'hairpin-set' in hairpin.stdout"
+
+    - name: Read the generated rule
+      ansible.builtin.raw: nft list chain inet fw4 srcnat_lan
+      delegate_to: openwrt
+      register: srcnat
+      changed_when: false
+      failed_when: srcnat.stdout is not search('soyspray-lan-hairpin')

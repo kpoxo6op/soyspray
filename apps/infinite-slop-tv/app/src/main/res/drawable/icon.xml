@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A red screen with a play mark and an infinity loop. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path
+        android:fillColor="#E53935"
+        android:pathData="M18,8L78,8A10,10 0,0 1,88 18L88,78A10,10 0,0 1,78 88L18,88A10,10 0,0 1,8 78L8,18A10,10 0,0 1,18 8Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,24L64,40L38,56Z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:pathData="M48,70C42,62 26,62 26,70C26,78 42,78 48,70C54,62 70,62 70,70C70,78 54,78 48,70Z" />
+</vector>

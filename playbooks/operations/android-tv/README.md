@@ -1,0 +1,64 @@
+# Living-room Android TV
+
+`sync-android-tv.yml` brings the living-room Sony KD-65X8500G (Android TV 10)
+to the state declared in `living-room-tv.yml`: Sony and Google advertising,
+tracking, remote-support and voice packages off, privacy settings, Remote
+start, and pinned SmartTube and Jellyfin builds. It also reserves the TV's
+address on OpenWrt. Change the TV by editing `living-room-tv.yml` and running
+the playbook; do not change it by hand.
+
+## Normal use
+
+Run from the laptop, whose ADB key the TV trusts:
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook playbooks/operations/android-tv/sync-android-tv.yml
+```
+
+The run is safe to repeat. A second run reports no changes. It wakes the
+screen, walks a few settings screens with the D-pad, then returns home.
+
+To upgrade an app, replace its `version_name`, `url`, `sha256` and, only if the
+publisher changed its key, `signer_sha256`. SmartTube comes from F-Droid because
+its README warns that some upstream builds may have been compromised; F-Droid
+builds it from source and signs it with the pinned key. Jellyfin comes from the
+official GitHub release, whose API publishes the SHA-256.
+
+## Checks
+
+The playbook fails when the address answers as a different product, a download
+or its signing certificate differs from the pin, a declared package is still
+enabled, or any app crashes within 20 seconds of the changes.
+
+```bash
+adb connect 192.168.20.232:5555
+adb -s 192.168.20.232:5555 shell pm list packages -d
+adb -s 192.168.20.232:5555 exec-out screencap -p > tv.png
+```
+
+## Access
+
+ADB stays enabled so the laptop and Home Assistant can control the TV. Each
+client key needs one "Allow USB debugging?" approval on the TV with "Always
+allow" ticked; a client that already has ADB can press it with
+`tv_ui.py SERIAL switch '*' on` and `tv_ui.py SERIAL select ALLOW`.
+Revoke keys in Developer options if a client is retired.
+
+LAN-only devices reach `*.soyspray.vip` through OpenWrt's LAN ingress hairpin;
+see `../networking/set-lan-ingress-hairpin.yml`.
+
+## Limits
+
+AirPlay is a persistent Sony app that starts even when disabled and crash-loops
+without the Vewd engine, so both stay enabled. The Google home screen stays
+until a replacement launcher is installed; it still shows Google promotions.
+Sony firmware updates may rename screens; `tv_ui.py` then fails with the visible
+texts. A factory reset needs the remote for setup, Developer options and the
+first ADB approval before this playbook can run again.
+
+## Rollback
+
+`adb shell pm enable PACKAGE` re-enables a package, `adb uninstall PACKAGE`
+removes an app, and `uci delete dhcp.sony_tv && uci commit dhcp` on the router
+drops the reservation. Revert the commit so the next run does not reapply it.

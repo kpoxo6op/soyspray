@@ -17,6 +17,7 @@ Network setup and tooling playbooks.
 - install-tailscale.yml - Install Tailscale VPN
 - remove-tailscale.yml - Remove Tailscale VPN
 - publish-headlamp-token.yml - Generate and publish Headlamp token
+- set-lan-ingress-hairpin.yml - Let LAN-only devices open `*.soyspray.vip` through OpenWrt
 
 ### storage/
 Storage initialization and management playbooks.
@@ -29,6 +30,11 @@ Storage initialization and management playbooks.
 Security playbooks.
 
 - sync-certificates.yml - Synchronize TLS certificates across namespaces
+
+### android-tv/
+
+[Living-room Android TV](android-tv): debloat, privacy settings, pinned apps
+and the router reservation, kept as declared state and synced over ADB.
 
 ### boys/
 

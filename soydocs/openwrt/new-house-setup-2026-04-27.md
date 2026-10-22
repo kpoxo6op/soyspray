@@ -1205,6 +1205,11 @@ soyspray-lan-http         lan       100.96.77.28:80  -> 192.168.20.20:80
 soyspray-lan-https        lan       100.96.77.28:443 -> 192.168.20.20:443
 ```
 
+The LAN redirects also need the `soyspray-lan-hairpin` source NAT rule from
+`playbooks/operations/networking/set-lan-ingress-hairpin.yml`. Without it, a
+LAN-only device such as the TV times out, because the ingress replies directly
+instead of through the router. Added 22 October 2026.
+
 Verification from the laptop:
 
 ```text

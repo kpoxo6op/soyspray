@@ -41,6 +41,13 @@ Current TP-Link Smart Home entries added through Home Assistant:
   - `sensor.tapo_t100_signal_level`
   - `siren.tapo_h100`
 
+The living-room Sony TV at `192.168.20.232` uses the Android Debug Bridge
+integration as device `Living Room TV` in the Living Room area, with
+`media_player.living_room_tv` and `remote.living_room_tv`. Home Assistant keeps
+its own ADB key in the PVC; the TV approved it once with "Always allow". If the
+PVC is restored elsewhere or the TV is reset, approve the new prompt on the TV
+as described in `playbooks/operations/android-tv/README.md`.
+
 The bootstrap ConfigMap keeps HA's declarative automations, scripts, and scenes
 that depend on these entities, including the Tapo Relax light behavior.
 
