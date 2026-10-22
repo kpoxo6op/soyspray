@@ -28,3 +28,24 @@ test. Keep transcripts/audio and detailed runtime evidence outside this public
 repository. Run `pytest tests/test_network_glitch.py` and Ansible syntax/lint checks
 before delivery. Rollback means leaving this opt-in operation unused; a running
 outage restores locally even if the controller disconnects.
+
+# LAN ingress hairpin
+
+OpenWrt answers `*.soyspray.vip` with its Tailscale address `100.96.77.28` and
+forwards ports 80 and 443 to the ingress VIP `192.168.20.20`. A device on the
+LAN without Tailscale, such as the living-room TV, reaches that forward from
+the LAN side. `set-lan-ingress-hairpin.yml` adds the matching source NAT, so
+the ingress replies through the router instead of straight to the device, which
+would otherwise drop the reply and time out.
+
+```bash
+source soyspray-venv/bin/activate
+ansible-playbook playbooks/operations/networking/set-lan-ingress-hairpin.yml
+```
+
+The run is safe to repeat and reloads the firewall only when it adds the rule.
+Check it from a LAN-only device, for example the TV's Jellyfin client reaching
+`https://tv.soyspray.vip`; a Tailscale client such as the laptop always uses the
+Tailscale path and drops replies from Tailscale addresses on its LAN interface.
+Remove it with `uci delete firewall.soyspray_lan_hairpin && uci commit firewall
+&& fw4 reload` on the router.

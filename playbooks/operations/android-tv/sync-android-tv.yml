@@ -1,0 +1,198 @@
+---
+# Bring the living-room Android TV to the state declared in living-room-tv.yml.
+# Runs from the laptop, whose ADB key the TV already trusts. Safe to repeat.
+- name: Sync the living-room Android TV
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - living-room-tv.yml
+  vars:
+    tv_serial: "{{ android_tv.address }}:{{ android_tv.adb_port }}"
+    tv_section: "{{ android_tv.name | replace('-', '_') }}"
+    tv_cache: "{{ lookup('ansible.builtin.env', 'HOME') }}/.cache/soyspray/android-tv"
+    tv_ui: python3 -I {{ playbook_dir }}/tv_ui.py {{ tv_serial }}
+  tasks:
+    - name: Add the router to this run
+      ansible.builtin.add_host:
+        name: openwrt
+        ansible_host: 192.168.20.1
+        ansible_user: root
+        ansible_connection: ssh
+      changed_when: false
+
+    - name: Reserve the TV address on the router
+      ansible.builtin.raw: >-
+        if [ "$(uci -q get dhcp.{{ tv_section }}.mac)" = "{{ android_tv.mac }}" ] &&
+        [ "$(uci -q get dhcp.{{ tv_section }}.ip)" = "{{ android_tv.address }}" ];
+        then echo unchanged; else
+        uci set dhcp.{{ tv_section }}=host &&
+        uci set dhcp.{{ tv_section }}.name='{{ android_tv.name }}' &&
+        uci set dhcp.{{ tv_section }}.mac='{{ android_tv.mac }}' &&
+        uci set dhcp.{{ tv_section }}.ip='{{ android_tv.address }}' &&
+        uci commit dhcp && /etc/init.d/dnsmasq reload && echo reserved; fi
+      delegate_to: openwrt
+      register: tv_reservation
+      changed_when: "'reserved' in tv_reservation.stdout"
+
+    - name: Connect to the TV over network ADB
+      ansible.builtin.command: adb connect {{ tv_serial }}
+      register: tv_connect
+      changed_when: false
+      failed_when: tv_connect.stdout is not search('connected to')
+
+    - name: Check that the address still belongs to this TV
+      ansible.builtin.command: adb -s {{ tv_serial }} shell getprop ro.product.name
+      register: tv_product
+      changed_when: false
+      failed_when: tv_product.stdout | trim != android_tv.product
+
+    - name: Wake the screen for settings screens
+      ansible.builtin.command: adb -s {{ tv_serial }} shell input keyevent KEYCODE_WAKEUP
+      changed_when: false
+
+    # Apps go first, so the TV always has a home screen before the old one is
+    # disabled.
+    - name: Read installed app versions
+      ansible.builtin.command: adb -s {{ tv_serial }} shell dumpsys package {{ item.package }}
+      loop: "{{ android_tv_apps }}"
+      loop_control: {label: "{{ item.package }}"}
+      register: tv_versions
+      changed_when: false
+
+    - name: Choose apps to install or upgrade
+      ansible.builtin.set_fact:
+        tv_installs: "{{ tv_installs | default([]) + [item.item] }}"
+      loop: "{{ tv_versions.results }}"
+      loop_control: {label: "{{ item.item.package }}"}
+      when: >-
+        (item.stdout | regex_findall('versionName=(\S+)') | first | default('')) != item.item.version_name
+
+    - name: Create the download cache
+      ansible.builtin.file:
+        path: "{{ tv_cache }}"
+        state: directory
+        mode: "0700"
+      when: tv_installs | default([]) | length > 0
+
+    - name: Download pinned packages
+      ansible.builtin.get_url:
+        url: "{{ item.url }}"
+        dest: "{{ tv_cache }}/{{ item.package }}-{{ item.version_name }}.apk"
+        checksum: "sha256:{{ item.sha256 }}"
+        mode: "0600"
+      loop: "{{ tv_installs | default([]) }}"
+      loop_control: {label: "{{ item.package }} {{ item.version_name }}"}
+
+    - name: Check each package's signing certificate
+      ansible.builtin.command: >-
+        python3 -I {{ playbook_dir }}/apk_signer.py
+        {{ tv_cache }}/{{ item.package }}-{{ item.version_name }}.apk
+      loop: "{{ tv_installs | default([]) }}"
+      loop_control: {label: "{{ item.package }}"}
+      register: tv_signers
+      changed_when: false
+      failed_when: tv_signers.stdout | trim != item.signer_sha256
+
+    # Apps signed with a new key cannot update in place, so they are
+    # reinstalled. Only such apps (the throwaway-key builds) lose their data.
+    - name: Install pinned packages
+      ansible.builtin.shell: >-
+        apk={{ tv_cache }}/{{ item.package }}-{{ item.version_name }}.apk;
+        out="$(adb -s {{ tv_serial }} install -r "$apk" 2>&1)"; echo "$out";
+        case "$out" in *INSTALL_FAILED_UPDATE_INCOMPATIBLE*)
+        adb -s {{ tv_serial }} uninstall {{ item.package }} &&
+        adb -s {{ tv_serial }} install "$apk";; esac
+      loop: "{{ tv_installs | default([]) }}"
+      loop_control: {label: "{{ item.package }} {{ item.version_name }}"}
+      register: tv_install
+      changed_when: true
+      failed_when: tv_install.stdout_lines[-1:] != ['Success']
+
+    - name: Read the home app
+      ansible.builtin.command: >-
+        adb -s {{ tv_serial }} shell cmd package resolve-activity --brief
+        -a android.intent.action.MAIN -c android.intent.category.HOME
+      register: tv_home
+      changed_when: false
+
+    - name: Make the declared launcher the home app
+      ansible.builtin.command: adb -s {{ tv_serial }} shell cmd package set-home-activity {{ android_tv_home }}
+      when: tv_home.stdout_lines | last | trim != android_tv_home
+      changed_when: true
+
+    - name: Read disabled packages
+      ansible.builtin.command: adb -s {{ tv_serial }} shell pm list packages -d
+      register: tv_disabled
+      changed_when: false
+
+    - name: Disable unwanted packages
+      ansible.builtin.command: adb -s {{ tv_serial }} shell pm disable-user --user 0 {{ item }}
+      loop: "{{ android_tv_disabled_packages | difference(tv_disabled.stdout_lines | map('replace', 'package:', '') | list) }}"
+      register: tv_disable
+      changed_when: tv_disable.stdout is search('disabled')
+      failed_when: tv_disable.rc != 0 and tv_disable.stderr is not search('Unknown package')
+
+    - name: Read settings
+      ansible.builtin.command: adb -s {{ tv_serial }} shell settings get {{ item.namespace }} {{ item.key }}
+      loop: "{{ android_tv_settings }}"
+      loop_control: {label: "{{ item.namespace }} {{ item.key }}"}
+      register: tv_settings
+      changed_when: false
+
+    - name: Apply settings
+      ansible.builtin.command: >-
+        adb -s {{ tv_serial }} shell settings put
+        {{ item.item.namespace }} {{ item.item.key }} {{ item.item.value }}
+      loop: "{{ tv_settings.results }}"
+      loop_control: {label: "{{ item.item.namespace }} {{ item.item.key }}={{ item.item.value }}"}
+      when: item.stdout | trim != item.item.value
+      changed_when: true
+
+    - name: Set options that only exist as settings screens
+      ansible.builtin.shell: >-
+        set -e;
+        {{ tv_ui }} open {{ item.open }};
+        {% for row in item.path %}{{ tv_ui }} select '{{ row }}'; {% endfor %}
+        {{ tv_ui }} switch '{{ item.label }}' {{ item.state }}
+      loop: "{{ android_tv_screen_switches }}"
+      loop_control: {label: "{{ item.name }} {{ item.state }}"}
+      register: tv_switches
+      changed_when: tv_switches.stdout_lines[-1:] == ['changed']
+
+    - name: Return to the home screen
+      ansible.builtin.command: adb -s {{ tv_serial }} shell input keyevent KEYCODE_HOME
+      changed_when: false
+
+    - name: Read packages after the changes
+      ansible.builtin.command: adb -s {{ tv_serial }} shell pm list packages {{ item }}
+      loop: ["-e", "-d"]
+      register: tv_packages
+      changed_when: false
+
+    - name: Verify the declared packages
+      ansible.builtin.assert:
+        that:
+          - still_enabled | length == 0
+          - android_tv_apps | map(attribute='package') | difference(enabled) | length == 0
+        fail_msg: "Still enabled: {{ still_enabled }}; enabled: {{ enabled | length }} packages"
+        quiet: true
+      vars:
+        enabled: "{{ tv_packages.results[0].stdout_lines | map('replace', 'package:', '') | list }}"
+        still_enabled: "{{ android_tv_disabled_packages | intersect(enabled) }}"
+
+    # A disabled dependency can leave a persistent system app restarting
+    # several times a second, which slows the whole TV.
+    - name: Watch the crash log for 20 seconds
+      ansible.builtin.shell: >-
+        adb -s {{ tv_serial }} logcat -b crash -c &&
+        sleep 20 &&
+        adb -s {{ tv_serial }} logcat -b crash -d
+      register: tv_crashes
+      changed_when: false
+
+    - name: Verify that no app is crash-looping
+      ansible.builtin.assert:
+        that: tv_crashes.stdout is not search('FATAL EXCEPTION')
+        fail_msg: "Crashing: {{ tv_crashes.stdout_lines | select('search', 'Process: ') | unique | list }}"
+        quiet: true
