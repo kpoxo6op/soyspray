@@ -23,6 +23,7 @@ android_tv_disabled_packages:
   - com.google.android.youtube.tvmusic
   - com.google.android.videos
   - com.google.android.play.games
+  - com.sony.dtv.osat.music
   - com.android.vending
   - android.autoinstalls.config.sony.bravia
   # Advertising, promotions and recommendation feeds
@@ -52,6 +53,7 @@ android_tv_disabled_packages:
   # Voice assistant, broadcast interactivity, HomeKit and retail demos
   - com.google.android.katniss
   - com.sony.dtv.assistantadapter
+  - com.sony.dtv.smarthomesettings
   - com.sony.dtv.hbbtvplayer
   - com.vewd.core.integration.dia
   - com.sony.dtv.homekit
