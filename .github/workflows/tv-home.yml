@@ -1,0 +1,82 @@
+name: TV home screen app
+
+# Builds the living-room TV's home screen. Pull requests only build it;
+# main also publishes a GitHub release that a separate promotion pins in
+# playbooks/operations/android-tv/living-room-tv.yml.
+on:
+  pull_request:
+    paths:
+      - apps/tv-home/**
+      - .github/workflows/tv-home.yml
+  push:
+    branches: [main]
+    paths:
+      - apps/tv-home/**
+      - .github/workflows/tv-home.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tv-home-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+      VERSION_NAME: 1.${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "8.11.1"
+      # Each build gets a throwaway key; nothing secret is stored anywhere.
+      - name: Create a throwaway signing key
+        run: |
+          password="$(openssl rand -hex 24)"
+          echo "::add-mask::$password"
+          keytool -genkeypair -keystore "$RUNNER_TEMP/tile.jks" -storepass "$password" \
+            -keypass "$password" -alias tile -keyalg RSA -keysize 3072 -validity 10000 \
+            -dname "CN=soyspray TV home"
+          {
+            echo "SIGNING_STORE=$RUNNER_TEMP/tile.jks"
+            echo "SIGNING_PASSWORD=$password"
+          } >> "$GITHUB_ENV"
+      - name: Build the release package
+        working-directory: apps/tv-home
+        run: gradle --no-daemon assembleRelease
+      - name: Record the checksum and signing certificate
+        run: |
+          apk="tv-home-$VERSION_NAME.apk"
+          cp apps/tv-home/app/build/outputs/apk/release/app-release.apk "$apk"
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)/apksigner"
+          "$apksigner" verify --print-certs "$apk" | tee certificate.txt
+          {
+            sha256sum "$apk"
+            grep -m1 'certificate SHA-256 digest' certificate.txt
+          } | tee checksums.txt
+      - uses: actions/upload-artifact@v6
+        with:
+          name: tv-home
+          path: |
+            tv-home-*.apk
+            checksums.txt
+      - name: Publish the release from main
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "tv-home-$VERSION_NAME" \
+            "tv-home-$VERSION_NAME.apk" checksums.txt \
+            --target "$GITHUB_SHA" --title "TV home $VERSION_NAME" \
+            --notes-file checksums.txt
