@@ -3,8 +3,9 @@
 `sync-android-tv.yml` brings the living-room Sony KD-65X8500G (Android TV 10)
 to the state declared in `living-room-tv.yml`: Sony and Google advertising,
 tracking, remote-support and voice packages off, privacy settings, Remote
-start, and pinned SmartTube and Jellyfin builds. It also reserves the TV's
-address on OpenWrt. Change the TV by editing `living-room-tv.yml` and running
+start, our own home screen (`apps/tv-home`), and pinned SmartTube, Jellyfin,
+SmartTwitchTV and Infinite Slop builds. It also reserves the TV's address on
+OpenWrt. Change the TV by editing `living-room-tv.yml` and running
 the playbook; do not change it by hand.
 
 ## Normal use
@@ -51,8 +52,8 @@ see `../networking/set-lan-ingress-hairpin.yml`.
 ## Limits
 
 AirPlay is a persistent Sony app that starts even when disabled and crash-loops
-without the Vewd engine, so both stay enabled. The Google home screen stays
-until a replacement launcher is installed; it still shows Google promotions.
+without the Vewd engine, so both stay enabled. Couchy stays installed as a
+fallback launcher in case the home screen app is removed.
 Sony firmware updates may rename screens; `tv_ui.py` then fails with the visible
 texts. A factory reset needs the remote for setup, Developer options and the
 first ADB approval before this playbook can run again.

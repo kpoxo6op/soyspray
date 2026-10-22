@@ -22,9 +22,11 @@ and opts out of advertising personalisation.
 
 ## Apps
 
-SmartTube and the official Jellyfin client are pinned in
+The home screen (`apps/tv-home`), SmartTube, the official Jellyfin client,
+SmartTwitchTV and the Infinite Slop app (`apps/infinite-slop-tv`) are pinned in
 `playbooks/operations/android-tv/living-room-tv.yml` by version, SHA-256 and
-signing certificate. SmartTube comes from F-Droid because the upstream README
+signing certificate. SmartTwitchTV is the TV-remote Twitch client; ReVanced
+Twitch is built for phones. SmartTube comes from F-Droid because the upstream README
 warns that some upstream builds may have been compromised. Recheck that notice
 before upgrading. Do not automate Google login or store Google credentials.
 
@@ -62,8 +64,7 @@ ADB commands. Its config entry is Home Assistant runtime state.
 
 ## Limits
 
-The Google home screen remains and still shows Google promotions until a
-replacement launcher is installed. AirPlay and the Vewd engine stay enabled
+AirPlay and the Vewd engine stay enabled
 because AirPlay is a persistent app that crash-loops without Vewd. Live TV
 plays one selected channel at a time. If playback buffers, choose a lower
 quality in the Jellyfin client; Jellyfin can transcode with Intel Quick Sync,
