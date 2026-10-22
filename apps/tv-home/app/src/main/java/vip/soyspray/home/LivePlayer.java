@@ -11,7 +11,6 @@ import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.ExoPlayer;
-import androidx.media3.exoplayer.util.EventLogger;
 
 /**
  * One live HLS channel on a SurfaceView. Errors retry with a growing delay, and
@@ -64,7 +63,6 @@ final class LivePlayer {
                             .setBufferDurationsMs(20_000, 40_000, 1_000, 3_000)
                             .build())
                     .build();
-            player.addAnalyticsListener(new EventLogger(TAG));
             player.setVideoSurfaceView(surface);
             player.addListener(new Player.Listener() {
                 @Override
