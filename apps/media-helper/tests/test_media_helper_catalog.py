@@ -31,7 +31,6 @@ def test_catalog_is_valid_and_has_unique_identity() -> None:
         "vostok-24",
         "25-region",
         "telemiks",
-        "infinite-slop",
     }
     region = next(channel for channel in enabled if channel["slug"] == "25-region")
     assert region["sources"][0] == {
@@ -170,7 +169,7 @@ def test_guide_failure_keeps_channel_identity() -> None:
     guide = helper.build_xmltv(catalog, {})
     assert guide.startswith("<?xml")
     assert "<programme" not in guide
-    assert 'id="infinite-slop"' in guide
+    assert 'id="otv-primorie"' in guide
 
 
 def test_catalog_uses_epg_lite_ids_for_broadcast_channels() -> None:
