@@ -24,7 +24,7 @@ final class TileView extends View {
         void focused(TileView view);
     }
 
-    static final float REST_ALPHA = 0.58f;
+    static final float REST_ALPHA = 0.74f;
 
     final int glow;
     private final Tiles.Glyph glyph;

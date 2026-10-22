@@ -50,7 +50,7 @@ public class AppsActivity extends Activity {
         grid.setColumnCount(COLUMNS);
         grid.setClipChildren(false);
         grid.setPadding(0, (int) (24 * dp), 0, (int) (24 * dp));
-        grid.addView(card(null, null, "Settings",
+        grid.addView(card(null, new GlyphDrawable(Tiles::gear), "Settings",
                 v -> startActivity(new Intent(Settings.ACTION_SETTINGS))));
         PackageManager pm = getPackageManager();
         for (ResolveInfo app : apps(pm)) {
@@ -79,8 +79,11 @@ public class AppsActivity extends Activity {
     private List<ResolveInfo> apps(PackageManager pm) {
         Intent query = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
         List<ResolveInfo> found = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        seen.add(getPackageName());
+        seen.add("com.conreo.couchytv");
         for (ResolveInfo info : pm.queryIntentActivities(query, 0)) {
-            if (!info.activityInfo.packageName.equals(getPackageName())) {
+            if (seen.add(info.activityInfo.packageName)) {
                 found.add(info);
             }
         }

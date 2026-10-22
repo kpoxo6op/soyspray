@@ -147,7 +147,7 @@ public class HomeActivity extends Activity {
 
     private void showTime() {
         Date now = new Date();
-        clock.setText(DateFormat.getTimeFormat(this).format(now));
+        clock.setText(DateFormat.format("HH:mm", now));
         date.setText(DateFormat.format("EEEE d MMMM", now));
     }
 
