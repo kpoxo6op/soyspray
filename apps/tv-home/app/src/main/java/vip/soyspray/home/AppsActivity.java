@@ -11,7 +11,6 @@ import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewOutlineProvider;
@@ -51,7 +50,7 @@ public class AppsActivity extends Activity {
         grid.setClipChildren(false);
         grid.setPadding(0, (int) (24 * dp), 0, (int) (24 * dp));
         grid.addView(card(null, new GlyphDrawable(Tiles::gear), "Settings",
-                v -> startActivity(new Intent(Settings.ACTION_SETTINGS))));
+                v -> startActivity(HomeActivity.settings())));
         PackageManager pm = getPackageManager();
         for (ResolveInfo app : apps(pm)) {
             ActivityInfo info = app.activityInfo;
