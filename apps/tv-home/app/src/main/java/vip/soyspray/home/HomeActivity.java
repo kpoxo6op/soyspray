@@ -497,7 +497,16 @@ public class HomeActivity extends Activity {
     }
 
     private void openSettings() {
-        startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        startActivity(settings());
+    }
+
+    /**
+     * Settings in a fresh task. Without clearing the task the TV reopens the
+     * last settings screen, which after a TV playbook run is Google's Ads page.
+     */
+    static Intent settings() {
+        return new Intent(Settings.ACTION_SETTINGS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
     }
 
     private TileView round(Tiles.Glyph glyph, String label, View.OnClickListener click) {
