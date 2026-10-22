@@ -109,9 +109,12 @@ Dashboards → Set as default in `.storage/frontend.system_data`. Change it in
 the dashboard editor or through the `lovelace/config/save` API, not in Git.
 The PVC backup and isolated restore contract cover it.
 
-TV buttons send `remote.send_command` keys to `remote.living_room_tv` and open
-apps with `media_player.select_source` and the app's package name. Room
-buttons call `dreame_vacuum.vacuum_clean_segment` with the vacuum's segment
-IDs; remapping rooms in the Dreame app can change them. To go back to the
+TV buttons send `remote.send_command` keys to `remote.living_room_tv`. App
+buttons and TV settings use `androidtv.adb_command` on
+`media_player.living_room_tv` (`monkey -p PACKAGE -c
+android.intent.category.LEANBACK_LAUNCHER 1`), because `select_source` with a
+package name does nothing on this TV. Room buttons call
+`dreame_vacuum.vacuum_clean_segment` with the vacuum's segment IDs; remapping
+rooms in the Dreame app can change them. To go back to the
 built-in overview, set it as the default in Settings → Dashboards or delete the
 `Home` dashboard there.
