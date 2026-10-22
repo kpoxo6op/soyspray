@@ -15,24 +15,22 @@ import android.view.ViewOutlineProvider;
 import android.view.animation.DecelerateInterpolator;
 
 /**
- * A focusable card: a gradient tile with a glyph, title and subtitle, or a small
- * round button with only a glyph. Focus lifts it with a scale, shadow and
- * outline; only view properties animate, so the GPU does the work.
+ * A focusable card: a wide tile with a glyph, title and subtitle, a square
+ * tile with a centred glyph and title, or a small round button. Focus lifts it
+ * with scale, shadow and an outline; only view properties animate, so the GPU
+ * does the work.
  */
 final class TileView extends View {
-    interface OnFocus {
-        void focused(TileView view);
-    }
+    enum Shape { WIDE, SQUARE, ROUND }
 
-    static final float REST_ALPHA = 0.74f;
+    static final float REST_ALPHA = 0.80f;
 
-    final int glow;
     private final Tiles.Glyph glyph;
     private final String title;
-    private final String subtitle;
+    private String subtitle;
     private final int from;
     private final int to;
-    private final boolean round;
+    private final Shape shape;
     private final float dp;
     private final float radius;
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -42,49 +40,46 @@ final class TileView extends View {
     private final Paint titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint subtitlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF box = new RectF();
-    private OnFocus listener;
     private boolean lifted;
 
     static TileView card(Context context, Tiles.Tile tile) {
-        return new TileView(context, tile.glyph, tile.title, tile.subtitle, tile.from, tile.to,
-                tile.glow, false);
+        return new TileView(context, tile.glyph, tile.title, tile.from, tile.to,
+                tile.wide ? Shape.WIDE : Shape.SQUARE);
     }
 
     static TileView round(Context context, Tiles.Glyph glyph, String label) {
-        return new TileView(context, glyph, label, null, 0xFF262A33, 0xFF181B22,
-                Tiles.QUIET_GLOW, true);
+        return new TileView(context, glyph, label, 0xCC262A33, 0xCC181B22, Shape.ROUND);
     }
 
-    private TileView(Context context, Tiles.Glyph glyph, String title, String subtitle,
-            int from, int to, int glow, boolean round) {
+    private TileView(Context context, Tiles.Glyph glyph, String title, int from, int to,
+            Shape shape) {
         super(context);
         this.glyph = glyph;
         this.title = title;
-        this.subtitle = subtitle;
         this.from = from;
         this.to = to;
-        this.glow = glow;
-        this.round = round;
+        this.shape = shape;
         dp = context.getResources().getDisplayMetrics().density;
-        radius = round ? 0 : 20 * dp;
+        radius = shape == Shape.ROUND ? 0 : 18 * dp;
         setFocusable(true);
         setClickable(true);
         setContentDescription(title);
         setAlpha(REST_ALPHA);
         ring.setStyle(Paint.Style.STROKE);
         ring.setStrokeWidth(2.5f * dp);
-        ring.setColor(0xE6FFFFFF);
+        ring.setColor(0xF2FFFFFF);
         mark.setColor(Color.WHITE);
         titlePaint.setColor(Color.WHITE);
-        titlePaint.setTextSize(23 * dp);
+        titlePaint.setTextSize((shape == Shape.WIDE ? 21 : 15) * dp);
         titlePaint.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        subtitlePaint.setColor(0xC8FFFFFF);
+        titlePaint.setTextAlign(shape == Shape.SQUARE ? Paint.Align.CENTER : Paint.Align.LEFT);
+        subtitlePaint.setColor(0xD9FFFFFF);
         subtitlePaint.setTextSize(13 * dp);
         subtitlePaint.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
         setOutlineProvider(new ViewOutlineProvider() {
             @Override
             public void getOutline(View view, Outline outline) {
-                if (round) {
+                if (shape == Shape.ROUND) {
                     outline.setOval(0, 0, view.getWidth(), view.getHeight());
                 } else {
                     outline.setRoundRect(new Rect(0, 0, view.getWidth(), view.getHeight()), radius);
@@ -93,8 +88,9 @@ final class TileView extends View {
         });
     }
 
-    void setOnFocus(OnFocus listener) {
-        this.listener = listener;
+    void setSubtitle(String text) {
+        subtitle = text;
+        invalidate();
     }
 
     @Override
@@ -109,14 +105,10 @@ final class TileView extends View {
     protected void onDraw(Canvas canvas) {
         float w = getWidth();
         float h = getHeight();
-        if (round) {
+        if (shape == Shape.ROUND) {
             canvas.drawCircle(w / 2, h / 2, w / 2, fill);
             canvas.drawCircle(w / 2, h / 2, w / 2, gloss);
-            float size = w * 0.46f;
-            canvas.save();
-            canvas.translate((w - size) / 2, (h - size) / 2);
-            glyph.draw(canvas, mark, size);
-            canvas.restore();
+            glyphAt(canvas, (w - w * 0.46f) / 2, (h - w * 0.46f) / 2, w * 0.46f);
             if (lifted) {
                 canvas.drawCircle(w / 2, h / 2, w / 2 - ring.getStrokeWidth() / 2, ring);
             }
@@ -124,20 +116,29 @@ final class TileView extends View {
         }
         canvas.drawRoundRect(box, radius, radius, fill);
         canvas.drawRoundRect(box, radius, radius, gloss);
-        float pad = 20 * dp;
-        float size = 34 * dp;
-        canvas.save();
-        canvas.translate(pad, pad);
-        glyph.draw(canvas, mark, size);
-        canvas.restore();
-        canvas.drawText(title, pad, h - pad - 20 * dp, titlePaint);
-        if (subtitle != null) {
-            canvas.drawText(subtitle, pad, h - pad, subtitlePaint);
+        if (shape == Shape.WIDE) {
+            float pad = 18 * dp;
+            glyphAt(canvas, pad, pad, 30 * dp);
+            canvas.drawText(title, pad, h - pad - (subtitle != null ? 19 * dp : 0), titlePaint);
+            if (subtitle != null) {
+                canvas.drawText(subtitle, pad, h - pad, subtitlePaint);
+            }
+        } else {
+            float size = w * 0.40f;
+            glyphAt(canvas, (w - size) / 2, h * 0.17f, size);
+            canvas.drawText(title, w / 2, h - 14 * dp, titlePaint);
         }
         if (lifted) {
             float inset = ring.getStrokeWidth() / 2;
             canvas.drawRoundRect(inset, inset, w - inset, h - inset, radius, radius, ring);
         }
+    }
+
+    private void glyphAt(Canvas canvas, float x, float y, float size) {
+        canvas.save();
+        canvas.translate(x, y);
+        glyph.draw(canvas, mark, size);
+        canvas.restore();
     }
 
     @Override
@@ -154,9 +155,6 @@ final class TileView extends View {
                 .setInterpolator(new DecelerateInterpolator(1.6f))
                 .withLayer()
                 .start();
-        if (gained && listener != null) {
-            listener.focused(this);
-        }
     }
 
     /** A quick side-to-side shake when a tile's app is missing. */

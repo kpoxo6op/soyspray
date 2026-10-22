@@ -12,36 +12,43 @@ final class Tiles {
         void draw(Canvas canvas, Paint paint, float size);
     }
 
+    static final String WATCH = "watch";
+    static final String GUIDE = "guide";
+
     static final class Tile {
         final String title;
-        final String subtitle;
+        /** The app to open, or null for WATCH and GUIDE. */
         final String pkg;
+        final String action;
         final int from;
         final int to;
-        final int glow;
         final Glyph glyph;
+        final boolean wide;
 
-        Tile(String title, String subtitle, String pkg, int from, int to, int glow, Glyph glyph) {
+        Tile(String title, String pkg, String action, int from, int to, Glyph glyph,
+                boolean wide) {
             this.title = title;
-            this.subtitle = subtitle;
             this.pkg = pkg;
+            this.action = action;
             this.from = from;
             this.to = to;
-            this.glow = glow;
             this.glyph = glyph;
+            this.wide = wide;
         }
     }
 
     static final Tile[] ROW = {
-        new Tile("Jellyfin", "Cartoons and live TV", "org.jellyfin.androidtv",
-                0xFF4B2FB8, 0xFF0A86C2, 0xFF6A4CFF, Tiles::jellyfin),
-        new Tile("YouTube", "SmartTube, no ads", "app.smarttube.fdroid",
-                0xFFE0112B, 0xFF6E0614, 0xFFFF2340, Tiles::play),
-        new Tile("Infinite Slop", "Live AI TV", "vip.soyspray.infiniteslop",
-                0xFFFF3D6E, 0xFFFF9A3D, 0xFFFF6A45, Tiles::infinity),
+        new Tile("Watch live", null, WATCH, 0xFFE11D48, 0xFF7A1029, Tiles::live, true),
+        new Tile("Guide", null, GUIDE, 0xFF3B4558, 0xFF161B26, Tiles::guide, false),
+        new Tile("Jellyfin", "org.jellyfin.androidtv", null, 0xFF4B2FB8, 0xFF0A86C2,
+                Tiles::jellyfin, false),
+        new Tile("YouTube", "app.smarttube.fdroid", null, 0xFFE0112B, 0xFF6E0614,
+                Tiles::youtube, false),
+        new Tile("Twitch", "com.fgl27.twitch", null, 0xFF9146FF, 0xFF3F1A87,
+                Tiles::twitch, false),
+        new Tile("AI TV", "vip.soyspray.aitv", null, 0xFFFF3D6E, 0xFFFF9A3D,
+                Tiles::infinity, false),
     };
-
-    static final int QUIET_GLOW = 0xFF5A6478;
 
     private Tiles() {}
 
@@ -53,6 +60,72 @@ final class Tiles {
         path.close();
         paint.setStyle(Paint.Style.FILL);
         canvas.drawPath(path, paint);
+    }
+
+    /** A dot with two broadcast arcs on each side. */
+    static void live(Canvas canvas, Paint paint, float s) {
+        float c = 0.5f * s;
+        paint.setStyle(Paint.Style.FILL);
+        canvas.drawCircle(c, c, 0.09f * s, paint);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(0.07f * s);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        for (float r : new float[] {0.22f, 0.36f}) {
+            RectF arc = new RectF(c - r * s, c - r * s, c + r * s, c + r * s);
+            canvas.drawArc(arc, -40, 80, false, paint);
+            canvas.drawArc(arc, 140, 80, false, paint);
+        }
+    }
+
+    /** Three programme bars of different lengths. */
+    static void guide(Canvas canvas, Paint paint, float s) {
+        paint.setStyle(Paint.Style.FILL);
+        float[] lengths = {0.70f, 0.48f, 0.60f};
+        RectF bar = new RectF();
+        for (int i = 0; i < 3; i++) {
+            float y = (0.22f + 0.22f * i) * s;
+            bar.set(0.15f * s, y, (0.15f + lengths[i]) * s, y + 0.12f * s);
+            canvas.drawRoundRect(bar, 0.06f * s, 0.06f * s, paint);
+        }
+    }
+
+    static void youtube(Canvas canvas, Paint paint, float s) {
+        paint.setStyle(Paint.Style.FILL);
+        RectF body = new RectF(0.08f * s, 0.22f * s, 0.92f * s, 0.78f * s);
+        canvas.drawRoundRect(body, 0.16f * s, 0.16f * s, paint);
+        Path play = new Path();
+        play.moveTo(0.42f * s, 0.36f * s);
+        play.lineTo(0.64f * s, 0.50f * s);
+        play.lineTo(0.42f * s, 0.64f * s);
+        play.close();
+        int color = paint.getColor();
+        paint.setColor(0xFFB3001B);
+        canvas.drawPath(play, paint);
+        paint.setColor(color);
+    }
+
+    /** A speech bubble with two bars, like Twitch's mark. */
+    static void twitch(Canvas canvas, Paint paint, float s) {
+        Path bubble = new Path();
+        bubble.moveTo(0.20f * s, 0.12f * s);
+        bubble.lineTo(0.84f * s, 0.12f * s);
+        bubble.lineTo(0.84f * s, 0.58f * s);
+        bubble.lineTo(0.66f * s, 0.76f * s);
+        bubble.lineTo(0.48f * s, 0.76f * s);
+        bubble.lineTo(0.34f * s, 0.90f * s);
+        bubble.lineTo(0.34f * s, 0.76f * s);
+        bubble.lineTo(0.20f * s, 0.76f * s);
+        bubble.close();
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(0.08f * s);
+        paint.setStrokeJoin(Paint.Join.ROUND);
+        canvas.drawPath(bubble, paint);
+        paint.setStyle(Paint.Style.FILL);
+        RectF bar = new RectF();
+        for (float x : new float[] {0.44f, 0.62f}) {
+            bar.set(x * s, 0.30f * s, (x + 0.08f) * s, 0.52f * s);
+            canvas.drawRect(bar, paint);
+        }
     }
 
     static void jellyfin(Canvas canvas, Paint paint, float s) {
