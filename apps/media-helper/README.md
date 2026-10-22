@@ -20,6 +20,10 @@ resource UIDs. From an allowed consumer, read
 identities and current guide programmes. End-user playback is a separate Jellyfin
 check. Smoke and restore commands report unknown until maintained operations exist.
 
+LAN and Tailscale devices read `/api/v1/channels` and `/xmltv.xml` at
+`https://guide.soyspray.vip`; the living-room TV's home screen uses them for its
+live channel and guide. The ingress exposes only those two paths.
+
 The app source and channel catalog are in `app/`; Kubernetes manifests are in
 `manifests/`. The helper runs from a pinned GHCR image. Source edits build a tested
 image and open a separate digest promotion. They cannot change the running app.

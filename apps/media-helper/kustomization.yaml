@@ -5,6 +5,7 @@ resources:
 - manifests/deployment.yaml
 - manifests/service.yaml
 - manifests/network-policy.yaml
+- manifests/ingress.yaml
 labels:
 - pairs:
     app.kubernetes.io/name: media-helper
