@@ -10,6 +10,7 @@ spec:
         - podSelector: {matchLabels: {app: dispatcharr}}
         - podSelector: {matchLabels: {job-name: dispatcharr-reconcile}}
         - podSelector: {matchLabels: {app: jellyfin}}
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: ingress-nginx}}
       ports:
         - {protocol: TCP, port: 8080}
   egress:
