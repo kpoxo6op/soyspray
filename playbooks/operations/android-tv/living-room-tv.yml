@@ -77,8 +77,8 @@ android_tv_screen_switches:
   - {name: Google usage and diagnostics, open: android.settings.SETTINGS, path: [Privacy, Usage & diagnostics], label: "*", state: "off"}
   - {name: Ads personalisation opt-out, open: android.settings.SETTINGS, path: [Privacy, Ads], label: Opt out of Ads Personalisation, state: "on"}
 
-# Our own home screen (apps/tv-home) replaces the Google one. Couchy, an
-# open-source launcher, stays installed as a fallback.
+# Our own home screen (apps/tv-home) replaces the Google one, which stays
+# disabled; `pm enable com.google.android.tvlauncher` brings it back if needed.
 android_tv_home: vip.soyspray.home/.HomeActivity
 
 # Installed when the TV lacks this version name. The download must match
@@ -94,11 +94,6 @@ android_tv_apps:
     url: https://github.com/jellyfin/jellyfin-androidtv/releases/download/v0.19.10/jellyfin-androidtv-v0.19.10-release.apk
     sha256: 8510a517c99927076082917f41bf306dd7a2546c59d492dd11bde18d6e2e4628
     signer_sha256: d881796ed2a67ff6ef9f676828723c6b1fa18e09388962cba4abc4a594a69131
-  - package: com.conreo.couchytv
-    version_name: "1.0.6"
-    url: https://f-droid.org/repo/com.conreo.couchytv_7.apk
-    sha256: 5afcfd21635fd81ae155999766f3dd8c11d511d76a8be2af9b3e4d1663876c12
-    signer_sha256: 54fab15e1c7500bbea288a89204277efb8244ba81e84c8f98d4cd9c3c18379eb
   - package: vip.soyspray.home
     version_name: "1.12"
     url: https://github.com/kpoxo6op/soyspray/releases/download/tv-home-1.12/tv-home-1.12.apk
@@ -118,6 +113,8 @@ android_tv_apps:
     signer_sha256: 838d9d90b5bcaa89c7376948b0d8da141c2d0cbba3b983b02a0c443dd63744d9
 
 # Uninstalled when present, after the apps above are in place. Infinite Slop
-# ended in October 2026; AI TV (vip.soyspray.aitv) replaces it.
+# ended in October 2026; AI TV (vip.soyspray.aitv) replaces it. Boris retired
+# the Couchy launcher, which had been kept as a fallback home screen.
 android_tv_removed_packages:
   - vip.soyspray.infiniteslop
+  - com.conreo.couchytv

@@ -4,8 +4,8 @@ The living-room TV's home screen. ОТВ Прим plays live behind everything, 
 with what is on now (title, times and a progress line) and what is next. Below
 sit six tiles: Watch live, Guide, Jellyfin, YouTube (SmartTube), Twitch
 (SmartTwitchTV) and AI TV (fal.live). A clock and small Apps and Settings
-buttons sit top right. It replaces the Google home screen; Couchy stays
-installed as a fallback.
+buttons sit top right. It replaces the Google home screen, which stays
+disabled.
 
 Watch live hides everything and turns the sound on; up and down (or channel
 up and down) change between the channels with a direct stream, and Back
