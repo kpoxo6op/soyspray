@@ -3,11 +3,15 @@ package vip.soyspray.home;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
+import android.util.Log;
 import android.view.SurfaceView;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.util.EventLogger;
 
 /**
  * One live HLS channel on a SurfaceView. Errors retry with a growing delay, and
@@ -18,6 +22,8 @@ final class LivePlayer {
         void onFirstFrame();
     }
 
+    private static final String TAG = "SoyHome";
+
     private final Context context;
     private final SurfaceView surface;
     private final Listener listener;
@@ -26,6 +32,7 @@ final class LivePlayer {
     private String url;
     private boolean muted = true;
     private int failures;
+    private long startedAt;
 
     LivePlayer(Context context, SurfaceView surface, Listener listener) {
         this.context = context;
@@ -47,13 +54,24 @@ final class LivePlayer {
 
     private void start() {
         handler.removeCallbacksAndMessages(null);
+        startedAt = SystemClock.elapsedRealtime();
         if (player == null) {
-            player = new ExoPlayer.Builder(context).build();
+            // Start after one second of video instead of the default two and a
+            // half: ОТВ Прим's segments come from Russia barely faster than
+            // real time, so every second buffered first is a second of black.
+            player = new ExoPlayer.Builder(context)
+                    .setLoadControl(new DefaultLoadControl.Builder()
+                            .setBufferDurationsMs(20_000, 40_000, 1_000, 3_000)
+                            .build())
+                    .build();
+            player.addAnalyticsListener(new EventLogger(TAG));
             player.setVideoSurfaceView(surface);
             player.addListener(new Player.Listener() {
                 @Override
                 public void onRenderedFirstFrame() {
                     failures = 0;
+                    Log.i(TAG, "first frame after " + (SystemClock.elapsedRealtime() - startedAt)
+                            + " ms");
                     listener.onFirstFrame();
                 }
 

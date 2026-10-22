@@ -6,6 +6,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
@@ -22,12 +24,17 @@ import android.text.TextUtils;
 import android.text.format.DateFormat;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.PixelCopy;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -43,6 +50,10 @@ public class HomeActivity extends Activity {
     private static final long REFRESH = 20 * 60_000L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
+    private SurfaceView video;
+    private ImageView still;
+    private boolean framed;
+    private Runnable pendingRelease;
     private LivePlayer player;
     private Live.Lineup lineup;
     private Live.Channel channel;
@@ -83,9 +94,17 @@ public class HomeActivity extends Activity {
         root.setBackgroundColor(0xFF05060A);
         root.setClipChildren(false);
 
-        SurfaceView video = new SurfaceView(this);
+        video = new SurfaceView(this);
         root.addView(video, match());
-        player = new LivePlayer(this, video, () -> { });
+        // The last frame seen, shown while the stream starts again.
+        still = new ImageView(this);
+        still.setScaleType(ImageView.ScaleType.FIT_XY);
+        root.addView(still, match());
+        loadStill();
+        player = new LivePlayer(this, video, () -> {
+            framed = true;
+            still.animate().alpha(0f).setDuration(400).start();
+        });
 
         FrameLayout overlay = new FrameLayout(this);
         overlay.setClipChildren(false);
@@ -135,7 +154,7 @@ public class HomeActivity extends Activity {
         LinearLayout corner = new LinearLayout(this);
         corner.setGravity(Gravity.CENTER_VERTICAL);
         corner.setClipChildren(false);
-        clock = text(30, "sans-serif-thin", Color.WHITE);
+        clock = text(30, "sans-serif-light", Color.WHITE);
         corner.addView(clock);
         corner.addView(round(Tiles::grid, "Apps",
                 v -> startActivity(new Intent(this, AppsActivity.class))), square(44 * dp, 20 * dp));
@@ -198,6 +217,7 @@ public class HomeActivity extends Activity {
         filter.addAction(Intent.ACTION_TIMEZONE_CHANGED);
         registerReceiver(ticks, filter);
         handler.post(refresh);
+        releaseNow();
         player.resume();
         if (mode == Mode.HOME) {
             View target = lastFocused != null ? lastFocused : watch;
@@ -209,8 +229,66 @@ public class HomeActivity extends Activity {
     protected void onPause() {
         unregisterReceiver(ticks);
         handler.removeCallbacks(refresh);
-        player.release();
+        keepFrame();
         super.onPause();
+    }
+
+    /**
+     * Copies the video's current frame into the still before freeing the
+     * decoder, and saves it for the next cold start.
+     */
+    private void keepFrame() {
+        if (!framed || !video.getHolder().getSurface().isValid()) {
+            player.release();
+            return;
+        }
+        framed = false;
+        Bitmap frame = Bitmap.createBitmap(960, 540, Bitmap.Config.ARGB_8888);
+        pendingRelease = this::releaseNow;
+        PixelCopy.request(video, frame, result -> {
+            if (result == PixelCopy.SUCCESS) {
+                still.animate().cancel();
+                still.setImageBitmap(frame);
+                still.setAlpha(1f);
+                new Thread(() -> saveStill(frame)).start();
+            }
+            releaseNow();
+        }, handler);
+        handler.postDelayed(pendingRelease, 300);
+    }
+
+    /** Frees the decoder now if a frame copy is still holding it. */
+    private void releaseNow() {
+        if (pendingRelease != null) {
+            handler.removeCallbacks(pendingRelease);
+            pendingRelease = null;
+            player.release();
+        }
+    }
+
+    private File stillFile() {
+        return new File(getCacheDir(), "still.jpg");
+    }
+
+    private void saveStill(Bitmap frame) {
+        try (FileOutputStream out = new FileOutputStream(stillFile())) {
+            frame.compress(Bitmap.CompressFormat.JPEG, 82, out);
+        } catch (IOException ignored) {
+            // Only costs the next cold start its picture.
+        }
+    }
+
+    private void loadStill() {
+        new Thread(() -> {
+            Bitmap frame = BitmapFactory.decodeFile(stillFile().getPath());
+            if (frame != null) {
+                handler.post(() -> {
+                    if (!framed) {
+                        still.setImageBitmap(frame);
+                    }
+                });
+            }
+        }).start();
     }
 
     private void onLineup(Live.Lineup fresh) {
@@ -431,7 +509,7 @@ public class HomeActivity extends Activity {
         view.setTextColor(color);
         view.setTypeface(Typeface.create(family, Typeface.NORMAL));
         view.setIncludeFontPadding(false);
-        view.setShadowLayer(12, 0, 2, 0x99000000);
+        view.setShadowLayer(16, 0, 2, 0xCC000000);
         return view;
     }
 
@@ -455,7 +533,10 @@ public class HomeActivity extends Activity {
         return params;
     }
 
-    /** Darkens the video where text sits: the left side, the top and the bottom. */
+    /**
+     * Dims the video a little everywhere and much more where text sits: the
+     * left side, the top and the bottom. Bright broadcasts stay readable.
+     */
     private static final class Scrim extends View {
         private final Paint left = new Paint();
         private final Paint bottom = new Paint();
@@ -467,16 +548,18 @@ public class HomeActivity extends Activity {
 
         @Override
         protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-            left.setShader(new LinearGradient(0, 0, w * 0.68f, 0, 0xD9000000, 0x00000000,
+            left.setShader(new LinearGradient(0, 0, w * 0.62f, 0,
+                    new int[] {0xEB000000, 0xB3000000, 0x00000000}, new float[] {0f, 0.45f, 1f},
                     Shader.TileMode.CLAMP));
-            bottom.setShader(new LinearGradient(0, h, 0, h * 0.45f, 0xF2000000, 0x00000000,
+            bottom.setShader(new LinearGradient(0, h, 0, h * 0.5f, 0xF2000000, 0x00000000,
                     Shader.TileMode.CLAMP));
-            top.setShader(new LinearGradient(0, 0, 0, h * 0.25f, 0x99000000, 0x00000000,
+            top.setShader(new LinearGradient(0, 0, 0, h * 0.32f, 0xB3000000, 0x00000000,
                     Shader.TileMode.CLAMP));
         }
 
         @Override
         protected void onDraw(Canvas canvas) {
+            canvas.drawColor(0x2E000000);
             canvas.drawPaint(left);
             canvas.drawPaint(bottom);
             canvas.drawPaint(top);
