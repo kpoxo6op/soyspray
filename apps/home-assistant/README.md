@@ -93,3 +93,25 @@ The existing PVC backup/isolated restore contract includes its runtime entry.
 To roll back, remove the HA config entry and revert the installer commit;
 the component files remain on the PVC until explicitly removed. Existing
 integrations, credentials, and schedules are preserved.
+
+## Dashboard
+
+The default dashboard is `Home` at `/dashboard-home`, a sections dashboard
+built for the phone app. Its views are Home (lights, TV, kettle and vacuum),
+Remote (TV arrows, volume, playback and app launchers), Vacuum (map, single-room
+cleaning and consumables) and System (repairs, updates, GI voice and device
+health). The header weather comes from the Met.no integration
+(`weather.forecast_home`), added through the UI.
+
+The dashboard is runtime state in the PVC, like the integrations above:
+`.storage/lovelace.dashboard_home`, with the default set by Settings →
+Dashboards → Set as default in `.storage/frontend.system_data`. Change it in
+the dashboard editor or through the `lovelace/config/save` API, not in Git.
+The PVC backup and isolated restore contract cover it.
+
+TV buttons send `remote.send_command` keys to `remote.living_room_tv` and open
+apps with `media_player.select_source` and the app's package name. Room
+buttons call `dreame_vacuum.vacuum_clean_segment` with the vacuum's segment
+IDs; remapping rooms in the Dreame app can change them. To go back to the
+built-in overview, set it as the default in Settings → Dashboards or delete the
+`Home` dashboard there.
