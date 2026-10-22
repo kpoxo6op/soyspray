@@ -21,7 +21,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: media-helper
-        image: ghcr.io/kpoxo6op/media-helper@sha256:dbe9a20d6ac91f469c6393dc512d0f6af4dd3c1a67e6eba619b8b03ed064749f
+        image: ghcr.io/kpoxo6op/media-helper@sha256:5a0e80e1f1580f65d5bff923c2c83ca693713fe5f6bb8eac9c5a5414a7620154
         env:
         - name: MEDIA_HELPER_URL
           value: http://media-helper.media.svc.cluster.local:8080
