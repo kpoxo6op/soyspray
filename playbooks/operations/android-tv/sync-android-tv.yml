@@ -35,6 +35,28 @@
       register: tv_reservation
       changed_when: "'reserved' in tv_reservation.stdout"
 
+    # The TV resolves names through the router, so *.soyspray.vip works and no
+    # app can quietly use its own resolver or DNS over TLS on the internet.
+    # The rule matches the TV's MAC, which covers its changing IPv6 addresses.
+    - name: Keep the TV's DNS on the router
+      ansible.builtin.raw: >-
+        r=firewall.{{ tv_section }}_dns;
+        if [ "$(uci -q get $r.src_mac)" = "{{ android_tv.mac }}" ] &&
+        [ "$(uci -q get $r.dest_port)" = "53 853" ] &&
+        [ "$(uci -q get $r.target)" = "REJECT" ];
+        then echo unchanged; else
+        uci -q delete $r;
+        uci set $r=rule &&
+        uci set $r.name='{{ android_tv.name }} DNS stays on the router' &&
+        uci set $r.src=lan && uci set $r.dest=wan &&
+        uci set $r.src_mac='{{ android_tv.mac }}' &&
+        uci set $r.proto='tcp udp' && uci set $r.dest_port='53 853' &&
+        uci set $r.family=any && uci set $r.target=REJECT &&
+        uci commit firewall && fw4 reload && echo applied; fi
+      delegate_to: openwrt
+      register: tv_dns_rule
+      changed_when: "'applied' in tv_dns_rule.stdout"
+
     - name: Connect to the TV over network ADB
       ansible.builtin.command: adb connect {{ tv_serial }}
       register: tv_connect
@@ -109,6 +131,20 @@
       changed_when: true
       failed_when: tv_install.stdout_lines[-1:] != ['Success']
 
+    - name: Read installed packages
+      ansible.builtin.command: adb -s {{ tv_serial }} shell pm list packages
+      register: tv_installed
+      changed_when: false
+
+    - name: Remove retired apps
+      ansible.builtin.command: adb -s {{ tv_serial }} uninstall {{ item }}
+      loop: >-
+        {{ android_tv_removed_packages
+        | intersect(tv_installed.stdout_lines | map('replace', 'package:', '') | list) }}
+      register: tv_removed
+      changed_when: true
+      failed_when: tv_removed.stdout | trim != 'Success'
+
     - name: Read the home app
       ansible.builtin.command: >-
         adb -s {{ tv_serial }} shell cmd package resolve-activity --brief
@@ -174,12 +210,17 @@
       ansible.builtin.assert:
         that:
           - still_enabled | length == 0
+          - still_installed | length == 0
           - android_tv_apps | map(attribute='package') | difference(enabled) | length == 0
-        fail_msg: "Still enabled: {{ still_enabled }}; enabled: {{ enabled | length }} packages"
+        fail_msg: >-
+          Still enabled: {{ still_enabled }}; still installed: {{ still_installed }};
+          enabled: {{ enabled | length }} packages
         quiet: true
       vars:
         enabled: "{{ tv_packages.results[0].stdout_lines | map('replace', 'package:', '') | list }}"
+        disabled: "{{ tv_packages.results[1].stdout_lines | map('replace', 'package:', '') | list }}"
         still_enabled: "{{ android_tv_disabled_packages | intersect(enabled) }}"
+        still_installed: "{{ android_tv_removed_packages | intersect(enabled + disabled) }}"
 
     # A disabled dependency can leave a persistent system app restarting
     # several times a second, which slows the whole TV.

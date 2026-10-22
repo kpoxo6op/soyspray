@@ -104,14 +104,14 @@ android_tv_apps:
     url: https://github.com/kpoxo6op/soyspray/releases/download/tv-home-1.3/tv-home-1.3.apk
     sha256: b746c1a5e61cb38058115cddb292cccc0fc979b9132ba1deacc5640fa1d6e057
     signer_sha256: 4756eb8571156bfa7d25a81e3330e01d2532e50d0c611a03ddb13d1b0245dca7
-  - package: vip.soyspray.infiniteslop
-    version_name: "1.3"
-    url: https://github.com/kpoxo6op/soyspray/releases/download/infinite-slop-tv-1.3/infinite-slop-tv-1.3.apk
-    sha256: 3b74aa729f37a651a8ed08684548664c41350d32320f758c2fd7167f37abb3e7
-    signer_sha256: 9b839b723c806e2d41a6d367a643f435e22227fc2e0fd0e7b1627a33bd7f32f1
   # SmartTwitchTV is a TV-remote Twitch client; ReVanced Twitch is phone-only.
   - package: com.fgl27.twitch
     version_name: "3.0.379"
     url: https://github.com/fgl27/SmartTwitchTV/releases/download/379/SmartTV_twitch_3_0_379.apk
     sha256: 60c405bbec86501497360767f9e843e7e0fe788e030244d5ec4d63eebf973d99
     signer_sha256: 838d9d90b5bcaa89c7376948b0d8da141c2d0cbba3b983b02a0c443dd63744d9
+
+# Uninstalled when present, after the apps above are in place. Infinite Slop
+# ended in October 2026; AI TV (vip.soyspray.aitv) replaces it.
+android_tv_removed_packages:
+  - vip.soyspray.infiniteslop
