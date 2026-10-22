@@ -126,13 +126,13 @@ public class HomeActivity extends Activity {
         channelName = text(18, "sans-serif-medium", Color.WHITE);
         channelName.setPadding((int) (12 * dp), 0, 0, 0);
         header.addView(channelName);
-        info.addView(header);
+        info.addView(header, wrap());
         nowTitle = text(40, "sans-serif-light", Color.WHITE);
         nowTitle.setSingleLine(true);
         nowTitle.setEllipsize(TextUtils.TruncateAt.END);
         nowTitle.setMaxWidth((int) (600 * dp));
         nowTitle.setPadding(0, (int) (14 * dp), 0, (int) (8 * dp));
-        info.addView(nowTitle);
+        info.addView(nowTitle, wrap());
         LinearLayout timing = new LinearLayout(this);
         timing.setGravity(Gravity.CENTER_VERTICAL);
         nowTime = text(16, "sans-serif", 0xCCFFFFFF);
@@ -142,13 +142,13 @@ public class HomeActivity extends Activity {
                 (int) (4 * dp));
         barAt.leftMargin = (int) (14 * dp);
         timing.addView(nowBar, barAt);
-        info.addView(timing);
+        info.addView(timing, wrap());
         next = text(16, "sans-serif", 0x99FFFFFF);
         next.setSingleLine(true);
         next.setEllipsize(TextUtils.TruncateAt.END);
         next.setMaxWidth((int) (600 * dp));
         next.setPadding(0, (int) (10 * dp), 0, 0);
-        info.addView(next);
+        info.addView(next, wrap());
         overlay.addView(info, at(Gravity.TOP | Gravity.START, 48 * dp, 44 * dp));
 
         LinearLayout corner = new LinearLayout(this);
@@ -511,6 +511,15 @@ public class HomeActivity extends Activity {
         view.setIncludeFontPadding(false);
         view.setShadowLayer(16, 0, 2, 0xCC000000);
         return view;
+    }
+
+    /**
+     * Wrap-content rows, so the column grows when a longer programme title
+     * arrives; match-parent text views keep the width of the first title.
+     */
+    private static LinearLayout.LayoutParams wrap() {
+        return new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
     private static FrameLayout.LayoutParams match() {
