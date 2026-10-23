@@ -64,16 +64,28 @@
         name: gi
       register: gi_application
 
-    - name: Require Argo to run the delivered source, which declares no claim
+    # Argo keeps listing the claims after the sync, as OutOfSync and requiring
+    # pruning, because they carry Prune=false.  Anything else out of sync stops
+    # the retirement.
+    - name: Require Argo to have synced delivered main, with only the reviewed claims left to prune
       ansible.builtin.assert:
         that:
           - gi_application.resources | length == 1
-          - gi_application.resources[0].status.sync.status == 'Synced'
-          - gi_application.resources[0].status.sync.revision == gi_local_revision.stdout
-          - >-
-            gi_application.resources[0].status.resources | default([]) |
-            selectattr('kind', 'equalto', 'PersistentVolumeClaim') | list | length == 0
-        fail_msg: Argo has not synced the source without the claims yet; nothing was deleted.
+          - gi_app_status.sync.revision == gi_local_revision.stdout
+          - gi_app_status.operationState.phase | default('') == 'Succeeded'
+          - gi_app_status.operationState.syncResult.revision | default('') == gi_local_revision.stdout
+          - gi_unsynced | rejectattr('kind', 'equalto', 'PersistentVolumeClaim') | list | length == 0
+          - gi_unsynced | rejectattr('namespace', 'equalto', 'gi') | list | length == 0
+          - gi_unsynced | selectattr('requiresPruning', 'defined') | selectattr('requiresPruning') | list | length == gi_unsynced | length
+          - gi_unsynced | map(attribute='name') | difference(gi_retired_claims | map(attribute='name')) | length == 0
+        fail_msg: >-
+          Argo has not synced delivered main, or something other than the reviewed
+          claims is out of sync; nothing was deleted.
+      vars:
+        gi_app_status: "{{ gi_application.resources[0].status }}"
+        gi_unsynced: >-
+          {{ gi_application.resources[0].status.resources | default([]) |
+          rejectattr('status', 'equalto', 'Synced') | list }}
       when: not ansible_check_mode
 
     - name: Read the preserved Crossover resources
