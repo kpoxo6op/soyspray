@@ -138,10 +138,10 @@ android_tv_apps:
   # Crossover, the private finance page on the big screen (apps/crossover-tv).
   # Its view arrives over ADB from `make -f apps/gi/Makefile tv`.
   - package: vip.soyspray.crossover
-    version_name: "1.5"
-    url: https://github.com/kpoxo6op/soyspray/releases/download/crossover-tv-1.5/crossover-tv-1.5.apk
-    sha256: b018af0ce9fe354bdc0a15118c62a20f996596dcb2670732264d7028f5068b37
-    signer_sha256: bd71d6f3b7355ab3a9348eec655e61efaf997463d5c34934bc310a4f37e85c37
+    version_name: "1.7"
+    url: https://github.com/kpoxo6op/soyspray/releases/download/crossover-tv-1.7/crossover-tv-1.7.apk
+    sha256: ef441d55890c89f7b07815d51879a8d75d2a5a09a1cd43b28fee8d3c460f1c47
+    signer_sha256: 442b7b9f298f85ffdc87ce66140ea1a56639d0136b42383ae4db054a7a9432e3
   # SmartTwitchTV is a TV-remote Twitch client; ReVanced Twitch is phone-only.
   - package: com.fgl27.twitch
     version_name: "3.0.379"
