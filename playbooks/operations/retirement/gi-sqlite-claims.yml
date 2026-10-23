@@ -64,29 +64,40 @@
         name: gi
       register: gi_application
 
-    # Argo keeps listing the claims after the sync, as OutOfSync and requiring
-    # pruning, because they carry Prune=false.  Anything else out of sync stops
-    # the retirement.
-    - name: Require Argo to have synced delivered main, with only the reviewed claims left to prune
+    # The revision Argo last compared must not declare the claims, so it cannot
+    # recreate them.  After the claims left Git, Argo first lists them as
+    # OutOfSync and requiring pruning (skipped because of Prune=false), then
+    # drops them once the AppProject no longer allows the kind.  Anything else
+    # out of sync stops the retirement.
+    - name: Read the gi manifests at the revision Argo compared
+      ansible.builtin.command:
+        argv:
+          - git
+          - show
+          - "{{ gi_application.resources[0].status.sync.revision }}:apps/gi/manifests/kustomization.yaml"
+        chdir: "{{ playbook_dir }}/../../.."
+      register: gi_argo_manifests
+      changed_when: false
+      check_mode: false
+      when: gi_application.resources | length == 1
+
+    - name: Require Argo's revision without the claims, with only the reviewed claims left to prune
       ansible.builtin.assert:
         that:
           - gi_application.resources | length == 1
-          - gi_app_status.sync.revision == gi_local_revision.stdout
-          - gi_app_status.operationState.phase | default('') == 'Succeeded'
-          - gi_app_status.operationState.syncResult.revision | default('') == gi_local_revision.stdout
+          - gi_argo_manifests.rc == 0
+          - "'pvc.yaml' not in gi_argo_manifests.stdout"
           - gi_unsynced | rejectattr('kind', 'equalto', 'PersistentVolumeClaim') | list | length == 0
           - gi_unsynced | rejectattr('namespace', 'equalto', 'gi') | list | length == 0
           - gi_unsynced | selectattr('requiresPruning', 'defined') | selectattr('requiresPruning') | list | length == gi_unsynced | length
           - gi_unsynced | map(attribute='name') | difference(gi_retired_claims | map(attribute='name')) | length == 0
         fail_msg: >-
-          Argo has not synced delivered main, or something other than the reviewed
-          claims is out of sync; nothing was deleted.
+          Argo still runs a revision that declares the claims, or something other
+          than the reviewed claims is out of sync; nothing was deleted.
       vars:
-        gi_app_status: "{{ gi_application.resources[0].status }}"
         gi_unsynced: >-
           {{ gi_application.resources[0].status.resources | default([]) |
           rejectattr('status', 'equalto', 'Synced') | list }}
-      when: not ansible_check_mode
 
     - name: Read the preserved Crossover resources
       kubernetes.core.k8s_info:
