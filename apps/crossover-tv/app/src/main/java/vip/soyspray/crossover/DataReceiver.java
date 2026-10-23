@@ -27,6 +27,9 @@ public class DataReceiver extends BroadcastReceiver {
     static final String VIEW = "vip.soyspray.crossover.VIEW";
     static final String CLEAR = "vip.soyspray.crossover.CLEAR";
 
+    // The view's layout version that assets/app.js draws.
+    private static final int SCHEMA = 2;
+
     // A view is a few kilobytes; this is far above any real one.
     private static final int LIMIT = 256 * 1024;
 
@@ -51,8 +54,8 @@ public class DataReceiver extends BroadcastReceiver {
         try {
             byte[] json = Base64.decode(encoded, Base64.DEFAULT);
             JSONObject view = new JSONObject(new String(json, StandardCharsets.UTF_8));
-            if (!"crossover-tv".equals(view.optString("kind")) || view.optInt("schema") != 1) {
-                answer(Activity.RESULT_CANCELED, "not a Crossover TV view");
+            if (!"crossover-tv".equals(view.optString("kind")) || view.optInt("schema") != SCHEMA) {
+                answer(Activity.RESULT_CANCELED, "not a Crossover TV view of schema " + SCHEMA);
                 return;
             }
             ViewStore.write(context, json);

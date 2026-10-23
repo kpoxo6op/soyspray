@@ -1,9 +1,12 @@
 # Crossover TV app
 
-Crossover on the living-room TV: the date when work becomes optional, the
-position against money needed, the stages from the cash buffer to work
-optional, and the standing transfer, full screen in the TV's WebView. It is the
-big-screen form of the private page at `gi.soyspray.vip` (`apps/gi`).
+Crossover on the living-room TV: the date the mortgage is paid off, how much
+sooner that is than the scheduled repayments, the loans left with and without
+the early repayments, the stages from the cash buffer through mortgage free to
+work optional, and the standing transfer, full screen in the TV's WebView. It
+is the big-screen form of the private page at `gi.soyspray.vip` (`apps/gi`).
+Once there are no loans, work optional leads, with the position against money
+needed.
 
 Amounts start hidden. OK shows or hides them, and the hint top right says
 which. Back leaves, and leaving closes the page, so the next visit starts
@@ -16,7 +19,8 @@ The app holds no engine and no figures of its own. `make -f apps/gi/Makefile
 finance` publishes the private data file to the cluster and then sends the TV
 a ready-made view: the private runtime checkout works it out
 (`scripts/tv-view.ts`) and ADB delivers it on stdin to `DataReceiver`, which
-keeps it in the app's private files. `make -f apps/gi/Makefile tv` sends it
+keeps it in the app's private files. The receiver takes only the view schema
+the page draws (2), so the runtime checkout and the installed app must match. `make -f apps/gi/Makefile tv` sends it
 again, for example after a reinstall, which clears those files. The send
 checks the TV's product name first.
 

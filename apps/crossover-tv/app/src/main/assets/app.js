@@ -101,17 +101,19 @@
     }
   }
 
-  function recordView(date) {
-    var now = { at: new Date().toISOString(), date: date };
-    var last = readJson('crossover.tv.last');
-    var previous = readJson('crossover.tv.previous');
+  // A record from another goal or an older view is not compared.
+  function recordView(goal, date) {
+    var now = { at: new Date().toISOString(), goal: goal, date: date };
+    var same = function (r) { return r && r.goal === goal && r.date ? r : null; };
+    var last = same(readJson('crossover.tv.v2.last'));
+    var previous = same(readJson('crossover.tv.v2.previous'));
     var fresh = false;
     if (last && last.date !== date) {
       previous = last;
       fresh = true;
-      writeJson('crossover.tv.previous', previous);
+      writeJson('crossover.tv.v2.previous', previous);
     }
-    writeJson('crossover.tv.last', now);
+    writeJson('crossover.tv.v2.last', now);
     return { previous: previous, fresh: fresh };
   }
 
@@ -178,6 +180,10 @@
     return root;
   }
 
+  function monthYear(d) {
+    return MONTHS[d.getUTCMonth()] + ' ' + d.getUTCFullYear();
+  }
+
   function hero() {
     var box = el('section', 'hero');
     box.appendChild(el('p', 'hero-label', view.goal.label));
@@ -196,6 +202,7 @@
     line.appendChild(el('strong', null, count(left) + ' days'));
     line.appendChild(document.createTextNode(' from today, at age ' + view.goal.age + '.'));
     box.appendChild(line);
+    if (view.gain) box.appendChild(el('p', 'hero-gain', view.gain));
     if (seen.previous) {
       var at = day(seen.previous.at);
       var moved = prev ? (date - prev) / DAY : 0;
@@ -261,11 +268,17 @@
     var rect = plot.getBoundingClientRect();
     var width = rect.width;
     var height = Math.max(14 * rem, rect.height);
-    var pad = { t: 3.2 * rem, b: 3.6 * rem };
-    var end = c.position.length - 1;
-    var values = c.position.concat(c.needed);
+    var markers = c.markers || [];
+    // One row of labels above the plot for each marker.
+    var row = 1.9 * rem;
+    var pad = { t: 3.2 * rem + Math.max(0, markers.length - 1) * row, b: 3.6 * rem };
+    var series = c.series || [];
+    if (!series.length || !series[0].values.length) return;
+    var end = series[0].values.length - 1;
+    var values = [];
+    series.forEach(function (sr) { values = values.concat(sr.values); });
     var lo = Math.min.apply(null, values.concat([0]));
-    var hi = Math.max.apply(null, values);
+    var hi = Math.max.apply(null, values.concat([1]));
     var raw = (hi - lo) / 4;
     var mag = Math.pow(10, Math.floor(Math.log10(raw)));
     var norm = raw / mag;
@@ -288,14 +301,15 @@
       s.appendChild(svg('line', { x1: left, x2: width, y1: gy, y2: gy, class: v === 0 ? 'grid zero' : 'grid' }));
       s.appendChild(svg('text', { x: left - 0.9 * rem, y: gy + 0.45 * rem, 'text-anchor': 'end', class: 'tick', 'font-size': fs }, hidden ? '•••' : compactMoney(Math.round(v))));
     }
+    // The zero line is named at its right end, clear of the line labels.
     if (c.zero_label && y0 < 0) {
-      s.appendChild(svg('text', { x: x(0) + 1.2 * rem, y: y(0) - 0.6 * rem, class: 'tick halo', 'font-size': fs, 'stroke-width': 0.4 * rem }, c.zero_label));
+      s.appendChild(svg('text', { x: width - 0.5 * rem, y: y(0) - 0.6 * rem, 'text-anchor': 'end', class: 'tick halo', 'font-size': fs, 'stroke-width': 0.4 * rem }, c.zero_label));
     }
     // Years along the bottom, with the age under each.
     var start = day(c.start);
     // A year label needs about 5rem; skip years until they fit.
     var perYear = (width - left) / (end / 12);
-    var every = perYear >= 5 * rem ? 1 : perYear >= 2.5 * rem ? 2 : perYear >= 1.25 * rem ? 4 : 5;
+    var every = perYear >= 5 * rem ? 1 : perYear >= 2.5 * rem ? 2 : perYear >= 1.25 * rem ? 4 : perYear >= rem ? 5 : 10;
     for (var yr = start.getUTCFullYear() + 1, k = 0; ; yr++, k++) {
       var month = (Date.UTC(yr, 0, 1) - start) / DAY / (365.2425 / 12);
       if (month > end) break;
@@ -306,28 +320,47 @@
       s.appendChild(svg('text', { x: tx, y: height - pad.b + 1.7 * rem, 'text-anchor': anchor, class: 'tick', 'font-size': fs }, String(yr)));
       s.appendChild(svg('text', { x: tx, y: height - pad.b + 3.1 * rem, 'text-anchor': anchor, class: 'tick', 'font-size': 1.15 * rem }, (k === 0 ? 'age ' : '') + Math.floor(c.age + month / 12)));
     }
-    s.appendChild(svg('path', { d: line(c.needed), class: 'ln-needed', 'stroke-width': 0.17 * rem }));
-    s.appendChild(svg('path', { d: line(c.position), class: 'ln-position', 'stroke-width': 0.28 * rem }));
-    var na = Math.round(end * 0.04);
-    s.appendChild(svg('text', { x: x(na), y: y(c.needed[na]) - 0.9 * rem, class: 'lbl-needed halo', 'font-size': fs, 'stroke-width': 0.45 * rem }, 'Money needed'));
-    var pa = Math.round(end * 0.3);
-    s.appendChild(svg('text', { x: x(pa) + rem, y: y(c.position[pa]) + 2.2 * rem, class: 'lbl-position halo', 'font-size': fs, 'stroke-width': 0.45 * rem }, 'Position'));
-    s.appendChild(svg('circle', { cx: x(0), cy: y(c.position[0]), r: 0.45 * rem, class: 'now' }));
-    if (c.crossing !== null && c.crossing <= end) {
-      var i0 = Math.floor(c.crossing);
-      var f = c.crossing - i0;
-      var a = c.needed[i0];
-      var b = c.needed[Math.min(end, i0 + 1)];
-      var mx = x(c.crossing);
-      var my = y(a + (b - a) * f);
+    series.forEach(function (sr) {
+      var plan = sr.role === 'plan';
+      s.appendChild(svg('path', { d: line(sr.values), class: plan ? 'ln-position' : 'ln-needed', 'stroke-width': (plan ? 0.28 : 0.17) * rem }));
+    });
+    // Each line is named where it runs clear: a grey line just above itself,
+    // the plan line just to its right, on the side away from the line.
+    series.forEach(function (sr) {
+      var plan = sr.role === 'plan';
+      var la = Math.max(0, Math.min(end, sr.label_at));
+      var lx = x(la);
+      var ly = y(sr.values[la]);
+      if (plan) {
+        // Rising, the label sits below and right; falling, below and left,
+        // in the open corner under the line.
+        var rising = sr.values[Math.min(end, la + 1)] > sr.values[la];
+        if (rising) {
+          s.appendChild(svg('text', { x: lx + rem, y: ly + 2.2 * rem, class: 'lbl-position halo', 'font-size': fs, 'stroke-width': 0.45 * rem }, sr.label));
+        } else {
+          var room = sr.label.length * 0.62 * fs + 0.6 * rem;
+          s.appendChild(svg('text', { x: Math.max(left + room, lx - rem), y: ly + 1.6 * rem, 'text-anchor': 'end', class: 'lbl-position halo', 'font-size': fs, 'stroke-width': 0.45 * rem }, sr.label));
+        }
+      } else {
+        s.appendChild(svg('text', { x: lx + 0.5 * rem, y: ly - 0.9 * rem, class: 'lbl-needed halo', 'font-size': fs, 'stroke-width': 0.45 * rem }, sr.label));
+      }
+    });
+    var first = series[series.length - 1].values;
+    s.appendChild(svg('circle', { cx: x(0), cy: y(first[0]), r: 0.45 * rem, class: 'now' }));
+    markers.forEach(function (mk, i) {
+      if (mk.at === null || mk.at > end) return;
+      var mx = x(mk.at);
+      var my = y(mk.value);
       var r = 0.75 * rem;
-      var g = svg('g', { class: 'mark' });
-      g.appendChild(svg('line', { x1: mx, x2: mx, y1: 1.3 * rem, y2: height - pad.b, class: 'leader', 'stroke-width': 1.5 }));
+      var ty = 0.6 * rem + i * row;
+      var g = svg('g', { class: mk.role === 'plan' ? 'mark' : 'mark mark-base' });
+      g.appendChild(svg('line', { x1: mx, x2: mx, y1: ty + 0.7 * rem, y2: my, class: 'leader', 'stroke-width': 1.5 }));
       g.appendChild(svg('path', { d: 'M' + mx + ',' + (my - r) + 'L' + (mx + r) + ',' + my + 'L' + mx + ',' + (my + r) + 'L' + (mx - r) + ',' + my + 'Z' }));
       var anchorX = mx > width - 14 * rem ? 'end' : mx < left + 14 * rem ? 'start' : 'middle';
-      g.appendChild(svg('text', { x: mx, y: 0.6 * rem, 'text-anchor': anchorX, 'font-size': 1.45 * rem }, c.crossing_label));
+      var tx2 = anchorX === 'start' ? mx - 0.6 * rem : anchorX === 'end' ? mx + 0.6 * rem : mx;
+      g.appendChild(svg('text', { x: tx2, y: ty, 'text-anchor': anchorX, 'font-size': 1.45 * rem, class: 'halo', 'stroke-width': 0.45 * rem }, mk.label));
       s.appendChild(g);
-    }
+    });
     plot.appendChild(s);
   }
 
@@ -376,8 +409,8 @@
       } catch (e) {
         view = null;
       }
-      if (view && view.kind !== 'crossover-tv') view = null;
-      seen = view && view.goal.date ? recordView(view.goal.date) : { previous: null, fresh: false };
+      if (view && (view.kind !== 'crossover-tv' || view.schema !== 2)) view = null;
+      seen = view && view.goal.date ? recordView(view.goal.label, view.goal.date) : { previous: null, fresh: false };
       var go = function () {
         render();
         seen.fresh = false;
