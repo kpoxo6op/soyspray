@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The page's ground colour from the first frame, so opening never flashes. -->
+    <color name="ground">#1A1D20</color>
+
+    <style name="Crossover" parent="@android:style/Theme.Black.NoTitleBar.Fullscreen">
+        <item name="android:windowBackground">@color/ground</item>
+    </style>
+</resources>

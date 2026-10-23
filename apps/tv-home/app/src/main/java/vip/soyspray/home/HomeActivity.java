@@ -165,6 +165,14 @@ public class HomeActivity extends Activity {
         row.setClipChildren(false);
         row.setClipToPadding(false);
         row.setGravity(Gravity.BOTTOM);
+        // The row keeps its proportions and shrinks to fit between the margins
+        // when it holds more tiles than the screen is wide.
+        float natural = 16 * (Tiles.ROW.length - 1);
+        for (Tiles.Tile tile : Tiles.ROW) {
+            natural += tile.wide ? 210 : 108;
+        }
+        float screen = getResources().getDisplayMetrics().widthPixels / dp;
+        float fit = Math.min(1f, (screen - 2 * 48) / natural);
         for (int i = 0; i < Tiles.ROW.length; i++) {
             Tiles.Tile tile = Tiles.ROW[i];
             TileView card = TileView.card(this, tile);
@@ -174,9 +182,10 @@ public class HomeActivity extends Activity {
                 }
             });
             card.setOnClickListener(v -> open(tile, card));
-            int width = (int) ((tile.wide ? 210 : 108) * dp);
-            LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(width, (int) (108 * dp));
-            size.leftMargin = i == 0 ? 0 : (int) (16 * dp);
+            int width = (int) ((tile.wide ? 210 : 108) * fit * dp);
+            LinearLayout.LayoutParams size = new LinearLayout.LayoutParams(width,
+                    (int) (108 * fit * dp));
+            size.leftMargin = i == 0 ? 0 : (int) (16 * fit * dp);
             row.addView(card, size);
             if (Tiles.WATCH.equals(tile.action)) {
                 watch = card;

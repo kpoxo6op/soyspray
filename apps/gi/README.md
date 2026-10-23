@@ -17,6 +17,7 @@ Run these commands from the repository root:
 ```sh
 make -f apps/gi/Makefile finance          # publish ~/.local/share/crossover/finance.json
 make -f apps/gi/Makefile finance FILE=/path/to/finance.json
+make -f apps/gi/Makefile tv               # send only the living-room TV its view
 make smoke APP=gi                         # rollout, health, data file, sign-in gate
 make check APP=gi
 make diff APP=gi
@@ -33,6 +34,17 @@ repository, `docs/DATA.md`.
 Merge the pull request to deploy. Runtime source lives in a separate private
 repository; a source change builds a separate immutable image, and a reviewed
 digest promotion is what changes the running page.
+
+## Living-room TV
+
+`finance` ends by sending the living-room TV its view of the same file
+(`tv.yml`). The private runtime checkout at `~/code/gi-app` works the view out
+with `scripts/tv-view.ts`, and ADB hands it on stdin to the Crossover TV app,
+`apps/crossover-tv`, which keeps it in its private storage. The app has no
+network access and shows amounts only after OK is pressed. The send checks the
+TV's product name first and skips a TV that is off or unreachable, answers as
+another device, or lacks the app; `tv` sends again later, for example after the
+app is reinstalled, which clears its storage.
 
 ## Access boundary
 
@@ -79,8 +91,9 @@ holds its data any more, so reverting to its image would start it empty.
 
 `manifests/` holds the namespace, the deployment, the service, the
 certificate, and the forward-auth ingress pair. `argocd/` holds
-the Application and its AppProject. `finance.yml` publishes the data file and
-`bootstrap.yml` the pull credential; Argo manages neither Secret. `tests/`
+the Application and its AppProject. `finance.yml` publishes the data file,
+`tv.yml` sends the TV its view, and `bootstrap.yml` creates the pull
+credential; Argo manages neither Secret. `tests/`
 protects the access, data, and immutability boundaries.
 
 The image digest in `manifests/deployment.yaml` is the only thing that decides

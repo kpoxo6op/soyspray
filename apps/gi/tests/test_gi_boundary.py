@@ -257,6 +257,30 @@ def test_publishing_the_data_file_prints_nothing_from_it():
             assert task.get("become") is False, task["name"]
 
 
+def test_the_tv_view_travels_on_stdin_and_is_never_printed():
+    """Only the checked TV gets the view, and no command line or log carries it."""
+    publish = yaml.safe_load((APP / "finance.yml").read_text())
+    assert publish[-1]["ansible.builtin.import_playbook"] == "tv.yml"
+    play = yaml.safe_load((APP / "tv.yml").read_text())[0]
+    assert play["hosts"] == "localhost"
+    assert play["become"] is False
+    assert play["vars"]["gi_finance_file"].endswith("/.local/share/crossover/finance.json")
+    holding = [task for task in play["tasks"] if "gi_tv_view" in yaml.safe_dump(task)]
+    # Building the view and sending it are the only tasks that hold it.
+    assert [task.get("register") for task in holding] == ["gi_tv_view", "gi_tv_sent"]
+    for task in holding:
+        assert task.get("no_log") is True, task["name"]
+    send = holding[1]
+    command = send["ansible.builtin.command"]
+    assert command["stdin"] == "{{ gi_tv_view.stdout }}"
+    assert "gi_tv_view" not in yaml.safe_dump(command["argv"])
+    assert "DataReceiver" in command["argv"][-1]
+    # The product check guards the send: a reassigned address gets nothing.
+    skip = next(task for task in play["tasks"] if "block" in task)
+    assert "android_tv.product" in skip["when"]
+    assert skip["block"][-1]["ansible.builtin.meta"] == "end_play"
+
+
 def test_whole_site_is_protected_by_forward_auth_before_the_backend():
     main = named("Ingress", "gi")
     annotations = main["metadata"]["annotations"]
@@ -349,6 +373,7 @@ def test_no_private_value_can_reach_the_public_package():
         "apps/gi/bootstrap-tasks.yml",
         "apps/gi/bootstrap.yml",
         "apps/gi/finance.yml",
+        "apps/gi/tv.yml",
         "apps/gi/argocd/application.yaml",
         "apps/gi/argocd/kustomization.yaml",
         "apps/gi/argocd/project.yaml",

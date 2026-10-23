@@ -98,3 +98,6 @@
           gi-finance now holds version {{ gi_finance_sha }} ({{ gi_finance_size }}
           characters); a copy is in {{ gi_finance_history }}.  The page shows
           it within about a minute.
+
+- name: Send the new version to the living-room TV
+  ansible.builtin.import_playbook: tv.yml
