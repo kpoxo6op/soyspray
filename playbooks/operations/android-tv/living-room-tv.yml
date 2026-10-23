@@ -125,10 +125,10 @@ android_tv_apps:
     sha256: 8510a517c99927076082917f41bf306dd7a2546c59d492dd11bde18d6e2e4628
     signer_sha256: d881796ed2a67ff6ef9f676828723c6b1fa18e09388962cba4abc4a594a69131
   - package: vip.soyspray.home
-    version_name: "1.18"
-    url: https://github.com/kpoxo6op/soyspray/releases/download/tv-home-1.18/tv-home-1.18.apk
-    sha256: 5c8b3a6896b9c0d39d6131ab2bcfb4735d8863a538739fea20c57f75f018f850
-    signer_sha256: b6b2e7f52df08c48c3223eb41a79939a01a3b5b9743e43c57b203c7a74d75e61
+    version_name: "1.20"
+    url: https://github.com/kpoxo6op/soyspray/releases/download/tv-home-1.20/tv-home-1.20.apk
+    sha256: ce8a7d7aa81c89f8c6e63cee6f0042060c4b5f44ac67c52ad910d91b5fa3151b
+    signer_sha256: 4d3565861b9100710c15c9ccabf236d6035fd3559239f35cb370027c06df5415
   # AI TV: fal.live, Flow TV and Nothing, Forever (apps/ai-tv).
   - package: vip.soyspray.aitv
     version_name: "1.8"
@@ -138,10 +138,10 @@ android_tv_apps:
   # Crossover, the private finance page on the big screen (apps/crossover-tv).
   # Its view arrives over ADB from `make -f apps/gi/Makefile tv`.
   - package: vip.soyspray.crossover
-    version_name: "1.3"
-    url: https://github.com/kpoxo6op/soyspray/releases/download/crossover-tv-1.3/crossover-tv-1.3.apk
-    sha256: a9422a2a8d91d692bf929b68911f1ed65ca36e574bf00c73e79f670f1077c836
-    signer_sha256: e4c6675b517b5f7ef141b7f1e8e085aa6af7d3395983b222d6579dc1b0cadbdb
+    version_name: "1.5"
+    url: https://github.com/kpoxo6op/soyspray/releases/download/crossover-tv-1.5/crossover-tv-1.5.apk
+    sha256: b018af0ce9fe354bdc0a15118c62a20f996596dcb2670732264d7028f5068b37
+    signer_sha256: bd71d6f3b7355ab3a9348eec655e61efaf997463d5c34934bc310a4f37e85c37
   # SmartTwitchTV is a TV-remote Twitch client; ReVanced Twitch is phone-only.
   - package: com.fgl27.twitch
     version_name: "3.0.379"
