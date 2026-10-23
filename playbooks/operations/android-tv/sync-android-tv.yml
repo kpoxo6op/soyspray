@@ -69,9 +69,12 @@
       changed_when: false
       failed_when: tv_product.stdout | trim != android_tv.product
 
+    # Steps tagged `screens` drive the TV's screen; skip them with
+    # `--skip-tags screens` while someone is watching.
     - name: Wake the screen for settings screens
       ansible.builtin.command: adb -s {{ tv_serial }} shell input keyevent KEYCODE_WAKEUP
       changed_when: false
+      tags: [screens]
 
     # Apps go first, so the TV always has a home screen before the old one is
     # disabled.
@@ -195,10 +198,12 @@
       loop_control: {label: "{{ item.name }} {{ item.state }}"}
       register: tv_switches
       changed_when: tv_switches.stdout_lines[-1:] == ['changed']
+      tags: [screens]
 
     - name: Return to the home screen
       ansible.builtin.command: adb -s {{ tv_serial }} shell input keyevent KEYCODE_HOME
       changed_when: false
+      tags: [screens]
 
     - name: Read packages after the changes
       ansible.builtin.command: adb -s {{ tv_serial }} shell pm list packages {{ item }}

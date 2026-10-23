@@ -12,7 +12,10 @@ android_tv:
 # Disabled for user 0 with `pm disable-user`. `pm enable PACKAGE` restores one.
 # Keep com.vewd.core.service and com.sony.dtv.airplayapp enabled: AirPlay is a
 # persistent system app that starts even when disabled and crash-loops without
-# the Vewd engine.
+# the Vewd engine. Cross-checked against cleanyourtv's BRAVIA 4K UR2 list
+# (github.com/Gathin23/cleanyourtv, same firmware) on 23 October 2026.
+# Chromecast, the Android TV Remote service, the USB media player, Google's
+# setup app (a possible fallback home) and SEEDS remote start stay enabled.
 android_tv_disabled_packages:
   # Streaming and store apps that are not used here
   - com.netflix.ninja
@@ -50,6 +53,10 @@ android_tv_disabled_packages:
   - com.uei.quicksetsdk.sony
   - com.google.android.feedback
   - com.google.android.tv.bugreportsender
+  - com.sony.dtv.sonyloglevelsettingsys
+  - com.sony.dtv.customersupport.provider.res
+  - com.google.android.partnersetup  # install-attribution (RLZ) provider
+  - com.google.android.syncadapters.calendar  # no Google account; carries promos
   # Voice assistant, broadcast interactivity, HomeKit and retail demos
   - com.google.android.katniss
   - com.sony.dtv.assistantadapter
@@ -59,6 +66,29 @@ android_tv_disabled_packages:
   - com.sony.dtv.homekit
   - com.sony.dtv.multiscreendemo
   - com.sony.dtv.demosupport
+  - com.sony.dtv.demosystemsupport
+  - com.google.android.tv.assistant
+  # Hotel and professional mode, unused in a home
+  - com.sony.dtv.b2b.hotelmode
+  - com.sony.dtv.b2b.rs232csupport
+  - com.sony.dtv.b2b.importexport
+  - com.sony.dtv.b2b.prosettings
+  - com.sony.dtv.b2b.adminpassword
+  - com.sony.dtv.b2b.deviceadminsettings
+  # Network services nobody here uses: the DLNA renderer and server, and
+  # Miracast over Wi-Fi Direct (the TV is wired; AirPlay and Chromecast stay)
+  - com.sony.huey.dlna.module
+  - com.sony.huey.dlna.renderersettings
+  - com.sonyericsson.dlna
+  - com.sony.dtv.networkapp.wifidirect
+  - com.mediatek.wfd
+  # First-setup and stock-launcher leftovers, help content and printing
+  - com.google.android.onetimeinitializer
+  - com.sony.dtv.QuickSetupCustomizer
+  - com.sony.dtv.tvlaunchercustomizer
+  - com.sony.dtv.tvlaunchercustomizer.overlay.apporder
+  - com.sony.dtv.helpguidecontents
+  - com.android.printspooler
 
 # Android settings written with `settings put NAMESPACE KEY VALUE`.
 android_tv_settings:

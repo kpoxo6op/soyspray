@@ -19,7 +19,9 @@ ansible-playbook playbooks/operations/android-tv/sync-android-tv.yml
 ```
 
 The run is safe to repeat. A second run reports no changes. It wakes the
-screen, walks a few settings screens with the D-pad, then returns home.
+screen, walks a few settings screens with the D-pad, then returns home. While
+someone is watching, add `--skip-tags screens`: apps, packages, settings and the
+router are still enforced, and the screen is left alone.
 
 To upgrade an app, replace its `version_name`, `url`, `sha256` and, only if the
 publisher changed its key, `signer_sha256`. SmartTube comes from F-Droid because
