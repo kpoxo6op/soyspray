@@ -11,14 +11,12 @@ metadata:
     soyspray.vip/access-url: https://gi.soyspray.vip
     soyspray.vip/access-method: Authentik forward auth, gi-users group only; LAN and
       Tailscale
-    soyspray.vip/data-claims: gi/gi-data, gi/gi-backups
-    soyspray.vip/data: gi/gi-data; /data/gi.sqlite3; private records and revisions.
-      gi/gi-backups; /backups; completed database copies.
-    soyspray.vip/backup: 'App-owned: one completed copy each day and before each
-      import or schema change, seven daily copies and the latest pre-change copy'
-    soyspray.vip/backup-cause: Home-cluster storage only. This claim is deliberately
-      outside the off-cluster Longhorn recovery groups, so it does not protect against
-      complete loss of the home cluster.
+    soyspray.vip/data: gi/gi-finance Secret, mounted read-only at /data/finance.json;
+      published by apps/gi/finance.yml from a private file outside Git
+    soyspray.vip/backup: 'Operator-owned: the private source file and a dated copy
+      of each published version stay outside the cluster'
+    soyspray.vip/backup-cause: The page is static and keeps no claim. Recovery is
+      publishing the data file again with make -f apps/gi/Makefile finance.
 spec:
   project: gi
   source:

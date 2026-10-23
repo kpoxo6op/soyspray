@@ -238,8 +238,10 @@ entries:
     attrs:
       group: !Find [authentik_core.group, [name, cluster-admins]]
 
-  # GI is a private single-user workspace.  Its policy binds only the dedicated
-  # gi-users group, so no existing group or administrator gains access by default.
+  # Crossover at gi.soyspray.vip is a private single-user page.  Its policy binds
+  # only the dedicated gi-users group, so no existing group or administrator
+  # gains access by default.  The provider keeps its original name, which is its
+  # blueprint identity; renaming it would create a second provider.
   - model: authentik_providers_proxy.proxyprovider
     id: gi-proxy-provider
     identifiers:
@@ -255,7 +257,7 @@ entries:
     id: gi-proxy-application
     identifiers: {slug: gi}
     attrs:
-      name: GI workspace
+      name: Crossover
       group: Cluster
       meta_icon: fa://fa-lock
       provider: !KeyOf gi-proxy-provider

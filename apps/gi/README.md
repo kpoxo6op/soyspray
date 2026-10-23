@@ -67,18 +67,18 @@ The bootstrap creates the `gi-registry` Secret in the `gi` namespace and never
 replaces an existing credential. Without it the pod reports `ImagePullBackOff`,
 because the package denies anonymous pulls.
 
-## Earlier workspace data
+## Earlier workspace
 
-The page replaced an earlier SQLite workspace. Its claims, `gi-data` and
-`gi-backups`, stay in place, unmounted and protected from pruning and
-deletion. Before the switch an isolated restore of its latest completed copy
-was verified in the cluster. Reverting the promotion mounts the claims again.
-Removing them needs a separate, explicit Ansible operation.
+The page replaced an earlier SQLite workspace. Before the switch an isolated
+restore of its last completed copy was verified in the cluster; it held no
+records. Its two claims, `gi-data` and `gi-backups`, were then deleted with
+`playbooks/operations/retirement/gi-sqlite-claims.yml`. Nothing in the cluster
+holds its data any more, so reverting to its image would start it empty.
 
 ## What this package owns
 
-`manifests/` holds the namespace, the two retained claims, the deployment, the
-service, the certificate, and the forward-auth ingress pair. `argocd/` holds
+`manifests/` holds the namespace, the deployment, the service, the
+certificate, and the forward-auth ingress pair. `argocd/` holds
 the Application and its AppProject. `finance.yml` publishes the data file and
 `bootstrap.yml` the pull credential; Argo manages neither Secret. `tests/`
 protects the access, data, and immutability boundaries.
