@@ -15,7 +15,7 @@ application folder is authoritative for commands and limits.
 | Autism traits assessment | Public bilingual assessment; runtime changes use a reviewed image promotion | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/autism-traits) |
 | Headlamp | Authenticated view of Kubernetes resources | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/headlamp) |
 | DeepSeek Harness Remote | Authentik-protected phone access to the official DeepSeek Harness running on laptop `mox` at `ai.soyspray.vip` | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/ai) |
-| GI private workspace | Single-user private workspace at `gi.soyspray.vip`, restricted to the `gi-users` group, with its own claims and forward-auth route | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/gi) |
+| Crossover | Single-user private planning page at `gi.soyspray.vip`, restricted to the `gi-users` group; its data comes from a private Ansible-managed secret | [Application folder](https://github.com/kpoxo6op/soyspray/tree/main/apps/gi) |
 | Monitoring | Metrics, alerts, logs, and public service status | [Application folders](https://github.com/kpoxo6op/soyspray/tree/main/apps) |
 
 Use the repository's native application catalogue when you need the complete

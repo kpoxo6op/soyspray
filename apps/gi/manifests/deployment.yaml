@@ -30,11 +30,12 @@ spec:
       imagePullSecrets:
         - name: gi-registry
       securityContext:
-        fsGroup: 1000
-        fsGroupChangePolicy: OnRootMismatch
+        # nginx-unprivileged runs as 101.  The data file is group-readable by
+        # the same group and nothing else.
+        fsGroup: 101
         runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
+        runAsUser: 101
+        runAsGroup: 101
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -44,11 +45,6 @@ spec:
           ports:
             - name: http
               containerPort: 8080
-          env:
-            - name: GI_DB_PATH
-              value: /data/gi.sqlite3
-            - name: GI_STATIC_DIR
-              value: /app/static
           startupProbe:
             httpGet:
               path: /healthz
@@ -67,11 +63,11 @@ spec:
             periodSeconds: 15
           resources:
             requests:
-              cpu: 20m
-              memory: 48Mi
+              cpu: 5m
+              memory: 16Mi
             limits:
-              cpu: 200m
-              memory: 192Mi
+              cpu: 100m
+              memory: 64Mi
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -79,18 +75,23 @@ spec:
               drop:
                 - ALL
           volumeMounts:
-            - name: data
+            - name: finance
               mountPath: /data
-            - name: backups
-              mountPath: /backups
+              readOnly: true
             - name: tmp
               mountPath: /tmp
       volumes:
-        - name: data
-          persistentVolumeClaim:
-            claimName: gi-data
-        - name: backups
-          persistentVolumeClaim:
-            claimName: gi-backups
+        # The private data file.  Ansible writes the gi-finance Secret from a
+        # file outside Git (`make -f apps/gi/Makefile finance`); Argo never
+        # manages it.  Without it the page says there is no data yet.
+        - name: finance
+          secret:
+            secretName: gi-finance
+            optional: true
+            defaultMode: 288 # 0440
+            items:
+              - key: finance.json
+                path: finance.json
         - name: tmp
-          emptyDir: {}
+          emptyDir:
+            sizeLimit: 16Mi

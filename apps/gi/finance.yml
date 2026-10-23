@@ -1,0 +1,88 @@
+---
+# Publish the private Crossover data file to the cluster.
+#
+# The file lives outside every repository on the operator's machine, by
+# default ~/.local/share/crossover/finance.json.  The play checks that it is a
+# Crossover data file, keeps a dated copy beside it in history/, and writes it
+# to the gi-finance Secret, which the gi pod mounts read-only at /data.  The
+# page reads the new version within about a minute, without a restart.
+# Nothing from the file is printed.
+#
+#   make -f apps/gi/Makefile finance
+#   make -f apps/gi/Makefile finance FILE=/path/to/finance.json
+#
+# To go back to an earlier version, publish its copy from history/.
+- name: Publish the private Crossover data file
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    gi_finance_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/.local/share/crossover/finance.json"
+    gi_finance_history: "{{ gi_finance_file | dirname }}/history"
+  tasks:
+    # Held as base64 so templating can never turn the JSON text into a mapping.
+    - name: Read the data file on this machine
+      ansible.builtin.set_fact:
+        gi_finance_b64: "{{ lookup('ansible.builtin.file', gi_finance_file) | b64encode }}"
+      no_log: true
+
+    - name: Check that it is a Crossover data file small enough for a Secret
+      ansible.builtin.assert:
+        that:
+          - (gi_finance_b64 | b64decode | length) < 900000
+          - (gi_finance_b64 | b64decode | from_json).schema == 1
+          - (gi_finance_b64 | b64decode | from_json).snapshots | length > 0
+        fail_msg: >-
+          The file is not a Crossover data file (schema 1 with at least one
+          snapshot), or it is larger than a Secret allows.
+        quiet: true
+      no_log: true
+
+    - name: Note the size and fingerprint of this version
+      ansible.builtin.set_fact:
+        gi_finance_size: "{{ gi_finance_b64 | b64decode | length }}"
+        gi_finance_sha: "{{ (gi_finance_b64 | b64decode | hash('sha256'))[:12] }}"
+        gi_finance_stamp: "{{ now(utc=true).strftime('%Y%m%dT%H%M%SZ') }}"
+      no_log: true
+
+    - name: Prepare the private history folder
+      ansible.builtin.file:
+        path: "{{ gi_finance_history }}"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
+
+    - name: Keep a dated copy of the version being published
+      ansible.builtin.copy:
+        src: "{{ gi_finance_file }}"
+        dest: "{{ gi_finance_history }}/finance-{{ gi_finance_stamp }}-{{ gi_finance_sha }}.json"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+      no_log: true
+
+    - name: Write the gi-finance Secret
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: "{{ kubeconfig_path }}"
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: gi-finance
+            namespace: gi
+            labels:
+              app.kubernetes.io/part-of: gi
+          type: Opaque
+          data:
+            finance.json: "{{ gi_finance_b64 }}"
+      no_log: true
+
+    - name: Report the published version
+      ansible.builtin.debug:
+        msg: >-
+          gi-finance now holds version {{ gi_finance_sha }} ({{ gi_finance_size }}
+          characters); a copy is in {{ gi_finance_history }}.  The page shows
+          it within about a minute.
