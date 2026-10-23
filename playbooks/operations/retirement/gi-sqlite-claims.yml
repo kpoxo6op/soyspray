@@ -1,0 +1,271 @@
+---
+# Retire the two claims of the earlier GI SQLite workspace.
+#
+# Crossover replaced that workspace at gi.soyspray.vip and keeps no state in
+# the cluster.  Before the switch an isolated restore of the workspace's last
+# completed copy was verified; it held no records.  This operation deletes only
+# the two reviewed claims, after Git stops declaring them, and lets Longhorn
+# reclaim their volumes.  It never touches the Crossover Deployment, its data
+# Secret or its pull credential.
+#
+#   ansible-playbook playbooks/operations/retirement/gi-sqlite-claims.yml \
+#     -e retire_gi_sqlite_claims=true --check
+- name: Retire only the earlier GI workspace claims
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    retire_gi_sqlite_claims: false
+    gi_retired_claims:
+      - {name: gi-data, uid: a623c96e-81e3-4a75-9c74-292087cbc6eb}
+      - {name: gi-backups, uid: 4a45d890-19db-4a17-94e1-671b5ad74282}
+    gi_preserved:
+      - {api_version: v1, kind: Namespace, name: gi}
+      - {api_version: apps/v1, kind: Deployment, namespace: gi, name: gi}
+      - {api_version: v1, kind: Secret, namespace: gi, name: gi-finance}
+      - {api_version: v1, kind: Secret, namespace: gi, name: gi-registry}
+  tasks:
+    - name: Require explicit scope and the claims removed through Git
+      ansible.builtin.assert:
+        that:
+          - retire_gi_sqlite_claims | bool
+          - "'pvc.yaml' not in lookup('file', playbook_dir + '/../../../apps/gi/manifests/kustomization.yaml')"
+          - "'PersistentVolumeClaim' not in lookup('file', playbook_dir + '/../../../apps/gi/argocd/project.yaml')"
+        fail_msg: Remove the claims from apps/gi through Git before this scoped retirement.
+
+    - name: Read the exact reviewed source revision
+      ansible.builtin.command:
+        argv: [git, rev-parse, HEAD]
+        chdir: "{{ playbook_dir }}/../../.."
+      register: gi_local_revision
+      changed_when: false
+      check_mode: false
+
+    - name: Read the delivered main revision
+      ansible.builtin.command:
+        argv: [git, ls-remote, https://github.com/kpoxo6op/soyspray.git, refs/heads/main]
+      register: gi_main_revision
+      changed_when: false
+      check_mode: false
+
+    - name: Require delivered main for live retirement
+      ansible.builtin.assert:
+        that:
+          - gi_local_revision.stdout == gi_main_revision.stdout.split()[0]
+        fail_msg: Check out delivered main before deleting the claims.
+      when: not ansible_check_mode
+
+    - name: Read the gi Application
+      kubernetes.core.k8s_info:
+        api_version: argoproj.io/v1alpha1
+        kind: Application
+        namespace: argocd
+        name: gi
+      register: gi_application
+
+    - name: Require Argo to run the delivered source, which declares no claim
+      ansible.builtin.assert:
+        that:
+          - gi_application.resources | length == 1
+          - gi_application.resources[0].status.sync.status == 'Synced'
+          - gi_application.resources[0].status.sync.revision == gi_local_revision.stdout
+          - >-
+            gi_application.resources[0].status.resources | default([]) |
+            selectattr('kind', 'equalto', 'PersistentVolumeClaim') | list | length == 0
+        fail_msg: Argo has not synced the source without the claims yet; nothing was deleted.
+      when: not ansible_check_mode
+
+    - name: Read the preserved Crossover resources
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api_version }}"
+        kind: "{{ item.kind }}"
+        namespace: "{{ item.namespace | default(omit) }}"
+        name: "{{ item.name }}"
+      loop: "{{ gi_preserved }}"
+      loop_control:
+        label: "{{ item.kind }}/{{ item.name }}"
+      register: gi_preserved_before
+      no_log: true
+
+    - name: Require the preserved resources
+      ansible.builtin.assert:
+        that:
+          - gi_preserved_before.results | map(attribute='resources') | map('length') | min == 1
+        fail_msg: The gi namespace, Deployment, data Secret or pull credential is missing.
+
+    - name: Read only the reviewed claims
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: gi
+        name: "{{ item.name }}"
+      loop: "{{ gi_retired_claims }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: gi_claims
+
+    - name: Read only their bound PersistentVolumes
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolume
+        name: pvc-{{ item.uid }}
+      loop: "{{ gi_retired_claims }}"
+      loop_control:
+        label: pvc-{{ item.uid }}
+      register: gi_volumes
+
+    - name: Read only their Longhorn volumes
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Volume
+        namespace: longhorn-system
+        name: pvc-{{ item.uid }}
+      loop: "{{ gi_retired_claims }}"
+      loop_control:
+        label: pvc-{{ item.uid }}
+      register: gi_longhorn
+
+    - name: Require the exact reviewed claims, detached, with normal Longhorn reclamation
+      ansible.builtin.assert:
+        that:
+          - claim | length <= 1
+          - volume | length <= 1
+          - longhorn | length <= 1
+          - claim | length == 1 or (volume | length == 0 and longhorn | length == 0)
+          - >-
+            claim | length == 0 or
+            (claim[0].metadata.uid == item.uid and
+            claim[0].metadata.labels.get('argocd.argoproj.io/instance', '') == 'gi' and
+            claim[0].spec.volumeName == 'pvc-' + item.uid and
+            claim[0].spec.storageClassName == 'longhorn')
+          - claim | length == 0 or (volume | length == 1 and longhorn | length == 1)
+          - >-
+            claim | length == 0 or
+            (volume[0].spec.claimRef.uid == item.uid and
+            volume[0].spec.claimRef.name == item.name and
+            volume[0].spec.claimRef.namespace == 'gi' and
+            volume[0].spec.persistentVolumeReclaimPolicy == 'Delete' and
+            volume[0].spec.csi.driver == 'driver.longhorn.io' and
+            volume[0].spec.csi.volumeHandle == 'pvc-' + item.uid)
+          - >-
+            claim | length == 0 or
+            (longhorn[0].status.state == 'detached' and
+            longhorn[0].status.kubernetesStatus.namespace == 'gi' and
+            longhorn[0].status.kubernetesStatus.pvcName == item.name and
+            longhorn[0].status.kubernetesStatus.pvName == 'pvc-' + item.uid)
+        fail_msg: A claim or its storage differs from the reviewed scope; nothing was deleted.
+        quiet: true
+      vars:
+        claim: "{{ gi_claims.results[index].resources }}"
+        volume: "{{ gi_volumes.results[index].resources }}"
+        longhorn: "{{ gi_longhorn.results[index].resources }}"
+      loop: "{{ gi_retired_claims }}"
+      loop_control:
+        index_var: index
+        label: "{{ item.name }}"
+
+    - name: Read the pods in the gi namespace
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: gi
+      register: gi_pods
+
+    - name: Refuse any pod that still mounts a reviewed claim
+      ansible.builtin.assert:
+        that:
+          - >-
+            item.spec.get('volumes', []) | selectattr('persistentVolumeClaim', 'defined') |
+            map(attribute='persistentVolumeClaim.claimName') |
+            intersect(gi_retired_claims | map(attribute='name') | list) | length == 0
+        fail_msg: A pod still mounts an earlier workspace claim; nothing was deleted.
+        quiet: true
+      loop: "{{ gi_pods.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Delete only the reviewed claims, each with its UID as a precondition
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: gi
+        name: "{{ item.item.name }}"
+        state: absent
+        delete_options:
+          preconditions:
+            uid: "{{ item.item.uid }}"
+        wait: true
+        wait_timeout: 300
+      loop: "{{ gi_claims.results }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      when: item.resources | length == 1
+
+    - name: Wait for each PersistentVolume to be reclaimed
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolume
+        name: pvc-{{ item.uid }}
+      loop: "{{ gi_retired_claims }}"
+      loop_control:
+        label: pvc-{{ item.uid }}
+      register: gi_volumes_after
+      until: gi_volumes_after.resources | length == 0
+      retries: 60
+      delay: 5
+      when: not ansible_check_mode
+
+    - name: Wait for each Longhorn volume to be removed
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Volume
+        namespace: longhorn-system
+        name: pvc-{{ item.uid }}
+      loop: "{{ gi_retired_claims }}"
+      loop_control:
+        label: pvc-{{ item.uid }}
+      register: gi_longhorn_after
+      until: gi_longhorn_after.resources | length == 0
+      retries: 60
+      delay: 5
+      when: not ansible_check_mode
+
+    - name: Read the claims after retirement
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: PersistentVolumeClaim
+        namespace: gi
+        name: "{{ item.name }}"
+      loop: "{{ gi_retired_claims }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: gi_claims_after
+      when: not ansible_check_mode
+
+    - name: Read the preserved Crossover resources after retirement
+      kubernetes.core.k8s_info:
+        api_version: "{{ item.api_version }}"
+        kind: "{{ item.kind }}"
+        namespace: "{{ item.namespace | default(omit) }}"
+        name: "{{ item.name }}"
+      loop: "{{ gi_preserved }}"
+      loop_control:
+        label: "{{ item.kind }}/{{ item.name }}"
+      register: gi_preserved_after
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Require the claims gone and Crossover untouched
+      ansible.builtin.assert:
+        that:
+          - gi_claims_after.results | map(attribute='resources') | map('length') | max == 0
+          - gi_preserved_after.results | map(attribute='resources') | map('length') | min == 1
+          - >-
+            gi_preserved_before.results | map(attribute='resources') | map('first') |
+            map(attribute='metadata.uid') | list ==
+            gi_preserved_after.results | map(attribute='resources') | map('first') |
+            map(attribute='metadata.uid') | list
+          - (gi_preserved_after.results[1].resources[0].status.availableReplicas | default(0)) >= 1
+        fail_msg: A claim remains, or a Crossover resource was replaced or is unavailable.
+      when: not ansible_check_mode

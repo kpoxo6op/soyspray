@@ -3,7 +3,6 @@ kind: Kustomization
 namespace: gi
 resources:
   - namespace.yaml
-  - pvc.yaml
   - deployment.yaml
   - service.yaml
   - certificate.yaml

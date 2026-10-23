@@ -1,4 +1,4 @@
-"""Protect the private workspace boundary, access policy, and durable data.
+"""Protect the Crossover page's access boundary, data file, and running image.
 
 These checks read the reviewed manifests only.  They never contact the cluster
 and never contain a personal value, record, or export.
@@ -99,7 +99,6 @@ def test_project_cannot_manage_anything_outside_its_namespace():
     }
     assert kinds == {
         ("", "ConfigMap"),
-        ("", "PersistentVolumeClaim"),
         ("", "Service"),
         ("cert-manager.io", "Certificate"),
         ("apps", "Deployment"),
@@ -107,14 +106,11 @@ def test_project_cannot_manage_anything_outside_its_namespace():
     }
 
 
-def test_durable_resources_cannot_be_pruned_or_deleted_by_a_sync():
-    _, kinds, _ = rendered()
-    durable = kinds["Namespace"] + kinds["PersistentVolumeClaim"]
-    assert durable, "the package must declare its own namespace and claims"
-    for item in durable:
-        options = item["metadata"]["annotations"]["argocd.argoproj.io/sync-options"]
-        assert "Prune=false" in options, item["metadata"]["name"]
-        assert "Delete=false" in options, item["metadata"]["name"]
+def test_the_namespace_cannot_be_pruned_or_deleted_by_a_sync():
+    """The namespace holds the Secrets Ansible writes, which Argo never manages."""
+    options = named("Namespace", "gi")["metadata"]["annotations"]["argocd.argoproj.io/sync-options"]
+    assert "Prune=false" in options
+    assert "Delete=false" in options
 
 
 def test_the_running_image_is_an_immutable_private_digest():
@@ -151,10 +147,13 @@ def test_the_private_image_has_a_declared_pull_credential():
         assert not name.endswith(".vault.yml"), name
 
 
-def test_only_one_writer_can_run_at_a_time():
+def test_a_new_version_starts_before_the_old_one_stops():
     spec = named("Deployment", "gi")["spec"]
     assert spec["replicas"] == 1
-    assert spec["strategy"]["type"] == "Recreate"
+    assert spec["strategy"] == {
+        "type": "RollingUpdate",
+        "rollingUpdate": {"maxSurge": 1, "maxUnavailable": 0},
+    }
 
 
 def test_workload_runs_unprivileged_with_an_immutable_root():
@@ -177,20 +176,34 @@ def test_namespace_enforces_the_restricted_pod_security_standard():
     )
 
 
-def test_earlier_workspace_claims_are_kept_but_not_mounted():
-    """The earlier workspace's claims stay, protected, and nothing mounts them.
-
-    The page keeps no state in the cluster.  Reverting the promotion mounts the
-    claims again, so they must survive this change untouched.
-    """
+def test_the_page_keeps_no_state_in_the_cluster():
+    """The page is static: its only input is the published data file."""
     _, kinds, _ = rendered()
-    claims = {item["metadata"]["name"]: item["spec"] for item in kinds["PersistentVolumeClaim"]}
-    assert set(claims) == {"gi-data", "gi-backups"}
-    for claim in claims.values():
-        assert claim["storageClassName"] == "longhorn"
-        assert claim["accessModes"] == ["ReadWriteOnce"]
+    assert "PersistentVolumeClaim" not in kinds
     pod = named("Deployment", "gi")["spec"]["template"]["spec"]
-    assert [volume for volume in pod["volumes"] if "persistentVolumeClaim" in volume] == []
+    volumes = {volume["name"]: volume for volume in pod["volumes"]}
+    assert set(volumes) == {"finance", "tmp"}
+    assert set(volumes["tmp"]) == {"name", "emptyDir"}
+
+
+def test_the_earlier_claims_are_retired_only_by_their_scoped_operation():
+    """Deleting the SQLite workspace's claims takes an explicit, exact operation."""
+    play = yaml.safe_load(
+        (ROOT / "playbooks/operations/retirement/gi-sqlite-claims.yml").read_text()
+    )[0]
+    assert play["hosts"] == "localhost"
+    assert play["vars"]["retire_gi_sqlite_claims"] is False
+    claims = {claim["name"]: claim["uid"] for claim in play["vars"]["gi_retired_claims"]}
+    assert set(claims) == {"gi-data", "gi-backups"}
+    deletions = [
+        task["kubernetes.core.k8s"]
+        for task in play["tasks"]
+        if task.get("kubernetes.core.k8s", {}).get("state") == "absent"
+    ]
+    assert len(deletions) == 1
+    deletion = deletions[0]
+    assert (deletion["kind"], deletion["namespace"]) == ("PersistentVolumeClaim", "gi")
+    assert deletion["delete_options"]["preconditions"] == {"uid": "{{ item.item.uid }}"}
 
 
 def test_the_data_file_is_mounted_read_only_from_an_ansible_secret():
@@ -242,36 +255,6 @@ def test_publishing_the_data_file_prints_nothing_from_it():
     for task in play["tasks"]:
         if task.get("delegate_to") == "localhost":
             assert task.get("become") is False, task["name"]
-
-
-def test_claims_are_outside_the_off_cluster_recovery_groups():
-    """GI storage is home-cluster only, as PLAN.md requires.
-
-    Longhorn only acts on a volume group named by a recurring job.  The two
-    configured groups, `critical` and `durable-small`, both write to the
-    off-cluster S3 target, so GI claims must not join either of them.
-    """
-    _, kinds, _ = rendered()
-    for claim in kinds["PersistentVolumeClaim"]:
-        labels = claim["metadata"].get("labels", {})
-        groups = {
-            key.split("/")[-1]
-            for key in labels
-            if key.startswith("recurring-job-group.longhorn.io/")
-        }
-        assert not groups & {"critical", "durable-small"}, claim["metadata"]["name"]
-
-    jobs = list(
-        yaml.safe_load_all((ROOT / "playbooks/operations/recovery/longhorn-jobs.yaml").read_text())
-    )
-    assert {group for job in jobs for group in job["spec"]["groups"]} == {
-        "critical",
-        "durable-small",
-    }
-
-    recovery = (ROOT / "playbooks/operations/recovery/configure-longhorn.yml").read_text()
-    assert "gi-data" not in recovery
-    assert "gi-backups" not in recovery
 
 
 def test_whole_site_is_protected_by_forward_auth_before_the_backend():
@@ -375,7 +358,6 @@ def test_no_private_value_can_reach_the_public_package():
         "apps/gi/manifests/ingress.yaml",
         "apps/gi/manifests/kustomization.yaml",
         "apps/gi/manifests/namespace.yaml",
-        "apps/gi/manifests/pvc.yaml",
         "apps/gi/manifests/service.yaml",
         "apps/gi/tests/test_gi_boundary.py",
     }

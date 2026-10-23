@@ -74,6 +74,23 @@ The earlier `laptop-cluster-diagnosis.yml` operation preserves its private local
 ledger and does not reinstall the loop. Laptop evidence units are retired;
 keep the independent recovery-input-backup timer enabled.
 
+## GI SQLite claims
+
+`gi-sqlite-claims.yml -e retire_gi_sqlite_claims=true` deletes the two claims
+of the earlier GI SQLite workspace, `gi/gi-data` and `gi/gi-backups`, after Git
+stops declaring them. Crossover now serves `gi.soyspray.vip` with no claim.
+Run with `--check` first, then apply delivered `main` once Argo has synced it.
+
+It requires the reviewed claim UIDs and volumes, the `Delete` reclaim policy,
+detached Longhorn volumes, and no pod mounting either claim. It deletes each
+claim with a UID precondition and waits for Longhorn to reclaim its PV and
+volume. It then verifies that the gi namespace, the Crossover Deployment, its
+data Secret and its pull credential are the same objects as before.
+
+The earlier records are not recoverable afterwards. An isolated restore of the
+workspace's last completed copy, verified before the switch, held no records.
+A completed retirement can be checked and applied again.
+
 ## Retired laptop scrape
 
 After the laptop scrape is removed from the Prometheus package, the stack's
