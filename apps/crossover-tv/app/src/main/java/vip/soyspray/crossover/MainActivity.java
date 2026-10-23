@@ -13,7 +13,7 @@ import android.webkit.WebViewClient;
 import java.lang.ref.WeakReference;
 
 /**
- * Crossover on the living-room TV: the work-optional date, the chart and the
+ * Crossover on the living-room TV: the mortgage-free date, the chart and the
  * stages, drawn full screen by a local page in the WebView. The page shows the
  * view the laptop last sent (see {@link DataReceiver}) and nothing else; the
  * app has no network access. OK shows or hides amounts. Back leaves, and
