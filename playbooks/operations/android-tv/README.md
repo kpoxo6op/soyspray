@@ -4,7 +4,9 @@
 to the state declared in `living-room-tv.yml`: Sony and Google advertising,
 tracking, remote-support and voice packages off, privacy settings, Remote
 start, our own home screen (`apps/tv-home`), and pinned SmartTube, Jellyfin,
-SmartTwitchTV and AI TV (`apps/ai-tv`) builds. Retired apps listed in
+SmartTwitchTV, AI TV (`apps/ai-tv`) and Crossover (`apps/crossover-tv`) builds.
+Crossover's view is sent separately by `make -f apps/gi/Makefile tv`, and again
+after any reinstall, which clears it. Retired apps listed in
 `android_tv_removed_packages` are uninstalled. On OpenWrt it reserves the TV's
 address and keeps the TV's DNS on the router. Change the TV by editing
 `living-room-tv.yml` and running the playbook; do not change it by hand.
