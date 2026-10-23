@@ -80,6 +80,8 @@ keep the independent recovery-input-backup timer enabled.
 of the earlier GI SQLite workspace, `gi/gi-data` and `gi/gi-backups`, after Git
 stops declaring them. Crossover now serves `gi.soyspray.vip` with no claim.
 Run with `--check` first, then apply delivered `main` once Argo has synced it.
+Until then Argo lists the two claims as OutOfSync and requiring pruning, which
+it skips because of `Prune=false`; anything else out of sync stops the run.
 
 It requires the reviewed claim UIDs and volumes, the `Delete` reclaim policy,
 detached Longhorn volumes, and no pod mounting either claim. It deletes each
