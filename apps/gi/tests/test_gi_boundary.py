@@ -214,13 +214,23 @@ def test_publishing_the_data_file_prints_nothing_from_it():
     """Every task that holds the file's contents keeps them out of the log."""
     play = yaml.safe_load((APP / "finance.yml").read_text())[0]
     assert play["vars"]["gi_finance_file"].endswith("/.local/share/crossover/finance.json")
-    secret_tasks = [task for task in play["tasks"] if "kubernetes.core.k8s" in task]
-    assert len(secret_tasks) == 1
-    assert secret_tasks[0]["kubernetes.core.k8s"]["definition"]["metadata"] == {
+    writes = [
+        task
+        for task in play["tasks"]
+        if "gi-finance" in yaml.safe_dump(task.get("ansible.builtin.command", {}))
+    ]
+    assert len(writes) == 1
+    command = writes[0]["ansible.builtin.command"]
+    # Server-side apply keeps the data out of a last-applied annotation.
+    assert "--server-side" in command["argv"]
+    manifest = yaml.safe_load(command["stdin"])
+    assert manifest["kind"] == "Secret"
+    assert manifest["metadata"] == {
         "name": "gi-finance",
         "namespace": "gi",
         "labels": {"app.kubernetes.io/part-of": "gi"},
     }
+    assert list(manifest["data"]) == ["finance.json"]
     for task in play["tasks"]:
         holds_contents = "gi_finance_b64" in yaml.safe_dump(task)
         copies_file = "ansible.builtin.copy" in task

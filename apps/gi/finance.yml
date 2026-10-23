@@ -63,11 +63,22 @@
       become: false
       no_log: true
 
+    # kubectl with the data on stdin, as other bootstraps do: the control-plane
+    # nodes carry kubectl but not the Python Kubernetes client.  Server-side
+    # apply creates or replaces the Secret without copying it into an
+    # annotation.
     - name: Write the gi-finance Secret
-      kubernetes.core.k8s:
-        state: present
-        kubeconfig: "{{ kubeconfig_path }}"
-        definition:
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ kubeconfig_path }}"
+          - apply
+          - --server-side
+          - --field-manager=crossover-finance
+          - -f
+          - "-"
+        stdin: |
           apiVersion: v1
           kind: Secret
           metadata:
@@ -78,6 +89,7 @@
           type: Opaque
           data:
             finance.json: "{{ gi_finance_b64 }}"
+      changed_when: true
       no_log: true
 
     - name: Report the published version
