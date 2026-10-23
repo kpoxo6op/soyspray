@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The chart's crossing: money needed (grey) meets the position (magenta). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path
+        android:fillColor="#1A1D20"
+        android:pathData="M18,8L78,8A10,10 0,0 1,88 18L88,78A10,10 0,0 1,78 88L18,88A10,10 0,0 1,8 78L8,18A10,10 0,0 1,18 8Z" />
+    <path
+        android:strokeColor="#A4A9AE"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M20,40L78,56" />
+    <path
+        android:strokeColor="#E070D6"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:pathData="M20,74L78,26" />
+    <path
+        android:fillColor="#E070D6"
+        android:pathData="M50.8,40.5L58.8,48.5L50.8,56.5L42.8,48.5Z" />
+</vector>

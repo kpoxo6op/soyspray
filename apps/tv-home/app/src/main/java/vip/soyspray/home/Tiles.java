@@ -48,6 +48,8 @@ final class Tiles {
                 Tiles::twitch, false),
         new Tile("AI TV", "vip.soyspray.aitv", null, 0xFFFF3D6E, 0xFFFF9A3D,
                 Tiles::infinity, false),
+        new Tile("Crossover", "vip.soyspray.crossover", null, 0xFFB04AA6, 0xFF3A1B3C,
+                Tiles::crossing, false),
     };
 
     private Tiles() {}
@@ -160,6 +162,27 @@ final class Tiles {
         paint.setStrokeWidth(0.10f * s);
         paint.setStrokeCap(Paint.Cap.ROUND);
         canvas.drawPath(path, paint);
+    }
+
+    /** A thin line and a thick one crossing at a diamond, as on the Crossover chart. */
+    static void crossing(Canvas canvas, Paint paint, float s) {
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeCap(Paint.Cap.ROUND);
+        paint.setStrokeWidth(0.05f * s);
+        canvas.drawLine(0.10f * s, 0.36f * s, 0.90f * s, 0.60f * s, paint);
+        paint.setStrokeWidth(0.10f * s);
+        canvas.drawLine(0.10f * s, 0.86f * s, 0.90f * s, 0.14f * s, paint);
+        float cx = 0.517f * s;
+        float cy = 0.485f * s;
+        float r = 0.13f * s;
+        Path diamond = new Path();
+        diamond.moveTo(cx, cy - r);
+        diamond.lineTo(cx + r, cy);
+        diamond.lineTo(cx, cy + r);
+        diamond.lineTo(cx - r, cy);
+        diamond.close();
+        paint.setStyle(Paint.Style.FILL);
+        canvas.drawPath(diamond, paint);
     }
 
     static void grid(Canvas canvas, Paint paint, float s) {

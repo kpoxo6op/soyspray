@@ -1,5 +1,5 @@
 include $(dir $(lastword $(MAKEFILE_LIST)))../common.mk
-.PHONY: check diff bootstrap finance smoke
+.PHONY: check diff bootstrap finance tv smoke
 
 check:
 	cd $(ROOT) && $(PYTHON) -m pytest -q apps/gi/tests
@@ -14,9 +14,13 @@ diff:
 bootstrap:
 	cd $(ROOT) && $(ANSIBLE) apps/gi/bootstrap.yml
 
-# Publish the private data file to the gi-finance Secret.
+# Publish the private data file to the gi-finance Secret, then to the TV.
 finance:
 	cd $(ROOT) && $(ANSIBLE) apps/gi/finance.yml $(if $(FILE),-e gi_finance_file=$(FILE))
+
+# Send only the living-room TV its view, for example after the app is reinstalled.
+tv:
+	cd $(ROOT) && $(ANSIBLE) apps/gi/tv.yml $(if $(FILE),-e gi_finance_file=$(FILE))
 
 # Read-only checks of the running page: rollout, health, data file present,
 # and anonymous requests refused by the sign-in.

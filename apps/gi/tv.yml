@@ -1,0 +1,95 @@
+---
+# Send the living-room TV its view of the private Crossover data file.
+#
+# The private Crossover checkout on this machine works the view out
+# (scripts/tv-view.ts), and ADB hands it to the Crossover TV app
+# (apps/crossover-tv), which keeps it in its private storage and has no
+# network access.  Amounts start hidden on the TV.  The view travels on
+# stdin, and nothing from it is printed.  A TV that is off, unreachable,
+# answering as another device, or without the app is skipped.
+#
+#   make -f apps/gi/Makefile tv
+#   make -f apps/gi/Makefile tv FILE=/path/to/finance.json
+#
+# `make -f apps/gi/Makefile finance` runs this after publishing to the cluster.
+- name: Send the Crossover view to the living-room TV
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars_files:
+    - ../../playbooks/operations/android-tv/living-room-tv.yml
+  vars:
+    gi_finance_file: "{{ lookup('ansible.builtin.env', 'HOME') }}/.local/share/crossover/finance.json"
+    gi_app_checkout: "{{ lookup('ansible.builtin.env', 'HOME') }}/code/gi-app"
+    gi_tv_serial: "{{ android_tv.address }}:{{ android_tv.adb_port }}"
+    gi_tv_package: vip.soyspray.crossover
+  tasks:
+    - name: Work out the TV view with the private Crossover checkout
+      ansible.builtin.command:
+        argv: [node, "{{ gi_app_checkout }}/scripts/tv-view.ts", "{{ gi_finance_file }}", --base64]
+      register: gi_tv_view
+      changed_when: false
+      check_mode: false
+      no_log: true
+
+    - name: Connect to the TV over network ADB
+      ansible.builtin.command: adb connect {{ gi_tv_serial }}
+      register: gi_tv_connect
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Read the TV's product name and the app's path
+      ansible.builtin.command: >-
+        adb -s {{ gi_tv_serial }} shell
+        'getprop ro.product.name; pm path {{ gi_tv_package }}'
+      register: gi_tv_identity
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      when: gi_tv_connect.stdout is search('connected to')
+
+    - name: Skip a TV that is off or unreachable, answers as another device, or lacks the app
+      when: >-
+        gi_tv_identity is skipped or
+        (gi_tv_identity.stdout_lines | first | default('')) != android_tv.product or
+        'package:' not in gi_tv_identity.stdout
+      block:
+        - name: Say why the TV was skipped
+          ansible.builtin.debug:
+            msg: >-
+              The TV view was not sent: {{ gi_tv_serial }} is off or unreachable,
+              answers as another device, or lacks {{ gi_tv_package }}.  Run
+              make -f apps/gi/Makefile tv once it is on.
+
+        - name: Leave the TV unchanged
+          ansible.builtin.meta: end_play
+
+    # On stdin, so the view never appears in a command line on either side.
+    - name: Send the view to the Crossover app
+      ansible.builtin.command:
+        argv:
+          - adb
+          - -s
+          - "{{ gi_tv_serial }}"
+          - shell
+          - >-
+            read -r view; am broadcast -f 32 -n {{ gi_tv_package }}/.DataReceiver
+            -a {{ gi_tv_package }}.VIEW --es view "$view"
+        stdin: "{{ gi_tv_view.stdout }}"
+      register: gi_tv_sent
+      changed_when: true
+      failed_when: false
+      no_log: true
+
+    - name: Require the app to have stored the view
+      ansible.builtin.assert:
+        that:
+          - gi_tv_sent.rc == 0
+          - gi_tv_sent.stdout is search('data="stored [0-9]+ bytes"')
+        fail_msg: >-
+          The TV did not store the view:
+          {{ gi_tv_sent.stdout_lines | select('search', 'Broadcast completed') | first | default('no answer') }}
+        success_msg: "The Crossover app on {{ gi_tv_serial }} {{ gi_tv_sent.stdout | regex_search('stored [0-9]+ bytes') }}."
+      when: not ansible_check_mode
