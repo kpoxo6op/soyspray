@@ -164,25 +164,34 @@ final class Tiles {
         canvas.drawPath(path, paint);
     }
 
-    /** A thin line and a thick one crossing at a diamond, as on the Crossover chart. */
+    /**
+     * The Crossover chart in small: a thin line (money needed) crosses a thick
+     * rising one (the position) at a diamond. The cut around the diamond is the
+     * tile's colour where the glyph sits, so it reads apart from the lines.
+     */
     static void crossing(Canvas canvas, Paint paint, float s) {
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeCap(Paint.Cap.ROUND);
-        paint.setStrokeWidth(0.05f * s);
-        canvas.drawLine(0.10f * s, 0.36f * s, 0.90f * s, 0.60f * s, paint);
-        paint.setStrokeWidth(0.10f * s);
-        canvas.drawLine(0.10f * s, 0.86f * s, 0.90f * s, 0.14f * s, paint);
-        float cx = 0.517f * s;
-        float cy = 0.485f * s;
-        float r = 0.13f * s;
-        Path diamond = new Path();
-        diamond.moveTo(cx, cy - r);
-        diamond.lineTo(cx + r, cy);
-        diamond.lineTo(cx, cy + r);
-        diamond.lineTo(cx - r, cy);
-        diamond.close();
+        paint.setStrokeWidth(0.07f * s);
+        canvas.drawLine(0.06f * s, 0.33f * s, 0.94f * s, 0.59f * s, paint);
+        paint.setStrokeWidth(0.12f * s);
+        canvas.drawLine(0.06f * s, 0.88f * s, 0.94f * s, 0.14f * s, paint);
         paint.setStyle(Paint.Style.FILL);
-        canvas.drawPath(diamond, paint);
+        int color = paint.getColor();
+        paint.setColor(0xFF84407F);
+        canvas.drawPath(diamond(0.544f * s, 0.473f * s, 0.21f * s), paint);
+        paint.setColor(color);
+        canvas.drawPath(diamond(0.544f * s, 0.473f * s, 0.15f * s), paint);
+    }
+
+    private static Path diamond(float cx, float cy, float r) {
+        Path path = new Path();
+        path.moveTo(cx, cy - r);
+        path.lineTo(cx + r, cy);
+        path.lineTo(cx, cy + r);
+        path.lineTo(cx - r, cy);
+        path.close();
+        return path;
     }
 
     static void grid(Canvas canvas, Paint paint, float s) {

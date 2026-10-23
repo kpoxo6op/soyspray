@@ -418,6 +418,12 @@ strong {
   line-height: 1.3;
 }
 
+/* Two lines kept for each stage, so showing amounts never moves the route or
+   the chart. The active stage keeps its progress line close instead. */
+.wp:not(.is-active) .wp-short {
+  min-height: 2.6em;
+}
+
 .wp-event .wp-name,
 .wp-event .wp-date {
   color: var(--ink-2);
