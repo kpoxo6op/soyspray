@@ -177,7 +177,12 @@ def test_namespace_enforces_the_restricted_pod_security_standard():
     )
 
 
-def test_state_and_backups_use_separate_protected_claims():
+def test_earlier_workspace_claims_are_kept_but_not_mounted():
+    """The earlier workspace's claims stay, protected, and nothing mounts them.
+
+    The page keeps no state in the cluster.  Reverting the promotion mounts the
+    claims again, so they must survive this change untouched.
+    """
     _, kinds, _ = rendered()
     claims = {item["metadata"]["name"]: item["spec"] for item in kinds["PersistentVolumeClaim"]}
     assert set(claims) == {"gi-data", "gi-backups"}
@@ -185,9 +190,58 @@ def test_state_and_backups_use_separate_protected_claims():
         assert claim["storageClassName"] == "longhorn"
         assert claim["accessModes"] == ["ReadWriteOnce"]
     pod = named("Deployment", "gi")["spec"]["template"]["spec"]
-    mounts = {mount["name"]: mount["mountPath"] for mount in pod["containers"][0]["volumeMounts"]}
-    assert mounts["data"] == "/data"
-    assert mounts["backups"] == "/backups"
+    assert [volume for volume in pod["volumes"] if "persistentVolumeClaim" in volume] == []
+
+
+def test_the_data_file_is_mounted_read_only_from_an_ansible_secret():
+    """Ansible writes the data file from outside Git; Argo never holds it."""
+    _, kinds, _ = rendered()
+    assert "Secret" not in kinds
+    pod = named("Deployment", "gi")["spec"]["template"]["spec"]
+    volumes = {volume["name"]: volume for volume in pod["volumes"]}
+    secret = volumes["finance"]["secret"]
+    assert secret["secretName"] == "gi-finance"
+    assert secret["items"] == [{"key": "finance.json", "path": "finance.json"}]
+    # Readable by the web server's group only.
+    assert secret["defaultMode"] == 0o440
+    context = pod["securityContext"]
+    assert context["fsGroup"] == context["runAsGroup"] == context["runAsUser"]
+    mounts = {mount["name"]: mount for mount in pod["containers"][0]["volumeMounts"]}
+    assert mounts["finance"] == {"name": "finance", "mountPath": "/data", "readOnly": True}
+
+
+def test_publishing_the_data_file_prints_nothing_from_it():
+    """Every task that holds the file's contents keeps them out of the log."""
+    play = yaml.safe_load((APP / "finance.yml").read_text())[0]
+    assert play["vars"]["gi_finance_file"].endswith("/.local/share/crossover/finance.json")
+    writes = [
+        task
+        for task in play["tasks"]
+        if "gi-finance" in yaml.safe_dump(task.get("ansible.builtin.command", {}))
+    ]
+    assert len(writes) == 1
+    command = writes[0]["ansible.builtin.command"]
+    # Server-side apply keeps the data out of a last-applied annotation.
+    assert "--server-side" in command["argv"]
+    manifest = yaml.safe_load(command["stdin"])
+    assert manifest["kind"] == "Secret"
+    assert manifest["metadata"] == {
+        "name": "gi-finance",
+        "namespace": "gi",
+        "labels": {"app.kubernetes.io/part-of": "gi"},
+    }
+    assert list(manifest["data"]) == ["finance.json"]
+    for task in play["tasks"]:
+        holds_contents = "gi_finance_b64" in yaml.safe_dump(task)
+        copies_file = "ansible.builtin.copy" in task
+        if (holds_contents or copies_file) and "ansible.builtin.debug" not in task:
+            assert task.get("no_log") is True, task["name"]
+    report = next(task for task in play["tasks"] if "ansible.builtin.debug" in task)
+    assert "gi_finance_b64" not in yaml.safe_dump(report)
+    # Local copies stay on this machine, private to the operator.
+    for task in play["tasks"]:
+        if task.get("delegate_to") == "localhost":
+            assert task.get("become") is False, task["name"]
 
 
 def test_claims_are_outside_the_off_cluster_recovery_groups():
@@ -311,6 +365,7 @@ def test_no_private_value_can_reach_the_public_package():
         "apps/gi/README.md",
         "apps/gi/bootstrap-tasks.yml",
         "apps/gi/bootstrap.yml",
+        "apps/gi/finance.yml",
         "apps/gi/argocd/application.yaml",
         "apps/gi/argocd/kustomization.yaml",
         "apps/gi/argocd/project.yaml",
@@ -323,11 +378,17 @@ def test_no_private_value_can_reach_the_public_package():
         "apps/gi/manifests/pvc.yaml",
         "apps/gi/manifests/service.yaml",
         "apps/gi/tests/test_gi_boundary.py",
-        "apps/gi/tests/test_gi_restore_check.py",
     }
     assert set(tracked) <= allowed, sorted(set(tracked) - allowed)
     # The boundary check names the patterns it forbids, so it is not scanned.
     scanned = sorted(allowed - {"apps/gi/tests/test_gi_boundary.py"})
     text = "\n".join((ROOT / name).read_text().lower() for name in scanned)
-    for forbidden in ("datasetid", "monthly closing balance", "closingmortgagecents"):
+    for forbidden in (
+        "datasetid",
+        "monthly closing balance",
+        "closingmortgagecents",
+        '"snapshots": [',
+        '"balance":',
+        '"living_monthly":',
+    ):
         assert forbidden not in text
