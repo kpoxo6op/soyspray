@@ -193,7 +193,7 @@ jobs:
           kubectl kustomize apps/gi/argocd >/dev/null
 
   check:
-    needs: [scope, shared, autism, boys, immich, domain_health, media_helper, gi]
+    needs: [scope, shared, autism, sewing, boys, immich, domain_health, media_helper, gi]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -208,6 +208,7 @@ jobs:
               assert jobs[job]['result'] == 'success', f'{job} did not pass'
           for app in (
               'autism',
+              'sewing',
               'boys',
               'immich',
               'domain_health',
