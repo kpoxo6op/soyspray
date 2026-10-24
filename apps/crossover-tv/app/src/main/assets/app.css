@@ -536,6 +536,16 @@ strong {
   line-height: 1.4;
 }
 
+.is-line .home-body > .home-label {
+  margin-top: 2.5rem;
+}
+
+.home-date.home-date-line {
+  margin: 0 0 0 -0.04em;
+  font-size: 7.6rem;
+  line-height: 1.15;
+}
+
 .home-days {
   margin-top: 1.25rem;
   font-size: 3.1rem;

@@ -524,7 +524,23 @@
     }
   }
 
+  /** The plan's marker, when it sits on zero: the loans' end, where the date can be set large. */
+  function planEnd() {
+    var mk = null;
+    (view.chart.markers || []).forEach(function (m) {
+      if (m.role === 'plan' && m.value === 0) mk = m;
+    });
+    return mk;
+  }
+
   function lineLayout(main) {
+    if (!planEnd()) {
+      // Work optional leads once there are no loans: its date goes above the lines.
+      main.appendChild(el('p', 'home-label', view.goal.label));
+      var date = day(view.goal.date);
+      main.appendChild(el('h1', 'home-date home-date-line', date ? monthYear(date) : 'Not reached'));
+      main.appendChild(daysLine());
+    }
     main.appendChild(el('div', 'home-plot'));
     var foot = el('div', 'home-under');
     if (view.gain) foot.appendChild(el('p', 'home-gain', view.gain));
@@ -554,6 +570,9 @@
       else mBase = mk;
     });
     var end = plan.values.length - 1;
+    // Lines stop where their marker sits on zero; a crossing leaves them whole.
+    var stopPlan = mPlan && mPlan.value === 0 && mPlan.at <= end ? mPlan.at : null;
+    var stopBase = mBase && mBase.value === 0 && mBase.at <= end ? mBase.at : null;
     var hi = Math.max.apply(null, plan.values.concat(base.values).concat([1])) * 1.02;
     var lo = Math.min.apply(null, plan.values.concat(base.values).concat([0]));
     var pad = { t: 3 * rem, b: 4.2 * rem, l: 0.6 * rem, r: 0.6 * rem };
@@ -574,19 +593,26 @@
     var s = svg('svg', { width: w, height: h, viewBox: '0 0 ' + w + ' ' + h, role: 'img' });
     s.appendChild(svg('title', {}, c.title));
     s.appendChild(svg('line', { x1: x(0), x2: x(end), y1: zero, y2: zero, class: 'baseline' }));
-    s.appendChild(svg('path', { d: path(base.values, mBase && mBase.at <= end ? mBase.at : null), class: 'ln-needed', 'stroke-width': 0.18 * rem }));
-    s.appendChild(svg('path', { d: path(plan.values, mPlan && mPlan.at <= end ? mPlan.at : null), class: 'ln-position', 'stroke-width': 0.36 * rem }));
+    s.appendChild(svg('path', { d: path(base.values, stopBase), class: 'ln-needed', 'stroke-width': 0.18 * rem }));
+    s.appendChild(svg('path', { d: path(plan.values, stopPlan), class: 'ln-position', 'stroke-width': 0.36 * rem }));
     var la = Math.max(0, Math.min(end, base.label_at));
     s.appendChild(svg('text', { x: x(la) + 0.6 * rem, y: y(base.values[la]) - 1.1 * rem, class: 'lbl-needed halo', 'font-size': fs, 'stroke-width': 0.45 * rem }, base.label));
     s.appendChild(svg('circle', { cx: x(0), cy: y(plan.values[0]), r: 0.5 * rem, class: 'now' }));
-    s.appendChild(svg('text', { x: x(0), y: y(plan.values[0]) - 1.3 * rem, class: 'tick', 'font-size': fs }, 'Today, age ' + Math.floor(c.age)));
-    if (mBase && mBase.at <= end) {
+    // Today is named above the first point, or below it when that is under zero.
+    var ty = plan.values[0] < 0 ? y(plan.values[0]) + 2.4 * rem : y(plan.values[0]) - 1.3 * rem;
+    s.appendChild(svg('text', { x: x(0), y: ty, class: 'tick', 'font-size': fs }, 'Today, age ' + Math.floor(c.age)));
+    if (stopBase !== null) {
       var g = svg('g', { class: 'mark mark-base' });
       g.appendChild(svg('path', { d: diamond(x(mBase.at), zero, 0.65 * rem) }));
       g.appendChild(svg('text', { x: x(mBase.at), y: zero + 2.6 * rem, 'text-anchor': 'end', 'font-size': fs }, mBase.label));
       s.appendChild(g);
     }
-    if (mPlan && mPlan.at <= end) {
+    if (mPlan && stopPlan === null && mPlan.at <= end) {
+      var gc = svg('g', { class: 'mark' });
+      gc.appendChild(svg('path', { d: diamond(x(mPlan.at), y(mPlan.value), 0.75 * rem) }));
+      s.appendChild(gc);
+    }
+    if (stopPlan !== null) {
       var px = x(mPlan.at);
       var gp = svg('g', { class: 'mark' });
       gp.appendChild(svg('path', { d: diamond(px, zero, rem) }));
