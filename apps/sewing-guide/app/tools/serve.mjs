@@ -19,4 +19,4 @@ createServer(async (req, res) => {
     res.writeHead(200, { 'content-type': types['.html'] });
     res.end(body);
   }
-}).listen(port, '127.0.0.1', () => console.log(`http://127.0.0.1:${port}/`));
+}).listen(port, process.env.HOST || '127.0.0.1', () => console.log(`http://${process.env.HOST || '127.0.0.1'}:${port}/`));
