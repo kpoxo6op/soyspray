@@ -73,6 +73,7 @@ export function render(root, route, ctx) {
     </section>
     <section class="card">
       <h2>${t('What is in the box', 'Что в коробке')}</h2>
+      <p><a class="btn" href="${href('kit')}">${t('Every accessory explained with examples', 'Каждый аксессуар с примерами')} ›</a></p>
       <dl class="kv" style="margin-top:8px">${kit.map(([k, w]) => `<dt>${esc(k)}</dt><dd>${esc(w)}</dd>`).join('')}</dl>
     </section>
     <section class="card">

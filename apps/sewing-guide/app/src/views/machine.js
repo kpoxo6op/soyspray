@@ -58,7 +58,7 @@ export function render(root, route, ctx) {
     if (scene) scene.setActiveHotspot(id);
     const card = panel.querySelector('#partCard');
     if (!p || !card) return;
-    card.innerHTML = `<h3>${p.no ? `<span class="tag">${p.no}</span> ` : ''}${esc(T(p.name))}</h3><p>${esc(T(p.what))}</p>`;
+    card.innerHTML = `<h3>${p.no ? `<span class="tag">${p.no}</span> ` : ''}${esc(T(p.name))}</h3><p>${esc(T(p.what))}</p>${p.id === 'presser-foot' || p.id === 'accessory-tray' ? `<p style="margin-top:8px"><a class="btn" href="${href('kit')}">${ui('tabs.kit')} ›</a></p>` : ''}`;
     panel.querySelectorAll('.part-list button').forEach((b) => b.classList.toggle('active', b.dataset.id === id));
   }
 

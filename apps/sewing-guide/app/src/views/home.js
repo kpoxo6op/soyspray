@@ -6,6 +6,7 @@ import { PROBLEMS } from '../data/troubleshooting.js';
 
 const t = (en, ru) => (lang === 'ru' ? ru : en);
 const ICON = {
+  kit: '<path d="M4 8h16v12H4z"/><path d="M9 8V5h6v3"/><path d="M4 13h16"/>',
   machine: '<path d="M4 17V9a2 2 0 0 1 2-2h9l4 4v6"/><path d="M4 17h17"/><path d="M8 7v10"/><path d="M15 7v4h4"/>',
   start: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l5.5-3.5z"/>',
   stitches: '<path d="M3 12c2-6 4-6 6 0s4 6 6 0 4-6 6 0"/>',
@@ -20,6 +21,7 @@ export function render(root, route, ctx) {
     ['machine', t('The machine in 3D', 'Машина в 3D'), t('Every part explained, threading and bobbin animated, chapter by chapter.', 'Каждая деталь, заправка и шпулька в анимации, глава за главой.')],
     ['start', t('First hour', 'Первый час'), t('Plug in, thread, first seam, what every button does.', 'Подключить, заправить, первый шов, что делает каждая кнопка.')],
     ['stitches', t('All 100 stitches', 'Все 100 строчек'), t('Drawn live at your width and length, with what each is for.', 'Рисуются вживую с вашей шириной и длиной, и для чего каждая.')],
+    ['kit', t('What is in the box', 'Что в коробке'), t('Every foot, bobbin and tool: what it is for, with examples.', 'Каждая лапка, шпулька и инструмент: для чего, с примерами.')],
     ['fabrics', t('Fabric settings', 'Настройки по ткани'), t('Needle, thread, tension, foot, IDT for cotton, silk, upholstery, velvet.', 'Игла, нить, натяжение, лапка, IDT для хлопка, шёлка, обивки, бархата.')],
     ['projects', t('First projects', 'Первые проекты'), t('Pincushion, piped cushion, blanket, table runner.', 'Игольница, подушка с кантом, плед, дорожка.')],
     ['fix', t('Something is wrong', 'Что-то не так'), t('Find it by what you see on the fabric.', 'Найдите по тому, что видно на ткани.')],

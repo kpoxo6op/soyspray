@@ -2,7 +2,7 @@
 // self-contained with content-addressed asset names.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
@@ -56,9 +56,28 @@ test('the built site is self-contained and content-addressed', () => {
     const digest = createHash('sha256').update(readFileSync(resolve(SITE, asset))).digest('hex');
     assert.ok(digest.startsWith(m[1]), `${asset} revision identifies its bytes`);
   }
-  assert.doesNotMatch(html, /type="module"/);
+  assert.match(html, /<script type="module" src="app\.js\?v=[a-f\d]+"><\/script>/);
   const js = readFileSync(resolve(SITE, 'app.js'), 'utf8');
-  assert.ok(js.length > 400000, 'three.js is bundled');
+  assert.ok(js.length < 300000, `the shell stays small without three.js (${js.length} bytes)`);
   assert.ok(js.includes('Three-step zigzag'), 'content is bundled');
   assert.ok(js.includes('Трёхступенчатый'), 'russian content is bundled');
+  const chunks = readdirSync(resolve(SITE, 'chunks'));
+  const engine = chunks.find((f) => f.startsWith('machine3d-'));
+  assert.ok(engine && statSync(resolve(SITE, 'chunks', engine)).size > 400000, 'three.js lives in the on-demand 3D chunk');
+  assert.ok(js.includes(`./chunks/${engine}`), 'the shell imports the 3D chunk by its hashed name');
+});
+
+test('the service worker precaches exactly the files of this build', () => {
+  const sw = readFileSync(resolve(SITE, 'sw.js'), 'utf8');
+  const list = JSON.parse(sw.match(/const PRECACHE = (\[.*?\]);/s)[1]);
+  const html = readFileSync(resolve(SITE, 'index.html'), 'utf8');
+  for (const asset of ['app.js', 'app.css']) {
+    const ref = html.match(new RegExp(`"(${asset}\\?v=[a-f0-9]+)"`))[1];
+    assert.ok(list.includes(ref), `${ref} precached`);
+  }
+  assert.ok(list.includes('./'), 'the shell page is precached');
+  const walk = (dir, prefix = '') => readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(resolve(dir, d.name), `${prefix}${d.name}/`) : [`${prefix}${d.name}`]));
+  const files = walk(SITE).filter((f) => f !== 'sw.js' && f !== 'index.html');
+  for (const f of files) assert.ok(list.some((p) => p.split('?')[0] === f), `${f} precached`);
+  assert.match(sw, /const VERSION = '[a-f0-9]{12}'/);
 });

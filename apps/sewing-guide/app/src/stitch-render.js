@@ -76,7 +76,19 @@ const fmt = (n) => (Math.round(n * 100) / 100).toString();
  * @param o.pxPerMm scale
  * @param o.dots   draw needle penetration dots (line kind only)
  */
+const memo = new Map();
+
 export function renderStitchSVG(stitch, o = {}) {
+  const key = `${stitch.no}|${o.width ?? ''}|${o.length ?? ''}|${o.heightMm ?? ''}|${o.pxPerMm ?? ''}|${o.dots ? 1 : 0}`;
+  const hit = memo.get(key);
+  if (hit) return hit;
+  const svg = renderStitchSVGUncached(stitch, o);
+  if (memo.size > 600) memo.clear();
+  memo.set(key, svg);
+  return svg;
+}
+
+function renderStitchSVGUncached(stitch, o = {}) {
   const width = o.width ?? stitch.width.def;
   const length = o.length ?? stitch.length.def;
   const heightMm = o.heightMm ?? 30;

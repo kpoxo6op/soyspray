@@ -30,6 +30,9 @@ def check(url):
             assert len(body) > 1000
             if path == "/app.js":
                 assert "Трёхступенчатый".encode() in body, "russian content served"
+    with urllib.request.urlopen(url + "/sw.js", timeout=10) as response:
+        assert response.headers["Cache-Control"] == "no-cache"
+        assert b"PRECACHE" in response.read()
     with urllib.request.urlopen(url + "/stitches/05", timeout=10) as response:
         assert b"app.js?v=" in response.read(), "deep links fall back to the app"
     try:

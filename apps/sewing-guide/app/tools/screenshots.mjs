@@ -21,6 +21,8 @@ const routes = [
   ['stitch-02', '#/stitches/02'],
   ['stitch-67', '#/stitches/67'],
   ['stitch-16', '#/stitches/16'],
+  ['kit', '#/kit'],
+  ['kit-foot-4', '#/kit/foot-4'],
   ['fabrics', '#/fabrics'],
   ['fabric-silk', '#/fabrics/silk'],
   ['projects', '#/projects'],

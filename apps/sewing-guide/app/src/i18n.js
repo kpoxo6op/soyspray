@@ -46,6 +46,7 @@ const UI = {
     machine: { en: 'Machine', ru: 'Машина' },
     start: { en: 'Start', ru: 'Старт' },
     stitches: { en: 'Stitches', ru: 'Строчки' },
+    kit: { en: 'Kit', ru: 'Набор' },
     fabrics: { en: 'Fabrics', ru: 'Ткани' },
     projects: { en: 'Projects', ru: 'Проекты' },
     fix: { en: 'Fix', ru: 'Проблемы' },
