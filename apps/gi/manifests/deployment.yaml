@@ -44,7 +44,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: ghcr.io/kpoxo6op/gi-app@sha256:bc32f9c4f5fc53633b88320ccf9415c20a43c62b8aeccd24f3a88ceaf1ee1eac
+          image: ghcr.io/kpoxo6op/gi-app@sha256:0212ef0df8f348c445b18f5b8cf867eb039680a158940c67e768085f8c461c1f
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
