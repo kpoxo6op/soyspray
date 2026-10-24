@@ -22,6 +22,7 @@ jobs:
       media_helper: ${{ steps.scope.outputs.media_helper }}
       boys: ${{ steps.scope.outputs.boys }}
       autism: ${{ steps.scope.outputs.autism }}
+      sewing: ${{ steps.scope.outputs.sewing }}
       gi: ${{ steps.scope.outputs.gi }}
     steps:
       - uses: actions/checkout@v7
@@ -91,6 +92,25 @@ jobs:
       - name: Test autism traits browser flow
         working-directory: apps/autism-traits/app
         run: npm run test:e2e
+
+  sewing:
+    needs: scope
+    if: needs.scope.outputs.sewing == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/sewing-guide/app/package-lock.json
+      - name: Build and test the sewing guide
+        working-directory: apps/sewing-guide/app
+        run: |
+          npm ci
+          npm run build
+          npm test
 
   boys:
     needs: scope

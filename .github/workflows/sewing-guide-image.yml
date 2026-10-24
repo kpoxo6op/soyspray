@@ -1,0 +1,126 @@
+name: Sewing guide image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/sewing-guide/**
+      - .github/workflows/sewing-guide-image.yml
+  pull_request:
+    paths:
+      - apps/sewing-guide/**
+      - .github/workflows/sewing-guide-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sewing-guide-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    env:
+      IMAGE: ghcr.io/kpoxo6op/sewing-guide
+      IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Detect a runtime change before publishing
+        id: runtime
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          changed=false
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            changed=true
+          elif [ "$GITHUB_EVENT_NAME" = push ]; then
+            if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+              git diff --name-only "$BEFORE" "$GITHUB_SHA" -- \
+                apps/sewing-guide/app apps/sewing-guide/config \
+                apps/sewing-guide/Dockerfile apps/sewing-guide/.dockerignore \
+                ':(glob,exclude)apps/sewing-guide/app/test/**' \
+                ':(glob,exclude)apps/sewing-guide/app/tools/**' \
+                > "$RUNNER_TEMP/runtime-files"
+              if [ -s "$RUNNER_TEMP/runtime-files" ]; then changed=true; fi
+            else
+              changed=true
+            fi
+          fi
+          printf 'changed=%s\n' "$changed" >> "$GITHUB_OUTPUT"
+      - name: Build and test the immutable runtime
+        run: |
+          docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" \
+            --tag "$IMAGE:$IMAGE_TAG" apps/sewing-guide
+      - name: Check the real HTTP and TLS entrypoints
+        run: |
+          mkdir "$RUNNER_TEMP/tls"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj /CN=sewing.soyspray.vip -addext subjectAltName=DNS:sewing.soyspray.vip \
+            -keyout "$RUNNER_TEMP/tls/tls.key" -out "$RUNNER_TEMP/tls/tls.crt"
+          chmod 755 "$RUNNER_TEMP/tls"
+          chmod 444 "$RUNNER_TEMP/tls/"*
+          docker run --detach --name sewing-guide-image-check --read-only \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,size=16m,uid=101,gid=101 \
+            --mount "type=bind,source=$RUNNER_TEMP/tls,target=/tls,readonly" \
+            -p 127.0.0.1:4173:8080 -p 127.0.0.1:8443:8443 "$IMAGE:$IMAGE_TAG"
+          curl --fail --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:4173/healthz
+          curl --fail --noproxy '*' --resolve sewing.soyspray.vip:8443:127.0.0.1 \
+            --cacert "$RUNNER_TEMP/tls/tls.crt" https://sewing.soyspray.vip:8443/healthz
+          python apps/sewing-guide/test-image.py
+      - name: Remove the isolated test container
+        if: always()
+        run: docker rm --force sewing-guide-image-check || true
+      - name: Publish the tested image
+        if: github.ref == 'refs/heads/main' && steps.runtime.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE:$IMAGE_TAG"
+          digest="$(docker image inspect "$IMAGE:$IMAGE_TAG" --format '{{index .RepoDigests 0}}')"
+          printf 'SEWING_IMAGE_REF=%s\n' "$digest" >> "$GITHUB_ENV"
+          printf 'Tested image: `%s`\nSource: `%s`\n' "$digest" "$GITHUB_SHA" >> "$GITHUB_STEP_SUMMARY"
+      - name: Open a draft digest promotion
+        if: github.ref == 'refs/heads/main' && steps.runtime.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python -m pip install PyYAML==6.0.3
+          branch="promote/sewing-guide-${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git switch -c "$branch"
+          python apps/sewing-guide/promote-image.py "$SEWING_IMAGE_REF"
+          if git diff --quiet; then exit 0; fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/sewing-guide/manifests/deployment.yaml
+          git commit -m 'Promote the tested sewing guide image'
+          git push origin "$branch"
+          promotion_commit="$(git rev-parse HEAD)"
+          cat > "$RUNNER_TEMP/promotion.md" <<BODY
+          Promote the sewing guide built from [source $GITHUB_SHA](https://github.com/$GITHUB_REPOSITORY/commit/$GITHUB_SHA).
+
+          Image: \`$SEWING_IMAGE_REF\`.
+
+          The image passed the content, renderer, bundle, HTTP, TLS and privacy-header checks. This promotion changes only the image digest.
+
+          Verify the private origin and, once the tunnel token is bootstrapped, the public route before merge. Roll back by promoting the previous digest. This workflow does not merge or deploy.
+
+          Commits, oldest first:
+
+          - [Promote the tested sewing guide image](https://github.com/$GITHUB_REPOSITORY/commit/$promotion_commit)
+          BODY
+          gh pr create --draft --base main --head "$branch" \
+            --title 'Promote the tested sewing guide image' --body-file "$RUNNER_TEMP/promotion.md"

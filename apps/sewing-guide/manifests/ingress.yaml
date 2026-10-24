@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sewing-guide
+  labels:
+    app.kubernetes.io/name: sewing-guide
+    app.kubernetes.io/part-of: sewing-guide
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/ingress-hostname-source: annotation-only
+    external-dns.kubernetes.io/ingress-hostname-source: annotation-only
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - sewing.soyspray.vip
+      secretName: sewing-guide-tls
+  rules:
+    - host: sewing.soyspray.vip
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sewing-guide
+                port:
+                  name: http

@@ -1,0 +1,19 @@
+- name: Bootstrap the sewing guide tunnel identity
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+  tasks:
+    - name: Bootstrap the tunnel Secret
+      ansible.builtin.import_tasks: ../bootstrap-secret-tasks.yml
+      vars:
+        bootstrap_secret_name: sewing-guide-cloudflared-token
+        bootstrap_secret_namespace: sewing-guide
+        bootstrap_secret_key: token
+        bootstrap_secret_input: "{{ sewing_guide_cloudflared_token | default('') }}"
+        bootstrap_secret_namespace_file: "{{ playbook_dir }}/manifests/namespace.yaml"
+        bootstrap_secret_available_fail_msg: >-
+          Restore the tunnel Secret or supply sewing_guide_cloudflared_token through
+          an Ansible Vault variables file. The public tunnel identity must already exist.
+        bootstrap_secret_matches_fail_msg: The supplied tunnel token differs from the existing identity. No change was made.

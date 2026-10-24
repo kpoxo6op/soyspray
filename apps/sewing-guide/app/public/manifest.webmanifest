@@ -1,0 +1,9 @@
+{
+  "name": "PFAFF passport 3.0 guide",
+  "short_name": "passport 3.0",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f7f3ec",
+  "theme_color": "#f7f3ec",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

@@ -7,6 +7,7 @@ resources:
   - ../apps/headlamp/argocd
   - ../apps/autism-traits/argocd
   - ../apps/assembly-guide/argocd
+  - ../apps/sewing-guide/argocd
   - ../apps/boys/argocd
   - ../apps/memes/argocd
   - ../apps/external-dns/argocd
