@@ -8,12 +8,9 @@ is the big-screen form of the private page at `gi.soyspray.vip` (`apps/gi`).
 Once there are no loans, work optional leads, with the position against money
 needed.
 
-The first screen shows one thing, in one of three layouts: **Date** (the
-mortgage-free date alone), **Step** (the stage being worked on, its progress,
-the fortnightly transfer and the next stage) or **Line** (the loans falling to
-zero against the scheduled repayments). Left and right on the remote change
-the layout, and the app keeps the choice. Down shows the full plan described
-above; up returns.
+The first screen shows one thing: the loans falling to zero against the
+scheduled repayments, with the mortgage-free date set where they end. Down
+shows the full plan described above; up returns.
 
 Amounts start hidden. OK shows or hides them, and the hint top right says
 which. Back leaves, and leaving closes the page, so the next visit starts on
@@ -73,9 +70,8 @@ adb -s 192.168.20.232:5555 shell monkey -p vip.soyspray.crossover -c android.int
 adb -s 192.168.20.232:5555 exec-out screencap -p > crossover-tv.png
 ```
 
-Confirm each layout of the first screen (left and right) and the plan (down)
-with amounts hidden, that OK shows them, and that Back and a new visit hide
-them again.
+Confirm the first screen and the plan (down) with amounts hidden, that OK
+shows them, and that Back and a new visit hide them again.
 
 ## Limits
 

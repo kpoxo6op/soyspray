@@ -14,13 +14,12 @@ import java.lang.ref.WeakReference;
 
 /**
  * Crossover on the living-room TV, drawn full screen by a local page in the
- * WebView: a first screen in one of three layouts, and the full plan below it
- * (the mortgage-free date, the chart and the stages). The page shows the view
- * the laptop last sent (see {@link DataReceiver}) and nothing else; the app has
- * no network access. OK shows or hides amounts, down and up move between the
- * first screen and the plan, left and right change the layout. Back leaves,
- * and leaving closes the page, so the next visit starts on the first screen
- * with amounts hidden.
+ * WebView: a first screen with the mortgage-free line, and the full plan below
+ * it (the date, the chart and the stages). The page shows the view the laptop
+ * last sent (see {@link DataReceiver}) and nothing else; the app has no network
+ * access. OK shows or hides amounts; down and up move between the first screen
+ * and the plan. Back leaves, and leaving closes the page, so the next visit
+ * starts on the first screen with amounts hidden.
  */
 public class MainActivity extends Activity {
     private static final int GROUND = 0xFF1A1D20;
@@ -99,7 +98,7 @@ public class MainActivity extends Activity {
             return true;
         }
         // The page is not focusable, so the arrows reach it only from here:
-        // down shows the plan, up returns, left and right change the layout.
+        // down shows the plan and up returns.
         String key = arrow(code);
         if (key == null) {
             return super.dispatchKeyEvent(event);
