@@ -239,6 +239,59 @@ def test_reader_rejects_unsafe_phone_response_and_locks(tmp_path, monkeypatch, f
     assert calls[-1] == ["bw", "lock"]
 
 
+def fake_phone_vault(monkeypatch, tmp_path, item):
+    """Serve one phone item through a cached restricted login and record each bw call."""
+    calls = []
+
+    def fake_run(command, environment=None):
+        calls.append(command[:2])
+        if command[1] == "status":
+            return json.dumps({"status": "locked", "userEmail": "agent@example.test"})
+        if command[1] == "unlock":
+            return "test-session"
+        if command[1] == "list":
+            return json.dumps([item])
+        return ""
+
+    monkeypatch.setattr(agent_secret.shutil, "which", lambda name: name)
+    monkeypatch.setattr(agent_secret, "appdata_directory", lambda: tmp_path)
+    monkeypatch.setattr(agent_secret, "read_bootstrap", lambda: ("agent@example.test", "test-only"))
+    monkeypatch.setattr(agent_secret, "run", fake_run)
+    return calls
+
+
+def test_reader_returns_a_pin_only_app_login(tmp_path, monkeypatch):
+    """An app login with no password still yields its PIN from the named custom field."""
+    item = {
+        "name": "Sharesies app login",
+        "login": {"username": "owner@example.test", "password": None},
+        "fields": [{"name": "Pin", "value": "test-only-pin", "type": 0}],
+    }
+    calls = fake_phone_vault(monkeypatch, tmp_path, item)
+
+    assert agent_secret.read_item("Sharesies app login") == {
+        "username": "owner@example.test",
+        "password": "",
+        "pin": "test-only-pin",
+    }
+    assert calls[-1] == ["bw", "lock"]
+
+
+@pytest.mark.parametrize("fields", [[], [{"name": "Pin", "value": ""}]])
+def test_reader_rejects_a_login_without_password_or_pin(tmp_path, monkeypatch, fields):
+    """No password and no usable PIN field is a failed read, never an empty credential."""
+    item = {
+        "name": "Sharesies app login",
+        "login": {"username": None, "password": None},
+        "fields": fields,
+    }
+    calls = fake_phone_vault(monkeypatch, tmp_path, item)
+
+    with pytest.raises(agent_secret.AgentSecretError):
+        agent_secret.read_item("Sharesies app login")
+    assert calls[-1] == ["bw", "lock"]
+
+
 def test_import_rejects_unapproved_name_before_bootstrap(monkeypatch):
     """Import callers cannot bypass the CLI allowlist to read another record."""
 

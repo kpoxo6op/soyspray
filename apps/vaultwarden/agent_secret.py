@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 ITEM_NAME = "hays-online-timesheets"
-ERRANDS_ITEMS = ("Phone unlock PIN", "ASB app login", "BNZ app login")
+ERRANDS_ITEMS = ("Phone unlock PIN", "ASB app login", "BNZ app login", "Sharesies app login")
 ALLOWED_ITEMS = (ITEM_NAME, *ERRANDS_ITEMS)
 VAULT_URL = "https://vault.soyspray.vip"
 BOOTSTRAP_SECRET = "vaultwarden-agent-login"
@@ -160,10 +160,21 @@ def read_item(name: str) -> dict[str, str]:
                 raise AgentSecretError("the requested item does not match")
             login = item["login"]
             username = login.get("username") or ""
-            item_password = login["password"]
+            item_password = login.get("password")
             if not isinstance(username, str) or (name == ITEM_NAME and not username):
                 raise AgentSecretError("the Hays item has no username")
-            if not isinstance(item_password, str) or not item_password:
+            pin_only = (
+                name in ERRANDS_ITEMS
+                and item_password is None
+                and any(
+                    str(entry.get("name", "")).casefold() == "pin"
+                    for entry in item.get("fields") or []
+                )
+            )
+            if pin_only:
+                # An app login can hold only its PIN, in a custom field named "Pin".
+                item_password = ""
+            elif not isinstance(item_password, str) or not item_password:
                 raise AgentSecretError("the Hays item has no password")
             result = {"username": username, "password": item_password}
             if name in ERRANDS_ITEMS:
@@ -183,6 +194,8 @@ def read_item(name: str) -> dict[str, str]:
                     if not isinstance(value, str) or "\x00" in value:
                         raise AgentSecretError("the requested item has an invalid field")
                     result[field] = value
+                if not result["pin"]:
+                    raise AgentSecretError("the requested item has no PIN")
             return result
         except (KeyError, TypeError, AttributeError, json.JSONDecodeError) as error:
             raise AgentSecretError("the requested item is invalid") from error
