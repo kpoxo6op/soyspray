@@ -1,6 +1,7 @@
 // Crossover on the TV. The laptop sends a ready-made view (projection, copy and
 // chart already worked out); this page lays it out for the big screen. Amounts
-// start hidden; OK shows or hides them.
+// start hidden; OK shows or hides them. The first screen shows one thing, in
+// one of three layouts that left and right change; down shows the full plan.
 (function () {
   'use strict';
 
@@ -12,9 +13,18 @@
   var STALE_DAYS = 14;
   var MASK = '$••••';
 
+  var LAYOUTS = [
+    { id: 'date', name: 'Date' },
+    { id: 'step', name: 'Step' },
+    { id: 'line', name: 'Line' },
+  ];
+
   var hidden = true;
   var view = null;
   var seen = { previous: null, fresh: false };
+  // The first screen or the full plan below it; a visit starts on the first.
+  var page = 'home';
+  var layout = null;
 
   function el(tag, cls, text) {
     var node = document.createElement(tag);
@@ -364,9 +374,21 @@
     plot.appendChild(s);
   }
 
+  function bar() {
+    var top = el('header', 'bar');
+    top.appendChild(el('span', 'brand', 'Crossover'));
+    var read = day(view.read.date);
+    var age = read ? Math.floor((today() - read) / DAY) : 0;
+    top.appendChild(el('span', 'read' + (age > STALE_DAYS ? ' is-stale' : ''), age > STALE_DAYS ? 'Data is ' + age + ' days old' : view.read.label));
+    if (page === 'plan') top.appendChild(el('span', 'hint', 'Press up to go back'));
+    top.appendChild(el('span', 'hint', hidden ? 'Press OK to show amounts' : 'Press OK to hide amounts'));
+    return top;
+  }
+
   function render() {
     var screen = document.getElementById('screen');
     screen.textContent = '';
+    screen.className = 'screen';
     if (!view) {
       var empty = el('div', 'empty');
       empty.appendChild(el('h1', null, 'No data on this TV yet'));
@@ -374,14 +396,11 @@
       screen.appendChild(empty);
       return;
     }
-    var bar = el('header', 'bar');
-    bar.appendChild(el('span', 'brand', 'Crossover'));
-    var read = day(view.read.date);
-    var age = read ? Math.floor((today() - read) / DAY) : 0;
-    bar.appendChild(el('span', 'read' + (age > STALE_DAYS ? ' is-stale' : ''), age > STALE_DAYS ? 'Data is ' + age + ' days old' : view.read.label));
-    bar.appendChild(el('span', 'hint', hidden ? 'Press OK to show amounts' : 'Press OK to hide amounts'));
-    screen.appendChild(bar);
-
+    screen.appendChild(bar());
+    if (page === 'home') {
+      renderHome(screen);
+      return;
+    }
     var top = el('div', 'top');
     top.appendChild(hero());
     var chart = chartBox();
@@ -389,6 +408,257 @@
     screen.appendChild(top);
     screen.appendChild(route());
     drawChart(chart);
+  }
+
+  // The first screen.
+
+  function layoutNow() {
+    if (layout) return layout;
+    var stored = readJson('crossover.tv.layout');
+    layout = LAYOUTS.some(function (l) { return l.id === stored; }) ? stored : 'date';
+    return layout;
+  }
+
+  function renderHome(screen) {
+    var id = layoutNow();
+    screen.className = 'screen home is-' + id;
+    var main = el('main', 'home-body');
+    if (id === 'step') screen.appendChild(goalLine());
+    screen.appendChild(main);
+    if (id === 'date') dateLayout(main);
+    else if (id === 'step') stepLayout(main);
+    else lineLayout(main);
+    screen.appendChild(picker(id));
+    if (id === 'line') drawLine(main.querySelector('.home-plot'));
+  }
+
+  function daysLeft() {
+    var date = day(view.goal.date);
+    return date ? Math.max(0, Math.round((date - today()) / DAY)) : null;
+  }
+
+  /** Only news: how far the date moved since the last visit, when it moved. */
+  function movedLine() {
+    if (!seen.previous) return null;
+    var date = day(view.goal.date);
+    var prev = day(seen.previous.date);
+    var moved = date && prev ? (date - prev) / DAY : 0;
+    if (Math.abs(moved) < 0.5) return null;
+    var p = el('p', 'home-moved');
+    var words = span(moved) + (moved < 0 ? ' earlier' : ' later');
+    p.appendChild(el('strong', null, words.charAt(0).toUpperCase() + words.slice(1)));
+    p.appendChild(document.createTextNode(' than when you last looked, on ' + fmtDate(day(seen.previous.at)) + '.'));
+    return p;
+  }
+
+  function daysLine() {
+    var p = el('p', 'home-days');
+    var left = daysLeft();
+    if (left === null) {
+      p.textContent = 'Not reached on these inputs.';
+      return p;
+    }
+    p.appendChild(el('strong', null, count(left) + ' days'));
+    p.appendChild(document.createTextNode(' from today, at age ' + view.goal.age + '.'));
+    return p;
+  }
+
+  function dateLayout(main) {
+    main.appendChild(el('p', 'home-label', view.goal.label));
+    var date = day(view.goal.date);
+    var h1 = el('h1', 'home-date');
+    if (date) {
+      if (!MONTH_EM) measureMonths();
+      var prev = seen.previous ? day(seen.previous.date) : null;
+      h1.appendChild(odometer(date, seen.fresh ? prev : null));
+    } else {
+      h1.textContent = 'Not reached';
+    }
+    main.appendChild(h1);
+    main.appendChild(daysLine());
+    if (view.gain) main.appendChild(el('p', 'home-gain', view.gain));
+    var moved = movedLine();
+    if (moved) main.appendChild(moved);
+  }
+
+  function goalLine() {
+    var box = el('div', 'home-top');
+    var p = el('p', 'home-goal');
+    var date = day(view.goal.date);
+    p.appendChild(document.createTextNode(view.goal.label + ' in '));
+    p.appendChild(el('b', null, date ? monthYear(date) : 'a month not reached'));
+    var left = daysLeft();
+    p.appendChild(document.createTextNode(left !== null ? ', ' + count(left) + ' days from today.' : '.'));
+    box.appendChild(p);
+    var moved = movedLine();
+    if (moved) box.appendChild(moved);
+    return box;
+  }
+
+  function stepLayout(main) {
+    var s = view.step;
+    if (!s) {
+      main.appendChild(el('p', 'home-step-line', 'Every stage is done.'));
+      return;
+    }
+    main.appendChild(el('p', 'home-now', 'Now'));
+    main.appendChild(el('h1', 'home-step-name', s.name));
+    if (s.progress !== null && s.progress !== undefined) {
+      var meter = el('div', 'home-meter');
+      var fill = el('span');
+      fill.style.width = Math.max(0, Math.min(1, s.progress)) * 100 + '%';
+      meter.appendChild(fill);
+      main.appendChild(meter);
+    }
+    main.appendChild(segs(el('p', 'home-step-line'), s.line));
+    if (view.transfer) {
+      var box = el('div', 'home-transfer');
+      box.appendChild(segs(el('p'), view.transfer));
+      main.appendChild(box);
+    }
+    if (view.next) {
+      var next = el('p', 'home-next');
+      next.appendChild(el('span', null, 'Next'));
+      next.appendChild(document.createTextNode(view.next.name + ', ' + view.next.date));
+      main.appendChild(next);
+    }
+  }
+
+  /** The plan's marker, when it sits on zero: the loans' end, where the date can be set large. */
+  function planEnd() {
+    var mk = null;
+    (view.chart.markers || []).forEach(function (m) {
+      if (m.role === 'plan' && m.value === 0) mk = m;
+    });
+    return mk;
+  }
+
+  function lineLayout(main) {
+    if (!planEnd()) {
+      // Work optional leads once there are no loans: its date goes above the lines.
+      main.appendChild(el('p', 'home-label', view.goal.label));
+      var date = day(view.goal.date);
+      main.appendChild(el('h1', 'home-date home-date-line', date ? monthYear(date) : 'Not reached'));
+      main.appendChild(daysLine());
+    }
+    main.appendChild(el('div', 'home-plot'));
+    var foot = el('div', 'home-under');
+    if (view.gain) foot.appendChild(el('p', 'home-gain', view.gain));
+    var moved = movedLine();
+    if (moved) foot.appendChild(moved);
+    main.appendChild(foot);
+  }
+
+  /** The loans falling to zero, with the early repayments and without, the date set where the plan ends. */
+  function drawLine(plot) {
+    var c = view.chart;
+    var rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    var rect = plot.getBoundingClientRect();
+    var w = rect.width;
+    var h = Math.max(20 * rem, rect.height);
+    var plan = null;
+    var base = null;
+    (c.series || []).forEach(function (sr) {
+      if (sr.role === 'plan') plan = sr;
+      else base = sr;
+    });
+    if (!plan || !base) return;
+    var mPlan = null;
+    var mBase = null;
+    (c.markers || []).forEach(function (mk) {
+      if (mk.role === 'plan') mPlan = mk;
+      else mBase = mk;
+    });
+    var end = plan.values.length - 1;
+    // Lines stop where their marker sits on zero; a crossing leaves them whole.
+    var stopPlan = mPlan && mPlan.value === 0 && mPlan.at <= end ? mPlan.at : null;
+    var stopBase = mBase && mBase.value === 0 && mBase.at <= end ? mBase.at : null;
+    var hi = Math.max.apply(null, plan.values.concat(base.values).concat([1])) * 1.02;
+    var lo = Math.min.apply(null, plan.values.concat(base.values).concat([0]));
+    var pad = { t: 3 * rem, b: 4.2 * rem, l: 0.6 * rem, r: 0.6 * rem };
+    function x(m) { return pad.l + (m / end) * (w - pad.l - pad.r); }
+    function y(v) { return pad.t + (1 - (v - lo) / (hi - lo)) * (h - pad.t - pad.b); }
+    function path(vals, stop) {
+      var last = stop === null ? end : Math.min(end, Math.floor(stop));
+      var d = [];
+      for (var i = 0; i <= last; i++) d.push((i ? 'L' : 'M') + x(i).toFixed(1) + ',' + y(vals[i]).toFixed(1));
+      if (stop !== null) d.push('L' + x(stop).toFixed(1) + ',' + y(0).toFixed(1));
+      return d.join('');
+    }
+    function diamond(cx, cy, r) {
+      return 'M' + cx + ',' + (cy - r) + 'L' + (cx + r) + ',' + cy + 'L' + cx + ',' + (cy + r) + 'L' + (cx - r) + ',' + cy + 'Z';
+    }
+    var fs = 1.6 * rem;
+    var zero = y(0);
+    var s = svg('svg', { width: w, height: h, viewBox: '0 0 ' + w + ' ' + h, role: 'img' });
+    s.appendChild(svg('title', {}, c.title));
+    s.appendChild(svg('line', { x1: x(0), x2: x(end), y1: zero, y2: zero, class: 'baseline' }));
+    s.appendChild(svg('path', { d: path(base.values, stopBase), class: 'ln-needed', 'stroke-width': 0.18 * rem }));
+    s.appendChild(svg('path', { d: path(plan.values, stopPlan), class: 'ln-position', 'stroke-width': 0.36 * rem }));
+    var la = Math.max(0, Math.min(end, base.label_at));
+    s.appendChild(svg('text', { x: x(la) + 0.6 * rem, y: y(base.values[la]) - 1.1 * rem, class: 'lbl-needed halo', 'font-size': fs, 'stroke-width': 0.45 * rem }, base.label));
+    s.appendChild(svg('circle', { cx: x(0), cy: y(plan.values[0]), r: 0.5 * rem, class: 'now' }));
+    // Today is named above the first point, or below it when that is under zero.
+    var ty = plan.values[0] < 0 ? y(plan.values[0]) + 2.4 * rem : y(plan.values[0]) - 1.3 * rem;
+    s.appendChild(svg('text', { x: x(0), y: ty, class: 'tick', 'font-size': fs }, 'Today, age ' + Math.floor(c.age)));
+    if (stopBase !== null) {
+      var g = svg('g', { class: 'mark mark-base' });
+      g.appendChild(svg('path', { d: diamond(x(mBase.at), zero, 0.65 * rem) }));
+      g.appendChild(svg('text', { x: x(mBase.at), y: zero + 2.6 * rem, 'text-anchor': 'end', 'font-size': fs }, mBase.label));
+      s.appendChild(g);
+    }
+    if (mPlan && stopPlan === null && mPlan.at <= end) {
+      var gc = svg('g', { class: 'mark' });
+      gc.appendChild(svg('path', { d: diamond(x(mPlan.at), y(mPlan.value), 0.75 * rem) }));
+      s.appendChild(gc);
+    }
+    if (stopPlan !== null) {
+      var px = x(mPlan.at);
+      var gp = svg('g', { class: 'mark' });
+      gp.appendChild(svg('path', { d: diamond(px, zero, rem) }));
+      s.appendChild(gp);
+      // The date, set large in the open corner right of where the plan ends.
+      var lx = px + 2.2 * rem;
+      var date = day(view.goal.date);
+      s.appendChild(svg('text', { x: lx, y: zero - 11 * rem, class: 'big-label', 'font-size': 2.4 * rem }, view.goal.label));
+      s.appendChild(svg('text', { x: lx - 0.3 * rem, y: zero - 3.4 * rem, class: 'big-date', 'font-size': 7.6 * rem, 'letter-spacing': '-0.02em' }, date ? monthYear(date) : ''));
+      var days = svg('text', { x: lx, y: zero - 0.9 * rem, class: 'big-days', 'font-size': 2.1 * rem });
+      var left = daysLeft();
+      if (left !== null) {
+        days.appendChild(svg('tspan', { 'font-weight': 700 }, count(left) + ' days'));
+        days.appendChild(svg('tspan', {}, ' from today, at age ' + view.goal.age + '.'));
+      }
+      s.appendChild(days);
+    }
+    plot.appendChild(s);
+  }
+
+  function picker(id) {
+    var foot = el('footer', 'home-foot');
+    foot.appendChild(el('span', 'home-hint', 'Press down for the plan. Left and right change the layout.'));
+    var pick = el('span', 'picker');
+    pick.appendChild(el('span', 'picker-label', 'Layout'));
+    LAYOUTS.forEach(function (l) {
+      pick.appendChild(el('span', 'pick' + (l.id === id ? ' is-on' : ''), l.name));
+    });
+    foot.appendChild(pick);
+    return foot;
+  }
+
+  /** Arrows on the remote, passed in by the app. */
+  function key(k) {
+    if (!view) return;
+    if (k === 'down' && page === 'home') page = 'plan';
+    else if (k === 'up' && page === 'plan') page = 'home';
+    else if ((k === 'left' || k === 'right') && page === 'home') {
+      var i = 0;
+      var now = layoutNow();
+      LAYOUTS.forEach(function (l, n) { if (l.id === now) i = n; });
+      i = (i + (k === 'right' ? 1 : LAYOUTS.length - 1)) % LAYOUTS.length;
+      layout = LAYOUTS[i].id;
+      writeJson('crossover.tv.layout', layout);
+    } else return;
+    render();
   }
 
   function load() {
@@ -409,7 +679,7 @@
       } catch (e) {
         view = null;
       }
-      if (view && (view.kind !== 'crossover-tv' || view.schema !== 2)) view = null;
+      if (view && (view.kind !== 'crossover-tv' || view.schema !== 3)) view = null;
       seen = view && view.goal.date ? recordView(view.goal.label, view.goal.date) : { previous: null, fresh: false };
       var go = function () {
         render();
@@ -428,10 +698,15 @@
   // The app calls these: OK on the remote, and a new view from the laptop.
   window.crossoverToggle = toggle;
   window.crossoverReload = start;
+  window.crossoverKey = key;
 
+  var ARROWS = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right' };
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {
       toggle();
+      e.preventDefault();
+    } else if (ARROWS[e.key]) {
+      key(ARROWS[e.key]);
       e.preventDefault();
     }
   });

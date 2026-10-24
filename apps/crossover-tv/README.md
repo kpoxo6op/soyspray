@@ -8,10 +8,18 @@ is the big-screen form of the private page at `gi.soyspray.vip` (`apps/gi`).
 Once there are no loans, work optional leads, with the position against money
 needed.
 
+The first screen shows one thing, in one of three layouts: **Date** (the
+mortgage-free date alone), **Step** (the stage being worked on, its progress,
+the fortnightly transfer and the next stage) or **Line** (the loans falling to
+zero against the scheduled repayments). Left and right on the remote change
+the layout, and the app keeps the choice. Down shows the full plan described
+above; up returns.
+
 Amounts start hidden. OK shows or hides them, and the hint top right says
-which. Back leaves, and leaving closes the page, so the next visit starts
-hidden again. The page also says how far the date has moved since the last
-visit, and turns the data date amber once it is more than 14 days old.
+which. Back leaves, and leaving closes the page, so the next visit starts on
+the first screen, hidden again. The page also says how far the date has moved
+since the last visit, and turns the data date amber once it is more than 14
+days old.
 
 ## Data
 
@@ -20,9 +28,9 @@ finance` publishes the private data file to the cluster and then sends the TV
 a ready-made view: the private runtime checkout works it out
 (`scripts/tv-view.ts`) and ADB delivers it on stdin to `DataReceiver`, which
 keeps it in the app's private files. The receiver takes only the view schema
-the page draws (2), so the runtime checkout and the installed app must match. `make -f apps/gi/Makefile tv` sends it
-again, for example after a reinstall, which clears those files. The send
-checks the TV's product name first.
+the page draws (3), so the runtime checkout and the installed app must match.
+`make -f apps/gi/Makefile tv` sends it again, for example after a reinstall,
+which clears those files. The send checks the TV's product name first.
 
 - The app has no `INTERNET` permission, blocks network loads in the WebView,
   and is excluded from backups.
@@ -65,8 +73,9 @@ adb -s 192.168.20.232:5555 shell monkey -p vip.soyspray.crossover -c android.int
 adb -s 192.168.20.232:5555 exec-out screencap -p > crossover-tv.png
 ```
 
-Confirm the date, the chart and the stages fill the screen with amounts
-hidden, that OK shows them, and that Back and a new visit hide them again.
+Confirm each layout of the first screen (left and right) and the plan (down)
+with amounts hidden, that OK shows them, and that Back and a new visit hide
+them again.
 
 ## Limits
 
