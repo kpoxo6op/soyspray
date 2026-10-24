@@ -1,7 +1,7 @@
 // Crossover on the TV. The laptop sends a ready-made view (projection, copy and
 // chart already worked out); this page lays it out for the big screen. Amounts
-// start hidden; OK shows or hides them. The first screen shows one thing, in
-// one of three layouts that left and right change; down shows the full plan.
+// start hidden; OK shows or hides them. The first screen is the mortgage-free
+// line alone; down shows the full plan, up returns.
 (function () {
   'use strict';
 
@@ -13,18 +13,11 @@
   var STALE_DAYS = 14;
   var MASK = '$••••';
 
-  var LAYOUTS = [
-    { id: 'date', name: 'Date' },
-    { id: 'step', name: 'Step' },
-    { id: 'line', name: 'Line' },
-  ];
-
   var hidden = true;
   var view = null;
   var seen = { previous: null, fresh: false };
   // The first screen or the full plan below it; a visit starts on the first.
   var page = 'home';
-  var layout = null;
 
   function el(tag, cls, text) {
     var node = document.createElement(tag);
@@ -412,24 +405,15 @@
 
   // The first screen.
 
-  function layoutNow() {
-    if (layout) return layout;
-    var stored = readJson('crossover.tv.layout');
-    layout = LAYOUTS.some(function (l) { return l.id === stored; }) ? stored : 'date';
-    return layout;
-  }
-
   function renderHome(screen) {
-    var id = layoutNow();
-    screen.className = 'screen home is-' + id;
+    screen.className = 'screen home';
     var main = el('main', 'home-body');
-    if (id === 'step') screen.appendChild(goalLine());
     screen.appendChild(main);
-    if (id === 'date') dateLayout(main);
-    else if (id === 'step') stepLayout(main);
-    else lineLayout(main);
-    screen.appendChild(picker(id));
-    if (id === 'line') drawLine(main.querySelector('.home-plot'));
+    lineLayout(main);
+    var foot = el('footer', 'home-foot');
+    foot.appendChild(el('span', 'home-hint', 'Press down for the plan.'));
+    screen.appendChild(foot);
+    drawLine(main.querySelector('.home-plot'));
   }
 
   function daysLeft() {
@@ -461,67 +445,6 @@
     p.appendChild(el('strong', null, count(left) + ' days'));
     p.appendChild(document.createTextNode(' from today, at age ' + view.goal.age + '.'));
     return p;
-  }
-
-  function dateLayout(main) {
-    main.appendChild(el('p', 'home-label', view.goal.label));
-    var date = day(view.goal.date);
-    var h1 = el('h1', 'home-date');
-    if (date) {
-      if (!MONTH_EM) measureMonths();
-      var prev = seen.previous ? day(seen.previous.date) : null;
-      h1.appendChild(odometer(date, seen.fresh ? prev : null));
-    } else {
-      h1.textContent = 'Not reached';
-    }
-    main.appendChild(h1);
-    main.appendChild(daysLine());
-    if (view.gain) main.appendChild(el('p', 'home-gain', view.gain));
-    var moved = movedLine();
-    if (moved) main.appendChild(moved);
-  }
-
-  function goalLine() {
-    var box = el('div', 'home-top');
-    var p = el('p', 'home-goal');
-    var date = day(view.goal.date);
-    p.appendChild(document.createTextNode(view.goal.label + ' in '));
-    p.appendChild(el('b', null, date ? monthYear(date) : 'a month not reached'));
-    var left = daysLeft();
-    p.appendChild(document.createTextNode(left !== null ? ', ' + count(left) + ' days from today.' : '.'));
-    box.appendChild(p);
-    var moved = movedLine();
-    if (moved) box.appendChild(moved);
-    return box;
-  }
-
-  function stepLayout(main) {
-    var s = view.step;
-    if (!s) {
-      main.appendChild(el('p', 'home-step-line', 'Every stage is done.'));
-      return;
-    }
-    main.appendChild(el('p', 'home-now', 'Now'));
-    main.appendChild(el('h1', 'home-step-name', s.name));
-    if (s.progress !== null && s.progress !== undefined) {
-      var meter = el('div', 'home-meter');
-      var fill = el('span');
-      fill.style.width = Math.max(0, Math.min(1, s.progress)) * 100 + '%';
-      meter.appendChild(fill);
-      main.appendChild(meter);
-    }
-    main.appendChild(segs(el('p', 'home-step-line'), s.line));
-    if (view.transfer) {
-      var box = el('div', 'home-transfer');
-      box.appendChild(segs(el('p'), view.transfer));
-      main.appendChild(box);
-    }
-    if (view.next) {
-      var next = el('p', 'home-next');
-      next.appendChild(el('span', null, 'Next'));
-      next.appendChild(document.createTextNode(view.next.name + ', ' + view.next.date));
-      main.appendChild(next);
-    }
   }
 
   /** The plan's marker, when it sits on zero: the loans' end, where the date can be set large. */
@@ -633,31 +556,12 @@
     plot.appendChild(s);
   }
 
-  function picker(id) {
-    var foot = el('footer', 'home-foot');
-    foot.appendChild(el('span', 'home-hint', 'Press down for the plan. Left and right change the layout.'));
-    var pick = el('span', 'picker');
-    pick.appendChild(el('span', 'picker-label', 'Layout'));
-    LAYOUTS.forEach(function (l) {
-      pick.appendChild(el('span', 'pick' + (l.id === id ? ' is-on' : ''), l.name));
-    });
-    foot.appendChild(pick);
-    return foot;
-  }
-
-  /** Arrows on the remote, passed in by the app. */
+  /** Arrows on the remote, passed in by the app: down shows the plan, up returns. */
   function key(k) {
     if (!view) return;
     if (k === 'down' && page === 'home') page = 'plan';
     else if (k === 'up' && page === 'plan') page = 'home';
-    else if ((k === 'left' || k === 'right') && page === 'home') {
-      var i = 0;
-      var now = layoutNow();
-      LAYOUTS.forEach(function (l, n) { if (l.id === now) i = n; });
-      i = (i + (k === 'right' ? 1 : LAYOUTS.length - 1)) % LAYOUTS.length;
-      layout = LAYOUTS[i].id;
-      writeJson('crossover.tv.layout', layout);
-    } else return;
+    else return;
     render();
   }
 
