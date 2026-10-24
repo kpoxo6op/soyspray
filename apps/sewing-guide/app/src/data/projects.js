@@ -1,0 +1,121 @@
+// First projects, in the order to build skill: each one adds one technique.
+const t = (en, ru) => ({ en, ru });
+
+export const PROJECTS = [
+  {
+    id: 'pincushion',
+    order: 1,
+    title: t('Pincushion', 'Игольница'),
+    teaches: t('Straight seams, corners, turning, closing by hand. One evening.', 'Прямые швы, углы, выворачивание, закрытие вручную. Один вечер.'),
+    fabric: 'cotton',
+    need: [
+      t('Two 12 × 12 cm squares of cotton (or one square of upholstery scrap for the bottom)', 'Два квадрата хлопка 12 × 12 см (или квадрат обивочного лоскута для низа)'),
+      t('Stuffing: polyester fibre, wool scraps or crushed walnut shells for weight', 'Наполнитель: синтепух, обрезки шерсти или дроблёная скорлупа грецкого ореха для веса'),
+      t('Hand needle and thread for the gap', 'Ручная игла и нить для зашивания отверстия'),
+    ],
+    settings: [
+      { label: t('Stitch', 'Строчка'), no: 0, len: 2.5, wid: null },
+      { label: t('Needle', 'Игла'), text: t('Universal 80/12', 'Универсальная 80/12') },
+      { label: t('Foot', 'Лапка'), text: '0A' },
+      { label: t('IDT', 'IDT'), text: t('On', 'Вкл') },
+      { label: t('Tension', 'Натяжение'), text: '4' },
+    ],
+    steps: [
+      t('Right sides together, pin on three and a half sides. Leave a 5 cm gap in the middle of one side.', 'Лицом к лицу, сколите три с половиной стороны. Оставьте отверстие 5 см посередине одной стороны.'),
+      t('Sew around 1 cm from the edge. At each corner: stop with the needle DOWN (needle up/down button), raise the foot, turn, lower the foot, continue. Backstitch at both ends of the gap.', 'Прошейте по кругу на 1 см от края. На каждом углу: остановитесь с иглой ВНИЗУ (кнопка «игла вверх/вниз»), поднимите лапку, поверните, опустите лапку, продолжайте. Закрепки с обеих сторон отверстия.'),
+      t('Clip the corners diagonally, close to the stitching but not through it. Turn through the gap, poke corners out with the blunt end of the multi-purpose tool.', 'Срежьте углы по диагонали близко к строчке, но не через неё. Выверните через отверстие, выправьте углы тупым концом универсального инструмента.'),
+      t('Stuff firmly. Close the gap by hand with a ladder stitch.', 'Набейте плотно. Зашейте отверстие вручную потайным швом.'),
+      t('Optional: before step 1, sew a row of stitch 86 (daisies) or 84 (stars) across the top square, with stabilizer behind it.', 'По желанию: перед шагом 1 прошейте ряд строчкой 86 (ромашки) или 84 (звёзды) по верхнему квадрату, со стабилизатором сзади.'),
+    ],
+    stitchLinks: [0, 86, 84],
+  },
+  {
+    id: 'piped-cushion',
+    order: 2,
+    title: t('Cushion cover with piping', 'Чехол на подушку с кантом'),
+    teaches: t('Making and inserting piping with the zipper foot, an envelope back, no zip needed. Two evenings.', 'Изготовление и вшивание канта лапкой для молнии, спинка-конверт, без молнии. Два вечера.'),
+    fabric: 'upholstery',
+    need: [
+      t('Front: one square the cushion size + 2 cm (for a 45 cm cushion: 47 × 47 cm)', 'Перед: квадрат размера подушки + 2 см (для подушки 45 см: 47 × 47 см)'),
+      t('Back: two pieces 47 × 32 cm', 'Спинка: две детали 47 × 32 см'),
+      t('Piping cord 4 to 5 mm, 2 m; bias strips 4 cm wide, 2 m total (cut at 45° so they curve around corners)', 'Шнур для канта 4–5 мм, 2 м; косые бейки шириной 4 см, всего 2 м (под 45°, чтобы огибали углы)'),
+    ],
+    settings: [
+      { label: t('Stitch', 'Строчка'), no: 0, len: 3.0, wid: null },
+      { label: t('Needle', 'Игла'), text: t('Jeans 90/14', 'Джинсовая 90/14') },
+      { label: t('Foot', 'Лапка'), text: t('Zipper foot 4, snapped on the side away from the cord', 'Лапка для молнии 4, пристёгнутая со стороны, противоположной шнуру') },
+      { label: t('IDT', 'IDT'), text: t('On', 'Вкл') },
+      { label: t('Needle position', 'Положение иглы'), text: t('Moved towards the cord with the width buttons until it sits right against it', 'Сдвинуто к шнуру кнопками ширины, пока игла не встанет вплотную') },
+      { label: t('Tension', 'Натяжение'), text: '4 – 4.5' },
+    ],
+    steps: [
+      t('Make the piping: fold the bias strip around the cord, wrong sides together. Zipper foot on the right of the needle, cord on the left, sew close to the cord but not tight against it (you will sew closer later).', 'Сделайте кант: оберните косую бейку вокруг шнура изнанкой внутрь. Лапка для молнии справа от иглы, шнур слева, шейте близко к шнуру, но не вплотную (ближе прошьёте потом).'),
+      t('Pin the piping around the right side of the front, raw edges together with the fabric edge. At each corner clip the piping seam allowance up to the stitching so it bends. Start and finish in the middle of the bottom side, overlapping the ends and letting the tails run off the edge.', 'Приколите кант по лицу переда, срезы вровень с краем ткани. На углах надсеките припуск канта до строчки, чтобы он загибался. Начните и закончите посередине нижней стороны, концы внахлёст, хвосты уводите за край.'),
+      t('Sew the piping on, same foot, now exactly on the previous stitching line. Needle down at the corners, pivot.', 'Пришейте кант той же лапкой, теперь точно по предыдущей строчке. На углах игла вниз, поворот.'),
+      t('Back pieces: hem one long side of each with a double 1 cm fold, stitch 00 at 3.0. Lay them on the front right sides together, hems overlapping in the middle, pin.', 'Детали спинки: подогните одну длинную сторону каждой двойным подгибом 1 см, строчка 00 на 3,0. Положите на перед лицом к лицу, подгибы внахлёст посередине, сколите.'),
+      t('Turn the sandwich over so the front is on top and you can see the piping stitches. Sew on that line again, now one needle position closer to the cord. The zipper foot rides on the cord.', 'Переверните «сэндвич» передом вверх, чтобы видеть строчку канта. Прошейте по этой линии ещё раз, теперь на одно положение иглы ближе к шнуру. Лапка для молнии идёт по шнуру.'),
+      t('Finish the seam allowance with stitch 14 (overcast) or 13. Clip corners, turn, press from the back, stuff the cushion in.', 'Обметайте припуск строчкой 14 (обмёточная) или 13. Срежьте углы, выверните, проутюжьте с изнанки, вставьте подушку.'),
+    ],
+    stitchLinks: [0, 14, 13],
+  },
+  {
+    id: 'blanket',
+    order: 3,
+    title: t('Blanket / throw', 'Плед'),
+    teaches: t('Handling thick, heavy fabric with IDT, a self-finished edge with blanket stitch or a mitred binding. Two to three evenings.', 'Работа с толстой тяжёлой тканью с IDT, край одеяльной строчкой или окантовка с уголками. Два-три вечера.'),
+    fabric: 'velvet',
+    need: [
+      t('Fleece or cotton velvet 150 × 200 cm (single layer), or two layers of cotton with thin batting for a quilted throw', 'Флис или хлопковый бархат 150 × 200 см (один слой), или два слоя хлопка с тонким ватином для стёганого пледа'),
+      t('Lots of pins or clips; a large table; the accessory tray ON for a big flat bed', 'Много булавок или клипс; большой стол; лоток для аксессуаров НАДЕТ — ровная широкая поверхность'),
+    ],
+    settings: [
+      { label: t('Edge stitch', 'Строчка края'), no: 27, len: 3.0, wid: 6 },
+      { label: t('Alternative', 'Альтернатива'), no: 4, len: 3.0, wid: 6 },
+      { label: t('Needle', 'Игла'), text: t('Universal 90/14', 'Универсальная 90/14') },
+      { label: t('Foot', 'Лапка'), text: '1A' },
+      { label: t('IDT', 'IDT'), text: t('On', 'Вкл') },
+      { label: t('Pressure', 'Давление лапки'), text: t('A little less than N', 'Чуть меньше N') },
+      { label: t('Speed', 'Скорость'), text: t('Slider at one third', 'Ползунок на треть') },
+    ],
+    steps: [
+      t('Single-layer fleece or velvet: fold the edge once by 2 cm (fleece does not fray; velvet should be overcast first with 14). Pin every 5 cm.', 'Однослойный флис или бархат: подогните край один раз на 2 см (флис не осыпается; бархат сначала обметайте строчкой 14). Булавки каждые 5 см.'),
+      t('Blanket stitch 27: the straight part runs along the fold on the single layer side, the bar swings onto the folded hem. Test on a scrap for width: 6 mm looks right on a throw.', 'Одеяльная строчка 27: прямая часть идёт вдоль сгиба по однослойной стороне, перекладина ложится на подгиб. Проверьте ширину на лоскуте: 6 мм хорошо смотрится на пледе.'),
+      t('Corners: fold a neat mitre (45°), pin, stop with the needle down at the corner, pivot.', 'Углы: сложите аккуратный уголок (45°), сколите, остановитесь с иглой внизу на углу, поверните.'),
+      t('Quilted version: pin-baste the three layers from the centre out every 15 cm. Quilt with wave 41 or serpentine 49 in rows 8 cm apart, foot 1A, IDT on. Bind with a 6 cm strip, stitch 00.', 'Стёганый вариант: сколите три слоя от центра наружу через 15 см. Стегайте волной 41 или серпантином 49 рядами через 8 см, лапка 1A, IDT включён. Окантуйте полосой 6 см, строчка 00.'),
+      t('Keep the weight of the blanket on the table, not hanging off: hanging fabric pulls and gives uneven stitches.', 'Держите вес пледа на столе, не свешивайте: свисающая ткань тянет и даёт неровные стежки.'),
+    ],
+    stitchLinks: [27, 4, 14, 41, 49],
+  },
+  {
+    id: 'table-runner',
+    order: 4,
+    title: t('Table runner', 'Дорожка на стол'),
+    teaches: t('Mitred corners, decorative stitch rows with stabilizer, a scalloped satin edge. Three evenings.', 'Уголки на подгибе, ряды декоративных строчек со стабилизатором, гладьевой фестончатый край. Три вечера.'),
+    fabric: 'cotton',
+    need: [
+      t('Linen or cotton 40 × 140 cm plus 6 cm each way for hems', 'Лён или хлопок 40 × 140 см плюс 6 см с каждой стороны на подгибы'),
+      t('Tear-away stabilizer strips for the decorative rows', 'Полосы отрывного стабилизатора для декоративных рядов'),
+      t('Contrast or variegated thread 40 for decoration', 'Контрастная или меланжевая нить 40 для декора'),
+    ],
+    settings: [
+      { label: t('Hem', 'Подгиб'), no: 0, len: 2.5, wid: null },
+      { label: t('Decorative rows', 'Декоративные ряды'), no: 80, len: 2.5, wid: 7 },
+      { label: t('Scalloped edge', 'Фестончатый край'), no: 67, len: 0.4, wid: 7 },
+      { label: t('Needle', 'Игла'), text: t('Universal 80/12; embroidery 90/14 for rayon thread', 'Универсальная 80/12; вышивальная 90/14 для вискозной нити') },
+      { label: t('Foot', 'Лапка'), text: t('0A for hems; 1A for decorative; 2A for satin', '0A для подгибов; 1A для декоративных; 2A для гладьевых') },
+      { label: t('IDT', 'IDT'), text: t('On for hems, OFF for 2A', 'Вкл для подгибов, ВЫКЛ для 2A') },
+      { label: t('Tension', 'Натяжение'), text: t('4 hems, 3 decorative', '4 подгибы, 3 декор') },
+    ],
+    steps: [
+      t('Press a 1 cm fold, then a 2 cm fold all round. Open the corners and fold each corner in at 45° so the creases meet; trim the corner triangle leaving 1 cm; refold: a clean mitre.', 'Заутюжьте подгиб 1 см, затем 2 см по периметру. Раскройте углы и загните каждый угол под 45°, чтобы сгибы совпали; срежьте уголок, оставив 1 см; снова сложите — чистый уголок.'),
+      t('Stitch the hem with 00 at 2.5 close to the inner fold, pivoting at the corners. Or use blind hem 10 with foot 3 for an invisible hem.', 'Прострочите подгиб строчкой 00 на 2,5 близко к внутреннему сгибу, поворачивая на углах. Или потайной подгиб 10 лапкой 3 для невидимого подгиба.'),
+      t('Mark a line 3 cm inside the hem with a chalk or a hera marker. Stabilizer underneath. Foot 1A, IDT off, speed slider low. Sew stitch 80 (vine) along the line, both long sides. Tear away the stabilizer.', 'Разметьте линию на 3 см от подгиба мелом или маркером. Снизу стабилизатор. Лапка 1A, IDT выключен, скорость низкая. Прошейте строчку 80 (лоза) по линии с обеих длинных сторон. Оторвите стабилизатор.'),
+      t('Add a second row with 43 (Greek key) or 36 (feather) 1 cm inside the first if you like a border band.', 'Добавьте второй ряд строчкой 43 (меандр) или 36 (ёлочка) на 1 см внутрь от первого, если хотите полосу-бордюр.'),
+      t('Scalloped ends (optional, instead of a hem on the short sides): foot 2A, stitch 67, width 7, length 0.4, stabilizer behind. Sew along the short edge 1.5 cm in, then trim the fabric right outside the scallops with small sharp scissors.', 'Фестончатые концы (по желанию, вместо подгиба на коротких сторонах): лапка 2A, строчка 67, ширина 7, длина 0,4, стабилизатор сзади. Прошейте вдоль короткого края на 1,5 см, затем срежьте ткань сразу за фестонами маленькими острыми ножницами.'),
+      t('Press from the back on a towel so the stitches stay raised.', 'Проутюжьте с изнанки на полотенце, чтобы строчки остались выпуклыми.'),
+    ],
+    stitchLinks: [0, 10, 80, 43, 36, 67],
+  },
+];
+
+export const projectById = (id) => PROJECTS.find((p) => p.id === id);
