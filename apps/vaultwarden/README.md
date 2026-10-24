@@ -79,10 +79,10 @@ promotion. Replacing the current pin with stable 1.37.2 would remove this behavi
 ## Restricted reader
 
 The restricted account can view the existing shared item in `Hays timesheets`
-and three approved login records in `Errands`: `Phone unlock PIN`,
-`ASB app login`, and `BNZ app login`. Its collection permissions are **View items**,
-with password viewing and without edit or manage access. The app-local
-`agent_secret.py` permits exactly these four names. The installed `agent-secret` command
+and four approved login records in `Errands`: `Phone unlock PIN`,
+`ASB app login`, `BNZ app login`, and `Sharesies app login`. Its collection
+permissions are **View items**, with password viewing and without edit or manage
+access. The app-local `agent_secret.py` permits exactly these five names. The installed `agent-secret` command
 and `scripts/agent-secret` still use the same command path and private CLI state.
 
 With `bw`, `kubectl`, and cluster access, check the restricted record silently:
@@ -99,6 +99,8 @@ human master password.
 The Hays command and `read_hays_item()` import still return only `username` and
 `password`. Phone items can have an empty username; their JSON also contains
 `pin`, using a named custom field when present and otherwise the login password.
+A phone item may hold only a `Pin` custom field and no password; its `password`
+is then empty. A phone item with neither is refused.
 The local phone helper consumes this output privately and reports only lengths.
 Both workflows unlock the restricted account from its existing Kubernetes login
 Secret; neither requires a human vault session. Item names outside the allowlist
