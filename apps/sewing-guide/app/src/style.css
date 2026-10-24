@@ -222,7 +222,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
 
 /* ------------------------------------------------------------ kit */
 .kit-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
-.kit-tile { display: flex; gap: 12px; align-items: center; text-decoration: none; color: var(--ink); background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; box-shadow: var(--shadow); content-visibility: auto; contain-intrinsic-size: 250px 84px; }
+.kit-tile { display: flex; gap: 12px; align-items: center; text-decoration: none; color: var(--ink); background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; box-shadow: var(--shadow); }
 .kit-tile:hover { border-color: var(--accent); }
 .kit-icon { width: 56px; height: 56px; flex: none; fill: none; stroke: var(--accent-ink); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; background: var(--accent-soft); border-radius: 12px; padding: 6px; }
 .kit-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
