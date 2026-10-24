@@ -13,11 +13,14 @@ import android.webkit.WebViewClient;
 import java.lang.ref.WeakReference;
 
 /**
- * Crossover on the living-room TV: the mortgage-free date, the chart and the
- * stages, drawn full screen by a local page in the WebView. The page shows the
- * view the laptop last sent (see {@link DataReceiver}) and nothing else; the
- * app has no network access. OK shows or hides amounts. Back leaves, and
- * leaving closes the page, so the next visit starts with amounts hidden.
+ * Crossover on the living-room TV, drawn full screen by a local page in the
+ * WebView: a first screen in one of three layouts, and the full plan below it
+ * (the mortgage-free date, the chart and the stages). The page shows the view
+ * the laptop last sent (see {@link DataReceiver}) and nothing else; the app has
+ * no network access. OK shows or hides amounts, down and up move between the
+ * first screen and the plan, left and right change the layout. Back leaves,
+ * and leaving closes the page, so the next visit starts on the first screen
+ * with amounts hidden.
  */
 public class MainActivity extends Activity {
     private static final int GROUND = 0xFF1A1D20;
@@ -87,14 +90,39 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
         int code = event.getKeyCode();
-        if (code != KeyEvent.KEYCODE_DPAD_CENTER && code != KeyEvent.KEYCODE_ENTER
-                && code != KeyEvent.KEYCODE_NUMPAD_ENTER) {
+        boolean first = event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0;
+        if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER
+                || code == KeyEvent.KEYCODE_NUMPAD_ENTER) {
+            if (first) {
+                web.evaluateJavascript("window.crossoverToggle && crossoverToggle()", null);
+            }
+            return true;
+        }
+        // The page is not focusable, so the arrows reach it only from here:
+        // down shows the plan, up returns, left and right change the layout.
+        String key = arrow(code);
+        if (key == null) {
             return super.dispatchKeyEvent(event);
         }
-        if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-            web.evaluateJavascript("window.crossoverToggle && crossoverToggle()", null);
+        if (first) {
+            web.evaluateJavascript("window.crossoverKey && crossoverKey('" + key + "')", null);
         }
         return true;
+    }
+
+    private static String arrow(int code) {
+        switch (code) {
+            case KeyEvent.KEYCODE_DPAD_UP:
+                return "up";
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+                return "down";
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                return "left";
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                return "right";
+            default:
+                return null;
+        }
     }
 
     @Override

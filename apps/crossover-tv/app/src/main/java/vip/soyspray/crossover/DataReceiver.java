@@ -28,7 +28,7 @@ public class DataReceiver extends BroadcastReceiver {
     static final String CLEAR = "vip.soyspray.crossover.CLEAR";
 
     // The view's layout version that assets/app.js draws.
-    private static final int SCHEMA = 2;
+    private static final int SCHEMA = 3;
 
     // A view is a few kilobytes; this is far above any real one.
     private static final int LIMIT = 256 * 1024;
