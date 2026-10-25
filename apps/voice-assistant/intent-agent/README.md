@@ -1,4 +1,53 @@
-# GI Flex intent agent
+# GI voice agents
+
+GI Everyday adds exact local sentences for lights, Android TV, catalog channels and
+Dreame room cleaning. Its device catalog comes from current Assist exposure and
+HA areas. It chooses one matching device in the satellite room, or the only
+matching exposed device elsewhere. Ambiguity asks for a name or room and never
+broadcasts. App launch packages are fixed; device IDs are not. Vacuum segment
+names are resolved in the selected map. The original GI and GI Flex remain
+separate pipelines.
+
+The `GiControl` intent script calls a bounded local service. Negation, future
+requests and reported speech decline before interpretation. Bare pronouns have
+their own non-action sentences. GI Everyday must have **prefer local intents
+disabled**, so its guard sees every transcript before any action. Its STT streams
+to Speech-to-Phrase first; only rejected/unmatched output replays that same turn
+to the local open recognizer, then optionally cloud speech. Everyday cloud audio
+stays off unless explicitly enabled. A constrained recognizer can still mistake
+unrelated audio for a valid command; acoustic safety checks are required, and
+this does not authenticate the speaker.
+
+`phrase_server.py` uses pinned Speech-to-Phrase 1.4.3. It checks the upstream
+handler checksum, serializes turns against vocabulary replacement, closes an old
+cached decoder before training a changed vocabulary, and retains a warm decoder
+when the vocabulary agrees. Training happens on connection, not during an active
+turn. New exposed devices are picked up without a code change.
+
+Unmatched text gets one bounded DeepSeek interpretation. A successful action
+produces a private audit record. After observing the real device, export that
+record with `verified: true` and compile its exact wording offline:
+
+```sh
+python apps/voice-assistant/intent-agent/learn.py --receipt /private/verified.json \
+  --output apps/voice-assistant/intent-agent/custom_components/gi_voice/sentences/en/gi_learned.yaml
+```
+
+Use the HA test environment for this command. Review the sentence diff, merge its
+source PR, then promote the new image digest to both HA and Speech-to-Phrase.
+No runtime code change or LLM call is needed for the learned wording. Rejected,
+failed and unverified records cannot be compiled. Repeated sentences with a
+different action fail rather than overwrite. Never commit private audit files.
+
+Configure a parallel **GI Everyday** pipeline with `conversation.gi_everyday`,
+`stt.gi_everyday_speech`, existing GI wake and Piper, and local-intent preference
+off. Select it on the Voice PE only after real-device checks. Set the preferred
+pipeline to it for phone Assist; a second satellite supplies its HA room normally.
+Rollback is selecting **GI** in the Voice PE Assistant selector (and preferred
+pipeline for the phone). Binary rollback reverts the HA/STP promotion digest.
+
+## Original GI Flex
+
 
 This Home Assistant conversation integration interprets unfamiliar English light
 commands through one non-thinking DeepSeek Flash request. HA handles known
@@ -114,8 +163,8 @@ Rollback: reselect GI, remove the new config entry, and revert the promoted
 installer digest. Restore settings through the supported HA API; never edit
 `.storage`. The private audit is disposable and never replayed as a command.
 Repeated successful unmatched commands can justify a separately tested exact
-interpretation cache. No fuzzy cache, learned mapping or Jev provider is enabled
-by this source package.
+interpretation cache. GI Flex has no fuzzy cache or learned mapping. GI Everyday uses only the
+reviewed exact sentence file described above. Jev is not enabled.
 
 The guarded `check-ha-voice-installer.yml` operation runs only inside an existing
 isolated Home Assistant restore. It checks scratch ownership, separate volume

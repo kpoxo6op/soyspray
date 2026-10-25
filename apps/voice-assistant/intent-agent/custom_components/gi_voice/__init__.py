@@ -4,12 +4,14 @@ from homeassistant.const import Platform
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
+from .control import setup_service
 
 PLATFORMS = [Platform.CONVERSATION, Platform.STT]
 
 
 async def async_setup_entry(hass, entry):
     """Keep routing and credentials in Home Assistant's supported config entry."""
+    setup_service(hass)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True

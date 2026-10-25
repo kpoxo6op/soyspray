@@ -1,0 +1,123 @@
+language: en
+intents:
+  GiControl:
+    data:
+    - sentences:
+      - '{name:target_name} on'
+      - turn on [the] {name:target_name}
+      - turn [the] {name:target_name} on
+      slots:
+        command: light_on
+    - sentences:
+      - '{name:target_name} off'
+      - turn off [the] {name:target_name}
+      - turn [the] {name:target_name} off
+      slots:
+        command: light_off
+    - sentences:
+      - '[set] [the] {name:target_name} [brightness] to {brightness:value} percent'
+      slots:
+        command: brightness
+    - sentences:
+      - '[turn] [the] (TV|television) on'
+      - turn on [the] (TV|television)
+      slots:
+        command: tv_on
+    - sentences:
+      - '[turn] [the] (TV|television) off'
+      - turn off [the] (TV|television)
+      slots:
+        command: tv_off
+    - sentences:
+      - pause [the] (TV|television)
+      slots:
+        command: pause
+    - sentences:
+      - resume [the] (TV|television)
+      slots:
+        command: resume
+    - sentences:
+      - '[the] (TV|television) louder'
+      slots:
+        command: louder
+    - sentences:
+      - '[the] (TV|television) quieter'
+      slots:
+        command: quieter
+    - sentences:
+      - mute [the] (TV|television)
+      slots:
+        command: mute
+    - sentences:
+      - next channel
+      slots:
+        command: next
+    - sentences:
+      - previous channel
+      slots:
+        command: previous
+    - sentences:
+      - '[open] YouTube'
+      slots:
+        command: app
+        value: youtube
+    - sentences:
+      - '[open] Jellyfin'
+      slots:
+        command: app
+        value: jellyfin
+    - sentences:
+      - '[open] Twitch'
+      slots:
+        command: app
+        value: twitch
+    - sentences:
+      - (OTV|O T V|oh tee vee|oh teh veh|о тэ вэ|ОТВ) (Prim|прим)
+      slots:
+        command: channel
+        value: otv-prim
+    - sentences:
+      - vacuum [the] living room
+      slots:
+        command: vacuum_room
+        value: living room
+    - sentences:
+      - vacuum [the] dining room
+      slots:
+        command: vacuum_room
+        value: dining room
+    - sentences:
+      - vacuum [the] bathroom
+      slots:
+        command: vacuum_room
+        value: bathroom
+    - sentences:
+      - vacuum (everywhere|everything|[the] whole house)
+      slots:
+        command: vacuum_all
+    - sentences:
+      - stop [the] vacuum
+      slots:
+        command: vacuum_stop
+    - sentences:
+      - vacuum go home
+      - send [the] vacuum home
+      slots:
+        command: vacuum_home
+  GiDecline:
+    data:
+    - sentences:
+      - (don't|do not|never) <gi_command>
+      - <gi_command> (tomorrow|later)
+      - '[my friend] said <gi_command>'
+      - turn it (on|off)
+      - switch it (on|off)
+expansion_rules:
+  gi_command: ({name:target_name} on|turn on [the] {name:target_name}|turn [the] {name:target_name} on|{name:target_name}
+    off|turn off [the] {name:target_name}|turn [the] {name:target_name} off|[set] [the] {name:target_name}
+    [brightness] to {brightness:value} percent|[turn] [the] (TV|television) on|turn on [the] (TV|television)|[turn]
+    [the] (TV|television) off|turn off [the] (TV|television)|pause [the] (TV|television)|resume [the]
+    (TV|television)|[the] (TV|television) louder|[the] (TV|television) quieter|mute [the] (TV|television)|next
+    channel|previous channel|[open] YouTube|[open] Jellyfin|[open] Twitch|(OTV|O T V|oh tee vee|oh teh
+    veh|о тэ вэ|ОТВ) (Prim|прим)|vacuum [the] living room|vacuum [the] dining room|vacuum [the] bathroom|vacuum
+    (everywhere|everything|[the] whole house)|stop [the] vacuum|vacuum go home|send [the] vacuum home)

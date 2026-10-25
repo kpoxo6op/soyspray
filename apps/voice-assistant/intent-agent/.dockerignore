@@ -4,3 +4,4 @@
 !install.py
 **/__pycache__
 **/*.pyc
+!phrase_server.py

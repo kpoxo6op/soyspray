@@ -17,6 +17,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 
 from .const import API, CONF_LIGHTS, DOMAIN, MODEL, SCHEMA_VERSION, TIMEOUT_SECONDS
+from .everyday import EverydayAgent
 from .policy import (
     CLARIFICATION_RESERVED,
     CONTEXTUAL,
@@ -49,7 +50,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
     agent = GiVoiceAgent(entry)
     await agent.async_load_audit(hass)
     entry.runtime_data = agent
-    async_add_entities([agent])
+    async_add_entities([agent, EverydayAgent(entry)])
 
 
 class GiVoiceAgent(conversation.ConversationEntity):

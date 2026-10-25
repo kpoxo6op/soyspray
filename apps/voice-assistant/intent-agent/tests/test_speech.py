@@ -285,3 +285,49 @@ async def test_options_are_opt_in_validate_without_audio_and_retain_key(
     assert result["data"][OPENAI_KEY] == "private-test-key"
     assert aioclient_mock.call_count == 1
     assert aioclient_mock.mock_calls[0][0] == "GET"
+
+
+async def test_everyday_streams_to_phrase_before_the_microphone_finishes(engine, aioclient_mock):
+    """The old buffer-first path cannot own the streaming latency contract."""
+    everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
+    first_seen = asyncio.Event()
+
+    async def microphone():
+        yield PCM[:100]
+        async with asyncio.timeout(1):
+            await first_seen.wait()
+        yield PCM[100:]
+
+    async def phrase(metadata, stream):
+        collected = bytearray()
+        async for part in stream:
+            collected.extend(part)
+            first_seen.set()
+        assert collected == PCM
+        return stt.SpeechResult("Top on", stt.SpeechResultState.SUCCESS)
+
+    with patch.object(
+        stt,
+        "async_get_speech_to_text_engine",
+        return_value=SimpleNamespace(async_process_audio_stream=phrase),
+    ) as resolve:
+        result = await everyday.internal_async_process_audio_stream(META, microphone())
+    assert result.text == "Top on"
+    assert resolve.call_count == 1
+    assert aioclient_mock.call_count == 0
+
+
+async def test_everyday_rejected_phrase_replays_same_turn_without_cloud_when_disabled(
+    engine, aioclient_mock
+):
+    """New fallback must preserve audio and the everyday cloud-off boundary."""
+    everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
+    engine.hass.config_entries.async_update_entry(engine.entry, options={LOCAL_STT: "stt.local"})
+    await engine.hass.async_block_till_done()
+    everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
+    phrase, opened = decoder(""), decoder("Please illuminate Top")
+    with patch.object(stt, "async_get_speech_to_text_engine", side_effect=[phrase, opened]):
+        result = await everyday.internal_async_process_audio_stream(META, chunks())
+    assert result.text == "Please illuminate Top"
+    opened.async_process_audio_stream.assert_awaited_once()
+    assert aioclient_mock.call_count == 0
