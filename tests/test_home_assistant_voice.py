@@ -51,6 +51,7 @@ def test_voice_services_have_their_own_kustomize_package() -> None:
         "openwakeword-gi",
         "voice-health",
         "gi-flex-stt",
+        "gi-original-phrase",
     }
     assert names_by_kind["Job"] == {"voice-model-bootstrap-v1"}
     assert names_by_kind["Service"] == {
@@ -59,6 +60,7 @@ def test_voice_services_have_their_own_kustomize_package() -> None:
         "openwakeword-gi",
         "voice-health",
         "gi-flex-stt",
+        "gi-original-phrase",
     }
     assert names_by_kind["PersistentVolumeClaim"] == {
         "speech-to-phrase-data-v1",
@@ -184,8 +186,13 @@ def test_voice_services_use_local_storage_and_limited_network_access() -> None:
         "voice-model-bootstrap",
         "voice-health",
         "gi-flex-stt",
+        "gi-original-phrase",
     }
-    for policy in (policies["speech-to-phrase"], policies["piper-en"]):
+    for policy in (
+        policies["speech-to-phrase"],
+        policies["gi-original-phrase"],
+        policies["piper-en"],
+    ):
         assert policy["spec"]["policyTypes"] == ["Ingress", "Egress"]
         assert policy["spec"]["ingress"][0]["from"] == [
             {"podSelector": {"matchLabels": {"app": "home-assistant"}}}
@@ -887,3 +894,26 @@ def test_network_probe_cannot_report_a_reachable_or_down_service_as_blocked(monk
     monkeypatch.setattr(socket, "create_connection", refused)
     with pytest.raises(ConnectionRefusedError):
         exec(code, {})
+
+
+def test_original_phrase_recognizer_cannot_modify_shared_models():
+    """Rollback training must not corrupt the live model PVC; generic PVC tests do not own mount access."""
+    pod = resource(render_voice_stack(), "Deployment", "gi-original-phrase")["spec"]["template"][
+        "spec"
+    ]
+    container = pod["containers"][0]
+    assert_pinned_image(container["image"], "rhasspy/wyoming-speech-to-phrase")
+    assert {
+        "name": "data",
+        "mountPath": "/data/models",
+        "subPath": "models",
+        "readOnly": True,
+    } in container["volumeMounts"]
+    assert not any(m["name"] == "data" and not m.get("readOnly") for m in container["volumeMounts"])
+    assert any(v["name"] == "train" and "emptyDir" in v for v in pod["volumes"])
+    assert (
+        pod["affinity"]["podAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"][0][
+            "topologyKey"
+        ]
+        == "kubernetes.io/hostname"
+    )
