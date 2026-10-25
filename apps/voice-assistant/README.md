@@ -307,3 +307,10 @@ on the same node as the original model PVC. GI Everyday uses
 `stt.speech_to_phrase` with its promoted sentence bundle. Its matcher reads the
 bundle directly, so custom sentences do not change original GI's native agent.
 Selecting GI therefore bypasses both the Everyday agent and its recognizer.
+
+GI Everyday uses open local speech recognition to retain negation and reported
+speech. The optional local retry service `gi-whisper` uses the pinned base.en
+model and refreshes vocabulary from current HA exposure over the internal HA
+API. Register it through Wyoming and name its entity `stt.gi_whisper`. Its only
+network destinations are HA; it cannot send audio to cloud or devices. The old
+Parakeet service and independent original GI recognizer remain unchanged.

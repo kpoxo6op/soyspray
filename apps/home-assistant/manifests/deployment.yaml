@@ -27,7 +27,7 @@ spec:
           resources:
             requests: {cpu: 10m, memory: 32Mi}
             limits: {cpu: 250m, memory: 128Mi}
-          image: ghcr.io/kpoxo6op/gi-voice@sha256:c6d64a635340f1b3ffa4f2df12bad9043ec5256a480bd5529692df8af9e5f78f
+          image: ghcr.io/kpoxo6op/gi-voice@sha256:7101352749afe7b100320030062562079b5eec23fe288018d14aef97dbfb600f
           securityContext:
             runAsUser: 0
             runAsGroup: 0
@@ -155,6 +155,8 @@ spec:
             - containerPort: 8123
               name: http
           env:
+            - name: GI_VOICE_BROADCAST_ADDRESS
+              value: "192.168.20.255"
             - name: TZ
               value: "Pacific/Auckland"
           resources:

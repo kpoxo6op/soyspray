@@ -52,6 +52,7 @@ def test_voice_services_have_their_own_kustomize_package() -> None:
         "voice-health",
         "gi-flex-stt",
         "gi-original-phrase",
+        "gi-whisper",
     }
     assert names_by_kind["Job"] == {"voice-model-bootstrap-v1"}
     assert names_by_kind["Service"] == {
@@ -61,6 +62,7 @@ def test_voice_services_have_their_own_kustomize_package() -> None:
         "voice-health",
         "gi-flex-stt",
         "gi-original-phrase",
+        "gi-whisper",
     }
     assert names_by_kind["PersistentVolumeClaim"] == {
         "speech-to-phrase-data-v1",
@@ -187,10 +189,12 @@ def test_voice_services_use_local_storage_and_limited_network_access() -> None:
         "voice-health",
         "gi-flex-stt",
         "gi-original-phrase",
+        "gi-whisper",
     }
     for policy in (
         policies["speech-to-phrase"],
         policies["gi-original-phrase"],
+        policies["gi-whisper"],
         policies["piper-en"],
     ):
         assert policy["spec"]["policyTypes"] == ["Ingress", "Egress"]
@@ -919,3 +923,21 @@ def test_original_phrase_recognizer_cannot_modify_shared_models():
         ]
         == "kubernetes.io/hostname"
     )
+
+
+def test_whisper_vocabulary_access_is_limited_to_ha_without_data_volumes():
+    """Vocabulary refresh must not gain device/cloud egress or durable mounts; the offline STT check has no token."""
+    resources = render_voice_stack()
+    pod = resource(resources, "Deployment", "gi-whisper")["spec"]["template"]["spec"]
+    assert pod["automountServiceAccountToken"] is False
+    assert not any("persistentVolumeClaim" in v for v in pod["volumes"])
+    mount = next(
+        m for m in pod["containers"][0]["volumeMounts"] if m["name"] == "home-assistant-token"
+    )
+    assert mount["readOnly"] is True
+    assert resource(resources, "NetworkPolicy", "gi-whisper")["spec"]["egress"] == [
+        {
+            "to": [{"podSelector": {"matchLabels": {"app": "home-assistant"}}}],
+            "ports": [{"port": 8123, "protocol": "TCP"}],
+        }
+    ]

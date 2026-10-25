@@ -1,0 +1,157 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gi-whisper
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gi-whisper
+  template:
+    metadata:
+      labels:
+        app: gi-whisper
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: gi-whisper
+        image: ghcr.io/kpoxo6op/gi-stt@sha256:b100f10ac0fc183ffebf6af4b86cc9ffcd2d99402739e3118844cb217842a2c4
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: wyoming
+          containerPort: 10300
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 500m
+            memory: 768Mi
+          limits:
+            cpu: '2'
+            memory: 2Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        startupProbe:
+          exec:
+            command:
+            - python
+            - /app/warmup.py
+          timeoutSeconds: 15
+          periodSeconds: 10
+          failureThreshold: 60
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - /app/probe.py
+          timeoutSeconds: 5
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          tcpSocket:
+            port: wyoming
+          timeoutSeconds: 5
+          periodSeconds: 30
+          failureThreshold: 3
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: home-assistant-token
+          mountPath: /run/secrets/home-assistant
+          readOnly: true
+        args:
+        - --uri
+        - tcp://0.0.0.0:10300
+        - --data-dir
+        - /models
+        - --download-dir
+        - /models
+        - --local-files-only
+        - --language
+        - en
+        - --stt-library
+        - faster-whisper
+        - --model
+        - /models/base.en
+        - --cpu-threads
+        - '2'
+        - --beam-size
+        - '1'
+        - --compute-type
+        - int8
+        - --vad-filter
+        - --hass-api
+        - http://$(HOME_ASSISTANT_SERVICE_HOST):$(HOME_ASSISTANT_SERVICE_PORT)/api
+        - --initial-prompt
+        - OTV Prim, ОТВ Прим, YouTube, Jellyfin, Twitch
+        - --hass-prompt-timeout
+        - '0.2'
+        env:
+        - name: WYO_WHISPER_HASS_TOKEN_FILE
+          value: /run/secrets/home-assistant/token
+      volumes:
+      - name: tmp
+        emptyDir:
+          sizeLimit: 512Mi
+      - name: home-assistant-token
+        secret:
+          secretName: voice-assistant-ha-token
+          defaultMode: 288
+          items:
+          - key: token
+            path: token
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gi-whisper
+spec:
+  type: ClusterIP
+  selector:
+    app: gi-whisper
+  ports:
+  - name: wyoming
+    port: 10300
+    protocol: TCP
+    targetPort: 10300
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gi-whisper
+spec:
+  podSelector:
+    matchLabels:
+      app: gi-whisper
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: home-assistant
+    ports:
+    - port: 10300
+      protocol: TCP
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: home-assistant
+    ports:
+    - port: 8123
+      protocol: TCP

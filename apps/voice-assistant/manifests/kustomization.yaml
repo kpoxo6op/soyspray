@@ -12,6 +12,7 @@ resources:
   - voice-health.yaml
   - gi-flex-stt.yaml
   - gi-original-phrase.yaml
+  - gi-whisper.yaml
 
 configMapGenerator:
   - name: openwakeword-gi-patch
