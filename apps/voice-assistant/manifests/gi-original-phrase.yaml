@@ -1,4 +1,4 @@
-# Original GI recognizer: separate training output, shared model files read-only.
+# Original GI recognizer: private decoder files, shared source models read-only.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -35,15 +35,17 @@ spec:
         - /usr/src/.venv/bin/python3
         - -c
         args:
-        - "import asyncio\nimport os\nimport pathlib\nimport sys\n\nfrom speech_to_phrase.__main__ import\
-          \ main\n\ntoken = pathlib.Path(\n    \"/run/secrets/home-assistant/token\"\n).read_text(encoding=\"\
-          utf-8\").strip()\nif not token:\n    raise RuntimeError(\"Home Assistant token is empty\")\n\
-          \nhass_host = os.environ[\"HOME_ASSISTANT_SERVICE_HOST\"]\nhass_port = os.environ[\"HOME_ASSISTANT_SERVICE_PORT\"\
-          ]\n\nsys.argv = [\n    \"speech-to-phrase\",\n    \"--uri\", \"tcp://0.0.0.0:10300\",\n    \"\
-          --models-dir\", \"/data/models\",\n    \"--train-dir\", \"/data/train\",\n    \"--tools-dir\"\
-          , \"/usr/src/tools\",\n    \"--hass-websocket-uri\",\n    f\"ws://{hass_host}:{hass_port}/api/websocket\"\
-          ,\n    \"--hass-token\", token,\n    \"--retrain-on-start\",\n    \"--retrain-seconds\", \"\
-          300\",\n    \"--retrain-on-connect\",\n]\nasyncio.run(main())\n"
+        - "import asyncio\nimport os\nimport pathlib\nimport sys\n\nfrom speech_to_phrase.__main__\
+          \ import main\n\ntoken = pathlib.Path(\n    \"/run/secrets/home-assistant/token\"\
+          \n).read_text(encoding=\"utf-8\").strip()\nif not token:\n    raise RuntimeError(\"\
+          Home Assistant token is empty\")\n\nhass_host = os.environ[\"HOME_ASSISTANT_SERVICE_HOST\"\
+          ]\nhass_port = os.environ[\"HOME_ASSISTANT_SERVICE_PORT\"]\n\nsys.argv =\
+          \ [\n    \"speech-to-phrase\",\n    \"--uri\", \"tcp://0.0.0.0:10300\",\n\
+          \    \"--models-dir\", \"/data/models\",\n    \"--train-dir\", \"/data/train\"\
+          ,\n    \"--tools-dir\", \"/usr/src/tools\",\n    \"--hass-websocket-uri\"\
+          ,\n    f\"ws://{hass_host}:{hass_port}/api/websocket\",\n    \"--hass-token\"\
+          , token,\n    \"--retrain-on-start\",\n    \"--retrain-seconds\", \"300\"\
+          ,\n    \"--retrain-on-connect\",\n]\nasyncio.run(main())\n"
         ports:
         - name: wyoming
           containerPort: 10300
@@ -76,8 +78,8 @@ spec:
             - /usr/src/.venv/bin/python3
             - -c
             - import pathlib, socket; assert pathlib.Path('/data/models/en_US-rhasspy/.artifact-sha256').is_file();
-              assert pathlib.Path('/data/train/en_US-rhasspy/training_info.json').is_file(); socket.create_connection(('127.0.0.1',
-              10300), 2).close()
+              assert pathlib.Path('/data/train/en_US-rhasspy/training_info.json').is_file();
+              socket.create_connection(('127.0.0.1', 10300), 2).close()
           periodSeconds: 5
           failureThreshold: 3
         livenessProbe:
@@ -91,10 +93,8 @@ spec:
         - name: home-assistant-token
           mountPath: /run/secrets/home-assistant
           readOnly: true
-        - name: data
+        - name: models
           mountPath: /data/models
-          subPath: models
-          readOnly: true
         - name: train
           mountPath: /data/train
       volumes:
@@ -114,6 +114,9 @@ spec:
       - name: train
         emptyDir:
           sizeLimit: 1Gi
+      - name: models
+        emptyDir:
+          sizeLimit: 1Gi
       affinity:
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -121,6 +124,36 @@ spec:
               matchLabels:
                 app: speech-to-phrase
             topologyKey: kubernetes.io/hostname
+      initContainers:
+      - name: copy-models
+        image: rhasspy/wyoming-speech-to-phrase:1.4.3@sha256:e532f0dbc6b21285c4c784212003865b9167041927328a767cb0beb1a0beaa20
+        command:
+        - /usr/src/.venv/bin/python3
+        - -c
+        args:
+        - import pathlib, shutil; source = pathlib.Path('/source/en_US-rhasspy');
+          assert (source / '.artifact-sha256').is_file(); shutil.copytree(source,
+          '/models/en_US-rhasspy', dirs_exist_ok=True)
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 500m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: data
+          mountPath: /source
+          subPath: models
+          readOnly: true
+        - name: models
+          mountPath: /models
 ---
 apiVersion: v1
 kind: Service
