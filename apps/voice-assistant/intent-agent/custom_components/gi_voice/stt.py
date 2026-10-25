@@ -236,7 +236,15 @@ class EverydaySpeech(GiSpeech):
                     yield bytes(audio[index : index + 32000])
 
             engine = stt.async_get_speech_to_text_engine(self.hass, "stt.gi_whisper")
-            if engine is not None and not isinstance(engine, GiSpeech) and engine is not primary:
+            needs_retry = (
+                local.result != stt.SpeechResultState.SUCCESS or not (local.text or "").strip()
+            )
+            if (
+                needs_retry
+                and engine is not None
+                and not isinstance(engine, GiSpeech)
+                and engine is not primary
+            ):
                 try:
                     async with asyncio.timeout(3):
                         retry = await engine.async_process_audio_stream(metadata, replay())

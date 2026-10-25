@@ -19,33 +19,33 @@ intents:
       slots:
         command: brightness
     - sentences:
-      - '[turn] [the] (TV|television) on'
-      - turn on [the] (TV|television)
+      - '[turn] [the] (TV|T V|television) on'
+      - turn on [the] (TV|T V|television)
       slots:
         command: tv_on
     - sentences:
-      - '[turn] [the] (TV|television) off'
-      - turn off [the] (TV|television)
+      - '[turn] [the] (TV|T V|television) off'
+      - turn off [the] (TV|T V|television)
       slots:
         command: tv_off
     - sentences:
-      - pause [the] (TV|television)
+      - pause [the] (TV|T V|television)
       slots:
         command: pause
     - sentences:
-      - resume [the] (TV|television)
+      - resume [the] (TV|T V|television)
       slots:
         command: resume
     - sentences:
-      - '[the] (TV|television) louder'
+      - '[the] (TV|T V|television) louder'
       slots:
         command: louder
     - sentences:
-      - '[the] (TV|television) quieter'
+      - '[the] (TV|T V|television) quieter'
       slots:
         command: quieter
     - sentences:
-      - mute [the] (TV|television)
+      - mute [the] (TV|T V|television)
       slots:
         command: mute
     - sentences:
@@ -115,9 +115,9 @@ intents:
 expansion_rules:
   gi_command: ({name:target_name} on|turn on [the] {name:target_name}|turn [the] {name:target_name} on|{name:target_name}
     off|turn off [the] {name:target_name}|turn [the] {name:target_name} off|[set] [the] {name:target_name}
-    [brightness] to {brightness:value} percent|[turn] [the] (TV|television) on|turn on [the] (TV|television)|[turn]
-    [the] (TV|television) off|turn off [the] (TV|television)|pause [the] (TV|television)|resume [the]
-    (TV|television)|[the] (TV|television) louder|[the] (TV|television) quieter|mute [the] (TV|television)|next
+    [brightness] to {brightness:value} percent|[turn] [the] (TV|T V|television) on|turn on [the] (TV|T V|television)|[turn]
+    [the] (TV|T V|television) off|turn off [the] (TV|T V|television)|pause [the] (TV|T V|television)|resume [the]
+    (TV|T V|television)|[the] (TV|T V|television) louder|[the] (TV|T V|television) quieter|mute [the] (TV|T V|television)|next
     channel|previous channel|[open] YouTube|[open] Jellyfin|[open] Twitch|(OTV|O T V|oh tee vee|oh teh
     veh|о тэ вэ|ОТВ) (Prim|прим)|vacuum [the] living room|vacuum [the] dining room|vacuum [the] bathroom|vacuum
     (everywhere|everything|[the] whole house)|stop [the] vacuum|vacuum go home|send [the] vacuum home)
