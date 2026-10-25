@@ -1,0 +1,17 @@
+GiControl:
+  action:
+    - action: gi_voice.command
+      data:
+        command: "{{ command }}"
+        target_name: "{{ target_name | default('') }}"
+        preferred_area_id: "{{ preferred_area_id | default('') }}"
+        area: "{{ area | default('') }}"
+        value: "{{ value | default('') }}"
+      response_variable: result
+    - stop: Command finished
+      response_variable: result
+  speech:
+    text: "{{ action_response.speech }}"
+GiDecline:
+  speech:
+    text: "I haven't changed anything. Please say the device and an immediate command."

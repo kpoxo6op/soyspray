@@ -5,4 +5,5 @@ LABEL org.opencontainers.image.source="https://github.com/kpoxo6op/soyspray" \
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 SOURCE_REVISION=${SOURCE_REVISION}
 COPY custom_components/gi_voice /component
 COPY install.py /install.py
+COPY phrase_server.py /phrase_server.py
 ENTRYPOINT ["python3", "/install.py"]

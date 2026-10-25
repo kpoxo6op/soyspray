@@ -36,7 +36,7 @@ def local_command(text):
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    async_add_entities([GiSpeech(entry)])
+    async_add_entities([GiSpeech(entry), EverydaySpeech(entry)])
 
 
 class GiSpeech(stt.SpeechToTextEntity):
@@ -175,4 +175,121 @@ class GiSpeech(stt.SpeechToTextEntity):
             self._active.discard(task)
             _LOGGER.debug(
                 "GI speech route=%s elapsed_ms=%.0f", route, (time.monotonic() - started) * 1000
+            )
+
+
+class EverydaySpeech(GiSpeech):
+    """Stream to the phrase recognizer; replay only rejected turns to open STT."""
+
+    _attr_name = "GI Everyday speech"
+
+    def __init__(self, entry):
+        super().__init__(entry)
+        self._attr_unique_id = entry.entry_id + "_everyday_speech"
+        self.sentences = None
+
+    async def async_added_to_hass(self):
+        await super().async_added_to_hass()
+        from .everyday import load_sentences
+
+        self.sentences = await self.hass.async_add_executor_job(load_sentences)
+
+    async def async_process_audio_stream(self, metadata, stream):
+        from .control import catalog
+        from .everyday import match_command
+
+        failure = stt.SpeechResult(None, stt.SpeechResultState.ERROR)
+        if self._removed or len(self._active) >= 2 or not self.check_metadata(metadata):
+            return failure
+        task = asyncio.current_task()
+        self._active.add(task)
+        audio = bytearray()
+        route = "failed"
+        started = time.monotonic()
+        try:
+
+            async def capture():
+                async for chunk in stream:
+                    if len(audio) + len(chunk) > MAX_AUDIO_BYTES:
+                        raise ValueError("Audio limit")
+                    audio.extend(chunk)
+                    yield chunk
+
+            phrase = stt.async_get_speech_to_text_engine(self.hass, "stt.speech_to_phrase")
+            if phrase is None:
+                return failure
+            async with asyncio.timeout(25):
+                local = await phrase.async_process_audio_stream(metadata, capture())
+            if local.result == stt.SpeechResultState.SUCCESS and local.text:
+                if match_command(local.text, self.sentences, catalog(self.hass)):
+                    route = "phrase"
+                    return local
+            if not audio or len(audio) % 2:
+                return failure
+
+            async def replay():
+                for index in range(0, len(audio), 32000):
+                    yield bytes(audio[index : index + 32000])
+
+            engine = stt.async_get_speech_to_text_engine(
+                self.hass, self.entry.options.get(LOCAL_STT, "stt.faster_whisper")
+            )
+            if engine is None or isinstance(engine, GiSpeech) or engine is phrase:
+                return failure
+            try:
+                async with asyncio.timeout(5):
+                    local = await engine.async_process_audio_stream(metadata, replay())
+            except (aiohttp.ClientError, OSError, TimeoutError):
+                local = failure
+            if local.result == stt.SpeechResultState.SUCCESS and local.text:
+                if match_command(local.text, self.sentences, catalog(self.hass)):
+                    route = "open_local"
+                    return local
+            options = self.entry.options
+            if not options.get(CLOUD_ENABLED) or not options.get(OPENAI_KEY):
+                route = "open_local"
+                return local
+            output = io.BytesIO()
+            with wave.open(output, "wb") as wav:
+                wav.setparams((1, 2, 16000, 0, "NONE", "not compressed"))
+                wav.writeframes(audio)
+            form = aiohttp.FormData()
+            form.add_field("model", MODEL)
+            form.add_field("languages[]", "en")
+            form.add_field("languages[]", "ru")
+            form.add_field(
+                "prompt",
+                ", ".join(sorted({item["name"] for item in catalog(self.hass).values()}))
+                + ", OTV Prim, ОТВ Прим, YouTube, Jellyfin, Twitch",
+            )
+            form.add_field(
+                "file", output.getvalue(), filename="command.wav", content_type="audio/wav"
+            )
+            route = "cloud_attempt"
+            try:
+                async with asyncio.timeout(REQUEST_TIMEOUT):
+                    async with async_get_clientsession(self.hass).post(
+                        API,
+                        headers={"Authorization": "Bearer " + options[OPENAI_KEY]},
+                        data=form,
+                        allow_redirects=False,
+                    ) as response:
+                        if response.status == 200:
+                            raw = await response.content.read(65537)
+                            if len(raw) <= 65536:
+                                text = json.loads(raw).get("text")
+                                if isinstance(text, str) and text.strip() and len(text) <= 8192:
+                                    route = "cloud"
+                                    return stt.SpeechResult(text, stt.SpeechResultState.SUCCESS)
+            except (aiohttp.ClientError, OSError, TimeoutError, ValueError, AttributeError):
+                pass
+            return local
+        except (aiohttp.ClientError, OSError, TimeoutError, ValueError):
+            return failure
+        finally:
+            audio.clear()
+            self._active.discard(task)
+            self.hass.bus.async_fire(
+                "gi_voice_speech",
+                {"route": route, "elapsed_ms": round((time.monotonic() - started) * 1000)},
             )
