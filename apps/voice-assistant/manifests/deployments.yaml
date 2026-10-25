@@ -26,45 +26,33 @@ spec:
         fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        - name: install-gi-sentences
+          image: ghcr.io/kpoxo6op/gi-voice@sha256:c6d64a635340f1b3ffa4f2df12bad9043ec5256a480bd5529692df8af9e5f78f
+          command: [python3, -c]
+          args:
+            - |
+              import shutil
+              shutil.copytree('/component/sentences', '/runtime/sentences', dirs_exist_ok=True)
+              shutil.copyfile('/phrase_server.py', '/runtime/phrase_server.py')
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 250m, memory: 128Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: gi-runtime
+              mountPath: /runtime
       containers:
         - name: speech-to-phrase
           image: rhasspy/wyoming-speech-to-phrase:1.4.3@sha256:e532f0dbc6b21285c4c784212003865b9167041927328a767cb0beb1a0beaa20
           imagePullPolicy: IfNotPresent
           command:
             - /usr/src/.venv/bin/python3
-            - -c
-          args:
-            - |
-              import asyncio
-              import os
-              import pathlib
-              import sys
-
-              from speech_to_phrase.__main__ import main
-
-              token = pathlib.Path(
-                  "/run/secrets/home-assistant/token"
-              ).read_text(encoding="utf-8").strip()
-              if not token:
-                  raise RuntimeError("Home Assistant token is empty")
-
-              hass_host = os.environ["HOME_ASSISTANT_SERVICE_HOST"]
-              hass_port = os.environ["HOME_ASSISTANT_SERVICE_PORT"]
-
-              sys.argv = [
-                  "speech-to-phrase",
-                  "--uri", "tcp://0.0.0.0:10300",
-                  "--models-dir", "/data/models",
-                  "--train-dir", "/data/train",
-                  "--tools-dir", "/usr/src/tools",
-                  "--hass-websocket-uri",
-                  f"ws://{hass_host}:{hass_port}/api/websocket",
-                  "--hass-token", token,
-                  "--retrain-on-start",
-                  "--retrain-seconds", "300",
-                  "--retrain-on-connect",
-              ]
-              asyncio.run(main())
+            - /runtime/phrase_server.py
           ports:
             - name: wyoming
               containerPort: 10300
@@ -111,6 +99,9 @@ spec:
             periodSeconds: 30
             failureThreshold: 3
           volumeMounts:
+            - name: gi-runtime
+              mountPath: /runtime
+              readOnly: true
             - name: data
               mountPath: /data
             - name: tmp
@@ -119,6 +110,8 @@ spec:
               mountPath: /run/secrets/home-assistant
               readOnly: true
       volumes:
+        - name: gi-runtime
+          emptyDir: {}
         - name: data
           persistentVolumeClaim:
             claimName: speech-to-phrase-data-v1

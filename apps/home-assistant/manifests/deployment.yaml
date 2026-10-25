@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       annotations:
-        soyspray.vip/bootstrap-config-revision: "2026-08-25-snappy-peanut-v3"
+        soyspray.vip/bootstrap-config-revision: "2026-10-25-gi-everyday-v1"
       labels:
         app: home-assistant
         component: main
@@ -27,7 +27,7 @@ spec:
           resources:
             requests: {cpu: 10m, memory: 32Mi}
             limits: {cpu: 250m, memory: 128Mi}
-          image: ghcr.io/kpoxo6op/gi-voice@sha256:4d40495fb0e987a112609e3dd54fb0eef20b2ddbc25917440be56f32a1fffc62
+          image: ghcr.io/kpoxo6op/gi-voice@sha256:c6d64a635340f1b3ffa4f2df12bad9043ec5256a480bd5529692df8af9e5f78f
           securityContext:
             runAsUser: 0
             runAsGroup: 0
@@ -44,10 +44,18 @@ spec:
             - sh
             - -c
             - |
+              set -eu
               cp /bootstrap/configuration.yaml /config/configuration.yaml
               cp /bootstrap/automations.yaml /config/automations.yaml
               cp /bootstrap/scripts.yaml /config/scripts.yaml
               cp /bootstrap/scenes.yaml /config/scenes.yaml
+              test ! -L /config/custom_sentences
+              test ! -L /config/custom_sentences/en
+              mkdir -p /config/custom_sentences/en
+              for file in gi_starters.yaml gi_learned.yaml; do
+                test ! -L "/config/custom_sentences/en/$file"
+                cp "/config/custom_components/gi_voice/sentences/en/$file" "/config/custom_sentences/en/$file"
+              done
           volumeMounts:
             - name: config
               mountPath: /config
