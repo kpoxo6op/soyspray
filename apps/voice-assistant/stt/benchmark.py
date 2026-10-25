@@ -55,7 +55,7 @@ async def main():
     for candidate in ("parakeet", "base.en", "small.en"):
         library = "sherpa" if candidate == "parakeet" else "faster-whisper"
         model = (
-            "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8"
+            "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8"
             if candidate == "parakeet"
             else "/models/" + candidate
         )

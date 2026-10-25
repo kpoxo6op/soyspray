@@ -12,4 +12,4 @@ RUN python download_models.py --output /models
 COPY serve.py probe.py warmup.py NOTICE.md /app/
 USER 1000:1000
 ENTRYPOINT ["python", "/app/serve.py"]
-CMD ["--uri", "tcp://0.0.0.0:10300", "--data-dir", "/models", "--download-dir", "/models", "--local-files-only", "--language", "en", "--stt-library", "sherpa", "--model", "sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8", "--cpu-threads", "2", "--beam-size", "1", "--compute-type", "int8", "--vad-filter"]
+CMD ["--uri", "tcp://0.0.0.0:10300", "--data-dir", "/models", "--download-dir", "/models", "--local-files-only", "--language", "en", "--stt-library", "sherpa", "--model", "sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8", "--cpu-threads", "2", "--beam-size", "1", "--compute-type", "int8", "--vad-filter"]
