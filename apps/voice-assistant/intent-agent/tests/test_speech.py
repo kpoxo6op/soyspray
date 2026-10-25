@@ -345,3 +345,17 @@ async def test_everyday_preserves_fast_recognizer_negation_without_retry(engine,
     assert result.text == "Don't turn on Top."
     assert lookup.call_count == 1
     assert aioclient_mock.call_count == 0
+
+
+@pytest.mark.parametrize("text", ["Could you switch the top light on for me?", "Вот ТВ Прим."])
+async def test_everyday_preserves_unmatched_open_transcript(engine, aioclient_mock, text):
+    """An English retry must not change polarity or erase Russian; veto tests cover neither."""
+    engine.hass.config_entries.async_update_entry(engine.entry, options={LOCAL_STT: "stt.local"})
+    await engine.hass.async_block_till_done()
+    everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
+    primary, retry = decoder(text), decoder("Could you switch the top light off for me?")
+    with patch.object(stt, "async_get_speech_to_text_engine", side_effect=[primary, retry]):
+        result = await everyday.internal_async_process_audio_stream(META, chunks())
+    assert result.text == text
+    retry.async_process_audio_stream.assert_not_awaited()
+    assert aioclient_mock.call_count == 0

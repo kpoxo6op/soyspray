@@ -130,6 +130,12 @@ async def say(hass, text, device=None):
         ),
         ("TV off", "media_player", "turn_off", {"entity_id": "media_player.tv"}),
         (
+            "T V louder.",
+            "androidtv",
+            "adb_command",
+            {"entity_id": "media_player.tv", "command": "input keyevent 24"},
+        ),
+        (
             "vacuum the living room",
             "dreame_vacuum",
             "vacuum_clean_segment",
