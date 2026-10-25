@@ -31,6 +31,9 @@ class SafePhraseHandler(handler_module.SpeechToPhraseEventHandler):
             self._owns_turn = True
         try:
             return await super().handle_event(event)
+        except BaseException:
+            self._release_turn()
+            raise
         finally:
             if AudioStop.is_type(event.type):
                 self._release_turn()
