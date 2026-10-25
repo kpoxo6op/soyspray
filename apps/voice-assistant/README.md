@@ -298,3 +298,11 @@ and Speech-to-Phrase from one pinned image. Its local intent scripts cover light
 TV playback/apps/channels and vacuum room cleaning. See the
 [intent agent README](intent-agent/README.md) for supported setup, offline teaching,
 cloud-off behavior and rollback. The existing GI pipeline remains available.
+
+Original GI uses the separate `gi-original-phrase` Wyoming service, registered as
+`stt.gi_original_phrase`. It runs the original recognizer and native grammar with
+its own ephemeral training directory. Its only shared data is the model directory,
+mounted read-only on the same node as the original model PVC. GI Everyday uses
+`stt.speech_to_phrase` with its promoted sentence bundle. Its matcher reads the
+bundle directly, so custom sentences do not change original GI's native agent.
+Selecting GI therefore bypasses both the Everyday agent and its recognizer.
