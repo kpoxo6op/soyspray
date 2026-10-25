@@ -98,6 +98,18 @@ final class LivePlayer {
         }
     }
 
+    void setPlaying(boolean playing) {
+        if (player != null) {
+            player.setPlayWhenReady(playing);
+        }
+    }
+
+    void togglePlaying() {
+        if (player != null) {
+            setPlaying(!player.getPlayWhenReady());
+        }
+    }
+
     /** Stops and frees the decoder, for when another app takes the screen. */
     void release() {
         handler.removeCallbacksAndMessages(null);

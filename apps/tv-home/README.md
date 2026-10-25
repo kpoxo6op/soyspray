@@ -31,6 +31,17 @@ MediaTek chip. The video stops while another app is open.
 Change the tiles in `Tiles.java` (`ROW`) and the featured channel in
 `Live.java` (`FEATURED`, a catalog slug). A missing app makes its tile shake.
 
+Voice control can open a direct catalog channel full screen with sound:
+
+```bash
+adb shell am start -n vip.soyspray.home/.HomeActivity --es play_channel otv-prim
+```
+
+`play_channel` accepts a catalog slug or exact name, on both cold start and an
+already running home screen. Unknown names and indirect streams do nothing.
+Media Play/Pause keys pause and resume full-screen live playback; channel keys
+step through the direct catalog. HA wakes the TV before sending the intent.
+
 ## Build and release
 
 `.github/workflows/tv-home.yml` builds the package on pull requests and
