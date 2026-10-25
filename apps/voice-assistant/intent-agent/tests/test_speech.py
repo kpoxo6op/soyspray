@@ -287,7 +287,9 @@ async def test_options_are_opt_in_validate_without_audio_and_retain_key(
     assert aioclient_mock.mock_calls[0][0] == "GET"
 
 
-async def test_everyday_streams_to_phrase_before_the_microphone_finishes(engine, aioclient_mock):
+async def test_everyday_streams_to_open_speech_before_the_microphone_finishes(
+    engine, aioclient_mock
+):
     """The old buffer-first path cannot own the streaming latency contract."""
     everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
     first_seen = asyncio.Event()
@@ -317,7 +319,7 @@ async def test_everyday_streams_to_phrase_before_the_microphone_finishes(engine,
     assert aioclient_mock.call_count == 0
 
 
-async def test_everyday_rejected_phrase_replays_same_turn_without_cloud_when_disabled(
+async def test_everyday_unclear_speech_replays_same_turn_locally_without_cloud_when_disabled(
     engine, aioclient_mock
 ):
     """New fallback must preserve audio and the everyday cloud-off boundary."""
@@ -330,4 +332,16 @@ async def test_everyday_rejected_phrase_replays_same_turn_without_cloud_when_dis
         result = await everyday.internal_async_process_audio_stream(META, chunks())
     assert result.text == "Please illuminate Top"
     opened.async_process_audio_stream.assert_awaited_once()
+    assert aioclient_mock.call_count == 0
+
+
+async def test_everyday_preserves_fast_recognizer_negation_without_retry(engine, aioclient_mock):
+    """A second decoder must not erase a heard veto; light-only STT tests do not own this route."""
+    everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
+    with patch.object(
+        stt, "async_get_speech_to_text_engine", return_value=decoder("Don't turn on Top.")
+    ) as lookup:
+        result = await everyday.internal_async_process_audio_stream(META, chunks())
+    assert result.text == "Don't turn on Top."
+    assert lookup.call_count == 1
     assert aioclient_mock.call_count == 0

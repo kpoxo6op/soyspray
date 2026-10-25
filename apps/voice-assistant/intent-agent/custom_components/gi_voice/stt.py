@@ -179,7 +179,7 @@ class GiSpeech(stt.SpeechToTextEntity):
 
 
 class EverydaySpeech(GiSpeech):
-    """Stream to the phrase recognizer; replay only rejected turns to open STT."""
+    """Keep open speech qualifiers intact; retry unclear audio locally first."""
 
     _attr_name = "GI Everyday speech"
 
@@ -195,7 +195,7 @@ class EverydaySpeech(GiSpeech):
         self.sentences = await self.hass.async_add_executor_job(load_sentences)
 
     async def async_process_audio_stream(self, metadata, stream):
-        from .control import catalog
+        from .control import BLOCKED, catalog
         from .everyday import match_command
 
         failure = stt.SpeechResult(None, stt.SpeechResultState.ERROR)
@@ -215,14 +215,18 @@ class EverydaySpeech(GiSpeech):
                     audio.extend(chunk)
                     yield chunk
 
-            phrase = stt.async_get_speech_to_text_engine(self.hass, "stt.speech_to_phrase")
-            if phrase is None:
+            primary = stt.async_get_speech_to_text_engine(
+                self.hass, self.entry.options.get(LOCAL_STT, "stt.faster_whisper")
+            )
+            if primary is None or isinstance(primary, GiSpeech):
                 return failure
             async with asyncio.timeout(25):
-                local = await phrase.async_process_audio_stream(metadata, capture())
+                local = await primary.async_process_audio_stream(metadata, capture())
             if local.result == stt.SpeechResultState.SUCCESS and local.text:
-                if match_command(local.text, self.sentences, catalog(self.hass)):
-                    route = "phrase"
+                if BLOCKED.search(local.text) or match_command(
+                    local.text, self.sentences, catalog(self.hass)
+                ):
+                    route = "local_fast"
                     return local
             if not audio or len(audio) % 2:
                 return failure
@@ -231,19 +235,20 @@ class EverydaySpeech(GiSpeech):
                 for index in range(0, len(audio), 32000):
                     yield bytes(audio[index : index + 32000])
 
-            engine = stt.async_get_speech_to_text_engine(
-                self.hass, self.entry.options.get(LOCAL_STT, "stt.faster_whisper")
-            )
-            if engine is None or isinstance(engine, GiSpeech) or engine is phrase:
-                return failure
-            try:
-                async with asyncio.timeout(5):
-                    local = await engine.async_process_audio_stream(metadata, replay())
-            except (aiohttp.ClientError, OSError, TimeoutError):
-                local = failure
+            engine = stt.async_get_speech_to_text_engine(self.hass, "stt.gi_whisper")
+            if engine is not None and not isinstance(engine, GiSpeech) and engine is not primary:
+                try:
+                    async with asyncio.timeout(3):
+                        retry = await engine.async_process_audio_stream(metadata, replay())
+                    if retry.result == stt.SpeechResultState.SUCCESS and retry.text:
+                        local = retry
+                except (aiohttp.ClientError, OSError, TimeoutError):
+                    pass
             if local.result == stt.SpeechResultState.SUCCESS and local.text:
-                if match_command(local.text, self.sentences, catalog(self.hass)):
-                    route = "open_local"
+                if BLOCKED.search(local.text) or match_command(
+                    local.text, self.sentences, catalog(self.hass)
+                ):
+                    route = "local_retry"
                     return local
             options = self.entry.options
             if not options.get(CLOUD_ENABLED) or not options.get(OPENAI_KEY):

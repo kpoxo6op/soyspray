@@ -196,6 +196,14 @@ async def execute(hass, data, context):
         data.get("area", ""),
     ):
         raise HomeAssistantError("The device is no longer exposed to voice.")
+    if action == "channel":
+        await hass.services.async_call(
+            "media_player",
+            "volume_mute",
+            {"entity_id": eid, "is_volume_muted": False},
+            blocking=True,
+            context=context,
+        )
     await hass.services.async_call(domain, service, payload, blocking=True, context=context)
     return {"speech": "Done.", "entity_id": eid, "command": action}
 
