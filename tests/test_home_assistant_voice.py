@@ -905,11 +905,13 @@ def test_original_phrase_recognizer_cannot_modify_shared_models():
     assert_pinned_image(container["image"], "rhasspy/wyoming-speech-to-phrase")
     assert {
         "name": "data",
-        "mountPath": "/data/models",
+        "mountPath": "/source",
         "subPath": "models",
         "readOnly": True,
-    } in container["volumeMounts"]
-    assert not any(m["name"] == "data" and not m.get("readOnly") for m in container["volumeMounts"])
+    } in pod["initContainers"][0]["volumeMounts"]
+    assert not any(m["name"] == "data" for m in container["volumeMounts"])
+    assert {"name": "models", "mountPath": "/data/models"} in container["volumeMounts"]
+    assert any(v["name"] == "models" and "emptyDir" in v for v in pod["volumes"])
     assert any(v["name"] == "train" and "emptyDir" in v for v in pod["volumes"])
     assert (
         pod["affinity"]["podAffinity"]["requiredDuringSchedulingIgnoredDuringExecution"][0][
