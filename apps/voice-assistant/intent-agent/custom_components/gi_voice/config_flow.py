@@ -2,18 +2,33 @@
 
 import aiohttp
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow
+from homeassistant.config_entries import ConfigFlow, OptionsFlow
 from homeassistant.const import CONF_API_KEY
+from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import API, CONF_LIGHTS, DEFAULT_LIGHTS, DOMAIN, MODEL
+from .const import (
+    API,
+    CLOUD_ENABLED,
+    CONF_LIGHTS,
+    DEFAULT_LIGHTS,
+    DOMAIN,
+    LOCAL_STT,
+    MODEL,
+    OPENAI_KEY,
+)
 
 
 class GiVoiceConfigFlow(ConfigFlow, domain=DOMAIN):
     """One explicit light allowlist, no automatic exposure or pipeline changes."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry):
+        return GiSpeechOptionsFlow()
 
     async def async_step_user(self, user_input=None):
         """Validate the key with a read-only model-list request."""
@@ -53,6 +68,52 @@ class GiVoiceConfigFlow(ConfigFlow, domain=DOMAIN):
                     ),
                     vol.Required(CONF_LIGHTS, default=DEFAULT_LIGHTS): selector.EntitySelector(
                         selector.EntitySelectorConfig(domain="light", multiple=True)
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
+
+class GiSpeechOptionsFlow(OptionsFlow):
+    """Make cloud audio opt-in and preserve credentials when editing options."""
+
+    async def async_step_init(self, user_input=None):
+        errors = {}
+        saved = self.config_entry.options
+        if user_input is not None:
+            values = dict(user_input)
+            values[OPENAI_KEY] = values.get(OPENAI_KEY, "").strip() or saved.get(OPENAI_KEY, "")
+            if values[CLOUD_ENABLED]:
+                if not values[OPENAI_KEY]:
+                    errors["base"] = "openai_key_required"
+                else:
+                    try:
+                        async with async_get_clientsession(self.hass).get(
+                            "https://api.openai.com/v1/models/gpt-transcribe",
+                            headers={"Authorization": "Bearer " + values[OPENAI_KEY]},
+                            timeout=aiohttp.ClientTimeout(total=5),
+                            allow_redirects=False,
+                        ) as response:
+                            if (
+                                response.status != 200
+                                or (await response.json()).get("id") != "gpt-transcribe"
+                            ):
+                                errors["base"] = "openai_unavailable"
+                    except (aiohttp.ClientError, TimeoutError, ValueError, AttributeError):
+                        errors["base"] = "openai_unavailable"
+            if not errors:
+                return self.async_create_entry(title="", data=values)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CLOUD_ENABLED, default=saved.get(CLOUD_ENABLED, False)): bool,
+                    vol.Required(
+                        LOCAL_STT, default=saved.get(LOCAL_STT, "stt.faster_whisper")
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="stt")),
+                    vol.Optional(OPENAI_KEY): selector.TextSelector(
+                        selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
                     ),
                 }
             ),

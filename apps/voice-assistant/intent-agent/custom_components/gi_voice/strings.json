@@ -1,7 +1,40 @@
 {
   "config": {
-    "step": {"user": {"title": "GI Flex", "description": "Interpret unfamiliar light commands with DeepSeek. Known Home Assistant commands can still run locally.", "data": {"api_key": "DeepSeek API key", "lights": "Lights this assistant may control"}}},
-    "error": {"cannot_connect": "Cannot connect to DeepSeek", "invalid_auth": "Invalid API key", "model_unavailable": "DeepSeek Flash is unavailable", "invalid_lights": "Choose one to four lights"},
-    "abort": {"already_configured": "GI Flex is already configured"}
+    "step": {
+      "user": {
+        "title": "GI Flex",
+        "description": "Interpret unfamiliar light commands with DeepSeek. Known Home Assistant commands can still run locally.",
+        "data": {
+          "api_key": "DeepSeek API key",
+          "lights": "Lights this assistant may control"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to DeepSeek",
+      "invalid_auth": "Invalid API key",
+      "model_unavailable": "DeepSeek Flash is unavailable",
+      "invalid_lights": "Choose one to four lights"
+    },
+    "abort": {
+      "already_configured": "GI Flex is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "GI Flex speech",
+        "description": "When enabled, unclear speech is sent once to OpenAI for transcription. This includes clarification replies and speech after a false wake, up to 20 seconds per turn. Exact familiar light commands stay local. The speech component keeps no audio recordings; Home Assistant conversation history still applies. Disable this option or select original GI to stop cloud audio. Leave the key blank to retain the saved key.",
+        "data": {
+          "cloud_speech_enabled": "Allow OpenAI transcription of unclear speech",
+          "local_stt_engine": "Local speech recognizer",
+          "openai_api_key": "OpenAI API key"
+        }
+      }
+    },
+    "error": {
+      "openai_key_required": "Enter an OpenAI API key to enable cloud speech",
+      "openai_unavailable": "Cannot access OpenAI GPT Transcribe with this key"
+    }
   }
 }
