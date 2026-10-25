@@ -5,7 +5,10 @@ Dreame room cleaning. Its device catalog comes from current Assist exposure and
 HA areas. It chooses one matching device in the satellite room, or the only
 matching exposed device elsewhere. Ambiguity asks for a name or room and never
 broadcasts. App launch packages are fixed; device IDs are not. Vacuum segment
-names are resolved in the selected map. The original GI and GI Flex remain
+names are resolved in the selected map. A sleeping TV uses the MAC from its HA
+device registry for Wake-on-LAN, then refreshes its ADB connection. Set
+`GI_VOICE_BROADCAST_ADDRESS` to the LAN broadcast when HA runs behind a pod network.
+No TV address or MAC is built into command code. The original GI and GI Flex remain
 separate pipelines.
 
 The `GiControl` intent script calls a bounded local service. Negation, future

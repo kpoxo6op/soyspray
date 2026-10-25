@@ -1,5 +1,7 @@
 """Resolve one currently exposed device and execute a bounded local command."""
 
+import asyncio
+import os
 import re
 
 import voluptuous as vol
@@ -61,7 +63,9 @@ def catalog(hass):
             continue
         entry = entities.async_get(state.entity_id)
         device = devices.async_get(entry.device_id) if entry and entry.device_id else None
-        if state.state in {"unavailable", "unknown"} or not isinstance(state.name, str):
+        if not isinstance(state.name, str):
+            continue
+        if state.state in {"unavailable", "unknown"} and domain != "media_player":
             continue
         area_id = (entry.area_id if entry else None) or (device.area_id if device else None)
         area = areas.async_get_area(area_id) if area_id else None
@@ -109,6 +113,39 @@ def resolve(hass, action, target_name="", preferred_area_id="", area=""):
     return next(iter(candidates))
 
 
+async def wake_tv(hass, eid, context):
+    """Wake the registered TV's network interface before reconnecting ADB."""
+    entity = er.async_get(hass).async_get(eid)
+    device = dr.async_get(hass).async_get(entity.device_id) if entity and entity.device_id else None
+    mac = (
+        next((value for kind, value in device.connections if kind == "mac"), None)
+        if device
+        else None
+    )
+    if mac:
+        await hass.services.async_call(
+            "wake_on_lan",
+            "send_magic_packet",
+            {
+                "mac": mac,
+                "broadcast_address": os.environ.get(
+                    "GI_VOICE_BROADCAST_ADDRESS", "255.255.255.255"
+                ),
+            },
+            blocking=True,
+            context=context,
+        )
+    for attempt in range(3):
+        await hass.services.async_call(
+            "homeassistant", "update_entity", {"entity_id": eid}, blocking=True, context=context
+        )
+        if hass.states.get(eid).state not in {"unavailable", "unknown"}:
+            return
+        if attempt < 2:
+            await asyncio.sleep(0.5)
+    raise HomeAssistantError("The TV is not reachable yet. Please try again.")
+
+
 async def execute(hass, data, context):
     action = data["command"]
     if action not in ACTIONS:
@@ -120,6 +157,14 @@ async def execute(hass, data, context):
         data.get("preferred_area_id", ""),
         data.get("area", ""),
     )
+    if action in {"tv_on", "app", "channel"} and hass.states.get(eid).state in {
+        "off",
+        "unavailable",
+        "unknown",
+    }:
+        await wake_tv(hass, eid, context)
+    elif hass.states.get(eid).state in {"unavailable", "unknown"}:
+        raise HomeAssistantError("The device is not reachable.")
     value = data.get("value", "")
     domain, service, payload = None, None, {"entity_id": eid}
     if action in {"light_on", "light_off", "brightness"}:

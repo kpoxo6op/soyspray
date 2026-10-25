@@ -1,2 +1,11 @@
 language: en
-intents: {}
+intents:
+  GiControl:
+    data:
+    - sentences:
+      - Light up the top
+      slots:
+        command: light_on
+        target_name: top
+        value: ''
+        area: ''
