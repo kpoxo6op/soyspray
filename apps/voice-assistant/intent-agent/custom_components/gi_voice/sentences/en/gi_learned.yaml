@@ -9,3 +9,10 @@ intents:
         target_name: top
         value: ''
         area: ''
+    - sentences:
+      - TV Quiet
+      slots:
+        command: quieter
+        target_name: ''
+        value: ''
+        area: ''
