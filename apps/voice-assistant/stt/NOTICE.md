@@ -1,10 +1,10 @@
 # Model attribution
 
-NVIDIA created Parakeet TDT 0.6B v2. This image uses the int8 ONNX conversion
+NVIDIA created Parakeet TDT 0.6B v3. This image uses the int8 ONNX conversion
 distributed by k2-fsa/sherpa-onnx, without further modification.
 The model is licensed under CC BY 4.0:
 https://creativecommons.org/licenses/by/4.0/
-Original model and license: https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2
+Original model and license: https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3
 Conversion: https://github.com/k2-fsa/sherpa-onnx/releases/tag/asr-models
 
 Whisper Base English and Small English were created by OpenAI and converted
@@ -16,5 +16,5 @@ https://huggingface.co/Systran/faster-whisper-small.en
 The image retains both Whisper candidates for controlled comparisons; the
 default is Parakeet. Model revisions and SHA-256 checksums are in models.lock.json.
 
-The checksum-covered sherpa-onnx archive supplies test_wavs/0.wav for positive
+The checksum-covered sherpa-onnx archive supplies test_wavs/en.wav for positive
 ASR checks. The same official archive is used without modifying the sample.

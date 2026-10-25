@@ -1,12 +1,12 @@
 # GI Flex speech recognition
 
 The official `wyoming-faster-whisper` server supports Parakeet through sherpa-onnx
-and Whisper through CTranslate2. This image bakes the checked English model files
+and Whisper through CTranslate2. This image bakes the checked multilingual Parakeet v3 and English Whisper model files
 into GHCR. Normal operation needs no internet, HA credential or persistent volume.
 The optional `hass` extra reads only exposed names when configured with a mounted
 token file, for vocabulary hints. The default service remains offline and has no
 token. Only temporary WAV files use `/tmp`; the launcher suppresses upstream transcript
-logging. Parakeet is the default; select Whisper with `--stt-library faster-whisper
+logging. Parakeet v3 is the default and detects English and Russian without a language switch; select Whisper with `--stt-library faster-whisper
 --model /models/base.en` or `/models/small.en` and `--vad-filter` to suppress
 Whisper hallucinations on silence. Keep all other offline arguments.
 
