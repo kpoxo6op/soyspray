@@ -122,6 +122,12 @@ async def say(hass, text, device=None):
             "turn_on",
             {"entity_id": "light.middle", "brightness_pct": 30},
         ),
+        (
+            "Middle to 30%.",
+            "light",
+            "turn_on",
+            {"entity_id": "light.middle", "brightness_pct": 30},
+        ),
         ("TV off", "media_player", "turn_off", {"entity_id": "media_player.tv"}),
         (
             "vacuum the living room",
@@ -188,6 +194,7 @@ async def test_starters_reach_the_exact_device_service(
     [
         "don't turn on top",
         "top on tomorrow",
+        "do not set middle to 30%",
         "vacuum everywhere later",
         "my friend said TV on",
         "turn it on",

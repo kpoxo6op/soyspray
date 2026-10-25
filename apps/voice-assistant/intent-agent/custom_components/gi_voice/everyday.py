@@ -1,6 +1,7 @@
 """Exact local sentences first; a bounded text-only teacher handles exceptions."""
 
 import json
+import re
 import time
 from pathlib import Path
 
@@ -34,6 +35,9 @@ def match_command(text, sentences, devices):
         if device["domain"] == "light"
         for name in [device["name"], *device["aliases"]]
     ]
+    # Open recognizers commonly render spoken percentages as digits plus %.
+    # Normalize only that numeric notation, preserving names and qualifiers.
+    text = re.sub(r"(?<=\d)\s*%", " percent", text)
     return recognize(
         text,
         sentences,

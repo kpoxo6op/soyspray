@@ -16,7 +16,8 @@ requests and reported speech decline before interpretation. Bare pronouns have
 their own non-action sentences. GI Everyday must have **prefer local intents
 disabled**, so its guard sees every transcript before any action. Its STT streams to local open speech recognition, retaining negation and future
 qualifiers that constrained decoding can discard. Exact recognized commands use
-the local sentence matcher. Unclear turns retry the same bounded audio with
+the local sentence matcher, including numeric percentage notation such as `30%`.
+Unclear turns retry the same bounded audio with
 `stt.gi_whisper`, then optionally cloud speech. The Whisper service refreshes its
 vocabulary from HA exposure; no device list is built into the recognizer.
 Everyday cloud audio stays off unless explicitly enabled. Real microphone tests
