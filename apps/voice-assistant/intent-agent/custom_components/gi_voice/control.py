@@ -38,7 +38,7 @@ ACTIONS = {
     "vacuum_home",
 }
 BLOCKED = re.compile(
-    r"\b(don['’]?t|do not|never|not|tomorrow|later|unless|except|without|"
+    r"\b(don['’]?t|do not|never|no|not|нет|не|tomorrow|later|unless|except|without|"
     r"said|says|saying|if|would happen|could happen|might|yesterday)\b",
     re.I,
 )
