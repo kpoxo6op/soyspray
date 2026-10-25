@@ -87,6 +87,7 @@ async def everyday(hass):
     for domain, services in {
         "light": ["turn_on", "turn_off"],
         "media_player": ["turn_on", "turn_off", "volume_mute"],
+        "wake_on_lan": ["send_magic_packet"],
         "androidtv": ["adb_command"],
         "vacuum": ["start", "stop", "return_to_base"],
         "dreame_vacuum": ["vacuum_clean_segment"],
@@ -260,3 +261,32 @@ async def test_verified_teacher_receipt_becomes_local_without_model_call(
         "area": "",
     }
     assert aioclient_mock.call_count == 1
+
+
+async def test_unavailable_tv_wakes_only_its_registered_mac(hass, everyday, monkeypatch):
+    """A sleeping TV must reconnect before power-on; ordinary awake service tests cannot own this."""
+    _, ids, device, calls = everyday
+    eid = ids["TV"]
+    entry = er.async_get(hass).async_get(eid)
+    dr.async_get(hass).async_update_device(
+        entry.device_id, merge_connections={("mac", "00:11:22:33:44:55")}
+    )
+    attrs = dict(hass.states.get(eid).attributes)
+    hass.states.async_set(eid, "unavailable", attrs)
+    monkeypatch.setenv("GI_VOICE_BROADCAST_ADDRESS", "192.0.2.255")
+
+    async def reconnect(call):
+        assert call.data["entity_id"] == eid
+        hass.states.async_set(eid, "off", attrs)
+
+    hass.services.async_register("homeassistant", "update_entity", reconnect)
+    result = await say(hass, "TV on", device)
+    assert result.response.speech["plain"]["speech"] == "Done."
+    assert calls == [
+        (
+            "wake_on_lan",
+            "send_magic_packet",
+            {"mac": "00:11:22:33:44:55", "broadcast_address": "192.0.2.255"},
+        ),
+        ("media_player", "turn_on", {"entity_id": eid}),
+    ]
