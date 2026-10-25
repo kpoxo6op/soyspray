@@ -1,7 +1,40 @@
 {
   "config": {
-    "step": {"user": {"title": "GI Flex", "description": "Interpret unfamiliar light commands with DeepSeek. Known Home Assistant commands can still run locally.", "data": {"api_key": "DeepSeek API key", "lights": "Lights this assistant may control"}}},
-    "error": {"cannot_connect": "Cannot connect to DeepSeek", "invalid_auth": "Invalid API key", "model_unavailable": "DeepSeek Flash is unavailable", "invalid_lights": "Choose one to four lights"},
-    "abort": {"already_configured": "GI Flex is already configured"}
+    "step": {
+      "user": {
+        "title": "GI Flex",
+        "description": "Interpret unfamiliar light commands with DeepSeek. Known Home Assistant commands can still run locally.",
+        "data": {
+          "api_key": "DeepSeek API key",
+          "lights": "Lights this assistant may control"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to DeepSeek",
+      "invalid_auth": "Invalid API key",
+      "model_unavailable": "DeepSeek Flash is unavailable",
+      "invalid_lights": "Choose one to four lights"
+    },
+    "abort": {
+      "already_configured": "GI Flex is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "GI Flex speech",
+        "description": "When enabled, speech after the wake word is sent once to OpenAI (up to 20 seconds per turn) unless the local recognizer returns an exact light command: on/off, brightness percent, or a bare light name. This includes other requests, clarification replies, other voices and background speech after a false wake. The speech component keeps no recordings; Home Assistant history still stores transcripts. Turn this off or select original GI to stop uploads. Leave the key blank to keep the saved key; turning this off does not delete it.",
+        "data": {
+          "cloud_speech_enabled": "Send non-exact speech to OpenAI for transcription",
+          "local_stt_engine": "Local speech recognizer",
+          "openai_api_key": "OpenAI API key"
+        }
+      }
+    },
+    "error": {
+      "openai_key_required": "Enter an OpenAI API key to enable cloud speech",
+      "openai_unavailable": "Cannot access OpenAI GPT Transcribe with this key"
+    }
   }
 }

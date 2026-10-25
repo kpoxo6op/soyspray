@@ -25,6 +25,37 @@ expiry and a different conversation, satellite or user. The local route records
 `exact_clarification` and zero provider calls in the existing private audit.
 It does not repair speech recognition or complete an unknown first target name.
 
+## Optional speech retry
+
+`stt.gi_flex_speech` buffers each turn separately in memory, then uses the selected
+local recognizer. Exact on/off, absolute brightness and bare-name phrases stay
+local. With cloud speech explicitly enabled, all other post-wake audio gets one OpenAI
+`gpt-transcribe` retry using that same audio and the measured fixed name prompt.
+This is an exact phrase gate, not Home Assistant intent matching. No fuzzy name
+repair or cross-turn audio lookup is used. The conversation agent is unchanged.
+
+Cloud speech is **off by default**. In GI Flex's integration options, select the
+existing Parakeet STT entity and enter the OpenAI API key. The options form checks
+model access without sending audio. Enable cloud only after the owner agrees
+that all non-exact post-wake speech, other requests, clarification replies, other
+household voices and false-wake background speech may go to OpenAI. Polite variants
+and spelled-out numbers can also take this route. Selecting this STT entity in GI
+Flex is a separate supported pipeline update; original GI stays available.
+
+Each buffer is limited to 20 seconds of 16 kHz mono PCM; at most two turns can be
+active. Local decoding has a five-second deadline and the cloud request has a
+three-second deadline with no retry or redirect. A cloud error or empty response
+returns the local result; failure of both decoders reports an STT error. Changed
+exposure or names disable cloud retries until the measured catalog is restored.
+Disabling cloud reloads the integration and cancels its active audio requests.
+
+The speech component writes no audio files and logs only route and elapsed time
+at debug level. Existing Home Assistant pipeline history and the conversation
+audit still contain transcripts. The key is stored in HA's supported config
+entry options and protected volume backups. It never enters Git, an image or CI.
+Revoke cloud access through the options switch or select original GI. A speaker
+replay can verify the acoustic path; it is not proof of natural household use.
+
 The API key enters a supported HA config flow from private Vault inputs. It is
 kept in the HA config entry and existing protected PVC, never in an image or
 public Git. `gi_voice.audit.*` is bounded private HA Store data used to assess
@@ -53,6 +84,14 @@ request. Installer tests protect unrelated/private files, a failed replacement,
 and symlink refusal; the existing installers do not own this component path.
 The native intent test observes the actual HA light-service dispatch without
 controlling a physical device.
+
+Speech tests use the real HA loader and STT entry point. They cover exact routing
+without losing negation/future qualifiers, the actual multipart WAV sent to a
+local HTTP server, one-request fallback on provider failures, a real deadline,
+audio limits, unload cancellation, disabled/revoked exposure and private logging.
+These catch wrong-audio uploads, accidental cloud use and stalled commands;
+the conversation and installer tests do not own the audio boundary. Options-flow
+coverage verifies explicit enablement, non-audio key validation and key retention.
 
 `gi-voice-image.yml` tests and publishes an immutable source bundle after merge.
 A source-only merge changes no live code. A separate promotion must reference its
