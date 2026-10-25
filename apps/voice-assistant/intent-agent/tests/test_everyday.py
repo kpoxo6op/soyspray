@@ -167,7 +167,18 @@ async def test_starters_reach_the_exact_device_service(
     _, _, device, calls = everyday
     result = await say(hass, text, device)
     assert result.response.speech["plain"]["speech"] == "Done."
-    assert calls == [(domain, service, data)]
+    expected = [(domain, service, data)]
+    if text == "oh teh veh prim":
+        # The app's player unmute cannot clear the TV's system mute.
+        expected.insert(
+            0,
+            (
+                "media_player",
+                "volume_mute",
+                {"entity_id": "media_player.tv", "is_volume_muted": False},
+            ),
+        )
+    assert calls == expected
     assert aioclient_mock.call_count == 0
 
 

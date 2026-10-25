@@ -11,12 +11,17 @@ separate pipelines.
 The `GiControl` intent script calls a bounded local service. Negation, future
 requests and reported speech decline before interpretation. Bare pronouns have
 their own non-action sentences. GI Everyday must have **prefer local intents
-disabled**, so its guard sees every transcript before any action. Its STT streams
-to Speech-to-Phrase first; only rejected/unmatched output replays that same turn
-to the local open recognizer, then optionally cloud speech. Everyday cloud audio
-stays off unless explicitly enabled. A constrained recognizer can still mistake
-unrelated audio for a valid command; acoustic safety checks are required, and
-this does not authenticate the speaker.
+disabled**, so its guard sees every transcript before any action. Its STT streams to local open speech recognition, retaining negation and future
+qualifiers that constrained decoding can discard. Exact recognized commands use
+the local sentence matcher. Unclear turns retry the same bounded audio with
+`stt.gi_whisper`, then optionally cloud speech. The Whisper service refreshes its
+vocabulary from HA exposure; no device list is built into the recognizer.
+Everyday cloud audio stays off unless explicitly enabled. Real microphone tests
+are required; neither recognition nor a wake word authenticates the speaker.
+
+Speech-to-Phrase and the promoted custom sentence bundle remain available for
+comparison, but are not trusted as the first action-producing recognizer after
+acoustic tests showed dropped negation and changed on/off words.
 
 `phrase_server.py` uses pinned Speech-to-Phrase 1.4.3. It checks the upstream
 handler checksum, serializes turns against vocabulary replacement, closes an old

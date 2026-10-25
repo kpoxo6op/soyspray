@@ -5,7 +5,7 @@ LABEL org.opencontainers.image.source="https://github.com/kpoxo6op/soyspray" \
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 HF_HUB_OFFLINE=1 \
     HOME=/tmp OMP_NUM_THREADS=2
 WORKDIR /app
-RUN pip install --no-cache-dir 'wyoming-faster-whisper[sherpa]==3.8.1' \
+RUN pip install --no-cache-dir 'wyoming-faster-whisper[sherpa,hass]==3.8.1' \
     'sherpa-onnx==1.13.8' 'av==16.1.0'
 COPY models.lock.json download_models.py /app/
 RUN python download_models.py --output /models

@@ -301,8 +301,9 @@ cloud-off behavior and rollback. The existing GI pipeline remains available.
 
 Original GI uses the separate `gi-original-phrase` Wyoming service, registered as
 `stt.gi_original_phrase`. It runs the original recognizer and native grammar with
-its own ephemeral training directory. Its only shared data is the model directory,
-mounted read-only on the same node as the original model PVC. GI Everyday uses
+its own ephemeral training and model working directories. The shared model
+directory is mounted read-only during startup and copied before decoder training,
+on the same node as the original model PVC. GI Everyday uses
 `stt.speech_to_phrase` with its promoted sentence bundle. Its matcher reads the
 bundle directly, so custom sentences do not change original GI's native agent.
 Selecting GI therefore bypasses both the Everyday agent and its recognizer.

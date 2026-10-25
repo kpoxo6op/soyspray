@@ -3,7 +3,9 @@
 The official `wyoming-faster-whisper` server supports Parakeet through sherpa-onnx
 and Whisper through CTranslate2. This image bakes the checked English model files
 into GHCR. Normal operation needs no internet, HA credential or persistent volume.
-Only temporary WAV files use `/tmp`; the launcher suppresses upstream transcript
+The optional `hass` extra reads only exposed names when configured with a mounted
+token file, for vocabulary hints. The default service remains offline and has no
+token. Only temporary WAV files use `/tmp`; the launcher suppresses upstream transcript
 logging. Parakeet is the default; select Whisper with `--stt-library faster-whisper
 --model /models/base.en` or `/models/small.en` and `--vad-filter` to suppress
 Whisper hallucinations on silence. Keep all other offline arguments.
