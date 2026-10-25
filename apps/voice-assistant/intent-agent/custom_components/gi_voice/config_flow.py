@@ -17,6 +17,7 @@ from .const import (
     LOCAL_STT,
     MODEL,
     OPENAI_KEY,
+    SPEECH_MODEL,
 )
 
 
@@ -90,14 +91,14 @@ class GiSpeechOptionsFlow(OptionsFlow):
                 else:
                     try:
                         async with async_get_clientsession(self.hass).get(
-                            "https://api.openai.com/v1/models/gpt-transcribe",
+                            "https://api.openai.com/v1/models/" + SPEECH_MODEL,
                             headers={"Authorization": "Bearer " + values[OPENAI_KEY]},
                             timeout=aiohttp.ClientTimeout(total=5),
                             allow_redirects=False,
                         ) as response:
                             if (
                                 response.status != 200
-                                or (await response.json()).get("id") != "gpt-transcribe"
+                                or (await response.json()).get("id") != SPEECH_MODEL
                             ):
                                 errors["base"] = "openai_unavailable"
                     except (aiohttp.ClientError, TimeoutError, ValueError, AttributeError):

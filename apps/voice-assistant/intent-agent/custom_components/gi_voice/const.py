@@ -10,3 +10,4 @@ SCHEMA_VERSION = 1
 CLOUD_ENABLED = "cloud_speech_enabled"
 OPENAI_KEY = "openai_api_key"
 LOCAL_STT = "local_stt_engine"
+SPEECH_MODEL = "gpt-transcribe"

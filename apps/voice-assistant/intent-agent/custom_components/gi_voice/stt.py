@@ -13,10 +13,10 @@ from homeassistant.components import stt
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import CLOUD_ENABLED, LOCAL_STT, OPENAI_KEY
+from .const import SPEECH_MODEL as MODEL
 
 _LOGGER = logging.getLogger(__name__)
 API = "https://api.openai.com/v1/audio/transcriptions"
-MODEL = "gpt-transcribe"
 NAME_PROMPT = "Top, Middle, Bottom, Peanut"
 MAX_AUDIO_BYTES = 20 * 16000 * 2
 REQUEST_TIMEOUT = 3

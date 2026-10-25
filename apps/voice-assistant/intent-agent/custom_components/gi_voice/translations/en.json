@@ -24,9 +24,9 @@
     "step": {
       "init": {
         "title": "GI Flex speech",
-        "description": "When enabled, unclear speech is sent once to OpenAI for transcription. This includes clarification replies and speech after a false wake, up to 20 seconds per turn. Exact familiar light commands stay local. The speech component keeps no audio recordings; Home Assistant conversation history still applies. Disable this option or select original GI to stop cloud audio. Leave the key blank to retain the saved key.",
+        "description": "When enabled, speech after the wake word is sent once to OpenAI (up to 20 seconds per turn) unless the local recognizer returns an exact light command: on/off, brightness percent, or a bare light name. This includes other requests, clarification replies, other voices and background speech after a false wake. The speech component keeps no recordings; Home Assistant history still stores transcripts. Turn this off or select original GI to stop uploads. Leave the key blank to keep the saved key; turning this off does not delete it.",
         "data": {
-          "cloud_speech_enabled": "Allow OpenAI transcription of unclear speech",
+          "cloud_speech_enabled": "Send non-exact speech to OpenAI for transcription",
           "local_stt_engine": "Local speech recognizer",
           "openai_api_key": "OpenAI API key"
         }

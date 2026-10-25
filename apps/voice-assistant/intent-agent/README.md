@@ -29,7 +29,7 @@ It does not repair speech recognition or complete an unknown first target name.
 
 `stt.gi_flex_speech` buffers each turn separately in memory, then uses the selected
 local recognizer. Exact on/off, absolute brightness and bare-name phrases stay
-local. With cloud speech explicitly enabled, other text gets one OpenAI
+local. With cloud speech explicitly enabled, all other post-wake audio gets one OpenAI
 `gpt-transcribe` retry using that same audio and the measured fixed name prompt.
 This is an exact phrase gate, not Home Assistant intent matching. No fuzzy name
 repair or cross-turn audio lookup is used. The conversation agent is unchanged.
@@ -37,8 +37,9 @@ repair or cross-turn audio lookup is used. The conversation agent is unchanged.
 Cloud speech is **off by default**. In GI Flex's integration options, select the
 existing Parakeet STT entity and enter the OpenAI API key. The options form checks
 model access without sending audio. Enable cloud only after the owner agrees
-that unclear post-wake speech, clarification replies, other household voices and
-false-wake background speech may go to OpenAI. Selecting this STT entity in GI
+that all non-exact post-wake speech, other requests, clarification replies, other
+household voices and false-wake background speech may go to OpenAI. Polite variants
+and spelled-out numbers can also take this route. Selecting this STT entity in GI
 Flex is a separate supported pipeline update; original GI stays available.
 
 Each buffer is limited to 20 seconds of 16 kHz mono PCM; at most two turns can be
