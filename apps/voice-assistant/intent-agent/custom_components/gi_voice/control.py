@@ -49,6 +49,7 @@ def normalize(value):
 def catalog(hass):
     """No saved device allowlist: names, areas and eligibility come from HA."""
     entities, devices = er.async_get(hass), dr.async_get(hass)
+    areas = ar.async_get(hass)
     result = {}
     for state in hass.states.async_all():
         domain = state.domain
@@ -60,13 +61,16 @@ def catalog(hass):
             continue
         entry = entities.async_get(state.entity_id)
         device = devices.async_get(entry.device_id) if entry and entry.device_id else None
-        if not isinstance(state.name, str):
+        if state.state in {"unavailable", "unknown"} or not isinstance(state.name, str):
             continue
+        area_id = (entry.area_id if entry else None) or (device.area_id if device else None)
+        area = areas.async_get_area(area_id) if area_id else None
         result[state.entity_id] = {
             "name": state.name,
             "aliases": sorted(a for a in entry.aliases if isinstance(a, str)) if entry else [],
             "domain": domain,
-            "area_id": (entry.area_id if entry else None) or (device.area_id if device else None),
+            "area_id": area_id,
+            "area": area.name if area else "",
             "platform": entry.platform if entry else None,
         }
     return result
@@ -184,7 +188,13 @@ async def execute(hass, data, context):
                 "media_player", "turn_on", {"entity_id": eid}, blocking=True, context=context
             )
     # Exposure and identity may change during a wake-up call.
-    if eid not in catalog(hass):
+    if eid != resolve(
+        hass,
+        action,
+        data.get("target_name", ""),
+        data.get("preferred_area_id", ""),
+        data.get("area", ""),
+    ):
         raise HomeAssistantError("The device is no longer exposed to voice.")
     await hass.services.async_call(domain, service, payload, blocking=True, context=context)
     return {"speech": "Done.", "entity_id": eid, "command": action}

@@ -29,7 +29,9 @@ def compile_record(record, document):
         or re.search(r"[{}\[\]()<>|;\n\r]", phrase)
     ):
         raise ValueError("Unsafe or non-literal phrase")
-    slots = {k: v for k, v in record["slots"].items() if k in {"command", "target_name", "value"}}
+    slots = {
+        k: v for k, v in record["slots"].items() if k in {"command", "target_name", "value", "area"}
+    }
     if slots.get("command") not in ACTIONS:
         raise ValueError("Unsupported action")
     data = document.setdefault("intents", {}).setdefault("GiControl", {}).setdefault("data", [])

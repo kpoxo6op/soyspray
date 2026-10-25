@@ -226,7 +226,7 @@ async def test_verified_teacher_receipt_becomes_local_without_model_call(
                     "finish_reason": "stop",
                     "message": {
                         "content": json.dumps(
-                            {"command": "light_on", "target_name": "Top", "value": ""}
+                            {"command": "light_on", "target_name": "Top", "value": "", "area": ""}
                         )
                     },
                 }
@@ -246,5 +246,6 @@ async def test_verified_teacher_receipt_becomes_local_without_model_call(
         "command": "light_on",
         "target_name": "Top",
         "value": "",
+        "area": "",
     }
     assert aioclient_mock.call_count == 1

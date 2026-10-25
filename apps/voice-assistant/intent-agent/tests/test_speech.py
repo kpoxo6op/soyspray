@@ -323,6 +323,8 @@ async def test_everyday_rejected_phrase_replays_same_turn_without_cloud_when_dis
     """New fallback must preserve audio and the everyday cloud-off boundary."""
     everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
     engine.hass.config_entries.async_update_entry(engine.entry, options={LOCAL_STT: "stt.local"})
+    await engine.hass.async_block_till_done()
+    everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
     phrase, opened = decoder(""), decoder("Please illuminate Top")
     with patch.object(stt, "async_get_speech_to_text_engine", side_effect=[phrase, opened]):
         result = await everyday.internal_async_process_audio_stream(META, chunks())
