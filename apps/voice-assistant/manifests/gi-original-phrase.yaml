@@ -1,0 +1,165 @@
+# Original GI recognizer: separate training output, shared model files read-only.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gi-original-phrase
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: gi-original-phrase
+  template:
+    metadata:
+      labels:
+        app: gi-original-phrase
+      annotations:
+        voice.soyspray.vip/token-revision: '1'
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: true
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: speech-to-phrase
+        image: rhasspy/wyoming-speech-to-phrase:1.4.3@sha256:e532f0dbc6b21285c4c784212003865b9167041927328a767cb0beb1a0beaa20
+        imagePullPolicy: IfNotPresent
+        command:
+        - /usr/src/.venv/bin/python3
+        - -c
+        args:
+        - "import asyncio\nimport os\nimport pathlib\nimport sys\n\nfrom speech_to_phrase.__main__ import\
+          \ main\n\ntoken = pathlib.Path(\n    \"/run/secrets/home-assistant/token\"\n).read_text(encoding=\"\
+          utf-8\").strip()\nif not token:\n    raise RuntimeError(\"Home Assistant token is empty\")\n\
+          \nhass_host = os.environ[\"HOME_ASSISTANT_SERVICE_HOST\"]\nhass_port = os.environ[\"HOME_ASSISTANT_SERVICE_PORT\"\
+          ]\n\nsys.argv = [\n    \"speech-to-phrase\",\n    \"--uri\", \"tcp://0.0.0.0:10300\",\n    \"\
+          --models-dir\", \"/data/models\",\n    \"--train-dir\", \"/data/train\",\n    \"--tools-dir\"\
+          , \"/usr/src/tools\",\n    \"--hass-websocket-uri\",\n    f\"ws://{hass_host}:{hass_port}/api/websocket\"\
+          ,\n    \"--hass-token\", token,\n    \"--retrain-on-start\",\n    \"--retrain-seconds\", \"\
+          300\",\n    \"--retrain-on-connect\",\n]\nasyncio.run(main())\n"
+        ports:
+        - name: wyoming
+          containerPort: 10300
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: '2'
+            memory: 3Gi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        startupProbe:
+          exec:
+            command:
+            - /usr/src/.venv/bin/python3
+            - -c
+            - import pathlib, socket; assert pathlib.Path('/data/models/en_US-rhasspy/.artifact-sha256').is_file();
+              socket.create_connection(('127.0.0.1', 10300), 2).close()
+          periodSeconds: 10
+          failureThreshold: 60
+        readinessProbe:
+          exec:
+            command:
+            - /usr/src/.venv/bin/python3
+            - -c
+            - import pathlib, socket; assert pathlib.Path('/data/models/en_US-rhasspy/.artifact-sha256').is_file();
+              assert pathlib.Path('/data/train/en_US-rhasspy/training_info.json').is_file(); socket.create_connection(('127.0.0.1',
+              10300), 2).close()
+          periodSeconds: 5
+          failureThreshold: 3
+        livenessProbe:
+          tcpSocket:
+            port: 10300
+          periodSeconds: 30
+          failureThreshold: 3
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: home-assistant-token
+          mountPath: /run/secrets/home-assistant
+          readOnly: true
+        - name: data
+          mountPath: /data/models
+          subPath: models
+          readOnly: true
+        - name: train
+          mountPath: /data/train
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: speech-to-phrase-data-v1
+      - name: tmp
+        emptyDir:
+          sizeLimit: 1Gi
+      - name: home-assistant-token
+        secret:
+          secretName: voice-assistant-ha-token
+          defaultMode: 288
+          items:
+          - key: token
+            path: token
+      - name: train
+        emptyDir:
+          sizeLimit: 1Gi
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: speech-to-phrase
+            topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gi-original-phrase
+spec:
+  type: ClusterIP
+  selector:
+    app: gi-original-phrase
+  ports:
+  - name: wyoming
+    port: 10300
+    targetPort: 10300
+    protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gi-original-phrase
+spec:
+  podSelector:
+    matchLabels:
+      app: gi-original-phrase
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: home-assistant
+    ports:
+    - port: 10300
+      protocol: TCP
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: home-assistant
+    ports:
+    - port: 8123
+      protocol: TCP

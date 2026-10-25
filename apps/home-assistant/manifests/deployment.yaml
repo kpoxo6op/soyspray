@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       annotations:
-        soyspray.vip/bootstrap-config-revision: "2026-10-25-gi-everyday-v1"
+        soyspray.vip/bootstrap-config-revision: "2026-10-25-gi-everyday-isolated-v2"
       labels:
         app: home-assistant
         component: main
@@ -49,12 +49,11 @@ spec:
               cp /bootstrap/automations.yaml /config/automations.yaml
               cp /bootstrap/scripts.yaml /config/scripts.yaml
               cp /bootstrap/scenes.yaml /config/scenes.yaml
-              test ! -L /config/custom_sentences
-              test ! -L /config/custom_sentences/en
-              mkdir -p /config/custom_sentences/en
+              # These two files were managed by the initial Everyday promotion.
+              # Everyday reads its own bundle; original GI keeps native sentences.
               for file in gi_starters.yaml gi_learned.yaml; do
                 test ! -L "/config/custom_sentences/en/$file"
-                cp "/config/custom_components/gi_voice/sentences/en/$file" "/config/custom_sentences/en/$file"
+                rm -f "/config/custom_sentences/en/$file"
               done
           volumeMounts:
             - name: config
