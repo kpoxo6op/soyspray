@@ -125,10 +125,10 @@ android_tv_apps:
     sha256: 8510a517c99927076082917f41bf306dd7a2546c59d492dd11bde18d6e2e4628
     signer_sha256: d881796ed2a67ff6ef9f676828723c6b1fa18e09388962cba4abc4a594a69131
   - package: vip.soyspray.home
-    version_name: "1.20"
-    url: https://github.com/kpoxo6op/soyspray/releases/download/tv-home-1.20/tv-home-1.20.apk
-    sha256: ce8a7d7aa81c89f8c6e63cee6f0042060c4b5f44ac67c52ad910d91b5fa3151b
-    signer_sha256: 4d3565861b9100710c15c9ccabf236d6035fd3559239f35cb370027c06df5415
+    version_name: "1.22"
+    url: https://github.com/kpoxo6op/soyspray/releases/download/tv-home-1.22/tv-home-1.22.apk
+    sha256: 460836400bb6d306b27d8dd1ac63e1351089e961da6d5d9d4c72ce274d3823c5
+    signer_sha256: 0b3c608c86185cd0ac44d18dcb6c408ab3358749b040a22fed345eac778e66a2
   # AI TV: fal.live, Flow TV and Nothing, Forever (apps/ai-tv).
   - package: vip.soyspray.aitv
     version_name: "1.8"
