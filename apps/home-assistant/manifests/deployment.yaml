@@ -27,7 +27,7 @@ spec:
           resources:
             requests: {cpu: 10m, memory: 32Mi}
             limits: {cpu: 250m, memory: 128Mi}
-          image: ghcr.io/kpoxo6op/gi-voice@sha256:872057e7c5f317cd79b88a74c73d43f553cec935e26cf085509856d341d80cca
+          image: ghcr.io/kpoxo6op/gi-voice@sha256:aabea57cb2b01dbf01977ddd470666121c66556562724a93e1be67791291f485
           securityContext:
             runAsUser: 0
             runAsGroup: 0

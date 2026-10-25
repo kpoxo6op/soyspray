@@ -25,7 +25,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: gi-flex-stt
-        image: ghcr.io/kpoxo6op/gi-stt@sha256:445931e6d9f749688e61da04dc27b619855c1093b17a7bed072ab9f0590dd354
+        image: ghcr.io/kpoxo6op/gi-stt@sha256:ed6de63ac15eeb513816ba985ade04f94589f5514b070d596748229b321013ae
         imagePullPolicy: IfNotPresent
         ports:
         - name: wyoming
