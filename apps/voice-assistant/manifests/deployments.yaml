@@ -28,7 +28,7 @@ spec:
           type: RuntimeDefault
       initContainers:
         - name: install-gi-sentences
-          image: ghcr.io/kpoxo6op/gi-voice@sha256:dfb69e071a6720dfdd6c3e0c1db422b8192e9aec87eadc6437cee94697729714
+          image: ghcr.io/kpoxo6op/gi-voice@sha256:872057e7c5f317cd79b88a74c73d43f553cec935e26cf085509856d341d80cca
           command: [python3, -c]
           args:
             - |
