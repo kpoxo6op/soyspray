@@ -7,7 +7,12 @@ matching exposed device elsewhere. Ambiguity asks for a name or room and never
 broadcasts. App launch packages are fixed; device IDs are not. Vacuum segment
 names are resolved in the selected map. A sleeping TV uses the MAC from its HA
 device registry for Wake-on-LAN, then refreshes its ADB connection. Set
-`GI_VOICE_BROADCAST_ADDRESS` to the LAN broadcast when HA runs behind a pod network.
+`GI_VOICE_BROADCAST_ADDRESS` to a reachable broadcast address. This setting does
+not make a pod network forward LAN broadcasts: verify delivery on the LAN before
+relying on it. For Sony TVs that suspend their network connection, enable the
+TV's Home network setup > IP control > Simple IP control to keep ADB reachable
+with the screen off. This uses more standby energy; switching it off restores
+the TV's original standby behavior. Remote start alone may not keep ADB online.
 No TV address or MAC is built into command code. The original GI and GI Flex remain
 separate pipelines.
 

@@ -199,6 +199,9 @@ async def test_starters_reach_the_exact_device_service(
     "text",
     [
         "don't turn on top",
+        "No turn on top.",
+        "нет включи TV",
+        "не включай TV",
         "top on tomorrow",
         "do not set middle to 30%",
         "vacuum everywhere later",
