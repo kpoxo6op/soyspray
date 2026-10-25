@@ -191,6 +191,17 @@ async def test_starters_reach_the_exact_device_service(
                 {"entity_id": "media_player.tv", "is_volume_muted": False},
             ),
         )
+    if text in {"YouTube", "oh teh veh prim"}:
+        # The fixture reports on. A real TV may already be asleep before HA
+        # updates, so app/channel launch must wake it without toggling power.
+        expected.insert(
+            0,
+            (
+                "androidtv",
+                "adb_command",
+                {"entity_id": "media_player.tv", "command": "input keyevent 224"},
+            ),
+        )
     assert calls == expected
     assert aioclient_mock.call_count == 0
 

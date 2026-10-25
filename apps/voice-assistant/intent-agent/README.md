@@ -13,6 +13,8 @@ relying on it. For Sony TVs that suspend their network connection, enable the
 TV's Home network setup > IP control > Simple IP control to keep ADB reachable
 with the screen off. This uses more standby energy; switching it off restores
 the TV's original standby behavior. Remote start alone may not keep ADB online.
+App and channel launches always send Android's idempotent wake key before
+launching: HA's cached state can still say idle after the screen has slept.
 No TV address or MAC is built into command code. The original GI and GI Flex remain
 separate pipelines.
 
