@@ -58,6 +58,7 @@ public class HomeActivity extends Activity {
     private Live.Lineup lineup;
     private Live.Channel channel;
     private Mode mode = Mode.HOME;
+    private String requestedChannel;
     private View chrome;
     private TextView channelName;
     private TextView nowTitle;
@@ -215,6 +216,37 @@ public class HomeActivity extends Activity {
         guide.setVisibility(View.GONE);
         root.addView(guide, match());
         setContentView(root);
+        acceptPlaybackIntent(getIntent());
+    }
+
+    /** A catalog slug or exact channel name, never an arbitrary stream URL. */
+    private void acceptPlaybackIntent(Intent intent) {
+        requestedChannel = intent.getStringExtra("play_channel");
+        intent.removeExtra("play_channel");
+        playRequestedChannel();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        acceptPlaybackIntent(intent);
+    }
+
+    private void playRequestedChannel() {
+        if (requestedChannel == null || lineup == null) {
+            return;
+        }
+        String requested = requestedChannel.trim();
+        requestedChannel = null;
+        for (Live.Channel candidate : lineup.channels) {
+            if (candidate.hls != null && (candidate.slug.equalsIgnoreCase(requested)
+                    || candidate.name.equalsIgnoreCase(requested))) {
+                picked(candidate);
+                return;
+            }
+        }
+        // Unknown or indirect channels leave the current screen and sound alone.
     }
 
     @Override
@@ -315,6 +347,7 @@ public class HomeActivity extends Activity {
         if (channel != null) {
             player.play(channel.hls);
         }
+        playRequestedChannel();
         showNow();
     }
 
@@ -445,6 +478,15 @@ public class HomeActivity extends Activity {
         switch (mode) {
             case FULL:
                 switch (keyCode) {
+                    case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                        player.setPlaying(false);
+                        return true;
+                    case KeyEvent.KEYCODE_MEDIA_PLAY:
+                        player.setPlaying(true);
+                        return true;
+                    case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                        player.togglePlaying();
+                        return true;
                     case KeyEvent.KEYCODE_BACK:
                         home();
                         return true;
