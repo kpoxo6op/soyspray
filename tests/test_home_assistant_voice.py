@@ -130,16 +130,32 @@ def test_voice_services_use_local_storage_and_limited_network_access() -> None:
     }
     assert speech["spec"]["template"]["spec"]["enableServiceLinks"] is True
     speech_text = yaml.safe_dump(speech_container)
-    assert "/run/secrets/home-assistant/token" in speech_text
+    assert any(
+        m["mountPath"] == "/run/secrets/home-assistant" and m.get("readOnly")
+        for m in speech_container["volumeMounts"]
+    )
     assert "secretKeyRef" not in speech_text
-    assert "--retrain-seconds" in speech_text
-    assert "300" in speech_text
-    assert "--retrain-on-connect" in speech_text
-    assert "HOME_ASSISTANT_SERVICE_HOST" in speech_text
     assert "home-assistant.home-automation.svc.cluster.local" not in speech_text
     assert "training_info.json" in speech_text
     assert ".artifact-sha256" in speech_text
     assert speech_container["readinessProbe"].get("exec")
+
+    # Runtime files are immutable image content, mounted read-only. The new
+    # copy step has no HA credentials or model PVC access; same digest as HA.
+    pod = speech["spec"]["template"]["spec"]
+    installer = next(c for c in pod["initContainers"] if c["name"] == "install-gi-sentences")
+    ha = load_yaml("apps/home-assistant/manifests/deployment.yaml")
+    ha_installer = next(
+        c
+        for c in ha["spec"]["template"]["spec"]["initContainers"]
+        if c["name"] == "install-gi-voice"
+    )
+    assert installer["image"] == ha_installer["image"]
+    assert installer["volumeMounts"] == [{"name": "gi-runtime", "mountPath": "/runtime"}]
+    assert any(v["name"] == "gi-runtime" and "emptyDir" in v for v in pod["volumes"])
+    assert {"name": "gi-runtime", "mountPath": "/runtime", "readOnly": True} in speech_container[
+        "volumeMounts"
+    ]
 
     piper_container = piper["spec"]["template"]["spec"]["containers"][0]
     assert piper_container["readinessProbe"].get("exec")

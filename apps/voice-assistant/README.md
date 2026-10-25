@@ -226,7 +226,8 @@ The second command uses computer-generated audio. It checks the connection and
 model response only. It cannot tell whether Boris can say GI reliably or
 whether room sounds cause false wakes.
 
-Only Boris can test speech with the real Home Assistant Voice PE. Test normal,
+Real Voice PE checks use authorized saved or synthetic speaker replay, followed
+by normal household use. Test normal,
 soft, and distant `GI` speech, including speech directed away from the device.
 For each light command, check these separate stages:
 
@@ -289,3 +290,11 @@ retirement explicitly includes them.
 The [GI Flex agent](intent-agent/README.md) and [open-vocabulary STT image](stt/README.md)
 provide a separately promoted pipeline. Existing GI remains the rollback path.
 Source merges build images; digest promotion and supported HA setup are separate.
+
+## Everyday commands
+
+The GI Everyday bundle supplies the same custom sentence files to Home Assistant
+and Speech-to-Phrase from one pinned image. Its local intent scripts cover lights,
+TV playback/apps/channels and vacuum room cleaning. See the
+[intent agent README](intent-agent/README.md) for supported setup, offline teaching,
+cloud-off behavior and rollback. The existing GI pipeline remains available.
