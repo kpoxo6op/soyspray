@@ -228,10 +228,6 @@ async def execute(hass, data, context):
             payload["command"] = (
                 "am start -n vip.soyspray.home/.HomeActivity --es play_channel " + str(value)
             )
-        if action in {"app", "channel"} and hass.states.get(eid).state == "off":
-            await hass.services.async_call(
-                "media_player", "turn_on", {"entity_id": eid}, blocking=True, context=context
-            )
     # Exposure and identity may change during a wake-up call.
     if eid != resolve(
         hass,
@@ -241,6 +237,16 @@ async def execute(hass, data, context):
         data.get("area", ""),
     ):
         raise HomeAssistantError("The device is no longer exposed to voice.")
+    if action in {"app", "channel"}:
+        # HA can still report idle after the screen sleeps. KEYCODE_WAKEUP is
+        # idempotent; unlike POWER it cannot turn an already awake screen off.
+        await hass.services.async_call(
+            "androidtv",
+            "adb_command",
+            {"entity_id": eid, "command": "input keyevent 224"},
+            blocking=True,
+            context=context,
+        )
     if action == "channel":
         await hass.services.async_call(
             "media_player",
