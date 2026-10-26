@@ -93,7 +93,9 @@ Approve its fresh Quick Connect code from a signed-in Jellyfin browser. The
 code expires; reopen the client sign-in flow to request another one.
 
 After sign-in, choose Left Sidebar, Banner home header, Modern rows, Modern
-details and Glass theme in the setup wizard. Then set Settings →
+details and Glass theme in the setup wizard. Under Personalization → Home
+Screen, disable Modern cards on My Media row to use landscape library artwork.
+Then set Settings →
 Personalization → General Style → Glass Quality to **Reduced**. Auto quality
 crashed in the Sony Mali graphics driver during the first Live TV launch;
 Reduced passed the subsequent channel playback check. Keep this setting when
