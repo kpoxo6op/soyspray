@@ -84,6 +84,8 @@ class GiSpeechOptionsFlow(OptionsFlow):
         saved = self.config_entry.options
         if user_input is not None:
             values = dict(user_input)
+            if "wake_word_source" not in values and saved.get("wake_word_source"):
+                values["wake_word_source"] = saved["wake_word_source"]
             values[OPENAI_KEY] = values.get(OPENAI_KEY, "").strip() or saved.get(OPENAI_KEY, "")
             if values[CLOUD_ENABLED]:
                 if not values[OPENAI_KEY]:
@@ -116,6 +118,9 @@ class GiSpeechOptionsFlow(OptionsFlow):
                     vol.Optional(OPENAI_KEY): selector.TextSelector(
                         selector.TextSelectorConfig(type=selector.TextSelectorType.PASSWORD)
                     ),
+                    vol.Optional(
+                        "wake_word_source", default=saved.get("wake_word_source", vol.UNDEFINED)
+                    ): selector.EntitySelector(selector.EntitySelectorConfig(domain="wake_word")),
                 }
             ),
             errors=errors,

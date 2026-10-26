@@ -32,6 +32,14 @@ vocabulary from HA exposure; no device list is built into the recognizer.
 Everyday cloud audio stays off unless explicitly enabled. Real microphone tests
 are required; neither recognition nor a wake word authenticates the speaker.
 
+The optional **GI buffered wake** provider delegates to the existing Wyoming wake
+detector, preserving its model and threshold. It keeps the last 500 ms of audio
+in memory and hands it to STT once after detection, including audio consumed while
+the detector responds. This adds no waiting and stores no recording. Select this
+wake provider in GI Flex after microphone verification; the original provider
+remains available. With multiple Wyoming wake providers, select the intended
+source in GI Flex options. A missing or ambiguous source fails closed.
+
 Speech-to-Phrase and the promoted custom sentence bundle remain available for
 comparison, but are not trusted as the first action-producing recognizer after
 acoustic tests showed dropped negation and changed on/off words.
