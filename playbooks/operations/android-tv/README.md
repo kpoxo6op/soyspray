@@ -81,3 +81,7 @@ removes an app, `uci delete dhcp.sony_tv && uci commit dhcp` on the router
 drops the reservation, and `uci delete firewall.sony_tv_dns && uci commit
 firewall && fw4 reload` drops the DNS rule. Revert the commit so the next run
 does not reapply it.
+
+## USB fastboot incident
+
+Before trying USB fastboot or rooting, read the [26 October attempt and recovery](usb-fastboot-recovery.md). A bootloader reboot with the C-to-A connection left this TV at the Sony logo and required a physical factory reset. An A-to-A connection remains untested.
