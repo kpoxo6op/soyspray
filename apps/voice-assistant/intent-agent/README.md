@@ -33,7 +33,7 @@ Everyday cloud audio stays off unless explicitly enabled. Real microphone tests
 are required; neither recognition nor a wake word authenticates the speaker.
 
 The optional **GI buffered wake** provider delegates to the existing Wyoming wake
-detector, preserving its model and threshold. It keeps the last 500 ms of audio
+detector, preserving its model and threshold. It keeps the last 200 ms of audio
 in memory and hands it to STT once after detection, including audio consumed while
 the detector responds. This adds no waiting and stores no recording. Select this
 wake provider in GI Flex after microphone verification; the original provider
