@@ -28,6 +28,7 @@
         "data": {
           "cloud_speech_enabled": "Send non-exact speech to OpenAI for transcription",
           "local_stt_engine": "Local speech recognizer",
+          "wake_word_source": "Wake detector (automatic when there is only one)",
           "openai_api_key": "OpenAI API key"
         }
       }

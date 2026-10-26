@@ -6,7 +6,7 @@ from homeassistant.helpers.storage import Store
 from .const import DOMAIN
 from .control import setup_service
 
-PLATFORMS = [Platform.CONVERSATION, Platform.STT]
+PLATFORMS = [Platform.CONVERSATION, Platform.STT, Platform.WAKE_WORD]
 
 
 async def async_setup_entry(hass, entry):
