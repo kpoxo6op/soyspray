@@ -36,8 +36,8 @@ async def test_pcm_tail_survives_detection_once(sizes):
     entity = BufferedWakeWord(SimpleNamespace(entry_id="test", options={}))
     entity.source = lambda: Detector()
     result = await entity._async_process_audio_stream(audio(), "gi")
-    assert b"".join(a for a, _ in result.queued_audio) == b"".join(a for a, _ in chunks)[-16000:]
-    assert result.queued_audio[0][1] == max(0, offset - 16000) / 32
+    assert b"".join(a for a, _ in result.queued_audio) == b"".join(a for a, _ in chunks)[-6400:]
+    assert result.queued_audio[0][1] == max(0, offset - 6400) / 32
     assert result.timestamp == 123
     assert result.wake_word_id == "gi"
 

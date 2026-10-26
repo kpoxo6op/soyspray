@@ -7,8 +7,8 @@ from homeassistant.components import wake_word
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 
-# Half a second of mono 16 kHz signed 16-bit audio. Retaining it adds no wait.
-BUFFER_BYTES = 16000
+# 200 ms of mono 16 kHz signed 16-bit audio. Retaining it adds no wait.
+BUFFER_BYTES = 6400
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
