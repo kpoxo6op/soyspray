@@ -3,7 +3,7 @@
 `sync-android-tv.yml` brings the living-room Sony KD-65X8500G (Android TV 10)
 to the state declared in `living-room-tv.yml`: Sony and Google advertising,
 tracking, remote-support and voice packages off, privacy settings, Remote
-start, our own home screen (`apps/tv-home`), and pinned SmartTube, Jellyfin,
+start, our own home screen (`apps/tv-home`), and pinned SmartTube, Moonfin, Jellyfin,
 SmartTwitchTV, AI TV (`apps/ai-tv`) and Crossover (`apps/crossover-tv`) builds.
 Crossover's view is sent separately by `make -f apps/gi/Makefile tv`, and again
 after any reinstall, which clears it. Retired apps listed in
@@ -85,3 +85,24 @@ does not reapply it.
 ## USB fastboot incident
 
 Before trying USB fastboot or rooting, read the [26 October attempt and recovery](usb-fastboot-recovery.md). A bootloader reboot with the C-to-A connection left this TV at the Sony logo and required a physical factory reset. An A-to-A connection remains untested.
+
+## Moonfin appearance and sign-in
+
+Moonfin 2.7.0 opens the same Jellyfin library at https://tv.soyspray.vip.
+Approve its fresh Quick Connect code from a signed-in Jellyfin browser. The
+code expires; reopen the client sign-in flow to request another one.
+
+After sign-in, choose Left Sidebar, Banner home header, Modern rows, Modern
+details and Glass theme in the setup wizard. Then set Settings →
+Personalization → General Style → Glass Quality to **Reduced**. Auto quality
+crashed in the Sony Mali graphics driver during the first Live TV launch;
+Reduced passed the subsequent channel playback check. Keep this setting when
+repeating setup, and test both a library title and Live TV before switching the
+launcher tile. These display preferences live in the client and need repeating
+after clearing its data or a factory reset; the playbook pins the APK but does
+not restore private client preferences or authentication.
+
+The official Jellyfin client remains installed and signed in as a fallback.
+The home-screen Guide continues to use it for indirect streams. To roll back
+the library tile, restore its org.jellyfin.androidtv target in Tiles.java,
+release and promote that home-screen build through the normal workflow.
