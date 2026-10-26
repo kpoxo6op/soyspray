@@ -114,6 +114,13 @@ android_tv_home: vip.soyspray.home/.HomeActivity
 # Installed when the TV lacks this version name. The download must match
 # `sha256`, and its signing certificate must match `signer_sha256`.
 android_tv_apps:
+  # Moonfin provides a customizable interface for the same Jellyfin server.
+  # Keep the official client installed as a playback fallback.
+  - package: org.moonfin.androidtv
+    version_name: "2.7.0"
+    url: https://github.com/Moonfin-Client/Moonfin-Core/releases/download/2.7.0/Moonfin_AndroidTV_v2.7.0.apk
+    sha256: f4a1fb053377b65653b356f029f65bfc1999c00954a3a8c75028efb5f80ee5e8
+    signer_sha256: 7d00411fa20a6fb82c0eddffb73daa91a101dbe5ccfb9387b720e836cf71d7a1
   - package: app.smarttube.fdroid
     version_name: "32.56"
     url: https://f-droid.org/repo/app.smarttube.fdroid_2446.apk
