@@ -40,7 +40,7 @@ final class Tiles {
     static final Tile[] ROW = {
         new Tile("Watch live", null, WATCH, 0xFFE11D48, 0xFF7A1029, Tiles::live, true),
         new Tile("Guide", null, GUIDE, 0xFF3B4558, 0xFF161B26, Tiles::guide, false),
-        new Tile("Jellyfin", "org.jellyfin.androidtv", null, 0xFF4B2FB8, 0xFF0A86C2,
+        new Tile("Jellyfin", "org.moonfin.androidtv", null, 0xFF4B2FB8, 0xFF0A86C2,
                 Tiles::jellyfin, false),
         new Tile("YouTube", "app.smarttube.fdroid", null, 0xFFE0112B, 0xFF6E0614,
                 Tiles::youtube, false),

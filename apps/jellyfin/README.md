@@ -10,7 +10,9 @@ The bootstrap adds `Cartoons` at `/media/Русские мультфильмы`,
 
 Jellyfin gets the Live TV lineup from Dispatcharr's HDHomeRun interface. Programme data and static channel artwork come from Media Helper XMLTV. Open Jellyfin's native `Live TV` and `Guide` screens to browse channels and schedules.
 
-The television client is the official Android TV application. See
+The television uses Moonfin for the artwork-led library interface. The official
+Android TV application remains installed for playback fallback. Both connect
+to the same server and retain server-side watch history. See
 [the Android TV guide](../../soydocs/android-tv).
 
 ## Access and storage
@@ -35,7 +37,9 @@ Run the bootstrap twice. Confirm that it does not duplicate libraries, tuners, g
 
 ## Limits
 
-The official Web and Android TV clients control their own layouts. This repository does not patch either client. Programme text is unavailable when the upstream guide has no matching entry. Lower playback quality can reduce client bitrate through Intel transcoding, but it cannot repair a broken upstream stream.
+The Web and TV clients control their own layouts. The TV uses a pinned upstream
+Moonfin release; this repository does not patch its rendering code. Server custom
+CSS does not style the official native Android TV client. Programme text is unavailable when the upstream guide has no matching entry. Lower playback quality can reduce client bitrate through Intel transcoding, but it cannot repair a broken upstream stream.
 
 The SSO plugin is a pinned beta community component. Local login remains the recovery path. The node-local database and render group ID are specific to `node-0`.
 
