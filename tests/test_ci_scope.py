@@ -127,6 +127,7 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
             "outputs": {
                 "boys": "true",
                 "autism": "false",
+                "sewing": "false",
                 "immich": "false",
                 "domain_health": "false",
                 "media_helper": "false",
@@ -136,6 +137,7 @@ def test_final_gate_rejects_failed_or_unexpectedly_skipped_jobs(failure):
         "shared": {"result": "success"},
         "boys": {"result": "success"},
         "autism": {"result": "skipped"},
+        "sewing": {"result": "skipped"},
         "immich": {"result": "skipped"},
         "domain_health": {"result": "skipped"},
         "media_helper": {"result": "skipped"},

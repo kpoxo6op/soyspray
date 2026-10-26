@@ -19,6 +19,7 @@ APP_PATHS = {
     ),
     "boys": ("apps/boys/",),
     "autism": ("apps/autism-traits/",),
+    "sewing": ("apps/sewing-guide/",),
     "gi": ("apps/gi/",),
 }
 SHARED_CONTROLS = {

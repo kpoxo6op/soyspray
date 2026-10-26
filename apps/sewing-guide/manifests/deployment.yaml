@@ -1,0 +1,94 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sewing-guide
+  labels:
+    app.kubernetes.io/name: sewing-guide
+    app.kubernetes.io/part-of: sewing-guide
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sewing-guide
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sewing-guide
+        app.kubernetes.io/part-of: sewing-guide
+        sewing-guide-component: web
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        fsGroup: 101
+        fsGroupChangePolicy: OnRootMismatch
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: web
+        # Placeholder until the first tested image is promoted by the image workflow.
+        image: ghcr.io/kpoxo6op/sewing-guide@sha256:0000000000000000000000000000000000000000000000000000000000000000
+        imagePullPolicy: IfNotPresent
+        command:
+        - nginx
+        args:
+        - -c
+        - /config/nginx.conf
+        - -g
+        - daemon off;
+        ports:
+        - name: http
+          containerPort: 8080
+        - name: https
+          containerPort: 8443
+        startupProbe:
+          httpGet:
+            path: /index.html
+            port: http
+          periodSeconds: 2
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /index.html
+            port: http
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          periodSeconds: 15
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        securityContext:
+          runAsUser: 101
+          runAsGroup: 101
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: tls
+          mountPath: /tls
+          readOnly: true
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tls
+        secret:
+          secretName: sewing-guide-tls
+          defaultMode: 288
+      - name: tmp
+        emptyDir: {}
