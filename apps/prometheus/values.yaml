@@ -1,3 +1,9 @@
+# Replaced by config/alerts/job-failures.yaml so retained, superseded failures
+# do not page indefinitely. New and unverified failures still alert after 15m.
+defaultRules:
+  disabled:
+    KubeJobFailed: true
+
 # kubectl exec -n monitoring alertmanager-kube-prometheus-stack-alertmanager-0 -c alertmanager -- cat /etc/alertmanager/config/soy-telegram.tmpl
 namespaceOverride: monitoring
 
@@ -244,6 +250,12 @@ alertmanager:
         - matchers:
             - severity=~"none|info"
           receiver: "null"
+        # Capacity planning is actionable, but not a four-hour incident page.
+        - matchers:
+            - alertname="KubeCPUOvercommit"
+            - severity="warning"
+          receiver: "telegram"
+          repeat_interval: 24h
         - matchers:
             - severity=~"warning|critical"
           receiver: "telegram"
