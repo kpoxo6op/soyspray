@@ -67,9 +67,9 @@ after login.
 ## Fellow Stagg EKG Pro
 
 The Deployment installs the unofficial `bramboe/stagg-ekg-plus-ha` custom
-component at a fixed Git revision, checking the downloaded archive checksum
+component (v1.3.6) at a fixed Git revision, checking the downloaded archive checksum
 before replacing only `/config/custom_components/fellow_stagg`. It uses the
-kettle's local HTTP CLI; Bluetooth is optional for discovery.
+kettle's local HTTP interfaces and optional Bluetooth transport.
 
 Connect the kettle to the home 2.4 GHz Wi-Fi with Fellow's EKG Updater app.
 In Home Assistant, choose Settings → Devices & services → Add integration →
@@ -78,10 +78,18 @@ in the router's client list. Reconfigure the integration if DHCP changes it;
 this preserves entities and history. The config entry belongs to the HA PVC,
 so Wi-Fi credentials and private device addresses do not belong in Git.
 
+Firmware 1.2.26 returns an empty form from the legacy CLI. The integration
+detects its native HTTP status/settings interface and preserves existing entity
+IDs. Reliable power control on this firmware requires a reachable active
+Bluetooth adapter or ESPHome proxy and Automatic/Bluetooth connection mode;
+Wi-Fi-only power commands are unsupported and rejected. Do not infer an off state from an
+empty CLI response or send blind heating commands. Firmware flashing and
+partition switching are separate deliberate operations.
+
 The integration exposes temperature, heating state, power, and schedule
-controls. It does not measure water quantity. Confirm water and placement
+controls according to the detected firmware and connection capabilities. It does not measure water quantity. Confirm water and placement
 before starting heat; installation does not create a heating schedule or
-expose the kettle to Assist automatically. The CLI has no authentication,
+expose the kettle to Assist automatically. The local HTTP interface has no authentication,
 so keep it on the trusted LAN and do not forward its HTTP port externally.
 Fellow does not officially support remote control, and firmware changes may
 remove this interface.
@@ -93,3 +101,12 @@ The existing PVC backup/isolated restore contract includes its runtime entry.
 To roll back, remove the HA config entry and revert the installer commit;
 the component files remain on the PVC until explicitly removed. Existing
 integrations, credentials, and schedules are preserved.
+
+## Tapo firmware compatibility
+
+If bulbs remain reachable but return HTTP 403 to `handshake1`, use python-kasa
+discovery to check the advertised encryption. `TPAP` is unsupported by the
+installed driver. Enable Third-Party Compatibility in the Tapo app (toggle it
+off/on if already enabled), then verify discovery advertises `KLAP` and all
+three light entities recover. Reload existing entries if needed; preserve
+their identities and credentials. A healthy HA pod does not prove device access.
