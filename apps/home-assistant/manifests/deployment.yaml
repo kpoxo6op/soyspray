@@ -96,8 +96,8 @@ spec:
             - |
               set -euo pipefail
               apk add --no-cache ca-certificates unzip wget >/dev/null
-              revision="9eb03c9df294e82ea826fb36cf38de0068dbfe75"
-              expected_sha256="835fa8aa6448f2e45c53ed31ee89fd9d387b73646bd3f8c36292c393c5feb061"
+              revision="28b6ada497d934ebabd5d34e541f9d1f1280c697"
+              expected_sha256="9fc99a49695d360ddda0d2a5bcc37272ddabfdd4a190d863672110da83f4188f"
               install_dir="/config/custom_components/fellow_stagg"
               version_file="${install_dir}/.soyspray-version"
 
