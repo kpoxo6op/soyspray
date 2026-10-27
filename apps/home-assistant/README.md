@@ -69,7 +69,7 @@ after login.
 The Deployment installs the unofficial `bramboe/stagg-ekg-plus-ha` custom
 component (v1.3.6) at a fixed Git revision, checking the downloaded archive checksum
 before replacing only `/config/custom_components/fellow_stagg`. It uses the
-kettle's local HTTP CLI; Bluetooth is optional for discovery.
+kettle's local HTTP interfaces and optional Bluetooth transport.
 
 Connect the kettle to the home 2.4 GHz Wi-Fi with Fellow's EKG Updater app.
 In Home Assistant, choose Settings → Devices & services → Add integration →
@@ -82,7 +82,7 @@ Firmware 1.2.26 returns an empty form from the legacy CLI. The integration
 detects its native HTTP status/settings interface and preserves existing entity
 IDs. Reliable power control on this firmware requires a reachable active
 Bluetooth adapter or ESPHome proxy and Automatic/Bluetooth connection mode;
-Wi-Fi-only power controls are unavailable. Do not infer an off state from an
+Wi-Fi-only power commands are unsupported and rejected. Do not infer an off state from an
 empty CLI response or send blind heating commands. Firmware flashing and
 partition switching are separate deliberate operations.
 
