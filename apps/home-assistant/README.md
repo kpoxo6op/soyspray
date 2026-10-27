@@ -110,3 +110,49 @@ installed driver. Enable Third-Party Compatibility in the Tapo app (toggle it
 off/on if already enabled), then verify discovery advertises `KLAP` and all
 three light entities recover. Reload existing entries if needed; preserve
 their identities and credentials. A healthy HA pod does not prove device access.
+
+
+### Unattended-update incident, 27 October 2026
+
+The three L530 bulbs moved from the previously recorded 1.1.2 firmware to
+1.4.1 Build 260904 Rel.212342. Each advertised unsupported `TPAP` and rejected
+HA's KLAP handshake with HTTP 403 while remaining reachable in the Tapo app.
+Third-Party Compatibility still displayed **On**. Toggling it off and on
+restored KLAP discovery and all three existing entities; a Peanut on/off
+command succeeded without recreating integrations or changing credentials.
+
+All three had automatic updates enabled, with a 03:00 start and 120-minute
+random window. The observed failures at 03:11, 03:46 and 04:32 fit that window.
+Together with the firmware change, this strongly supports unattended firmware
+installation as the trigger; no exact installation-event log was recovered.
+The confirmed failure was ineffective third-party compatibility despite the
+app displaying On. Cluster readiness did not detect this device failure.
+
+Automatic firmware updates were disabled through the existing
+`switch.top_auto_update_enabled`, `switch.middle_auto_update_enabled` and
+`switch.bottom_auto_update_enabled` entities. Fresh authenticated reads from
+each bulb confirmed `enable=false`, firmware 1.4.1 and the lights off. These
+settings are stored on the devices, not enforced by this Git repository.
+
+### Firmware change policy
+
+- Keep automatic updates disabled on these three bulbs. Verify the switches
+  after provisioning, a factory reset, or any deliberate firmware update.
+- Review firmware/security fixes deliberately. Update one bulb first, during
+  an attended window; check that its firmware version changed, KLAP discovery
+  works, HA polls fresh state, and an on/off command succeeds before updating
+  the other two. Restore the prior light state after the check.
+- If a candidate update breaks access, stop the remaining updates. Check the
+  device's native app and protocol before restarting HA or changing passwords.
+  A firmware downgrade is not assumed available or safe.
+- Treat a native app's compatibility indicator as configuration, not proof.
+  Verify the actual protocol and HA entity states after toggling it. Do not
+  delete working device identities, re-pair bulbs, or reset them as a first fix.
+- Keep recovery scoped to the reported failure. A deliberately powered-off
+  appliance is not evidence of a shared outage. Diagnose device connectivity
+  before changing unrelated integrations or restarting the HA server.
+
+The Tapo app may expose a labelled compatibility row plus an unlabelled child
+switch. If the guarded phone controller refuses the child, report the exact
+refusal and leave the page for the owner; do not bypass it with coordinates.
+Successful input delivery alone does not prove the setting changed.
