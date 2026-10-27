@@ -36,6 +36,24 @@ Alertmanager sends critical and warning alerts to Telegram. The continuous
 `Watchdog` alert sends one Healthchecks.io ping each minute. Healthchecks.io can
 report a complete monitoring or internet failure.
 
+## Notification noise
+
+Warnings and critical alerts repeat every four hours while unresolved. The
+CPU failover-capacity warning sends its initial notification normally, then
+repeats daily; it remains visible in Prometheus throughout.
+
+`job-failures.yaml` replaces the chart's `KubeJobFailed` rule. A retained failed
+Job stops alerting only when a later-started Job in the same namespace and task
+family has completed successfully. Families use the CronJob controller name,
+or the separately matched agents intake and restore hook names. A success in
+another namespace, another task, or an older run cannot clear a failure.
+Unknown standalone Jobs and missing recovery metrics retain failure alerts.
+The 15-minute failure delay is unchanged. Job objects and their diagnostic
+evidence are preserved. This confirms Job completion, not backup restorability.
+
+Run `make check APP=prometheus` for the rule behavior fixtures and rendering.
+Revert both the custom rule and default-rule disablement together to roll back.
+
 ## Alert ownership
 
 Prometheus owns every health and paging decision. `config/alerts/runtime-signals.yaml`

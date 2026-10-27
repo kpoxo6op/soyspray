@@ -1,0 +1,216 @@
+# Contracts: verified newer recovery clears only its task; incomplete, older,
+# unrelated, or missing evidence must not hide failures. Existing fixtures cover
+# backup freshness and runtime signals, not retained Job recovery.
+rule_files:
+- job-failures.yaml
+evaluation_interval: 1m
+tests:
+- name: Newer completed CronJob clears retained failure
+  interval: 1m
+  input_series:
+  - series: kube_job_failed{job="kube-state-metrics",namespace="backup",job_name="nightly-1",condition="true"}
+    values: 1+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="backup",job_name="nightly-1"}
+    values: 100+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="backup",job_name="nightly-2"}
+    values: 200+0x25
+  - series: kube_job_owner{job="kube-state-metrics",namespace="backup",job_name="nightly-1",owner_kind="CronJob",owner_is_controller="true",owner_name="nightly"}
+    values: 1+0x25
+  - series: kube_job_owner{job="kube-state-metrics",namespace="backup",job_name="nightly-2",owner_kind="CronJob",owner_is_controller="true",owner_name="nightly"}
+    values: 1+0x25
+  - series: kube_job_complete{job="kube-state-metrics",namespace="backup",job_name="nightly-2",condition="true"}
+    values: 1+0x25
+  alert_rule_test:
+  - eval_time: 20m
+    alertname: KubeJobFailed
+    exp_alerts: []
+- name: Older successful run cannot clear a new failure
+  interval: 1m
+  input_series:
+  - series: kube_job_failed{job="kube-state-metrics",namespace="backup",job_name="nightly-1",condition="true"}
+    values: 1+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="backup",job_name="nightly-1"}
+    values: 100+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="backup",job_name="nightly-2"}
+    values: 50+0x25
+  - series: kube_job_owner{job="kube-state-metrics",namespace="backup",job_name="nightly-1",owner_kind="CronJob",owner_is_controller="true",owner_name="nightly"}
+    values: 1+0x25
+  - series: kube_job_owner{job="kube-state-metrics",namespace="backup",job_name="nightly-2",owner_kind="CronJob",owner_is_controller="true",owner_name="nightly"}
+    values: 1+0x25
+  - series: kube_job_complete{job="kube-state-metrics",namespace="backup",job_name="nightly-2",condition="true"}
+    values: 1+0x25
+  alert_rule_test:
+  - eval_time: 20m
+    alertname: KubeJobFailed
+    exp_alerts:
+    - exp_labels:
+        job: kube-state-metrics
+        namespace: backup
+        job_name: nightly-1
+        condition: 'true'
+        severity: warning
+      exp_annotations:
+        summary: Job failed to complete.
+        description: Job backup/nightly-1 failed with no observed newer successful
+          run of the same task. Inspect the failed Job and logs. Retained failures
+          stop alerting only after a newer successful CronJob run or matching agents
+          intake/restore run; missing evidence keeps the alert active.
+- name: Running replacement is not recovery
+  interval: 1m
+  input_series:
+  - series: kube_job_failed{job="kube-state-metrics",namespace="backup",job_name="nightly-1",condition="true"}
+    values: 1+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="backup",job_name="nightly-1"}
+    values: 100+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="backup",job_name="nightly-2"}
+    values: 200+0x25
+  - series: kube_job_owner{job="kube-state-metrics",namespace="backup",job_name="nightly-1",owner_kind="CronJob",owner_is_controller="true",owner_name="nightly"}
+    values: 1+0x25
+  - series: kube_job_owner{job="kube-state-metrics",namespace="backup",job_name="nightly-2",owner_kind="CronJob",owner_is_controller="true",owner_name="nightly"}
+    values: 1+0x25
+  alert_rule_test:
+  - eval_time: 20m
+    alertname: KubeJobFailed
+    exp_alerts:
+    - exp_labels:
+        job: kube-state-metrics
+        namespace: backup
+        job_name: nightly-1
+        condition: 'true'
+        severity: warning
+      exp_annotations:
+        summary: Job failed to complete.
+        description: Job backup/nightly-1 failed with no observed newer successful
+          run of the same task. Inspect the failed Job and logs. Retained failures
+          stop alerting only after a newer successful CronJob run or matching agents
+          intake/restore run; missing evidence keeps the alert active.
+- name: Other namespace cannot clear failure
+  interval: 1m
+  input_series:
+  - series: kube_job_failed{job="kube-state-metrics",namespace="backup",job_name="nightly-1",condition="true"}
+    values: 1+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="backup",job_name="nightly-1"}
+    values: 100+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="elsewhere",job_name="nightly-2"}
+    values: 200+0x25
+  - series: kube_job_owner{job="kube-state-metrics",namespace="backup",job_name="nightly-1",owner_kind="CronJob",owner_is_controller="true",owner_name="nightly"}
+    values: 1+0x25
+  - series: kube_job_owner{job="kube-state-metrics",namespace="elsewhere",job_name="nightly-2",owner_kind="CronJob",owner_is_controller="true",owner_name="nightly"}
+    values: 1+0x25
+  - series: kube_job_complete{job="kube-state-metrics",namespace="elsewhere",job_name="nightly-2",condition="true"}
+    values: 1+0x25
+  alert_rule_test:
+  - eval_time: 20m
+    alertname: KubeJobFailed
+    exp_alerts:
+    - exp_labels:
+        job: kube-state-metrics
+        namespace: backup
+        job_name: nightly-1
+        condition: 'true'
+        severity: warning
+      exp_annotations:
+        summary: Job failed to complete.
+        description: Job backup/nightly-1 failed with no observed newer successful
+          run of the same task. Inspect the failed Job and logs. Retained failures
+          stop alerting only after a newer successful CronJob run or matching agents
+          intake/restore run; missing evidence keeps the alert active.
+- name: Missing start evidence keeps failure visible
+  interval: 1m
+  input_series:
+  - series: kube_job_failed{job="kube-state-metrics",namespace="backup",job_name="nightly-1",condition="true"}
+    values: 1+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="backup",job_name="nightly-2"}
+    values: 200+0x25
+  - series: kube_job_owner{job="kube-state-metrics",namespace="backup",job_name="nightly-1",owner_kind="CronJob",owner_is_controller="true",owner_name="nightly"}
+    values: 1+0x25
+  - series: kube_job_owner{job="kube-state-metrics",namespace="backup",job_name="nightly-2",owner_kind="CronJob",owner_is_controller="true",owner_name="nightly"}
+    values: 1+0x25
+  - series: kube_job_complete{job="kube-state-metrics",namespace="backup",job_name="nightly-2",condition="true"}
+    values: 1+0x25
+  alert_rule_test:
+  - eval_time: 20m
+    alertname: KubeJobFailed
+    exp_alerts:
+    - exp_labels:
+        job: kube-state-metrics
+        namespace: backup
+        job_name: nightly-1
+        condition: 'true'
+        severity: warning
+      exp_annotations:
+        summary: Job failed to complete.
+        description: Job backup/nightly-1 failed with no observed newer successful
+          run of the same task. Inspect the failed Job and logs. Retained failures
+          stop alerting only after a newer successful CronJob run or matching agents
+          intake/restore run; missing evidence keeps the alert active.
+- name: Unknown standalone job keeps upstream behavior
+  interval: 1m
+  input_series:
+  - series: kube_job_failed{job="kube-state-metrics",namespace="backup",job_name="nightly-1",condition="true"}
+    values: 1+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="backup",job_name="nightly-1"}
+    values: 100+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="backup",job_name="nightly-2"}
+    values: 200+0x25
+  - series: kube_job_complete{job="kube-state-metrics",namespace="backup",job_name="nightly-2",condition="true"}
+    values: 1+0x25
+  alert_rule_test:
+  - eval_time: 20m
+    alertname: KubeJobFailed
+    exp_alerts:
+    - exp_labels:
+        job: kube-state-metrics
+        namespace: backup
+        job_name: nightly-1
+        condition: 'true'
+        severity: warning
+      exp_annotations:
+        summary: Job failed to complete.
+        description: Job backup/nightly-1 failed with no observed newer successful
+          run of the same task. Inspect the failed Job and logs. Retained failures
+          stop alerting only after a newer successful CronJob run or matching agents
+          intake/restore run; missing evidence keeps the alert active.
+- name: Newer agents intake clears old intake
+  interval: 1m
+  input_series:
+  - series: kube_job_failed{job="kube-state-metrics",namespace="agents",job_name="agents-intake-aaaaaaaaaaaaaaaa",condition="true"}
+    values: 1+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="agents",job_name="agents-intake-aaaaaaaaaaaaaaaa"}
+    values: 100+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="agents",job_name="agents-intake-bbbbbbbbbbbbbbbb"}
+    values: 200+0x25
+  - series: kube_job_complete{job="kube-state-metrics",namespace="agents",job_name="agents-intake-bbbbbbbbbbbbbbbb",condition="true"}
+    values: 1+0x25
+  alert_rule_test:
+  - eval_time: 20m
+    alertname: KubeJobFailed
+    exp_alerts: []
+- name: Successful restore cannot clear failed intake
+  interval: 1m
+  input_series:
+  - series: kube_job_failed{job="kube-state-metrics",namespace="agents",job_name="agents-intake-aaaaaaaaaaaaaaaa",condition="true"}
+    values: 1+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="agents",job_name="agents-intake-aaaaaaaaaaaaaaaa"}
+    values: 100+0x25
+  - series: kube_job_status_start_time{job="kube-state-metrics",namespace="agents",job_name="agents-restore-bbbbbbbbbbbbbbbb"}
+    values: 200+0x25
+  - series: kube_job_complete{job="kube-state-metrics",namespace="agents",job_name="agents-restore-bbbbbbbbbbbbbbbb",condition="true"}
+    values: 1+0x25
+  alert_rule_test:
+  - eval_time: 20m
+    alertname: KubeJobFailed
+    exp_alerts:
+    - exp_labels:
+        job: kube-state-metrics
+        namespace: agents
+        job_name: agents-intake-aaaaaaaaaaaaaaaa
+        condition: 'true'
+        severity: warning
+      exp_annotations:
+        summary: Job failed to complete.
+        description: Job agents/agents-intake-aaaaaaaaaaaaaaaa failed with no observed
+          newer successful run of the same task. Inspect the failed Job and logs.
+          Retained failures stop alerting only after a newer successful CronJob run
+          or matching agents intake/restore run; missing evidence keeps the alert
+          active.

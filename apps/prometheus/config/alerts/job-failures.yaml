@@ -1,0 +1,56 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: job-failures
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: job-failures
+      interval: 1m
+      rules:
+        # Only known repeatable tasks have a family. Unknown standalone Jobs
+        # retain the upstream failure behavior. Prefixes prevent collisions.
+        - record: soyspray:job_family:start_time
+          expr: |
+            max by (namespace, job_name, family) (
+              kube_job_status_start_time{job="kube-state-metrics"}
+              * on (namespace, job_name) group_left (family)
+              max by (namespace, job_name, family) (
+                label_replace(
+                  kube_job_owner{job="kube-state-metrics",owner_kind="CronJob",owner_is_controller="true"},
+                  "family", "cron:$1", "owner_name", "(.+)"
+                )
+              )
+              or
+              label_replace(
+                kube_job_status_start_time{job="kube-state-metrics",namespace="agents",job_name=~"agents-(intake|restore)-[a-f0-9]{16}"},
+                "family", "hook:$1", "job_name", "(agents-(intake|restore))-[a-f0-9]{16}"
+              )
+            )
+        - record: soyspray:job_family:successful_start_time
+          expr: |
+            max by (namespace, family) (
+              soyspray:job_family:start_time
+              and on (namespace, job_name)
+              (kube_job_complete{job="kube-state-metrics",condition="true"} == 1)
+            )
+        - alert: KubeJobFailed
+          expr: |
+            (kube_job_failed{job="kube-state-metrics",condition="true"} > 0)
+            unless on (namespace, job_name) (
+              soyspray:job_family:start_time
+              < on (namespace, family) group_left ()
+              soyspray:job_family:successful_start_time
+            )
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Job failed to complete."
+            description: >-
+              Job {{ $labels.namespace }}/{{ $labels.job_name }} failed with no observed
+              newer successful run of the same task. Inspect the failed Job and logs.
+              Retained failures stop alerting only after a newer successful CronJob run
+              or matching agents intake/restore run; missing evidence keeps the alert active.
