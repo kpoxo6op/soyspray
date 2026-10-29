@@ -7,11 +7,10 @@ import { SOURCE, placements, meshBytes } from './helpers.mjs';
 import { decodeMeshes } from '../src/meshes.js';
 import { evaluate } from '../src/timeline.js';
 import { polyLength } from '../src/cablepath.js';
-import { PORTS } from '../src/ports.js';
-import { qrotate } from '../src/math.js';
+import { PORTS, CONNECTORS } from '../src/ports.js';
 import { buildSoyrackTimeline, SoyrackStage } from '../src/soyrack/index.js';
 import { VIEWS } from '../src/soyrack/stage.js';
-import { CABLES, CABLE_BY_ID } from '../src/soyrack/cables.js';
+import { CABLES, CABLE_BY_ID, MAST_RUN, TIES } from '../src/soyrack/cables.js';
 import { DEVICES, DEVICE_BY_ID, FLOOR_Z } from '../src/soyrack/rack.js';
 import { BUY, PRINTED, TEST_PRINTS } from '../src/soyrack/sheet.js';
 
@@ -62,17 +61,71 @@ test('v3 opens with the test prints alone and ends with everything else in place
   }
 });
 
-// Contract: a lead appears with the chapter that connects it, never earlier, and stays.
-test('each lead fades in with the chapter that connects it', () => {
+// Contract: each part of a cord, and each strap, appears with the chapter that lays it, never
+// earlier, and stays.
+test('cords and straps fade in with the chapter that lays them', () => {
   const stage = new SoyrackStage(tl, new Group());
-  for (const lead of stage.leads) {
-    stage.setTime(lead.chapter.start - 0.5);
-    assert.equal(lead.object.visible, false, `${lead.cable.id} hidden before ${lead.chapter.id}`);
-    stage.setTime(lead.chapter.end);
-    assert.ok(lead.object.visible && lead.alpha === 1, `${lead.cable.id} shown once ${lead.chapter.id} ends`);
+  assert.equal(stage.leads.length, CABLES.reduce((n, c) => n + c.parts.length, 0));
+  assert.equal(stage.ties.length, TIES.length);
+  for (const [i, item] of [...stage.leads, ...stage.ties].entries()) {
+    const what = item.cable ? item.cable.id : `strap ${i}`;
+    stage.setTime(item.chapter.start - 0.5);
+    assert.equal(item.object.visible, false, `${what} hidden before ${item.chapter.id}`);
+    stage.setTime(item.chapter.end);
+    assert.ok(item.object.visible && item.alpha === 1, `${what} shown once ${item.chapter.id} ends`);
   }
   stage.setTime(tl.duration);
-  assert.ok(stage.leads.every((l) => l.object.visible));
+  assert.ok([...stage.leads, ...stage.ties].every((l) => l.object.visible));
+});
+
+// Contract: stock cords are drawn at their real length, plug bodies included. The spare is wound
+// into loops, never cut short. The Zigbee extension carries on inside its mast to the socket.
+const REAL_MM = { mains: 1000, dc: 1800, switchPower: 1500, usb: 460, zigbee: 1500 };
+const stockKind = (id) => (/^usb[A-Z]/.test(id) ? 'usb' : id.replace(/\d+$/, ''));
+const drawnLength = (cable) => cable.parts.reduce((s, p) => s + polyLength(p.points), 0);
+const fullLength = (cable) => drawnLength(cable)
+  + cable.parts.flatMap((p) => p.plugs).reduce((s, p) => s + CONNECTORS[p.type].len, 0)
+  + (cable.id === 'zigbee' ? MAST_RUN + CONNECTORS.usbAf.len : 0);
+
+test('every stock cord is drawn at its full length', () => {
+  const stock = CABLES.filter((c) => REAL_MM[stockKind(c.id)]);
+  assert.equal(stock.length, 10, 'three mains, three Lenovo, the switch, two drive leads and the extension');
+  for (const cable of stock) {
+    const full = fullLength(cable);
+    assert.ok(Math.abs(full - REAL_MM[stockKind(cable.id)]) < 2, `${cable.id} is ${full.toFixed(1)} mm`);
+  }
+});
+
+// Contract: no cord runs through another.
+test('cords never pass through each other', () => {
+  const CELL = 8;
+  const grid = new Map();
+  const samples = [];
+  for (const cable of CABLES) {
+    for (const { points } of cable.parts) {
+      for (let i = 1; i < points.length; i++) {
+        const [a, b] = [points[i - 1], points[i]];
+        const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]) / 1.5));
+        for (let k = 0; k < n; k++) samples.push({ cable, p: a.map((v, j) => v + ((b[j] - v) * k) / n) });
+      }
+    }
+  }
+  const cell = (p) => p.map((v) => Math.floor(v / CELL));
+  for (const s of samples) {
+    const key = cell(s.p).join();
+    if (!grid.has(key)) grid.set(key, []);
+    grid.get(key).push(s);
+  }
+  for (const s of samples) {
+    const [i, j, k] = cell(s.p);
+    for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) {
+      for (const o of grid.get([i + a, j + b, k + c].join()) || []) {
+        if (o.cable.id <= s.cable.id) continue;
+        const gap = Math.hypot(o.p[0] - s.p[0], o.p[1] - s.p[1], o.p[2] - s.p[2]) - (o.cable.od + s.cable.od) / 2;
+        assert.ok(gap > -0.05, `${s.cable.id} and ${o.cable.id} overlap at ${s.p.map((v) => v.toFixed(0))}`);
+      }
+    }
+  }
 });
 
 // Contract: everything in the rack that needs power or data is plugged in, and no port takes
@@ -83,7 +136,7 @@ test('every power inlet, drive and node network port takes exactly one lead', ()
   const needed = DEVICES.flatMap((d) => Object.entries(PORTS[d.model] || {})
     .filter(([id, p]) => id === 'power' || ['barrel', 'c5', 'microB3'].includes(p.type) || (d.model === 'm920q' && id === 'rj45'))
     .map(([id]) => `${d.id}.${id}`));
-  assert.ok(needed.length >= 13);
+  assert.ok(needed.length >= 12);
   for (const port of needed) assert.ok(ends.includes(port), `${port} is connected`);
 });
 
@@ -94,34 +147,26 @@ test('the buy list covers every fastener and lead the rack installs', () => {
   const bought = (key) => BUY.find((b) => b.key === key).quantity;
   assert.ok(bought('rod') >= count('m5rod') && count('m5rod') === 4);
   assert.ok(bought('coupler') >= count('m5coupler'));
-  assert.ok(bought('capscrew') >= count('m5x90'));
+  assert.ok(bought('capscrew') >= count('m5x50') && count('m5x50') === 4);
   assert.ok(bought('nut') >= Math.max(count('m5nut'), count('m5washer')));
   assert.ok(bought('insert') >= count('m4x12'), 'one insert per M4 hole');
   assert.ok(bought('m4') >= count('m4x12', (n) => !n.id.startsWith('tray.')));
   assert.ok(bought('pad') >= count('foot'));
   assert.ok(bought('keystone') >= DEVICES.filter((d) => d.model === 'keystone').length);
-  assert.ok(bought('c5') >= DEVICES.filter((d) => d.model === 'brick').length);
+  assert.ok(bought('strap') >= TIES.length);
 });
 
-// Contract: the reason for the mast. The dongle stays at least 1 m from the router antennas and
-// every node USB port, and a stock 1.5 m USB 2 extension reaches it from node-0.
-test('the Zigbee dongle stands 1 m clear and within reach of its extension', () => {
-  const end = evaluate(tl, tl.duration);
+// Contract: the reason for the mast. The dongle stays at least 1 m from every node USB 3 port,
+// on the 1.5 m USB 2 extension the buy list names.
+test('the Zigbee dongle stands 1 m from the USB 3 ports on its extension', () => {
   const dongle = DEVICE_BY_ID.dongle;
   const gap = (p) => Math.hypot(p[0] - dongle.centre[0], p[1] - dongle.centre[1], p[2] - dongle.centre[2]);
-  const router = end.get('router');
-  for (const id of ['router.ant0', 'router.ant1', 'router.ant2']) {
-    const base = qrotate(router.q, end.get(id).p).map((v, k) => v + router.p[k]);
-    for (let h = 0; h <= 200; h += 20) assert.ok(gap([base[0], base[1], base[2] + h]) >= 1000, `${id} at ${h} mm`);
-  }
   for (const d of DEVICES.filter((d) => d.model === 'm920q')) {
     for (const [id, p] of Object.entries(PORTS.m920q).filter(([, p]) => p.type === 'usbA')) {
       assert.ok(gap(p.pos.map((v, k) => v + d.centre[k])) >= 1000, `${d.id}.${id}`);
     }
   }
-  const lead = CABLE_BY_ID.zigbee;
-  const rise = dongle.centre[2] - dongle.size[2] / 2 - lead.points.at(-1)[2];
-  assert.ok(polyLength(lead.points) + rise <= BUY.find((b) => b.key === 'extension').length);
+  assert.ok(Math.abs(fullLength(CABLE_BY_ID.zigbee) - BUY.find((b) => b.key === 'extension').length) < 2);
 });
 
 // Contract: the rack keeps to the space agreed for the TV unit top: 260 x 240 mm, 450 mm tall.

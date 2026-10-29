@@ -1,6 +1,7 @@
-// Soyrack (v3): a printable PETG rack for three Lenovo M920q Tiny nodes, with a power base,
-// drive tray, switch and router shelves and a keystone Ethernet panel. Four steel M5 tie rods
-// run through the posts, so the printed parts only carry compression.
+// Soyrack (v3): a printable PETG rack for three Lenovo M920q Tiny nodes, with a power base that
+// keeps every stock cord at full length, a drive tray, a switch shelf and a keystone Ethernet
+// panel. Four steel M5 tie rods run through the posts, so the printed parts only carry
+// compression.
 //
 // Rack frame, mm: x left -> right, y front -> rear, z up. z = 0 is the top of the base deck
 // (the lower bay floor). The v1/v2 node trays hang on the same grid: screw holes at
@@ -20,7 +21,7 @@ web = false;
 
 PARTS = ["base_tub", "base_deck", "post_lower_a", "post_lower_b", "mid_deck",
          "post_upper_a", "post_upper_b", "top_cap", "drive_tray", "switch_shelf",
-         "router_shelf", "keystone_panel", "foot", "zigbee_mast",
+         "keystone_panel", "foot", "zigbee_mast",
          "coupon_post", "coupon_corner", "coupon_nut", "coupon_keystone"];
 
 $fn = web ? 18 : 48;
@@ -43,21 +44,24 @@ HOLE_X = 18.97;              // tray screw holes; the right-hand ones at REF_W -
 PILOT_D = 5.6; PILOT_L = 10; // M4 x 8.1 heat-set insert, 6.3 mm OD (Ruthex size)
 POCKET = 3; FIT = 0.25;      // post ends sit 3 mm deep in the decks
 LOWER = [-3, 203];
-UPPER = [205, 313];
+UPPER = [205, 275];
 LOWER_HOLES = [for (k = [0 : 17]) 25 + 10 * k];   // holes 1..18, hole n at z = 15 + 10n
-UPPER_HOLES = [for (k = [0 : 6]) 235 + 10 * k];   // holes 1..7
+UPPER_HOLES = [for (k = [0 : 3]) 235 + 10 * k];   // holes 1..4
 COUPLER_TOP = 237;           // M5 washer + M5 x 30 coupling nut + 1 mm, inside the upper post
 BORE_D = 10.4;
 
-BASE_Z = [-84, -8];          // power base tub
+BASE_Z = [-104, -8];         // power base tub: the cord loops set its height
 BASE_DEPTH = 240;            // the rear 31 mm is the open board trough
 TROUGH = [205, 237.6];
+PLINTH = 6;                  // rails lift the board so the switch adapter stands on the floor
 DECK_Z = [-8, 0];
 MID_Z = [200, 208];
-CAP_Z = [310, 320];
+CAP_Z = [272, 282];
 WALL = 2.4; FLOOR = 2.4;
-NUT_AF = 8.25; NUT_POCKET = 7;   // M5 nut under each tub corner
-HEAD_D = 9.5; HEAD_H = 5.2;      // M5 x 90 socket head in the top cap
+NUT_AF = 8.25;               // M5 nut in each tub corner, pushed up a hex hole by its foot
+NUT_Z = -81.4;               // nut underside: where the M5 x 300 rods reach
+NUT_TOP = -77;               // top of the hex hole
+HEAD_D = 9.5; HEAD_H = 5.2;  // M5 x 50 socket head in the top cap
 
 // Bricks stand on edge, long side front to back, 14 mm apart, clear of the front corner blocks.
 // The DC cord leaves the front end and turns up; the C5 inlet faces the board at the rear.
@@ -66,11 +70,8 @@ BRICK_Y = [26, 138];
 
 // Equipment envelopes (x, y, z sizes) and positions of their minimum corners.
 SWITCH = [[158, 101, 26], [47.5, 10]];
-ROUTER = [[148, 100.5, 30], [52.5, 10]];
 SEAGATE = [[78, 114.8, 11.7], [40.5, 12]];
 TOURO = [[80, 112, 20.5], [132.5, 12]];
-ANTENNA_X = [CX - 62, CX, CX + 62];
-ANTENNA_Y = ROUTER[1][1] + ROUTER[0][1] + 3;
 
 function rods() = [[ROD[0], ROD[1]], [REF_W - ROD[0], ROD[1]],
                    [ROD[0], DEPTH - ROD[1]], [REF_W - ROD[0], DEPTH - ROD[1]]];
@@ -199,22 +200,22 @@ module brick_comb() {
 module tub_vents() {
   z0 = BASE_Z[0];
   // front grille and side grilles: vertical slots, only short bridges at their tops
-  for (x = [40 : 9 : 213]) translate([x, -1, z0 + 16]) cube([4, WALL + 2, 44]);
+  for (x = [40 : 9 : 213]) translate([x, -1, z0 + 16]) cube([4, WALL + 2, 60]);
   for (y = [40 : 9 : 175]) {
-    translate([X0 - 1, y, z0 + 16]) cube([WALL + 2, 4, 44]);
-    translate([X1 - WALL - 1, y, z0 + 16]) cube([WALL + 2, 4, 44]);
+    translate([X0 - 1, y, z0 + 16]) cube([WALL + 2, 4, 60]);
+    translate([X1 - WALL - 1, y, z0 + 16]) cube([WALL + 2, 4, 60]);
   }
-  // floor: air between the bricks, strap slots for the bricks, coils and the board
+  // floor: air between the bricks and under the cord loops, strap slots for the bricks and the board
   for (x = [BRICK_X[0] + 21.5, BRICK_X[1] + 21.5]) translate([x - 3, BRICK_Y[0] + 14, z0 - 1]) cube([6, 80, FLOOR + 2]);
-  for (p = [[21, 76], [143, 76], [155, 30], [230, 30], [155, 150], [230, 150]])
-    translate([p[0], p[1], z0 - 1]) cube([3, 22, FLOOR + 2]);
-  for (x = [45, 185]) for (y = [TROUGH[0] + 1, TROUGH[1] - 4])
-    translate([x, y, z0 - 1]) cube([22, 3, FLOOR + 2]);
+  for (p = [[21, 76], [143, 76]]) translate([p[0], p[1], z0 - 1]) cube([3, 22, FLOOR + 2]);
+  for (x = [64, 217]) for (y = [TROUGH[0] + 1, TROUGH[1] - 4])
+    translate([x, y, z0 - 1]) cube([22, 3, FLOOR + PLINTH + 2]);
   for (x = [146 : 10 : 226]) translate([x, 62, z0 - 1]) linear_extrude(FLOOR + 2) rrect([6, 76], 3);
 }
 
-// The board lies on its side in the trough, outlets forward. The trough side walls stop at
-// 18 mm so the board's cord leaves over the wall at either end.
+// The board lies on its side on two rails in the trough, outlets forward, strapped down between
+// outlets 1 and 2 and beyond outlet 4. The trough side walls stop at 18 mm so the board's cord
+// leaves over the wall at either end.
 module trough_cut() translate([X0 - 1, TROUGH[0], BASE_Z[0] + 18]) cube([X1 - X0 + 2, BASE_DEPTH, 100]);
 
 module base_tub() {
@@ -229,14 +230,15 @@ module base_tub() {
           translate([X0 + WALL, WALL, z0 + FLOOR]) rbox([outer[0] - 2 * WALL, BASE_DEPTH, h], CR - WALL);
         }
         translate([X0, BASE_DEPTH - WALL, z0]) cube([outer[0], WALL, 14]);                    // rear lip
-        translate([X0, TROUGH[0] - 2, z0]) cube([outer[0], 2, 5]);                             // trough front rib
+        for (y = [TROUGH[0] + 4, TROUGH[1] - 8])                                                 // board rails
+          translate([X0, y, z0]) cube([outer[0], 4, FLOOR + PLINTH]);
         tub_corner_blocks();
         brick_comb();
       }
     }
     for (p = rods()) translate([p[0], p[1], z0 - 1]) {
       cylinder(d = ROD_D, h = h + 2);
-      rotate(30) cylinder(d = NUT_AF / cos(30), h = NUT_POCKET + 1, $fn = 6);
+      rotate(30) cylinder(d = NUT_AF / cos(30), h = NUT_TOP - z0 + 1, $fn = 6);
     }
     tub_vents();
     trough_cut();
@@ -305,7 +307,6 @@ module top_cap() {
     for (p = rods()) translate([p[0], p[1], z[1] - HEAD_H]) cylinder(d = HEAD_D, h = HEAD_H + 1);
     // grips: lift the whole rack here, the rods carry the load down to the base
     for (x = [14, REF_W - 36]) translate([x, 55, z[1] - 30]) linear_extrude(32) rrect([22, 100], 11);
-    for (x = ANTENNA_X) translate([x, ANTENNA_Y, z[0] - 1]) cylinder(d = 14, h = z[1] - z[0] + 2);
     if (!web) {
       vent_field(z, 46, 208, 28, 96, 10, 6);
       vent_field(z, 46, 208, 128, 196, 10, 6);
@@ -361,7 +362,6 @@ module drive_tray() {
 }
 
 module switch_shelf() shelf([UPPER_HOLES[0], UPPER_HOLES[2]], 125, 12, [150, 14]) rims(SWITCH, UPPER_HOLES[0] - 4.5);
-module router_shelf() shelf([UPPER_HOLES[4], UPPER_HOLES[6]], 125, 12, [136, 16]) rims(ROUTER, UPPER_HOLES[4] - 4.5);
 
 // ------------------------------------------------------------------ keystone panel
 
@@ -389,20 +389,20 @@ module keystone_panel() {
 
 // ------------------------------------------------------------------ small parts
 
-// Foot pad: its hex boss holds the M5 nut in its pocket; stick a 20 mm silicone pad underneath.
-// The right-hand feet are the same part turned half a turn.
+// Foot pad: its hex peg pushes the M5 nut up the corner hole and holds it there; stick a 20 mm
+// silicone pad underneath. The right-hand feet are the same part turned half a turn.
 module foot(at = rods()[0]) translate([at[0], at[1], BASE_Z[0]]) rotate(at[0] > CX ? 180 : 0) {
   difference() {
     union() {
       translate([-8, -11, -4]) rbox([20, 22, 4], 3);
-      rotate(30) cylinder(d = (NUT_AF - 0.15) / cos(30), h = 2.6, $fn = 6);
+      rotate(30) cylinder(d = (NUT_AF - 0.15) / cos(30), h = NUT_Z - BASE_Z[0], $fn = 6);
     }
-    translate([0, 0, -5]) cylinder(d = 6.2, h = 10);
+    translate([0, 0, -5]) cylinder(d = 6.2, h = NUT_Z - BASE_Z[0] + 6);
     translate([2, 0, -4 - E]) cylinder(d = 18.5, h = 1);
   }
 }
 
-// Zigbee mast: stands at least 1 m from the router. The USB 2 extension presses into the
+// Zigbee mast: stands at least 1 m from every USB 3 port. The USB 2 extension presses into the
 // slot at the back, its socket sits in the top pocket and the dongle plugs in from above.
 module zigbee_mast() translate([-300, 60, BASE_Z[0] - 4]) {
   difference() {
@@ -430,9 +430,10 @@ module coupon_corner() intersection() {
   translate([X0 - 1, -1, DECK_Z[0] - 1]) cube([46, 46, 10]);
 }
 
+// The top of a corner's hex hole, cut flat 12 mm below the nut: printed on its cut face.
 module coupon_nut() intersection() {
   base_tub();
-  translate([X0 - 1, -1, BASE_Z[0] - 1]) cube([34, 40, 16]);
+  translate([X0 - 1, -1, NUT_Z - 12]) cube([34, 40, NUT_TOP - NUT_Z + 18]);
 }
 
 // Two keystone openings: 2.4 mm plate (left) and 2.0 mm plate (right).
@@ -462,7 +463,6 @@ module world_part(name) {
   else if (name == "top_cap") top_cap();
   else if (name == "drive_tray") drive_tray();
   else if (name == "switch_shelf") switch_shelf();
-  else if (name == "router_shelf") router_shelf();
   else if (name == "keystone_panel") keystone_panel();
   else if (name == "foot") foot();
   else if (name == "zigbee_mast") zigbee_mast();
@@ -494,7 +494,6 @@ module assembly() {
     top_cap();
     drive_tray();
     switch_shelf();
-    router_shelf();
     keystone_panel();
     for (p = rods()) foot(p);
   }

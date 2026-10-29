@@ -44,7 +44,7 @@ function partNames() {
 
 // Browser meshes: everything that appears in the guide, at its rack position.
 const WEB = ['base_tub', 'base_deck', 'post_lower_a', 'post_lower_b', 'mid_deck', 'post_upper_a', 'post_upper_b',
-  'top_cap', 'drive_tray', 'switch_shelf', 'router_shelf', 'keystone_panel', 'foot', 'zigbee_mast',
+  'top_cap', 'drive_tray', 'switch_shelf', 'keystone_panel', 'foot', 'zigbee_mast',
   'coupon_post', 'coupon_corner', 'coupon_nut', 'coupon_keystone'];
 
 async function main() {
@@ -78,7 +78,8 @@ async function main() {
   })));
 
   mkdirSync(resolve(here, 'stl'), { recursive: true });
-  const manifest = existsSync(resolve(here, 'stl/parts.json')) ? JSON.parse(readFileSync(resolve(here, 'stl/parts.json'), 'utf8')) : {};
+  // A full render rewrites the manifest; a partial one updates its entries.
+  const manifest = chosen.length && existsSync(resolve(here, 'stl/parts.json')) ? JSON.parse(readFileSync(resolve(here, 'stl/parts.json'), 'utf8')) : {};
   for (const part of parts) {
     const bytes = toBed(results.get(`${part}:print`));
     writeFileSync(resolve(here, `stl/${part}.stl`), bytes);
