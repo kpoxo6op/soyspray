@@ -92,12 +92,13 @@ export function resample(pts, n, out = []) {
 // ---------------------------------------------------------------- curves
 
 /** Rounded routing polyline. Fillets stay inside each corner's control triangle,
- * so smoothing cannot bulge into steel or reverse a moving connector at a tight join. */
-export function spline(ctrl, {startDir=null,endDir=null,step=2}={}) {
+ * so smoothing cannot bulge into steel or reverse a moving connector at a tight join.
+ * The cord leaves along startDir and arrives along endDir for `lead` mm. */
+export function spline(ctrl, {startDir=null,endDir=null,step=2,lead=12}={}) {
   if(ctrl.length<2)return ctrl.map(p=>[...p]);
   const controls=ctrl.map(p=>[...p]);
-  if(startDir)controls.splice(1,0,add3(controls[0],scale3(normalize3(startDir),12)));
-  if(endDir)controls.splice(controls.length-1,0,sub3(controls.at(-1),scale3(normalize3(endDir),12)));
+  if(startDir)controls.splice(1,0,add3(controls[0],scale3(normalize3(startDir),lead)));
+  if(endDir)controls.splice(controls.length-1,0,sub3(controls.at(-1),scale3(normalize3(endDir),lead)));
   const points=controls.filter((p,i)=>!i||len3(sub3(p,controls[i-1]))>.05);
   const out=[points[0]];
   const lineTo=p=>{

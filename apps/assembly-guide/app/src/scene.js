@@ -48,7 +48,7 @@ const SCREW_SPECS = {
   m3x16: { head: 3, headH: 1.7, shaft: 1.5, length: 16 },
   m3x12: { head: 3, headH: 1.7, shaft: 1.5, length: 12 },
   m4x12: { head: 4, headH: 2.3, shaft: 2, length: 12 },
-  m5x90: { head: 4.25, headH: 5, shaft: 2.5, length: 95, cap: true },
+  m5x50: { head: 4.25, headH: 5, shaft: 2.5, length: 55, cap: true },
   m5rod: { head: 2.5, headH: 0.5, shaft: 2.5, length: 300 },
   m5nut: { head: 4.6, headH: 0.5, shaft: 4.6, length: 4, segments: 6 },
   m5coupler: { head: 4.6, headH: 0.5, shaft: 4.6, length: 30, segments: 6 },

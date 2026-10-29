@@ -3,29 +3,36 @@
 // data/v3/meshes.bin keep their rack positions, so each part's mesh centre is its pose.
 // The v1/v2 node trays hang on the same hole grid: x 18.97 and 234.03, z = 25 + 10k.
 
-import { qaxis } from '../math.js';
-import { buildSlimBoard, buildCharger, buildKeystone, buildDongle } from './models.js';
+import { qaxis, basisQuat } from '../math.js';
+import { buildSlimBoard, buildKeystone, buildDongle } from './models.js';
 
 const ID_Q = [0, 0, 0, 1];
 const TURN = [0, 0, 1, 0]; // half a turn about z
 
 export const CX = 126.5;
 export const DEPTH = 209;
-export const FLOOR_Z = -90; // underside of the silicone pads
+export const FLOOR_Z = -110; // underside of the silicone pads
 export const RODS = { FL: [12, 19], FR: [241, 19], RL: [12, 190], RR: [241, 190] };
 export const HOLE_X = [18.97, 234.03];
 export const LOWER_BASE = [23.5, 73.5, 123.5]; // node tray floors on holes 1, 6 and 11
-export const SHELF_TOP = { drive: 172.9, switch: 232.9, router: 272.9 };
+export const SHELF_TOP = { drive: 172.9, switch: 232.9 };
+export const CAP_TOP = 282;
 export const BRICK_X = [40, 83, 126];
 export const BRICK_Y = 82; // centre of the 112 mm bricks, y 26..138
-export const TUB_FLOOR = -81.6;
-export const BOARD = { centre: [123, 221, TUB_FLOOR + 25], outlets: [-72, -24, 24, 72] };
+export const TUB_FLOOR = -101.6;
+// Inside of the power base: the main bay ends at the trough rib (y 203), the trough runs to 237.6.
+export const TUB = { x: [6.4, 246.6], y: [2.4, 237.6], z: [TUB_FLOOR, -8] };
+export const BASE_SLOT = { x: [161, 221], y: [186, 200] }; // right rear slot in the base deck
+// The board lies on 6 mm rails, so the switch adapter in its right-hand outlet stands on the floor.
+export const BOARD = { centre: [123, 221, TUB_FLOOR + 31], outlets: [-72, -24, 24, 72] };
 export const KEYSTONE_X = [174.5, 142.5, 110.5, 78.5]; // slots 1..4, numbered from the left seen from behind
 export const KEYSTONE_Z = 245;
 export const PANEL_Y = 207.2; // middle of the 2.4 mm keystone panel
-export const MAST = [-950, 60]; // Zigbee mast, about 1 m from the nearest router antenna
+export const MAST = [-950, 60]; // Zigbee mast, 1 m or more from every USB 3 port
 
 const ON_EDGE = qaxis([0, 1, 0], Math.PI / 2);
+// Board outlets face forward with the earth slot at the top.
+const OUTLET_UP = [0, 0, -1];
 
 const node = (i) => ({
   id: `node${i}`, model: 'm920q', label: `node-${i}`, size: [179, 183, 37], centre: [124.5, 95, LOWER_BASE[i] + 18.5],
@@ -36,13 +43,12 @@ export const DEVICES = [
   { id: 'usbA', model: 'seagate', size: [78, 114.8, 11.7], centre: [79.5, 69.4, SHELF_TOP.drive + 5.85] },
   { id: 'usbB', model: 'touro', size: [80, 112, 20.5], centre: [172.5, 68, SHELF_TOP.drive + 10.25] },
   { id: 'switch', model: 'switch', size: [158, 101, 26], centre: [CX, 60.5, SHELF_TOP.switch + 13] },
-  // Antennas stand upright through the top cap.
-  { id: 'router', model: 'router', size: [148, 100.5, 30], centre: [CX, 60.25, SHELF_TOP.router + 15], antennaTilt: 0 },
   ...BRICK_X.map((x, i) => ({ id: `brick${i}`, model: 'brick', size: [46, 112, 29], centre: [x, BRICK_Y, TUB_FLOOR + 23], q: ON_EDGE })),
   // HPM D105/1 class board on its side in the rear trough, outlets facing forward.
   { id: 'board', model: 'slimBoard', size: [230, 25, 50], centre: BOARD.centre, build: buildSlimBoard },
-  // Two-port USB-C charger in the fourth outlet: router PD and the switch's PD trigger lead.
-  { id: 'charger', model: 'charger', size: [44, 30, 44], centre: [BOARD.centre[0] + BOARD.outlets[3], 193.5, BOARD.centre[2]], q: TURN, build: buildCharger },
+  // The switch's own plug-in adapter in the fourth outlet; its 1.5 m cord leaves the earth-pin end, at the top.
+  { id: 'psuSwitch', model: 'psuSwitch', size: [46, 40, 62], centre: [BOARD.centre[0] + BOARD.outlets[3], BOARD.centre[1] - 12.5 - 20.5, BOARD.centre[2]],
+    q: basisQuat([0, -1, 0], OUTLET_UP) },
   ...KEYSTONE_X.map((x, i) => ({
     id: `key${i + 1}`, model: i < 2 ? 'keystone' : 'keyBlank', size: i < 2 ? [16.5, 36, 19] : [15, 4, 17],
     centre: [x, i < 2 ? PANEL_Y : PANEL_Y + 3.2, KEYSTONE_Z], build: buildKeystone,
@@ -57,8 +63,7 @@ const Y = [0, 1, 0];
 const NY = [0, -1, 0];
 const Z = [0, 0, 1];
 export const PORTS_V3 = {
-  slimBoard: Object.fromEntries(BOARD.outlets.map((x, i) => [`o${i + 1}`, { type: 'nz', pos: [x, -12.5, 0], n: NY, u: Z }])),
-  charger: { c1: { type: 'usbC', pos: [-9, 15, 6], n: Y, u: Z }, c2: { type: 'usbC', pos: [9, 15, 6], n: Y, u: Z } },
+  slimBoard: Object.fromEntries(BOARD.outlets.map((x, i) => [`o${i + 1}`, { type: 'nz', pos: [x, -12.5, 0], n: NY, u: OUTLET_UP }])),
   keystone: { in: { type: 'rj45', pos: [0, -18, 0], n: NY, u: Z }, out: { type: 'rj45', pos: [0, 18, 0], n: Y, u: Z } },
 };
 
@@ -86,7 +91,7 @@ export function soyrackPlacements(meshes, v2) {
   put('coupon.nut', 'coupon_nut', onFloor('coupon_nut', 140, 80));
   put('coupon.keystone', 'coupon_keystone', onFloor('coupon_keystone', 205, 80));
 
-  for (const name of ['base_tub', 'base_deck', 'mid_deck', 'top_cap', 'drive_tray', 'switch_shelf', 'router_shelf', 'keystone_panel']) {
+  for (const name of ['base_tub', 'base_deck', 'mid_deck', 'top_cap', 'drive_tray', 'switch_shelf', 'keystone_panel']) {
     put(name, name, centre(name));
   }
   for (const kind of ['lower', 'upper']) {
@@ -115,10 +120,10 @@ export function soyrackPlacements(meshes, v2) {
     screw(`rod.${k}`, 'm5rod', [x, y, 218.6], [0, 0, -1], 330);
     screw(`washer.${k}`, 'm5washer', [x, y, 206], [0, 0, -1], 50);
     screw(`coupler.${k}`, 'm5coupler', [x, y, 236], [0, 0, -1], 50);
-    screw(`capscrew.${k}`, 'm5x90', [x, y, 320], [0, 0, -1], 60);
+    screw(`capscrew.${k}`, 'm5x50', [x, y, CAP_TOP], [0, 0, -1], 60);
   }
   for (const s of v2.screws.filter((s) => /^tray\.L[0-2]\./.test(s.id))) screws.push({ ...s });
-  for (const [id, holes] of [['drive_tray', [175, 195]], ['switch_shelf', [235, 255]], ['router_shelf', [275, 295]]]) {
+  for (const [id, holes] of [['drive_tray', [175, 195]], ['switch_shelf', [235, 255]]]) {
     for (const [side, x] of [['L', HOLE_X[0]], ['R', HOLE_X[1]]]) {
       holes.forEach((z, j) => screw(`${id}.s${side}${j ? 'hi' : 'lo'}`, 'm4x12', [x, 0, z], [0, 1, 0], 24));
     }

@@ -10,14 +10,14 @@
     "grams": 159
   },
   "base_tub": {
-    "triangles": 6644,
+    "triangles": 6578,
     "size": [
       245,
       240,
-      76
+      96
     ],
-    "volumeCm3": 353.75,
-    "grams": 379
+    "volumeCm3": 414.35,
+    "grams": 431
   },
   "coupon_corner": {
     "triangles": 596,
@@ -40,14 +40,14 @@
     "grams": 5
   },
   "coupon_nut": {
-    "triangles": 302,
+    "triangles": 300,
     "size": [
       33,
       39,
-      15
+      22.4
     ],
-    "volumeCm3": 9.7,
-    "grams": 8
+    "volumeCm3": 11.76,
+    "grams": 9
   },
   "coupon_post": {
     "triangles": 3598,
@@ -74,10 +74,10 @@
     "size": [
       20,
       22,
-      6.6
+      26.6
     ],
-    "volumeCm3": 1.44,
-    "grams": 2
+    "volumeCm3": 1.98,
+    "grams": 3
   },
   "keystone_panel": {
     "triangles": 2656,
@@ -120,34 +120,24 @@
     "grams": 49
   },
   "post_upper_a": {
-    "triangles": 5158,
+    "triangles": 2960,
     "size": [
-      108,
+      70,
       20,
       23
     ],
-    "volumeCm3": 42.89,
-    "grams": 26
+    "volumeCm3": 27.2,
+    "grams": 17
   },
   "post_upper_b": {
-    "triangles": 5158,
+    "triangles": 2958,
     "size": [
-      108,
+      70,
       20,
       23
     ],
-    "volumeCm3": 42.89,
-    "grams": 26
-  },
-  "router_shelf": {
-    "triangles": 5338,
-    "size": [
-      224,
-      125,
-      29
-    ],
-    "volumeCm3": 63.97,
-    "grams": 81
+    "volumeCm3": 27.2,
+    "grams": 17
   },
   "switch_shelf": {
     "triangles": 5330,
@@ -160,14 +150,14 @@
     "grams": 82
   },
   "top_cap": {
-    "triangles": 12940,
+    "triangles": 12350,
     "size": [
       245,
       209,
       16
     ],
-    "volumeCm3": 189.35,
-    "grams": 175
+    "volumeCm3": 191.2,
+    "grams": 176
   },
   "zigbee_mast": {
     "triangles": 1690,
