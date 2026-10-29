@@ -1,13 +1,15 @@
 import './style.css';
-import { VARIANT } from './variant.js';
+import { VARIANT, SOYRACK } from './variant.js';
 import placements from '../data/placements.json';
 import meshBytes from '../data/meshes.bin';
+import soyrackMeshBytes from '../data/v3/meshes.bin';
 import { buildTimeline } from './timeline.js';
 import { decodeMeshes } from './meshes.js';
 import { Player } from './player.js';
 import { createUI } from './ui.js';
 import { createKitUI } from './kit-ui.js';
 import { Viewer } from './scene.js';
+import { buildSoyrackTimeline, SoyrackStage, soyrackSheetHTML, FLOOR_Z as SOYRACK_FLOOR_Z } from './soyrack/index.js';
 
 const root = document.getElementById('app');
 const stage = document.getElementById('stage');
@@ -15,7 +17,9 @@ const hud = document.getElementById('hud');
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 const phone = window.matchMedia('(max-width: 700px), (pointer: coarse)').matches;
 
-const timeline = buildTimeline(placements);
+// v3 is a separate build around the same node trays, so it brings its own meshes and scene.
+const meshes = SOYRACK ? { ...decodeMeshes(meshBytes), ...decodeMeshes(soyrackMeshBytes) } : decodeMeshes(meshBytes);
+const timeline = SOYRACK ? buildSoyrackTimeline(meshes, placements) : buildTimeline(placements);
 const player = new Player(timeline);
 const variantControl = document.getElementById('layoutVariant');
 variantControl.value = VARIANT;
@@ -34,7 +38,8 @@ function readHashTime() {
 
 let viewer;
 try {
-  viewer = new Viewer({ container: stage, timeline, meshes: decodeMeshes(meshBytes), reducedMotion: reducedMotion.matches, phone });
+  const scene = SOYRACK ? { Stage: SoyrackStage, floorZ: SOYRACK_FLOOR_Z } : {};
+  viewer = new Viewer({ container: stage, timeline, meshes, reducedMotion: reducedMotion.matches, phone, ...scene });
 } catch (err) {
   root.classList.add('no-webgl');
   document.getElementById('chapterTitle').textContent = 'This browser cannot show the 3D view';
@@ -45,7 +50,7 @@ try {
 
 const ui = createUI({ root, player, timeline, viewer, reducedMotion, onUserActivity: () => schedule() });
 
-const kitUI=createKitUI({root,player,timeline,viewer});
+const kitUI=createKitUI({root,player,timeline,viewer,...(SOYRACK?{cards:[],sheet:soyrackSheetHTML}:{})});
 
 // Keep the 3D content centred in the area above the caption and transport bar.
 const caption = document.getElementById('caption');

@@ -20,9 +20,20 @@ has no record for `assembly.soyspray.vip`.
 
 The player keeps the frame/tray chapters, Retainer kit cards, lead-by-lead
 retainer installation and desktop/phone controls. Select the installation in
-the transport bar: `?layout=v2` (default, **No holes**) or `?layout=v1`
-(**Drilled hole**). Switching reloads the complete variant at the same playhead;
-seek, pause, rewind and free rotation work in both. Unknown values choose v2.
+the transport bar: `?layout=v2` (default, **No holes**), `?layout=v1`
+(**Drilled hole**) or `?layout=v3` (**Soyrack**). Switching reloads the complete
+variant at the same playhead; seek, pause, rewind and free rotation work in all
+three. Unknown values choose v2.
+
+v3 is a new printed PETG rack around the three v2 node trays: a power base for
+the bricks and a slim four-outlet board, M5 tie rods from the feet to the top
+cap, drive, switch and router shelves, a four-slot keystone panel and a Zigbee
+mast 1 m from the router. Its Parts sheet links the STLs in `cad/stl/`, four
+small test prints first. `cad/soyrack.scad` is the source; `cd cad && npm ci &&
+node render.mjs` renders the print STLs (lying on the bed origin), the v3
+browser meshes and the print list in `app/data/v3/`. `cad/` stays out of the
+image. Tests check the v3 chapters, leads, buy list, Zigbee spacing, the
+260 × 240 × 450 mm envelope and that every STL fits a 256 mm bed.
 
 The older Nood three-door steel locker has right-hinged doors, left D-pulls and
 two five-slot louvre banks per door. Both variants use loose grip-mat pads,

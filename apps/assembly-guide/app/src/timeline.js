@@ -16,7 +16,6 @@ const SCREW_AXIS = [0, 1, 0]; // screw model: head at the origin, shaft along +Y
 const RECT_LIFT = 322; // the second rectangle is built this far above the bottom one (clears the rails when turned)
 
 const ANTENNA_X = [-62, 0, 62];
-const ANTENNA_FINAL = -ANTENNA_TILT * (Math.PI / 180); // tilted back from vertical
 const ANTENNA_FOLDED = -90 * (Math.PI / 180);
 
 function node(id, parent, kind, extra) {
@@ -125,7 +124,8 @@ function rectangle(c, prefix) {
   return c.screws(['sFL', 'sFR', 'sRL', 'sRR'].map((k) => `${prefix}.${k}`), yEnd + 0.3);
 }
 
-function tier(c, trayId, items) {
+/** A tray slides in on its rails and is screwed on, then its devices slide in one by one. */
+export function tier(c, trayId, items) {
   c.show([trayId]);
   const trayEnd = c.move(trayId, HOLD_IN, 2.1, { from: [0, -190, 0] });
   const sEnd = c.screws(['sLlo', 'sLhi', 'sRlo', 'sRhi'].map((k) => `${trayId}.${k}`), trayEnd + 0.2);
@@ -363,7 +363,7 @@ CHAPTERS.push({ id: 'room-view', title: 'Living room',
 
 // ---------------------------------------------------------------- build + evaluate
 
-export function buildTimeline(data, chapterDefs = CHAPTERS) {
+export function buildTimeline(data, chapterDefs = CHAPTERS, devices = [...DEVICES, ...PERIPHERALS]) {
   const nodes = new Map();
   const add = (n) => {
     if (nodes.has(n.id)) throw new Error(`duplicate node ${n.id}`);
@@ -384,16 +384,16 @@ export function buildTimeline(data, chapterDefs = CHAPTERS) {
       mesh: s.type, dir: s.dir, out: s.out, final: { p: s.head, q: qfromTo(SCREW_AXIS, s.dir) },
     }));
   }
-  for (const d of [...DEVICES, ...PERIPHERALS]) {
+  for (const d of devices) {
     add(node(d.id, null, 'device', { mesh: d.model, device: d, final: { p: d.centre, q: d.q || ID_Q } }));
     if (d.model === 'router') {
-      const [w, dp, h] = d.size;
+      const [, dp, h] = d.size;
+      const tilt = -(d.antennaTilt ?? ANTENNA_TILT) * (Math.PI / 180); // tilted back from vertical
       ANTENNA_X.forEach((x, i) => {
         add(node(`router.ant${i}`, d.id, 'device', {
-          mesh: 'antenna', final: { p: [x, dp / 2 + 3, h / 2 - 6], q: qaxis([1, 0, 0], ANTENNA_FINAL) },
+          mesh: 'antenna', final: { p: [x, dp / 2 + 3, h / 2 - 6], q: qaxis([1, 0, 0], tilt) },
         }));
       });
-      void w;
     }
   }
 

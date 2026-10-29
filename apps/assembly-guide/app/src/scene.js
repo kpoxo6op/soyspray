@@ -40,14 +40,19 @@ import { openNodeTray } from './tray-opening.js';
 import { Installation } from './installation.js';
 
 const GLOW_COLOR = new Color('#ffab5c');
-const GROUND_Z = FLOOR_Z - 0.4; // the floor the feet stand on
 // Default orbit (radians): front-right and slightly above; a little more frontal on portrait screens.
 const VIEW = { azimuth: 0.55, elevation: 0.28 };
 const VIEW_PORTRAIT = { azimuth: 0.42, elevation: 0.27 };
+// Radii and lengths in mm. `cap` draws a socket head, `segments: 6` a hex nut or coupler.
 const SCREW_SPECS = {
   m3x16: { head: 3, headH: 1.7, shaft: 1.5, length: 16 },
   m3x12: { head: 3, headH: 1.7, shaft: 1.5, length: 12 },
   m4x12: { head: 4, headH: 2.3, shaft: 2, length: 12 },
+  m5x90: { head: 4.25, headH: 5, shaft: 2.5, length: 95, cap: true },
+  m5rod: { head: 2.5, headH: 0.5, shaft: 2.5, length: 300 },
+  m5nut: { head: 4.6, headH: 0.5, shaft: 4.6, length: 4, segments: 6 },
+  m5coupler: { head: 4.6, headH: 0.5, shaft: 4.6, length: 30, segments: 6 },
+  m5washer: { head: 5, headH: 0.5, shaft: 5, length: 1, segments: 24 },
 };
 
 // ---------------------------------------------------------------- materials
@@ -92,11 +97,10 @@ function partGeometry(mesh) {
 }
 
 function screwGeometry(spec) {
-  const { head, headH, shaft, length } = spec;
-  const pts = [
-    [0, 0], [head * 0.86, 0], [head, 0.25], [shaft, headH], [shaft, length - 0.45], [shaft - 0.45, length], [0, length],
-  ].map(([r, y]) => new Vector2(r, y));
-  const g = new LatheGeometry(pts, 18);
+  const { head, headH, shaft, length, cap = false, segments = 18 } = spec;
+  const top = cap ? [[0, 0], [head, 0], [head, headH], [shaft, headH]] : [[0, 0], [head * 0.86, 0], [head, 0.25], [shaft, headH]];
+  const pts = [...top, [shaft, length - 0.45], [shaft - 0.45, length], [0, length]].map(([r, y]) => new Vector2(r, y));
+  const g = new LatheGeometry(pts, segments);
   g.computeVertexNormals();
   return g;
 }
@@ -117,8 +121,10 @@ function radialTexture(stops, size = 256) {
 // ---------------------------------------------------------------- viewer
 
 export class Viewer {
-  constructor({ container, timeline, meshes, reducedMotion = false, phone = false, renderer: injected = null }) {
+  // `Stage` adds the scene around the rack (leads, room, framing); v3 passes its own with `floorZ`.
+  constructor({ container, timeline, meshes, reducedMotion = false, phone = false, renderer: injected = null, Stage = Installation, floorZ = FLOOR_Z }) {
     this.timeline = timeline;
+    this.groundZ = floorZ - 0.4; // the floor the feet stand on
     this.reducedMotion = reducedMotion;
     this.container = container;
     this.state = new Map();
@@ -190,7 +196,7 @@ export class Viewer {
     this.installDoubleTap();
 
     this.contentBox = this.computeContentBox();
-    this.installation = new Installation(timeline, this.root);
+    this.installation = new Stage(timeline, this.root);
     this.installation.root.traverse(o => o.isMesh && this.pickable.push(o));
     this.setTime(0);
     this.resize();
@@ -230,7 +236,7 @@ export class Viewer {
   }
 
   addStage() {
-    const y = GROUND_Z;
+    const y = this.groundZ;
     const pool = new Mesh(
       new PlaneGeometry(1800, 1800),
       new MeshBasicMaterial({
@@ -308,7 +314,7 @@ export class Viewer {
         this.pickable.push(obj);
       } else if (n.kind === 'device') {
         const spec = n.device || { model: n.mesh, size: [0, 0, 0] };
-        const built = buildDevice(spec, anisotropy);
+        const built = spec.build ? spec.build(spec, anisotropy) : buildDevice(spec, anisotropy);
         obj = built.object;
         materials = built.materials.map(withGlow);
         obj.traverse((o) => o.isMesh && this.pickable.push(o));
@@ -346,8 +352,8 @@ export class Viewer {
       rec.obj.castShadow = s.alpha > 0.6;
     }
     const placement=this.timeline.chapters.find(c=>c.id==='living-placement');
-    const f=Math.max(0,Math.min(1,(t-placement.start-1)/2.4));
-    const lift=t>=placement.start&&t<placement.end?38*(1-f*f*(3-2*f)):0;
+    const f=placement?Math.max(0,Math.min(1,(t-placement.start-1)/2.4)):1;
+    const lift=placement&&t>=placement.start&&t<placement.end?38*(1-f*f*(3-2*f)):0;
     for(const rec of this.objects.values())if(!rec.node.parent&&rec.node.kind!=='screw'&& !rec.node.device?.room)rec.obj.position.z+=lift;
     this.root.updateMatrixWorld(true);
     if (this.installation) {

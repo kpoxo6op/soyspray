@@ -1,0 +1,13 @@
+{
+  "name": "soyrack-cad",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Soyrack (v3) printable rack: OpenSCAD source and STL renderer",
+  "type": "module",
+  "scripts": {
+    "render": "node render.mjs"
+  },
+  "devDependencies": {
+    "openscad-wasm-prebuilt": "1.2.0"
+  }
+}
