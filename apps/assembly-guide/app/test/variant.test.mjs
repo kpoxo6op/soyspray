@@ -7,7 +7,7 @@ import { placements } from './helpers.mjs';
 // optional modification. Physical tests cannot detect a wrong public default.
 test('URL selects the complete installation; default and invalid layouts are v2',()=>{
   assert.equal(parseLayout(''),'v2');assert.equal(parseLayout('?layout=unknown'),'v2');
-  assert.equal(parseLayout('?layout=v1'),'v1');assert.equal(parseLayout('?layout=v2'),'v2');
+  assert.equal(parseLayout('?layout=v1'),'v1');assert.equal(parseLayout('?layout=v2'),'v2');assert.equal(parseLayout('?layout=v3'),'v3');
   assert.equal(VARIANT,DRILLED?'v1':'v2');
 });
 // Contract: rebuilding or seeking backwards produces the same chapter times and

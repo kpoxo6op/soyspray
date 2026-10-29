@@ -1,0 +1,182 @@
+{
+  "base_deck": {
+    "triangles": 6196,
+    "size": [
+      245,
+      209,
+      8
+    ],
+    "volumeCm3": 147.56,
+    "grams": 159
+  },
+  "base_tub": {
+    "triangles": 6644,
+    "size": [
+      245,
+      240,
+      76
+    ],
+    "volumeCm3": 353.75,
+    "grams": 379
+  },
+  "coupon_corner": {
+    "triangles": 596,
+    "size": [
+      45,
+      45,
+      8
+    ],
+    "volumeCm3": 9.73,
+    "grams": 9
+  },
+  "coupon_keystone": {
+    "triangles": 1792,
+    "size": [
+      72,
+      34,
+      2.4
+    ],
+    "volumeCm3": 4.3,
+    "grams": 5
+  },
+  "coupon_nut": {
+    "triangles": 302,
+    "size": [
+      33,
+      39,
+      15
+    ],
+    "volumeCm3": 9.7,
+    "grams": 8
+  },
+  "coupon_post": {
+    "triangles": 3598,
+    "size": [
+      76,
+      20,
+      23
+    ],
+    "volumeCm3": 31.59,
+    "grams": 18
+  },
+  "drive_tray": {
+    "triangles": 5394,
+    "size": [
+      224,
+      135,
+      29
+    ],
+    "volumeCm3": 68.32,
+    "grams": 87
+  },
+  "foot": {
+    "triangles": 616,
+    "size": [
+      20,
+      22,
+      6.6
+    ],
+    "volumeCm3": 1.44,
+    "grams": 2
+  },
+  "keystone_panel": {
+    "triangles": 2656,
+    "size": [
+      224,
+      34,
+      9.4
+    ],
+    "volumeCm3": 22.37,
+    "grams": 28
+  },
+  "mid_deck": {
+    "triangles": 6320,
+    "size": [
+      245,
+      209,
+      8
+    ],
+    "volumeCm3": 130.98,
+    "grams": 143
+  },
+  "post_lower_a": {
+    "triangles": 14216,
+    "size": [
+      206,
+      20,
+      23
+    ],
+    "volumeCm3": 84.58,
+    "grams": 49
+  },
+  "post_lower_b": {
+    "triangles": 14216,
+    "size": [
+      206,
+      20,
+      23
+    ],
+    "volumeCm3": 84.58,
+    "grams": 49
+  },
+  "post_upper_a": {
+    "triangles": 5158,
+    "size": [
+      108,
+      20,
+      23
+    ],
+    "volumeCm3": 42.89,
+    "grams": 26
+  },
+  "post_upper_b": {
+    "triangles": 5158,
+    "size": [
+      108,
+      20,
+      23
+    ],
+    "volumeCm3": 42.89,
+    "grams": 26
+  },
+  "router_shelf": {
+    "triangles": 5338,
+    "size": [
+      224,
+      125,
+      29
+    ],
+    "volumeCm3": 63.97,
+    "grams": 81
+  },
+  "switch_shelf": {
+    "triangles": 5330,
+    "size": [
+      224,
+      125,
+      29
+    ],
+    "volumeCm3": 64.2,
+    "grams": 82
+  },
+  "top_cap": {
+    "triangles": 12940,
+    "size": [
+      245,
+      209,
+      16
+    ],
+    "volumeCm3": 189.35,
+    "grams": 175
+  },
+  "zigbee_mast": {
+    "triangles": 1690,
+    "size": [
+      84,
+      84,
+      140
+    ],
+    "volumeCm3": 107.21,
+    "grams": 62
+  }
+}

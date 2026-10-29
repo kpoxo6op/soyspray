@@ -1,0 +1,146 @@
+{
+  "base_tub": {
+    "size": [
+      245,
+      240,
+      76
+    ],
+    "grams": 379
+  },
+  "base_deck": {
+    "size": [
+      245,
+      209,
+      8
+    ],
+    "grams": 159
+  },
+  "post_lower_a": {
+    "size": [
+      206,
+      20,
+      23
+    ],
+    "grams": 49
+  },
+  "post_lower_b": {
+    "size": [
+      206,
+      20,
+      23
+    ],
+    "grams": 49
+  },
+  "mid_deck": {
+    "size": [
+      245,
+      209,
+      8
+    ],
+    "grams": 143
+  },
+  "post_upper_a": {
+    "size": [
+      108,
+      20,
+      23
+    ],
+    "grams": 26
+  },
+  "post_upper_b": {
+    "size": [
+      108,
+      20,
+      23
+    ],
+    "grams": 26
+  },
+  "top_cap": {
+    "size": [
+      245,
+      209,
+      16
+    ],
+    "grams": 175
+  },
+  "drive_tray": {
+    "size": [
+      224,
+      135,
+      29
+    ],
+    "grams": 87
+  },
+  "switch_shelf": {
+    "size": [
+      224,
+      125,
+      29
+    ],
+    "grams": 82
+  },
+  "router_shelf": {
+    "size": [
+      224,
+      125,
+      29
+    ],
+    "grams": 81
+  },
+  "keystone_panel": {
+    "size": [
+      224,
+      34,
+      9.4
+    ],
+    "grams": 28
+  },
+  "foot": {
+    "size": [
+      20,
+      22,
+      6.6
+    ],
+    "grams": 2
+  },
+  "zigbee_mast": {
+    "size": [
+      84,
+      84,
+      140
+    ],
+    "grams": 62
+  },
+  "coupon_post": {
+    "size": [
+      76,
+      20,
+      23
+    ],
+    "grams": 18
+  },
+  "coupon_corner": {
+    "size": [
+      45,
+      45,
+      8
+    ],
+    "grams": 9
+  },
+  "coupon_nut": {
+    "size": [
+      33,
+      39,
+      15
+    ],
+    "grams": 8
+  },
+  "coupon_keystone": {
+    "size": [
+      72,
+      34,
+      2.4
+    ],
+    "grams": 5
+  }
+}
