@@ -31,32 +31,44 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: web
-          image: ghcr.io/kpoxo6op/pearl-guide@sha256:0000000000000000000000000000000000000000000000000000000000000000
-          imagePullPolicy: IfNotPresent
-          ports:
-            - name: http
-              containerPort: 8080
-          startupProbe:
-            httpGet: {path: /index.html, port: http}
-            periodSeconds: 2
-            failureThreshold: 30
-          readinessProbe:
-            httpGet: {path: /index.html, port: http}
-            periodSeconds: 5
-          livenessProbe:
-            httpGet: {path: /index.html, port: http}
-            periodSeconds: 15
-          resources:
-            requests: {cpu: 10m, memory: 16Mi}
-            limits: {cpu: 100m, memory: 64Mi}
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities: {drop: [ALL]}
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      volumes:
+      - name: web
+        image: ghcr.io/kpoxo6op/pearl-guide@sha256:b470ada4082b6b9d9c419cc0fb02c156bcb6761030b6b79cfeb3681213c36617
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+        startupProbe:
+          httpGet:
+            path: /index.html
+            port: http
+          periodSeconds: 2
+          failureThreshold: 30
+        readinessProbe:
+          httpGet:
+            path: /index.html
+            port: http
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /index.html
+            port: http
+          periodSeconds: 15
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
         - name: tmp
-          emptyDir: {}
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
