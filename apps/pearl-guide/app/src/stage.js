@@ -268,17 +268,22 @@ export class Stage {
       let rec = this.labels.get(l.id);
       if (!rec) {
         const el = document.createElement('div');
-        el.className = `label side-${l.side || 'r'}`;
+        el.className = 'label';
         el.innerHTML = '<i></i><span></span>';
         this.labelLayer.appendChild(el);
-        rec = { el, text: '' };
+        rec = { el, text: '', shownSide: null, strong: null };
         this.labels.set(l.id, rec);
       }
       if (rec.text !== l.text) {
         rec.text = l.text;
         rec.el.lastChild.textContent = l.text;
       }
-      rec.el.className = `label side-${l.side || 'r'}${l.strong ? ' strong' : ''}`;
+      const strong = !!l.strong;
+      if (rec.strong !== strong) {
+        rec.strong = strong;
+        rec.el.classList.toggle('strong', strong);
+      }
+      rec.side = l.side || 'r';
       rec.at = l.at;
       rec.alpha = l.alpha ?? 1;
     }
@@ -304,6 +309,19 @@ export class Stage {
       const off = behind || x < -40 || x > w + 40 || y < -40 || y > h + 40;
       rec.el.style.opacity = off ? '0' : String(rec.alpha);
       rec.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      // keep the text on screen: a label near an edge reads towards the middle instead
+      const room = rec.el.lastChild.offsetWidth + 24;
+      const side = rec.side === 'r' && x > w - room ? 'l' : rec.side === 'l' && x < room ? 'r' : rec.side;
+      if (side !== rec.shownSide) {
+        rec.shownSide = side;
+        rec.el.classList.remove('side-r', 'side-l', 'side-t', 'side-b');
+        rec.el.classList.add(`side-${side}`);
+      }
+      if (side === 't' || side === 'b') {
+        const half = (room - 24) / 2;
+        const dx = Math.max(0, 10 + half - x) - Math.max(0, x + half - (w - 10));
+        rec.el.lastChild.style.marginLeft = `${dx.toFixed(0)}px`;
+      } else rec.el.lastChild.style.marginLeft = '';
     }
   }
 
