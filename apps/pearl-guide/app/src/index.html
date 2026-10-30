@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en-NZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#100e0c">
+<meta name="robots" content="noindex">
+<title>Pearl · Stage 0</title>
+<link rel="icon" href="pearl.svg" type="image/svg+xml">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<main id="app">
+  <div id="stage" class="stage"></div>
+  <div id="labels" class="labels" aria-hidden="true"></div>
+  <header id="top" class="top">
+    <div class="brand"><span class="name">Pearl</span><span class="stage-name">Stage 0</span></div>
+    <button id="crumbChapter" class="crumb" type="button" aria-label="Chapters">1 of 6</button>
+    <nav class="top-actions" aria-label="Guide">
+      <button id="btnChapters" class="top-btn" type="button">Chapters</button>
+      <button id="btnKit" class="top-btn" type="button">Kit</button>
+      <button id="btnFiles" class="top-btn" type="button">Files</button>
+    </nav>
+  </header>
+  <div id="hud" class="hud">
+    <div id="caption" class="caption">
+      <p class="chapter"><span id="chapterNo" class="chapter-no">1</span><span id="chapterTitle" class="chapter-title">Meet Pearl</span></p>
+      <p class="step"><span id="stepTag" class="step-tag" hidden>Checkpoint</span><span id="stepText" class="step-text"></span></p>
+    </div>
+    <div id="live" class="visually-hidden" aria-live="polite"></div>
+    <div class="transport">
+      <div id="scrubber" class="scrubber" role="slider" tabindex="0" aria-label="Guide timeline" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+        <div id="track" class="track"></div>
+        <div id="thumb" class="thumb"></div>
+        <div id="hoverTip" class="hover-tip" aria-hidden="true"><span class="tip-title"></span><span class="tip-time"></span></div>
+      </div>
+      <div class="controls">
+        <div class="group">
+          <button id="btnPrev" class="btn" type="button" aria-label="Previous chapter" title="Previous chapter"></button>
+          <button id="btnRewind" class="btn" type="button" aria-label="Rewind" aria-pressed="false" title="Rewind (R)"></button>
+          <button id="btnPlay" class="btn btn-play" type="button" aria-label="Play" title="Play (Space)"></button>
+          <button id="btnNext" class="btn" type="button" aria-label="Next chapter" title="Next chapter"></button>
+          <div class="time"><span id="timeNow">0:00</span><span class="time-sep"> / </span><span id="timeTotal">0:00</span></div>
+        </div>
+        <div class="group">
+          <button id="btnSpeed" class="btn btn-text" type="button" aria-label="Playback speed 1×" title="Playback speed">1×</button>
+          <button id="btnView" class="btn" type="button" aria-label="Reset view" title="Reset view (V)"></button>
+          <button id="btnFull" class="btn" type="button" aria-label="Full screen" title="Full screen (F)"></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <dialog id="chaptersSheet" class="panel" aria-label="Chapters"></dialog>
+  <dialog id="kitSheet" class="panel" aria-label="Kit"></dialog>
+  <dialog id="filesSheet" class="panel" aria-label="Files"></dialog>
+  <div id="loading" class="loading" role="status"><strong>Pearl</strong><span>Loading the 3D models</span><b><i></i></b></div>
+  <noscript><p class="noscript">This guide needs JavaScript for its 3D view.</p></noscript>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

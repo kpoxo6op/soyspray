@@ -1,0 +1,17 @@
+{
+  "name": "pearl-guide",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Pearl Stage 0 guide: a 3D player for buying, printing, soldering and the first float test",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}
