@@ -1,0 +1,29 @@
+{
+  "intake": [
+    {
+      "boundary": "marker",
+      "child_exit": 77,
+      "marker_present": true,
+      "root_mode": "0o775",
+      "published_path_exists": false,
+      "retry_error": "Published pack directory is not read-only",
+      "previous_version_verified": true,
+      "interrupted_version_rejected_by_startup": true
+    },
+    {
+      "boundary": "rename",
+      "child_exit": 77,
+      "marker_present": true,
+      "root_mode": "0o775",
+      "published_path_exists": true,
+      "retry_error": "Published pack directory is not read-only",
+      "previous_version_verified": true,
+      "interrupted_version_rejected_by_startup": true
+    }
+  ],
+  "stale_operation": {
+    "current_client": "conflict",
+    "scratch_mutant": "new-operation-terminated",
+    "api": "local emulator of documented resourceVersion precondition; no live API call"
+  }
+}
