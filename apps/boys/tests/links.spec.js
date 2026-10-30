@@ -47,22 +47,26 @@ test.beforeEach(async ({ page }) => {
 test.afterEach(() => expect(errors).toEqual([]));
 
 test('range selection preserves old dates and gives keyboard day details', async ({ page }) => {
+  // Keep the three days in one month: a range ending on the 1st leaves the grid on the next month,
+  // where the middle day is a disabled outside day (this failed whenever today + 63 was the 1st).
+  const shift = day(61).slice(0, 7) === day(63).slice(0, 7) ? 0 : 3;
+  const [first, middle, last] = [61, 62, 63].map((offset) => day(offset + shift));
   const old = await (await page.request.get('/api/availability')).json();
   const history = old.participants.find((person) => person.name === 'Boris K').dates.filter((value) => value < day(0));
   await page.getByText('Выбрать диапазон', { exact: true }).click();
-  await page.locator('#range-start').fill(day(61)); await page.locator('#range-end').fill(day(63));
+  await page.locator('#range-start').fill(first); await page.locator('#range-end').fill(last);
   await page.getByRole('button', { name: 'Выбрать дни', exact: true }).click();
-  await expect(page.locator(`[data-date="${day(62)}"]`)).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator(`[data-date="${middle}"]`)).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#day-details')).toContainText('Boris K');
   await page.locator('#save-button').click();
   await expect(page.locator('#save-status')).toHaveText('Общая доступность сохранена.');
   const fresh = await (await page.request.get('/api/availability')).json();
-  expect(fresh.participants.find((person) => person.name === 'Boris K').dates).toEqual(expect.arrayContaining([...history, day(61), day(62), day(63)]));
-  await page.locator('#range-start').fill(day(62)); await page.locator('#range-end').fill(day(62));
+  expect(fresh.participants.find((person) => person.name === 'Boris K').dates).toEqual(expect.arrayContaining([...history, first, middle, last]));
+  await page.locator('#range-start').fill(middle); await page.locator('#range-end').fill(middle);
   await page.getByRole('button', { name: 'Убрать дни', exact: true }).click();
-  await expect(page.locator(`[data-date="${day(62)}"]`)).toHaveAttribute('aria-pressed', 'false');
-  await page.locator(`[data-date="${day(62)}"]`).focus(); await page.keyboard.press('Space');
-  await expect(page.locator(`[data-date="${day(62)}"]`)).toBeFocused();
+  await expect(page.locator(`[data-date="${middle}"]`)).toHaveAttribute('aria-pressed', 'false');
+  await page.locator(`[data-date="${middle}"]`).focus(); await page.keyboard.press('Space');
+  await expect(page.locator(`[data-date="${middle}"]`)).toBeFocused();
 });
 
 async function openLinks(page) {

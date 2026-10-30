@@ -1,0 +1,74 @@
+name: Pearl guide image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/pearl-guide/**
+      - .github/workflows/pearl-guide-image.yml
+  pull_request:
+    paths:
+      - apps/pearl-guide/**
+      - .github/workflows/pearl-guide-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pearl-guide-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    env:
+      IMAGE: ghcr.io/kpoxo6op/pearl-guide
+      IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12.13"
+      - name: Build and test the immutable runtime
+        run: |
+          docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" \
+            --tag "$IMAGE:$IMAGE_TAG" apps/pearl-guide
+      - name: Check the real HTTP entrypoint
+        run: |
+          docker run --detach --name pearl-guide-check --read-only \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,size=16m,uid=101,gid=101 \
+            -p 127.0.0.1:4173:8080 "$IMAGE:$IMAGE_TAG"
+          trap 'docker logs pearl-guide-check' ERR
+          curl --fail --retry 10 --retry-all-errors --retry-delay 1 \
+            -o "$RUNNER_TEMP/pearl-index.html" http://127.0.0.1:4173/
+          grep -q '<title>Pearl' "$RUNNER_TEMP/pearl-index.html"
+          for path in app.js app.css pearl.svg data/pearl.glb data/prints.glb data/bench.glb \
+            draco/draco_decoder.wasm draco/draco_wasm_wrapper.js files/pearl_v3_1_shell.stl; do
+            curl --fail --silent --output /dev/null "http://127.0.0.1:4173/$path"
+          done
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:4173/missing)" = 404
+      - name: Remove isolated test container
+        if: always()
+        run: docker rm --force pearl-guide-check || true
+      - uses: ./.github/actions/publish-image-promotion
+        with:
+          publish: ${{ github.event_name != 'pull_request' }}
+          app-slug: pearl-guide
+          app-name: Pearl guide
+          image: ghcr.io/kpoxo6op/pearl-guide
+          image-tag: ${{ env.IMAGE_TAG }}
+          runtime-paths: apps/pearl-guide/app apps/pearl-guide/Dockerfile apps/pearl-guide/nginx.conf apps/pearl-guide/.dockerignore
+          manifest: apps/pearl-guide/manifests/deployment.yaml
+          commit-subject: Promote the tested Pearl guide image digest
+          promotion-title: Promote the tested Pearl guide image
+          evidence: The image built, passed its content, kit and build tests, and served the page, models, decoder and print files from a read-only container.
+          verification: Open pearl.soyspray.vip from a tailnet device after Argo reports the Application Synced and Healthy.

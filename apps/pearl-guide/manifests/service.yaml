@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: pearl-guide
+  labels:
+    app.kubernetes.io/name: pearl-guide
+    app.kubernetes.io/part-of: pearl-guide
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: pearl-guide
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
