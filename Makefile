@@ -21,6 +21,7 @@ KUSTOMIZATIONS := \
 	apps/prometheus/config \
 	apps/autism-traits/manifests \
 	apps/assembly-guide/manifests \
+	apps/pearl-guide/manifests \
 	apps/gi/manifests \
 	apps/boys/manifests \
 	apps/domain-health \
