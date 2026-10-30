@@ -44,6 +44,16 @@ chapter. Change them only with a dated line at the end.
 - Phone first: captions above the controls, panels as bottom sheets, 44 px
   touch targets, nothing that needs hover.
 
+## Performance
+
+- Every shader compiles behind the loading screen; nothing compiles mid-play.
+- Per frame, the story only moves things. Material state changes (transparency, depth writes) happen once per
+  change, never as a reset-and-restore every frame.
+- Draw only what the shot can see: parts inside a closed shell stay hidden, nothing renders shadows for a scene
+  without a surface to catch them.
+- Phones start at 1.5x resolution and step down under load; materials stay standard (no clear coat, sheen or
+  iridescence) unless a close-up shows the difference.
+
 ## Kit and files
 
 - Each item: the exact product, shop and code, the price with the date it was
@@ -62,3 +72,4 @@ chapter. Change them only with a dated line at the end.
 ## Changes
 
 - 31 Oct 2026: written with Stage 0.
+- 31 Oct 2026: performance rules added after the first version lagged on Boris's phone.

@@ -101,7 +101,15 @@ export class Stage {
     this.onPristineChange = null;
 
     const renderer = new WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Phones have 2.5-3x screens and small GPUs: start at 1.5 and let adapt() trade resolution for frame rate.
+    this.maxRatio = Math.min(window.devicePixelRatio || 1, phone ? 1.5 : 2);
+    this.minRatio = Math.min(this.maxRatio, phone ? 0.85 : 1);
+    this.ratio = this.maxRatio;
+    this.frameMs = 16;
+    this.slow = 0;
+    this.quick = 0;
+    this.frameNo = 0;
+    renderer.setPixelRatio(this.ratio);
     renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = SRGBColorSpace;
     renderer.toneMapping = AgXToneMapping;
@@ -256,8 +264,25 @@ export class Stage {
   resize() {
     const w = this.container.clientWidth || window.innerWidth;
     const h = this.container.clientHeight || window.innerHeight;
+    this.size = { w, h };
     this.renderer.setSize(w, h, false);
     this.updateProjection();
+  }
+
+  /** Feed the time between played frames. Sustained slow frames lower the resolution a step; quick ones restore it. */
+  adapt(ms) {
+    this.frameMs += (Math.min(ms, 100) - this.frameMs) * 0.1;
+    this.slow = this.frameMs > 24 ? this.slow + 1 : 0;
+    this.quick = this.frameMs < 13 ? this.quick + 1 : 0;
+    let next = this.ratio;
+    if (this.slow > 45 && this.ratio > this.minRatio) next = Math.max(this.minRatio, this.ratio - 0.25);
+    if (this.quick > 120 && this.ratio < this.maxRatio) next = Math.min(this.maxRatio, this.ratio + 0.25);
+    if (next !== this.ratio) {
+      this.ratio = next;
+      this.slow = this.quick = 0;
+      this.renderer.setPixelRatio(next);
+      this.resize();
+    }
   }
 
   /** Labels for this moment: [{ id, text, at: Vector3 | Object3D, side }]. */
@@ -271,12 +296,13 @@ export class Stage {
         el.className = 'label';
         el.innerHTML = '<i></i><span></span>';
         this.labelLayer.appendChild(el);
-        rec = { el, text: '', shownSide: null, strong: null };
+        rec = { el, text: '', shownSide: null, strong: null, width: 0 };
         this.labels.set(l.id, rec);
       }
       if (rec.text !== l.text) {
         rec.text = l.text;
         rec.el.lastChild.textContent = l.text;
+        rec.width = 0; // measured once on the next placement, not every frame
       }
       const strong = !!l.strong;
       if (rec.strong !== strong) {
@@ -296,8 +322,7 @@ export class Stage {
   }
 
   placeLabels() {
-    const w = this.container.clientWidth;
-    const h = this.container.clientHeight;
+    const { w, h } = this.size;
     const v = new Vector3();
     for (const rec of this.labels.values()) {
       if (rec.at.isObject3D) rec.at.getWorldPosition(v);
@@ -310,7 +335,8 @@ export class Stage {
       rec.el.style.opacity = off ? '0' : String(rec.alpha);
       rec.el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
       // keep the text on screen: a label near an edge reads towards the middle instead
-      const room = rec.el.lastChild.offsetWidth + 24;
+      if (!rec.width) rec.width = rec.el.lastChild.offsetWidth;
+      const room = rec.width + 24;
       const side = rec.side === 'r' && x > w - room ? 'l' : rec.side === 'l' && x < room ? 'r' : rec.side;
       if (side !== rec.shownSide) {
         rec.shownSide = side;
@@ -326,7 +352,10 @@ export class Stage {
   }
 
   render() {
-    this.renderer.shadowMap.needsUpdate = true;
+    // Only the bench catches shadows. Phones refresh them every other frame, which nobody sees at this pace.
+    const sm = this.renderer.shadowMap;
+    sm.needsUpdate = this.bench.visible && (!this.phone || this.frameNo % 2 === 0);
+    this.frameNo++;
     this.renderer.render(this.scene, this.camera);
     this.placeLabels();
     this.dirty = false;
