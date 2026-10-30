@@ -19,7 +19,8 @@ export class Actor {
         o.material = Array.isArray(o.material) ? o.material.map((m) => this.adopt(m)) : this.adopt(o.material);
       });
     }
-    this.alpha = 1;
+    this.alpha = 1; // opacity the materials have now
+    this.want = 1; // opacity the story asked for this frame; applied in commit()
     obj.visible = shown;
   }
 
@@ -37,7 +38,12 @@ export class Actor {
     o.position.copy(this.base.p);
     o.quaternion.copy(this.base.q);
     o.scale.copy(this.base.s);
-    if (this.alpha !== 1) this.fade(1);
+    this.want = 1;
+  }
+
+  /** Apply the opacity asked for this frame. Changing transparency rebuilds a material, so it happens only on a change. */
+  commit() {
+    if (this.want !== this.alpha) this.fade(this.want);
   }
 
   fade(a) {
@@ -57,7 +63,7 @@ export class Actor {
   /** Show at opacity a (0 hides). */
   show(a = 1) {
     this.obj.visible = a > 0.004;
-    if (a !== this.alpha) this.fade(a);
+    this.want = a;
     return this;
   }
 
@@ -124,5 +130,9 @@ export class Cast {
 
   reset() {
     for (const a of this.map.values()) a.reset();
+  }
+
+  commit() {
+    for (const a of this.map.values()) a.commit();
   }
 }

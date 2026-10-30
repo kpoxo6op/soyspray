@@ -49,6 +49,7 @@ const meet = {
   work: '1 min',
   bench: false,
   setup(S, k) {
+    S.internals(false);
     const yaw = 0.42 + 0.22 * Math.sin(k * 0.21);
     S.a('pearl').show().at(0, FLOAT_Y + 0.006 * Math.sin(k * 1.1), 0).turn(yaw);
     for (const p of ['propL', 'propR', 'propT']) S.a(p).spin(spin(S.t));
@@ -77,11 +78,12 @@ const meet = {
       text: 'Coins in the hatch trim it to sink very slowly. If anything stops, Pearl drifts gently down.',
       cam: { p: [0.13, 0.82, 0.21], t: [-0.012, 0.904, 0], fov: 30 },
       act(S, u) {
-        const o = smooth(span(u, 0.1, 0.4));
+        const o = smooth(span(u, 0.1, 0.4)) * (1 - smooth(span(u, 0.86, 1))); // opens, then shuts again
         S.a('hatch').at(0, -0.016 * o, 0);
         S.a('coins').at(0, -0.016 * o, 0);
+        if (u < 1) S.internals(o > 0);
       },
-      labels: (S, u) => (u > 0.35 ? [{ id: 'coins', text: 'trim coins', at: S.node('pearl', 'A pod coins'), side: 'l' }] : []),
+      labels: (S, u) => (u > 0.35 && u < 0.86 ? [{ id: 'coins', text: 'trim coins', at: S.node('coins'), side: 'l' }] : []),
     },
     {
       d: 8,
@@ -775,6 +777,7 @@ export function makeDirector(stage, S, timeline) {
       const local = i < bi ? b.d : tt - b.start;
       b.act?.(S, clamp(local / b.d), local);
     }
+    S.commit();
     // camera: cut at a new chapter, glide between beats, drift within a beat
     const kb = tt - beat.start;
     const u = clamp(kb / beat.d);

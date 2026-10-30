@@ -1,6 +1,6 @@
 // Loads the three glTF files exported from Pearl's Blender model and gives their materials a web finish.
 
-import { Color, MeshPhysicalMaterial, MeshStandardMaterial, DoubleSide } from 'three';
+import { MeshPhysicalMaterial, MeshStandardMaterial, DoubleSide } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
@@ -32,23 +32,25 @@ function seams(material) {
   return material;
 }
 
-function foil() {
-  // White 4D foil: a satin metallised film with a faint pearly thin-film sheen.
-  return seams(new MeshPhysicalMaterial({
-    color: 0xf0ede7,
-    roughness: 0.3,
-    metalness: 0.22,
-    clearcoat: 0.55,
-    clearcoatRoughness: 0.22,
-    iridescence: 0.32,
-    iridescenceIOR: 1.32,
-    iridescenceThicknessRange: [260, 420],
-    sheen: 0.25,
-    sheenColor: new Color(0xeee6f4),
-  }));
+function foil(light) {
+  // White 4D foil: a satin metallised film. The clear coat gives its soft second highlight; phones skip it, since
+  // the orb fills the screen and every pixel pays for the extra lobe.
+  const base = { color: 0xf0ede7, roughness: 0.3, metalness: 0.22 };
+  return seams(light ? new MeshStandardMaterial(base) : new MeshPhysicalMaterial({ ...base, clearcoat: 0.55, clearcoatRoughness: 0.22 }));
 }
 
-function finish(root) {
+// Blender's coat, sheen and specular settings arrive as glTF extensions and make three.js use its most expensive
+// shader. At these sizes they are invisible, so every part gets the standard one.
+function plain(m) {
+  if (!m.isMeshPhysicalMaterial) return m;
+  return new MeshStandardMaterial({
+    name: m.name, color: m.color, roughness: m.roughness, metalness: m.metalness, map: m.map, emissive: m.emissive,
+    emissiveIntensity: m.emissiveIntensity, emissiveMap: m.emissiveMap, normalMap: m.normalMap, side: m.side,
+    transparent: m.transparent, opacity: m.opacity,
+  });
+}
+
+function finish(root, light) {
   const cache = new Map();
   root.traverse((o) => {
     if (!o.isMesh) return;
@@ -58,14 +60,14 @@ function finish(root) {
       if (cache.has(m)) return cache.get(m);
       let out = m;
       const name = m.name || '';
-      if (/4D foil/.test(name)) out = foil();
+      if (/4D foil/.test(name)) out = foil(light);
       else if (/printed PLA|white heatshrink|prop white/.test(name)) out = PLA;
       else if (m.transmission > 0 || m.opacity < 1) {
         // Transmission needs an extra render pass; plain transparency reads the same at this size.
         const glasses = /glasses/.test(name);
         out = new MeshStandardMaterial({ color: glasses ? 0xbfd6e6 : m.color, roughness: glasses ? 0.08 : m.roughness, metalness: m.metalness, transparent: true, opacity: glasses ? 0.5 : 0.45, depthWrite: false });
         o.castShadow = false;
-      }
+      } else out = plain(m);
       out.name = name;
       cache.set(m, out);
       return out;
@@ -75,7 +77,7 @@ function finish(root) {
   return root;
 }
 
-export async function loadAssets(onProgress) {
+export async function loadAssets(onProgress, { light = false } = {}) {
   const draco = new DRACOLoader();
   draco.setDecoderPath('draco/');
   const loader = new GLTFLoader();
@@ -86,7 +88,7 @@ export async function loadAssets(onProgress) {
   await Promise.all(
     names.map(async (k) => {
       const gltf = await loader.loadAsync(FILES[k]);
-      out[k] = finish(gltf.scene);
+      out[k] = finish(gltf.scene, light);
       onProgress?.(++done / names.length);
     }),
   );

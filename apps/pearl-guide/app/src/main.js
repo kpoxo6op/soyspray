@@ -31,7 +31,7 @@ async function start() {
   const bar = loading.querySelector('i');
   let assets;
   try {
-    assets = await loadAssets((f) => bar && (bar.style.transform = `scaleX(${f})`));
+    assets = await loadAssets((f) => bar && (bar.style.transform = `scaleX(${0.85 * f})`), { light: phone });
   } catch (err) {
     fail('The 3D models did not load.', 'Reload the page. If it keeps happening, the site needs a look.', err);
     return;
@@ -44,6 +44,8 @@ async function start() {
     fail('The 3D scene did not build.', 'Reload the page. If it keeps happening, the site needs a look.', err);
     return;
   }
+  await warmUp(stage, S);
+  if (bar) bar.style.transform = 'scaleX(1)';
   const timeline = buildTimeline(CHAPTERS);
   const direct = makeDirector(stage, S, timeline);
   const player = new Player(timeline);
@@ -79,6 +81,7 @@ async function start() {
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
     last = now;
     player.tick(dt);
+    if (player.playing && dt > 0) stage.adapt(dt * 1000);
     direct(player.time);
     stage.controls.update();
     stage.render();
@@ -130,6 +133,39 @@ async function start() {
       if (!player.playing && player.time === 0 && !player.scrubbing && !sheets.anyOpen()) player.play();
     }, 900);
   }
+}
+
+// Compile every shader before playback. Without this each new object compiles its shaders the first time it
+// appears, and the player stalls for a few hundred milliseconds at almost every new beat.
+async function warmUp(stage, S) {
+  const actors = [...S.cast.map.values()];
+  const shown = actors.map((a) => a.obj.visible);
+  const mats = actors.flatMap((a) => a.mats);
+  const was = mats.map((m) => [m.transparent, m.depthWrite]);
+  actors.forEach((a) => (a.obj.visible = true));
+  stage.setBench(true);
+  const pass = async () => {
+    try {
+      await stage.renderer.compileAsync(stage.scene, stage.camera);
+    } catch {
+      /* older browsers: the render below compiles them instead */
+    }
+    stage.renderer.shadowMap.needsUpdate = true;
+    stage.renderer.render(stage.scene, stage.camera);
+  };
+  await pass(); // as drawn normally
+  mats.forEach((m) => {
+    m.transparent = true;
+    m.needsUpdate = true;
+  });
+  await pass(); // while fading in or out
+  mats.forEach((m) => (m.depthWrite = false));
+  await pass(); // nearly faded out (Actor.fade stops depth writes below 0.6)
+  mats.forEach((m, i) => {
+    [m.transparent, m.depthWrite] = was[i];
+    m.needsUpdate = true;
+  });
+  actors.forEach((a, i) => (a.obj.visible = shown[i]));
 }
 
 start();

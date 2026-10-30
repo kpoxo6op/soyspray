@@ -42,6 +42,11 @@ export function buildScene(stage, assets) {
   cast.part('propR', 'pearl', 'pod_prop_R_hub');
   cast.part('propT', 'pearl', 'pod_prop_T_hub');
   cast.add('orb', orb);
+  // what sits inside the shell: drawn only while the hatch is open
+  const INSIDE = ['pod_xiao', 'pod_antenna', 'pod_drv_L', 'pod_drv_R', 'pod_sensor', 'pod_battery', 'pod_socket_lead', 'pod_wires_power', 'pod_wires_signal', 'pod_wires_sensor'];
+  for (const n of INSIDE) cast.part(n, 'pearl');
+  // Pearl floats with no bench under it, so it never needs the shadow map: it only casts onto the bench (the orb)
+  for (const n of ['pearl', 'orb']) cast.get(n).obj.traverse((o) => o.isMesh && (o.receiveShadow = false));
   cast.wrap('mat', stage.benchMat, { own: false, shown: true });
 
   // tools and loose parts from the Blender bench
@@ -122,6 +127,12 @@ export function buildScene(stage, assets) {
       cast.reset();
       clip.value = 1e3;
       for (const [n, on] of glowing) if (on) setGlow(n, 0);
+    },
+    commit() {
+      cast.commit();
+    },
+    internals(on) {
+      for (const n of INSIDE) cast.get(n).obj.visible = on;
     },
     node(name, nodeName = null, offset = null) {
       const actor = cast.get(name);

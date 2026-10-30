@@ -21,6 +21,12 @@ stay in the reader's browser. The app stores nothing and needs no backup.
   design changes; never edit the models here.
 - `STANDARDS.md`: the visual, writing and teaching rules for every stage.
 
+## Performance
+
+Shaders compile behind the loading screen (`warmUp` in `app/src/main.js`); actors change material state only when
+their opacity changes (`Actor.commit`); the pod's insides draw only while the hatch is open. Phones render at up
+to 1.5x and `Stage.adapt` lowers the resolution when frames run slow; desktops start at up to 2x.
+
 ## Checks
 
 ```sh
