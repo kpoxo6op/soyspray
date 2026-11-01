@@ -11,11 +11,12 @@ export const STL = [
 
 export const SETTINGS = [
   ['Printer', 'Bambu Lab P1S, 0.4 mm nozzle, textured PEI plate'],
-  ['Filament', 'Bambu PLA Matte'],
+  ['Filament', 'Bambu PLA Matte, loaded as Printer shows'],
   ['Process', '0.12 mm Fine'],
   ['Wall generator', 'Arachne'],
   ['Supports', 'On, tree (auto), build plate only'],
   ['Orientation', 'As loaded. The files are already the right way up.'],
+  ['Door', 'Open while it prints, so the extruder stays cool'],
 ];
 
 export const PLATE_NOTE = 'All six fit one plate: about 4 hours and 40 g of filament, most of it support (slicer estimate).';

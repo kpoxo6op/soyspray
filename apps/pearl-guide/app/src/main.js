@@ -122,11 +122,13 @@ async function start() {
 
   const m = /(?:^|[#&])t=(\d+(?:\.\d+)?)/.exec(window.location.hash);
   if (m) player.seek(Number(m[1]), 'restore');
+  const panel = /(?:^|[#&])(chapters|kit|files|printer)(?=&|$)/.exec(window.location.hash); // e.g. #printer
   syncInsets();
   ui.update();
   schedule();
   loading.hidden = true;
   root.classList.add('ready');
+  if (panel) sheets.open(panel[1]);
   window.__pearl = { player, timeline, stage, S, sheets };
   if (!m && !reducedMotion.matches) {
     setTimeout(() => {

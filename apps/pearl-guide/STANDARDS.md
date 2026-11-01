@@ -61,6 +61,9 @@ chapter. Change them only with a dated line at the end.
   what to pick and a typical price marked "about".
 - Files come from the current design, with settings for the printer Boris owns
   (Bambu Lab P1S) and the weights to expect.
+- Printer steps follow Bambu's own instructions for the P1S. Temperatures name
+  the Bambu Studio preset they come from; lengths and times come from slicing
+  the real file, and say so.
 
 ## Before publishing
 
@@ -73,3 +76,4 @@ chapter. Change them only with a dated line at the end.
 
 - 31 Oct 2026: written with Stage 0.
 - 31 Oct 2026: performance rules added after the first version lagged on Boris's phone.
+- 1 Nov 2026: Printer panel for loading filament, first with leftover PETG.
