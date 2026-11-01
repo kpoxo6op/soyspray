@@ -1,18 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { decodeMeshes } from '../src/meshes.js';
-import { meshBytes, placements } from './helpers.mjs';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { SOURCE, meshes, trayMeshes } from './helpers.mjs';
+import { soyrackPlacements } from '../src/soyrack/rack.js';
+import { testPlacements } from '../src/soyrack/testprints.js';
 
-const EXPECTED = {
-  yBarLeft: 3396, yBarRight: 3396, xBar: 742, mainRail: 6832, xyPlate: 838,
-  rackFeet: 838, rackJoiner: 676, trayVent: 300, trayUpper: 276,
-};
+const printList = JSON.parse(readFileSync(resolve(SOURCE, 'data/v3/parts.json'), 'utf8'));
 
-test('all nine print-pack meshes decode with sane topology', () => {
-  const meshes = decodeMeshes(meshBytes);
-  assert.deepEqual(Object.keys(meshes).sort(), Object.keys(EXPECTED).sort());
+test('the rack parts and the node tray decode with sane topology', () => {
+  assert.deepEqual(Object.keys(trayMeshes), ['trayVent']);
+  assert.equal(trayMeshes.trayVent.sourceTriangles, 300);
+  for (const part of Object.keys(printList)) assert.ok(meshes[part], `${part} has a browser mesh`);
   for (const [name, m] of Object.entries(meshes)) {
-    assert.equal(m.sourceTriangles, EXPECTED[name], `${name} source triangle count`);
     assert.ok(m.triangles >= m.sourceTriangles - 30, `${name} keeps its triangles`);
     assert.equal(m.indices.length, m.triangles * 3);
     assert.equal(m.positions.length, m.vertices * 3);
@@ -36,25 +36,14 @@ test('all nine print-pack meshes decode with sane topology', () => {
   }
 });
 
-test('placements reference real meshes and use unit quaternions', () => {
-  const meshes = decodeMeshes(meshBytes);
-  assert.equal(placements.instances.length, 40);
-  const counts = {};
-  for (const it of placements.instances) {
-    assert.ok(meshes[it.part], it.part);
-    counts[it.part] = (counts[it.part] || 0) + 1;
-    const n = Math.hypot(...it.q);
-    assert.ok(Math.abs(n - 1) < 1e-6, `${it.id} quaternion`);
+// Contract: every placement names a real mesh with a unit rotation, and every mesh shipped in
+// the bundle is placed: nothing is carried that the guide never shows.
+test('placements and meshes match one to one', () => {
+  const instances = [...soyrackPlacements(meshes).instances, ...testPlacements().instances];
+  for (const it of instances) {
+    assert.ok(meshes[it.part], `${it.id} names mesh ${it.part}`);
+    assert.ok(Math.abs(Math.hypot(...it.q) - 1) < 1e-6, `${it.id} quaternion`);
   }
-  // Two frames (new + 2024) use 4 xBars, 2+2 yBars, 4 rails, 2 plates each; plus feet, joiners, trays.
-  assert.deepEqual(counts, {
-    yBarLeft: 4, yBarRight: 4, xBar: 8, mainRail: 8, xyPlate: 4, rackFeet: 2, rackJoiner: 4, trayVent: 3, trayUpper: 3,
-  });
-  const newFrame = placements.instances.filter((i) => i.id.startsWith('new.'));
-  const per = (p) => newFrame.filter((i) => i.part === p).length;
-  assert.equal(per('yBarLeft'), 2);
-  assert.equal(per('yBarRight'), 2);
-  assert.equal(per('xBar'), 4);
-  assert.equal(per('mainRail'), 4);
-  assert.equal(per('xyPlate'), 2);
+  assert.deepEqual([...new Set(instances.map((it) => it.part))].sort(), Object.keys(meshes).sort());
+  assert.equal(instances.filter((it) => it.part === 'trayVent').length, 3);
 });

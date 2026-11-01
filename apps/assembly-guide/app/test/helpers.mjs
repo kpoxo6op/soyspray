@@ -1,12 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { decodeMeshes } from '../src/meshes.js';
 
 export const SOURCE = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const SITE = resolve(SOURCE, 'dist');
 
-export const placements = JSON.parse(readFileSync(resolve(SOURCE, 'data/placements.json'), 'utf8'));
-export const meshBytes = new Uint8Array(readFileSync(resolve(SOURCE, 'data/meshes.bin')));
+const read = (path) => decodeMeshes(new Uint8Array(readFileSync(resolve(SOURCE, path))));
+/** The printed rack parts as rendered from cad/, and the node tray that carries over. */
+export const rackMeshes = read('data/v3/meshes.bin');
+export const trayMeshes = read('data/trays.bin');
+export const meshes = { ...trayMeshes, ...rackMeshes };
 
 /** Minimal DOM/canvas stand-ins so the Three.js scene graph can be built without a browser. */
 export function installDomStubs() {

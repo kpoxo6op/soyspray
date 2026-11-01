@@ -1,4 +1,4 @@
-"""Pack the print-pack STLs into one binary blob for the browser.
+"""Pack the RackStack node tray STL into data/trays.bin for the browser.
 
 Layout: uint32 header length, UTF-8 JSON header, zero padding to 4 bytes, then per part
 float32 positions (centred on the part's bounding-box centre) and uint16/uint32 indices.
@@ -11,15 +11,7 @@ from stlinfo import load_stl
 
 STL_DIR = os.environ['RACKSTACK'] + '/print-pack/soyspray-prototype/stl'
 FILES = {
-    'yBarLeft': 'QTY-2_yBarLeft.stl',
-    'yBarRight': 'QTY-2_yBarRight.stl',
-    'xBar': 'QTY-4_xBar.stl',
-    'mainRail': 'QTY-4_mainRail.stl',
-    'xyPlate': 'QTY-2_xyPlate.stl',
-    'rackFeet': 'QTY-2_rackFeet.stl',
-    'rackJoiner': 'QTY-4_rackJoiner.stl',
     'trayVent': 'QTY-3_m920q-ventilated-tray.stl',
-    'trayUpper': 'QTY-3_upper-equipment-tray.stl',
 }
 
 

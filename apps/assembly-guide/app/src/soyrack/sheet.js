@@ -1,4 +1,4 @@
-// v3 parts sheet: what to print (with STL links and PETG estimates), what to buy, what carries over.
+// Parts sheet: what to print (with STL links and PETG estimates), what to buy, what carries over.
 import printList from '../../data/v3/parts.json' with { type: 'json' };
 import { TIES } from './cables.js';
 
@@ -65,7 +65,7 @@ const kg = (g) => (g / 1000).toFixed(1);
 export function soyrackSheetHTML() {
   const printed = (p, q = p.quantity) => `<li><span class="part-qty">${q}×</span><div><strong>${p.name}</strong><p>${p.detail} About ${grams(p.part)} g each.</p>${link(`${STL}${p.part}.stl`, `${p.part}.stl`)}</div></li>`;
   const bought = (b) => `<li><span class="part-qty">${b.quantity}×</span><div><strong>${b.name}</strong><p>${b.detail}</p>${link(b.url, b.shop || 'AliExpress search')} · checked ${CHECKED}</div></li>`;
-  return `<header><div><span class="sheet-eyebrow">ASSEMBLY KIT · v3 · Soyrack</span><h2 id="partsTitle">Parts and where to buy</h2></div><button id="closeParts" type="button" aria-label="Close parts sheet">×</button></header>
+  return `<header><div><span class="sheet-eyebrow">ASSEMBLY KIT · Soyrack</span><h2 id="partsTitle">Parts and where to buy</h2></div><button id="closeParts" type="button" aria-label="Close parts sheet">×</button></header>
     <div class="sheet-body"><p class="sheet-intro">A new printed rack around your three node trays: a power base that holds the bricks, the board and every cord at full length, posts screwed to the decks at each corner, a drive tray, a switch shelf, a keystone panel and a Zigbee mast. It goes together with M4 screws and nuts only. Every part fits a 256 mm bed. About ${kg(RACK_GRAMS)} kg of PETG for the rack.</p>
     <h3>Print first</h3><ul class="parts-list">${TEST_PRINTS.map((p) => printed(p, 1)).join('')}</ul>
     <p class="sheet-note">About ${TEST_GRAMS} g in all. The first five chapters show each check. If a fit is loose or tight, say which one before the big prints.</p>
@@ -73,5 +73,5 @@ export function soyrackSheetHTML() {
     <p class="sheet-note">PETG, 0.4 mm nozzle, 0.2 mm layers, 4 walls, 5 top and bottom layers, 15 % gyroid, no supports. The files are already turned for the bed. Source files and render script: ${link(CAD_FOLDER, 'source folder')}.</p>
     <h3>Buy</h3><ul class="parts-list">${BUY.map(bought).join('')}</ul>
     <h3>Carries over</h3><ul class="assumptions">${CARRY_OVER.map((s) => `<li>${s}</li>`).join('')}</ul>
-    <p class="sheet-note">Every joint is an M4 screw into an M4 nut held by the print. Tighten until snug; PETG needs no force. Rack footprint 245 × 240 mm, 388 mm tall.</p></div>`;
+    <p class="sheet-note">Every joint is an M4 screw into an M4 nut held by the print. Tighten until snug; PETG needs no force. Rack footprint 245 × 240 mm, 388 mm tall. It stands on the TV unit on its four pads: no holes, screws or glue in the unit.</p></div>`;
 }

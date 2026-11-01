@@ -1,4 +1,4 @@
-// Procedural v3 equipment: the slimline board, keystone inserts, cord ties, the Zigbee dongle
+// Procedural equipment: the slimline board, keystone inserts, cord ties, the Zigbee dongle
 // standing in its mast and the silicone pads. Local frame as in devices.js: x right, y rear, z up.
 
 import {

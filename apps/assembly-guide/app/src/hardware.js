@@ -1,4 +1,4 @@
-import { BoxGeometry, CylinderGeometry, ExtrudeGeometry, Group, Mesh, MeshStandardMaterial, Shape } from 'three';
+import { BoxGeometry, CylinderGeometry, Group, Mesh, MeshStandardMaterial } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { CONNECTORS, PORTS } from './ports.js';
 import { basisQuat } from './math.js';
@@ -46,38 +46,14 @@ export function buildConnector(type, colour = DARK) {
   } else block(g, [c.w * 0.78, Math.max(1, c.depth), c.h * 0.58], [0, c.depth / 2, 0], type === 'slim' ? paint(0xe5b926, 0.4) : type === 'c5' ? rubber : metal, 0.5);
   return g;
 }
-export function buildExtraDevice(spec) {
+/** A plug-in adapter: white body with its NZ pins on the back face. */
+export function buildAdapter(spec) {
   const g = new Group(), materials = [];
-  const mat = paint(['powerline', 'wallSocket', 'psuSwitch'].includes(spec.model) ? 0xefeee9 : 0x191c20); materials.push(mat);
-  if (spec.model === 'board') {
-    const s = new Shape(); s.moveTo(-45, -27.5); s.lineTo(45, -27.5); s.lineTo(15, 27.5); s.lineTo(-15, 27.5); s.closePath();
-    const geo = new ExtrudeGeometry(s, { depth: 250, bevelEnabled: false, steps: 1 }); geo.rotateX(Math.PI / 2); geo.translate(0, 125, 0);
-    const m = new Mesh(geo, paint(0xefeee9)); g.add(m); materials.push(m.material);
-    block(g, [18, 22, 2], [0, -105, 28], paint(0xc13c31), 1);
-    const stub = new Mesh(new CylinderGeometry(4, 4, 11, 16), paint(0xefeee9)); stub.position.set(0, 130.5, -14); g.add(stub);
-  } else if (spec.model === 'deck') {
-    block(g, [253, 209, 6], [0, 0, 0], paint(0x7c654b), 1);
-    for (const x of [-111.5, 111.5]) for (const y of [-88.5, 88.5]) {
-      const m = new Mesh(new CylinderGeometry(7, 7, 10, 20), paint(0x353536)); m.rotation.x = Math.PI / 2; m.position.set(x, y, -8); g.add(m);
-    }
-  } else {
-    block(g, spec.size, [0, 0, 0], mat, 2);
-    if (spec.model === 'wallSocket') for (const x of [-28, 28]) block(g, [11, 1, 6], [x, -6.6, 24], paint(0xe4e3df), 0.5);
-    if (spec.model === 'powerline') {
-      block(g, [13, 1, 2], [0, 21.2, 28], paint(0x61bd74));
-      for (const x of [-6.5, 6.5]) block(g, [1.8, 17, 7], [x, -29.5, 32], paint(0xc9ced1, 0.8));
-    }
-    if (spec.model === 'zigbee') {
-      block(g, [12, 12, 4.8], [0, -30, 0], paint(0xb9bec4, 0.8));
-      const rod = new Mesh(new CylinderGeometry(2.8, 3.3, 98, 20), mat); rod.rotation.x = Math.PI / 2; rod.position.set(0, 25, 53); g.add(rod);
-    }
-    if (spec.model === 'zigbeeEnd') block(g, [13, 1, 5], [0, 20.3, 0], paint(DARK));
-    if (spec.model === 'psuRouter' || spec.model === 'psuSwitch') {
-      const depth = spec.size[1];
-      for (const x of [-6.5, 6.5]) block(g, [1.8, 17, 7], [x, -depth / 2 - 8.5, 3.5], paint(0xc9ced1, 0.8));
-      block(g, [1.8, 17, 7], [0, -depth / 2 - 8.5, -7], paint(0xc9ced1, 0.8));
-    }
-  }
+  const mat = paint(0xefeee9); materials.push(mat);
+  block(g, spec.size, [0, 0, 0], mat, 2);
+  const depth = spec.size[1];
+  for (const x of [-6.5, 6.5]) block(g, [1.8, 17, 7], [x, -depth / 2 - 8.5, 3.5], paint(0xc9ced1, 0.8));
+  block(g, [1.8, 17, 7], [0, -depth / 2 - 8.5, -7], paint(0xc9ced1, 0.8));
   addPorts(g, spec.model, materials);
   g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; if (!materials.includes(m.material)) materials.push(m.material); } });
   return { object: g, materials };

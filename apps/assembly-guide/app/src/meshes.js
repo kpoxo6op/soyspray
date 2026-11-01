@@ -1,4 +1,4 @@
-// Decoder for data/meshes.bin (written by tools/pack_meshes.py).
+// Decoder for data/v3/meshes.bin (written by cad/render.mjs) and data/trays.bin (the node tray).
 // Layout: uint32 header length, JSON header, then per part float32 positions and u16/u32 indices.
 
 export function decodeMeshes(bytes) {
