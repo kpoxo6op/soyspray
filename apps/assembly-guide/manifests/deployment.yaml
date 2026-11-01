@@ -32,7 +32,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: ghcr.io/kpoxo6op/assembly-guide@sha256:663858271b379e1d716dd31d94005bb8c7fcf0355b922e00b26d1370073cd268
+          image: ghcr.io/kpoxo6op/assembly-guide@sha256:139d5eec8f4b612720bc5de5db69c0ba41c25cc2b5fa3f4527b9053edb07358a
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
