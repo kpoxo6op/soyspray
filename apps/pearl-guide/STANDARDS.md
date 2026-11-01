@@ -10,7 +10,8 @@ chapter. Change them only with a dated line at the end.
   on the real model and one caption. Readers can pause, scrub, rewind and turn
   the view, as in the assembly guide.
 - Models come from Pearl's design files at true size. What the design does not
-  have (scale, cup, spool, print bed) is drawn in code at its real size.
+  have (scale, cup, spool, print bed, the printer) is drawn in code at its real
+  size.
 - Motion only shows an action or a result: a part landing, solder flowing, a
   balloon filling, a scale reading. Nothing moves for decoration.
 - The camera frames the action. Labels name at most five things at once.
@@ -76,4 +77,4 @@ chapter. Change them only with a dated line at the end.
 
 - 31 Oct 2026: written with Stage 0.
 - 31 Oct 2026: performance rules added after the first version lagged on Boris's phone.
-- 1 Nov 2026: Printer panel for loading filament, first with leftover PETG.
+- 1 Nov 2026: printer steps rule and the printer drawn in code, for the loading chapter.

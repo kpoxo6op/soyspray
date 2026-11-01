@@ -122,7 +122,7 @@ async function start() {
 
   const m = /(?:^|[#&])t=(\d+(?:\.\d+)?)/.exec(window.location.hash);
   if (m) player.seek(Number(m[1]), 'restore');
-  const panel = /(?:^|[#&])(chapters|kit|files|printer)(?=&|$)/.exec(window.location.hash); // e.g. #printer
+  const panel = /(?:^|[#&])(chapters|kit|files)(?=&|$)/.exec(window.location.hash); // e.g. #files
   syncInsets();
   ui.update();
   schedule();

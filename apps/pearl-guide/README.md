@@ -5,23 +5,24 @@ Private build guide for Pearl, the indoor helium camera robot, served at
 behind the private `soyspray.vip` ingress, reachable over Tailscale split DNS and
 the LAN only. Do not add a public DNS record or a tunnel for this host.
 
-Stage 0 is a 3D player in six chapters: meet Pearl, buy the kit, print the pod
-on a Bambu Lab P1S, learn to solder, float the first orb (lift test) and spin a
-fan (thrust test). Kit lists every part with its shop, link and price; Files
-serves the printable STLs with the slicer settings; Printer shows how to load
-filament on the P1S, starting with about 2 m of leftover PETG. `#printer`,
-`#files`, `#kit` or `#chapters` in the address opens that panel. Ticks in Kit
-and Chapters stay in the reader's browser. The app stores nothing and needs no
-backup.
+Stage 0 is a 3D player in seven chapters: meet Pearl, buy the kit, load the
+printer (about 2 m of leftover PETG through Boris's Bambu Lab P1S, and a first
+side duct), print the pod, learn to solder, float the first orb (lift test) and
+spin a fan (thrust test). Kit lists every part with its shop, link and price;
+Files serves the printable STLs with the slicer settings. `#files`, `#kit` or
+`#chapters` in the address opens that panel. Ticks in Kit and Chapters stay in
+the reader's browser. The app stores nothing and needs no backup.
 
 ## Source
 
 - `app/src/story.js`: chapters, beats, captions, camera and animation.
 - `app/src/kit.js`, `app/src/files.js`: shopping list and print files. Prices
   were read on the shops' NZ sites on the date in `kit.js`; recheck before buying.
-- `app/src/printer.js`: loading filament on the P1S, which has no AMS. Steps
-  follow Bambu's P1 wiki; temperatures are Bambu Studio presets; lengths come
-  from slicing the real STL in Bambu Studio (see the comment at the top).
+- `app/src/p1s.js`: the P1S drawn in code at its real size, with what the
+  loading chapter moves (door, toolhead, bed, screen, PTFE tube, the PETG coil).
+  The layout follows Bambu's P1S photos; the steps follow Bambu's P1 wiki;
+  temperatures are Bambu Studio presets; lengths come from slicing the real STL
+  in Bambu Studio 2.8.2.
 - `app/data/*.glb`, `app/files/*.stl`: exported from the Pearl repository with
   `pearl-v3/scripts/export_web_v3.py`. Re-export there and copy here when the
   design changes; never edit the models here.

@@ -1,10 +1,11 @@
-// Stage 0 as six chapters of short beats. Each beat has one caption, a camera, optional labels and an act(u, k)
+// Stage 0 as seven chapters of short beats. Each beat has one caption, a camera, optional labels and an act(u, k)
 // that poses the cast for progress u (0..1) or k seconds into the beat. Nothing keeps state between frames:
 // every frame resets the cast and replays the chapter up to the playhead, so scrubbing and rewinding are exact.
 
 import { Vector3 } from 'three';
-import { clamp, drop, easeInOut, easeOut, lerp, mix3, smooth, span } from './anim.js';
+import { clamp, drop, easeIn, easeInOut, easeOut, lerp, mix3, smooth, span } from './anim.js';
 import { mixPose } from './stage.js';
+import { PARK_AT, PURGE_AT } from './p1s.js';
 
 const MM = 0.001;
 const TAU = Math.PI * 2;
@@ -230,6 +231,215 @@ const buy = {
 };
 
 // ---------------------------------------------------------------- chapter 3
+// The P1S stands where the mat was. Beats write what they want into S.L; after() applies it once per frame, so
+// the filament and PTFE tube are rebuilt only when something they follow has moved.
+const BED_PRINT = 280.6; // bed top (mm) for the first layer: the nozzle tip less the plate and one layer
+const DUCT_H = 0.012; // the side duct prints 12 mm tall
+const p1sOf = (S) => S.a('p1s').obj.userData.p1s;
+const coilOf = (S) => S.a('petg_coil').obj.userData.coil;
+const READY = { title: 'Ready', line: 'External spool', buttons: ['Load', 'Unload'], sel: null };
+
+const loadPrinter = {
+  id: 'load',
+  title: 'Load the printer',
+  goal: 'Feed the leftover PETG into your P1S and print one side duct.',
+  work: '30 min, plus 18 minutes of printing',
+  bench: true,
+  setup(S) {
+    S.a('mat').show(0);
+    S.a('p1s').show().at(0, 0, 0);
+    S.L = { door: 0, head: [...PARK_AT], bed: 150, feed: 0, purge: 0, route: 0, coil: 0, plate: null, duct: null, screen: READY };
+  },
+  after(S) {
+    const L = S.L;
+    const P = p1sOf(S);
+    P.door(L.door);
+    P.bed(L.bed);
+    P.head(L.head[0], L.head[1]);
+    P.feed(L.feed);
+    P.purge(L.purge);
+    P.screen(L.screen);
+    if (L.coil) {
+      const c = typeof L.coil === 'number' ? { alpha: L.coil, dy: 0 } : L.coil;
+      S.a('petg_coil').show(c.alpha).at(0, c.dy, 0);
+      coilOf(S).route(L.route);
+    }
+    const plate = L.plate === 'bed' ? [0, L.bed * MM, 0, 0] : L.plate;
+    if (plate) {
+      S.a('plate').show().at(plate[0], plate[1], plate[2]).turn(0, 0, plate[3]);
+      if (L.duct) S.a('petg_duct').show(L.duct.alpha ?? 1).at(plate[0], plate[1] + PLATE.top + (L.duct.dy ?? 0), plate[2]);
+      if (L.duct?.clip != null) S.clip(plate[1] + PLATE.top + L.duct.clip);
+    }
+  },
+  beats: [
+    {
+      d: 9,
+      text: 'Your P1S has no AMS. Filament goes in by hand, through the PTFE tube at the back, to the toolhead.',
+      cam: { p: [-0.74, 1.06, -0.84], t: [-0.03, 0.29, -0.06], fov: 32 },
+      cam2: { p: [-0.66, 1.1, -0.9], t: [-0.03, 0.29, -0.06], fov: 32 },
+      labels: (S) => {
+        const a = p1sOf(S).anchors;
+        return [
+          { id: 'tube', text: 'PTFE tube', at: a.inlet, side: 'l' },
+          { id: 'head', text: 'toolhead', at: a.head, side: 't' },
+          { id: 'chute', text: 'purge chute', at: a.chute, side: 'l' },
+        ];
+      },
+    },
+    {
+      d: 9,
+      text: 'Measure your PETG and write it down. About 2 m is enough for one side duct, with plenty to spare.',
+      cam: { p: [-0.5, 0.44, -1.02], t: [-0.09, 0.05, -0.33], fov: 32 },
+      act(S, u) {
+        S.L.coil = drop(clamp(u / 0.35), 0.08);
+      },
+      labels: (S, u) => (u > 0.45 ? [{ id: 'len', text: 'about 2 m of PETG', at: v3(-0.138, 0.006, -0.326), side: 't', strong: true }] : []),
+    },
+    {
+      d: 8,
+      text: 'Snip the end at a slant with side cutters, then straighten the first 10 cm.',
+      cam: { p: [0.15, 0.14, -0.29], t: [0.03, 0.0, -0.397], fov: 28 },
+      act(S, u) {
+        S.L.coil = 1;
+        if (u >= 1) return; // the offcut and the cutters are put away
+        // the jaws close across the strand 6 mm from its end; the offcut springs off and lands beside it
+        const reach = easeInOut(span(u, 0.08, 0.34)) * (1 - easeInOut(span(u, 0.6, 0.85)));
+        S.a('cutters').show().at(0.0248, 0.004 + 0.002 * (1 - reach), -0.402 + 0.006 + 0.08 * (1 - reach)).turn(-Math.PI / 2 + 0.25 * (1 - reach));
+        const fall = easeOut(span(u, 0.42, 0.62));
+        S.a('offcut').show(1 - smooth(span(u, 0.86, 1))).at(0.0278 + 0.012 * fall, 0.0009 + 0.007 * Math.sin(fall * Math.PI), -0.402 - 0.006 * fall).turn(0.2 * fall);
+      },
+      labels: (S, u) => (u > 0.4 && u < 0.95 ? [{ id: 'snip', text: 'cut at a slant', at: v3(0.025, 0.002, -0.402), side: 't', strong: true }] : []),
+    },
+    {
+      d: 11,
+      text: 'Push the end into the PTFE tube at the back. Keep pushing until it stops at the extruder.',
+      cam: { p: [-0.7, 0.98, -0.82], t: [-0.06, 0.3, -0.12], fov: 32 },
+      act(S, u) {
+        S.L.coil = 1;
+        S.L.route = easeInOut(span(u, 0.0, 0.3));
+        S.L.feed = easeInOut(span(u, 0.32, 0.92));
+      },
+      labels: (S, u) => {
+        const a = p1sOf(S).anchors;
+        if (u < 0.35) return [{ id: 'tube', text: 'PTFE tube', at: a.inlet, side: 'l' }];
+        return u > 0.9 ? [{ id: 'ext', text: 'stops at the extruder', at: a.head, side: 't', strong: true }] : [];
+      },
+    },
+    {
+      d: 9,
+      text: 'Choose Load on the screen. The nozzle heats to 250 °C, so keep your fingers out of the printer.',
+      cam: { p: [-0.05, 0.47, 0.52], t: [-0.09, 0.415, 0.2], fov: 26 },
+      act(S, u) {
+        const heat = span(u, 0.25, 0.9);
+        const go = easeInOut(span(u, 0.25, 0.6)); // the toolhead moves over the purge chute while it heats
+        S.L.head = [lerp(PARK_AT[0], PURGE_AT[0], go), lerp(PARK_AT[1], PURGE_AT[1], go)];
+        if (u < 0.25) S.L.screen = { ...READY, sel: u > 0.1 ? 'Load' : null };
+        else S.L.screen = { title: 'Heating', line: 'Load filament', nozzle: lerp(25, 250, smooth(heat)), target: 250, bar: heat };
+      },
+      labels: (S, u) => (u > 0.9 ? [{ id: 'hot', text: '250 °C', at: p1sOf(S).anchors.screen, side: 't', strong: true }] : []),
+    },
+    {
+      d: 9,
+      text: 'At 250 °C push again. The extruder grips the PETG and pulls it down to the nozzle.',
+      cam: { p: [0.06, 0.8, 0.22], t: [-0.13, 0.35, -0.15], fov: 28 },
+      act(S, u) {
+        S.L.feed = 1 + easeInOut(span(u, 0.15, 0.85));
+        S.L.screen = { title: 'Loading', line: 'Feeding', nozzle: 250, target: 250 };
+      },
+      labels: (S, u) => (u > 0.2 ? [{ id: 'ext', text: 'extruder', at: p1sOf(S).anchors.head, side: 't' }] : []),
+    },
+    {
+      d: 10,
+      text: 'PETG flows out of the nozzle and down the chute. Choose Done, or Retry if nothing comes out.',
+      cam: { p: [-0.01, 0.33, 0.5], t: [-0.135, 0.285, -0.14], fov: 24 },
+      act(S, u) {
+        S.L.purge = u < 1 ? easeOut(span(u, 0.1, 0.7)) : 0;
+        S.L.screen = u < 0.7 ? { title: 'Loading', line: 'Purging', nozzle: 250, target: 250 } : { title: 'Purged', line: 'Check the nozzle', nozzle: 250, target: 250, buttons: ['Done', 'Retry'], sel: 'Done' };
+      },
+      labels: (S, u) => {
+        const a = p1sOf(S).anchors;
+        const out = [];
+        if (u > 0.3 && u < 0.98) out.push({ id: 'purge', text: 'PETG out of the nozzle', at: a.nozzle, side: 'r', strong: true });
+        return out;
+      },
+    },
+    {
+      d: 10,
+      text: 'In Bambu Studio choose Generic PETG under Prepare, and set the external spool to it under Device.',
+      cam: { p: [0.2, 0.5, 0.72], t: [0.0, 0.27, -0.01], fov: 30 },
+      act(S, u) {
+        S.L.screen = { ...READY, line: 'External spool: PETG' };
+        S.L.head = [lerp(PURGE_AT[0], PARK_AT[0], easeInOut(span(u, 0.0, 0.4))), lerp(PURGE_AT[1], PARK_AT[1], easeInOut(span(u, 0.0, 0.4)))];
+        S.L.bed = lerp(150, BED_PRINT, easeInOut(span(u, 0.05, 0.45)));
+        S.L.plate = 'bed';
+        S.L.duct = { alpha: 0.25 + 0.2 * smooth(span(u, 0.4, 0.7)) };
+      },
+      labels: (S, u) => {
+        if (u < 0.5) return [];
+        const a = p1sOf(S).anchors;
+        return [
+          { id: 'fil', text: 'Generic PETG', at: S.node('petg_duct'), side: 'r', strong: true },
+          { id: 'noz', text: 'nozzle 255 °C', at: a.head, side: 'l' },
+          { id: 'bed', text: 'plate 70 °C', at: v3(0.1, BED_PRINT * MM, 0.12), side: 'r' },
+        ];
+      },
+    },
+    {
+      d: 11,
+      text: 'Open the door and print one side duct: about 0.55 m of PETG and 18 minutes, plus 14 cm to start.',
+      cam: { p: [0.26, 0.5, 0.66], t: [0.0, 0.285, 0.0], fov: 30 },
+      act(S, u, k) {
+        S.L.door = easeInOut(span(u, 0.0, 0.2));
+        const p = span(u, 0.24, 0.92);
+        const h = DUCT_H * easeInOut(p);
+        S.L.bed = BED_PRINT - h / MM;
+        S.L.plate = 'bed';
+        S.L.screen = { title: 'Printing', line: 'Side duct', nozzle: 255, target: 255, bed: 70, bedTarget: 70, bar: p };
+        if (u >= 0.95) {
+          S.L.duct = { alpha: 1 };
+          S.L.head = [...PARK_AT];
+          return; // printed: no clipping, toolhead back out of the way
+        }
+        S.L.duct = { alpha: u < 0.24 ? 0.45 : 1, clip: u < 0.24 ? null : h + 0.0004 };
+        if (u >= 0.24) S.L.head = [24 * Math.sin(k * 3.1), 2 + 22 * Math.cos(k * 2.3)];
+      },
+      labels: (S, u) => (u > 0.06 && u < 0.3 ? [{ id: 'door', text: 'door open', at: p1sOf(S).anchors.door, side: 'r', strong: true }] : []),
+    },
+    {
+      d: 9,
+      text: 'Let the plate cool, then lift it out and flex it. The duct pops off.',
+      cam: { p: [0.22, 0.56, 1.06], t: [0.0, 0.24, 0.24], fov: 30 },
+      cam2: { p: [0.16, 0.42, 0.98], t: [0.0, 0.07, 0.38], fov: 30 },
+      act(S, u) {
+        const y0 = (BED_PRINT * MM) - DUCT_H;
+        S.L.bed = y0 / MM;
+        const out = easeInOut(span(u, 0.05, 0.35));
+        const down = easeInOut(span(u, 0.35, 0.55));
+        const flex = Math.sin(span(u, 0.6, 0.85) * Math.PI);
+        S.L.plate = [0, lerp(y0, 0, down), lerp(0, 0.34, out) + 0.06 * down, 0.06 * flex];
+        S.L.duct = { dy: 0.01 * Math.sin(span(u, 0.66, 0.88) * Math.PI) };
+        S.L.screen = { title: 'Finished', line: 'Side duct', nozzle: 40, target: 0, bed: 35, bedTarget: 0 };
+      },
+      labels: (S, u) => (u > 0.86 ? [{ id: 'duct', text: 'side duct', at: S.node('petg_duct'), side: 'r', strong: true }] : []),
+    },
+    {
+      d: 9,
+      text: 'Choose Unload and pull the rest out at the back. One PETG side duct: good place to stop.',
+      cam: { p: [-1.0, 0.92, 0.3], t: [-0.03, 0.2, -0.02], fov: 32 },
+      act(S, u) {
+        S.L.bed = BED_PRINT - DUCT_H / MM;
+        S.L.plate = [0, 0, 0.4, 0];
+        S.L.duct = {};
+        S.L.feed = 2 * (1 - easeInOut(span(u, 0.05, 0.55)));
+        S.L.route = 1 - easeInOut(span(u, 0.55, 0.8));
+        S.L.screen = u < 0.55 ? { title: 'Unloading', line: 'Pull it out at the back', nozzle: 250, target: 250 } : READY;
+      },
+      check: true,
+    },
+  ],
+};
+
+// ---------------------------------------------------------------- chapter 4
 const PRINTS = Object.keys(PRINT_AT);
 
 function placePrints(S, alpha = 1) {
@@ -360,7 +570,7 @@ const print = {
   ],
 };
 
-// ---------------------------------------------------------------- chapter 4
+// ---------------------------------------------------------------- chapter 5
 function ironAt(S, p, yaw = -0.5, tilt = 0.72) {
   S.a('iron').show().at(p[0], p[1], p[2]).turn(yaw, 0, tilt);
 }
@@ -514,7 +724,7 @@ const solder = {
   ],
 };
 
-// ---------------------------------------------------------------- chapter 5
+// ---------------------------------------------------------------- chapter 6
 const ORB_MID = [0.0, 0.62, -0.05];
 const ORB_LIFT = 0.8; // orb centre while the cup hangs below it
 
@@ -637,7 +847,7 @@ const float = {
   ],
 };
 
-// ---------------------------------------------------------------- chapter 6
+// ---------------------------------------------------------------- chapter 7
 const RIG = [0.06, 0.03]; // scale position for the thrust test
 
 const spinFan = {
@@ -738,7 +948,7 @@ function rig(S, on, k) {
   }
 }
 
-export const CHAPTERS = [meet, buy, print, solder, float, spinFan];
+export const CHAPTERS = [meet, buy, loadPrinter, print, solder, float, spinFan];
 
 /** Absolute times for chapters and beats. */
 export function buildTimeline(chapters = CHAPTERS) {
@@ -777,6 +987,7 @@ export function makeDirector(stage, S, timeline) {
       const local = i < bi ? b.d : tt - b.start;
       b.act?.(S, clamp(local / b.d), local);
     }
+    c.after?.(S);
     S.commit();
     // camera: cut at a new chapter, glide between beats, drift within a beat
     const kb = tt - beat.start;
