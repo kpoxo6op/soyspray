@@ -4,9 +4,6 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { SITE } from './helpers.mjs';
-import { FASTENER_LINKS } from '../src/parts.js';
-import { SOURCES } from '../src/retainers.js';
-import { CHAPTERS } from '../src/timeline.js';
 import { SOYRACK_CHAPTERS } from '../src/soyrack/chapters.js';
 import { SOYRACK_LINKS, soyrackSheetHTML } from '../src/soyrack/sheet.js';
 
@@ -47,8 +44,8 @@ test('the bundle carries its own meshes and makes no network requests', () => {
   for (const pat of ['@import', 'url(', 'http:', 'https:']) assert.ok(!css.includes(pat), `app.css contains ${pat}`);
   const urls = [...new Set(js.match(/https?:\/\/[^"'`\s)]+/g) || [])];
   const allowed = [/^http:\/\/www\.w3\.org\//, /^https:\/\/jcgt\.org\//]; // XML namespace and a shader comment
-  const purchaseLinks=Object.values(SOURCES).map(s=>s.url).concat(Object.values(FASTENER_LINKS),'https://github.com/jazwa/rackstack',SOYRACK_LINKS);
-  // v3 links are built from a base or a template, so their literal head must start a known link.
+  const purchaseLinks = SOYRACK_LINKS;
+  // Links are built from a base or a template, so their literal head must start a known link.
   const head = (u) => (u.includes('${') ? u.slice(0, u.indexOf('${')) : u.endsWith('/') ? u : null);
   const known = (u) => purchaseLinks.includes(u) || (head(u) && purchaseLinks.some((l) => l.startsWith(head(u))));
   for (const u of urls) assert.ok(known(u)||allowed.some((re) => re.test(u)), `unexpected URL in bundle: ${u}`);
@@ -57,7 +54,6 @@ test('the bundle carries its own meshes and makes no network requests', () => {
 
 test('visible copy stays on the assembly task', () => {
   const visible = [
-    ...CHAPTERS.flatMap((c) => [c.title, c.text]),
     ...SOYRACK_CHAPTERS.flatMap((c) => [c.title, c.text, ...(c.tags || []).map((t) => t.text)]),
     soyrackSheetHTML().replace(/<[^>]+>/g, ' '),
     ...[...html.matchAll(/(?:aria-label|title)="([^"]+)"/g)].map((m) => m[1]),

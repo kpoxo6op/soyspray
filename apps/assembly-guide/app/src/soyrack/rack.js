@@ -1,7 +1,8 @@
-// Soyrack (v3) layout in rack millimetres: x left -> right, y front -> rear, z up, z = 0 on top
+// Soyrack layout in rack millimetres: x left -> right, y front -> rear, z up, z = 0 on top
 // of the base deck. cad/soyrack.scad uses the same frame, and the browser meshes in
 // data/v3/meshes.bin keep their rack positions, so each part's mesh centre is its pose.
-// The v1/v2 node trays hang on the same hole grid: x 18.97 and 234.03, z = 25 + 10k.
+// The three ventilated node trays from the old rack (mesh in data/trays.bin) hang on the same
+// hole grid: x 18.97 and 234.03, z = 25 + 10k.
 
 import { qaxis, qfromTo, qmul, basisQuat } from '../math.js';
 import { buildSlimBoard, buildKeystone, buildDongle, buildPad } from './models.js';
@@ -68,7 +69,7 @@ export const DEVICES = [
 
 export const DEVICE_BY_ID = Object.fromEntries(DEVICES.map((d) => [d.id, d]));
 
-// Ports of the v3-only equipment, in the same frame convention as ports.js.
+// Ports of the slim board and the keystones, in the same frame convention as ports.js.
 const Y = [0, 1, 0];
 const NY = [0, -1, 0];
 const Z = [0, 0, 1];
@@ -90,10 +91,10 @@ export function trayNutIds() {
 }
 
 /**
- * Groups, part instances and fasteners in the shape of data/placements.json, for buildTimeline.
- * `meshes` are the decoded v3 meshes; `v2` supplies the three node trays, which carry over.
+ * Groups, part instances and fasteners for buildTimeline. `meshes` are the decoded rack meshes
+ * and the node tray mesh.
  */
-export function soyrackPlacements(meshes, v2) {
+export function soyrackPlacements(meshes) {
   const mesh = (name) => {
     if (!meshes[name]) throw new Error(`missing mesh ${name}`);
     return meshes[name];
@@ -115,8 +116,9 @@ export function soyrackPlacements(meshes, v2) {
     put(`post.${kind}.RL`, `post_${kind}_b`, turned(b), TURN);
   }
   put('zigbee_mast', 'zigbee_mast', onFloor('zigbee_mast', ...MAST));
-
-  for (const it of v2.instances.filter((i) => /^tray\.L[0-2]$/.test(i.id))) put(it.id, it.part, it.p, it.q);
+  // The node trays carry over, each on holes 1 and 5 of its bay.
+  mesh('trayVent');
+  LOWER_BASE.forEach((_, i) => put(`tray.L${i}`, 'trayVent', [CX, 95, 45 + 50 * i]));
 
   const screws = [];
   const screw = (id, type, head, dir, out) => screws.push({ id, group: 'world', type, head, dir, out });
@@ -140,8 +142,7 @@ export function soyrackPlacements(meshes, v2) {
     const rear = k[0] === 'R';
     nut(nutId, [HOLE_X[k[1] === 'L' ? 0 : 1], rear ? 203 : 6, kind === 'lower' ? 15 + 10 * n : 225 + 10 * n], rear ? NY : Y, true);
   }
-  for (const s of v2.screws.filter((s) => /^tray\.L[0-2]\./.test(s.id))) screws.push({ ...s });
-  for (const [id, holes] of [['drive_tray', [175, 195]], ['switch_shelf', [235, 255]]]) {
+  for (const [id, holes] of [['tray.L0', [25, 65]], ['tray.L1', [75, 115]], ['tray.L2', [125, 165]], ['drive_tray', [175, 195]], ['switch_shelf', [235, 255]]]) {
     for (const [side, x] of [['L', HOLE_X[0]], ['R', HOLE_X[1]]]) {
       holes.forEach((z, j) => screw(`${id}.s${side}${j ? 'hi' : 'lo'}`, 'm4x12', [x, 0, z], [0, 1, 0], 24));
     }

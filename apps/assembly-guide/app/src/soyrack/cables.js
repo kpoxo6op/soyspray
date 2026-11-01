@@ -1,4 +1,4 @@
-// v3 cords in rack millimetres, each drawn at its real length. A stock cord keeps all of it: the
+// Cords in rack millimetres, each drawn at its real length. A stock cord keeps all of it: the
 // spare is wound into a strapped loop, and the loop's size is solved so that the drawn centreline
 // matches the cord less its plug bodies. Crimped Ethernet leads are cut to their route.
 //

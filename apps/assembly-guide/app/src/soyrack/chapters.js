@@ -1,4 +1,4 @@
-// Soyrack (v3) build order. Same chapter API as the v1/v2 guide: every pose is a function of time.
+// Soyrack build order: test prints first, then the rack. Every pose is a function of time.
 
 import { add3 } from '../math.js';
 import { HOLD_IN, tier } from '../timeline.js';
@@ -190,7 +190,7 @@ export const SOYRACK_CHAPTERS = [
   },
   {
     id: 'soyrack', title: 'Soyrack', view: 'tall',
-    text: 'Done: 245 × 240 mm and 388 mm tall, held together by M4 screws and nuts. Pick v2 in the menu to compare, rotate the view, or rewind to any chapter.',
+    text: 'Done: 245 × 240 mm and 388 mm tall, held together by M4 screws and nuts. It stands on the TV unit on its four pads: no holes, screws or glue in the unit. Rotate the view or rewind to any chapter.',
     script: hold(4.8),
   },
 ];

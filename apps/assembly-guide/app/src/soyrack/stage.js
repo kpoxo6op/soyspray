@@ -1,6 +1,5 @@
-// v3 scene extras for the Viewer: the cords (each part fading in with the chapter that lays it),
-// the straps round their loops, and the camera framing of each chapter. Takes the place of the
-// v1/v2 Installation.
+// Scene extras for the Viewer: the cords (each part fading in with the chapter that lays it), the
+// straps round their loops, and the camera framing of each chapter.
 
 import { Box3, CatmullRomCurve3, Group, Mesh, MeshStandardMaterial, TubeGeometry, Vector3 } from 'three';
 import { buildConnector } from '../hardware.js';
@@ -117,16 +116,11 @@ export class SoyrackStage {
     this.time = t;
     for (const l of this.leads) l.update(t);
     for (const l of this.ties) l.update(t);
-    return { room: 0 };
   }
 
   camera() {
     const c = this.timeline.chapters[chapterAt(this.timeline, this.time || 0)];
     const v = VIEWS[c.view] || VIEWS.tall;
     return { key: c.view || 'tall', box: box(v.box), view: v.view };
-  }
-
-  anchor() {
-    return new Vector3();
   }
 }

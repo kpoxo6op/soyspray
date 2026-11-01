@@ -1,5 +1,6 @@
 // Procedural equipment models. Local frame matches the rack: x right, y rear (front face at -y), z up.
-// Sizes come from src/layout.js; detail is drawn into canvas textures so nothing is fetched at runtime.
+// Sizes come from each device spec in src/soyrack/rack.js; detail is drawn into canvas textures so
+// nothing is fetched at runtime.
 
 import {
   CanvasTexture,
@@ -11,7 +12,7 @@ import {
   SRGBColorSpace,
 } from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { addPorts, buildExtraDevice } from './hardware.js';
+import { addPorts, buildAdapter } from './hardware.js';
 
 const PX_PER_MM = 6;
 
@@ -137,65 +138,6 @@ function switchFront() {
   return c;
 }
 
-function routerFront() {
-  const W = 148, H = 30;
-  const { c, g } = canvasFor(W, H, 7);
-  const bg = g.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, '#2d64b0');
-  bg.addColorStop(1, '#214e8f');
-  g.fillStyle = bg;
-  g.fillRect(0, 0, W, H);
-  g.fillStyle = 'rgba(0,0,0,0.25)';
-  g.fillRect(0, H - 2, W, 2);
-  rj45(g, 14, 10, 14, 11.5);
-  rj45(g, 32, 10, 14, 11.5);
-  usbA(g, 52, 13);
-  roundRect(g, 70, 14, 9, 3.4, 1.6);
-  g.fillStyle = '#0d0d0e';
-  g.fill();
-  for (let i = 0; i < 3; i++) {
-    g.fillStyle = ['#4fe37e', '#f2c14e', '#e8eef7'][i];
-    g.beginPath();
-    g.arc(90 + i * 6, 15.7, 1, 0, Math.PI * 2);
-    g.fill();
-  }
-  g.fillStyle = 'rgba(255,255,255,0.78)';
-  g.font = '700 5px system-ui, sans-serif';
-  g.textBaseline = 'middle';
-  g.fillText('OpenWrt', 112, 16);
-  return c;
-}
-
-function boardTop() {
-  const W = 55, H = 205;
-  const { c, g } = canvasFor(W, H, 6);
-  g.fillStyle = '#f1f0eb';
-  g.fillRect(0, 0, W, H);
-  for (let i = 0; i < 4; i++) {
-    const y = 26 + i * 44;
-    roundRect(g, 10, y, 31, 31, 6);
-    g.fillStyle = '#e4e2dc';
-    g.fill();
-    g.strokeStyle = 'rgba(0,0,0,0.08)';
-    g.lineWidth = 0.6;
-    g.stroke();
-    g.fillStyle = '#26262a';
-    const cx = 25.5, cy = y + 14;
-    for (const s of [-1, 1]) {
-      g.save();
-      g.translate(cx + s * 5.5, cy - 2);
-      g.rotate(s * 0.52);
-      g.fillRect(-0.9, -3.4, 1.8, 6.8);
-      g.restore();
-    }
-    g.fillRect(cx - 0.9, cy + 5, 1.8, 6);
-    roundRect(g, 44, y + 10, 7, 11, 1.2);
-    g.fillStyle = '#d9d6cf';
-    g.fill();
-  }
-  return c;
-}
-
 function touroTop() {
   const W = 78, H = 112;
   const { c, g } = canvasFor(W, H, 5);
@@ -263,7 +205,7 @@ function decal(w, h, map, face, offset, materialOpts = {}) {
  * opacity and highlight values.
  */
 export function buildDevice(spec, anisotropy = 4) {
-  if (['board', 'spareBoard', 'deck', 'psuSwitch', 'psuRouter', 'wallSocket', 'powerline', 'zigbeeEnd', 'zigbee'].includes(spec.model)) return buildExtraDevice(spec);
+  if (spec.model === 'psuSwitch') return buildAdapter(spec);
   const [w, d, h] = spec.size;
   const g = new Group();
   const mats = [];
@@ -299,31 +241,6 @@ export function buildDevice(spec, anisotropy = 4) {
     case 'touro': {
       g.add(box(spec.size, 4, mat({ color: 0x1f2023, metalness: 0.05, roughness: 0.68 })));
       addDecal(decal(w - 8, d - 8, texture(touroTop(), anisotropy), 'top', [0, 0, h / 2 + 0.25], { roughness: 0.66 }));
-      break;
-    }
-    case 'router': {
-      g.add(box(spec.size, 4, mat({ color: 0x2457a0, metalness: 0.62, roughness: 0.36 })));
-      break;
-    }
-    case 'board': {
-      g.add(box(spec.size, 6, mat({ color: 0xf0efea, metalness: 0, roughness: 0.48 })));
-      addDecal(decal(w - 6, d - 6, texture(boardTop(), anisotropy), 'top', [0, 0, h / 2 + 0.25], { roughness: 0.5 }));
-      break;
-    }
-    case 'antenna': {
-      const black = mat({ color: 0x111214, metalness: 0.1, roughness: 0.55 });
-      const knuckle = new Mesh(new CylinderGeometry(5, 5, 11, 20), black);
-      knuckle.rotation.z = Math.PI / 2;
-      const rod = new Mesh(new CylinderGeometry(3.4, 4.6, 112, 20), black);
-      rod.rotation.x = Math.PI / 2; // cylinder axis (Y) -> +Z
-      rod.position.z = 62;
-      const tip = new Mesh(new CylinderGeometry(0.1, 3.4, 6, 20), black);
-      tip.rotation.x = Math.PI / 2;
-      tip.position.z = 121;
-      for (const m of [knuckle, rod, tip]) {
-        m.castShadow = true;
-        g.add(m);
-      }
       break;
     }
     default:

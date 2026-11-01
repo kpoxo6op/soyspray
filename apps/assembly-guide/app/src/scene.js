@@ -35,9 +35,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { evaluate } from './timeline.js';
 import { buildDevice } from './devices.js';
-import { FLOOR_Z } from './layout.js';
 import { openNodeTray } from './tray-opening.js';
-import { Installation } from './installation.js';
 
 const GLOW_COLOR = new Color('#ffab5c');
 // Default orbit (radians): front-right and slightly above; a little more frontal on portrait screens.
@@ -45,8 +43,6 @@ const VIEW = { azimuth: 0.55, elevation: 0.28 };
 const VIEW_PORTRAIT = { azimuth: 0.42, elevation: 0.27 };
 // Radii and lengths in mm. `cap` draws a socket head, `segments: 6` a hex nut.
 const SCREW_SPECS = {
-  m3x16: { head: 3, headH: 1.7, shaft: 1.5, length: 16 },
-  m3x12: { head: 3, headH: 1.7, shaft: 1.5, length: 12 },
   m4x12: { head: 4, headH: 2.3, shaft: 2, length: 12 },
   m4x25: { head: 3.5, headH: 4, shaft: 2, length: 25, cap: true },
   m4nut: { head: 4.04, headH: 0.4, shaft: 4.04, length: 3.2, segments: 6 },
@@ -75,12 +71,8 @@ function withGlow(material) {
   return material;
 }
 
-const FINISH = {
-  // Black PLA, lifted slightly so the shapes stay readable against the dark stage.
-  new: { color: 0x3b4048, roughness: 0.56, metalness: 0 },
-  // Matching replacement frame, same filament finish.
-  old: { color: 0x3b4048, roughness: 0.56, metalness: 0 },
-};
+// Dark filament, lifted slightly so the shapes stay readable against the dark stage.
+const FINISH = { color: 0x3b4048, roughness: 0.56, metalness: 0 };
 
 function partGeometry(mesh) {
   const g = new BufferGeometry();
@@ -118,8 +110,9 @@ function radialTexture(stops, size = 256) {
 // ---------------------------------------------------------------- viewer
 
 export class Viewer {
-  // `Stage` adds the scene around the rack (leads, room, framing); v3 passes its own with `floorZ`.
-  constructor({ container, timeline, meshes, reducedMotion = false, phone = false, renderer: injected = null, Stage = Installation, floorZ = FLOOR_Z }) {
+  // `Stage` adds the scene around the rack (leads, straps) and frames each chapter; `floorZ` is
+  // the underside of the feet.
+  constructor({ container, timeline, meshes, Stage, floorZ, reducedMotion = false, phone = false, renderer: injected = null }) {
     this.timeline = timeline;
     this.groundZ = floorZ - 0.4; // the floor the feet stand on
     this.reducedMotion = reducedMotion;
@@ -193,8 +186,8 @@ export class Viewer {
     this.installDoubleTap();
 
     this.contentBox = this.computeContentBox();
-    this.installation = new Stage(timeline, this.root);
-    this.installation.root.traverse(o => o.isMesh && this.pickable.push(o));
+    this.stage = new Stage(timeline, this.root);
+    this.stage.root.traverse((o) => o.isMesh && this.pickable.push(o));
     this.setTime(0);
     this.resize();
   }
@@ -266,7 +259,6 @@ export class Viewer {
     catcher.receiveShadow = true;
     catcher.renderOrder = -1;
     this.scene.add(catcher);
-    this.stageObjects = [pool, contact, catcher];
   }
 
   buildNodes(meshes, anisotropy) {
@@ -302,7 +294,7 @@ export class Viewer {
         obj.add(inner);
         this.inner.set(id, inner);
       } else if (n.kind === 'part') {
-        const mat = withGlow(new MeshStandardMaterial({ ...FINISH[n.finish] }));
+        const mat = withGlow(new MeshStandardMaterial({ ...FINISH }));
         const geometry = n.id.startsWith('tray.L') ? openNodeTray(geos[n.mesh], n.final.p, n.final.p[2] - 21.5) : geos[n.mesh];
         obj = new Mesh(geometry, mat);
         obj.castShadow = true;
@@ -327,14 +319,13 @@ export class Viewer {
   /** Apply the timeline state at time t. */
   setTime(t) {
     evaluate(this.timeline, t, this.state);
-    const inKit=this.timeline.chapters.some(c=>c.id==='retainer-kit'&&t>=c.start&&t<c.end);
     for (const [id, rec] of this.objects) {
       const s = this.state.get(id);
       rec.obj.position.set(s.p[0], s.p[1], s.p[2]);
       rec.obj.quaternion.set(s.q[0], s.q[1], s.q[2], s.q[3]);
       const kind = rec.node.kind;
       if (kind === 'group' || kind === 'screw') continue;
-      const visible = s.alpha > 0.004 && !(inKit&&rec.node.device?.room);
+      const visible = s.alpha > 0.004;
       if (rec.obj.visible !== visible) rec.obj.visible = visible;
       if (!visible) continue;
       const transparent = s.alpha < 0.995;
@@ -348,20 +339,12 @@ export class Viewer {
       }
       rec.obj.castShadow = s.alpha > 0.6;
     }
-    const placement=this.timeline.chapters.find(c=>c.id==='living-placement');
-    const f=placement?Math.max(0,Math.min(1,(t-placement.start-1)/2.4)):1;
-    const lift=placement&&t>=placement.start&&t<placement.end?38*(1-f*f*(3-2*f)):0;
-    for(const rec of this.objects.values())if(!rec.node.parent&&rec.node.kind!=='screw'&& !rec.node.device?.room)rec.obj.position.z+=lift;
     this.root.updateMatrixWorld(true);
-    if (this.installation) {
-      const state = this.installation.setTime(t);
-      this.stageObjects.forEach(o => { o.visible = state.room < 0.01; });
-      const frame = this.installation.camera();
+    if (this.stage) {
+      this.stage.setTime(t);
+      const frame = this.stage.camera();
       if (frame.key !== this.cameraKey) {
         this.cameraKey = frame.key;
-        const w=this.container.clientWidth||window.innerWidth,h=this.container.clientHeight||window.innerHeight;
-        const top=frame.key==='kit'&&h>w*1.15?210:0;
-        this.camera.setViewOffset(w,h,0,(this.bottomInset-top)/2,w,h);this.camera.updateProjectionMatrix();
         if (this.pristine) this.applyHomeView(!this.reducedMotion);
       }
     }
@@ -419,15 +402,14 @@ export class Viewer {
     this.camera.fov = portrait ? 40 : 30;
     this.camera.aspect = w / h;
     // Keep the content centred in the area above the transport bar.
-    const top=this.installation?.camera().key==='kit'&&portrait?210:0;
-    this.camera.setViewOffset(w, h, 0, (this.bottomInset-top) / 2, w, h);
+    this.camera.setViewOffset(w, h, 0, this.bottomInset / 2, w, h);
     this.camera.updateProjectionMatrix();
     if (this.pristine) this.applyHomeView(false);
     this.dirty = true;
   }
 
   homeView() {
-    const frame = this.installation?.camera();
+    const frame = this.stage?.camera();
     this.root.updateMatrixWorld(true);
     const box = frame?.box ? frame.box.clone().applyMatrix4(this.root.matrixWorld) : this.frameBox;
     const center = box.getCenter(new Vector3());
@@ -444,8 +426,7 @@ export class Viewer {
     const camUp = new Vector3().crossVectors(dir, right).normalize();
     const tanV = Math.tan((this.camera.fov * Math.PI) / 360);
     const tanH = tanV * (w / h);
-    const top=frame?.key==='kit'&&h>w*1.15?210:0;
-    const tanVAvail = tanV * Math.max(0.35, 1 - (this.bottomInset+top) / h);
+    const tanVAvail = tanV * Math.max(0.35, 1 - this.bottomInset / h);
     let dist = 0;
     const v = new Vector3();
     for (let i = 0; i < 8; i++) {
@@ -546,10 +527,6 @@ export class Viewer {
   /** Advance camera easing and damping; returns true while the view still needs frames. */
   update(dt) {
     let active = false;
-    const frame=this.installation?.camera();
-    if(this.pristine&&frame?.key==='kit'&&!this.tween&&!this.reducedMotion){
-      const home=this.homeView();this.camera.position.copy(home.position);this.controls.target.copy(home.target);this.dirty=true;
-    }
     if (this.tween) {
       const tw = this.tween;
       tw.t = Math.min(1, tw.t + dt / tw.dur);

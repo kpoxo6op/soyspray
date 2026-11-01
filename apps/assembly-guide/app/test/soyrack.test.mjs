@@ -3,8 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Group } from 'three';
-import { SOURCE, placements, meshBytes } from './helpers.mjs';
-import { decodeMeshes } from '../src/meshes.js';
+import { SOURCE, meshes, rackMeshes } from './helpers.mjs';
 import { evaluate } from '../src/timeline.js';
 import { polyLength } from '../src/cablepath.js';
 import { PORTS, CONNECTORS } from '../src/ports.js';
@@ -15,16 +14,14 @@ import { DEVICES, DEVICE_BY_ID, FLOOR_Z } from '../src/soyrack/rack.js';
 import { BUY, PRINTED, TEST_PRINTS, soyrackSheetHTML } from '../src/soyrack/sheet.js';
 import { PIECES, HOLES, JOINT, FOOT_TOP, BASE_NUT, NUT_Y, WINDOWS, onPiece } from '../src/soyrack/testprints.js';
 
-const v3Meshes = decodeMeshes(new Uint8Array(readFileSync(resolve(SOURCE, 'data/v3/meshes.bin'))));
-const meshes = { ...decodeMeshes(meshBytes), ...v3Meshes };
-const tl = buildSoyrackTimeline(meshes, placements);
+const tl = buildSoyrackTimeline(meshes);
 const shown = [...tl.nodes.values()].filter((n) => n.kind !== 'group');
 const TEST_PIECE = /^coupon\./;
 const STL_DIR = resolve(SOURCE, '../cad/stl');
 
 // Contract: every chapter can be followed and frames its own view. A misspelt view name would
 // silently fall back to the whole-rack framing.
-test('v3 chapters tile the timeline and each frames its own view', () => {
+test('chapters tile the timeline and each frames its own view', () => {
   const stage = new SoyrackStage(tl, new Group());
   assert.equal(tl.chapters[0].start, 0);
   for (const c of tl.chapters) {
@@ -37,8 +34,8 @@ test('v3 chapters tile the timeline and each frames its own view', () => {
   assert.equal(tl.chapters.at(-1).end, tl.duration);
 });
 
-test('v3 builds deterministically and retraces arbitrary seeks', () => {
-  const again = buildSoyrackTimeline(meshes, placements);
+test('the guide builds deterministically and retraces arbitrary seeks', () => {
+  const again = buildSoyrackTimeline(meshes);
   assert.deepEqual(again.chapters.map((c) => [c.id, c.start, c.end]), tl.chapters.map((c) => [c.id, c.start, c.end]));
   const times = [0, 9.5, 33, 61.2, 97.4, 120, 141, tl.duration];
   const forward = times.map((t) => evaluate(tl, t));
@@ -47,7 +44,7 @@ test('v3 builds deterministically and retraces arbitrary seeks', () => {
 
 // Contract: the test pieces are shown alone first and are gone before the base arrives; the
 // finished rack shows every part, fastener and device at rest in its place.
-test('v3 opens with the test prints alone and ends with everything else in place', () => {
+test('the guide opens with the test prints alone and ends with everything else in place', () => {
   const start = evaluate(tl, 0);
   assert.deepEqual(shown.filter((n) => start.get(n.id).alpha > 0.01).map((n) => n.id).sort(),
     ['coupon.base', 'coupon.corner', 'coupon.keystone', 'coupon.post']);
@@ -73,8 +70,8 @@ const offset = (a, b) => PIECES[a].centre.map((v, k) => v - PIECES[b].centre[k])
 
 test('each test-print check ends with its hardware where the fit is tested', () => {
   for (const { part, centre, size } of Object.values(PIECES)) {
-    near(v3Meshes[part].centre, centre, `${part} centre`);
-    near(v3Meshes[part].size, size, `${part} size`);
+    near(rackMeshes[part].centre, centre, `${part} centre`);
+    near(rackMeshes[part].size, size, `${part} size`);
   }
   const pose = (piece, chapter) => poseAt(PIECES[piece].id, chapter);
 
@@ -216,10 +213,12 @@ test('every rack screw meets its own nut', () => {
   assert.equal(used.size, nuts.length, 'every nut takes a screw');
 });
 
-// Contract: no soldering iron, pressed-in inserts or rods anywhere in the v3 guide.
-test('the v3 guide asks for screws and nuts only', () => {
+// Contract: no soldering iron, pressed-in inserts or rods anywhere in the guide, and nothing is
+// drilled: the rack stands on the TV unit on its pads.
+test('the guide asks for screws and nuts only and drills nothing', () => {
   const copy = [...tl.chapters.flatMap((c) => [c.title, c.text, ...c.tags.map((t) => t.text)]), soyrackSheetHTML()].join('\n');
-  for (const re of [/solder/i, /\biron\b/i, /\binserts?\b/i, /\brods?\b/i]) assert.doesNotMatch(copy, re);
+  for (const re of [/solder/i, /\biron\b/i, /\binserts?\b/i, /\brods?\b/i, /drill/i]) assert.doesNotMatch(copy, re);
+  assert.match(copy, /no holes, screws or glue in the unit/);
 });
 
 // Contract: the buy list covers every fastener the scene installs. The node trays carry over
@@ -254,8 +253,8 @@ test('the Zigbee dongle stands 1 m from the USB 3 ports on its extension', () =>
 test('the assembled rack stays inside its 260 x 240 x 450 mm space', () => {
   const lo = [Infinity, Infinity, Infinity];
   const hi = [-Infinity, -Infinity, -Infinity];
-  for (const n of shown.filter((n) => n.kind === 'part' && v3Meshes[n.mesh] && !TEST_PIECE.test(n.id) && n.id !== 'zigbee_mast')) {
-    const size = v3Meshes[n.mesh].size; // parts sit square or turned half a turn about z
+  for (const n of shown.filter((n) => n.kind === 'part' && rackMeshes[n.mesh] && !TEST_PIECE.test(n.id) && n.id !== 'zigbee_mast')) {
+    const size = rackMeshes[n.mesh].size; // parts sit square or turned half a turn about z
     for (let k = 0; k < 3; k++) {
       lo[k] = Math.min(lo[k], n.final.p[k] - size[k] / 2);
       hi[k] = Math.max(hi[k], n.final.p[k] + size[k] / 2);

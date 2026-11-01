@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Player, formatTime, SPEEDS } from '../src/player.js';
-import { buildTimeline } from '../src/timeline.js';
-import { placements } from './helpers.mjs';
+import { buildSoyrackTimeline } from '../src/soyrack/index.js';
+import { meshes } from './helpers.mjs';
 
-const tl = buildTimeline(placements);
+const tl = buildSoyrackTimeline(meshes);
 const make = () => new Player(tl);
 
 test('play, pause and tick advance at the chosen speed', () => {
