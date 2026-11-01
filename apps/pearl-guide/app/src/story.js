@@ -425,7 +425,7 @@ const loadPrinter = {
     {
       d: 9,
       text: 'Choose Unload and pull the rest out at the back. One PETG side duct: good place to stop.',
-      cam: { p: [-1.0, 0.92, 0.3], t: [-0.03, 0.2, -0.02], fov: 32 },
+      cam: { p: [0.78, 0.82, 0.95], t: [0.0, 0.2, 0.15], fov: 32 },
       act(S, u) {
         S.L.bed = BED_PRINT - DUCT_H / MM;
         S.L.plate = [0, 0, 0.4, 0];
