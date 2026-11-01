@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { CHAPTERS, buildTimeline } from '../src/story.js';
 import { GROUPS } from '../src/kit.js';
 import { STL, SETTINGS, PLATE_NOTE } from '../src/files.js';
+import { AFTER, FIRST, LOAD, PETG, PRINTER_LEDE, SHORT } from '../src/printer.js';
 
 const BANNED = [
   'seamless', 'unlock', 'elevate', 'journey', 'delve', 'leverage', 'robust', 'effortless', 'supercharge', 'game-changer',
@@ -11,6 +12,7 @@ const BANNED = [
   'obviously', 'dive into', "let's", 'welcome to', 'get started', 'it’s not', "it's not", 'not just', 'worth noting', 'imagine',
 ];
 const PROPER = new Set(['Pearl', 'Pearl’s', "Pearl's", 'Jaycar', 'AliExpress', 'Spotlight', 'PB', 'Tech', 'Bambu', 'Studio', 'Lab', 'PLA', 'P1S', 'Claude', 'Kit', 'Files', 'Stage']);
+const PRINTER_TITLES = [LOAD.title, PETG.title, FIRST.title, SHORT.title, AFTER.title];
 
 const timeline = buildTimeline(CHAPTERS);
 const visible = [
@@ -19,6 +21,15 @@ const visible = [
   ...STL.flatMap((f) => [f.name, f.note]),
   ...SETTINGS.flat(),
   PLATE_NOTE,
+  PRINTER_LEDE,
+  ...PRINTER_TITLES,
+  ...LOAD.steps,
+  ...PETG.rows.flat(),
+  FIRST.name,
+  FIRST.note,
+  ...SHORT.notes,
+  ...AFTER.notes,
+  AFTER.check,
 ];
 
 test('copy uses plain words: no stock phrases, exclamations, emoji or em dashes', () => {
@@ -43,7 +54,7 @@ test('captions are one short instruction, on screen long enough to read', () => 
 });
 
 test('titles are sentence case', () => {
-  const titles = [...timeline.chapters.map((c) => c.title), ...GROUPS.map((g) => g.title)];
+  const titles = [...timeline.chapters.map((c) => c.title), ...GROUPS.map((g) => g.title), ...PRINTER_TITLES];
   for (const t of titles) {
     const [first, ...rest] = t.split(/\s+/);
     assert.match(first, /^[A-Z0-9]/, t);

@@ -268,7 +268,7 @@ const print = {
     },
     {
       d: 10,
-      text: 'Print all six on one plate. It takes about four hours and 40 g of filament, most of it support.',
+      text: 'Print all six on one plate with the door open. It takes about four hours and 40 g of filament, most of it support.',
       cam: { p: [0.17, 0.16, 0.24], t: [0.0, 0.015, -0.005], fov: 30 },
       cam2: { p: [0.22, 0.2, 0.2], t: [0.0, 0.015, -0.005], fov: 30 },
       act(S, u, k) {

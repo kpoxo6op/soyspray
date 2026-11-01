@@ -1,8 +1,10 @@
-// The three panels: Chapters (the stage at a glance, with your progress), Kit (what to buy) and Files (what to
-// print). Ticks are kept in this browser only; the page works the same when storage is blocked.
+// The four panels: Chapters (the stage at a glance, with your progress), Kit (what to buy), Files (what to
+// print) and Printer (loading filament on the P1S). Ticks are kept in this browser only; the page works the same
+// when storage is blocked.
 
 import { CHECKED, GROUPS, money, totals } from './kit.js';
 import { PLATE_NOTE, SETTINGS, STL } from './files.js';
+import { AFTER, FIRST, LOAD, PETG, PRINTER_LEDE, SHORT } from './printer.js';
 
 const KEY = { kit: 'pearl.stage0.kit', done: 'pearl.stage0.done' };
 
@@ -35,6 +37,7 @@ export function createSheets({ root, timeline, player, onOpen }) {
     chapters: root.querySelector('#chaptersSheet'),
     kit: root.querySelector('#kitSheet'),
     files: root.querySelector('#filesSheet'),
+    printer: root.querySelector('#printerSheet'),
   };
 
   // ---------------------------------------------------------- chapters
@@ -117,9 +120,27 @@ export function createSheets({ root, timeline, player, onOpen }) {
     );
   }
 
+  // ---------------------------------------------------------- printer
+  function renderPrinter() {
+    const settings = PETG.rows.map(([k, v]) => `<div class="setting"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
+    const notes = (list) => `<ul class="notes">${list.map((n) => `<li>${esc(n)}</li>`).join('')}</ul>`;
+    shell(
+      dialogs.printer,
+      'Load filament on the P1S',
+      `<p class="lede">${esc(PRINTER_LEDE)}</p>
+       <section class="kgroup"><h3>${esc(LOAD.title)}</h3><ol class="steps">${LOAD.steps.map((t) => `<li>${esc(t)}</li>`).join('')}</ol></section>
+       <section class="kgroup"><h3>${esc(PETG.title)}</h3><dl class="settings">${settings}</dl></section>
+       <section class="kgroup"><h3>${esc(FIRST.title)}</h3><ul class="items"><li class="item"><div class="item-main"><span class="item-name">${esc(FIRST.name)}</span><span class="item-why">${esc(FIRST.note)}</span></div>
+         <div class="item-side"><a href="files/${esc(FIRST.file)}" download>${esc(FIRST.file)}</a></div></li></ul></section>
+       <section class="kgroup"><h3>${esc(SHORT.title)}</h3>${notes(SHORT.notes)}</section>
+       <section class="kgroup"><h3>${esc(AFTER.title)}</h3>${notes(AFTER.notes)}<p class="sheet-check"><span class="step-tag">Checkpoint</span>${esc(AFTER.check)}</p></section>`,
+    );
+  }
+
   renderChapters();
   renderKit();
   renderFiles();
+  renderPrinter();
 
   for (const d of Object.values(dialogs)) {
     d.addEventListener('click', (e) => {
@@ -137,5 +158,6 @@ export function createSheets({ root, timeline, player, onOpen }) {
   root.querySelector('#crumbChapter').addEventListener('click', () => open('chapters'));
   root.querySelector('#btnKit').addEventListener('click', () => open('kit'));
   root.querySelector('#btnFiles').addEventListener('click', () => open('files'));
+  root.querySelector('#btnPrinter').addEventListener('click', () => open('printer'));
   return { open, anyOpen: () => Object.values(dialogs).some((d) => d.open) };
 }
