@@ -11,7 +11,7 @@ export const STL = [
 
 export const SETTINGS = [
   ['Printer', 'Bambu Lab P1S, 0.4 mm nozzle, textured PEI plate'],
-  ['Filament', 'Bambu PLA Matte, loaded as Printer shows'],
+  ['Filament', 'Bambu PLA Matte, loaded as chapter 3 shows'],
   ['Process', '0.12 mm Fine'],
   ['Wall generator', 'Arachne'],
   ['Supports', 'On, tree (auto), build plate only'],

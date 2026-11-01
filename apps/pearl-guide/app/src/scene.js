@@ -1,9 +1,10 @@
 // Builds the cast from the loaded models and the props drawn in code, and the small context the story poses it
 // through (S.a, S.node, S.clip, S.glow).
 
-import { Box3, BoxGeometry, Color, CylinderGeometry, Group, Mesh, Object3D, SphereGeometry } from 'three';
+import { Box3, BoxGeometry, Color, CylinderGeometry, DoubleSide, Group, Mesh, MeshStandardMaterial, Object3D, SphereGeometry } from 'three';
 import { Cast } from './cast.js';
 import * as P from './props.js';
+import { buildP1S, offcut, PETG_COLOR, petgCoil } from './p1s.js';
 
 const MM = 0.001;
 
@@ -66,10 +67,20 @@ export function buildScene(stage, assets) {
   const printNames = ['print_shell', 'print_hatch', 'print_duct', 'print_tail', 'print_collar'];
   const ductTwin = prints('print_duct').clone(true);
   const testDuct = prints('print_duct').clone(true);
+  const petgDuct = prints('print_duct').clone(true);
   for (const n of printNames) cast.add(n, prints(n));
   cast.add('print_duct2', ductTwin);
   cast.add('test_duct', testDuct);
   for (const n of [...printNames, 'print_duct2']) cast.get(n).mats.forEach((m) => patchClip(m, clip));
+
+  // the printer, the leftover PETG and the side duct printed from it
+  cast.add('p1s', buildP1S());
+  cast.add('petg_coil', petgCoil());
+  cast.add('offcut', offcut());
+  const petg = new MeshStandardMaterial({ color: PETG_COLOR, roughness: 0.3, metalness: 0.02, side: DoubleSide });
+  petgDuct.traverse((o) => o.isMesh && (o.material = petg));
+  cast.add('petg_duct', petgDuct);
+  cast.get('petg_duct').mats.forEach((m) => patchClip(m, clip));
 
   // props drawn in code
   cast.add('scale', P.pocketScale());
