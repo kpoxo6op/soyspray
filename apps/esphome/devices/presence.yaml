@@ -1,0 +1,53 @@
+# mmWave presence sensor: HLK-LD2410C on an ESP32. Reports presence even when a
+# person sits still, unlike PIR motion sensors. Flash one board per room with a
+# different name, for example:
+#   esphome -s name presence-living -s friendly_name "Living room presence" run presence.yaml
+# Wiring (Dupont leads): LD2410C VCC -> 5V (VIN), GND -> GND,
+#   LD2410C TX -> GPIO16 (ESP RX2), LD2410C RX -> GPIO17 (ESP TX2).
+substitutions:
+  name: presence-room
+  friendly_name: Room presence
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+packages:
+  common: !include common.yaml
+
+uart:
+  id: ld2410_uart
+  tx_pin: GPIO17
+  rx_pin: GPIO16
+  baud_rate: 256000
+  parity: NONE
+  stop_bits: 1
+
+ld2410:
+  uart_id: ld2410_uart
+
+binary_sensor:
+  - platform: ld2410
+    has_target:
+      name: Presence
+    has_moving_target:
+      name: Moving target
+    has_still_target:
+      name: Still target
+
+sensor:
+  - platform: ld2410
+    moving_distance:
+      name: Moving distance
+    still_distance:
+      name: Still distance
+    detection_distance:
+      name: Detection distance
+
+# Extends Bluetooth coverage for Home Assistant and the scale.
+esp32_ble_tracker:
+  scan_parameters:
+    active: false
+
+bluetooth_proxy:
+  active: false
