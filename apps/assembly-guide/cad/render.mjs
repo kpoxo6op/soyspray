@@ -44,8 +44,8 @@ function partNames() {
 
 // Browser meshes: everything that appears in the guide, at its rack position.
 const WEB = ['base_tub', 'base_deck', 'post_lower_a', 'post_lower_b', 'mid_deck', 'post_upper_a', 'post_upper_b',
-  'top_cap', 'drive_tray', 'switch_shelf', 'keystone_panel', 'foot', 'zigbee_mast',
-  'coupon_post', 'coupon_corner', 'coupon_nut', 'coupon_keystone'];
+  'top_cap', 'drive_tray', 'switch_shelf', 'keystone_panel', 'zigbee_mast',
+  'coupon_post', 'coupon_corner', 'coupon_base', 'coupon_keystone'];
 
 async function main() {
   if (!existsSync(FONT)) throw new Error(`missing ${FONT}: install fonts-liberation or set FONT_TTF`);

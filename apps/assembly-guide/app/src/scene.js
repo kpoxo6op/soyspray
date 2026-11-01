@@ -43,16 +43,13 @@ const GLOW_COLOR = new Color('#ffab5c');
 // Default orbit (radians): front-right and slightly above; a little more frontal on portrait screens.
 const VIEW = { azimuth: 0.55, elevation: 0.28 };
 const VIEW_PORTRAIT = { azimuth: 0.42, elevation: 0.27 };
-// Radii and lengths in mm. `cap` draws a socket head, `segments: 6` a hex nut or coupler.
+// Radii and lengths in mm. `cap` draws a socket head, `segments: 6` a hex nut.
 const SCREW_SPECS = {
   m3x16: { head: 3, headH: 1.7, shaft: 1.5, length: 16 },
   m3x12: { head: 3, headH: 1.7, shaft: 1.5, length: 12 },
   m4x12: { head: 4, headH: 2.3, shaft: 2, length: 12 },
-  m5x50: { head: 4.25, headH: 5, shaft: 2.5, length: 55, cap: true },
-  m5rod: { head: 2.5, headH: 0.5, shaft: 2.5, length: 300 },
-  m5nut: { head: 4.6, headH: 0.5, shaft: 4.6, length: 4, segments: 6 },
-  m5coupler: { head: 4.6, headH: 0.5, shaft: 4.6, length: 30, segments: 6 },
-  m5washer: { head: 5, headH: 0.5, shaft: 5, length: 1, segments: 24 },
+  m4x25: { head: 3.5, headH: 4, shaft: 2, length: 25, cap: true },
+  m4nut: { head: 4.04, headH: 0.4, shaft: 4.04, length: 3.2, segments: 6 },
 };
 
 // ---------------------------------------------------------------- materials
