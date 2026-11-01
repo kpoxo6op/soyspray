@@ -3,17 +3,23 @@
 // data/v3/meshes.bin keep their rack positions, so each part's mesh centre is its pose.
 // The v1/v2 node trays hang on the same hole grid: x 18.97 and 234.03, z = 25 + 10k.
 
-import { qaxis, basisQuat } from '../math.js';
-import { buildSlimBoard, buildKeystone, buildDongle } from './models.js';
+import { qaxis, qfromTo, qmul, basisQuat } from '../math.js';
+import { buildSlimBoard, buildKeystone, buildDongle, buildPad } from './models.js';
 
 const ID_Q = [0, 0, 0, 1];
 const TURN = [0, 0, 1, 0]; // half a turn about z
 
 export const CX = 126.5;
 export const DEPTH = 209;
-export const FLOOR_Z = -110; // underside of the silicone pads
-export const RODS = { FL: [12, 19], FR: [241, 19], RL: [12, 190], RR: [241, 190] };
+export const FLOOR_Z = -106; // underside of the silicone pads under the base
+// Corner screws: one through each post foot (down into the base, up through the mid deck) and one
+// down through the top cap into each upper post.
+export const JOINTS = { FL: [14, 32], FR: [239, 32], RL: [14, 177], RR: [239, 177] };
+export const CAP_BOLTS = { FL: [12, 20], FR: [241, 20], RL: [12, 189], RR: [241, 189] };
 export const HOLE_X = [18.97, 234.03];
+// Tray screw holes that take a nut: node trays and drive tray on the front lower posts, the switch
+// shelf on the front upper posts and the keystone panel on the rear ones.
+export const NUT_HOLES = { lower: [1, 5, 6, 10, 11, 15, 16, 18], upper: [1, 3] };
 export const LOWER_BASE = [23.5, 73.5, 123.5]; // node tray floors on holes 1, 6 and 11
 export const SHELF_TOP = { drive: 172.9, switch: 232.9 };
 export const CAP_TOP = 282;
@@ -54,6 +60,10 @@ export const DEVICES = [
     centre: [x, i < 2 ? PANEL_Y : PANEL_Y + 3.2, KEYSTONE_Z], build: buildKeystone,
   })),
   { id: 'dongle', model: 'dongle', size: [26, 11, 52], centre: [MAST[0], MAST[1], FLOOR_Z + 140 + 26], build: buildDongle, room: true },
+  // A silicone pad under each corner of the base.
+  ...Object.entries({ FL: [16, 16], FR: [237, 16], RL: [16, 224], RR: [237, 224] }).map(([k, [x, y]]) => ({
+    id: `pad.${k}`, model: 'pad', size: [20, 20, 2], centre: [x, y, FLOOR_Z + 1], build: buildPad,
+  })),
 ];
 
 export const DEVICE_BY_ID = Object.fromEntries(DEVICES.map((d) => [d.id, d]));
@@ -70,6 +80,14 @@ export const PORTS_V3 = {
 // ---------------------------------------------------------------- printed parts and fasteners
 
 const turned = (p) => [2 * CX - p[0], DEPTH - p[1], p[2]];
+const NZ = [0, 0, -1];
+const SLOT_TURN = qaxis(Y, Math.PI / 6);
+
+/** Ids of the nuts behind the tray screw holes in use, `nut.<lower|upper>.<corner>.<hole>`. */
+export function trayNutIds() {
+  const posts = { lower: ['FL', 'FR'], upper: ['FL', 'FR', 'RL', 'RR'] };
+  return Object.entries(posts).flatMap(([kind, ks]) => ks.flatMap((k) => NUT_HOLES[kind].map((n) => `nut.${kind}.${k}.${n}`)));
+}
 
 /**
  * Groups, part instances and fasteners in the shape of data/placements.json, for buildTimeline.
@@ -96,25 +114,31 @@ export function soyrackPlacements(meshes, v2) {
     put(`post.${kind}.RR`, `post_${kind}_a`, turned(a), TURN);
     put(`post.${kind}.RL`, `post_${kind}_b`, turned(b), TURN);
   }
-  // The foot mesh sits under the front-left rod; the right-hand feet are turned half a turn.
-  const f = centre('foot');
-  const [fx, fy] = RODS.FL;
-  for (const [k, [x, y]] of Object.entries(RODS)) {
-    const right = x > CX;
-    put(`foot.${k}`, 'foot', [right ? x - (f[0] - fx) : x + (f[0] - fx), right ? y - (f[1] - fy) : y + (f[1] - fy), f[2]], right ? TURN : ID_Q);
-  }
   put('zigbee_mast', 'zigbee_mast', onFloor('zigbee_mast', ...MAST));
 
   for (const it of v2.instances.filter((i) => /^tray\.L[0-2]$/.test(i.id))) put(it.id, it.part, it.p, it.q);
 
   const screws = [];
   const screw = (id, type, head, dir, out) => screws.push({ id, group: 'world', type, head, dir, out });
-  for (const [k, [x, y]] of Object.entries(RODS)) {
-    screw(`nut.${k}`, 'm5nut', [x, y, -81.4], [0, 0, 1], 30);
-    screw(`rod.${k}`, 'm5rod', [x, y, 218.6], [0, 0, -1], 330);
-    screw(`washer.${k}`, 'm5washer', [x, y, 206], [0, 0, -1], 50);
-    screw(`coupler.${k}`, 'm5coupler', [x, y, 236], [0, 0, -1], 50);
-    screw(`capscrew.${k}`, 'm5x50', [x, y, CAP_TOP], [0, 0, -1], 60);
+  // A nut is drawn from its underside along `dir`; `slot` turns it so its flats meet the walls of a
+  // slot it pushes into sideways.
+  const nut = (id, head, dir, slot = false) => screws.push({
+    id, group: 'world', type: 'm4nut', head, dir, out: 0, ...(slot && { q: qmul(qfromTo(Y, dir), SLOT_TURN) }),
+  });
+  for (const [k, [x, y]] of Object.entries(JOINTS)) {
+    nut(`nut.base.${k}`, [x, y, -17.2], Z, true);
+    screw(`bolt.base.${k}`, 'm4x25', [x, y, 5], NZ, 40);
+    screw(`bolt.mid.${k}`, 'm4x25', [x, y, 195], Z, 40);
+    nut(`nut.mid.${k}`, [x, y, 209.8], Z);
+  }
+  for (const [k, [x, y]] of Object.entries(CAP_BOLTS)) {
+    nut(`nut.cap.${k}`, [x, y, 263.8], Z);
+    screw(`bolt.cap.${k}`, 'm4x25', [x, y, CAP_TOP - 4.4], NZ, 50);
+  }
+  for (const nutId of trayNutIds()) {
+    const [, kind, k, n] = nutId.split('.');
+    const rear = k[0] === 'R';
+    nut(nutId, [HOLE_X[k[1] === 'L' ? 0 : 1], rear ? 203 : 6, kind === 'lower' ? 15 + 10 * n : 225 + 10 * n], rear ? NY : Y, true);
   }
   for (const s of v2.screws.filter((s) => /^tray\.L[0-2]\./.test(s.id))) screws.push({ ...s });
   for (const [id, holes] of [['drive_tray', [175, 195]], ['switch_shelf', [235, 255]]]) {

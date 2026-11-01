@@ -1,7 +1,7 @@
 // Soyrack (v3): a printable PETG rack for three Lenovo M920q Tiny nodes, with a power base that
 // keeps every stock cord at full length, a drive tray, a switch shelf and a keystone Ethernet
-// panel. Four steel M5 tie rods run through the posts, so the printed parts only carry
-// compression.
+// panel. It goes together with M4 screws and M4 nuts only: every nut pushes into a printed slot or
+// drops into a printed hex, so nothing is pressed in and no rod runs through the posts.
 //
 // Rack frame, mm: x left -> right, y front -> rear, z up. z = 0 is the top of the base deck
 // (the lower bay floor). The v1/v2 node trays hang on the same grid: screw holes at
@@ -21,8 +21,8 @@ web = false;
 
 PARTS = ["base_tub", "base_deck", "post_lower_a", "post_lower_b", "mid_deck",
          "post_upper_a", "post_upper_b", "top_cap", "drive_tray", "switch_shelf",
-         "keystone_panel", "foot", "zigbee_mast",
-         "coupon_post", "coupon_corner", "coupon_nut", "coupon_keystone"];
+         "keystone_panel", "zigbee_mast",
+         "coupon_post", "coupon_corner", "coupon_base", "coupon_keystone"];
 
 $fn = web ? 18 : 48;
 E = 0.01;
@@ -38,17 +38,33 @@ CR = 6;                      // plan corner radius
 
 // Posts, front-left numbers. The others are mirrored (front-right) or turned (rear).
 POST = [X0, 3, 20, 23];      // x, y, width, depth: x 4..24 clears the tray gussets at x 25
-ROD = [12, 19];              // M5 tie rod axis
-ROD_D = 5.6;
 HOLE_X = 18.97;              // tray screw holes; the right-hand ones at REF_W - HOLE_X
-PILOT_D = 5.6; PILOT_L = 10; // M4 x 8.1 heat-set insert, 6.3 mm OD (Ruthex size)
 POCKET = 3; FIT = 0.25;      // post ends sit 3 mm deep in the decks
 LOWER = [-3, 203];
 UPPER = [205, 275];
 LOWER_HOLES = [for (k = [0 : 17]) 25 + 10 * k];   // holes 1..18, hole n at z = 15 + 10n
 UPPER_HOLES = [for (k = [0 : 3]) 235 + 10 * k];   // holes 1..4
-COUPLER_TOP = 237;           // M5 washer + M5 x 30 coupling nut + 1 mm, inside the upper post
-BORE_D = 10.4;
+
+// M4 hardware. Screws pass a 4.5 mm hole; an M4 nut (DIN 934, 7 mm across flats, 3.2 mm thick)
+// pushes into a slot 7.2 mm wide and 3.5 mm high and stops centred on its screw.
+M4_D = 4.5;
+NUT4 = [7.2, 3.5];
+NUT4_R = 4.1;                // slot end, from the screw axis: a corner of the nut stops there
+SLOT_Y = 6;                  // tray screw nuts sit behind the 3 mm front wall of a post
+HOLE_DEPTH = 13;             // tray screw holes, from the post face
+HEAD4 = [8, 4.4];            // counterbore for an M4 socket head in the top cap
+
+// Each post end that meets a deck has a foot behind it, along the side of the rack. Per corner,
+// one M4 x 25 socket screw goes down through a lower post's bottom foot and the base deck into a
+// nut in the base, and one goes up through a lower post's top foot, the mid deck and the upper
+// post's foot into a nut in the hex on top. Four more come down through the top cap into nuts
+// near the tops of the upper posts.
+FOOT = [12, 8];              // length behind the post, height (3 mm of it in the deck pocket)
+LOWER_FEET = [[LOWER[0], LOWER[0] + FOOT[1]], [LOWER[1] - FOOT[1], LOWER[1]]];
+UPPER_FEET = [[UPPER[0], UPPER[0] + FOOT[1]]];
+BASE_NUT_Z = -17.5;          // underside of the nut slot in each base corner
+CAP_BOLT = [12, 20];         // top cap screw axis in the front-left upper post
+CAP_NUT_Z = 263.5;           // underside of its nut slot
 
 BASE_Z = [-104, -8];         // power base tub: the cord loops set its height
 BASE_DEPTH = 240;            // the rear 31 mm is the open board trough
@@ -58,10 +74,6 @@ DECK_Z = [-8, 0];
 MID_Z = [200, 208];
 CAP_Z = [272, 282];
 WALL = 2.4; FLOOR = 2.4;
-NUT_AF = 8.25;               // M5 nut in each tub corner, pushed up a hex hole by its foot
-NUT_Z = -81.4;               // nut underside: where the M5 x 300 rods reach
-NUT_TOP = -77;               // top of the hex hole
-HEAD_D = 9.5; HEAD_H = 5.2;  // M5 x 50 socket head in the top cap
 
 // Bricks stand on edge, long side front to back, 14 mm apart, clear of the front corner blocks.
 // The DC cord leaves the front end and turns up; the C5 inlet faces the board at the rear.
@@ -73,14 +85,20 @@ SWITCH = [[158, 101, 26], [47.5, 10]];
 SEAGATE = [[78, 114.8, 11.7], [40.5, 12]];
 TOURO = [[80, 112, 20.5], [132.5, 12]];
 
-function rods() = [[ROD[0], ROD[1]], [REF_W - ROD[0], ROD[1]],
-                   [ROD[0], DEPTH - ROD[1]], [REF_W - ROD[0], DEPTH - ROD[1]]];
 // post footprints [x0, y0, x1, y1]
 function post_boxes() = [
   [POST[0], POST[1], POST[0] + POST[2], POST[1] + POST[3]],
   [REF_W - POST[0] - POST[2], POST[1], REF_W - POST[0], POST[1] + POST[3]],
   [POST[0], DEPTH - POST[1] - POST[3], POST[0] + POST[2], DEPTH - POST[1]],
   [REF_W - POST[0] - POST[2], DEPTH - POST[1] - POST[3], REF_W - POST[0], DEPTH - POST[1]]];
+function is_front(b) = b[1] < DEPTH / 2;
+// the same with their feet: behind the front posts, in front of the rear ones
+function foot_boxes() = [for (b = post_boxes())
+  is_front(b) ? [b[0], b[1], b[2], b[3] + FOOT[0]] : [b[0], b[1] - FOOT[0], b[2], b[3]]];
+// corner screw axes, one through each foot
+function joints() = [for (b = post_boxes()) [(b[0] + b[2]) / 2, is_front(b) ? b[3] + FOOT[0] / 2 : b[1] - FOOT[0] / 2]];
+function cap_bolts() = [[CAP_BOLT[0], CAP_BOLT[1]], [REF_W - CAP_BOLT[0], CAP_BOLT[1]],
+                        [CAP_BOLT[0], DEPTH - CAP_BOLT[1]], [REF_W - CAP_BOLT[0], DEPTH - CAP_BOLT[1]]];
 
 // ------------------------------------------------------------------ helpers
 
@@ -112,10 +130,19 @@ module teardrop2d(d) {
 
 module slot2d(l, w) hull() for (x = [-(l - w) / 2, (l - w) / 2]) translate([x, 0]) circle(d = w);
 
-// Heat-set insert pilot drilled from a face along +y.
-module pilot_y() rotate([-90, 0, 0]) {
-  translate([0, 0, -E]) cylinder(d = PILOT_D, h = PILOT_L + E);
-  translate([0, 0, -E]) cylinder(d1 = PILOT_D + 1.2, d2 = PILOT_D, h = 0.6 + E);
+// Nut slot for a screw along z: from just behind the axis out through a face `to_face` mm away
+// along +x (along -x when dir is -1), its underside at z = 0.
+module nut_slot_x(to_face, dir = 1) mirror([dir < 0 ? 1 : 0, 0, 0])
+  translate([-NUT4_R, -NUT4[0] / 2, 0]) cube([NUT4_R + to_face + 1, NUT4[0], NUT4[1]]);
+
+// Tray screw hole drilled from a face along +y, and the slot its nut pushes into from the side
+// face `to_face` mm away along +x, 3 mm behind the face.
+module tray_hole(to_face) {
+  rotate([-90, 0, 0]) {
+    translate([0, 0, -E]) cylinder(d = M4_D, h = HOLE_DEPTH + E);
+    translate([0, 0, -E]) cylinder(d1 = M4_D + 1, d2 = M4_D, h = 0.5 + E);
+  }
+  translate([0, SLOT_Y - POST[1] + NUT4[1], 0]) rotate([90, 0, 0]) nut_slot_x(to_face);
 }
 
 // Countersunk M4 clearance through a plate of thickness t, head on the y = 0 side.
@@ -137,26 +164,39 @@ module label(s, size) if (!web) text(s, size = size, font = FONT, halign = "cent
 module mirror_x() translate([REF_W, 0, 0]) mirror([1, 0, 0]) children();
 module turn() translate([CX, DEPTH / 2, 0]) rotate(180) translate([-CX, -DEPTH / 2, 0]) children();
 
-// Pockets for the four post ends between z0 and z1.
-module post_pockets(z0, z1) for (b = post_boxes())
+// Pockets for the four post ends (by default without their feet) between z0 and z1.
+module post_pockets(z0, z1, boxes = post_boxes()) for (b = boxes)
   translate([b[0] - FIT, b[1] - FIT, z0]) linear_extrude(z1 - z0) crect([b[2] - b[0] + 2 * FIT, b[3] - b[1] + 2 * FIT], 1.2);
 
-module rod_holes(z0, z1, d = ROD_D) for (p = rods()) translate([p[0], p[1], z0]) cylinder(d = d, h = z1 - z0);
+module screw_holes(at, z0, z1) for (p = at) translate([p[0], p[1], z0]) cylinder(d = M4_D, h = z1 - z0);
 
 // ------------------------------------------------------------------ posts
 
 function holes_of(kind) = kind == "lower" ? LOWER_HOLES : UPPER_HOLES;
 function z_of(kind) = kind == "lower" ? LOWER : UPPER;
 
-// Front-left post in rack coordinates, without its engraving.
+// Front-left post in rack coordinates, without its engraving. Tray screw nuts push into slots in
+// its inner side face; the feet carry the corner screws.
 module post_raw(kind) {
   z = z_of(kind);
+  feet = kind == "lower" ? LOWER_FEET : UPPER_FEET;
+  j = joints()[0];
+  side = POST[0] + POST[2];
+  back = POST[1] + POST[3];
   difference() {
-    translate([POST[0], POST[1], z[0]]) cbox([POST[2], POST[3], z[1] - z[0]]);
-    translate([ROD[0], ROD[1], z[0] - 1]) linear_extrude(z[1] - z[0] + 2) teardrop2d(ROD_D);
-    if (kind == "upper")
-      translate([ROD[0], ROD[1], z[0] - 1]) linear_extrude(COUPLER_TOP - z[0] + 1) teardrop2d(BORE_D);
-    for (h = holes_of(kind)) translate([HOLE_X, POST[1], h]) pilot_y();
+    union() {
+      translate([POST[0], POST[1], z[0]]) cbox([POST[2], POST[3], z[1] - z[0]]);
+      for (f = feet) translate([POST[0], back - 3, f[0]]) cbox([POST[2], FOOT[0] + 3, f[1] - f[0]]);
+    }
+    for (h = holes_of(kind)) translate([HOLE_X, POST[1], h]) tray_hole(side - HOLE_X);
+    for (f = feet) translate([j[0], j[1], f[0] - 1]) linear_extrude(f[1] - f[0] + 2) teardrop2d(M4_D);
+    if (kind == "upper") {
+      // the mid screw's nut drops into a hex on top of the foot
+      translate([j[0], j[1], UPPER_FEET[0][1] - NUT4[1]]) rotate(30) cylinder(d = NUT4[0] / cos(30), h = NUT4[1] + 1, $fn = 6);
+      // the top cap screw comes down the post into a nut pushed in from the back
+      translate([CAP_BOLT[0], CAP_BOLT[1], CAP_NUT_Z - 14]) linear_extrude(z[1] - CAP_NUT_Z + 15) teardrop2d(M4_D);
+      translate([CAP_BOLT[0], CAP_BOLT[1], CAP_NUT_Z]) rotate(90) nut_slot_x(back - CAP_BOLT[1]);
+    }
   }
 }
 
@@ -182,12 +222,12 @@ module posts(kind) {
 
 // ------------------------------------------------------------------ power base
 
+// Solid corners under the posts and their feet: each holds the nut of a corner screw.
 module tub_corner_blocks() {
   z0 = BASE_Z[0]; h = BASE_Z[1] - BASE_Z[0];
-  for (b = post_boxes()) {
-    front = b[1] < DEPTH / 2;
-    y0 = front ? 0 : b[1];
-    y1 = front ? b[3] : TROUGH[0] - 1;
+  for (b = foot_boxes()) {
+    y0 = is_front(b) ? 0 : b[1] - 2;
+    y1 = is_front(b) ? b[3] + 2 : TROUGH[0] - 1;
     translate([b[0], y0, z0]) cube([b[2] - b[0], y1 - y0, h]);
   }
 }
@@ -201,7 +241,7 @@ module tub_vents() {
   z0 = BASE_Z[0];
   // front grille and side grilles: vertical slots, only short bridges at their tops
   for (x = [40 : 9 : 213]) translate([x, -1, z0 + 16]) cube([4, WALL + 2, 60]);
-  for (y = [40 : 9 : 175]) {
+  for (y = [40 : 9 : 157]) {
     translate([X0 - 1, y, z0 + 16]) cube([WALL + 2, 4, 60]);
     translate([X1 - WALL - 1, y, z0 + 16]) cube([WALL + 2, 4, 60]);
   }
@@ -236,9 +276,10 @@ module base_tub() {
         brick_comb();
       }
     }
-    for (p = rods()) translate([p[0], p[1], z0 - 1]) {
-      cylinder(d = ROD_D, h = h + 2);
-      rotate(30) cylinder(d = NUT_AF / cos(30), h = NUT_TOP - z0 + 1, $fn = 6);
+    // corner screws: each nut pushes into its slot from inside the base
+    for (j = joints()) translate([j[0], j[1], 0]) {
+      translate([0, 0, BASE_NUT_Z - 4.5]) cylinder(d = M4_D, h = BASE_Z[1] - BASE_NUT_Z + 5.5);
+      translate([0, 0, BASE_NUT_Z]) nut_slot_x(POST[2] / 2, j[0] < CX ? 1 : -1);
     }
     tub_vents();
     trough_cut();
@@ -249,7 +290,7 @@ module base_tub() {
 // ------------------------------------------------------------------ decks
 
 // Decks are a 4 mm plate inside a 3 mm rim, with solid pads round the post ends.
-module deck_plate(z, plate) {
+module deck_plate(z, plate, boxes = foot_boxes()) {
   outline = [X1 - X0, DEPTH];
   translate([X0, 0, plate[0]]) rbox([outline[0], outline[1], plate[1] - plate[0]], CR);
   translate([X0, 0, z[0]]) linear_extrude(z[1] - z[0]) difference() {
@@ -258,7 +299,7 @@ module deck_plate(z, plate) {
   }
   intersection() {
     translate([X0, 0, z[0]]) rbox([outline[0], outline[1], z[1] - z[0]], CR);
-    for (b = post_boxes()) translate([b[0] - 6, b[1] - 6, z[0]]) rbox([b[2] - b[0] + 12, b[3] - b[1] + 12, z[1] - z[0]], 4);
+    for (b = boxes) translate([b[0] - 6, b[1] - 6, z[0]]) rbox([b[2] - b[0] + 12, b[3] - b[1] + 12, z[1] - z[0]], 4);
   }
 }
 
@@ -275,8 +316,8 @@ module base_deck() {
   z = DECK_Z;
   difference() {
     deck_plate(z, [z[0], z[0] + 4]);
-    post_pockets(z[1] - POCKET, z[1] + 1);
-    rod_holes(z[0] - 1, z[1] + 1);
+    post_pockets(z[1] - POCKET, z[1] + 1, foot_boxes());
+    screw_holes(joints(), z[0] - 1, z[1] + 1);
     rear_slots(z, 186, 200);
     if (!web) vent_field(z, 34, 222, 34, 172, 10, 6);
   }
@@ -286,9 +327,9 @@ module mid_deck() {
   z = MID_Z;
   difference() {
     deck_plate(z, [z[0], z[0] + 4]);
-    post_pockets(z[0] - 1, z[0] + POCKET);
-    post_pockets(z[1] - POCKET, z[1] + 1);
-    rod_holes(z[0] - 1, z[1] + 1);
+    post_pockets(z[0] - 1, z[0] + POCKET, foot_boxes());
+    post_pockets(z[1] - POCKET, z[1] + 1, foot_boxes());
+    screw_holes(joints(), z[0] - 1, z[1] + 1);
     rear_slots(z, 150, 200);
     if (!web) vent_field(z, 34, 222, 32, 138, 10, 6);
   }
@@ -298,14 +339,17 @@ module top_cap() {
   z = CAP_Z;
   difference() {
     union() {
-      deck_plate(z, [z[1] - 4, z[1]]);
+      deck_plate(z, [z[1] - 4, z[1]], post_boxes());
       // the outer edge of each grip is a 10 x 16 mm beam between the corners
       for (x = [X0, X1 - 10]) translate([x, 30, z[1] - 16]) cube([10, DEPTH - 60, 16]);
     }
     post_pockets(z[0] - 11, z[0] + POCKET);
-    rod_holes(z[0] - 1, z[1] + 1);
-    for (p = rods()) translate([p[0], p[1], z[1] - HEAD_H]) cylinder(d = HEAD_D, h = HEAD_H + 1);
-    // grips: lift the whole rack here, the rods carry the load down to the base
+    // corner screws down into the upper posts, their socket heads flush with the top
+    for (p = cap_bolts()) translate([p[0], p[1], z[0] - 1]) {
+      cylinder(d = M4_D, h = z[1] - z[0] + 2);
+      translate([0, 0, z[1] - z[0] + 1 - HEAD4[1]]) cylinder(d = HEAD4[0], h = HEAD4[1] + 1);
+    }
+    // grips: lift the whole rack here, the corner screws carry the load down to the base
     for (x = [14, REF_W - 36]) translate([x, 55, z[1] - 30]) linear_extrude(32) rrect([22, 100], 11);
     if (!web) {
       vent_field(z, 46, 208, 28, 96, 10, 6);
@@ -389,19 +433,6 @@ module keystone_panel() {
 
 // ------------------------------------------------------------------ small parts
 
-// Foot pad: its hex peg pushes the M5 nut up the corner hole and holds it there. The underside is
-// flat, so a 20 mm silicone pad (2 mm thick) sticks anywhere on it. The right-hand feet are the
-// same part turned half a turn.
-module foot(at = rods()[0]) translate([at[0], at[1], BASE_Z[0]]) rotate(at[0] > CX ? 180 : 0) {
-  difference() {
-    union() {
-      translate([-8, -11, -4]) rbox([20, 22, 4], 3);
-      rotate(30) cylinder(d = (NUT_AF - 0.15) / cos(30), h = NUT_Z - BASE_Z[0], $fn = 6);
-    }
-    translate([0, 0, -5]) cylinder(d = 6.2, h = NUT_Z - BASE_Z[0] + 6);
-  }
-}
-
 // Zigbee mast: stands at least 1 m from every USB 3 port. The USB 2 extension presses into the
 // slot at the back, its socket sits in the top pocket and the dongle plugs in from above.
 module zigbee_mast() translate([-300, 60, BASE_Z[0] - 4]) {
@@ -420,20 +451,21 @@ module zigbee_mast() translate([-300, 60, BASE_Z[0] - 4]) {
 
 // ------------------------------------------------------------------ test coupons
 
+// The bottom of a lower post: its foot, and tray holes 1 and 2 with their nut slots.
 module coupon_post() intersection() {
   post_a("lower");
-  translate([0, 0, LOWER[0] - 1]) cube([60, 60, 76 + 1]);
+  translate([0, 0, LOWER[0] - 1]) cube([60, 60, 45]);
 }
 
 module coupon_corner() intersection() {
   base_deck();
-  translate([X0 - 1, -1, DECK_Z[0] - 1]) cube([46, 46, 10]);
+  translate([X0 - 1, -1, DECK_Z[0] - 1]) cube([46, 52, 10]);
 }
 
-// The top of a corner's hex hole, cut flat 12 mm below the nut: printed on its cut face.
-module coupon_nut() intersection() {
+// The top of the base's front-left corner with its nut slot, cut 19 mm down: prints as it stands.
+module coupon_base() intersection() {
   base_tub();
-  translate([X0 - 1, -1, NUT_Z - 12]) cube([34, 40, NUT_TOP - NUT_Z + 18]);
+  translate([X0 - 1, -1, BASE_Z[1] - 19]) cube([21, 41, 20]);
 }
 
 // Two keystone openings: 2.4 mm plate (left) and 2.0 mm plate (right).
@@ -464,16 +496,15 @@ module world_part(name) {
   else if (name == "drive_tray") drive_tray();
   else if (name == "switch_shelf") switch_shelf();
   else if (name == "keystone_panel") keystone_panel();
-  else if (name == "foot") foot();
   else if (name == "zigbee_mast") zigbee_mast();
   else if (name == "coupon_post") coupon_post();
   else if (name == "coupon_corner") coupon_corner();
-  else if (name == "coupon_nut") coupon_nut();
+  else if (name == "coupon_base") coupon_base();
   else if (name == "coupon_keystone") coupon_keystone();
   else assert(false, str("unknown part ", name));
 }
 
-// Bed orientation: posts lie on the face with the insert holes, the top cap prints upside
+// Bed orientation: posts lie on the face with the tray holes, the top cap prints upside
 // down, the keystone panel lies on its outer face, everything else prints as it stands.
 module print_part(name) {
   lying = ["post_lower_a", "post_lower_b", "post_upper_a", "post_upper_b", "coupon_post"];
@@ -495,7 +526,6 @@ module assembly() {
     drive_tray();
     switch_shelf();
     keystone_panel();
-    for (p = rods()) foot(p);
   }
 }
 

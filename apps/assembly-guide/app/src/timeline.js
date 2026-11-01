@@ -381,7 +381,7 @@ export function buildTimeline(data, chapterDefs = CHAPTERS, devices = [...DEVICE
   }
   for (const s of data.screws) {
     add(node(s.id, parentOf(s.group), 'screw', {
-      mesh: s.type, dir: s.dir, out: s.out, final: { p: s.head, q: qfromTo(SCREW_AXIS, s.dir) },
+      mesh: s.type, dir: s.dir, out: s.out, final: { p: s.head, q: s.q ?? qfromTo(SCREW_AXIS, s.dir) },
     }));
   }
   for (const d of devices) {

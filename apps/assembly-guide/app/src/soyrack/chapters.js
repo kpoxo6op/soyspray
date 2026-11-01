@@ -1,13 +1,39 @@
 // Soyrack (v3) build order. Same chapter API as the v1/v2 guide: every pose is a function of time.
 
+import { add3 } from '../math.js';
 import { HOLD_IN, tier } from '../timeline.js';
 import { TEST_CHAPTERS } from './testprints.js';
+import { trayNutIds } from './rack.js';
 
 const CORNERS = ['FL', 'FR', 'RL', 'RR'];
 const each = (prefix) => CORNERS.map((k) => `${prefix}.${k}`);
+const TRAY_NUTS = trayNutIds();
+const LEFT = /\.(FL|RL)(\.|$)/;
+const FRONT = /\.(FL|FR)(\.|$)/;
+// Where each nut comes from: into a side slot from inside the rack, into a top slot of an upper
+// post from behind it (towards the middle of the rack side), or down into the hex on a foot.
+const inward = (id) => [LEFT.test(id) ? 22 : -22, 0, 0];
+const fromBehind = (id) => [0, FRONT.test(id) ? 22 : -22, 0];
+const fromAbove = () => [0, 0, 24];
 
 /** A chapter in which no part moves, `seconds` long; the stage lays its cords meanwhile. */
 const hold = (seconds) => (c) => { c.end = c.start + seconds; };
+
+/** Nuts pushed home one after another, each travelling in from `from(id)` mm away. */
+function slide(c, ids, at, from, { dur = 0.7, stagger = 0.1 } = {}) {
+  let end = at;
+  ids.forEach((id, i) => {
+    const n = c.get(id);
+    const t = at + i * stagger;
+    c.showAt([id], t);
+    c.path(id, [
+      { at: t, p: add3(n.final.p, from(id)), q: n.final.q },
+      { at: t + dur, p: n.final.p, q: n.final.q, e: 'out' },
+    ], { highlight: false });
+    end = t + dur;
+  });
+  return end;
+}
 
 /** Lower parts one after another from `rise` mm above, slowing for the last `settle` mm. */
 function lower(c, ids, at, { rise, settle = 14, dur = 2.2, stagger = 0.3 } = {}) {
@@ -22,13 +48,13 @@ export const SOYRACK_CHAPTERS = [
   ...TEST_CHAPTERS,
   {
     id: 'power-base', title: 'Power base', view: 'base',
-    text: 'Push an M5 nut up the hex hole under each corner of the base, then a printed foot: its peg holds the nut at the top of the hole. Stick a 20 mm silicone pad under each foot.',
+    text: 'Push an M4 nut into the slot inside each corner of the base until it stops. Stick a 20 mm silicone pad under each corner.',
     script(c) {
       c.show(['base_tub']);
       const end = c.move('base_tub', HOLD_IN, 2.0, { from: [0, 0, 60], via: [0, 0, 10] });
-      const nuts = c.screws(each('nut'), end + 0.3, { dur: 1.0, stagger: 0.2 });
-      c.showAt(each('foot'), nuts + 0.2);
-      CORNERS.forEach((k, i) => c.move(`foot.${k}`, nuts + 0.4 + i * 0.2, 1.4, { from: [0, 0, -28] }));
+      const nuts = slide(c, each('nut.base'), end + 0.3, inward, { dur: 1.0, stagger: 0.25 });
+      c.showAt(each('pad'), nuts + 0.3);
+      CORNERS.forEach((k, i) => c.move(`pad.${k}`, nuts + 0.5 + i * 0.2, 1.2, { from: [0, k[0] === 'F' ? -40 : 40, 0] }));
     },
   },
   {
@@ -57,15 +83,8 @@ export const SOYRACK_CHAPTERS = [
     script: hold(7.2),
   },
   {
-    id: 'tie-rods', title: 'Tie rods', view: 'frame',
-    text: 'Screw an M5 × 300 mm rod down through each corner until it fills its nut. The rods tie the stack together from the feet to the top cap.',
-    script(c) {
-      c.screws(each('rod'), HOLD_IN, { dur: 2.4, stagger: 0.3 });
-    },
-  },
-  {
     id: 'base-deck', title: 'Base deck', view: 'frame',
-    text: 'Lower the base deck over the rods onto the base, threading the switch cord up through its right rear slot. The Lenovo cords stand behind it.',
+    text: 'Lower the base deck onto the base, threading the switch cord up through its right rear slot. The Lenovo cords stand behind it.',
     script(c) {
       c.show(['base_deck']);
       lower(c, ['base_deck'], HOLD_IN, { rise: 240, dur: 2.6 });
@@ -73,20 +92,32 @@ export const SOYRACK_CHAPTERS = [
   },
   {
     id: 'lower-posts', title: 'Lower posts', view: 'frame',
-    text: 'With a soldering iron, press M4 inserts into holes 1, 5, 6, 10, 11, 15, 16 and 18 of both front posts. Slide the four posts down the rods into the deck pockets, numbers facing out.',
+    text: 'Stand the four posts in the deck pockets, numbers facing out, feet towards the middle. Fix each foot with an M4 × 25 screw down into the nut in the base. Push M4 nuts into the side slots of holes 1, 5, 6, 10, 11, 15, 16 and 18 of both front posts.',
     script(c) {
       c.show(each('post.lower'));
-      lower(c, each('post.lower'), HOLD_IN, { rise: 232, dur: 2.4 });
+      const end = lower(c, each('post.lower'), HOLD_IN, { rise: 232, dur: 2.4 });
+      const bolts = c.screws(each('bolt.base'), end + 0.3, { dur: 1.2, stagger: 0.2 });
+      slide(c, TRAY_NUTS.filter((id) => id.startsWith('nut.lower.')), bolts + 0.3, inward);
     },
   },
   {
     id: 'mid-deck', title: 'Mid deck', view: 'frame',
-    text: 'Lower the mid deck onto the posts. Add an M5 washer and an M5 × 30 coupling nut to each rod, hand tight plus a quarter turn. The lower bay is now one firm frame.',
+    text: 'Lower the mid deck onto the posts, over their top feet.',
     script(c) {
       c.show(['mid_deck']);
-      const end = lower(c, ['mid_deck'], HOLD_IN, { rise: 60, dur: 2.0 });
-      const w = c.screws(each('washer'), end + 0.3, { dur: 0.9, stagger: 0.15 });
-      c.screws(each('coupler'), w + 0.2, { dur: 1.3, stagger: 0.2 });
+      lower(c, ['mid_deck'], HOLD_IN, { rise: 60, dur: 2.0 });
+      c.end = Math.max(c.end, c.start + 3.6);
+    },
+  },
+  {
+    id: 'upper-posts', title: 'Upper posts', view: 'tall',
+    text: 'Stand the four upper posts on the mid deck, each foot over the one below. Drop an M4 nut into the hex on each upper foot and fix the corner with an M4 × 25 up through both feet and the deck. Push nuts into the side slots of holes 1 and 3 of all four. The frame is now firm.',
+    script(c) {
+      c.show(each('post.upper'));
+      const end = lower(c, each('post.upper'), HOLD_IN, { rise: 120, dur: 2.2 });
+      const hex = slide(c, each('nut.mid'), end + 0.3, fromAbove, { dur: 0.8, stagger: 0.15 });
+      const bolts = c.screws(each('bolt.mid'), hex + 0.3, { dur: 1.2, stagger: 0.2 });
+      slide(c, TRAY_NUTS.filter((id) => id.startsWith('nut.upper.')), bolts + 0.3, inward);
     },
   },
   {
@@ -110,14 +141,6 @@ export const SOYRACK_CHAPTERS = [
     script: (c) => tier(c, 'drive_tray', [{ id: 'usbA', via: [0, 0, 10] }, { id: 'usbB', via: [0, 0, 10] }]),
   },
   {
-    id: 'upper-posts', title: 'Upper posts', view: 'tall',
-    text: 'Press inserts into holes 1 and 3 of all four upper posts. Slide them over the coupling nuts into the mid deck.',
-    script(c) {
-      c.show(each('post.upper'));
-      lower(c, each('post.upper'), HOLD_IN, { rise: 120, dur: 2.2 });
-    },
-  },
-  {
     id: 'switch', title: 'Eight-port switch', view: 'upper',
     text: 'Hang the switch shelf on upper holes 1 and 3 with four M4 × 12. Set the switch in its rim with the ports at the back.',
     script: (c) => tier(c, 'switch_shelf', [{ id: 'switch', via: [0, 0, 10] }]),
@@ -137,11 +160,12 @@ export const SOYRACK_CHAPTERS = [
   },
   {
     id: 'top-cap', title: 'Top cap', view: 'tall',
-    text: 'Lower the top cap onto the posts. Four M5 × 50 socket screws go down into the coupling nuts and lock the stack. Lift the rack by its two grips.',
+    text: 'Push an M4 nut into the slot near the top of each upper post, from behind. Lower the top cap onto the posts and fix it with four M4 × 25 socket screws down into those nuts. Lift the rack by its two grips.',
     script(c) {
       c.show(['top_cap']);
-      const end = lower(c, ['top_cap'], HOLD_IN, { rise: 150, settle: 18, dur: 2.6 });
-      c.screws(each('capscrew'), end + 0.3, { dur: 1.6, stagger: 0.25 });
+      const nuts = slide(c, each('nut.cap'), HOLD_IN, fromBehind, { dur: 0.9, stagger: 0.2 });
+      const end = lower(c, ['top_cap'], nuts + 0.3, { rise: 150, settle: 18, dur: 2.6 });
+      c.screws(each('bolt.cap'), end + 0.3, { dur: 1.4, stagger: 0.25 });
     },
   },
   {
@@ -166,7 +190,7 @@ export const SOYRACK_CHAPTERS = [
   },
   {
     id: 'soyrack', title: 'Soyrack', view: 'tall',
-    text: 'Done: 245 × 240 mm, 392 mm tall, feet under the tie rods. Pick v2 in the menu to compare, rotate the view, or rewind to any chapter.',
+    text: 'Done: 245 × 240 mm and 388 mm tall, held together by M4 screws and nuts. Pick v2 in the menu to compare, rotate the view, or rewind to any chapter.',
     script: hold(4.8),
   },
 ];

@@ -12,8 +12,8 @@ import { buildSoyrackTimeline, SoyrackStage } from '../src/soyrack/index.js';
 import { VIEWS } from '../src/soyrack/stage.js';
 import { CABLES, CABLE_BY_ID, MAST_RUN, TIES } from '../src/soyrack/cables.js';
 import { DEVICES, DEVICE_BY_ID, FLOOR_Z } from '../src/soyrack/rack.js';
-import { BUY, PRINTED, TEST_PRINTS } from '../src/soyrack/sheet.js';
-import { PIECES, HOLES, HEX_TOP, ROD, WINDOWS, onPiece } from '../src/soyrack/testprints.js';
+import { BUY, PRINTED, TEST_PRINTS, soyrackSheetHTML } from '../src/soyrack/sheet.js';
+import { PIECES, HOLES, JOINT, FOOT_TOP, BASE_NUT, NUT_Y, WINDOWS, onPiece } from '../src/soyrack/testprints.js';
 
 const v3Meshes = decodeMeshes(new Uint8Array(readFileSync(resolve(SOURCE, 'data/v3/meshes.bin'))));
 const meshes = { ...decodeMeshes(meshBytes), ...v3Meshes };
@@ -50,7 +50,7 @@ test('v3 builds deterministically and retraces arbitrary seeks', () => {
 test('v3 opens with the test prints alone and ends with everything else in place', () => {
   const start = evaluate(tl, 0);
   assert.deepEqual(shown.filter((n) => start.get(n.id).alpha > 0.01).map((n) => n.id).sort(),
-    ['coupon.corner', 'coupon.keystone', 'coupon.nut', 'coupon.post']);
+    ['coupon.base', 'coupon.corner', 'coupon.keystone', 'coupon.post']);
   const base = evaluate(tl, tl.chapters.find((c) => c.id === 'power-base').start);
   for (const n of shown.filter((n) => TEST_PIECE.test(n.id))) assert.ok(base.get(n.id).alpha < 0.01, `${n.id} cleared away`);
   const end = evaluate(tl, tl.duration);
@@ -63,12 +63,13 @@ test('v3 opens with the test prints alone and ends with everything else in place
 });
 
 // Contract: the checks are drawn on the printed test pieces, and each ends with its hardware
-// where the fit is tested: the post end in the corner pocket with a rod down its bore to the
-// table, inserts flush in holes 1 and 2, the nut at the top of the hex hole with a screw through
-// it, and a coupler in each window of the strip.
+// where the fit is tested: the deck corner on the base corner and the post end in its pocket, the
+// nut at the end of the base corner's slot with the corner screw down through all three into it,
+// a nut behind each tray hole with a screw from the front through it, and a coupler in each window
+// of the strip.
 const near = (a, b, what) => a.forEach((v, k) => assert.ok(Math.abs(v - b[k]) < 1e-6, `${what}: ${a} vs ${b}`));
 const poseAt = (id, chapter) => evaluate(tl, tl.chapters.find((c) => c.id === chapter).end - 0.01).get(id);
-const along = (s, d) => s.p.map((v, k) => v + d * [0, 0, -1][k]); // test fasteners point down
+const offset = (a, b) => PIECES[a].centre.map((v, k) => v - PIECES[b].centre[k]);
 
 test('each test-print check ends with its hardware where the fit is tested', () => {
   for (const { part, centre, size } of Object.values(PIECES)) {
@@ -77,22 +78,25 @@ test('each test-print check ends with its hardware where the fit is tested', () 
   }
   const pose = (piece, chapter) => poseAt(PIECES[piece].id, chapter);
 
-  const post = pose('post', 'test-corner');
-  const corner = pose('corner', 'test-corner');
-  near(post.p, corner.p.map((v, k) => v + PIECES.post.centre[k] - PIECES.corner.centre[k]), 'post end in the pocket');
-  const rod = poseAt('coupon.rod', 'test-corner');
-  near(rod.p.slice(0, 2), onPiece('post', post, [...ROD, 0]).slice(0, 2), 'rod on the bore axis');
-  assert.ok(Math.abs(along(rod, 300)[2] - FLOOR_Z) < 1e-6, 'rod down to the table');
+  const base = pose('base', 'test-joint');
+  const corner = pose('corner', 'test-joint');
+  const post = pose('post', 'test-joint');
+  near(corner.p, base.p.map((v, k) => v + offset('corner', 'base')[k]), 'deck corner on the base corner');
+  near(post.p, corner.p.map((v, k) => v + offset('post', 'corner')[k]), 'post end in the pocket');
+  const nut = onPiece('base', base, [...JOINT, BASE_NUT]);
+  near(poseAt('coupon.nut', 'test-joint').p, nut, 'nut at the end of its slot');
+  const bolt = poseAt('coupon.bolt', 'test-joint');
+  near(bolt.p, onPiece('post', post, [...JOINT, FOOT_TOP]), 'screw head on the foot');
+  assert.ok(bolt.p[2] - 25 < nut[2], 'screw down through the nut');
 
-  const lying = pose('post', 'test-inserts');
-  HOLES.forEach((h, i) => near(poseAt(`coupon.insert${i + 1}`, 'test-inserts').p, onPiece('post', lying, h), `insert ${i + 1} flush`));
-  near(along(poseAt('coupon.m4', 'test-inserts'), 2), onPiece('post', lying, HOLES[0]), 'screw on insert 1');
-
-  const nut = pose('nut', 'test-nut');
-  near(along(poseAt('coupon.nut5', 'test-nut'), 4), onPiece('nut', nut, [...ROD, HEX_TOP]), 'nut at the top of the hex');
-  const bolt = poseAt('coupon.bolt', 'test-nut');
-  near(bolt.p.slice(0, 2), onPiece('nut', nut, [...ROD, HEX_TOP]).slice(0, 2), 'screw on the nut axis');
-  assert.ok(along(bolt, 55)[2] < onPiece('nut', nut, [...ROD, HEX_TOP])[2], 'screw through the nut');
+  const lastPost = pose('post', 'test-tray-nuts');
+  HOLES.forEach(([x, y, z], i) => {
+    const behind = onPiece('post', lastPost, [x, NUT_Y, z]);
+    near(poseAt(`coupon.tnut${i + 1}`, 'test-tray-nuts').p, behind, `nut behind hole ${i + 1}`);
+    const screw = poseAt(`coupon.m4${'ab'[i]}`, 'test-tray-nuts');
+    near(screw.p, onPiece('post', lastPost, [x, y - 2, z]), `screw on hole ${i + 1}`);
+    assert.ok(screw.p[1] + 12 > behind[1] + 3.2, `screw ${i + 1} through its nut`);
+  });
 
   const strip = pose('keystone', 'test-keystone');
   WINDOWS.forEach((w, i) => near(poseAt(['coupon.key24', 'coupon.key20'][i], 'test-keystone').p, onPiece('keystone', strip, w), `coupler ${i + 1} seated`));
@@ -101,7 +105,7 @@ test('each test-print check ends with its hardware where the fit is tested', () 
 // Contract: a tag names something that is on screen while the tag shows, inside its chapter.
 test('tags point at parts that are on screen while they show', () => {
   const tagged = tl.chapters.filter((c) => c.tags.length);
-  assert.ok(tagged.length >= 6, 'the test-print chapters name their pieces and hardware');
+  assert.ok(tagged.length >= 5, 'the test-print chapters name their pieces and hardware');
   for (const c of tagged) {
     for (const tag of c.tags) {
       const from = c.start + (tag.from ?? 0.4);
@@ -192,20 +196,43 @@ test('every power inlet, drive and node network port takes exactly one lead', ()
   for (const port of needed) assert.ok(ends.includes(port), `${port} is connected`);
 });
 
+// Contract: the rack goes together with M4 screws and nuts only, and every screw finds its own
+// nut: each one has exactly one M4 nut on its axis within its length, and no nut is left over.
+test('every rack screw meets its own nut', () => {
+  const rack = shown.filter((n) => n.kind === 'screw' && !TEST_PIECE.test(n.id));
+  assert.deepEqual([...new Set(rack.map((n) => n.mesh))].sort(), ['m4nut', 'm4x12', 'm4x25']);
+  const nuts = rack.filter((n) => n.mesh === 'm4nut');
+  const LENGTH = { m4x12: 12, m4x25: 25 };
+  const used = new Set();
+  for (const s of rack.filter((n) => n.mesh !== 'm4nut')) {
+    const hits = nuts.filter((nut) => {
+      const d = nut.final.p.map((v, k) => v - s.final.p[k]);
+      const t = d[0] * s.dir[0] + d[1] * s.dir[1] + d[2] * s.dir[2];
+      return Math.hypot(...d.map((v, k) => v - t * s.dir[k])) < 0.3 && t > 0 && t < LENGTH[s.mesh];
+    });
+    assert.equal(hits.length, 1, `${s.id} meets one nut`);
+    used.add(hits[0].id);
+  }
+  assert.equal(used.size, nuts.length, 'every nut takes a screw');
+});
+
+// Contract: no soldering iron, pressed-in inserts or rods anywhere in the v3 guide.
+test('the v3 guide asks for screws and nuts only', () => {
+  const copy = [...tl.chapters.flatMap((c) => [c.title, c.text, ...c.tags.map((t) => t.text)]), soyrackSheetHTML()].join('\n');
+  for (const re of [/solder/i, /\biron\b/i, /\binserts?\b/i, /\brods?\b/i]) assert.doesNotMatch(copy, re);
+});
+
 // Contract: the buy list covers every fastener the scene installs. The node trays carry over
-// with their own screws, so only the new M4 screws are bought. The test checks reuse the rack's
-// rod, nut and screws but keep the inserts they press.
+// with their own screws, so only the new M4 × 12 are bought. The test checks take one corner
+// screw, three nuts and two M4 × 12 from the same packs.
 test('the buy list covers every fastener and lead the rack installs', () => {
   const count = (mesh, keep = () => true) => shown.filter((n) => n.mesh === mesh && !TEST_PIECE.test(n.id) && keep(n)).length;
-  const testInserts = shown.filter((n) => n.device?.model === 'insert').length;
+  const forTests = (mesh) => shown.filter((n) => n.mesh === mesh && TEST_PIECE.test(n.id)).length;
   const bought = (key) => BUY.find((b) => b.key === key).quantity;
-  assert.ok(bought('rod') >= count('m5rod') && count('m5rod') === 4);
-  assert.ok(bought('coupler') >= count('m5coupler'));
-  assert.ok(bought('capscrew') >= count('m5x50') && count('m5x50') === 4);
-  assert.ok(bought('nut') >= Math.max(count('m5nut'), count('m5washer')));
-  assert.ok(testInserts === 2 && bought('insert') >= count('m4x12') + testInserts, 'one insert per M4 hole, two for the test');
-  assert.ok(bought('m4') >= count('m4x12', (n) => !n.id.startsWith('tray.')));
-  assert.ok(bought('pad') >= count('foot'));
+  assert.ok(count('m4nut') === 36 && bought('nut4') >= count('m4nut') + forTests('m4nut'));
+  assert.ok(count('m4x25') === 12 && bought('bolt') >= count('m4x25') + forTests('m4x25'));
+  assert.ok(bought('m4') >= count('m4x12', (n) => !n.id.startsWith('tray.')) + forTests('m4x12'));
+  assert.ok(bought('pad') >= DEVICES.filter((d) => d.model === 'pad').length);
   assert.ok(bought('keystone') >= DEVICES.filter((d) => d.model === 'keystone').length);
   assert.ok(bought('strap') >= TIES.length);
 });
