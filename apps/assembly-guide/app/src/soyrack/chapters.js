@@ -1,16 +1,10 @@
 // Soyrack (v3) build order. Same chapter API as the v1/v2 guide: every pose is a function of time.
 
 import { HOLD_IN, tier } from '../timeline.js';
+import { TEST_CHAPTERS } from './testprints.js';
 
 const CORNERS = ['FL', 'FR', 'RL', 'RR'];
 const each = (prefix) => CORNERS.map((k) => `${prefix}.${k}`);
-
-/** Fade parts out `at` seconds into the chapter. */
-function hide(c, ids, at, dur = 0.8) {
-  const t = c.start + at;
-  for (const id of ids) c.get(id).alpha.push({ t, v: 1 }, { t: t + dur, v: 0 });
-  c.end = Math.max(c.end, t + dur);
-}
 
 /** A chapter in which no part moves, `seconds` long; the stage lays its cords meanwhile. */
 const hold = (seconds) => (c) => { c.end = c.start + seconds; };
@@ -25,16 +19,7 @@ function lower(c, ids, at, { rise, settle = 14, dur = 2.2, stagger = 0.3 } = {})
 }
 
 export const SOYRACK_CHAPTERS = [
-  {
-    id: 'test-prints', title: 'Test prints first', view: 'prints',
-    text: 'Print these four small pieces before the big parts: a post end, a deck corner, a nut corner and a keystone strip. Press two M4 inserts into the post end, push it into the corner, seat a nut, and snap a coupler into each keystone slot.',
-    script(c) {
-      const ids = ['coupon.post', 'coupon.corner', 'coupon.nut', 'coupon.keystone'];
-      c.show(ids);
-      ids.forEach((id, i) => c.move(id, HOLD_IN + i * 0.45, 1.5, { from: [0, 0, 30], via: [0, 0, 6] }));
-      hide(c, ids, HOLD_IN + 6.4);
-    },
-  },
+  ...TEST_CHAPTERS,
   {
     id: 'power-base', title: 'Power base', view: 'base',
     text: 'Push an M5 nut up the hex hole under each corner of the base, then a printed foot: its peg holds the nut at the top of the hole. Stick a 20 mm silicone pad under each foot.',

@@ -58,7 +58,7 @@ test('the bundle carries its own meshes and makes no network requests', () => {
 test('visible copy stays on the assembly task', () => {
   const visible = [
     ...CHAPTERS.flatMap((c) => [c.title, c.text]),
-    ...SOYRACK_CHAPTERS.flatMap((c) => [c.title, c.text]),
+    ...SOYRACK_CHAPTERS.flatMap((c) => [c.title, c.text, ...(c.tags || []).map((t) => t.text)]),
     soyrackSheetHTML().replace(/<[^>]+>/g, ' '),
     ...[...html.matchAll(/(?:aria-label|title)="([^"]+)"/g)].map((m) => m[1]),
     html.replace(/<[^>]+>/g, ' '),

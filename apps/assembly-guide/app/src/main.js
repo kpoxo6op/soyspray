@@ -8,6 +8,7 @@ import { decodeMeshes } from './meshes.js';
 import { Player } from './player.js';
 import { createUI } from './ui.js';
 import { createKitUI } from './kit-ui.js';
+import { createTags } from './tags.js';
 import { Viewer } from './scene.js';
 import { buildSoyrackTimeline, SoyrackStage, soyrackSheetHTML, FLOOR_Z as SOYRACK_FLOOR_Z } from './soyrack/index.js';
 
@@ -51,6 +52,7 @@ try {
 const ui = createUI({ root, player, timeline, viewer, reducedMotion, onUserActivity: () => schedule() });
 
 const kitUI=createKitUI({root,player,timeline,viewer,...(SOYRACK?{cards:[],sheet:soyrackSheetHTML}:{})});
+const tags = createTags({ root, before: hud, player, timeline, viewer });
 
 // Keep the 3D content centred in the area above the caption and transport bar.
 const caption = document.getElementById('caption');
@@ -76,6 +78,7 @@ function frame(now) {
   const cameraMoving = viewer.update(dt);
   if (viewer.dirty) viewer.render();
   kitUI.update();
+  tags.update();
   if (player.playing || cameraMoving || viewer.tween) {
     raf = requestAnimationFrame(frame);
   } else {

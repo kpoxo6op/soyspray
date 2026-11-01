@@ -1,7 +1,10 @@
 // Procedural v3 equipment: the slimline board, keystone inserts, cord ties and the Zigbee dongle
 // standing in its mast. Local frame as in devices.js: x right, y rear, z up.
 
-import { BoxGeometry, CylinderGeometry, ExtrudeGeometry, Group, Matrix4, Mesh, MeshStandardMaterial, Path, Shape, Vector3 } from 'three';
+import {
+  BoxGeometry, CatmullRomCurve3, CylinderGeometry, ExtrudeGeometry, Group, LatheGeometry, Matrix4, Mesh, MeshStandardMaterial, Path,
+  Shape, TubeGeometry, Vector2, Vector3,
+} from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 function kit() {
@@ -30,7 +33,16 @@ function kit() {
     parent.add(m);
     return m;
   };
-  return { object, materials, paint, block, rod };
+  // Solid of revolution about local z from an (r, z) outline traced upwards.
+  const turned = (outline, material, parent = object) => {
+    const m = new Mesh(new LatheGeometry(outline.map(([r, z]) => new Vector2(r, z)), 28), material);
+    m.rotation.x = Math.PI / 2; // lathe axis (y) -> z
+    m.castShadow = true;
+    m.receiveShadow = true;
+    parent.add(m);
+    return m;
+  };
+  return { object, materials, paint, block, rod, turned };
 }
 
 /** White four-outlet board lying on its side: outlets on the -y face, earth slots towards +x. */
@@ -112,5 +124,55 @@ export function buildTie(tie) {
   strap.quaternion.setFromRotationMatrix(new Matrix4().makeBasis(spread, across, along));
   strap.position.set(...tie.centre);
   k.object.add(strap);
+  return { object: k.object, materials: k.materials };
+}
+
+// ---------------------------------------------------------------- test-print hardware
+
+/** Brass M4 threaded insert, 6.3 mm across and 8.1 mm long, knurled: origin at its top face, body below. */
+export function buildInsert() {
+  const k = kit();
+  const brass = k.paint(0xd0a54c, 1, 0.3);
+  const [R, r, bore] = [3.15, 2.8, 1.7];
+  // bottom of the bore, out and up the knurled bands, in across the top and back down the bore
+  k.turned([[bore, -8.1], [2.7, -8.1], [R, -6.9], [R, -5.7], [r, -5.4], [r, -4.7], [R, -4.4], [R, -2.9], [r, -2.6], [r, -1.9],
+    [R, -1.6], [R, -0.3], [R - 0.3, 0], [bore, 0], [bore, -8.1]], brass);
+  return { object: k.object, materials: k.materials };
+}
+
+/** Pen soldering iron standing on its tip: origin at the tip, handle up along +z, cord off the end. */
+export function buildIron() {
+  const k = kit();
+  const tip = k.paint(0x8d9298, 1, 0.36);
+  const steel = k.paint(0xc3c7cc, 1, 0.26);
+  const grip = k.paint(0x22282f, 0.04, 0.62);
+  const band = k.paint(0x2f7fd0, 0.08, 0.4);
+  k.turned([[0, 0], [0.5, 0.4], [1.5, 9], [2.1, 11], [0, 11]], tip);
+  k.turned([[0, 10.8], [2.6, 10.8], [2.6, 40], [4.4, 41], [4.4, 46], [0, 46]], steel);
+  k.turned([[0, 46], [5.4, 46], [6.6, 56], [6.6, 112], [5.6, 122], [4.4, 122], [3.4, 140], [2.6, 152], [0, 152]], grip);
+  k.turned([[0, 64], [6.75, 64], [6.75, 70], [0, 70]], band);
+  const cord = new CatmullRomCurve3([[0, 0, 150], [0, 0, 172], [10, 0, 196], [36, 0, 214], [70, 0, 222]].map((p) => new Vector3(...p)));
+  const m = new Mesh(new TubeGeometry(cord, 24, 2.3, 8, false), grip);
+  m.castShadow = true;
+  k.object.add(m);
+  return { object: k.object, materials: k.materials };
+}
+
+/**
+ * RJ45 keystone coupler, a socket at each end: local y runs along it, the front end (+y) goes
+ * through the panel first. The stop collar's front face is the origin plane (y = 0); the clip on
+ * top springs up just beyond a 2.4 mm plate.
+ */
+export function buildCoupler() {
+  const k = kit();
+  const white = k.paint(0xefeee9, 0, 0.42);
+  const dark = k.paint(0x101113, 0, 0.6);
+  k.block([14.5, 30, 16], [0, 0, 0], white, 1);
+  k.block([16.6, 1.6, 18.4], [0, -0.8, 0], white, 0.6);
+  k.block([8, 4.4, 1.4], [0, 4.7, 8.3], white, 0.4);
+  for (const s of [-1, 1]) {
+    k.block([11.6, 1, 7.4], [0, s * 15.05, -1.6], dark);
+    k.block([6, 1, 2.6], [0, s * 15.05, 3.1], dark);
+  }
   return { object: k.object, materials: k.materials };
 }

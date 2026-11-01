@@ -403,7 +403,7 @@ export function buildTimeline(data, chapterDefs = CHAPTERS, devices = [...DEVICE
     const c = new Chapter(nodes, t, chapters.length);
     def.script(c);
     const end = Math.round((c.end + HOLD_OUT)*1e9)/1e9;
-    chapters.push({ index: chapters.length, id: def.id, title: def.title, text: def.text, start: t, end, wire: def.wire, view: def.view });
+    chapters.push({ index: chapters.length, id: def.id, title: def.title, text: def.text, start: t, end, wire: def.wire, view: def.view, tags: def.tags || [] });
     t = end;
   }
 

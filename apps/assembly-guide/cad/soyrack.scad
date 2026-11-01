@@ -389,8 +389,9 @@ module keystone_panel() {
 
 // ------------------------------------------------------------------ small parts
 
-// Foot pad: its hex peg pushes the M5 nut up the corner hole and holds it there; stick a 20 mm
-// silicone pad underneath. The right-hand feet are the same part turned half a turn.
+// Foot pad: its hex peg pushes the M5 nut up the corner hole and holds it there. The underside is
+// flat, so a 20 mm silicone pad (2 mm thick) sticks anywhere on it. The right-hand feet are the
+// same part turned half a turn.
 module foot(at = rods()[0]) translate([at[0], at[1], BASE_Z[0]]) rotate(at[0] > CX ? 180 : 0) {
   difference() {
     union() {
@@ -398,7 +399,6 @@ module foot(at = rods()[0]) translate([at[0], at[1], BASE_Z[0]]) rotate(at[0] > 
       rotate(30) cylinder(d = (NUT_AF - 0.15) / cos(30), h = NUT_Z - BASE_Z[0], $fn = 6);
     }
     translate([0, 0, -5]) cylinder(d = 6.2, h = NUT_Z - BASE_Z[0] + 6);
-    translate([2, 0, -4 - E]) cylinder(d = 18.5, h = 1);
   }
 }
 
