@@ -9,10 +9,10 @@ export const BOARD_LINK = 'https://www.legrand.co.nz/en/catalog/products/hpm-gen
 export const CHECKED = '2026-10-29';
 
 export const TEST_PRINTS = [
-  { part: 'coupon_post', name: 'Post end', detail: 'Two M4 inserts and the rod bore; push it into the deck corner.' },
-  { part: 'coupon_corner', name: 'Deck corner', detail: 'Post pocket and rod hole. The post end should press in by hand, without rocking.' },
-  { part: 'coupon_nut', name: 'Nut corner', detail: 'An M5 nut should slide up the hex hole without turning and stop flat at its top.' },
-  { part: 'coupon_keystone', name: 'Keystone strip', detail: '2.4 mm and 2.0 mm plates. Keep the panel thickness whose coupler clicks in firmly.' },
+  { part: 'coupon_post', name: 'Post end', detail: 'Press M4 inserts into holes 1 and 2 with the soldering iron; once cool, an M4 × 12 screw should thread in and hold.' },
+  { part: 'coupon_corner', name: 'Deck corner', detail: 'The post end should press into its pocket by hand and not rock; an M5 rod should slide down through both.' },
+  { part: 'coupon_nut', name: 'Nut corner', detail: 'Turned over, an M5 nut should drop down the hex hole and sit flat, and not turn when an M5 screw goes in.' },
+  { part: 'coupon_keystone', name: 'Keystone strip', detail: 'Push a keystone coupler into each window. Keep the plate, 2.4 or 2.0 mm, where it clicks in and holds firm.' },
 ];
 
 export const PRINTED = [
@@ -38,7 +38,7 @@ export const BUY = [
   { key: 'nut', quantity: 4, name: 'M5 hex nut and M5 washer', detail: 'DIN 934 nut (8 mm across flats), DIN 125 washer.', url: ali('m5-hex-nut-washer-set') },
   { key: 'insert', quantity: 50, name: 'M4 threaded inserts', detail: '8.1 mm long, 6.3 mm outside. 24 used; pressed in with a soldering iron.', url: ali('m4-threaded-insert-8.1mm-6.3mm') },
   { key: 'm4', quantity: 20, name: 'M4 × 12 countersunk socket screws', detail: 'DIN 7991. 12 new; the node trays keep their own 12.', url: ali('m4-x-12-countersunk-socket-screw') },
-  { key: 'pad', quantity: 4, name: '20 mm silicone pads', detail: 'Round, self-adhesive, about 3 mm thick.', url: ali('20mm-silicone-feet-self-adhesive') },
+  { key: 'pad', quantity: 4, name: '20 mm silicone pads', detail: 'Round, self-adhesive, 2 mm thick; one under each foot.', url: ali('20mm-silicone-feet-self-adhesive') },
   { key: 'keystone', quantity: 2, name: 'Cat6 RJ45 keystone couplers', detail: 'UTP, straight through, plus 2 keystone blanks.', url: ali('cat6-rj45-keystone-coupler') },
   { key: 'extension', quantity: 1, length: 1500, name: 'USB 2.0 extension, 1.5 m', detail: 'A male to A female, for the Zigbee mast.', url: ali('usb-2.0-extension-cable-1.5m') },
   { key: 'ballast', quantity: 18, name: 'M10 washers', detail: '20 mm outside, 2 mm thick: ballast for the Zigbee mast. Any hardware store.', url: ali('m10-flat-washer-din125') },
@@ -72,7 +72,7 @@ export function soyrackSheetHTML() {
   return `<header><div><span class="sheet-eyebrow">ASSEMBLY KIT · v3 · Soyrack</span><h2 id="partsTitle">Parts and where to buy</h2></div><button id="closeParts" type="button" aria-label="Close parts sheet">×</button></header>
     <div class="sheet-body"><p class="sheet-intro">A new printed rack around your three node trays: a power base that holds the bricks, the board and every cord at full length, four steel tie rods through the posts, a drive tray, a switch shelf, a keystone panel and a Zigbee mast. Every part fits a 256 mm bed. About ${kg(RACK_GRAMS)} kg of PETG for the rack.</p>
     <h3>Print first</h3><ul class="parts-list">${TEST_PRINTS.map((p) => printed(p, 1)).join('')}</ul>
-    <p class="sheet-note">About ${TEST_GRAMS} g in all. If a fit is loose or tight, say which one before the big prints.</p>
+    <p class="sheet-note">About ${TEST_GRAMS} g in all. The first six chapters show each check. If a fit is loose or tight, say which one before the big prints.</p>
     <h3>Print</h3><ul class="parts-list">${PRINTED.map((p) => printed(p)).join('')}</ul>
     <p class="sheet-note">PETG, 0.4 mm nozzle, 0.2 mm layers, 4 walls, 5 top and bottom layers, 15 % gyroid, no supports. The files are already turned for the bed. Source files and render script: ${link(CAD_FOLDER, 'source folder')}.</p>
     <h3>Buy</h3><ul class="parts-list">${BUY.map(bought).join('')}</ul>

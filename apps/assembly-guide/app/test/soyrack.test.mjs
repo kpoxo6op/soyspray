@@ -13,6 +13,7 @@ import { VIEWS } from '../src/soyrack/stage.js';
 import { CABLES, CABLE_BY_ID, MAST_RUN, TIES } from '../src/soyrack/cables.js';
 import { DEVICES, DEVICE_BY_ID, FLOOR_Z } from '../src/soyrack/rack.js';
 import { BUY, PRINTED, TEST_PRINTS } from '../src/soyrack/sheet.js';
+import { PIECES, HOLES, HEX_TOP, ROD, WINDOWS, onPiece } from '../src/soyrack/testprints.js';
 
 const v3Meshes = decodeMeshes(new Uint8Array(readFileSync(resolve(SOURCE, 'data/v3/meshes.bin'))));
 const meshes = { ...decodeMeshes(meshBytes), ...v3Meshes };
@@ -58,6 +59,57 @@ test('v3 opens with the test prints alone and ends with everything else in place
     assert.ok(s.alpha > 0.999, `${n.id} shown at the end`);
     assert.ok(s.glow < 1e-6, `${n.id} settled at the end`);
     for (let k = 0; k < 3; k++) assert.ok(Math.abs(s.p[k] - n.final.p[k]) < 1e-6, `${n.id} in place`);
+  }
+});
+
+// Contract: the checks are drawn on the printed test pieces, and each ends with its hardware
+// where the fit is tested: the post end in the corner pocket with a rod down its bore to the
+// table, inserts flush in holes 1 and 2, the nut at the top of the hex hole with a screw through
+// it, and a coupler in each window of the strip.
+const near = (a, b, what) => a.forEach((v, k) => assert.ok(Math.abs(v - b[k]) < 1e-6, `${what}: ${a} vs ${b}`));
+const poseAt = (id, chapter) => evaluate(tl, tl.chapters.find((c) => c.id === chapter).end - 0.01).get(id);
+const along = (s, d) => s.p.map((v, k) => v + d * [0, 0, -1][k]); // test fasteners point down
+
+test('each test-print check ends with its hardware where the fit is tested', () => {
+  for (const { part, centre, size } of Object.values(PIECES)) {
+    near(v3Meshes[part].centre, centre, `${part} centre`);
+    near(v3Meshes[part].size, size, `${part} size`);
+  }
+  const pose = (piece, chapter) => poseAt(PIECES[piece].id, chapter);
+
+  const post = pose('post', 'test-corner');
+  const corner = pose('corner', 'test-corner');
+  near(post.p, corner.p.map((v, k) => v + PIECES.post.centre[k] - PIECES.corner.centre[k]), 'post end in the pocket');
+  const rod = poseAt('coupon.rod', 'test-corner');
+  near(rod.p.slice(0, 2), onPiece('post', post, [...ROD, 0]).slice(0, 2), 'rod on the bore axis');
+  assert.ok(Math.abs(along(rod, 300)[2] - FLOOR_Z) < 1e-6, 'rod down to the table');
+
+  const lying = pose('post', 'test-inserts');
+  HOLES.forEach((h, i) => near(poseAt(`coupon.insert${i + 1}`, 'test-inserts').p, onPiece('post', lying, h), `insert ${i + 1} flush`));
+  near(along(poseAt('coupon.m4', 'test-inserts'), 2), onPiece('post', lying, HOLES[0]), 'screw on insert 1');
+
+  const nut = pose('nut', 'test-nut');
+  near(along(poseAt('coupon.nut5', 'test-nut'), 4), onPiece('nut', nut, [...ROD, HEX_TOP]), 'nut at the top of the hex');
+  const bolt = poseAt('coupon.bolt', 'test-nut');
+  near(bolt.p.slice(0, 2), onPiece('nut', nut, [...ROD, HEX_TOP]).slice(0, 2), 'screw on the nut axis');
+  assert.ok(along(bolt, 55)[2] < onPiece('nut', nut, [...ROD, HEX_TOP])[2], 'screw through the nut');
+
+  const strip = pose('keystone', 'test-keystone');
+  WINDOWS.forEach((w, i) => near(poseAt(['coupon.key24', 'coupon.key20'][i], 'test-keystone').p, onPiece('keystone', strip, w), `coupler ${i + 1} seated`));
+});
+
+// Contract: a tag names something that is on screen while the tag shows, inside its chapter.
+test('tags point at parts that are on screen while they show', () => {
+  const tagged = tl.chapters.filter((c) => c.tags.length);
+  assert.ok(tagged.length >= 6, 'the test-print chapters name their pieces and hardware');
+  for (const c of tagged) {
+    for (const tag of c.tags) {
+      const from = c.start + (tag.from ?? 0.4);
+      const until = tag.until == null ? c.end : c.start + tag.until;
+      assert.ok(from < until && until <= c.end + 1e-9, `${tag.text} shows within ${c.id}`);
+      assert.ok(tl.nodes.has(tag.node), `${tag.text} names ${tag.node}`);
+      assert.ok(evaluate(tl, (from + until) / 2).get(tag.node).alpha > 0.5, `${tag.node} on screen for ${tag.text}`);
+    }
   }
 });
 
@@ -141,15 +193,17 @@ test('every power inlet, drive and node network port takes exactly one lead', ()
 });
 
 // Contract: the buy list covers every fastener the scene installs. The node trays carry over
-// with their own screws, so only the new M4 screws are bought.
+// with their own screws, so only the new M4 screws are bought. The test checks reuse the rack's
+// rod, nut and screws but keep the inserts they press.
 test('the buy list covers every fastener and lead the rack installs', () => {
-  const count = (mesh, keep = () => true) => shown.filter((n) => n.mesh === mesh && keep(n)).length;
+  const count = (mesh, keep = () => true) => shown.filter((n) => n.mesh === mesh && !TEST_PIECE.test(n.id) && keep(n)).length;
+  const testInserts = shown.filter((n) => n.device?.model === 'insert').length;
   const bought = (key) => BUY.find((b) => b.key === key).quantity;
   assert.ok(bought('rod') >= count('m5rod') && count('m5rod') === 4);
   assert.ok(bought('coupler') >= count('m5coupler'));
   assert.ok(bought('capscrew') >= count('m5x50') && count('m5x50') === 4);
   assert.ok(bought('nut') >= Math.max(count('m5nut'), count('m5washer')));
-  assert.ok(bought('insert') >= count('m4x12'), 'one insert per M4 hole');
+  assert.ok(testInserts === 2 && bought('insert') >= count('m4x12') + testInserts, 'one insert per M4 hole, two for the test');
   assert.ok(bought('m4') >= count('m4x12', (n) => !n.id.startsWith('tray.')));
   assert.ok(bought('pad') >= count('foot'));
   assert.ok(bought('keystone') >= DEVICES.filter((d) => d.model === 'keystone').length);

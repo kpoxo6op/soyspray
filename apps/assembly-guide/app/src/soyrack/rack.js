@@ -85,12 +85,6 @@ export function soyrackPlacements(meshes, v2) {
   const instances = [];
   const put = (id, part, p, q = ID_Q) => instances.push({ id, group: 'world', part, p, q });
 
-  // Test pieces stand in a row where the base will go.
-  put('coupon.post', 'coupon_post', onFloor('coupon_post', 30, 80));
-  put('coupon.corner', 'coupon_corner', onFloor('coupon_corner', 85, 80));
-  put('coupon.nut', 'coupon_nut', onFloor('coupon_nut', 140, 80));
-  put('coupon.keystone', 'coupon_keystone', onFloor('coupon_keystone', 205, 80));
-
   for (const name of ['base_tub', 'base_deck', 'mid_deck', 'top_cap', 'drive_tray', 'switch_shelf', 'keystone_panel']) {
     put(name, name, centre(name));
   }

@@ -13,7 +13,12 @@ const box = ([min, max]) => new Box3(new Vector3(...min), new Vector3(...max));
 
 // Rack-millimetre boxes to frame, and the orbit direction (radians) for each chapter view.
 export const VIEWS = {
-  prints: { box: [[0, 40, -112], [250, 120, -45]], view: { azimuth: 0.45, elevation: 0.62 } },
+  prints: { box: [[5, 34, -112], [246, 112, -40]], view: { azimuth: 0.45, elevation: 0.62 } },
+  'test-corner': { box: [[10, 62, -112], [102, 112, -26]], view: { azimuth: 0.5, elevation: 0.36 } },
+  'test-inserts': { box: [[26, 30, -112], [110, 62, -58]], view: { azimuth: 0.32, elevation: 0.72 } },
+  'test-nut': { box: [[118, 66, -112], [158, 110, -68]], view: { azimuth: 0.55, elevation: 0.62 } },
+  'test-keystone': { box: [[168, 52, -112], [244, 100, -74]], view: { azimuth: 0.62, elevation: 0.3 } },
+  'test-report': { box: [[24, 34, -112], [246, 112, -52]], view: { azimuth: 0.45, elevation: 0.62 } },
   base: { box: [[-5, -5, -115], [258, 245, 10]], view: { azimuth: 0.55, elevation: 0.5 } },
   'base-rear': { box: [[-5, -5, -115], [262, 262, 10]], view: { azimuth: 2.55, elevation: 0.66 } },
   cords: { box: [[-5, -5, -112], [262, 262, 12]], view: { azimuth: 0.5, elevation: 1.02 } },

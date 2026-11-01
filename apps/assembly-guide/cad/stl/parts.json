@@ -70,13 +70,13 @@
     "grams": 87
   },
   "foot": {
-    "triangles": 616,
+    "triangles": 424,
     "size": [
       20,
       22,
       26.6
     ],
-    "volumeCm3": 1.98,
+    "volumeCm3": 2.21,
     "grams": 3
   },
   "keystone_panel": {

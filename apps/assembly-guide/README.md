@@ -30,13 +30,15 @@ the bricks, a slim four-outlet board and the switch adapter, M5 tie rods from
 the feet to the top cap, a drive tray, a switch shelf, a four-slot keystone
 panel (slot 1 goes out to the router on the wall) and a Zigbee mast 1 m from the
 USB 3 ports. Every stock cord is drawn at its real length, its spare wound into
-strapped loops (`app/src/soyrack/cables.js`). Its Parts sheet links the STLs in
-`cad/stl/`, four small test prints first. `cad/soyrack.scad` is the source;
+strapped loops (`app/src/soyrack/cables.js`). It opens with the four small test
+prints and how to check each fit, with tags in the 3D view naming every piece,
+fastener and tool (`app/src/soyrack/testprints.js`, `app/src/tags.js`). Its
+Parts sheet links the STLs in `cad/stl/`. `cad/soyrack.scad` is the source;
 `cd cad && npm ci && node render.mjs` renders the print STLs (lying on the bed
 origin), the v3 browser meshes and the print list in `app/data/v3/`. `cad/`
-stays out of the image. Tests check the v3 chapters, cord lengths and overlaps,
-buy list, Zigbee spacing, the 260 × 240 × 450 mm envelope and that every STL
-fits a 256 mm bed.
+stays out of the image. Tests check the v3 chapters, where each test check
+leaves its hardware, the tags, cord lengths and overlaps, buy list, Zigbee
+spacing, the 260 × 240 × 450 mm envelope and that every STL fits a 256 mm bed.
 
 The older Nood three-door steel locker has right-hinged doors, left D-pulls and
 two five-slot louvre banks per door. Both variants use loose grip-mat pads,
