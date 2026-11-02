@@ -37,6 +37,7 @@ def layers(path):
     points = []
     paths = []
     n = 0
+    after_start = False  # past MACHINE_START_GCODE_END: any deposition now is the model's
 
     def flush():
         nonlocal points
@@ -47,6 +48,8 @@ def layers(path):
     for lineno, raw in enumerate(Path(path).read_text().splitlines(), 1):
         if raw == "; MACHINE_END_GCODE_START":
             break
+        if raw.startswith("; MACHINE_START_GCODE_END"):
+            after_start = True
         if raw.startswith("; CHANGE_LAYER"):
             flush()
             if layer is not None:
@@ -89,6 +92,9 @@ def layers(path):
             moving = math.hypot(nx - x, ny - y) > 1e-7 or (
                 cmd in ("G2", "G3") and ("I" in args or "J" in args)
             )
+            if de > 1e-7 and moving and (layer is None and (n or after_start)):
+                # Model deposition must be attributable to a layer; never skip it unchecked.
+                raise ValueError(f"deposition outside a known layer at line {lineno}")
             if n and layer is not None and de > 1e-7 and moving:
                 if not absolute_xyz or abs(nz - layer) > TOL or abs(z - layer) > TOL:
                     raise ValueError(f"nonplanar/relative deposition at line {lineno}")
@@ -173,6 +179,11 @@ def sectioner(stl, bbox, tool_offset):
         area = build_area(MultiLineString(segments.tolist())) if len(segments) else Polygon()
         if area.is_empty or not area.is_valid:
             raise ValueError(f"cannot reconstruct solid section at z={z}")
+        # Every cut segment must end up on the section boundary. Linework that did not close
+        # is dropped by build_area, which could turn a hole into material under a bridge.
+        linework = float(np.hypot(*(segments[:, 1] - segments[:, 0]).T).sum())
+        if abs(area.boundary.length - linework) > max(1e-3, 1e-6 * linework):
+            raise ValueError(f"section linework does not close into a solid at z={z}")
         return area
 
     return section
