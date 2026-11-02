@@ -55,6 +55,10 @@ solid floor under their device rims, so a vent slot never cuts the root of a rim
 The [print review](cad/print/REVIEW-2026-11-02.md) records the remaining blocked
 parts and physical checks. The general printer upload API does not enforce this
 report: the operator must verify a passing report and the job hash before upload.
+`python3 check-preflight.py <new-check-dir>` from `cad/` runs the real renderer
+and slicer against the historical failed shelves, current shelves, stale inputs,
+and failed tool launches. It also checks job hashes and refusal to overwrite a
+previous run. It sends nothing to the printer; no mocked slicer is used.
 
 Tests check the chapters, where each test check leaves its hardware, the tags,
 that every screw meets its own nut, cord lengths and overlaps, the buy list,
