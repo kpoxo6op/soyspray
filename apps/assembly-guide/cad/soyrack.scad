@@ -383,7 +383,14 @@ module shelf(holes, depth, wall_h, window) {
     w3 = (window[0] - 18) / 3;
     for (i = [0 : 2]) translate([CX - window[0] / 2 + i * (w3 + 9), -1, zb + 6]) rotate([-90, 0, 0])
       translate([0, -window[1], 0]) linear_extrude(5) rrect([w3, window[1]], 4);
-    if (!web) for (x = [38 : 11 : 208]) translate([x, 16, zb - 1]) linear_extrude(5) rrect([6, depth - 32], 3);
+    // Keep a floor rib under each device rim. Cutting uninterrupted vent slots
+    // through the children removes their roots and leaves long walls in mid-air.
+    if (!web) difference() {
+      for (x = [38 : 11 : 208]) translate([x, 16, zb - 1])
+        linear_extrude(SHELF_T + 2) rrect([6, depth - 32], 3);
+      translate([0, 0, zb - 2]) linear_extrude(SHELF_T + 4)
+        offset(r = 0.8) projection(cut = false) children();
+    }
   }
 }
 

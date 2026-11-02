@@ -40,6 +40,15 @@ origin), the browser meshes and the print list in `app/data/v3/`. The node tray
 mesh is `app/data/trays.bin`, which `app/tools/regenerate-data.sh` repacks from a
 RackStack checkout. `cad/` and `app/tools/` stay out of the image.
 
+The drive tray and switch shelf keep solid floor ribs under their device rims.
+Their ventilation cutters must not remove the rim roots: the previous geometry
+left long rim sections starting in mid-air at 4 mm, which failed in PETG.
+After changing a shelf, render its print STL and slice it in its supplied bed
+orientation with the actual printer and filament profiles. Resolve every
+floating-cantilever warning before dispatch; a watertight mesh and a sound first
+layer do not establish that later layers have support. Check the rim layers on
+the physical print before printing the next shelf.
+
 Tests check the chapters, where each test check leaves its hardware, the tags,
 that every screw meets its own nut, cord lengths and overlaps, the buy list,
 Zigbee spacing, the 260 × 240 × 450 mm envelope, that every STL fits a 256 mm
