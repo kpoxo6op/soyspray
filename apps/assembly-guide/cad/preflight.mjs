@@ -77,12 +77,10 @@ function watch(gcode) {
     .map((L) => ({ ...L, mm: Math.round(L.mm), longestMm: Math.round(L.longestMm * 10) / 10 }));
 }
 
-function check(part, uncommitted) {
-  const stl = resolve(here, 'stl', `${part}.stl`);
+function check(part) {
+  const stl = resolve(out, 'stl', `${part}.stl`);
   const dir = resolve(out, part);
   const res = { stl: sha256(stl), triangles: readFileSync(stl).readUInt32LE(80), problems: [] };
-  for (const f of uncommitted) if (f.endsWith('cad/soyrack.scad') || f.endsWith(`stl/${part}.stl`) || f.endsWith('stl/parts.json'))
-    res.problems.push(`${f} differs from the commit: a fresh render changed it or it is uncommitted`);
   slice(part, stl, dir);
   const resultFile = resolve(dir, 'result.json');
   if (!existsSync(resultFile)) return { ...res, problems: [...res.problems, `no slicer result in ${dir} (it must be under $HOME)`] };
@@ -98,7 +96,25 @@ function check(part, uncommitted) {
   const job = resolve(dir, `${part}.gcode.3mf`);
   const gcode = resolve(dir, 'plate_1.gcode');
   if (!existsSync(job) || !existsSync(gcode)) return { ...res, problems: [...res.problems, 'the slicer wrote no job'] };
+  const geometryFile = resolve(dir, 'geometry.json');
+  const geometryRun = run(process.env.UV || 'uv', ['run', '--locked', '--script', resolve(here, 'check-support.py'),
+    gcode, stl, resultFile, geometryFile]);
+  if (!existsSync(geometryFile)) {
+    res.problems.push(`support checker failed: ${geometryRun.error?.message ?? geometryRun.stderr}`);
+  } else {
+    const geometry = JSON.parse(readFileSync(geometryFile, 'utf8'));
+    res.geometry = { ...geometry, failures: (geometry.failures ?? []).slice(0, 20),
+      bridges: (geometry.bridges ?? []).slice(0, 20), failures_count: geometry.failures?.length ?? 0,
+      bridges_count: geometry.bridges?.length ?? 0, evidence_sha256: sha256(geometryFile) };
+    if (geometryRun.status !== 0 || geometry.pass !== true || geometry.policy_version !== 1)
+      res.problems.push(`layer support check failed: ${geometry.error ?? `${geometry.failures.length} unsupported paths; see geometry.json`}`);
+  }
+  const machine = JSON.parse(readFileSync(resolve(PROFILES, 'machine.json'), 'utf8'));
+  const processProfile = JSON.parse(readFileSync(resolve(PROFILES, 'process.json'), 'utf8'));
+  res.target = { printer_model: machine.printer_model, nozzle_diameter: machine.nozzle_diameter,
+    plate_type: processProfile.curr_bed_type };
   res.slicer = readFileSync(gcode, 'utf8').slice(0, 200).match(/; (BambuStudio [\d.]+)/)?.[1];
+  if (res.slicer !== 'BambuStudio 02.08.02.61') res.problems.push(`unqualified slicer version: ${res.slicer}`);
   return { ...res, job: sha256(job), minutes: Math.round(plate.total_predication / 60),
     grams: Math.round(plate.filaments[0].total_used_g), watch: watch(gcode) };
 }
@@ -116,7 +132,8 @@ try {
   console.error(`Use a NEW job directory; existing jobs are never overwritten: ${error.message}`);
   process.exit(2);
 }
-const report = { pass: false, state: 'running', checkedAt: new Date().toISOString(), profiles: {}, parts: {} };
+const report = { schema_version: 2, geometry_policy_version: 1,
+  pass: false, state: 'running', checkedAt: new Date().toISOString(), profiles: {}, parts: {} };
 function saveReport() {
   const tmp = resolve(out, 'preflight.json.tmp');
   writeFileSync(tmp, JSON.stringify(report, null, 2) + '\n');
@@ -124,19 +141,25 @@ function saveReport() {
 }
 saveReport();   // interruption or a renderer crash cannot leave a successful result
 try {
-  const rendered = run(process.execPath, ['render.mjs', ...parts]);
-  if (rendered.error || rendered.status !== 0) throw new Error(`render failed: ${rendered.error?.message ?? rendered.stderr}`);
-  const status = git('status', '--porcelain', '--', 'soyrack.scad', 'stl/parts.json', ...parts.map((p) => `stl/${p}.stl`));
-  const uncommitted = status ? status.split('\n').map((l) => l.slice(3)) : [];
+  const inputs = ['soyrack.scad', 'render.mjs', 'preflight.mjs',
+    'check-support.py', 'check-support.py.lock', 'package.json', 'package-lock.json',
+    'print/machine.json', 'print/process.json', 'print/filament.json'];
+  const status = git('status', '--porcelain', '--', ...inputs);
+  if (status) throw new Error(`uncommitted manufacturing inputs: ${status}`);
+  const inputHashes = Object.fromEntries(inputs.map((f) => [f, sha256(resolve(here, f))]));
   report.commit = git('rev-parse', 'HEAD');
+  const rendered = run(process.execPath, ['render.mjs', '--output-dir', out, ...parts]);
+  if (rendered.error || rendered.status !== 0) throw new Error(`render failed: ${rendered.error?.message ?? rendered.stderr}`);
   report.source = sha256(resolve(here, 'soyrack.scad'));
   report.preflight = sha256(fileURLToPath(import.meta.url));
   report.renderer = sha256(resolve(here, 'render.mjs'));
   report.dependencies = sha256(resolve(here, 'package-lock.json'));
+  report.support_checker = sha256(resolve(here, 'check-support.py'));
+  report.support_dependencies = sha256(resolve(here, 'check-support.py.lock'));
   for (const f of ['machine', 'process', 'filament']) report.profiles[`${f}.json`] = sha256(resolve(PROFILES, `${f}.json`));
   for (const part of parts) {
     let r;
-    try { r = check(part, uncommitted); }
+    try { r = check(part); }
     catch (error) { r = { problems: [error.message] }; }
     if (r.problems.length) {
       rmSync(resolve(out, part, `${part}.gcode.3mf`), { force: true });
@@ -147,12 +170,23 @@ try {
       ...(r.watch ?? []).map((w) => `layer ${w.layer} (z ${w.z}, ${w.percent} %): ${w.mm} mm of wall over air, longest ${w.longestMm} mm`)];
     console.log(`${r.problems.length ? 'FAIL' : 'pass'}  ${part}: ${notes.join('; ')}`);
   }
+  if (git('rev-parse', 'HEAD') !== report.commit || git('status', '--porcelain', '--', ...inputs)
+    || inputs.some((f) => sha256(resolve(here, f)) !== inputHashes[f]))
+    throw new Error('manufacturing inputs changed during preparation; no job admitted');
   report.pass = Object.values(report.parts).every((r) => !r.problems.length);
 } catch (error) {
   report.error = error.message;
   console.error(error.message);
 }
 report.state = 'complete';
+if (!report.pass) {
+  // Even an unrelated part failure or a late input change invalidates the whole run.
+  for (const part of parts) {
+    if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(part)) continue;
+    rmSync(resolve(out, part, `${part}.gcode.3mf`), { force: true });
+    if (report.parts[part]) delete report.parts[part].job;
+  }
+}
 saveReport();
 console.log(`${report.pass ? 'PASS' : 'FAIL'}: ${resolve(out, 'preflight.json')}`);
 process.exit(report.pass ? 0 : 1);

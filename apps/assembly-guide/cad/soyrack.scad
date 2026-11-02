@@ -379,10 +379,13 @@ module shelf(holes, depth, wall_h, window) {
       children();
     }
     for (x = [HOLE_X, REF_W - HOLE_X], z = holes) translate([x, 0, z]) csk_y(3);
-    // three finger windows, so no bridge in the front plate is longer than about 45 mm
-    w3 = (window[0] - 18) / 3;
-    for (i = [0 : 2]) translate([CX - window[0] / 2 + i * (w3 + 9), -1, zb + 6]) rotate([-90, 0, 0])
-      translate([0, -window[1], 0]) linear_extrude(5) rrect([w3, window[1]], 4);
+    // Six openings with 45-degree roofs. Each new wall layer rests on the one
+    // below; the old rounded windows ended in unqualified 37 mm bridges.
+    opening_w = (window[0] - 5 * 9) / 6;
+    shoulder_h = window[1] - opening_w / 2;
+    for (i = [0 : 5]) translate([CX - window[0] / 2 + i * (opening_w + 9), -1, zb + 6]) rotate([-90, 0, 0])
+      linear_extrude(5) polygon([[0, 0], [opening_w, 0], [opening_w, -shoulder_h],
+        [opening_w / 2, -window[1]], [0, -shoulder_h]]);
     // Keep a floor rib under each device rim. Cutting uninterrupted vent slots
     // through the children removes their roots and leaves long walls in mid-air.
     if (!web) difference() {

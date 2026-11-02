@@ -114,9 +114,20 @@ try:
         stdout=subprocess.DEVNULL,
     )
     oldcad = before / "apps/assembly-guide/cad"
-    shutil.copy2(cad / "preflight.mjs", oldcad / "preflight.mjs")
+    for filename in ("preflight.mjs", "render.mjs", "check-support.py", "check-support.py.lock"):
+        shutil.copy2(cad / filename, oldcad / filename)
     shutil.copytree(cad / "print", oldcad / "print")
     (oldcad / "node_modules").symlink_to(cad / "node_modules", target_is_directory=True)
+    subprocess.run(
+        ["git", "add", "preflight.mjs", "check-support.py", "check-support.py.lock", "print"],
+        cwd=oldcad,
+        check=True,
+    )
+    subprocess.run(
+        ["git", "commit", "-qm", "E2E: apply current admission tools to historical CAD"],
+        cwd=oldcad,
+        check=True,
+    )
     rc, d = run(oldcad, root / "old-unsupported", ["drive_tray", "switch_shelf"])
     record(
         "original unsupported shelves are blocked",
@@ -125,6 +136,35 @@ try:
         and all(any("floating cantilever" in x for x in v["problems"]) for v in d["parts"].values())
         and not list((root / "old-unsupported").rglob("*.gcode.3mf")),
         problems={k: v["problems"] for k, v in d["parts"].items()},
+    )
+    rc, d = run(oldcad, root / "floating-island", ["coupon_keystone"])
+    record(
+        "a model half above the bed is blocked",
+        rc == 1
+        and not d["pass"]
+        and d["parts"]["coupon_keystone"].get("geometry", {}).get("pass") is False,
+    )
+    rc, d = run(oldcad, root / "excluded-corner", ["base_tub"])
+    record(
+        "a model inside nominal dimensions but crossing the excluded corner is blocked",
+        rc == 1 and not d["pass"],
+    )
+    subprocess.run(
+        ["git", "restore", "--source=ff21c452", "--", "soyrack.scad", "stl"], cwd=oldcad, check=True
+    )
+    subprocess.run(["git", "add", "soyrack.scad", "stl"], cwd=oldcad, check=True)
+    subprocess.run(
+        ["git", "commit", "-qm", "E2E: previous rounded-window shelves"], cwd=oldcad, check=True
+    )
+    rc, d = run(oldcad, root / "warning-free-bridge", ["drive_tray"])
+    slice_result = json.loads((root / "warning-free-bridge/drive_tray/result.json").read_text())
+    record(
+        "warning-free long bridges are independently blocked",
+        rc == 1
+        and not d["pass"]
+        and not slice_result["sliced_plates"][0].get("warning_message")
+        and d["parts"]["drive_tray"]["geometry"]["pass"] is False
+        and d["parts"]["drive_tray"]["geometry"]["failures_count"] > 0,
     )
     shutil.copy2(cad / "soyrack.scad", oldcad / "soyrack.scad")
     rc, d = run(oldcad, root / "stale-input", ["drive_tray"])
