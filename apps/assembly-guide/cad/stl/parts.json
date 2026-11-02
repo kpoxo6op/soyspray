@@ -60,14 +60,14 @@
     "grams": 12
   },
   "drive_tray": {
-    "triangles": 5394,
+    "triangles": 4926,
     "size": [
       224,
       135,
       29
     ],
-    "volumeCm3": 68.32,
-    "grams": 87
+    "volumeCm3": 72.11,
+    "grams": 92
   },
   "keystone_panel": {
     "triangles": 2656,
@@ -130,14 +130,14 @@
     "grams": 18
   },
   "switch_shelf": {
-    "triangles": 5330,
+    "triangles": 4882,
     "size": [
       224,
       125,
       29
     ],
-    "volumeCm3": 64.2,
-    "grams": 82
+    "volumeCm3": 67.22,
+    "grams": 85
   },
   "top_cap": {
     "triangles": 12348,

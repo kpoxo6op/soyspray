@@ -51,6 +51,14 @@ async function main() {
   if (!existsSync(FONT)) throw new Error(`missing ${FONT}: install fonts-liberation or set FONT_TTF`);
   const all = partNames();
   const chosen = process.argv.slice(2);
+  const outputFlag = chosen.indexOf('--output-dir');
+  let printDir = resolve(here, 'stl');
+  if (outputFlag !== -1) {
+    if (!chosen[outputFlag + 1]) throw new Error('--output-dir requires a directory');
+    printDir = resolve(chosen[outputFlag + 1], 'stl');
+    chosen.splice(outputFlag, 2);
+    if (!chosen.length) throw new Error('--output-dir requires explicit part names');
+  }
   for (const p of chosen) if (!all.includes(p)) throw new Error(`unknown part ${p}`);
   const parts = chosen.length ? chosen : all;
   const jobs = parts.map((part) => ({ part, orient: 'print', web: false }));
@@ -77,16 +85,16 @@ async function main() {
     next();
   })));
 
-  mkdirSync(resolve(here, 'stl'), { recursive: true });
+  mkdirSync(printDir, { recursive: true });
   // A full render rewrites the manifest; a partial one updates its entries.
-  const manifest = chosen.length && existsSync(resolve(here, 'stl/parts.json')) ? JSON.parse(readFileSync(resolve(here, 'stl/parts.json'), 'utf8')) : {};
+  const manifest = chosen.length && existsSync(resolve(printDir, 'parts.json')) ? JSON.parse(readFileSync(resolve(printDir, 'parts.json'), 'utf8')) : {};
   for (const part of parts) {
     const bytes = toBed(results.get(`${part}:print`));
-    writeFileSync(resolve(here, `stl/${part}.stl`), bytes);
+    writeFileSync(resolve(printDir, `${part}.stl`), bytes);
     const tris = readStl(bytes);
     manifest[part] = { triangles: tris.length / 9, ...measure(tris) };
   }
-  writeFileSync(resolve(here, 'stl/parts.json'), JSON.stringify(sortKeys(manifest), null, 2) + '\n');
+  writeFileSync(resolve(printDir, 'parts.json'), JSON.stringify(sortKeys(manifest), null, 2) + '\n');
 
   if (!chosen.length) {
     const out = resolve(here, '../app/data/v3');
