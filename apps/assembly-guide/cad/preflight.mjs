@@ -1,14 +1,12 @@
-// Print preflight. For each part it re-renders the print STL and requires the committed one to
-// match, then slices that STL with the installed Bambu Studio and the profiles in print/. It
-// fails on a stale or uncommitted STL, on a slicing error (a part outside the usable plate is
-// one) and on any slicer warning, such as a floating cantilever. Print only a .gcode.3mf from a
-// passing run: preflight.json records its hash with the commit and the STL and profile hashes,
-// and lists the layers where walls cross open air, which a camera check should cover.
+// Render committed CAD into an exclusive job directory, slice those fresh bytes and check
+// every deposition layer independently of slicer warnings. Cached repository STLs are not
+// print inputs. Any unknown mapping, warning, failed process or changed input rejects the run
+// and removes its exported jobs. The configured MCP preparer invokes this command itself;
+// a manually supplied PASS report is never a print permission.
 //
 //   node preflight.mjs ~/prints/soyrack-job drive_tray switch_shelf
 //
-// The output directory must be new and under $HOME, where the Flatpak slicer can write. BAMBU_STUDIO
-// replaces the slicer command.
+// Use a NEW output directory under $HOME, where the Flatpak slicer can write.
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';

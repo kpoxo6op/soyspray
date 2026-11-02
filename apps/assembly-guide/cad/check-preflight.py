@@ -61,7 +61,10 @@ try:
     rc, d = run(cad, good, ["drive_tray", "switch_shelf"])
     record(
         "fixed source through real renderer and slicer",
-        rc == 0 and d["pass"] and all(not v["problems"] for v in d["parts"].values()),
+        rc == 0
+        and d["pass"]
+        and set(d["parts"]) == {"drive_tray", "switch_shelf"}
+        and all(not v["problems"] for v in d["parts"].values()),
         report=str(good / "preflight.json"),
     )
     for p, v in d["parts"].items():
@@ -119,7 +122,15 @@ try:
     shutil.copytree(cad / "print", oldcad / "print")
     (oldcad / "node_modules").symlink_to(cad / "node_modules", target_is_directory=True)
     subprocess.run(
-        ["git", "add", "preflight.mjs", "check-support.py", "check-support.py.lock", "print"],
+        [
+            "git",
+            "add",
+            "preflight.mjs",
+            "render.mjs",
+            "check-support.py",
+            "check-support.py.lock",
+            "print",
+        ],
         cwd=oldcad,
         check=True,
     )
@@ -133,6 +144,7 @@ try:
         "original unsupported shelves are blocked",
         rc == 1
         and not d["pass"]
+        and set(d["parts"]) == {"drive_tray", "switch_shelf"}
         and all(any("floating cantilever" in x for x in v["problems"]) for v in d["parts"].values())
         and not list((root / "old-unsupported").rglob("*.gcode.3mf")),
         problems={k: v["problems"] for k, v in d["parts"].items()},
@@ -169,11 +181,30 @@ try:
     shutil.copy2(cad / "soyrack.scad", oldcad / "soyrack.scad")
     rc, d = run(oldcad, root / "stale-input", ["drive_tray"])
     record(
-        "source and committed STL disagreement is blocked",
+        "uncommitted manufacturing source is blocked",
         rc == 1
         and not d["pass"]
-        and any("differs from the commit" in x for x in d["parts"]["drive_tray"]["problems"])
+        and "uncommitted manufacturing inputs" in d.get("error", "")
         and not list((root / "stale-input").rglob("*.gcode.3mf")),
+    )
+    subprocess.run(["git", "add", "soyrack.scad"], cwd=oldcad, check=True)
+    subprocess.run(
+        ["git", "commit", "-qm", "E2E: fixed source with obsolete cached exports"],
+        cwd=oldcad,
+        check=True,
+    )
+    # A cached export is not an input: even a damaged one must never be sliced.
+    (oldcad / "stl/drive_tray.stl").write_bytes(b"obsolete damaged cached mesh")
+    rc, d = run(oldcad, root / "cached-stl-ignored", ["drive_tray"])
+    fresh = root / "cached-stl-ignored/stl/drive_tray.stl"
+    record(
+        "obsolete cached STL cannot enter a prepared print",
+        rc == 0
+        and d["pass"]
+        and set(d["parts"]) == {"drive_tray"}
+        and d["parts"]["drive_tray"]["geometry"]["pass"] is True
+        and d["parts"]["drive_tray"]["stl"] == sha(fresh)
+        and fresh.stat().st_size > 84,
     )
     completed = True
 finally:

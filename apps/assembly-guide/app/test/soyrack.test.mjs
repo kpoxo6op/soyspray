@@ -1,9 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { Group } from 'three';
-import { SOURCE, meshes, rackMeshes } from './helpers.mjs';
+import { meshes, rackMeshes } from './helpers.mjs';
 import { evaluate } from '../src/timeline.js';
 import { polyLength } from '../src/cablepath.js';
 import { PORTS, CONNECTORS } from '../src/ports.js';
@@ -17,7 +15,6 @@ import { PIECES, HOLES, JOINT, FOOT_TOP, BASE_NUT, NUT_Y, WINDOWS, onPiece } fro
 const tl = buildSoyrackTimeline(meshes);
 const shown = [...tl.nodes.values()].filter((n) => n.kind !== 'group');
 const TEST_PIECE = /^coupon\./;
-const STL_DIR = resolve(SOURCE, '../cad/stl');
 
 // Contract: every chapter can be followed and frames its own view. A misspelt view name would
 // silently fall back to the whole-rack framing.
@@ -262,34 +259,4 @@ test('the assembled rack stays inside its 260 x 240 x 450 mm space', () => {
   }
   assert.ok(hi[0] - lo[0] <= 260 && hi[1] - lo[1] <= 240, `footprint ${hi[0] - lo[0]} x ${hi[1] - lo[1]}`);
   assert.ok(lo[2] >= FLOOR_Z && hi[2] - FLOOR_Z <= 450, `height ${hi[2] - FLOOR_Z}`);
-});
-
-function stlBounds(bytes) {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const triangles = view.getUint32(80, true);
-  assert.equal(bytes.byteLength, 84 + 50 * triangles, 'binary STL');
-  const lo = [Infinity, Infinity, Infinity];
-  const hi = [-Infinity, -Infinity, -Infinity];
-  for (let t = 0; t < triangles; t++) {
-    for (let v = 0; v < 3; v++) {
-      for (let k = 0; k < 3; k++) {
-        const x = view.getFloat32(84 + t * 50 + 12 + v * 12 + k * 4, true);
-        lo[k] = Math.min(lo[k], x);
-        hi[k] = Math.max(hi[k], x);
-      }
-    }
-  }
-  return { lo, hi };
-}
-
-// Contract: every file the parts sheet links exists, fits a 256 mm bed and lies on it as
-// printed. The image build copies only app/, so this runs from the repository checkout.
-test('every printed part has an STL that fits the bed and lies on it', { skip: !existsSync(STL_DIR) && 'outside the repository checkout' }, () => {
-  for (const { part } of [...PRINTED, ...TEST_PRINTS]) {
-    const file = resolve(STL_DIR, `${part}.stl`);
-    assert.ok(existsSync(file), `${part}.stl exists`);
-    const { lo, hi } = stlBounds(new Uint8Array(readFileSync(file)));
-    for (let k = 0; k < 3; k++) assert.ok(hi[k] - lo[k] <= 256, `${part} fits the bed on axis ${k}`);
-    assert.ok(Math.abs(lo[2]) < 0.01, `${part} lies on the bed`);
-  }
 });

@@ -40,28 +40,36 @@ origin), the browser meshes and the print list in `app/data/v3/`. The node tray
 mesh is `app/data/trays.bin`, which `app/tools/regenerate-data.sh` repacks from a
 RackStack checkout. `cad/` and `app/tools/` stay out of the image.
 
-Before a print, `cd cad && node preflight.mjs <job-dir> <part>...` re-renders
-each part, requires the committed STL to match, and slices it with the
-installed Bambu Studio Flatpak and the P1S PETG profiles in `cad/print/`. It
-fails on a stale or uncommitted STL, on a slicing error (a part outside the
-usable plate is one) and on any slicer warning, such as a floating cantilever:
-change the part, do not accept the warning. Print only a `.gcode.3mf` from a
-passing run, whose hash `preflight.json` records, and check the camera at the
-layers it lists, where walls cross open air; a sound first layer says nothing
-about them. Use a **new** job directory under the home directory on each run;
-existing jobs are never overwritten. An interrupted check leaves `pass: false`.
-CI does not currently run this check. The drive tray and switch shelf keep
-solid floor under their device rims, so a vent slot never cuts the root of a rim.
-The [print review](cad/print/REVIEW-2026-11-02.md) records the remaining blocked
-parts and physical checks. The general printer upload API does not enforce this
-report: the operator must verify a passing report and the job hash before upload.
-`python3 check-preflight.py <new-check-dir>` from `cad/` runs the real renderer
-and slicer against the historical failed shelves, current shelves, stale inputs,
-and failed tool launches. It also checks job hashes and refusal to overwrite a
-previous run. It sends nothing to the printer; no mocked slicer is used.
+Before a print, the trusted preparer renders committed CAD into a new isolated
+job directory and slices **those fresh bytes**, ignoring cached repository STLs.
+It uses Bambu Studio 02.08.02.61 and the P1S 0.4 mm PETG profiles in `cad/print/`.
+Every slicer warning rejects the job. An independent check intersects the placed
+CAD at every deposition layer and compares the actual G-code paths against it:
+one-ended cantilevers, floating starts, spans over 8 mm, excluded bed areas and
+unknown geometry mappings are refused. Any failure removes the exported jobs.
+The checker uses structural CAD sections, including designed infill regions;
+it does not simulate individual infill beads, adhesion, cooling or strength.
+
+The [print review](cad/print/REVIEW-2026-11-02.md) records the remaining holds,
+physical checks and the MCP admission contract. The MCP integration requires
+`prepare_print_job(part) → upload_file → print_file`: the server runs the configured
+preparer and binds its own receipt to the exact uploaded and downloaded bytes.
+Caller-supplied PASS reports and direct start commands are not accepted. A server
+without a configured preparer refuses printing. Deployment is separately verified;
+these source files alone do not change an installed MCP server.
+
+For offline evidence, install `cad/` dependencies with `npm ci`, install `uv`, and
+run `node preflight.mjs <new-job-dir> <part>...` from `cad/`. The Python dependencies
+are pinned by `check-support.py.lock`. `python3 check-preflight.py <new-check-dir>`
+exercises the actual renderer and slicer against old failed shelves, current shelves,
+floating parts, excluded corners, warning-free long bridges, obsolete cached exports
+and process failures. It verifies archive bytes and refuses output-directory reuse.
+It never contacts the printer. GitHub CI runs the app checks; this manufacturing E2E
+requires the qualified local Flatpak slicer and is also enforced for every prepared job.
 
 Tests check the chapters, where each test check leaves its hardware, the tags,
 that every screw meets its own nut, cord lengths and overlaps, the buy list,
-Zigbee spacing, the 260 × 240 × 450 mm envelope, that every STL fits a 256 mm
-bed, and that the copy asks for no drilling. Original CAD, photos and private
+Zigbee spacing, the 260 × 240 × 450 mm envelope, and that the copy asks for no
+drilling. Manufacturing fit belongs to the real slicer/layer E2E, not a nominal
+256 mm bounding-box test. Original CAD, photos and private
 notes stay outside the runtime package.
