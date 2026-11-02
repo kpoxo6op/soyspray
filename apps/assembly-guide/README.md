@@ -40,14 +40,21 @@ origin), the browser meshes and the print list in `app/data/v3/`. The node tray
 mesh is `app/data/trays.bin`, which `app/tools/regenerate-data.sh` repacks from a
 RackStack checkout. `cad/` and `app/tools/` stay out of the image.
 
-The drive tray and switch shelf keep solid floor ribs under their device rims.
-Their ventilation cutters must not remove the rim roots: the previous geometry
-left long rim sections starting in mid-air at 4 mm, which failed in PETG.
-After changing a shelf, render its print STL and slice it in its supplied bed
-orientation with the actual printer and filament profiles. Resolve every
-floating-cantilever warning before dispatch; a watertight mesh and a sound first
-layer do not establish that later layers have support. Check the rim layers on
-the physical print before printing the next shelf.
+Before a print, `cd cad && node preflight.mjs <job-dir> <part>...` re-renders
+each part, requires the committed STL to match, and slices it with the
+installed Bambu Studio Flatpak and the P1S PETG profiles in `cad/print/`. It
+fails on a stale or uncommitted STL, on a slicing error (a part outside the
+usable plate is one) and on any slicer warning, such as a floating cantilever:
+change the part, do not accept the warning. Print only a `.gcode.3mf` from a
+passing run, whose hash `preflight.json` records, and check the camera at the
+layers it lists, where walls cross open air; a sound first layer says nothing
+about them. Use a **new** job directory under the home directory on each run;
+existing jobs are never overwritten. An interrupted check leaves `pass: false`.
+CI does not currently run this check. The drive tray and switch shelf keep
+solid floor under their device rims, so a vent slot never cuts the root of a rim.
+The [print review](cad/print/REVIEW-2026-11-02.md) records the remaining blocked
+parts and physical checks. The general printer upload API does not enforce this
+report: the operator must verify a passing report and the job hash before upload.
 
 Tests check the chapters, where each test check leaves its hardware, the tags,
 that every screw meets its own nut, cord lengths and overlaps, the buy list,
