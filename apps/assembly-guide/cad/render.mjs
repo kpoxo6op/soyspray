@@ -47,6 +47,49 @@ const WEB = ['base_tub', 'base_deck', 'post_lower_a', 'post_lower_b', 'mid_deck'
   'top_cap', 'drive_tray', 'switch_shelf', 'keystone_panel', 'zigbee_mast',
   'coupon_post', 'coupon_corner', 'coupon_base', 'coupon_keystone'];
 
+// Manufacturing presets use the same freshly rendered parts as the guide. They are explicit
+// requests, not extra rack components or browser meshes. One lower A has already been printed.
+const PRINT_BATCHES = {
+  lower_posts_remaining: [
+    { part: 'post_lower_a', at: [0, 0] },
+    { part: 'post_lower_b', at: [0, 30] },
+    { part: 'post_lower_b', at: [0, 60] },
+  ],
+};
+const BATCH_GAP_MM = 5;
+
+function batchMesh(name, results) {
+  const placed = PRINT_BATCHES[name].map(({ part, at }) => {
+    const bytes = toBed(results.get(`${part}:print`));
+    const { size } = measure(readStl(bytes));
+    if (at.length !== 2 || !at.every(Number.isFinite) || at.some((v) => v < 0)
+      || at[0] + size[0] > 256 || at[1] + size[1] > 256)
+      throw new Error(`${name}: batch placement outside the bed`);
+    return { part, at, size, bytes };
+  });
+  for (let i = 0; i < placed.length; i++) for (let j = 0; j < i; j++) {
+    const a = placed[i], b = placed[j];
+    const gap = Math.max(a.at[0] - b.at[0] - b.size[0], b.at[0] - a.at[0] - a.size[0],
+      a.at[1] - b.at[1] - b.size[1], b.at[1] - a.at[1] - a.size[1]);
+    if (gap < BATCH_GAP_MM) throw new Error(`${name}: batch clearance below ${BATCH_GAP_MM} mm`);
+  }
+  // A single STL keeps this fixed layout through the slicer and the independent layer checker.
+  // Copy the source triangles; only XY translation changes. No source CAD or orientation changes.
+  const triangles = placed.reduce((n, p) => n + p.bytes.readUInt32LE(80), 0);
+  const out = Buffer.alloc(84 + 50 * triangles);
+  out.writeUInt32LE(triangles, 80);
+  let offset = 84;
+  for (const { bytes, at } of placed) {
+    bytes.copy(out, offset, 84);
+    for (let i = 0; i < bytes.readUInt32LE(80); i++) for (let vertex = 0; vertex < 3; vertex++) {
+      const p = offset + i * 50 + 12 + vertex * 12;
+      for (let axis = 0; axis < 2; axis++) out.writeFloatLE(out.readFloatLE(p + axis * 4) + at[axis], p + axis * 4);
+    }
+    offset += bytes.length - 84;
+  }
+  return { bytes: out, batch: placed.map(({ part, at, size }) => ({ part, at, size })) };
+}
+
 async function main() {
   if (!existsSync(FONT)) throw new Error(`missing ${FONT}: install fonts-liberation or set FONT_TTF`);
   const all = partNames();
@@ -59,9 +102,13 @@ async function main() {
     chosen.splice(outputFlag, 2);
     if (!chosen.length) throw new Error('--output-dir requires explicit part names');
   }
-  for (const p of chosen) if (!all.includes(p)) throw new Error(`unknown part ${p}`);
+  for (const p of chosen) if (!all.includes(p) && !Object.hasOwn(PRINT_BATCHES, p)) throw new Error(`unknown part ${p}`);
+  // Batches are print jobs, not guide parts: keep them out of the linked stl/ folder.
+  if (outputFlag === -1 && chosen.some((p) => Object.hasOwn(PRINT_BATCHES, p)))
+    throw new Error('print batches need --output-dir (or use preflight.mjs)');
   const parts = chosen.length ? chosen : all;
-  const jobs = parts.map((part) => ({ part, orient: 'print', web: false }));
+  const sources = [...new Set(parts.flatMap((part) => PRINT_BATCHES[part]?.map((p) => p.part) ?? [part]))];
+  const jobs = sources.map((part) => ({ part, orient: 'print', web: false }));
   if (!chosen.length) jobs.push(...WEB.map((part) => ({ part, orient: 'world', web: true })));
 
   const results = new Map();
@@ -89,10 +136,12 @@ async function main() {
   // A full render rewrites the manifest; a partial one updates its entries.
   const manifest = chosen.length && existsSync(resolve(printDir, 'parts.json')) ? JSON.parse(readFileSync(resolve(printDir, 'parts.json'), 'utf8')) : {};
   for (const part of parts) {
-    const bytes = toBed(results.get(`${part}:print`));
+    const composed = Object.hasOwn(PRINT_BATCHES, part) ? batchMesh(part, results) : null;
+    const bytes = composed?.bytes ?? toBed(results.get(`${part}:print`));
     writeFileSync(resolve(printDir, `${part}.stl`), bytes);
     const tris = readStl(bytes);
     manifest[part] = { triangles: tris.length / 9, ...measure(tris) };
+    if (composed) manifest[part].batch = composed.batch;
   }
   writeFileSync(resolve(printDir, 'parts.json'), JSON.stringify(sortKeys(manifest), null, 2) + '\n');
 

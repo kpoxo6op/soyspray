@@ -79,6 +79,8 @@ function check(part) {
   const stl = resolve(out, 'stl', `${part}.stl`);
   const dir = resolve(out, part);
   const res = { stl: sha256(stl), triangles: readFileSync(stl).readUInt32LE(80), problems: [] };
+  const batch = JSON.parse(readFileSync(resolve(out, 'stl', 'parts.json'), 'utf8'))[part]?.batch;
+  if (batch) res.batch = batch;
   slice(part, stl, dir);
   const resultFile = resolve(dir, 'result.json');
   if (!existsSync(resultFile)) return { ...res, problems: [...res.problems, `no slicer result in ${dir} (it must be under $HOME)`] };
