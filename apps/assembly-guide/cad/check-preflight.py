@@ -5,6 +5,7 @@ Requires the same dependencies and Flatpak access as preflight.mjs, plus Git his
 containing b0584b1c (the original unsupported shelf regression).
 """
 
+from collections import Counter
 import hashlib
 import json
 import os
@@ -15,7 +16,6 @@ import struct
 import subprocess
 import sys
 import zipfile
-from collections import Counter
 
 cad = Path(__file__).resolve().parent
 repo = Path(
@@ -116,7 +116,9 @@ def same_part(piece, low, reference):
         p = [v[a] - low[a] for a in range(3)]
         cells = [
             (round(p[0], 2) + dx, round(p[1], 2) + dy, round(p[2], 2) + dz)
-            for dx in (-0.01, 0, 0.01) for dy in (-0.01, 0, 0.01) for dz in (-0.01, 0, 0.01)
+            for dx in (-0.01, 0, 0.01)
+            for dy in (-0.01, 0, 0.01)
+            for dz in (-0.01, 0, 0.01)
         ]
         for cell in cells:
             for r in grid.get(tuple(round(c, 2) for c in cell), ()):
@@ -152,7 +154,8 @@ def layers_printing(gcode, footprints):
             x, y = float(words.get("X", x)), float(words.get("Y", y))
             if layers and relative and float(words.get("E", 0)) > 0:
                 layers[-1].update(
-                    i for i, (lo, hi) in enumerate(footprints)
+                    i
+                    for i, (lo, hi) in enumerate(footprints)
                     if lo[0] - 1 <= x <= hi[0] + 1 and lo[1] - 1 <= y <= hi[1] + 1
                 )
     return layers
@@ -179,8 +182,8 @@ try:
             sha256=sha(artifact),
         )
     batch = root / "remaining-posts"
-    rc, d = run(cad, batch, ["lower_posts_remaining"])
-    entry = d["parts"]["lower_posts_remaining"]
+    brc, bd = run(cad, batch, ["lower_posts_remaining"])
+    entry = bd["parts"]["lower_posts_remaining"]
     stl = batch / "stl/lower_posts_remaining.stl"
     refs = root / "fresh-posts"
     subprocess.run(
@@ -189,7 +192,9 @@ try:
         check=True,
         stdout=subprocess.DEVNULL,
     )
-    reference = {p: triangles(refs / "stl" / (p + ".stl")) for p in ("post_lower_a", "post_lower_b")}
+    reference = {
+        p: triangles(refs / "stl" / (p + ".stl")) for p in ("post_lower_a", "post_lower_b")
+    }
     pieces = islands(triangles(stl))
     names = [
         next((p for p, t in reference.items() if same_part(g, lo, t)), "unknown")
@@ -215,8 +220,8 @@ try:
     job = batch / "lower_posts_remaining/lower_posts_remaining.gcode.3mf"
     record(
         "remaining lower posts are one current A and two current B, each printed on every checked layer",
-        rc == 0
-        and d["pass"]
+        brc == 0
+        and bd["pass"]
         and not entry["problems"]
         and entry["geometry"]["pass"] is True
         and entry["stl"] == sha(stl)
@@ -364,7 +369,9 @@ try:
     )
     # A layout edit that puts posts on top of each other must stop before slicing.
     layout = (oldcad / "render.mjs").read_text()
-    overlapping = layout.replace("{ part: 'post_lower_b', at: [0, 30] }", "{ part: 'post_lower_b', at: [0, 10] }")
+    overlapping = layout.replace(
+        "{ part: 'post_lower_b', at: [0, 30] }", "{ part: 'post_lower_b', at: [0, 10] }"
+    )
     assert overlapping != layout
     (oldcad / "render.mjs").write_text(overlapping)
     subprocess.run(["git", "add", "render.mjs"], cwd=oldcad, check=True)
