@@ -3,7 +3,7 @@ include $(dir $(lastword $(MAKEFILE_LIST)))../common.mk
 
 .PHONY: check diff restore-check
 check:
-	cd $(ROOT) && $(PYTHON) -m pytest -q tests/test_home_assistant_voice.py tests/test_home_assistant_restore.py
+	cd $(ROOT) && $(PYTHON) -m pytest -q tests/test_home_assistant_voice.py tests/test_home_assistant_restore.py tests/test_home_assistant_mercury.py
 
 diff:
 	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app home-assistant --package apps/home-assistant/manifests

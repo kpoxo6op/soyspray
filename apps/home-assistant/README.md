@@ -64,6 +64,34 @@ Xiaomi Home accounts, while this vacuum is paired to a Dreamehome account. The
 actual Dreame account/device config entry is still HA runtime state in the PVC
 after login.
 
+## Mercury power
+
+The Deployment installs the unofficial `bkintanar/home-assistant-mercury-co-nz`
+custom component (v2.1.1) by Git revision. The installer checks both the
+commit and the `custom_components/mercury_co_nz` tree hash before replacing
+only `/config/custom_components/mercury_co_nz`. It polls Mercury's customer
+API (the one the Mercury app uses) about every five minutes. Mercury's data
+lags by roughly two days, so "latest day" means the newest day Mercury has.
+
+Sign in once from Settings → Devices & services → Add integration →
+Mercury CO NZ with the Mercury app email and password. The config entry and
+password live in the HA PVC, never in Git. The integration creates
+account sensors as `sensor.mercury_nz_*` and per-ICP sensors on an
+`ICP … (primary)` device. Rename those per-ICP sensors once to
+`sensor.mercury_nz_<name>` (for example `sensor.mercury_nz_energy_usage`
+and `sensor.mercury_nz_current_rate`) so the dashboard finds them.
+
+The **Power** sidebar dashboard is declared in Git (`mercury-dashboard.yaml`
+in the bootstrap ConfigMap, copied to `/config/dashboards/mercury.yaml`). It
+uses the integration's own cards, which it registers as Lovelace resources at
+startup. HA's built-in Energy dashboard reads the
+`mercury_co_nz:<account>_energy_consumption` and `_energy_cost` statistics;
+choose those under Settings → Dashboards → Energy (not the temporary
+email-hash ids). The account number is private and stays out of Git.
+
+To roll back, delete the Mercury config entry and revert the installer and
+dashboard commit. The component files remain on the PVC until removed.
+
 ## Fellow Stagg EKG Pro
 
 The Deployment installs the unofficial `bramboe/stagg-ekg-plus-ha` custom

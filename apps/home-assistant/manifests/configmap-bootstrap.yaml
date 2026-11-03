@@ -16,9 +16,20 @@ data:
       elevation: 65
       unit_system: metric
       time_zone: Pacific/Auckland
+      currency: NZD
+      country: NZ
       internal_url: http://192.168.20.33:8123
 
     default_config:
+
+    lovelace:
+      dashboards:
+        mercury-power:
+          mode: yaml
+          filename: dashboards/mercury.yaml
+          title: Power
+          icon: mdi:lightning-bolt
+          show_in_sidebar: true
 
     intent_script: !include custom_components/gi_voice/intents.yaml
 
@@ -318,3 +329,118 @@ data:
         light.bottom:
           state: "on"
           effect: Relax
+  mercury-dashboard.yaml: |
+    # Mercury power dashboard. The Mercury CO NZ integration registers the
+    # custom:mercury-* cards itself. The per-ICP sensors are renamed to the
+    # sensor.mercury_nz_* ids below once, after the account is signed in.
+    title: Power
+    views:
+      - title: Mercury
+        path: mercury
+        icon: mdi:lightning-bolt
+        type: sections
+        max_columns: 3
+        badges:
+          - type: entity
+            entity: sensor.mercury_nz_current_plan
+            icon: mdi:file-document-outline
+            color: amber
+            show_name: false
+          - type: entity
+            entity: sensor.mercury_nz_current_rate
+            icon: mdi:currency-usd
+            color: amber
+            show_name: false
+        sections:
+          - type: grid
+            cards:
+              - type: heading
+                heading: Latest day
+                icon: mdi:flash
+                heading_style: title
+              - type: tile
+                entity: sensor.mercury_nz_latest_daily_cost
+                name: Cost
+                icon: mdi:cash
+                color: amber
+                vertical: true
+              - type: tile
+                entity: sensor.mercury_nz_latest_daily_usage
+                name: Used
+                icon: mdi:lightning-bolt
+                color: amber
+                vertical: true
+              - type: tile
+                entity: sensor.mercury_nz_current_rate
+                name: Price per kWh
+                icon: mdi:tag-outline
+                color: yellow
+              - type: tile
+                entity: sensor.mercury_nz_daily_fixed_charge
+                name: Daily charge
+                icon: mdi:calendar-today
+                color: grey
+              - type: custom:mercury-energy-weekly-summary-card
+                entity: sensor.mercury_nz_energy_usage
+                name: This week
+                grid_options:
+                  columns: full
+          - type: grid
+            cards:
+              - type: heading
+                heading: This bill
+                icon: mdi:receipt-text-outline
+                heading_style: title
+              - type: custom:mercury-energy-monthly-summary-card
+                entity: sensor.mercury_nz_current_period_cost
+                name: Billing period
+                show_progress_bar: true
+                grid_options:
+                  columns: full
+              - type: tile
+                entity: sensor.mercury_nz_days_remaining_in_period
+                name: Days to go
+                icon: mdi:calendar-clock
+                color: amber
+                vertical: true
+              - type: tile
+                entity: sensor.mercury_nz_current_period_usage
+                name: Used so far
+                icon: mdi:meter-electric-outline
+                color: amber
+                vertical: true
+              - type: tile
+                entity: sensor.mercury_nz_current_balance
+                name: Balance
+                icon: mdi:wallet-outline
+                color: green
+              - type: tile
+                entity: sensor.mercury_nz_due_date
+                name: Next payment
+                icon: mdi:bank-transfer
+                color: blue-grey
+          - type: grid
+            cards:
+              - type: heading
+                heading: Usage
+                icon: mdi:chart-bar
+                heading_style: title
+                badges:
+                  - type: entity
+                    entity: sensor.mercury_nz_total_usage_7_days
+                    color: amber
+              - type: custom:mercury-energy-usage-card
+                entity: sensor.mercury_nz_energy_usage
+                name: Usage
+                period: hourly|daily|monthly
+                grid_options:
+                  columns: full
+              - type: button
+                name: Energy dashboard
+                icon: mdi:home-lightning-bolt-outline
+                tap_action:
+                  action: navigate
+                  navigation_path: /energy
+                grid_options:
+                  columns: full
+                  rows: 1

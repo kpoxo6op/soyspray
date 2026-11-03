@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       annotations:
-        soyspray.vip/bootstrap-config-revision: "2026-10-25-gi-everyday-isolated-v2"
+        soyspray.vip/bootstrap-config-revision: "2026-11-04-mercury-energy-v1"
       labels:
         app: home-assistant
         component: main
@@ -49,6 +49,8 @@ spec:
               cp /bootstrap/automations.yaml /config/automations.yaml
               cp /bootstrap/scripts.yaml /config/scripts.yaml
               cp /bootstrap/scenes.yaml /config/scenes.yaml
+              mkdir -p /config/dashboards
+              cp /bootstrap/mercury-dashboard.yaml /config/dashboards/mercury.yaml
               # These two files were managed by the initial Everyday promotion.
               # Everyday reads its own bundle; original GI keeps native sentences.
               for file in gi_starters.yaml gi_learned.yaml; do
@@ -112,6 +114,42 @@ spec:
               unzip -q "${tmp_dir}/fellow.zip" -d "${tmp_dir}/source"
               source_dir="${tmp_dir}/source/stagg-ekg-plus-ha-${revision}/custom_components/fellow_stagg"
               test -f "${source_dir}/manifest.json"
+              mkdir -p /config/custom_components
+              rm -rf "${install_dir}"
+              cp -R "${source_dir}" "${install_dir}"
+              echo "${revision}" > "${version_file}"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+        - name: install-mercury-energy
+          image: alpine:3.20
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              apk add --no-cache ca-certificates git >/dev/null
+              # bkintanar/home-assistant-mercury-co-nz v2.1.1
+              revision="1a5774e3d8dbd7a7c8f7ce75be6248cda8143c5d"
+              expected_tree="13c1b9760c0fe8fdae1800ea3eb16d7129f6b3ea"
+              install_dir="/config/custom_components/mercury_co_nz"
+              version_file="${install_dir}/.soyspray-version"
+
+              if [ -f "${version_file}" ] && [ "$(cat "${version_file}")" = "${revision}" ]; then
+                exit 0
+              fi
+
+              tmp_dir="$(mktemp -d)"
+              trap 'rm -rf "${tmp_dir}"' EXIT
+              git -C "${tmp_dir}" init -q
+              git -C "${tmp_dir}" fetch -q --depth 1 https://github.com/bkintanar/home-assistant-mercury-co-nz.git "${revision}"
+              test "$(git -C "${tmp_dir}" rev-parse FETCH_HEAD)" = "${revision}"
+              test "$(git -C "${tmp_dir}" rev-parse FETCH_HEAD:custom_components/mercury_co_nz)" = "${expected_tree}"
+              mkdir -p "${tmp_dir}/out"
+              git -C "${tmp_dir}" archive FETCH_HEAD custom_components/mercury_co_nz | tar -x -C "${tmp_dir}/out"
+              source_dir="${tmp_dir}/out/custom_components/mercury_co_nz"
+              test -f "${source_dir}/manifest.json"
+              rm -rf "${source_dir}/tests"
               mkdir -p /config/custom_components
               rm -rf "${install_dir}"
               cp -R "${source_dir}" "${install_dir}"
