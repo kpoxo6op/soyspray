@@ -399,6 +399,16 @@ async def test_everyday_retry_never_supplies_unheard_polarity(
     assert aioclient_mock.call_count == 0
 
 
+async def test_everyday_recognizers_repairing_to_different_lights_never_act(engine, aioclient_mock):
+    """Each transcript alone would be repaired, but to a different light."""
+    everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
+    primary, retry = decoder("Turn on the button."), decoder("Turn on PNET.")
+    with patch.object(stt, "async_get_speech_to_text_engine", side_effect=[primary, retry]):
+        result = await everyday.internal_async_process_audio_stream(META, chunks())
+    assert result.text == ""
+    assert aioclient_mock.call_count == 0
+
+
 async def test_everyday_retry_overlaps_the_primary_decode(engine, aioclient_mock):
     """Whisper must start when the microphone stops, not after Parakeet answers."""
     everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")

@@ -33,6 +33,8 @@ _CYRILLIC = re.compile(r"[Ѐ-ӿ]")
 # A repaired name must be this close to one light and clearly closer than any other.
 MAX_NAME_DISTANCE = 0.3
 MIN_NAME_MARGIN = 0.15
+# One-syllable names such as "top" sound like too many words ("tip", "stop") to repair.
+MIN_REPAIR_SOUNDS = 4
 
 
 def load_sentences():
@@ -137,14 +139,14 @@ def closest_light(words, devices):
     if not heard:
         return None
     scores = sorted(
-        (min(sound_distance(heard, sound(name)) for name in names), names[0])
+        min((sound_distance(heard, sound(name)), -len(sound(name)), names[0]) for name in names)
         for names in light_names(devices).values()
     )
-    if not scores or scores[0][0] > MAX_NAME_DISTANCE:
+    if not scores or scores[0][0] > MAX_NAME_DISTANCE or -scores[0][1] < MIN_REPAIR_SOUNDS:
         return None
     if len(scores) > 1 and scores[1][0] - scores[0][0] < MIN_NAME_MARGIN:
         return None
-    return scores[0][1]
+    return scores[0][2]
 
 
 def repair_light(text, devices):
@@ -223,6 +225,11 @@ def choose_transcript(primary, retry, sentences, devices):
         return retry, "retry_veto"
     if retry_kind == "exact" and compatible(primary, retry):
         return retry, "retry"
+    if "repaired" == primary_kind == retry_kind and (
+        repair_light(primary, devices) != repair_light(retry, devices)
+    ):
+        # The two recognizers heard different lights: nothing is safe to act on.
+        return "", "conflict"
     if retry_kind == "repaired" and compatible(primary, retry):
         return retry, "retry_repaired"
     if primary_kind == "repaired":
