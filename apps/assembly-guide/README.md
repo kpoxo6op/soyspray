@@ -67,6 +67,20 @@ and process failures. It verifies archive bytes and refuses output-directory reu
 It never contacts the printer. GitHub CI runs the app checks; this manufacturing E2E
 requires the qualified local Flatpak slicer and is also enforced for every prepared job.
 
+`lower_posts_remaining` is a print-only preset for the three lower posts still
+needed after the first `post_lower_a`: one A and two B, freshly rendered, in their
+normal numbered-face-down orientation, moved only sideways into a fixed row with
+10 mm between them and joined into one STL. Prepare it like a part
+(`node preflight.mjs <new-job-dir> lower_posts_remaining`, or
+`prepare_print_job(part="lower_posts_remaining")`); the slicer and the layer check
+see one object, and the check covers all three posts on every layer. The preset is
+not a guide part or browser mesh and is never written to `stl/`. With the current
+profiles it sliced to about 384 min and 159 g, against 139 min and 54 g for one
+post: one plate clearance instead of three, not a threefold speed-up. Prints
+share the plate, so a post that lifts or a nozzle clog can spoil all three.
+`check-preflight.py` verifies the job is exactly one current A and two current B
+and that an overlapping layout is refused.
+
 Tests check the chapters, where each test check leaves its hardware, the tags,
 that every screw meets its own nut, cord lengths and overlaps, the buy list,
 Zigbee spacing, the 260 × 240 × 450 mm envelope, and that the copy asks for no
