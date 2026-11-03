@@ -1,0 +1,61 @@
+# Bathroom scale bridge. The AliExpress body-fat scale broadcasts its reading in
+# BLE advertisements named "Yoda0" with manufacturer ID 0x1AC0. Nothing pairs
+# with the scale and no vendor app is involved.
+#
+# Manufacturer data seen on 2026-11-01 (13 bytes, company ID already stripped):
+#   idle      00 00 00 00 00 00 24 <6-byte scale MAC>
+#   weighing  02 8f 13 88 00 00 25 <6-byte scale MAC>   display showed 6.55 kg
+# bytes 0-1  weight, big-endian, hundredths of a kg (0x028f = 655)
+# bytes 2-3  probably impedance; 0x1388 (5000) when nobody stands barefoot
+# byte  6    0x24 idle, 0x25 with a weight (bit 0 assumed to mean "reading")
+# Verify bytes 2-3 and 6 with a barefoot weigh-in before trusting body-fat maths.
+substitutions:
+  name: scale-bridge
+  friendly_name: Scale bridge
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+packages:
+  common: !include common.yaml
+
+esp32_ble_tracker:
+  scan_parameters:
+    active: false
+  on_ble_manufacturer_data_advertise:
+    - manufacturer_id: "1AC0"
+      then:
+        - lambda: |-
+            if (x.size() < 7) return;
+            const uint16_t raw_weight = (uint16_t(x[0]) << 8) | x[1];
+            const uint16_t raw_impedance = (uint16_t(x[2]) << 8) | x[3];
+            const bool reading = (x[6] & 0x01) && raw_weight > 0;
+            if (!reading) return;
+            const float kg = raw_weight / 100.0f;
+            if (id(scale_weight).state != kg) id(scale_weight).publish_state(kg);
+            if (id(scale_impedance_raw).state != raw_impedance) id(scale_impedance_raw).publish_state(raw_impedance);
+            id(scale_last_byte6).publish_state(x[6]);
+
+# Lets Home Assistant use this board for other Bluetooth devices too.
+bluetooth_proxy:
+  active: false
+
+sensor:
+  - platform: template
+    id: scale_weight
+    name: Weight
+    unit_of_measurement: kg
+    device_class: weight
+    state_class: measurement
+    accuracy_decimals: 2
+  - platform: template
+    id: scale_impedance_raw
+    name: Impedance raw
+    entity_category: diagnostic
+    accuracy_decimals: 0
+  - platform: template
+    id: scale_last_byte6
+    name: Status byte
+    entity_category: diagnostic
+    accuracy_decimals: 0

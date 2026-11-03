@@ -1,0 +1,26 @@
+# Shared settings for every Soyspray ESPHome board. Included through `packages:`.
+# Secrets come from devices/secrets.yaml, which stays out of Git (see secrets.example.yaml).
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: !secret api_encryption_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+sensor:
+  - platform: wifi_signal
+    name: Wi-Fi signal
+    update_interval: 60s
+    entity_category: diagnostic

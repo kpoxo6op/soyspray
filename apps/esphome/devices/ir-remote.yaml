@@ -1,0 +1,49 @@
+# IR bridge that replaces the air conditioner and fan remotes.
+# Wiring (Dupont leads, no soldering):
+#   IR transmitter module  S -> GPIO4,  + -> 3V3, - -> GND
+#   IR receiver module     S -> GPIO14, + -> 3V3, - -> GND
+# Step 1: flash, open the logs, press each remote button at the receiver and
+#         note the decoded code (the dump prints protocol and data).
+# Step 2: replace the placeholder buttons below with the learned codes, or use a
+#         native ESPHome climate platform once the AC brand is known.
+substitutions:
+  name: ir-bridge
+  friendly_name: IR bridge
+
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+
+packages:
+  common: !include common.yaml
+
+remote_receiver:
+  pin:
+    number: GPIO14
+    inverted: true
+    mode:
+      input: true
+      pullup: true
+  dump: all
+  tolerance: 25%
+
+remote_transmitter:
+  pin: GPIO4
+  carrier_duty_percent: 50%
+
+# The AC brand decides the climate platform. Many split ACs have a native one
+# (for example coolix, daikin, fujitsu_general, midea_ir, mitsubishi, toshiba).
+# Example once the brand is known:
+# climate:
+#   - platform: coolix
+#     name: Air conditioner
+#     receiver_id: ...   # optional, keeps HA in sync when the old remote is used
+
+# Fan: paste the learned raw or protocol code into each button.
+# button:
+#   - platform: template
+#     name: Fan power
+#     on_press:
+#       - remote_transmitter.transmit_nec:
+#           address: 0x0000
+#           command: 0x0000

@@ -16,6 +16,7 @@ are in [`argocd/catalog/`](../argocd/catalog/).
 - [Boys](boys): shared calendar and accommodation links.
 - [Headlamp](headlamp): browse the cluster through Authentik OIDC.
 - [Autism traits](autism-traits): static assessment with scoring in the browser.
+- [ESPHome devices](esphome): ESP32 boards for the scale, IR remotes and presence, flashed from the laptop; not deployed by Argo.
 
 Read current health and sources through native Argo CD:
 
