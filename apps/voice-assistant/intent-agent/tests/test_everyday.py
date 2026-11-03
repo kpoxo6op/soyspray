@@ -1,16 +1,16 @@
 """Real HA conversation -> YAML script -> device service boundary.
 
 Existing light-only tests do not own TV packages, vacuum segments, room routing,
-or a teacher's learned sentences. These checks catch cross-room dispatch and
-silent expansion from a room clean to a whole-house clean without running hardware.
+or misheard-name repair. These checks catch cross-room dispatch, silent expansion
+from a room clean to a whole-house clean and a repaired name reaching the wrong
+light, without running hardware or any network service.
 """
 
-import json
 from pathlib import Path
 
 import pytest
 import yaml
-from custom_components.gi_voice.const import API, DOMAIN
+from custom_components.gi_voice.const import DOMAIN
 from homeassistant.components import conversation
 from homeassistant.components.homeassistant.exposed_entities import async_expose_entity
 from homeassistant.core import Context
@@ -50,6 +50,7 @@ async def everyday(hass):
         ),
         ("light", "test", "Top", bedroom.id, {}),
         ("light", "test", "Middle", bedroom.id, {}),
+        ("light", "group", "Peanut", bedroom.id, {}),
     ]
     ids = {}
     for domain, platform, name, area, attrs in definitions:
@@ -68,6 +69,8 @@ async def everyday(hass):
         hass.states.async_set(entity.entity_id, "on", {"friendly_name": name, **attrs})
         async_expose_entity(hass, "conversation", entity.entity_id, True)
         ids[name] = entity.entity_id
+    # How Boris's "peanut" is usually heard; a registry alias, never code.
+    entities.async_update_entity(ids["Peanut"], aliases=[None, "Pinette"])
     satellite = devices.async_get_or_create(
         config_entry_id=entry.entry_id, identifiers={(DOMAIN, "satellite")}
     )
@@ -248,46 +251,92 @@ async def test_second_room_prefers_its_tv_and_ambiguity_never_broadcasts(
     assert calls[-1][2]["entity_id"] == ids["TV"]
 
 
-async def test_verified_teacher_receipt_becomes_local_without_model_call(
-    hass, everyday, aioclient_mock
+@pytest.mark.parametrize(
+    "text,service,target",
+    [
+        ("Turn off PNET", "turn_off", "Peanut"),
+        ("Turn on key net.", "turn_on", "Peanut"),
+        ("Turn off in it.", "turn_off", "Peanut"),
+        ("Darn on Pinette.", "turn_on", "Peanut"),
+        ("Yeah. Turn on peanut.", "turn_on", "Peanut"),
+        ("Turn of pinette.", "turn_off", "Peanut"),
+        ("GI, turn on the middle light please", "turn_on", "Middle"),
+        ("Could you switch the top light on for me?", "turn_on", "Top"),
+        ("Turn off tap", "turn_off", "Top"),
+    ],
+)
+async def test_heard_light_commands_act_locally(
+    hass, everyday, aioclient_mock, text, service, target
 ):
-    """Compiler must reproduce a successful action, never learn failed guesses."""
-    from custom_components.gi_voice.everyday import match_command
-    from hassil import Intents
-    from learn import compile_record
+    """Real transcripts of Boris's speech; exact-grammar tests never see these."""
+    _, ids, device, calls = everyday
+    result = await say(hass, text, device)
+    assert result.response.speech["plain"]["speech"] == "Done."
+    assert calls == [("light", service, {"entity_id": ids[target]})]
+    assert everyday[0].runtime_data.audit[-1]["route"] in {"local", "repaired"}
+    assert aioclient_mock.call_count == 0
 
-    phrase = "give the top light some power"
-    aioclient_mock.post(
-        API + "/chat/completions",
-        json={
-            "choices": [
-                {
-                    "finish_reason": "stop",
-                    "message": {
-                        "content": json.dumps(
-                            {"command": "light_on", "target_name": "Top", "value": "", "area": ""}
-                        )
-                    },
-                }
-            ]
-        },
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Turn on the head.",
+        "Turn on the internet.",
+        "Turn off stop",
+        "Go on, Peanut.",
+        "Turn off Turn on Pet.",
+        "There are no peanuts.",
+        "Turn on PNET tomorrow",
+        "Give the top light some power",
+        "Peanut!",
+        "The TV says turn on Pinette",
+    ],
+)
+async def test_unclear_or_unknown_speech_never_acts_or_calls_out(
+    hass, everyday, aioclient_mock, text
+):
+    """Only a clear name match is repaired; unmatched text has no cloud fallback."""
+    _, _, device, calls = everyday
+    result = await say(hass, text, device)
+    assert calls == []
+    assert everyday[0].runtime_data.audit[-1]["route"] == "declined"
+    assert "haven't changed anything" in result.response.speech["plain"]["speech"]
+    assert aioclient_mock.call_count == 0
+
+
+async def test_a_name_that_sounds_like_two_lights_is_never_guessed(hass, everyday):
+    _, _, device, calls = everyday
+    entity = er.async_get(hass).async_get_or_create(
+        "light", "test", "pinot", suggested_object_id="pinot", original_name="Pinot"
     )
-    await say(hass, phrase)
-    record = everyday[0].runtime_data.audit[-1]
-    assert everyday[3][-1] == ("light", "turn_on", {"entity_id": "light.top"})
-    assert record["route"] == "deepseek"
-    with pytest.raises(ValueError):
-        compile_record(record, {})
-    learned = compile_record({**record, "verified": True}, {})
-    matched = match_command(phrase, Intents.from_dict(learned), {})
-    assert matched.intent.name == "GiControl"
-    assert {e.name: e.value for e in matched.entities_list} == {
-        "command": "light_on",
-        "target_name": "Top",
-        "value": "",
-        "area": "",
-    }
-    assert aioclient_mock.call_count == 1
+    hass.states.async_set(entity.entity_id, "on", {"friendly_name": "Pinot"})
+    async_expose_entity(hass, "conversation", entity.entity_id, True)
+    await say(hass, "Turn off PNET", device)
+    assert calls == []
+    await say(hass, "Turn off Pinot", device)
+    assert calls == [("light", "turn_off", {"entity_id": entity.entity_id})]
+
+
+@pytest.mark.parametrize(
+    "text,domain,service",
+    [
+        ("Shut the television down.", "media_player", "turn_off"),
+        ("Put the middle light at 30%.", "light", "turn_on"),
+        ("Clean the lounge", "dreame_vacuum", "vacuum_clean_segment"),
+        ("Send the vacuum back to its dock", "vacuum", "return_to_base"),
+        ("I want to watch O TV Prim", "androidtv", "adb_command"),
+        ("Open Jellyfin on the TV please", "androidtv", "adb_command"),
+    ],
+)
+async def test_common_phrasings_need_no_language_model(
+    hass, everyday, aioclient_mock, text, domain, service
+):
+    """These used to go to DeepSeek; the starter grammar covers them locally."""
+    _, _, device, calls = everyday
+    result = await say(hass, text, device)
+    assert result.response.speech["plain"]["speech"] == "Done."
+    assert calls[-1][:2] == (domain, service)
+    assert aioclient_mock.call_count == 0
 
 
 async def test_unavailable_tv_wakes_only_its_registered_mac(hass, everyday, monkeypatch):

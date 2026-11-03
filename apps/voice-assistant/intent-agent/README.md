@@ -21,16 +21,30 @@ separate pipelines.
 The `GiControl` intent script calls a bounded local service. Negation, future
 requests and reported speech decline before interpretation. Bare pronouns have
 their own non-action sentences. GI Everyday must have **prefer local intents
-disabled**, so its guard sees every transcript before any action. Its STT streams to local open speech recognition, retaining negation and future
-qualifiers that constrained decoding can discard. Exact recognized commands use
-the local sentence matcher, including numeric percentage notation such as `30%`.
-Turns with no successful transcript retry the same bounded audio with
-`stt.gi_whisper`, then optionally cloud speech. A nonempty open transcript goes
-to interpretation unchanged; unfamiliar wording is not evidence that a second
-English decoder would be more accurate. The Whisper service refreshes its
-vocabulary from HA exposure; no device list is built into the recognizer.
-Everyday cloud audio stays off unless explicitly enabled. Real microphone tests
-are required; neither recognition nor a wake word authenticates the speaker.
+disabled**, so its guard sees every transcript before any action.
+
+Everything in GI Everyday stays on the cluster: no audio or text goes to cloud
+speech or a language model. Its STT streams each turn to local Parakeet and,
+when the microphone stops, replays the same in-memory audio to `stt.gi_whisper`
+(Whisper base.en, prompted with the exposed names). An exact command from
+Parakeet acts at once and the Whisper request is cancelled. Otherwise Whisper's
+transcript is used when it is an exact command that keeps any on/off Parakeet
+heard, is not replacing Russian speech or a much longer utterance, and a trailing
+"X on/off" without "turn" is corroborated by Parakeet. A negation, future or
+reported request next to command words in either transcript wins. On captured
+Voice PE turns Parakeet often turns Boris's "peanut" into "in it", "PNET" or
+"There are no", while Whisper hears "Peanut" or "Pinette".
+
+Matching ignores case, punctuation, a leading acknowledgement or wake word tail
+("Yeah.", "Okay.", "GI,"), politeness ("could you", "please", "for me") and
+reads `turn of` as `turn off` and `30%` as `30 percent`. When no transcript is
+exact, one misheard light name may be repaired in `turn/switch on|off <name>`,
+`turn <name> on|off` or `<name> on|off`: the heard words must sound within 0.3 of
+one exposed light's name or alias and at least 0.15 closer than any other light.
+On/off is never repaired, command words are never names, and anything else
+declines. Names come from current Assist exposure; no device list is in code.
+Real microphone tests are required; neither recognition nor a wake word
+authenticates the speaker.
 
 The optional **GI buffered wake** provider delegates to the existing Wyoming wake
 detector, preserving its model and threshold. It keeps the last 200 ms of audio
@@ -50,20 +64,15 @@ cached decoder before training a changed vocabulary, and retains a warm decoder
 when the vocabulary agrees. Training happens on connection, not during an active
 turn. New exposed devices are picked up without a code change.
 
-Unmatched text gets one bounded DeepSeek interpretation. A successful action
-produces a private audit record. After observing the real device, export that
-record with `verified: true` and compile its exact wording offline:
+Unmatched text declines locally; there is no language-model fallback. To support
+a new phrasing, add it to `sentences/en/gi_starters.yaml` in a source PR, then
+promote the new image digest to both HA and Speech-to-Phrase. The private audit
+records each turn's text and route (`local`, `repaired` or `declined`) for that
+review. Never commit it.
 
-```sh
-python apps/voice-assistant/intent-agent/learn.py --receipt /private/verified.json \
-  --output apps/voice-assistant/intent-agent/custom_components/gi_voice/sentences/en/gi_learned.yaml
-```
-
-Use the HA test environment for this command. Review the sentence diff, merge its
-source PR, then promote the new image digest to both HA and Speech-to-Phrase.
-No runtime code change or LLM call is needed for the learned wording. Rejected,
-failed and unverified records cannot be compiled. Repeated sentences with a
-different action fail rather than overwrite. Never commit private audit files.
+The Voice PE's **Finished speaking detection** is `default` (0.7 s of silence).
+`aggressive` (0.25 s) cut commands where Boris pauses before the name ("Turn on
+the", "Turn on P."). Select `aggressive` again to trade those for 0.45 s less delay.
 
 Configure a parallel **GI Everyday** pipeline with `conversation.gi_everyday`,
 `stt.gi_everyday_speech`, existing GI wake and Piper, and local-intent preference
@@ -189,8 +198,8 @@ Rollback: reselect GI, remove the new config entry, and revert the promoted
 installer digest. Restore settings through the supported HA API; never edit
 `.storage`. The private audit is disposable and never replayed as a command.
 Repeated successful unmatched commands can justify a separately tested exact
-interpretation cache. GI Flex has no fuzzy cache or learned mapping. GI Everyday uses only the
-reviewed exact sentence file described above. Jev is not enabled.
+interpretation cache. GI Flex has no fuzzy cache or learned mapping. GI Everyday uses the reviewed
+sentence files plus the bounded light-name repair described above. Jev is not enabled.
 
 The guarded `check-ha-voice-installer.yml` operation runs only inside an existing
 isolated Home Assistant restore. It checks scratch ownership, separate volume

@@ -3,49 +3,55 @@ intents:
   GiControl:
     data:
     - sentences:
-      - '{name:target_name} on'
-      - turn on [the] {name:target_name}
-      - turn [the] {name:target_name} on
+      - '{name:target_name} [<lamp>] on'
+      - <turn> on [the] {name:target_name} [<lamp>]
+      - <turn> [the] {name:target_name} [<lamp>] on
       slots:
         command: light_on
     - sentences:
-      - '{name:target_name} off'
-      - turn off [the] {name:target_name}
-      - turn [the] {name:target_name} off
+      - '{name:target_name} [<lamp>] off'
+      - <turn> off [the] {name:target_name} [<lamp>]
+      - <turn> [the] {name:target_name} [<lamp>] off
       slots:
         command: light_off
     - sentences:
-      - '[set] [the] {name:target_name} [brightness] to {brightness:value} percent'
+      - '[set|put|turn|dim] [the] {name:target_name} [<lamp>] [brightness] (to|at) {brightness:value}
+        percent'
       slots:
         command: brightness
     - sentences:
-      - '[turn] [the] (TV|T V|television) on'
-      - turn on [the] (TV|T V|television)
+      - '[<turn>] [the] <tv> on'
+      - <turn> on [the] <tv>
       slots:
         command: tv_on
     - sentences:
-      - '[turn] [the] (TV|T V|television) off'
-      - turn off [the] (TV|T V|television)
+      - '[<turn>] [the] <tv> off'
+      - <turn> off [the] <tv>
+      - shut [the] <tv> (off|down)
       slots:
         command: tv_off
     - sentences:
-      - pause [the] (TV|T V|television)
+      - pause [the] <tv>
       slots:
         command: pause
     - sentences:
-      - resume [the] (TV|T V|television)
+      - (resume|unpause) [the] <tv>
       slots:
         command: resume
     - sentences:
-      - '[the] (TV|T V|television) louder'
+      - '[the] <tv> (louder|volume up)'
+      - turn [the] <tv> up
+      - turn up [the] <tv>
       slots:
         command: louder
     - sentences:
-      - '[the] (TV|T V|television) quieter'
+      - '[the] <tv> (quieter|volume down)'
+      - turn [the] <tv> down
+      - turn down [the] <tv>
       slots:
         command: quieter
     - sentences:
-      - mute [the] (TV|T V|television)
+      - mute [the] <tv>
       slots:
         command: mute
     - sentences:
@@ -57,51 +63,52 @@ intents:
       slots:
         command: previous
     - sentences:
-      - '[open] YouTube'
+      - '[<open>] YouTube [on [the] <tv>]'
       slots:
         command: app
         value: youtube
     - sentences:
-      - '[open] Jellyfin'
+      - '[<open>] Jellyfin [on [the] <tv>]'
       slots:
         command: app
         value: jellyfin
     - sentences:
-      - '[open] Twitch'
+      - '[<open>] Twitch [on [the] <tv>]'
       slots:
         command: app
         value: twitch
     - sentences:
-      - (OTV|O T V|oh tee vee|oh teh veh|о тэ вэ|ОТВ) (Prim|прим)
+      - '[<watch>] <otv> [on [the] <tv>]'
       slots:
         command: channel
         value: otv-prim
     - sentences:
-      - vacuum [the] living room
+      - (vacuum|clean) [the] (living room|lounge)
       slots:
         command: vacuum_room
         value: living room
     - sentences:
-      - vacuum [the] dining room
+      - (vacuum|clean) [up] [the] dining room
       slots:
         command: vacuum_room
         value: dining room
     - sentences:
-      - vacuum [the] bathroom
+      - (vacuum|clean) [the] bathroom
       slots:
         command: vacuum_room
         value: bathroom
     - sentences:
-      - vacuum (everywhere|everything|[the] whole house)
+      - (vacuum|clean) (everywhere|everything|[the] whole house)
       slots:
         command: vacuum_all
     - sentences:
-      - stop [the] vacuum
+      - stop [the] (vacuum|vacuuming|cleaner|cleaning)
       slots:
         command: vacuum_stop
     - sentences:
       - vacuum go home
-      - send [the] vacuum home
+      - send [the] (vacuum|cleaner) home
+      - send [the] (vacuum|cleaner) back to [its] (dock|base)
       slots:
         command: vacuum_home
   GiDecline:
@@ -113,6 +120,12 @@ intents:
       - turn it (on|off)
       - switch it (on|off)
 expansion_rules:
+  turn: (turn|switch)
+  lamp: (light|lamp)
+  tv: (TV|T V|television)
+  otv: (OTV|O T V|O TV|OT V|oh tee vee|oh teh veh|о тэ вэ|ОТВ) (Prim|Prime|прим)
+  watch: ([I] want to watch|watch|play|put on|turn on|switch to)
+  open: (open|launch|start|put on|play)
   gi_command: ({name:target_name} on|turn on [the] {name:target_name}|turn [the] {name:target_name} on|{name:target_name}
     off|turn off [the] {name:target_name}|turn [the] {name:target_name} off|[set] [the] {name:target_name}
     [brightness] to {brightness:value} percent|[turn] [the] (TV|T V|television) on|turn on [the] (TV|T V|television)|[turn]

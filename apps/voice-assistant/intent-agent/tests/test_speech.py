@@ -315,7 +315,7 @@ async def test_everyday_streams_to_open_speech_before_the_microphone_finishes(
     ) as resolve:
         result = await everyday.internal_async_process_audio_stream(META, microphone())
     assert result.text == "Top on"
-    assert resolve.call_count == 1
+    assert resolve.call_args_list[0].args[1] == "stt.local"
     assert aioclient_mock.call_count == 0
 
 
@@ -335,15 +335,13 @@ async def test_everyday_unclear_speech_replays_same_turn_locally_without_cloud_w
     assert aioclient_mock.call_count == 0
 
 
-async def test_everyday_preserves_fast_recognizer_negation_without_retry(engine, aioclient_mock):
+async def test_everyday_keeps_a_heard_negation_over_the_second_recognizer(engine, aioclient_mock):
     """A second decoder must not erase a heard veto; light-only STT tests do not own this route."""
     everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
-    with patch.object(
-        stt, "async_get_speech_to_text_engine", return_value=decoder("Don't turn on Top.")
-    ) as lookup:
+    primary, retry = decoder("Don't turn on Top."), decoder("Turn on Top.")
+    with patch.object(stt, "async_get_speech_to_text_engine", side_effect=[primary, retry]):
         result = await everyday.internal_async_process_audio_stream(META, chunks())
     assert result.text == "Don't turn on Top."
-    assert lookup.call_count == 1
     assert aioclient_mock.call_count == 0
 
 
@@ -357,5 +355,84 @@ async def test_everyday_preserves_unmatched_open_transcript(engine, aioclient_mo
     with patch.object(stt, "async_get_speech_to_text_engine", side_effect=[primary, retry]):
         result = await everyday.internal_async_process_audio_stream(META, chunks())
     assert result.text == text
-    retry.async_process_audio_stream.assert_not_awaited()
+    assert aioclient_mock.call_count == 0
+
+
+@pytest.mark.parametrize(
+    "heard,retried",
+    [
+        ("There are no meal.", "Turn on Middle."),
+        ("Yeah.", "Turn on Peanut."),
+        ("Fair enough, me know.", "Turn off Middle."),
+        ("", "Turn off, Peanut."),
+    ],
+)
+async def test_everyday_second_local_recognizer_rescues_a_misheard_command(
+    engine, aioclient_mock, heard, retried
+):
+    """Captured Voice PE turns where Parakeet heard garbage and Whisper heard the command.
+
+    The old retry ran only on an empty transcript, so these never acted.
+    """
+    everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
+    primary, retry = decoder(heard), decoder(retried)
+    with patch.object(stt, "async_get_speech_to_text_engine", side_effect=[primary, retry]):
+        result = await everyday.internal_async_process_audio_stream(META, chunks())
+    assert result.text == retried
+    retry.async_process_audio_stream.assert_awaited_once()
+    assert aioclient_mock.call_count == 0
+
+
+@pytest.mark.parametrize(
+    "heard,retried",
+    [("Turn on in it.", "Turn off Peanut."), ("Go", "Top off."), ("Talk one.", "Middle on.")],
+)
+async def test_everyday_retry_never_supplies_unheard_polarity(
+    engine, aioclient_mock, heard, retried
+):
+    """Whisper sometimes flips or invents a trailing on/off; the first transcript stays."""
+    everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
+    primary, retry = decoder(heard), decoder(retried)
+    with patch.object(stt, "async_get_speech_to_text_engine", side_effect=[primary, retry]):
+        result = await everyday.internal_async_process_audio_stream(META, chunks())
+    assert result.text == heard
+    assert aioclient_mock.call_count == 0
+
+
+async def test_everyday_retry_overlaps_the_primary_decode(engine, aioclient_mock):
+    """Whisper must start when the microphone stops, not after Parakeet answers."""
+    everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
+    started = asyncio.Event()
+
+    async def slow_primary(metadata, stream):
+        assert b"".join([part async for part in stream]) == PCM
+        async with asyncio.timeout(1):
+            await started.wait()
+        return stt.SpeechResult("Okay.", stt.SpeechResultState.SUCCESS)
+
+    async def second(metadata, stream):
+        started.set()
+        assert b"".join([part async for part in stream]) == PCM
+        return stt.SpeechResult("Turn on Top.", stt.SpeechResultState.SUCCESS)
+
+    engines = [
+        SimpleNamespace(async_process_audio_stream=slow_primary),
+        SimpleNamespace(async_process_audio_stream=second),
+    ]
+    with patch.object(stt, "async_get_speech_to_text_engine", side_effect=engines):
+        result = await everyday.internal_async_process_audio_stream(META, chunks())
+    assert result.text == "Turn on Top."
+    assert aioclient_mock.call_count == 0
+
+
+async def test_everyday_uses_the_second_recognizer_when_the_first_is_down(engine, aioclient_mock):
+    everyday = stt.async_get_speech_to_text_entity(engine.hass, "stt.gi_everyday_speech")
+    broken = SimpleNamespace(
+        async_process_audio_stream=AsyncMock(side_effect=aiohttp.ClientConnectionError)
+    )
+    with patch.object(
+        stt, "async_get_speech_to_text_engine", side_effect=[broken, decoder("Turn on Top.")]
+    ):
+        result = await everyday.internal_async_process_audio_stream(META, chunks())
+    assert result.text == "Turn on Top."
     assert aioclient_mock.call_count == 0
