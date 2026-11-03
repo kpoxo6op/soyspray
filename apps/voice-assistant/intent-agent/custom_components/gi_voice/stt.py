@@ -262,6 +262,8 @@ class EverydaySpeech(GiSpeech):
             ended.set()
             retried = await pending
             chosen, route = choose_transcript(text, retried, self.sentences, devices)
+            if route == "conflict":
+                return stt.SpeechResult("", stt.SpeechResultState.SUCCESS)
             if not chosen:
                 return failure if local.result != stt.SpeechResultState.SUCCESS else local
             return stt.SpeechResult(chosen, stt.SpeechResultState.SUCCESS)

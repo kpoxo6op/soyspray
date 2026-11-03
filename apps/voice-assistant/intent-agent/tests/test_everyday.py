@@ -50,6 +50,7 @@ async def everyday(hass):
         ),
         ("light", "test", "Top", bedroom.id, {}),
         ("light", "test", "Middle", bedroom.id, {}),
+        ("light", "test", "Bottom", bedroom.id, {}),
         ("light", "group", "Peanut", bedroom.id, {}),
     ]
     ids = {}
@@ -262,7 +263,7 @@ async def test_second_room_prefers_its_tv_and_ambiguity_never_broadcasts(
         ("Turn of pinette.", "turn_off", "Peanut"),
         ("GI, turn on the middle light please", "turn_on", "Middle"),
         ("Could you switch the top light on for me?", "turn_on", "Top"),
-        ("Turn off tap", "turn_off", "Top"),
+        ("Turn off button", "turn_off", "Bottom"),
     ],
 )
 async def test_heard_light_commands_act_locally(
@@ -283,6 +284,8 @@ async def test_heard_light_commands_act_locally(
         "Turn on the head.",
         "Turn on the internet.",
         "Turn off stop",
+        "Turn on the tip.",
+        "Turn off tap",
         "Go on, Peanut.",
         "Turn off Turn on Pet.",
         "There are no peanuts.",
