@@ -296,8 +296,8 @@ Source merges build images; digest promotion and supported HA setup are separate
 The GI Everyday bundle supplies the same custom sentence files to Home Assistant
 and Speech-to-Phrase from one pinned image. Its local intent scripts cover lights,
 TV playback/apps/channels and vacuum room cleaning. See the
-[intent agent README](intent-agent/README.md) for supported setup, offline teaching,
-cloud-off behavior and rollback. The existing GI pipeline remains available.
+[intent agent README](intent-agent/README.md) for supported setup, local name
+repair and rollback. The existing GI pipeline remains available.
 
 Original GI uses the separate `gi-original-phrase` Wyoming service, registered as
 `stt.gi_original_phrase`. It runs the original recognizer and native grammar with
@@ -309,8 +309,10 @@ bundle directly, so custom sentences do not change original GI's native agent.
 Selecting GI therefore bypasses both the Everyday agent and its recognizer.
 
 GI Everyday uses open local speech recognition to retain negation and reported
-speech. The optional local retry service `gi-whisper` uses the pinned base.en
-model and refreshes vocabulary from current HA exposure over the internal HA
-API. Register it through Wyoming and name its entity `stt.gi_whisper`. Its only
-network destinations are HA; it cannot send audio to cloud or devices. The old
-Parakeet service and independent original GI recognizer remain unchanged.
+speech. Every turn that Parakeet does not hear as an exact command is also decoded
+by the local `gi-whisper` service (pinned base.en), which refreshes its vocabulary
+from current HA exposure over the internal HA API. Register it through Wyoming and
+name its entity `stt.gi_whisper`. Its only network destination is HA; it cannot
+send audio to cloud or devices. GI Everyday makes no cloud speech or language
+model request. The old Parakeet service and independent original GI recognizer
+remain unchanged.

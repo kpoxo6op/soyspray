@@ -20,6 +20,8 @@ API = "https://api.openai.com/v1/audio/transcriptions"
 NAME_PROMPT = "Top, Middle, Bottom, Peanut"
 MAX_AUDIO_BYTES = 20 * 16000 * 2
 REQUEST_TIMEOUT = 3
+RETRY_STT = "stt.gi_whisper"
+RETRY_TIMEOUT = 4
 _NAME = r"(?:top|middle|bottom|peanut)"
 _PHRASE = re.compile(
     rf"(?:{_NAME}|(?:turn|switch) (?:on|off) (?:the )?{_NAME}(?: light)?"
@@ -179,7 +181,7 @@ class GiSpeech(stt.SpeechToTextEntity):
 
 
 class EverydaySpeech(GiSpeech):
-    """Keep open speech qualifiers intact; retry unclear audio locally first."""
+    """Two local recognizers for one turn; never sends audio off the cluster."""
 
     _attr_name = "GI Everyday speech"
 
@@ -195,8 +197,8 @@ class EverydaySpeech(GiSpeech):
         self.sentences = await self.hass.async_add_executor_job(load_sentences)
 
     async def async_process_audio_stream(self, metadata, stream):
-        from .control import BLOCKED, catalog
-        from .everyday import match_command
+        from .control import catalog
+        from .everyday import choose_transcript, understand
 
         failure = stt.SpeechResult(None, stt.SpeechResultState.ERROR)
         if self._removed or len(self._active) >= 2 or not self.check_metadata(metadata):
@@ -204,102 +206,70 @@ class EverydaySpeech(GiSpeech):
         task = asyncio.current_task()
         self._active.add(task)
         audio = bytearray()
+        ended = asyncio.Event()
         route = "failed"
         started = time.monotonic()
-        try:
+        primary = stt.async_get_speech_to_text_engine(
+            self.hass, self.entry.options.get(LOCAL_STT, "stt.faster_whisper")
+        )
+        second = stt.async_get_speech_to_text_engine(self.hass, RETRY_STT)
 
-            async def capture():
-                async for chunk in stream:
-                    if len(audio) + len(chunk) > MAX_AUDIO_BYTES:
-                        raise ValueError("Audio limit")
-                    audio.extend(chunk)
-                    yield chunk
+        async def capture():
+            async for chunk in stream:
+                if len(audio) + len(chunk) > MAX_AUDIO_BYTES:
+                    raise ValueError("Audio limit")
+                audio.extend(chunk)
+                yield chunk
+            ended.set()
 
-            primary = stt.async_get_speech_to_text_engine(
-                self.hass, self.entry.options.get(LOCAL_STT, "stt.faster_whisper")
-            )
-            if primary is None or isinstance(primary, GiSpeech):
-                return failure
-            async with asyncio.timeout(25):
-                local = await primary.async_process_audio_stream(metadata, capture())
-            if local.result == stt.SpeechResultState.SUCCESS and local.text:
-                if BLOCKED.search(local.text) or match_command(
-                    local.text, self.sentences, catalog(self.hass)
-                ):
-                    route = "local_fast"
-                    return local
+        async def replay():
+            for index in range(0, len(audio), 32000):
+                yield bytes(audio[index : index + 32000])
+
+        async def retry():
+            # Starts when the microphone stops, alongside the primary's final decode.
+            await ended.wait()
             if not audio or len(audio) % 2:
-                return failure
-
-            async def replay():
-                for index in range(0, len(audio), 32000):
-                    yield bytes(audio[index : index + 32000])
-
-            engine = stt.async_get_speech_to_text_engine(self.hass, "stt.gi_whisper")
-            needs_retry = (
-                local.result != stt.SpeechResultState.SUCCESS or not (local.text or "").strip()
-            )
-            if (
-                needs_retry
-                and engine is not None
-                and not isinstance(engine, GiSpeech)
-                and engine is not primary
-            ):
-                try:
-                    async with asyncio.timeout(3):
-                        retry = await engine.async_process_audio_stream(metadata, replay())
-                    if retry.result == stt.SpeechResultState.SUCCESS and retry.text:
-                        local = retry
-                except (aiohttp.ClientError, OSError, TimeoutError):
-                    pass
-            if local.result == stt.SpeechResultState.SUCCESS and local.text:
-                if BLOCKED.search(local.text) or match_command(
-                    local.text, self.sentences, catalog(self.hass)
-                ):
-                    route = "local_retry"
-                    return local
-            options = self.entry.options
-            if not options.get(CLOUD_ENABLED) or not options.get(OPENAI_KEY):
-                route = "open_local"
-                return local
-            output = io.BytesIO()
-            with wave.open(output, "wb") as wav:
-                wav.setparams((1, 2, 16000, 0, "NONE", "not compressed"))
-                wav.writeframes(audio)
-            form = aiohttp.FormData()
-            form.add_field("model", MODEL)
-            form.add_field("languages[]", "en")
-            form.add_field("languages[]", "ru")
-            form.add_field(
-                "prompt",
-                ", ".join(sorted({item["name"] for item in catalog(self.hass).values()}))
-                + ", OTV Prim, ОТВ Прим, YouTube, Jellyfin, Twitch",
-            )
-            form.add_field(
-                "file", output.getvalue(), filename="command.wav", content_type="audio/wav"
-            )
-            route = "cloud_attempt"
+                return None
             try:
-                async with asyncio.timeout(REQUEST_TIMEOUT):
-                    async with async_get_clientsession(self.hass).post(
-                        API,
-                        headers={"Authorization": "Bearer " + options[OPENAI_KEY]},
-                        data=form,
-                        allow_redirects=False,
-                    ) as response:
-                        if response.status == 200:
-                            raw = await response.content.read(65537)
-                            if len(raw) <= 65536:
-                                text = json.loads(raw).get("text")
-                                if isinstance(text, str) and text.strip() and len(text) <= 8192:
-                                    route = "cloud"
-                                    return stt.SpeechResult(text, stt.SpeechResultState.SUCCESS)
-            except (aiohttp.ClientError, OSError, TimeoutError, ValueError, AttributeError):
-                pass
-            return local
+                async with asyncio.timeout(RETRY_TIMEOUT):
+                    result = await second.async_process_audio_stream(metadata, replay())
+            except (aiohttp.ClientError, OSError, TimeoutError):
+                return None
+            return result.text if result.result == stt.SpeechResultState.SUCCESS else None
+
+        if primary is None or isinstance(primary, GiSpeech):
+            self._active.discard(task)
+            return failure
+        usable = second is not None and not isinstance(second, GiSpeech) and second is not primary
+        pending = asyncio.create_task(retry()) if usable else None
+        microphone = capture()
+        try:
+            async with asyncio.timeout(25):
+                try:
+                    local = await primary.async_process_audio_stream(metadata, microphone)
+                except (aiohttp.ClientError, OSError):
+                    # The other recognizer can still serve the turn.
+                    local = failure
+                    async for _chunk in microphone:
+                        pass
+            text = local.text if local.result == stt.SpeechResultState.SUCCESS else None
+            devices = catalog(self.hass)
+            if understand(text, self.sentences, devices) == "exact" or pending is None:
+                route = "primary" if text else "primary_empty"
+                return local
+            # A decoder that stopped reading early still leaves usable audio.
+            ended.set()
+            retried = await pending
+            chosen, route = choose_transcript(text, retried, self.sentences, devices)
+            if not chosen:
+                return failure if local.result != stt.SpeechResultState.SUCCESS else local
+            return stt.SpeechResult(chosen, stt.SpeechResultState.SUCCESS)
         except (aiohttp.ClientError, OSError, TimeoutError, ValueError):
             return failure
         finally:
+            if pending is not None and not pending.done():
+                pending.cancel()
             audio.clear()
             self._active.discard(task)
             self.hass.bus.async_fire(
