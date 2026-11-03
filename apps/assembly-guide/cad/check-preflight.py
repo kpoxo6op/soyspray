@@ -9,10 +9,13 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
+import struct
 import subprocess
 import sys
 import zipfile
+from collections import Counter
 
 cad = Path(__file__).resolve().parent
 repo = Path(
@@ -56,6 +59,105 @@ def record(name, condition, **evidence):
     assert condition, (name, evidence)
 
 
+def triangles(stl):
+    b = stl.read_bytes()
+    n = struct.unpack_from("<I", b, 80)[0]
+    assert len(b) == 84 + 50 * n, stl
+    return [
+        tuple(struct.unpack_from("<3f", b, 84 + 50 * i + 12 + 12 * k) for k in range(3))
+        for i in range(n)
+    ]
+
+
+def islands(tris):
+    """Split a mesh into separately standing pieces: connected shells, merged when nested."""
+    parent = list(range(len(tris)))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    seen = {}
+    for i, t in enumerate(tris):
+        for v in t:
+            parent[find(i)] = find(seen.setdefault(v, i))
+    groups = {}
+    for i in range(len(tris)):
+        groups.setdefault(find(i), []).append(tris[i])
+    boxes = []
+    for g in groups.values():
+        lo = [min(v[a] for t in g for v in t) for a in range(3)]
+        hi = [max(v[a] for t in g for v in t) for a in range(3)]
+        for other in [b for b in boxes if all(lo[a] < b[2][a] and b[1][a] < hi[a] for a in (0, 1))]:
+            boxes.remove(other)
+            g = g + other[0]
+            lo = [min(lo[a], other[1][a]) for a in range(3)]
+            hi = [max(hi[a], other[2][a]) for a in range(3)]
+        boxes.append((g, lo, hi))
+    return sorted(boxes, key=lambda b: (b[1][1], b[1][0]))
+
+
+def same_part(piece, low, reference):
+    """True when piece, moved to its lowest corner, is the reference mesh without any
+    rotation, mirroring or scaling. Matching tolerates float32 rounding of the move."""
+    if len(piece) != len(reference):
+        return False
+    grid = {}
+    ids = {}
+    for t in reference:
+        for v in t:
+            if v not in ids:
+                ids[v] = len(ids)
+                grid.setdefault(tuple(round(c, 2) for c in v), []).append(v)
+
+    def match(v):
+        p = [v[a] - low[a] for a in range(3)]
+        cells = [
+            (round(p[0], 2) + dx, round(p[1], 2) + dy, round(p[2], 2) + dz)
+            for dx in (-0.01, 0, 0.01) for dy in (-0.01, 0, 0.01) for dz in (-0.01, 0, 0.01)
+        ]
+        for cell in cells:
+            for r in grid.get(tuple(round(c, 2) for c in cell), ()):
+                if max(abs(r[a] - p[a]) for a in range(3)) < 1e-4:
+                    return ids[r]
+        return None
+
+    def canonical(t):
+        k = t.index(min(t))
+        return t[k:] + t[:k]
+
+    want = Counter(canonical(tuple(ids[v] for v in t)) for t in reference)
+    got = Counter()
+    for t in piece:
+        m = tuple(match(v) for v in t)
+        if None in m:
+            return False
+        got[canonical(m)] += 1
+    return got == want
+
+
+def layers_printing(gcode, footprints):
+    """For each model layer, which bed footprints receive extruded filament."""
+    layers, x, y, relative = [], 0.0, 0.0, False
+    for raw in gcode.read_text().splitlines():
+        if raw == "; MACHINE_END_GCODE_START":
+            break
+        if raw.startswith("; CHANGE_LAYER"):
+            layers.append(set())
+        words = dict(re.findall(r" ([XYE])(-?[\d.]+)", raw.split(";", 1)[0]))
+        relative = raw.startswith("M83") or (relative and not raw.startswith("M82"))
+        if re.match(r"G[0-3] ", raw):
+            x, y = float(words.get("X", x)), float(words.get("Y", y))
+            if layers and relative and float(words.get("E", 0)) > 0:
+                layers[-1].update(
+                    i for i, (lo, hi) in enumerate(footprints)
+                    if lo[0] - 1 <= x <= hi[0] + 1 and lo[1] - 1 <= y <= hi[1] + 1
+                )
+    return layers
+
+
 try:
     good = root / "fixed-shelves"
     rc, d = run(cad, good, ["drive_tray", "switch_shelf"])
@@ -76,6 +178,60 @@ try:
             sha(artifact) == v["job"] and archived == (good / p / "plate_1.gcode").read_bytes(),
             sha256=sha(artifact),
         )
+    batch = root / "remaining-posts"
+    rc, d = run(cad, batch, ["lower_posts_remaining"])
+    entry = d["parts"]["lower_posts_remaining"]
+    stl = batch / "stl/lower_posts_remaining.stl"
+    refs = root / "fresh-posts"
+    subprocess.run(
+        ["node", "render.mjs", "--output-dir", str(refs), "post_lower_a", "post_lower_b"],
+        cwd=cad,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    reference = {p: triangles(refs / "stl" / (p + ".stl")) for p in ("post_lower_a", "post_lower_b")}
+    pieces = islands(triangles(stl))
+    names = [
+        next((p for p, t in reference.items() if same_part(g, lo, t)), "unknown")
+        for g, lo, _ in pieces
+    ]
+    gaps = [
+        max(b[1][0] - a[2][0], a[1][0] - b[2][0], b[1][1] - a[2][1], a[1][1] - b[2][1])
+        for i, a in enumerate(pieces)
+        for b in pieces[i + 1 :]
+    ]
+    box = json.loads((batch / "lower_posts_remaining/result.json").read_text())["sliced_plates"][0][
+        "objects"
+    ][0]["bbox"]
+    machine = json.loads((cad / "print/machine.json").read_text())
+    offset = [float(v) for v in machine["extruder_offset"][0].split("x")]
+    low = [min(p[1][a] for p in pieces) for a in (0, 1)]
+    shift = [(box["x"], box["y"])[a] - low[a] - offset[a] for a in (0, 1)]
+    footprints = [
+        ([lo[a] + shift[a] for a in (0, 1)], [hi[a] + shift[a] for a in (0, 1)])
+        for _, lo, hi in pieces
+    ]
+    printed = layers_printing(batch / "lower_posts_remaining/plate_1.gcode", footprints)
+    job = batch / "lower_posts_remaining/lower_posts_remaining.gcode.3mf"
+    record(
+        "remaining lower posts are one current A and two current B, each printed on every checked layer",
+        rc == 0
+        and d["pass"]
+        and not entry["problems"]
+        and entry["geometry"]["pass"] is True
+        and entry["stl"] == sha(stl)
+        and sha(job) == entry["job"]
+        and sorted(names) == ["post_lower_a", "post_lower_b", "post_lower_b"]
+        and min(gaps) > 0
+        and len(printed) == entry["geometry"]["layers_checked"]
+        and all(layer == set(range(len(pieces))) for layer in printed),
+        parts=names,
+        clearance_mm=round(min(gaps), 3),
+        layers=len(printed),
+        minutes=entry["minutes"],
+        grams=entry["grams"],
+        sha256=entry.get("job"),
+    )
     old_report = sha(good / "preflight.json")
     old_jobs = {p: sha(good / p / (p + ".gcode.3mf")) for p in d["parts"]}
     rc, _ = run(cad, good, ["drive_tray"])
@@ -205,6 +361,22 @@ try:
         and d["parts"]["drive_tray"]["geometry"]["pass"] is True
         and d["parts"]["drive_tray"]["stl"] == sha(fresh)
         and fresh.stat().st_size > 84,
+    )
+    # A layout edit that puts posts on top of each other must stop before slicing.
+    layout = (oldcad / "render.mjs").read_text()
+    overlapping = layout.replace("{ part: 'post_lower_b', at: [0, 30] }", "{ part: 'post_lower_b', at: [0, 10] }")
+    assert overlapping != layout
+    (oldcad / "render.mjs").write_text(overlapping)
+    subprocess.run(["git", "add", "render.mjs"], cwd=oldcad, check=True)
+    subprocess.run(["git", "commit", "-qm", "E2E: overlapping post batch"], cwd=oldcad, check=True)
+    rc, d = run(oldcad, root / "overlapping-batch", ["lower_posts_remaining"])
+    record(
+        "an overlapping post batch layout exports no job",
+        rc == 1
+        and not d["pass"]
+        and "batch clearance" in d.get("error", "")
+        and not list((root / "overlapping-batch").rglob("*.gcode.3mf")),
+        error=d.get("error", "")[-300:],
     )
     completed = True
 finally:
