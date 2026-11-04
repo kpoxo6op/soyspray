@@ -214,10 +214,8 @@ def check(path, stl, result_path):
             raise ValueError(f"empty or unsupported layer step {n}: {height:.3f} mm")
         middle = z - height / 2
         current = section(middle + 0.00001)
-        # A horizontal CAD face exactly on the slicer's mid-layer sampling plane may be kept
-        # from either side (a nut slot floor at 12.9 mm in a 12.8-13.0 mm layer). Paths may fit
-        # either side of that plane; support for the next layer still uses only `current`.
-        fits = current.union(section(middle - 0.00001)).buffer(TOL * 2)
+        inside = current.buffer(TOL * 2)
+        either_side = None
         if not bed.buffer(TOL).covers(current) or z > float(machine["printable_height"]):
             raise ValueError(f"layer {n} conflicts with printer volume/excluded corner")
         # Structural solid from the preceding CAD slice, not a filled projection of
@@ -227,8 +225,14 @@ def check(path, stl, result_path):
         support = previous.buffer(height + TOL, quad_segs=3)
         accepted = []
         for line, width, feature in paths:
-            if not fits.covers(line):
-                raise ValueError(f"toolpath outside placed model at layer {n} ({feature})")
+            if not inside.covers(line):
+                # A horizontal CAD face exactly on the slicer's mid-layer sampling plane may be
+                # kept from either side (a nut slot floor at 12.9 mm in a 12.8-13.0 mm layer).
+                # Such a path may fit just below the plane; support still uses only `current`.
+                if either_side is None:
+                    either_side = current.union(section(middle - 0.00001)).buffer(TOL * 2)
+                if not either_side.covers(line):
+                    raise ValueError(f"toolpath outside placed model at layer {n} ({feature})")
             if checked == 1:
                 continue
             failures_before = len(failures)
