@@ -68,9 +68,10 @@ after login.
 
 The default panel, `/dashboard-home`, is a YAML dashboard declared in Git
 (`home-dashboard.yaml` in the bootstrap ConfigMap, copied to
-`/config/dashboards/home.yaml`). Every screen is a tab: Home, Bins, Power,
-Remote, Vacuum and System, so the sidebar holds only Home and HA's built-in
-panels. Change the dashboard in Git; the UI editor cannot save a YAML
+`/config/dashboards/home.yaml`). Its tabs are Home, Bins, Power and System;
+Remote and Vacuum are subviews opened from the Home tab, so the phone's top
+bar fits without scrolling. The sidebar holds only Home and HA's built-in
+panels (order set per user in the profile). Change the dashboard in Git; the UI editor cannot save a YAML
 dashboard. Notifications open tabs by path (`/dashboard-home/bins`,
 `/dashboard-home/power`).
 
