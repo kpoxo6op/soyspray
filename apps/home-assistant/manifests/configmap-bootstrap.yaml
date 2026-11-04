@@ -30,6 +30,12 @@ data:
           title: Power
           icon: mdi:lightning-bolt
           show_in_sidebar: true
+        bins-collections:
+          mode: yaml
+          filename: dashboards/bins.yaml
+          title: Bins
+          icon: mdi:delete-empty
+          show_in_sidebar: true
 
     intent_script: !include custom_components/gi_voice/intents.yaml
 
@@ -58,6 +64,16 @@ data:
       tapo_bedtime_motion_guard:
         name: Tapo bedtime motion guard
         icon: mdi:weather-night
+      bins_reminders_paused:
+        name: Pause bin reminders
+        icon: mdi:bell-off-outline
+
+    input_datetime:
+      bins_out_for:
+        name: Bins put out for
+        icon: mdi:check-circle-outline
+        has_date: true
+        has_time: false
 
     light:
       - platform: group
@@ -458,6 +474,105 @@ data:
               tag: power-bill
               clickAction: /mercury-power/mercury
       mode: single
+    # Bins go out the evening before collection. Reminders stop once
+    # "They're out" is pressed on the phone or the dashboard.
+    - id: bins_evening_reminder
+      alias: Bins remind the evening before collection
+      triggers:
+        - trigger: time
+          at: "18:30:00"
+          id: evening
+        - trigger: time
+          at: "21:00:00"
+          id: late
+      conditions:
+        - condition: state
+          entity_id: input_boolean.bins_reminders_paused
+          state: "off"
+        - condition: template
+          value_template: >-
+            {{ state_attr('sensor.bins_next_collection', 'days') == 1
+               and states('input_datetime.bins_out_for') != states('sensor.bins_next_collection') }}
+      actions:
+        - action: script.bins_notify
+          data:
+            headline: "{{ 'Bins out tonight' if trigger.id == 'evening' else 'Bins still inside?' }}"
+      mode: single
+    - id: bins_morning_last_call
+      alias: Bins last call on collection morning
+      triggers:
+        - trigger: time
+          at: "06:15:00"
+      conditions:
+        - condition: state
+          entity_id: input_boolean.bins_reminders_paused
+          state: "off"
+        - condition: template
+          value_template: >-
+            {{ state_attr('sensor.bins_next_collection', 'days') == 0
+               and states('input_datetime.bins_out_for') != states('sensor.bins_next_collection') }}
+      actions:
+        - action: script.bins_notify
+          data:
+            headline: "Last call: bins before 7am"
+      mode: single
+    - id: bins_reminder_buttons
+      alias: Bins handle the phone reminder buttons
+      triggers:
+        - trigger: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: BINS_OUT
+          id: out
+        - trigger: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: BINS_SNOOZE
+          id: snooze
+      actions:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: out
+              sequence:
+                - action: script.bins_mark_out
+            - conditions:
+                - condition: trigger
+                  id: snooze
+              sequence:
+                - delay: "01:00:00"
+                - condition: template
+                  value_template: >-
+                    {{ state_attr('sensor.bins_next_collection', 'days') in [0, 1]
+                       and states('input_datetime.bins_out_for') != states('sensor.bins_next_collection') }}
+                - action: script.bins_notify
+                  data:
+                    headline: Bins reminder
+      mode: restart
+    - id: bins_schedule_stale
+      alias: Bins warn when the council schedule stops updating
+      triggers:
+        - trigger: time
+          at: "10:00:00"
+      conditions:
+        # Rubbish is weekly, so a healthy schedule always has a date within 8 days.
+        - condition: template
+          value_template: >-
+            {{ not has_value('sensor.bins_next_collection')
+               or state_attr('sensor.bins_next_collection', 'days') | int(99) > 8 }}
+      actions:
+        - action: notify.mobile_app_pixel_9_pro_xl
+          data:
+            title: Bin schedule stopped updating
+            message: >-
+              Home Assistant has no upcoming Auckland Council collection
+              {%- if has_value('sensor.bins_schedule') %} (last read {{ state_attr('sensor.bins_schedule', 'updated')[:10] }}){% endif %}.
+              Check Settings → Devices & services → Waste Collection Schedule; the council page may have changed.
+            data:
+              group: bins
+              tag: bins-stale
+              clickAction: /config/integrations/integration/waste_collection_schedule
+      mode: single
   scripts.yaml: |
     tapo_relax:
       alias: Tapo Relax
@@ -472,6 +587,59 @@ data:
               - light.bottom
           data:
             effect: Relax
+    bins_notify:
+      alias: Bins remind the phone
+      description: Phone reminder listing the bins for the next collection, with buttons.
+      mode: queued
+      fields:
+        headline:
+          description: Notification title
+          example: Bins out tonight
+      sequence:
+        - condition: template
+          value_template: "{{ has_value('sensor.bins_next_collection') }}"
+        - action: notify.mobile_app_pixel_9_pro_xl
+          data:
+            title: "{{ headline }}"
+            message: >-
+              {% set d = state_attr('sensor.bins_next_collection', 'days') %}
+              {% set day = strptime(states('sensor.bins_next_collection'), '%Y-%m-%d') %}
+              {% set icons = {'Rubbish': '🔴', 'Food scraps': '🟢', 'Recycling': '🟡'} %}
+              {{ state_attr('sensor.bins_next_collection', 'summary') }}
+              {{- ' today' if d == 0 else ' tomorrow' }} ({{ day.strftime('%a %-d %b') }}), out before 7am.
+              {% for bin in state_attr('sensor.bins_next_collection', 'bins') %}{{ icons.get(bin, '⚪') }} {{ bin }}{{ '  ' if not loop.last }}{% endfor %}
+            data:
+              tag: bins-reminder
+              group: bins
+              channel: Bins
+              importance: high
+              priority: high
+              ttl: 0
+              notification_icon: mdi:delete-empty
+              clickAction: /bins-collections/bins
+              actions:
+                - action: BINS_OUT
+                  title: They're out
+                - action: BINS_SNOOZE
+                  title: In an hour
+    bins_mark_out:
+      alias: Bins are out
+      description: Record that the bins are out for the next collection and clear the reminder.
+      icon: mdi:check-circle
+      mode: single
+      sequence:
+        - condition: template
+          value_template: "{{ has_value('sensor.bins_next_collection') }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.bins_out_for
+          data:
+            date: "{{ states('sensor.bins_next_collection') }}"
+        - action: notify.mobile_app_pixel_9_pro_xl
+          data:
+            message: clear_notification
+            data:
+              tag: bins-reminder
   scenes.yaml: |
     - id: tapo_relax
       name: Tapo Relax
@@ -623,6 +791,163 @@ data:
             saving_vs_now: >-
               {{ (totals['Mercury Flat Rates (now)'] - (totals | dictsort(false, 'value') | first)[1]) | round(2) }}
             rates_checked: "2026-11-04"
+
+    # Bin collections. The Waste Collection Schedule integration (its config
+    # entry and the council property number live in the HA PVC) publishes
+    # Auckland Council's next date for each bin as calendar.bin_collections.
+    # The council lists only the next date per bin, so this keeps the first
+    # date of each kind. If the calendar disappears the dates freeze, pass,
+    # and the sensors below turn unavailable, which raises the stale warning.
+    - trigger:
+        - trigger: homeassistant
+          event: start
+        - trigger: time_pattern
+          minutes: "/15"
+        - trigger: state
+          entity_id: calendar.bin_collections
+      conditions:
+        - condition: template
+          value_template: "{{ has_value('calendar.bin_collections') }}"
+      action:
+        - action: calendar.get_events
+          target:
+            entity_id: calendar.bin_collections
+          data:
+            duration:
+              days: 45
+          response_variable: calendar
+        - variables:
+            next_by_bin: >-
+              {% set today = now().date().isoformat() %}
+              {% set ns = namespace(out={}) %}
+              {% for e in calendar['calendar.bin_collections'].events | sort(attribute='start') %}
+                {% set bin = e.summary | trim | lower %}
+                {% set day = (e.start | string)[:10] %}
+                {% if day >= today and bin not in ns.out %}
+                  {% set ns.out = dict(ns.out, **{bin: day}) %}
+                {% endif %}
+              {% endfor %}
+              {{ ns.out }}
+      sensor:
+        - name: Bins schedule
+          unique_id: bins_schedule
+          icon: mdi:calendar-sync
+          state: "{{ next_by_bin.values() | min if next_by_bin else 'none' }}"
+          attributes:
+            bins: "{{ next_by_bin }}"
+            updated: "{{ now().isoformat() }}"
+
+    # Countdowns recompute every minute from the stored dates.
+    - sensor:
+        - name: Bins next collection
+          unique_id: bins_next_collection
+          icon: mdi:delete-clock-outline
+          device_class: date
+          availability: >-
+            {% set today = now().date().isoformat() %}
+            {{ (state_attr('sensor.bins_schedule', 'bins') or {}).values() | select('ge', today) | list | count > 0 }}
+          state: >-
+            {% set today = now().date().isoformat() %}
+            {{ (state_attr('sensor.bins_schedule', 'bins') or {}).values() | select('ge', today) | min }}
+          attributes:
+            bins: >-
+              {% set today = now().date().isoformat() %}
+              {% set bins = state_attr('sensor.bins_schedule', 'bins') or {} %}
+              {% set future = bins.values() | select('ge', today) | list %}
+              {% set first = future | min if future else '' %}
+              {% set names = {'rubbish': 'Rubbish', 'food scraps': 'Food scraps', 'recycling': 'Recycling'} %}
+              {% set ns = namespace(out=[]) %}
+              {% for bin in ['rubbish', 'food scraps', 'recycling'] + (bins.keys() | reject('in', names) | sort | list) %}
+                {% if bins.get(bin) == first %}
+                  {% set ns.out = ns.out + [names.get(bin, bin | capitalize)] %}
+                {% endif %}
+              {% endfor %}
+              {{ ns.out }}
+            summary: >-
+              {% set today = now().date().isoformat() %}
+              {% set bins = state_attr('sensor.bins_schedule', 'bins') or {} %}
+              {% set future = bins.values() | select('ge', today) | list %}
+              {% set first = future | min if future else '' %}
+              {% set names = {'rubbish': 'rubbish', 'food scraps': 'food scraps', 'recycling': 'recycling'} %}
+              {% set ns = namespace(out=[]) %}
+              {% for bin in ['rubbish', 'food scraps', 'recycling'] + (bins.keys() | reject('in', names) | sort | list) %}
+                {% if bins.get(bin) == first %}
+                  {% set ns.out = ns.out + [names.get(bin, bin)] %}
+                {% endif %}
+              {% endfor %}
+              {{ ((ns.out[:-1] | join(', ') ~ ' and ' ~ ns.out[-1]) if ns.out | count > 1 else ns.out | join('')) | capitalize }}
+            days: >-
+              {% set today = now().date().isoformat() %}
+              {% set future = (state_attr('sensor.bins_schedule', 'bins') or {}).values() | select('ge', today) | list %}
+              {% if future %}{{ (strptime(future | min, '%Y-%m-%d').date() - now().date()).days }}{% endif %}
+            when: >-
+              {% set today = now().date().isoformat() %}
+              {% set future = (state_attr('sensor.bins_schedule', 'bins') or {}).values() | select('ge', today) | list %}
+              {% if future %}
+                {% set day = strptime(future | min, '%Y-%m-%d') %}
+                {% set d = (day.date() - now().date()).days %}
+                {{ 'Today' if d == 0 else 'Tomorrow' if d == 1 else day.strftime('%A') if d < 7 else 'In ' ~ d ~ ' days' }}
+              {% endif %}
+        - name: Bins rubbish
+          unique_id: bins_rubbish
+          icon: mdi:trash-can
+          device_class: date
+          availability: >-
+            {{ ((state_attr('sensor.bins_schedule', 'bins') or {}).get('rubbish') or '') >= now().date().isoformat() }}
+          state: "{{ state_attr('sensor.bins_schedule', 'bins')['rubbish'] }}"
+          attributes:
+            when: >-
+              {% set raw = (state_attr('sensor.bins_schedule', 'bins') or {}).get('rubbish') %}
+              {% if raw %}
+                {% set day = strptime(raw, '%Y-%m-%d') %}
+                {% set d = (day.date() - now().date()).days %}
+                {{ 'Today' if d == 0 else 'Tomorrow' if d == 1 else day.strftime('%A') if d < 7 else 'In ' ~ d ~ ' days' }}
+              {% endif %}
+            frequency: Weekly
+        - name: Bins food scraps
+          unique_id: bins_food_scraps
+          icon: mdi:food-apple-outline
+          device_class: date
+          availability: >-
+            {{ ((state_attr('sensor.bins_schedule', 'bins') or {}).get('food scraps') or '') >= now().date().isoformat() }}
+          state: "{{ state_attr('sensor.bins_schedule', 'bins')['food scraps'] }}"
+          attributes:
+            when: >-
+              {% set raw = (state_attr('sensor.bins_schedule', 'bins') or {}).get('food scraps') %}
+              {% if raw %}
+                {% set day = strptime(raw, '%Y-%m-%d') %}
+                {% set d = (day.date() - now().date()).days %}
+                {{ 'Today' if d == 0 else 'Tomorrow' if d == 1 else day.strftime('%A') if d < 7 else 'In ' ~ d ~ ' days' }}
+              {% endif %}
+            frequency: Weekly
+        - name: Bins recycling
+          unique_id: bins_recycling
+          icon: mdi:recycle
+          device_class: date
+          availability: >-
+            {{ ((state_attr('sensor.bins_schedule', 'bins') or {}).get('recycling') or '') >= now().date().isoformat() }}
+          state: "{{ state_attr('sensor.bins_schedule', 'bins')['recycling'] }}"
+          attributes:
+            when: >-
+              {% set raw = (state_attr('sensor.bins_schedule', 'bins') or {}).get('recycling') %}
+              {% if raw %}
+                {% set day = strptime(raw, '%Y-%m-%d') %}
+                {% set d = (day.date() - now().date()).days %}
+                {{ 'Today' if d == 0 else 'Tomorrow' if d == 1 else day.strftime('%A') if d < 7 else 'In ' ~ d ~ ' days' }}
+              {% endif %}
+            frequency: Fortnightly
+        - name: Bins status
+          unique_id: bins_status
+          icon: >-
+            {{ 'mdi:check-circle' if this.state == 'Out' else 'mdi:delete-alert' if this.state in ['Put out tonight', 'Collection today'] else 'mdi:delete-empty' }}
+          state: >-
+            {% set day = states('sensor.bins_next_collection') %}
+            {% set d = state_attr('sensor.bins_next_collection', 'days') %}
+            {% if not has_value('sensor.bins_next_collection') %}No schedule
+            {% elif states('input_datetime.bins_out_for') == day %}Out
+            {% elif d == 0 %}Collection today
+            {% elif d == 1 %}Put out tonight
+            {% else %}Next {{ state_attr('sensor.bins_next_collection', 'when') }}{% endif %}
   mercury-dashboard.yaml: |
     # Mercury power dashboard. The Mercury CO NZ integration registers the
     # custom:mercury-* cards itself. The per-ICP sensors are renamed to the
@@ -768,3 +1093,136 @@ data:
                 period: hourly|daily|monthly
                 grid_options:
                   columns: full
+  bins-dashboard.yaml: |
+    # Bin collections dashboard. Dates come from Auckland Council through the
+    # Waste Collection Schedule calendar (calendar.bin_collections) and the
+    # bins_* template sensors in templates.yaml.
+    title: Bins
+    views:
+      - title: Bins
+        path: bins
+        icon: mdi:delete-empty
+        type: sections
+        max_columns: 3
+        badges:
+          - type: entity
+            entity: sensor.bins_status
+            show_name: false
+            color: green
+        sections:
+          - type: grid
+            cards:
+              - type: heading
+                heading: Next collection
+                icon: mdi:truck-outline
+                heading_style: title
+              - type: markdown
+                text_only: true
+                grid_options:
+                  columns: full
+                content: >-
+                  {% if has_value('sensor.bins_next_collection') %}
+                  {%- set day = strptime(states('sensor.bins_next_collection'), '%Y-%m-%d') %}
+                  {%- set icons = {'Rubbish': '🔴', 'Food scraps': '🟢', 'Recycling': '🟡'} %}
+                  # {{ state_attr('sensor.bins_next_collection', 'when') }}
+                  ### {{ day.strftime('%A %-d %B') }}
+
+                  {% for bin in state_attr('sensor.bins_next_collection', 'bins') %}{{ icons.get(bin, '⚪') }} **{{ bin }}**&nbsp;&nbsp;{% endfor %}
+
+                  {% if states('sensor.bins_status') == 'Out' %}✅ Out — nothing to do.
+                  {%- elif state_attr('sensor.bins_next_collection', 'days') == 1 %}Put them out tonight.
+                  {%- elif state_attr('sensor.bins_next_collection', 'days') == 0 %}Kerbside before 7am.
+                  {%- else %}Out the evening before.{% endif %}
+                  {% else %}
+                  ## No schedule yet
+                  The council calendar has no upcoming dates. Check Settings → Devices & services → Waste Collection Schedule.
+                  {% endif %}
+              - type: tile
+                entity: sensor.bins_status
+                name: Status
+                color: green
+              - type: tile
+                entity: script.bins_mark_out
+                name: They're out
+                icon: mdi:check-circle
+                color: green
+                hide_state: true
+                tap_action:
+                  action: perform-action
+                  perform_action: script.bins_mark_out
+          - type: grid
+            cards:
+              - type: heading
+                heading: Each bin
+                icon: mdi:delete-variant
+                heading_style: title
+              - type: tile
+                entity: sensor.bins_rubbish
+                name: Rubbish
+                icon: mdi:trash-can
+                color: red
+                state_content:
+                  - when
+                  - state
+              - type: tile
+                entity: sensor.bins_food_scraps
+                name: Food scraps
+                icon: mdi:food-apple-outline
+                color: green
+                state_content:
+                  - when
+                  - state
+              - type: tile
+                entity: sensor.bins_recycling
+                name: Recycling
+                icon: mdi:recycle
+                color: amber
+                state_content:
+                  - when
+                  - state
+              - type: markdown
+                text_only: true
+                grid_options:
+                  columns: full
+                content: >-
+                  Rubbish and food scraps every week, recycling every second week.
+                  After a public holiday collections move a day later; the dates
+                  here follow the council. Inorganic collection is booked
+                  separately on the council website.
+          - type: grid
+            cards:
+              - type: heading
+                heading: Calendar
+                icon: mdi:calendar-month
+                heading_style: title
+              - type: calendar
+                entities:
+                  - calendar.bin_collections
+                initial_view: dayGridMonth
+                grid_options:
+                  columns: full
+          - type: grid
+            cards:
+              - type: heading
+                heading: Reminders
+                icon: mdi:bell-ring-outline
+                heading_style: title
+              - type: markdown
+                text_only: true
+                grid_options:
+                  columns: full
+                content: >-
+                  The phone is reminded at 18:30 the evening before, again at
+                  21:00 if the bins are not marked out, and at 06:15 on the day.
+                  "In an hour" snoozes one reminder.
+              - type: tile
+                entity: input_boolean.bins_reminders_paused
+                name: Pause reminders
+                color: grey
+                features:
+                  - type: toggle
+              - type: tile
+                entity: input_datetime.bins_out_for
+                name: Last marked out
+                icon: mdi:check-circle-outline
+                color: green
