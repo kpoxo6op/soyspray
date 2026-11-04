@@ -333,6 +333,8 @@ data:
     # Mercury power dashboard. The Mercury CO NZ integration registers the
     # custom:mercury-* cards itself. The per-ICP sensors are renamed to the
     # sensor.mercury_nz_* ids below once, after the account is signed in.
+    # Mercury reports an empty billing period (0001-01-01) until the first
+    # bill, so "This bill" waits for real dates and "Last 7 days" stands in.
     title: Power
     views:
       - title: Mercury
@@ -344,11 +346,6 @@ data:
           - type: entity
             entity: sensor.mercury_nz_current_plan
             icon: mdi:file-document-outline
-            color: amber
-            show_name: false
-          - type: entity
-            entity: sensor.mercury_nz_current_rate
-            icon: mdi:currency-usd
             color: amber
             show_name: false
         sections:
@@ -385,7 +382,46 @@ data:
                 name: This week
                 grid_options:
                   columns: full
+                visibility:
+                  - condition: state
+                    entity: sensor.mercury_nz_weekly_period_start
+                    state_not:
+                      - "0001-01-01"
+                      - unknown
+                      - unavailable
           - type: grid
+            visibility:
+              - condition: state
+                entity: sensor.mercury_nz_billing_period_start
+                state:
+                  - "0001-01-01"
+                  - unknown
+                  - unavailable
+            cards:
+              - type: heading
+                heading: Last 7 days
+                icon: mdi:calendar-week
+                heading_style: title
+              - type: tile
+                entity: sensor.mercury_nz_current_bill_7_days
+                name: Cost
+                icon: mdi:cash-multiple
+                color: amber
+                vertical: true
+              - type: tile
+                entity: sensor.mercury_nz_total_usage_7_days
+                name: Used
+                icon: mdi:meter-electric-outline
+                color: amber
+                vertical: true
+          - type: grid
+            visibility:
+              - condition: state
+                entity: sensor.mercury_nz_billing_period_start
+                state_not:
+                  - "0001-01-01"
+                  - unknown
+                  - unavailable
             cards:
               - type: heading
                 heading: This bill
@@ -425,22 +461,12 @@ data:
                 heading: Usage
                 icon: mdi:chart-bar
                 heading_style: title
-                badges:
-                  - type: entity
-                    entity: sensor.mercury_nz_total_usage_7_days
-                    color: amber
+                tap_action:
+                  action: navigate
+                  navigation_path: /energy
               - type: custom:mercury-energy-usage-card
                 entity: sensor.mercury_nz_energy_usage
                 name: Usage
                 period: hourly|daily|monthly
                 grid_options:
                   columns: full
-              - type: button
-                name: Energy dashboard
-                icon: mdi:home-lightning-bolt-outline
-                tap_action:
-                  action: navigate
-                  navigation_path: /energy
-                grid_options:
-                  columns: full
-                  rows: 1
