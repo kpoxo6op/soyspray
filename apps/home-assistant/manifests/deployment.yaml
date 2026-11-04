@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       annotations:
-        soyspray.vip/bootstrap-config-revision: "2026-11-05-home-tabs-v2"
+        soyspray.vip/bootstrap-config-revision: "2026-11-05-home-one-page"
       labels:
         app: home-assistant
         component: main

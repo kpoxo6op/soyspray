@@ -943,13 +943,16 @@ data:
             {% elif d == 1 %}Put out tonight
             {% else %}Next {{ state_attr('sensor.bins_next_collection', 'when') }}{% endif %}
   home-dashboard.yaml: |
-    # Home dashboard (url /dashboard-home, the default panel). Every screen
-    # lives here, so the sidebar keeps only Home and HA's own panels.
-    # Tabs: Home, Bins (Auckland Council collections, sensor.bins_* from
-    # templates.yaml), Power (Mercury CO NZ cards, registered by the integration;
-    # per-ICP sensors renamed to sensor.mercury_nz_*; Mercury reports an empty
-    # billing period 0001-01-01 until the first bill) and System. Remote and
-    # Vacuum are subviews opened from the Home tab, so four tabs fit a phone.
+    # Home dashboard (url /dashboard-home, the default panel and the only item
+    # in the sidebar). One rule for every screen: each thing in the house is a
+    # section on Home, in this order: Lights, Living room TV, Kettle, Vacuum,
+    # Bins, Power, System. A section whose heading has an arrow opens its page
+    # (a subview with a back arrow to Home): Remote, Vacuum, Bins, Power,
+    # System. Add a new thing as a new section before System, and its page as a
+    # subview. There are no tabs. The badges above Home show the weather and
+    # only what needs attention now. Bins reads sensor.bins_* (templates.yaml);
+    # Power uses the Mercury CO NZ cards (sensor.mercury_nz_*; Mercury reports
+    # an empty billing period 0001-01-01 until the first bill).
     title: Home
     views:
     - title: Home
@@ -992,12 +995,6 @@ data:
           state:
           - Put out tonight
           - Collection today
-      - type: entity
-        entity: light.peanut
-        name: Peanut
-        show_name: true
-        tap_action:
-          action: toggle
       - type: entity
         entity: media_player.living_room_tv
         name: TV
@@ -1111,16 +1108,6 @@ data:
           - type: media-player-volume-slider
           grid_options:
             columns: full
-        - type: shortcut
-          label: Remote
-          description: Arrows, OK, home and back
-          icon: mdi:remote-tv
-          color: indigo
-          tap_action:
-            action: navigate
-            navigation_path: /dashboard-home/remote
-          grid_options:
-            columns: full
       - type: grid
         cards:
         - type: heading
@@ -1196,59 +1183,32 @@ data:
             - locate
           grid_options:
             columns: full
-        - type: shortcut
-          label: Map and rooms
-          description: Clean one room, check the brushes
-          icon: mdi:floor-plan
-          color: teal
-          tap_action:
-            action: navigate
-            navigation_path: /dashboard-home/vacuum
-          grid_options:
-            columns: full
-    - title: Bins
-      path: bins
-      icon: mdi:delete-empty
-      type: sections
-      max_columns: 3
-      badges:
-      - type: entity
-        entity: sensor.bins_status
-        show_name: false
-        color: green
-      sections:
       - type: grid
         cards:
         - type: heading
-          heading: Next collection
+          heading: Bins
+          icon: mdi:delete-empty
+          tap_action:
+            action: navigate
+            navigation_path: /dashboard-home/bins
+          badges:
+          - type: entity
+            entity: sensor.bins_status
+            show_state: true
+            show_icon: false
+        - type: tile
+          entity: sensor.bins_next_collection
+          name: Next collection
           icon: mdi:truck-outline
-          heading_style: title
-        - type: markdown
-          text_only: true
+          color: green
+          state_content:
+          - when
+          - summary
+          tap_action:
+            action: navigate
+            navigation_path: /dashboard-home/bins
           grid_options:
             columns: full
-          content: |
-            {% if has_value('sensor.bins_next_collection') %}
-            {%- set day = strptime(states('sensor.bins_next_collection'), '%Y-%m-%d') %}
-            {%- set icons = {'Rubbish': '🔴', 'Food scraps': '🟢', 'Recycling': '🟡'} %}
-            {%- set when = state_attr('sensor.bins_next_collection', 'when') %}
-            # {{ when }}
-            ### {{ day.strftime('%-d %B') if when == day.strftime('%A') else day.strftime('%A %-d %B') }}
-
-            {% for bin in state_attr('sensor.bins_next_collection', 'bins') %}{{ icons.get(bin, '⚪') }} **{{ bin }}**&nbsp;&nbsp;{% endfor %}
-
-            {% if states('sensor.bins_status') == 'Out' %}✅ Out — nothing to do.
-            {%- elif state_attr('sensor.bins_next_collection', 'days') == 1 %}Put them out tonight.
-            {%- elif state_attr('sensor.bins_next_collection', 'days') == 0 %}Kerbside before 7am.
-            {%- else %}Out the evening before.{% endif %}
-            {% else %}
-            ## No schedule yet
-            The council calendar has no upcoming dates. Check Settings → Devices & services → Waste Collection Schedule.
-            {% endif %}
-        - type: tile
-          entity: sensor.bins_status
-          name: Status
-          color: green
         - type: tile
           entity: script.bins_mark_out
           name: They're out
@@ -1258,224 +1218,66 @@ data:
           tap_action:
             action: perform-action
             perform_action: script.bins_mark_out
+          grid_options:
+            columns: full
+          visibility:
+          - condition: state
+            entity: sensor.bins_status
+            state:
+            - Put out tonight
+            - Collection today
       - type: grid
         cards:
         - type: heading
-          heading: Each bin
-          icon: mdi:delete-variant
-          heading_style: title
-        - type: tile
-          entity: sensor.bins_rubbish
-          name: Rubbish
-          grid_options:
-            columns: full
-          icon: mdi:trash-can
-          color: red
-          state_content:
-          - when
-          - state
-        - type: tile
-          entity: sensor.bins_food_scraps
-          name: Food scraps
-          grid_options:
-            columns: full
-          icon: mdi:food-apple-outline
-          color: green
-          state_content:
-          - when
-          - state
-        - type: tile
-          entity: sensor.bins_recycling
-          name: Recycling
-          grid_options:
-            columns: full
-          icon: mdi:recycle
-          color: amber
-          state_content:
-          - when
-          - state
-        - type: markdown
-          text_only: true
-          grid_options:
-            columns: full
-          content: Rubbish and food scraps every week, recycling every second week. After a public holiday collections
-            move a day later; the dates here follow the council. Inorganic collection is booked separately on the council
-            website.
-      - type: grid
-        cards:
-        - type: heading
-          heading: Calendar
-          icon: mdi:calendar-month
-          heading_style: title
-        - type: calendar
-          entities:
-          - calendar.bin_collections
-          initial_view: dayGridMonth
-          grid_options:
-            columns: full
-      - type: grid
-        cards:
-        - type: heading
-          heading: Reminders
-          icon: mdi:bell-ring-outline
-          heading_style: title
-        - type: markdown
-          text_only: true
-          grid_options:
-            columns: full
-          content: The phone is reminded at 18:30 the evening before, again at 21:00 if the bins are not marked out,
-            and at 06:15 on the day. "In an hour" snoozes one reminder.
-        - type: tile
-          entity: input_boolean.bins_reminders_paused
-          name: Pause reminders
-          color: grey
-          features:
-          - type: toggle
-        - type: tile
-          entity: input_datetime.bins_out_for
-          name: Last marked out
-          icon: mdi:check-circle-outline
-          color: green
-      background: 'radial-gradient(130% 55% at 0% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(99, 102, 241, 0) 62%), radial-gradient(110%
-        50% at 100% 100%, rgba(20, 184, 166, 0.14) 0%, rgba(20, 184, 166, 0) 60%), fixed #0b0d12'
-    - title: Power
-      path: power
-      icon: mdi:lightning-bolt
-      type: sections
-      max_columns: 3
-      badges:
-      - type: entity
-        entity: sensor.mercury_nz_current_plan
-        icon: mdi:file-document-outline
-        color: amber
-        show_name: false
-      sections:
-      - type: grid
-        cards:
-        - type: heading
-          heading: Latest day
-          icon: mdi:flash
-          heading_style: title
+          heading: Power
+          icon: mdi:lightning-bolt
+          tap_action:
+            action: navigate
+            navigation_path: /dashboard-home/power
         - type: tile
           entity: sensor.mercury_nz_latest_daily_cost
           name: Cost
           icon: mdi:cash
           color: amber
           vertical: true
+          tap_action:
+            action: navigate
+            navigation_path: /dashboard-home/power
         - type: tile
           entity: sensor.mercury_nz_latest_daily_usage
           name: Used
           icon: mdi:lightning-bolt
           color: amber
           vertical: true
-        - type: tile
-          entity: sensor.mercury_nz_current_rate
-          name: Price per kWh
-          icon: mdi:tag-outline
-          color: yellow
-        - type: tile
-          entity: sensor.mercury_nz_daily_fixed_charge
-          name: Daily charge
-          icon: mdi:calendar-today
-          color: grey
-        - type: custom:mercury-energy-weekly-summary-card
-          entity: sensor.mercury_nz_energy_usage
-          name: This week
-          grid_options:
-            columns: full
-          visibility:
-          - condition: state
-            entity: sensor.mercury_nz_weekly_period_start
-            state_not:
-            - '0001-01-01'
-            - unknown
-            - unavailable
-      - type: grid
-        cards:
-        - type: heading
-          heading: Last 7 days
-          icon: mdi:calendar-week
-          heading_style: title
-        - type: tile
-          entity: sensor.power_last_7_days_cost
-          name: Cost
-          icon: mdi:cash-multiple
-          color: amber
-          vertical: true
-        - type: tile
-          entity: sensor.power_last_7_days_usage
-          name: Used
-          icon: mdi:meter-electric-outline
-          color: amber
-          vertical: true
-        - type: tile
-          entity: sensor.power_always_on
-          name: Always on
-          icon: mdi:power-plug-battery-outline
-          color: deep-orange
-        - type: tile
-          entity: sensor.power_plan_check
-          name: Cheapest plan so far
-          icon: mdi:scale-balance
-          color: green
-      - type: grid
-        visibility:
-        - condition: state
-          entity: sensor.mercury_nz_billing_period_start
-          state_not:
-          - '0001-01-01'
-          - unknown
-          - unavailable
-        cards:
-        - type: heading
-          heading: This bill
-          icon: mdi:receipt-text-outline
-          heading_style: title
-        - type: custom:mercury-energy-monthly-summary-card
-          entity: sensor.mercury_nz_current_period_cost
-          name: Billing period
-          show_progress_bar: true
-          grid_options:
-            columns: full
-        - type: tile
-          entity: sensor.mercury_nz_days_remaining_in_period
-          name: Days to go
-          icon: mdi:calendar-clock
-          color: amber
-          vertical: true
-        - type: tile
-          entity: sensor.mercury_nz_current_period_usage
-          name: Used so far
-          icon: mdi:meter-electric-outline
-          color: amber
-          vertical: true
-        - type: tile
-          entity: sensor.mercury_nz_current_balance
-          name: Balance
-          icon: mdi:wallet-outline
-          color: green
-        - type: tile
-          entity: sensor.mercury_nz_due_date
-          name: Next payment
-          icon: mdi:bank-transfer
-          color: blue-grey
-      - type: grid
-        cards:
-        - type: heading
-          heading: Usage
-          icon: mdi:chart-bar
-          heading_style: title
           tap_action:
             action: navigate
-            navigation_path: /energy
-        - type: custom:mercury-energy-usage-card
-          entity: sensor.mercury_nz_energy_usage
-          name: Usage
-          period: hourly|daily|monthly
+            navigation_path: /dashboard-home/power
+      - type: grid
+        cards:
+        - type: heading
+          heading: System
+          icon: mdi:heart-pulse
+          tap_action:
+            action: navigate
+            navigation_path: /dashboard-home/system
+        - type: tile
+          entity: assist_satellite.home_assistant_voice_0a9b95_assist_satellite
+          name: GI
+          grid_options:
+            columns: 6
+        - type: tile
+          entity: sensor.pixel_9_pro_xl_battery_level
+          name: Pixel battery
+          grid_options:
+            columns: 6
+        - type: repairs
+          hide_empty: true
           grid_options:
             columns: full
-      background: 'radial-gradient(130% 55% at 0% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(99, 102, 241, 0) 62%), radial-gradient(110%
-        50% at 100% 100%, rgba(20, 184, 166, 0.14) 0%, rgba(20, 184, 166, 0) 60%), fixed #0b0d12'
+        - type: updates
+          hide_empty: true
+          grid_options:
+            columns: full
     - title: Remote
       path: remote
       subview: true
@@ -2043,8 +1845,284 @@ data:
             max: 100
           grid_options:
             columns: 6
+    - title: Bins
+      path: bins
+      subview: true
+      back_path: /dashboard-home/home
+      icon: mdi:delete-empty
+      type: sections
+      max_columns: 3
+      badges:
+      - type: entity
+        entity: sensor.bins_status
+        show_name: false
+        color: green
+      sections:
+      - type: grid
+        cards:
+        - type: heading
+          heading: Next collection
+          icon: mdi:truck-outline
+          heading_style: title
+        - type: markdown
+          text_only: true
+          grid_options:
+            columns: full
+          content: |
+            {% if has_value('sensor.bins_next_collection') %}
+            {%- set day = strptime(states('sensor.bins_next_collection'), '%Y-%m-%d') %}
+            {%- set icons = {'Rubbish': '🔴', 'Food scraps': '🟢', 'Recycling': '🟡'} %}
+            {%- set when = state_attr('sensor.bins_next_collection', 'when') %}
+            # {{ when }}
+            ### {{ day.strftime('%-d %B') if when == day.strftime('%A') else day.strftime('%A %-d %B') }}
+
+            {% for bin in state_attr('sensor.bins_next_collection', 'bins') %}{{ icons.get(bin, '⚪') }} **{{ bin }}**&nbsp;&nbsp;{% endfor %}
+
+            {% if states('sensor.bins_status') == 'Out' %}✅ Out — nothing to do.
+            {%- elif state_attr('sensor.bins_next_collection', 'days') == 1 %}Put them out tonight.
+            {%- elif state_attr('sensor.bins_next_collection', 'days') == 0 %}Kerbside before 7am.
+            {%- else %}Out the evening before.{% endif %}
+            {% else %}
+            ## No schedule yet
+            The council calendar has no upcoming dates. Check Settings → Devices & services → Waste Collection Schedule.
+            {% endif %}
+        - type: tile
+          entity: sensor.bins_status
+          name: Status
+          color: green
+        - type: tile
+          entity: script.bins_mark_out
+          name: They're out
+          icon: mdi:check-circle
+          color: green
+          hide_state: true
+          tap_action:
+            action: perform-action
+            perform_action: script.bins_mark_out
+      - type: grid
+        cards:
+        - type: heading
+          heading: Each bin
+          icon: mdi:delete-variant
+          heading_style: title
+        - type: tile
+          entity: sensor.bins_rubbish
+          name: Rubbish
+          grid_options:
+            columns: full
+          icon: mdi:trash-can
+          color: red
+          state_content:
+          - when
+          - state
+        - type: tile
+          entity: sensor.bins_food_scraps
+          name: Food scraps
+          grid_options:
+            columns: full
+          icon: mdi:food-apple-outline
+          color: green
+          state_content:
+          - when
+          - state
+        - type: tile
+          entity: sensor.bins_recycling
+          name: Recycling
+          grid_options:
+            columns: full
+          icon: mdi:recycle
+          color: amber
+          state_content:
+          - when
+          - state
+        - type: markdown
+          text_only: true
+          grid_options:
+            columns: full
+          content: Rubbish and food scraps every week, recycling every second week. After a public holiday collections
+            move a day later; the dates here follow the council. Inorganic collection is booked separately on the council
+            website.
+      - type: grid
+        cards:
+        - type: heading
+          heading: Calendar
+          icon: mdi:calendar-month
+          heading_style: title
+        - type: calendar
+          entities:
+          - calendar.bin_collections
+          initial_view: dayGridMonth
+          grid_options:
+            columns: full
+      - type: grid
+        cards:
+        - type: heading
+          heading: Reminders
+          icon: mdi:bell-ring-outline
+          heading_style: title
+        - type: markdown
+          text_only: true
+          grid_options:
+            columns: full
+          content: The phone is reminded at 18:30 the evening before, again at 21:00 if the bins are not marked out,
+            and at 06:15 on the day. "In an hour" snoozes one reminder.
+        - type: tile
+          entity: input_boolean.bins_reminders_paused
+          name: Pause reminders
+          color: grey
+          features:
+          - type: toggle
+        - type: tile
+          entity: input_datetime.bins_out_for
+          name: Last marked out
+          icon: mdi:check-circle-outline
+          color: green
+      background: 'radial-gradient(130% 55% at 0% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(99, 102, 241, 0) 62%), radial-gradient(110%
+        50% at 100% 100%, rgba(20, 184, 166, 0.14) 0%, rgba(20, 184, 166, 0) 60%), fixed #0b0d12'
+    - title: Power
+      path: power
+      subview: true
+      back_path: /dashboard-home/home
+      icon: mdi:lightning-bolt
+      type: sections
+      max_columns: 3
+      badges:
+      - type: entity
+        entity: sensor.mercury_nz_current_plan
+        icon: mdi:file-document-outline
+        color: amber
+        show_name: false
+      sections:
+      - type: grid
+        cards:
+        - type: heading
+          heading: Latest day
+          icon: mdi:flash
+          heading_style: title
+        - type: tile
+          entity: sensor.mercury_nz_latest_daily_cost
+          name: Cost
+          icon: mdi:cash
+          color: amber
+          vertical: true
+        - type: tile
+          entity: sensor.mercury_nz_latest_daily_usage
+          name: Used
+          icon: mdi:lightning-bolt
+          color: amber
+          vertical: true
+        - type: tile
+          entity: sensor.mercury_nz_current_rate
+          name: Price per kWh
+          icon: mdi:tag-outline
+          color: yellow
+        - type: tile
+          entity: sensor.mercury_nz_daily_fixed_charge
+          name: Daily charge
+          icon: mdi:calendar-today
+          color: grey
+        - type: custom:mercury-energy-weekly-summary-card
+          entity: sensor.mercury_nz_energy_usage
+          name: This week
+          grid_options:
+            columns: full
+          visibility:
+          - condition: state
+            entity: sensor.mercury_nz_weekly_period_start
+            state_not:
+            - '0001-01-01'
+            - unknown
+            - unavailable
+      - type: grid
+        cards:
+        - type: heading
+          heading: Last 7 days
+          icon: mdi:calendar-week
+          heading_style: title
+        - type: tile
+          entity: sensor.power_last_7_days_cost
+          name: Cost
+          icon: mdi:cash-multiple
+          color: amber
+          vertical: true
+        - type: tile
+          entity: sensor.power_last_7_days_usage
+          name: Used
+          icon: mdi:meter-electric-outline
+          color: amber
+          vertical: true
+        - type: tile
+          entity: sensor.power_always_on
+          name: Always on
+          icon: mdi:power-plug-battery-outline
+          color: deep-orange
+        - type: tile
+          entity: sensor.power_plan_check
+          name: Cheapest plan so far
+          icon: mdi:scale-balance
+          color: green
+      - type: grid
+        visibility:
+        - condition: state
+          entity: sensor.mercury_nz_billing_period_start
+          state_not:
+          - '0001-01-01'
+          - unknown
+          - unavailable
+        cards:
+        - type: heading
+          heading: This bill
+          icon: mdi:receipt-text-outline
+          heading_style: title
+        - type: custom:mercury-energy-monthly-summary-card
+          entity: sensor.mercury_nz_current_period_cost
+          name: Billing period
+          show_progress_bar: true
+          grid_options:
+            columns: full
+        - type: tile
+          entity: sensor.mercury_nz_days_remaining_in_period
+          name: Days to go
+          icon: mdi:calendar-clock
+          color: amber
+          vertical: true
+        - type: tile
+          entity: sensor.mercury_nz_current_period_usage
+          name: Used so far
+          icon: mdi:meter-electric-outline
+          color: amber
+          vertical: true
+        - type: tile
+          entity: sensor.mercury_nz_current_balance
+          name: Balance
+          icon: mdi:wallet-outline
+          color: green
+        - type: tile
+          entity: sensor.mercury_nz_due_date
+          name: Next payment
+          icon: mdi:bank-transfer
+          color: blue-grey
+      - type: grid
+        cards:
+        - type: heading
+          heading: Usage
+          icon: mdi:chart-bar
+          heading_style: title
+          tap_action:
+            action: navigate
+            navigation_path: /energy
+        - type: custom:mercury-energy-usage-card
+          entity: sensor.mercury_nz_energy_usage
+          name: Usage
+          period: hourly|daily|monthly
+          grid_options:
+            columns: full
+      background: 'radial-gradient(130% 55% at 0% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(99, 102, 241, 0) 62%), radial-gradient(110%
+        50% at 100% 100%, rgba(20, 184, 166, 0.14) 0%, rgba(20, 184, 166, 0) 60%), fixed #0b0d12'
     - title: System
       path: system
+      subview: true
+      back_path: /dashboard-home/home
       icon: mdi:heart-pulse
       type: sections
       max_columns: 2

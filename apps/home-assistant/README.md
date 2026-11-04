@@ -68,12 +68,18 @@ after login.
 
 The default panel, `/dashboard-home`, is a YAML dashboard declared in Git
 (`home-dashboard.yaml` in the bootstrap ConfigMap, copied to
-`/config/dashboards/home.yaml`). Its tabs are Home, Bins, Power and System;
-Remote and Vacuum are subviews opened from the Home tab, so the phone's top
-bar fits without scrolling. The sidebar holds only Home and HA's built-in
-panels (order set per user in the profile). Change the dashboard in Git; the UI editor cannot save a YAML
-dashboard. Notifications open tabs by path (`/dashboard-home/bins`,
-`/dashboard-home/power`).
+`/config/dashboards/home.yaml`). It follows one rule: every thing in the
+house is a section on the single Home page, in the order Lights, Living room
+TV, Kettle, Vacuum, Bins, Power, System. A section heading with an arrow opens
+that thing's own page, a subview with a back arrow to Home (Remote, Vacuum,
+Bins, Power, System). There are no tabs. A new device or service gets a new
+section before System and, if it needs more room, a subview. The badges above
+Home show the weather and only what needs attention now (bins due, TV on,
+kettle hot, vacuum running). The sidebar shows only Home; HA's own panels
+(Energy, History, Logbook and so on) are hidden per user in the profile and
+Energy opens from the Power page. Change the dashboard in Git; the UI editor
+cannot save a YAML dashboard. Notifications open pages by path
+(`/dashboard-home/bins`, `/dashboard-home/power`).
 
 Until 5 November 2026 this dashboard was a UI (storage) dashboard with the
 same URL. Its last stored copy is kept privately on the laptop; delete the
@@ -97,7 +103,7 @@ account sensors as `sensor.mercury_nz_*` and per-ICP sensors on an
 `sensor.mercury_nz_<name>` (for example `sensor.mercury_nz_energy_usage`
 and `sensor.mercury_nz_current_rate`) so the dashboard finds them.
 
-The **Power** tab of the Home dashboard is declared in Git (see "Home
+The **Power** page of the Home dashboard is declared in Git (see "Home
 dashboard" below). It
 uses the integration's own cards, which it registers as Lovelace resources at
 startup. HA's built-in Energy dashboard reads the
@@ -151,8 +157,9 @@ never in Git, because the number identifies the home address.
 `templates.yaml` reads that calendar into `sensor.bins_schedule` and the
 countdown sensors `sensor.bins_next_collection`, `sensor.bins_rubbish`,
 `sensor.bins_food_scraps`, `sensor.bins_recycling` and `sensor.bins_status`.
-The **Bins** tab of the Home dashboard shows them with the calendar, and a
-Bins badge appears on the Home tab when the bins should go out.
+The Bins section on Home shows the next collection; its **Bins** page adds
+each bin and the calendar. A Bins badge and a "They're out" button appear on
+Home when the bins should go out.
 
 The phone (`notify.mobile_app_pixel_9_pro_xl`, group and channel `Bins`) is
 reminded at 18:30 the evening before a collection, again at 21:00, and at

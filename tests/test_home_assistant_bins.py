@@ -218,30 +218,46 @@ def _home_views() -> dict[str, dict]:
     return {view["path"]: view for view in views}
 
 
-def test_every_screen_is_a_tab_and_links_point_at_tabs() -> None:
+def test_home_is_one_page_and_every_other_screen_opens_from_its_section() -> None:
     bootstrap = _bootstrap()
     configuration = bootstrap["configuration.yaml"]
     dashboards = yaml.safe_load(configuration.replace("!include", ""))["lovelace"]["dashboards"]
     assert list(dashboards) == ["dashboard-home"]
     assert dashboards["dashboard-home"]["filename"] == "dashboards/home.yaml"
     views = _home_views()
-    assert list(views) == ["home", "bins", "power", "remote", "vacuum", "system"]
-    # Four tabs fit a phone's top bar; Remote and Vacuum open from the Home tab.
-    tabs = [path for path, view in views.items() if not view.get("subview")]
-    assert tabs == ["home", "bins", "power", "system"]
-    home_links = re.findall(
-        r"navigation_path: (/dashboard-home/[a-z]+)", yaml.safe_dump(views["home"])
-    )
-    assert {"/dashboard-home/remote", "/dashboard-home/vacuum"} <= set(home_links)
+    # One page and no tabs: everything else is a subview with a back arrow.
+    assert [path for path, view in views.items() if not view.get("subview")] == ["home"]
+    for path, view in views.items():
+        if path != "home":
+            assert view["back_path"] == "/dashboard-home/home", path
 
-    # Notification taps and in-dashboard links open a tab that exists.
+    sections = {}
+    for section in views["home"]["sections"]:
+        heading = section["cards"][0]
+        assert heading["type"] == "heading"
+        target = heading.get("tap_action", {}).get("navigation_path")
+        sections[heading["heading"]] = target
+    assert list(sections) == [
+        "Lights",
+        "Living room TV",
+        "Kettle",
+        "Vacuum",
+        "Bins",
+        "Power",
+        "System",
+    ]
+    # Each page is opened by the arrow on exactly one Home section heading.
+    opened = [target.rsplit("/", 1)[1] for target in sections.values() if target]
+    assert sorted(opened) == sorted(path for path in views if path != "home")
+
+    # Notification taps and in-dashboard links open a page that exists.
     text = "\n".join(bootstrap.values())
     links = set(re.findall(r"(?:clickAction|navigation_path): (/dashboard-home/[a-z]+)", text))
     assert {"/dashboard-home/bins", "/dashboard-home/power"} <= links
-    assert {link.rsplit("/", 1)[1] for link in links} <= set(_home_views())
+    assert {link.rsplit("/", 1)[1] for link in links} <= set(views)
 
 
-def test_bins_tab_only_uses_entities_this_config_defines() -> None:
+def test_bins_screens_only_use_entities_this_config_defines() -> None:
     configuration = _bootstrap()["configuration.yaml"]
 
     defined = {CALENDAR}
@@ -255,11 +271,13 @@ def test_bins_tab_only_uses_entities_this_config_defines() -> None:
         assert f"\n  {helper}:\n" in configuration
     defined |= {"input_boolean.bins_reminders_paused", "input_datetime.bins_out_for"}
 
-    view = _home_views()["bins"]
-    cards = [card for section in view["sections"] for card in section["cards"]]
+    views = _home_views()
+    bins_section = next(s for s in views["home"]["sections"] if s["cards"][0]["heading"] == "Bins")
+    cards = [card for section in views["bins"]["sections"] for card in section["cards"]]
+    cards += bins_section["cards"]
     used = {card["entity"] for card in cards if "entity" in card}
     used |= {e for card in cards for e in card.get("entities", [])}
-    used |= {b["entity"] for b in view["badges"]}
+    used |= {b["entity"] for b in views["bins"]["badges"] + bins_section["cards"][0]["badges"]}
     assert used and used <= defined
 
 

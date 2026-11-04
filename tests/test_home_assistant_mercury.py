@@ -25,7 +25,7 @@ def test_mercury_integration_is_installed_from_a_verified_revision() -> None:
     assert "rm -rf /config/custom_components\n" not in script
 
 
-def test_power_is_a_tab_of_the_home_dashboard() -> None:
+def test_power_is_a_page_of_the_home_dashboard() -> None:
     bootstrap = load_yaml("apps/home-assistant/manifests/configmap-bootstrap.yaml")["data"]
     init_containers = {item["name"]: item for item in _deployment_spec()["initContainers"]}
     copy_script = init_containers["bootstrap-config"]["command"][-1]
