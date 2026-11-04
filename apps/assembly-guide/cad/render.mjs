@@ -62,6 +62,12 @@ const PRINT_BATCHES = {
     { part: 'post_upper_a', at: [0, 60] },
     { part: 'post_upper_b', at: [0, 90] },
   ],
+  // The last two parts that fit the bed after the top cap: the mast, and the mid deck standing
+  // on its rear edge behind it. The mast stops at 140 mm; the deck carries on alone to 209 mm.
+  mid_deck_and_mast: [
+    { part: 'zigbee_mast', at: [0, 0] },
+    { part: 'mid_deck', at: [0, 94] },
+  ],
 };
 const BATCH_GAP_MM = 10;
 

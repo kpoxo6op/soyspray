@@ -34,10 +34,10 @@
   "mid_deck": {
     "size": [
       245,
-      209,
-      8
+      8,
+      209
     ],
-    "grams": 143
+    "grams": 146
   },
   "post_upper_a": {
     "size": [
@@ -93,7 +93,7 @@
       84,
       140
     ],
-    "grams": 62
+    "grams": 65
   },
   "coupon_post": {
     "size": [

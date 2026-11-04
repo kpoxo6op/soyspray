@@ -86,8 +86,7 @@ and two B, 10 mm apart. It sliced to 191 min and 78 g, against 61 min and 20 g f
 one upper post. The layer check used to reject every upper post because its
 cap-nut slot floor lies exactly on the slicer's mid-layer sampling plane; a path may
 now fit just below that plane, while support is still judged only from the section
-above it. The E2E shows the pinned checker's false failure on the same job and that
-`mid_deck` stays held for the real unsupported ceilings of its underside post pockets.
+above it. The E2E shows the pinned checker's false failure on the same job.
 
 `top_cap` prints upside down, so each 8 mm socket-head seat used to end in a ring
 ceiling, and the slicer laid closed wall loops over air there. Each seat now closes
@@ -98,6 +97,26 @@ hole only gets larger, by the slot and square, and the browser mesh is unchanged
 cap sliced to 331 min and 156 g. The E2E checks that the old seats are still refused and
 that the new cap differs from the old one only inside the four seats. Brush any stray
 strand out of a seat before fitting the screw.
+
+`mid_deck_and_mast` prints the last two parts that fit the bed in one job: the
+Zigbee mast, and the mid deck standing on its rear edge 10 mm behind it, 245 mm wide,
+8 mm deep and 209 mm tall. Lying flat, the deck closed each underside post pocket in
+a 20.5 mm ceiling over air; on edge, every face that looks down slopes at 45 degrees
+or closes in a short bridge. Each post pocket keeps its seat plane (z 203 below,
+z 205 on top) and its exact outline there; only its front wall slopes 3 mm forwards
+over the 3 mm depth, so the posts and their screws fit as before. The front rim and
+the rear faces of the front pads stand on 4 mm fillets inside the recess, each lead
+slot keeps its 60 mm rear end and closes in a pointed roof towards the front, each
+vent slot ends in a point, and the two rear corners meet the bed in a small chamfer.
+The mast foot is 13 mm instead of 9 mm: each ballast pocket is still 21 mm across and
+6 mm deep for three M10 washers pushed up from below, then closes in a 45 degree cone
+to an 8 mm vent through the foot. Its cable exit is now an open groove through the
+foot. Alone, the slicer still turns the mast on the bed, which the layer check
+refuses; with the mast at the deck's left end the batch keeps its place. It sliced to
+567 min and 218 g, with no bridge longer than 1.2 mm. The deck has no brim and stands
+on an 8 mm edge, so a knock or a lifting corner can topple it; digital checks do not
+prove that it stays put or how strong it is on edge. `base_tub` stays held: at
+245 x 240 mm it crosses the P1S excluded corner.
 
 Tests check the chapters, where each test check leaves its hardware, the tags,
 that every screw meets its own nut, cord lengths and overlaps, the buy list,

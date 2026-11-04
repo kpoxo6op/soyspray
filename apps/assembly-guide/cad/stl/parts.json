@@ -80,14 +80,14 @@
     "grams": 28
   },
   "mid_deck": {
-    "triangles": 6314,
+    "triangles": 4240,
     "size": [
       245,
-      209,
-      8
+      8,
+      209
     ],
-    "volumeCm3": 129.63,
-    "grams": 143
+    "volumeCm3": 135.33,
+    "grams": 146
   },
   "post_lower_a": {
     "triangles": 18268,
@@ -150,13 +150,13 @@
     "grams": 176
   },
   "zigbee_mast": {
-    "triangles": 1690,
+    "triangles": 2846,
     "size": [
       84,
       84,
       140
     ],
-    "volumeCm3": 107.21,
-    "grams": 62
+    "volumeCm3": 116.35,
+    "grams": 65
   }
 }
