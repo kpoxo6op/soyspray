@@ -185,9 +185,9 @@ def check_batch(name, expected):
         for i, a in enumerate(pieces)
         for b in pieces[i + 1 :]
     ]
-    box = json.loads((batch / name / "result.json").read_text())["sliced_plates"][0]["objects"][
-        0
-    ]["bbox"]
+    box = json.loads((batch / name / "result.json").read_text())["sliced_plates"][0]["objects"][0][
+        "bbox"
+    ]
     machine = json.loads((cad / "print/machine.json").read_text())
     offset = [float(v) for v in machine["extruder_offset"][0].split("x")]
     low = [min(p[1][a] for p in pieces) for a in (0, 1)]
