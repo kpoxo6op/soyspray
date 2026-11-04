@@ -87,7 +87,17 @@ one upper post. The layer check used to reject every upper post because its
 cap-nut slot floor lies exactly on the slicer's mid-layer sampling plane; a path may
 now fit just below that plane, while support is still judged only from the section
 above it. The E2E shows the pinned checker's false failure on the same job and that
-`top_cap` and `mid_deck` stay held for their real unsupported ceilings.
+`mid_deck` stays held for the real unsupported ceilings of its underside post pockets.
+
+`top_cap` prints upside down, so each 8 mm socket-head seat used to end in a ring
+ceiling, and the slicer laid closed wall loops over air there. Each seat now closes
+onto its 4.5 mm screw hole in two 0.2 mm steps: first a slot as wide as the hole
+across the seat, then a square. Every new path bridges at most 5.7 mm between solid
+edges. The seat stays 8 mm across and 4.4 mm deep, so the heads still sit flush. The
+hole only gets larger, by the slot and square, and the browser mesh is unchanged. The
+cap sliced to 331 min and 156 g. The E2E checks that the old seats are still refused and
+that the new cap differs from the old one only inside the four seats. Brush any stray
+strand out of a seat before fitting the screw.
 
 Tests check the chapters, where each test check leaves its hardware, the tags,
 that every screw meets its own nut, cord lengths and overlaps, the buy list,

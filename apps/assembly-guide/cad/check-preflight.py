@@ -69,6 +69,11 @@ def triangles(stl):
     ]
 
 
+def canonical(t):
+    k = t.index(min(t))
+    return t[k:] + t[:k]
+
+
 def islands(tris):
     """Split a mesh into separately standing pieces: connected shells, merged when nested."""
     parent = list(range(len(tris)))
@@ -278,15 +283,41 @@ try:
         and "toolpath outside placed model at layer 65" in old.get("error", ""),
         pinned_error=old.get("error"),
     )
-    hrc, held = run(cad, root / "held-parts", ["top_cap", "mid_deck"])
-    failures = {p: held["parts"][p]["geometry"]["failures_count"] for p in ("top_cap", "mid_deck")}
+    hrc, held = run(cad, root / "held-parts", ["mid_deck"])
     record(
-        "parts with real unsupported ceilings stay held",
+        "the mid deck's unsupported pocket ceilings stay held",
         hrc == 1
         and not held["pass"]
-        and all(failures.values())
+        and held["parts"]["mid_deck"]["geometry"]["failures_count"]
         and not list((root / "held-parts").rglob("*.gcode.3mf")),
-        failures=failures,
+        failures=held["parts"]["mid_deck"]["geometry"]["failures_count"],
+    )
+    # The top cap prints upside down. Two stepped layers now close each socket-head seat
+    # onto its screw hole instead of a ring of wall over air.
+    cap = root / "top-cap"
+    rc, d = run(cad, cap, ["top_cap"])
+    entry = d["parts"]["top_cap"]
+    seat_bridges = [
+        b
+        for b in json.loads((cap / "top_cap/geometry.json").read_text())["bridges"]
+        if 4.5 <= b["z"] <= 5.1
+    ]
+    record(
+        "top cap prints with every head seat layer bridged end to end",
+        rc == 0
+        and d["pass"]
+        and not entry["problems"]
+        and entry["geometry"]["pass"] is True
+        and sha(cap / "top_cap/top_cap.gcode.3mf") == entry["job"]
+        and seat_bridges
+        and all(
+            b["end_anchors"] and b["spans_gap"] and b["unsupported_mm"] <= 6.7 for b in seat_bridges
+        ),
+        seat_bridges=len(seat_bridges),
+        longest_seat_bridge_mm=max((b["unsupported_mm"] for b in seat_bridges), default=None),
+        minutes=entry["minutes"],
+        grams=entry["grams"],
+        sha256=entry.get("job"),
     )
     old_report = sha(good / "preflight.json")
     old_jobs = {p: sha(good / p / (p + ".gcode.3mf")) for p in d["parts"]}
@@ -444,6 +475,48 @@ try:
         and "batch clearance" in d.get("error", "")
         and not list((root / "overlapping-upper-batch").rglob("*.gcode.3mf")),
         error=d.get("error", "")[-300:],
+    )
+    # The cap as pinned (4bf33ded) left its head seats as ring ceilings over air.
+    subprocess.run(
+        ["git", "restore", "--source=4bf33ded", "--", "soyrack.scad"], cwd=oldcad, check=True
+    )
+    subprocess.run(["git", "add", "soyrack.scad"], cwd=oldcad, check=True)
+    subprocess.run(["git", "commit", "-qm", "E2E: unstepped head seats"], cwd=oldcad, check=True)
+    rc, d = run(oldcad, root / "unstepped-top-cap", ["top_cap"])
+    seat_failures = [
+        f
+        for f in json.loads((root / "unstepped-top-cap/top_cap/geometry.json").read_text())[
+            "failures"
+        ]
+        if f["layer"] == 23 and f["feature"] == "Overhang wall"
+    ]
+    record(
+        "the unstepped top cap head seats are blocked",
+        rc == 1
+        and not d["pass"]
+        and seat_failures
+        and not list((root / "unstepped-top-cap").rglob("*.gcode.3mf")),
+        failures=d["parts"]["top_cap"]["geometry"]["failures_count"],
+    )
+    # Only the seats changed: every differing triangle lies within the 8 mm head seats round
+    # the four cap screw axes (x 12 and 241, y 20 and 189 in the rack, x 8 and 237 on the bed)
+    # and below the pads' 10 mm. Seat walls keep r 4; new hole steps never come inside r 2.25.
+    before_cap = Counter(
+        canonical(t) for t in triangles(root / "unstepped-top-cap/stl/top_cap.stl")
+    )
+    after_cap = Counter(canonical(t) for t in triangles(cap / "stl/top_cap.stl"))
+    removed, added = before_cap - after_cap, after_cap - before_cap
+    axes = [(8, 20), (8, 189), (237, 20), (237, 189)]
+    radius = lambda v: min(((v[0] - a) ** 2 + (v[1] - b) ** 2) ** 0.5 for a, b in axes)
+    changed = [v for t in (removed + added).elements() for v in t]
+    new = [v for t in added.elements() for v in t]
+    record(
+        "the stepped top cap differs from the old one only inside the four head seats",
+        changed
+        and all(radius(v) <= 4.05 and v[2] <= 10.01 for v in changed)
+        and all(radius(v) >= 2.249 for v in new if 4.41 <= v[2] <= 4.81)
+        and all(radius(v) >= 3.99 for v in new if v[2] < 4.39),
+        changed_triangles=sum((removed + added).values()),
     )
     completed = True
 finally:
