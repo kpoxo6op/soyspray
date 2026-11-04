@@ -24,17 +24,11 @@ data:
 
     lovelace:
       dashboards:
-        mercury-power:
+        dashboard-home:
           mode: yaml
-          filename: dashboards/mercury.yaml
-          title: Power
-          icon: mdi:lightning-bolt
-          show_in_sidebar: true
-        bins-collections:
-          mode: yaml
-          filename: dashboards/bins.yaml
-          title: Bins
-          icon: mdi:delete-empty
+          filename: dashboards/home.yaml
+          title: Home
+          icon: mdi:home-variant-outline
           show_in_sidebar: true
 
     intent_script: !include custom_components/gi_voice/intents.yaml
@@ -360,7 +354,7 @@ data:
             data:
               group: power
               tag: power-unusual-day
-              clickAction: /mercury-power/mercury
+              clickAction: /dashboard-home/power
       mode: queued
     - id: power_weekly_digest
       alias: Power sends a Monday digest to the phone
@@ -412,7 +406,7 @@ data:
             data:
               group: power
               tag: power-weekly
-              clickAction: /mercury-power/mercury
+              clickAction: /dashboard-home/power
       mode: single
     - id: power_data_stale
       alias: Power warns when Mercury data stops arriving
@@ -472,7 +466,7 @@ data:
             data:
               group: power
               tag: power-bill
-              clickAction: /mercury-power/mercury
+              clickAction: /dashboard-home/power
       mode: single
     # Bins go out the evening before collection. Reminders stop once
     # "They're out" is pressed on the phone or the dashboard.
@@ -616,7 +610,7 @@ data:
               priority: high
               ttl: 0
               notification_icon: mdi:delete-empty
-              clickAction: /bins-collections/bins
+              clickAction: /dashboard-home/bins
               actions:
                 - action: BINS_OUT
                   title: They're out
@@ -948,288 +942,1167 @@ data:
             {% elif d == 0 %}Collection today
             {% elif d == 1 %}Put out tonight
             {% else %}Next {{ state_attr('sensor.bins_next_collection', 'when') }}{% endif %}
-  mercury-dashboard.yaml: |
-    # Mercury power dashboard. The Mercury CO NZ integration registers the
-    # custom:mercury-* cards itself. The per-ICP sensors are renamed to the
-    # sensor.mercury_nz_* ids below once, after the account is signed in.
-    # Mercury reports an empty billing period (0001-01-01) until the first
-    # bill, so "This bill" waits for real dates. The power_* sensors come
-    # from templates.yaml.
-    title: Power
+  home-dashboard.yaml: |
+    # Home dashboard (url /dashboard-home, the default panel). Every screen is a
+    # tab here, so the sidebar keeps only Home and HA's own panels.
+    # Tabs: Home, Bins (Auckland Council collections, sensor.bins_* from
+    # templates.yaml), Power (Mercury CO NZ cards, registered by the integration;
+    # per-ICP sensors renamed to sensor.mercury_nz_*; Mercury reports an empty
+    # billing period 0001-01-01 until the first bill), Remote, Vacuum, System.
+    title: Home
     views:
-      - title: Mercury
-        path: mercury
-        icon: mdi:lightning-bolt
-        type: sections
-        max_columns: 3
-        badges:
+    - title: Home
+      path: home
+      icon: mdi:home-variant-outline
+      type: sections
+      max_columns: 3
+      dense_section_placement: true
+      background: 'radial-gradient(130% 55% at 0% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(99, 102, 241, 0) 62%), radial-gradient(110%
+        50% at 100% 100%, rgba(20, 184, 166, 0.14) 0%, rgba(20, 184, 166, 0) 60%), fixed #0b0d12'
+      header:
+        layout: responsive
+        badges_position: bottom
+        badges_wrap: scroll
+        card:
+          type: markdown
+          text_only: true
+          content: |-
+            # {% set h = now().hour %}{% if h < 5 %}Good night{% elif h < 12 %}Good morning{% elif h < 18 %}Good afternoon{% else %}Good evening{% endif %}
+            {{ now().strftime('%A %-d %B') }}
+      badges:
+      - type: entity
+        entity: weather.forecast_home
+        show_name: false
+        state_content:
+        - state
+        - temperature
+      - type: entity
+        entity: sensor.bins_status
+        name: Bins
+        show_name: true
+        icon: mdi:delete-alert
+        color: amber
+        tap_action:
+          action: navigate
+          navigation_path: /dashboard-home/bins
+        visibility:
+        - condition: state
+          entity: sensor.bins_status
+          state:
+          - Put out tonight
+          - Collection today
+      - type: entity
+        entity: light.peanut
+        name: Peanut
+        show_name: true
+        tap_action:
+          action: toggle
+      - type: entity
+        entity: media_player.living_room_tv
+        name: TV
+        show_name: true
+        tap_action:
+          action: navigate
+          navigation_path: /dashboard-home/remote
+        visibility:
+        - condition: state
+          entity: media_player.living_room_tv
+          state_not:
+          - 'off'
+          - standby
+          - unavailable
+          - unknown
+      - type: entity
+        entity: sensor.fellow_stagg_ekg_pro_current_temperature
+        name: Kettle
+        show_name: true
+        icon: mdi:kettle-steam
+        color: deep-orange
+        visibility:
+        - condition: or
+          conditions:
+          - condition: state
+            entity: binary_sensor.fellow_stagg_ekg_pro_heating
+            state: 'on'
+          - condition: state
+            entity: binary_sensor.fellow_stagg_ekg_pro_water_ready
+            state: 'on'
+      - type: entity
+        entity: vacuum.l10s_ultra
+        name: Vacuum
+        show_name: true
+        tap_action:
+          action: navigate
+          navigation_path: /dashboard-home/vacuum
+        visibility:
+        - condition: state
+          entity: vacuum.l10s_ultra
+          state_not:
+          - docked
+          - unavailable
+          - unknown
+      sections:
+      - type: grid
+        cards:
+        - type: heading
+          heading: Lights
+          icon: mdi:floor-lamp-outline
+        - type: tile
+          entity: light.peanut
+          name: Peanut
+          icon: mdi:floor-lamp
+          state_content:
+          - state
+          - brightness
+          features:
+          - type: light-brightness
+          grid_options:
+            columns: full
+        - type: tile
+          entity: light.top
+          name: Top
+          vertical: true
+          hide_state: true
+          tap_action:
+            action: toggle
+          grid_options:
+            columns: 4
+        - type: tile
+          entity: light.middle
+          name: Middle
+          vertical: true
+          hide_state: true
+          tap_action:
+            action: toggle
+          grid_options:
+            columns: 4
+        - type: tile
+          entity: light.bottom
+          name: Bottom
+          vertical: true
+          hide_state: true
+          tap_action:
+            action: toggle
+          grid_options:
+            columns: 4
+      - type: grid
+        cards:
+        - type: heading
+          heading: Living room TV
+          icon: mdi:television
+          tap_action:
+            action: navigate
+            navigation_path: /dashboard-home/remote
+        - type: tile
+          entity: media_player.living_room_tv
+          name: TV
+          state_content:
+          - state
+          - app_name
+          features:
+          - type: media-player-playback
+            controls:
+            - turn_on
+            - turn_off
+            - media_previous_track
+            - media_play_pause
+            - media_next_track
+          - type: media-player-volume-slider
+          grid_options:
+            columns: full
+        - type: shortcut
+          label: Remote
+          description: Arrows, OK, home and back
+          icon: mdi:remote-tv
+          color: indigo
+          tap_action:
+            action: navigate
+            navigation_path: /dashboard-home/remote
+          grid_options:
+            columns: full
+      - type: grid
+        cards:
+        - type: heading
+          heading: Kettle
+          icon: mdi:kettle-outline
+          badges:
           - type: entity
-            entity: sensor.mercury_nz_current_plan
-            icon: mdi:file-document-outline
-            color: amber
-            show_name: false
-        sections:
-          - type: grid
-            cards:
-              - type: heading
-                heading: Latest day
-                icon: mdi:flash
-                heading_style: title
-              - type: tile
-                entity: sensor.mercury_nz_latest_daily_cost
-                name: Cost
-                icon: mdi:cash
-                color: amber
-                vertical: true
-              - type: tile
-                entity: sensor.mercury_nz_latest_daily_usage
-                name: Used
-                icon: mdi:lightning-bolt
-                color: amber
-                vertical: true
-              - type: tile
-                entity: sensor.mercury_nz_current_rate
-                name: Price per kWh
-                icon: mdi:tag-outline
-                color: yellow
-              - type: tile
-                entity: sensor.mercury_nz_daily_fixed_charge
-                name: Daily charge
-                icon: mdi:calendar-today
-                color: grey
-              - type: custom:mercury-energy-weekly-summary-card
-                entity: sensor.mercury_nz_energy_usage
-                name: This week
-                grid_options:
-                  columns: full
-                visibility:
-                  - condition: state
-                    entity: sensor.mercury_nz_weekly_period_start
-                    state_not:
-                      - "0001-01-01"
-                      - unknown
-                      - unavailable
-          - type: grid
-            cards:
-              - type: heading
-                heading: Last 7 days
-                icon: mdi:calendar-week
-                heading_style: title
-              - type: tile
-                entity: sensor.power_last_7_days_cost
-                name: Cost
-                icon: mdi:cash-multiple
-                color: amber
-                vertical: true
-              - type: tile
-                entity: sensor.power_last_7_days_usage
-                name: Used
-                icon: mdi:meter-electric-outline
-                color: amber
-                vertical: true
-              - type: tile
-                entity: sensor.power_always_on
-                name: Always on
-                icon: mdi:power-plug-battery-outline
-                color: deep-orange
-              - type: tile
-                entity: sensor.power_plan_check
-                name: Cheapest plan so far
-                icon: mdi:scale-balance
-                color: green
-          - type: grid
-            visibility:
-              - condition: state
-                entity: sensor.mercury_nz_billing_period_start
-                state_not:
-                  - "0001-01-01"
-                  - unknown
-                  - unavailable
-            cards:
-              - type: heading
-                heading: This bill
-                icon: mdi:receipt-text-outline
-                heading_style: title
-              - type: custom:mercury-energy-monthly-summary-card
-                entity: sensor.mercury_nz_current_period_cost
-                name: Billing period
-                show_progress_bar: true
-                grid_options:
-                  columns: full
-              - type: tile
-                entity: sensor.mercury_nz_days_remaining_in_period
-                name: Days to go
-                icon: mdi:calendar-clock
-                color: amber
-                vertical: true
-              - type: tile
-                entity: sensor.mercury_nz_current_period_usage
-                name: Used so far
-                icon: mdi:meter-electric-outline
-                color: amber
-                vertical: true
-              - type: tile
-                entity: sensor.mercury_nz_current_balance
-                name: Balance
-                icon: mdi:wallet-outline
-                color: green
-              - type: tile
-                entity: sensor.mercury_nz_due_date
-                name: Next payment
-                icon: mdi:bank-transfer
-                color: blue-grey
-          - type: grid
-            cards:
-              - type: heading
-                heading: Usage
-                icon: mdi:chart-bar
-                heading_style: title
-                tap_action:
-                  action: navigate
-                  navigation_path: /energy
-              - type: custom:mercury-energy-usage-card
-                entity: sensor.mercury_nz_energy_usage
-                name: Usage
-                period: hourly|daily|monthly
-                grid_options:
-                  columns: full
-  bins-dashboard.yaml: |
-    # Bin collections dashboard. Dates come from Auckland Council through the
-    # Waste Collection Schedule calendar (calendar.bin_collections) and the
-    # bins_* template sensors in templates.yaml.
-    title: Bins
-    views:
-      - title: Bins
-        path: bins
-        icon: mdi:delete-empty
-        type: sections
-        max_columns: 3
-        badges:
-          - type: entity
-            entity: sensor.bins_status
-            show_name: false
+            entity: binary_sensor.fellow_stagg_ekg_pro_water_ready
+            name: Water ready
+            state_content: name
+            show_state: true
+            show_icon: true
+            icon: mdi:check-circle
             color: green
-        sections:
-          - type: grid
-            cards:
-              - type: heading
-                heading: Next collection
-                icon: mdi:truck-outline
-                heading_style: title
-              - type: markdown
-                text_only: true
-                grid_options:
-                  columns: full
-                content: |
-                  {% if has_value('sensor.bins_next_collection') %}
-                  {%- set day = strptime(states('sensor.bins_next_collection'), '%Y-%m-%d') %}
-                  {%- set icons = {'Rubbish': '🔴', 'Food scraps': '🟢', 'Recycling': '🟡'} %}
-                  {%- set when = state_attr('sensor.bins_next_collection', 'when') %}
-                  # {{ when }}
-                  ### {{ day.strftime('%-d %B') if when == day.strftime('%A') else day.strftime('%A %-d %B') }}
+            visibility:
+            - condition: state
+              entity: binary_sensor.fellow_stagg_ekg_pro_water_ready
+              state: 'on'
+          - type: entity
+            entity: binary_sensor.fellow_stagg_ekg_pro_kettle_on_base
+            name: Off the base
+            state_content: name
+            show_state: true
+            show_icon: true
+            icon: mdi:kettle-off-outline
+            color: red
+            visibility:
+            - condition: state
+              entity: binary_sensor.fellow_stagg_ekg_pro_kettle_on_base
+              state: 'off'
+        - type: tile
+          entity: climate.fellow_stagg_ekg_pro_kettle
+          name: Stagg EKG Pro
+          icon: mdi:kettle
+          state_content:
+          - hvac_action
+          - current_temperature
+          features:
+          - type: climate-hvac-modes
+            style: icons
+            hvac_modes:
+            - 'off'
+            - heat
+          - type: climate-preset-modes
+            style: dropdown
+          grid_options:
+            columns: full
+      - type: grid
+        cards:
+        - type: heading
+          heading: Vacuum
+          icon: mdi:robot-vacuum
+          tap_action:
+            action: navigate
+            navigation_path: /dashboard-home/vacuum
+          badges:
+          - type: entity
+            entity: sensor.l10s_ultra_battery_level
+            show_state: true
+            show_icon: true
+        - type: tile
+          entity: vacuum.l10s_ultra
+          name: Dreame L10s Ultra
+          state_content:
+          - state
+          - status
+          features:
+          - type: vacuum-commands
+            commands:
+            - start_pause
+            - stop
+            - return_home
+            - locate
+          grid_options:
+            columns: full
+        - type: shortcut
+          label: Map and rooms
+          description: Clean one room, check the brushes
+          icon: mdi:floor-plan
+          color: teal
+          tap_action:
+            action: navigate
+            navigation_path: /dashboard-home/vacuum
+          grid_options:
+            columns: full
+    - title: Bins
+      path: bins
+      icon: mdi:delete-empty
+      type: sections
+      max_columns: 3
+      badges:
+      - type: entity
+        entity: sensor.bins_status
+        show_name: false
+        color: green
+      sections:
+      - type: grid
+        cards:
+        - type: heading
+          heading: Next collection
+          icon: mdi:truck-outline
+          heading_style: title
+        - type: markdown
+          text_only: true
+          grid_options:
+            columns: full
+          content: |
+            {% if has_value('sensor.bins_next_collection') %}
+            {%- set day = strptime(states('sensor.bins_next_collection'), '%Y-%m-%d') %}
+            {%- set icons = {'Rubbish': '🔴', 'Food scraps': '🟢', 'Recycling': '🟡'} %}
+            {%- set when = state_attr('sensor.bins_next_collection', 'when') %}
+            # {{ when }}
+            ### {{ day.strftime('%-d %B') if when == day.strftime('%A') else day.strftime('%A %-d %B') }}
 
-                  {% for bin in state_attr('sensor.bins_next_collection', 'bins') %}{{ icons.get(bin, '⚪') }} **{{ bin }}**&nbsp;&nbsp;{% endfor %}
+            {% for bin in state_attr('sensor.bins_next_collection', 'bins') %}{{ icons.get(bin, '⚪') }} **{{ bin }}**&nbsp;&nbsp;{% endfor %}
 
-                  {% if states('sensor.bins_status') == 'Out' %}✅ Out — nothing to do.
-                  {%- elif state_attr('sensor.bins_next_collection', 'days') == 1 %}Put them out tonight.
-                  {%- elif state_attr('sensor.bins_next_collection', 'days') == 0 %}Kerbside before 7am.
-                  {%- else %}Out the evening before.{% endif %}
-                  {% else %}
-                  ## No schedule yet
-                  The council calendar has no upcoming dates. Check Settings → Devices & services → Waste Collection Schedule.
-                  {% endif %}
-              - type: tile
-                entity: sensor.bins_status
-                name: Status
-                color: green
-              - type: tile
-                entity: script.bins_mark_out
-                name: They're out
-                icon: mdi:check-circle
-                color: green
-                hide_state: true
-                tap_action:
-                  action: perform-action
-                  perform_action: script.bins_mark_out
-          - type: grid
-            cards:
-              - type: heading
-                heading: Each bin
-                icon: mdi:delete-variant
-                heading_style: title
-              - type: tile
-                entity: sensor.bins_rubbish
-                name: Rubbish
-                grid_options:
-                  columns: full
-                icon: mdi:trash-can
-                color: red
-                state_content:
-                  - when
-                  - state
-              - type: tile
-                entity: sensor.bins_food_scraps
-                name: Food scraps
-                grid_options:
-                  columns: full
-                icon: mdi:food-apple-outline
-                color: green
-                state_content:
-                  - when
-                  - state
-              - type: tile
-                entity: sensor.bins_recycling
-                name: Recycling
-                grid_options:
-                  columns: full
-                icon: mdi:recycle
-                color: amber
-                state_content:
-                  - when
-                  - state
-              - type: markdown
-                text_only: true
-                grid_options:
-                  columns: full
-                content: >-
-                  Rubbish and food scraps every week, recycling every second week.
-                  After a public holiday collections move a day later; the dates
-                  here follow the council. Inorganic collection is booked
-                  separately on the council website.
-          - type: grid
-            cards:
-              - type: heading
-                heading: Calendar
-                icon: mdi:calendar-month
-                heading_style: title
-              - type: calendar
-                entities:
-                  - calendar.bin_collections
-                initial_view: dayGridMonth
-                grid_options:
-                  columns: full
-          - type: grid
-            cards:
-              - type: heading
-                heading: Reminders
-                icon: mdi:bell-ring-outline
-                heading_style: title
-              - type: markdown
-                text_only: true
-                grid_options:
-                  columns: full
-                content: >-
-                  The phone is reminded at 18:30 the evening before, again at
-                  21:00 if the bins are not marked out, and at 06:15 on the day.
-                  "In an hour" snoozes one reminder.
-              - type: tile
-                entity: input_boolean.bins_reminders_paused
-                name: Pause reminders
-                color: grey
-                features:
-                  - type: toggle
-              - type: tile
-                entity: input_datetime.bins_out_for
-                name: Last marked out
-                icon: mdi:check-circle-outline
-                color: green
+            {% if states('sensor.bins_status') == 'Out' %}✅ Out — nothing to do.
+            {%- elif state_attr('sensor.bins_next_collection', 'days') == 1 %}Put them out tonight.
+            {%- elif state_attr('sensor.bins_next_collection', 'days') == 0 %}Kerbside before 7am.
+            {%- else %}Out the evening before.{% endif %}
+            {% else %}
+            ## No schedule yet
+            The council calendar has no upcoming dates. Check Settings → Devices & services → Waste Collection Schedule.
+            {% endif %}
+        - type: tile
+          entity: sensor.bins_status
+          name: Status
+          color: green
+        - type: tile
+          entity: script.bins_mark_out
+          name: They're out
+          icon: mdi:check-circle
+          color: green
+          hide_state: true
+          tap_action:
+            action: perform-action
+            perform_action: script.bins_mark_out
+      - type: grid
+        cards:
+        - type: heading
+          heading: Each bin
+          icon: mdi:delete-variant
+          heading_style: title
+        - type: tile
+          entity: sensor.bins_rubbish
+          name: Rubbish
+          grid_options:
+            columns: full
+          icon: mdi:trash-can
+          color: red
+          state_content:
+          - when
+          - state
+        - type: tile
+          entity: sensor.bins_food_scraps
+          name: Food scraps
+          grid_options:
+            columns: full
+          icon: mdi:food-apple-outline
+          color: green
+          state_content:
+          - when
+          - state
+        - type: tile
+          entity: sensor.bins_recycling
+          name: Recycling
+          grid_options:
+            columns: full
+          icon: mdi:recycle
+          color: amber
+          state_content:
+          - when
+          - state
+        - type: markdown
+          text_only: true
+          grid_options:
+            columns: full
+          content: Rubbish and food scraps every week, recycling every second week. After a public holiday collections
+            move a day later; the dates here follow the council. Inorganic collection is booked separately on the council
+            website.
+      - type: grid
+        cards:
+        - type: heading
+          heading: Calendar
+          icon: mdi:calendar-month
+          heading_style: title
+        - type: calendar
+          entities:
+          - calendar.bin_collections
+          initial_view: dayGridMonth
+          grid_options:
+            columns: full
+      - type: grid
+        cards:
+        - type: heading
+          heading: Reminders
+          icon: mdi:bell-ring-outline
+          heading_style: title
+        - type: markdown
+          text_only: true
+          grid_options:
+            columns: full
+          content: The phone is reminded at 18:30 the evening before, again at 21:00 if the bins are not marked out,
+            and at 06:15 on the day. "In an hour" snoozes one reminder.
+        - type: tile
+          entity: input_boolean.bins_reminders_paused
+          name: Pause reminders
+          color: grey
+          features:
+          - type: toggle
+        - type: tile
+          entity: input_datetime.bins_out_for
+          name: Last marked out
+          icon: mdi:check-circle-outline
+          color: green
+      background: 'radial-gradient(130% 55% at 0% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(99, 102, 241, 0) 62%), radial-gradient(110%
+        50% at 100% 100%, rgba(20, 184, 166, 0.14) 0%, rgba(20, 184, 166, 0) 60%), fixed #0b0d12'
+    - title: Power
+      path: power
+      icon: mdi:lightning-bolt
+      type: sections
+      max_columns: 3
+      badges:
+      - type: entity
+        entity: sensor.mercury_nz_current_plan
+        icon: mdi:file-document-outline
+        color: amber
+        show_name: false
+      sections:
+      - type: grid
+        cards:
+        - type: heading
+          heading: Latest day
+          icon: mdi:flash
+          heading_style: title
+        - type: tile
+          entity: sensor.mercury_nz_latest_daily_cost
+          name: Cost
+          icon: mdi:cash
+          color: amber
+          vertical: true
+        - type: tile
+          entity: sensor.mercury_nz_latest_daily_usage
+          name: Used
+          icon: mdi:lightning-bolt
+          color: amber
+          vertical: true
+        - type: tile
+          entity: sensor.mercury_nz_current_rate
+          name: Price per kWh
+          icon: mdi:tag-outline
+          color: yellow
+        - type: tile
+          entity: sensor.mercury_nz_daily_fixed_charge
+          name: Daily charge
+          icon: mdi:calendar-today
+          color: grey
+        - type: custom:mercury-energy-weekly-summary-card
+          entity: sensor.mercury_nz_energy_usage
+          name: This week
+          grid_options:
+            columns: full
+          visibility:
+          - condition: state
+            entity: sensor.mercury_nz_weekly_period_start
+            state_not:
+            - '0001-01-01'
+            - unknown
+            - unavailable
+      - type: grid
+        cards:
+        - type: heading
+          heading: Last 7 days
+          icon: mdi:calendar-week
+          heading_style: title
+        - type: tile
+          entity: sensor.power_last_7_days_cost
+          name: Cost
+          icon: mdi:cash-multiple
+          color: amber
+          vertical: true
+        - type: tile
+          entity: sensor.power_last_7_days_usage
+          name: Used
+          icon: mdi:meter-electric-outline
+          color: amber
+          vertical: true
+        - type: tile
+          entity: sensor.power_always_on
+          name: Always on
+          icon: mdi:power-plug-battery-outline
+          color: deep-orange
+        - type: tile
+          entity: sensor.power_plan_check
+          name: Cheapest plan so far
+          icon: mdi:scale-balance
+          color: green
+      - type: grid
+        visibility:
+        - condition: state
+          entity: sensor.mercury_nz_billing_period_start
+          state_not:
+          - '0001-01-01'
+          - unknown
+          - unavailable
+        cards:
+        - type: heading
+          heading: This bill
+          icon: mdi:receipt-text-outline
+          heading_style: title
+        - type: custom:mercury-energy-monthly-summary-card
+          entity: sensor.mercury_nz_current_period_cost
+          name: Billing period
+          show_progress_bar: true
+          grid_options:
+            columns: full
+        - type: tile
+          entity: sensor.mercury_nz_days_remaining_in_period
+          name: Days to go
+          icon: mdi:calendar-clock
+          color: amber
+          vertical: true
+        - type: tile
+          entity: sensor.mercury_nz_current_period_usage
+          name: Used so far
+          icon: mdi:meter-electric-outline
+          color: amber
+          vertical: true
+        - type: tile
+          entity: sensor.mercury_nz_current_balance
+          name: Balance
+          icon: mdi:wallet-outline
+          color: green
+        - type: tile
+          entity: sensor.mercury_nz_due_date
+          name: Next payment
+          icon: mdi:bank-transfer
+          color: blue-grey
+      - type: grid
+        cards:
+        - type: heading
+          heading: Usage
+          icon: mdi:chart-bar
+          heading_style: title
+          tap_action:
+            action: navigate
+            navigation_path: /energy
+        - type: custom:mercury-energy-usage-card
+          entity: sensor.mercury_nz_energy_usage
+          name: Usage
+          period: hourly|daily|monthly
+          grid_options:
+            columns: full
+      background: 'radial-gradient(130% 55% at 0% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(99, 102, 241, 0) 62%), radial-gradient(110%
+        50% at 100% 100%, rgba(20, 184, 166, 0.14) 0%, rgba(20, 184, 166, 0) 60%), fixed #0b0d12'
+    - title: Remote
+      path: remote
+      icon: mdi:remote-tv
+      type: sections
+      max_columns: 2
+      background: 'radial-gradient(130% 55% at 0% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(99, 102, 241, 0) 62%), radial-gradient(110%
+        50% at 100% 100%, rgba(20, 184, 166, 0.14) 0%, rgba(20, 184, 166, 0) 60%), fixed #0b0d12'
+      sections:
+      - type: grid
+        cards:
+        - type: tile
+          entity: media_player.living_room_tv
+          name: Living room TV
+          state_content:
+          - state
+          - app_name
+          features:
+          - type: media-player-playback
+            controls:
+            - turn_on
+            - turn_off
+          features_position: inline
+          grid_options:
+            columns: full
+        - type: shortcut
+          label: Jellyfin
+          description: Films and shows
+          icon: mdi:jellyfish-outline
+          color: purple
+          tap_action:
+            action: perform-action
+            perform_action: androidtv.adb_command
+            target:
+              entity_id: media_player.living_room_tv
+            data:
+              command: monkey -p org.jellyfin.androidtv -c android.intent.category.LEANBACK_LAUNCHER 1
+          grid_options:
+            columns: 6
+        - type: shortcut
+          label: SmartTube
+          description: YouTube, no ads
+          icon: mdi:youtube-tv
+          color: red
+          tap_action:
+            action: perform-action
+            perform_action: androidtv.adb_command
+            target:
+              entity_id: media_player.living_room_tv
+            data:
+              command: monkey -p app.smarttube.fdroid -c android.intent.category.LEANBACK_LAUNCHER 1
+          grid_options:
+            columns: 6
+        - type: shortcut
+          label: AI TV
+          description: Live AI channels
+          icon: mdi:creation-outline
+          color: cyan
+          tap_action:
+            action: perform-action
+            perform_action: androidtv.adb_command
+            target:
+              entity_id: media_player.living_room_tv
+            data:
+              command: monkey -p vip.soyspray.aitv -c android.intent.category.LEANBACK_LAUNCHER 1
+          grid_options:
+            columns: 6
+        - type: shortcut
+          label: Twitch
+          description: Live streams
+          icon: mdi:twitch
+          color: deep-purple
+          tap_action:
+            action: perform-action
+            perform_action: androidtv.adb_command
+            target:
+              entity_id: media_player.living_room_tv
+            data:
+              command: monkey -p com.fgl27.twitch -c android.intent.category.LEANBACK_LAUNCHER 1
+          grid_options:
+            columns: 6
+        - type: button
+          name: Back
+          icon: mdi:arrow-left
+          show_name: false
+          icon_height: 40px
+          color: '#9fa8da'
+          tap_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: BACK
+          hold_action:
+            action: none
+          grid_options:
+            columns: 4
+            rows: 2
+        - type: button
+          name: Up
+          icon: mdi:chevron-up
+          show_name: false
+          icon_height: 56px
+          color: '#e8eaf6'
+          tap_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: UP
+          hold_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: UP
+              num_repeats: 5
+          grid_options:
+            columns: 4
+            rows: 2
+        - type: button
+          name: Home
+          icon: mdi:home-outline
+          show_name: false
+          icon_height: 40px
+          color: '#9fa8da'
+          tap_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: HOME
+          hold_action:
+            action: none
+          grid_options:
+            columns: 4
+            rows: 2
+        - type: button
+          name: Left
+          icon: mdi:chevron-left
+          show_name: false
+          icon_height: 56px
+          color: '#e8eaf6'
+          tap_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: LEFT
+          hold_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: LEFT
+              num_repeats: 5
+          grid_options:
+            columns: 4
+            rows: 2
+        - type: button
+          name: OK
+          icon: mdi:circle-double
+          show_name: false
+          icon_height: 52px
+          color: '#7c83fd'
+          tap_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: CENTER
+          hold_action:
+            action: none
+          grid_options:
+            columns: 4
+            rows: 2
+        - type: button
+          name: Right
+          icon: mdi:chevron-right
+          show_name: false
+          icon_height: 56px
+          color: '#e8eaf6'
+          tap_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: RIGHT
+          hold_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: RIGHT
+              num_repeats: 5
+          grid_options:
+            columns: 4
+            rows: 2
+        - type: button
+          name: Input
+          icon: mdi:video-input-hdmi
+          show_name: false
+          icon_height: 40px
+          color: '#9fa8da'
+          tap_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: INPUT
+          hold_action:
+            action: none
+          grid_options:
+            columns: 4
+            rows: 2
+        - type: button
+          name: Down
+          icon: mdi:chevron-down
+          show_name: false
+          icon_height: 56px
+          color: '#e8eaf6'
+          tap_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: DOWN
+          hold_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: DOWN
+              num_repeats: 5
+          grid_options:
+            columns: 4
+            rows: 2
+        - type: button
+          name: Settings
+          icon: mdi:cog-outline
+          show_name: false
+          icon_height: 40px
+          color: '#9fa8da'
+          tap_action:
+            action: perform-action
+            perform_action: androidtv.adb_command
+            target:
+              entity_id: media_player.living_room_tv
+            data:
+              command: am start -a android.settings.SETTINGS -f 0x10008000
+          hold_action:
+            action: none
+          grid_options:
+            columns: 4
+            rows: 2
+      - type: grid
+        cards:
+        - type: button
+          name: Volume down
+          icon: mdi:volume-minus
+          show_name: false
+          color: '#9fa8da'
+          tap_action:
+            action: perform-action
+            perform_action: media_player.volume_down
+            target:
+              entity_id: media_player.living_room_tv
+          hold_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: VOLUME_DOWN
+              num_repeats: 5
+          grid_options:
+            columns: 4
+            rows: 1
+        - type: button
+          name: Mute
+          icon: mdi:volume-mute
+          show_name: false
+          color: '#9fa8da'
+          tap_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: MUTE
+          hold_action:
+            action: none
+          grid_options:
+            columns: 4
+            rows: 1
+        - type: button
+          name: Volume up
+          icon: mdi:volume-plus
+          show_name: false
+          color: '#9fa8da'
+          tap_action:
+            action: perform-action
+            perform_action: media_player.volume_up
+            target:
+              entity_id: media_player.living_room_tv
+          hold_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: VOLUME_UP
+              num_repeats: 5
+          grid_options:
+            columns: 4
+            rows: 1
+        - type: button
+          name: Rewind
+          icon: mdi:rewind
+          show_name: false
+          color: '#9fa8da'
+          tap_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: REWIND
+          hold_action:
+            action: none
+          grid_options:
+            columns: 4
+            rows: 1
+        - type: button
+          name: Play or pause
+          icon: mdi:play-pause
+          show_name: false
+          color: '#9fa8da'
+          tap_action:
+            action: perform-action
+            perform_action: media_player.media_play_pause
+            target:
+              entity_id: media_player.living_room_tv
+          hold_action:
+            action: none
+          grid_options:
+            columns: 4
+            rows: 1
+        - type: button
+          name: Fast forward
+          icon: mdi:fast-forward
+          show_name: false
+          color: '#9fa8da'
+          tap_action:
+            action: perform-action
+            perform_action: remote.send_command
+            target:
+              entity_id: remote.living_room_tv
+            data:
+              command: FAST_FORWARD
+          hold_action:
+            action: none
+          grid_options:
+            columns: 4
+            rows: 1
+    - title: Vacuum
+      path: vacuum
+      icon: mdi:robot-vacuum
+      type: sections
+      max_columns: 2
+      background: 'radial-gradient(130% 55% at 0% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(99, 102, 241, 0) 62%), radial-gradient(110%
+        50% at 100% 100%, rgba(20, 184, 166, 0.14) 0%, rgba(20, 184, 166, 0) 60%), fixed #0b0d12'
+      sections:
+      - type: grid
+        cards:
+        - type: tile
+          entity: vacuum.l10s_ultra
+          name: Dreame L10s Ultra
+          state_content:
+          - state
+          - status
+          features:
+          - type: vacuum-commands
+            commands:
+            - start_pause
+            - stop
+            - return_home
+            - locate
+          grid_options:
+            columns: full
+        - type: picture-entity
+          entity: camera.l10s_ultra_map
+          camera_view: auto
+          show_name: false
+          show_state: false
+          fit_mode: contain
+          grid_options:
+            columns: full
+            rows: 5
+      - type: grid
+        cards:
+        - type: heading
+          heading: Clean one room
+          heading_style: subtitle
+        - type: button
+          name: Dining hall
+          icon: mdi:silverware-fork-knife
+          color: teal
+          tap_action:
+            action: perform-action
+            perform_action: dreame_vacuum.vacuum_clean_segment
+            target:
+              entity_id: vacuum.l10s_ultra
+            data:
+              segments:
+              - 1
+            confirmation:
+              text: Vacuum the dining hall now?
+          hold_action:
+            action: none
+          grid_options:
+            columns: 4
+            rows: 2
+        - type: button
+          name: Living room
+          icon: mdi:sofa-outline
+          color: teal
+          tap_action:
+            action: perform-action
+            perform_action: dreame_vacuum.vacuum_clean_segment
+            target:
+              entity_id: vacuum.l10s_ultra
+            data:
+              segments:
+              - 3
+            confirmation:
+              text: Vacuum the living room now?
+          hold_action:
+            action: none
+          grid_options:
+            columns: 4
+            rows: 2
+        - type: button
+          name: Bathroom
+          icon: mdi:shower-head
+          color: teal
+          tap_action:
+            action: perform-action
+            perform_action: dreame_vacuum.vacuum_clean_segment
+            target:
+              entity_id: vacuum.l10s_ultra
+            data:
+              segments:
+              - 2
+            confirmation:
+              text: Vacuum the bathroom now?
+          hold_action:
+            action: none
+          grid_options:
+            columns: 4
+            rows: 2
+        - type: tile
+          entity: select.l10s_ultra_cleaning_mode
+          name: Mode
+          color: teal
+          features:
+          - type: select-options
+          grid_options:
+            columns: full
+        - type: tile
+          entity: select.l10s_ultra_suction_level
+          name: Suction
+          color: teal
+          features:
+          - type: select-options
+          grid_options:
+            columns: full
+      - type: grid
+        cards:
+        - type: heading
+          heading: Brushes and filters
+          heading_style: subtitle
+        - type: tile
+          entity: sensor.l10s_ultra_main_brush_left
+          name: Main brush
+          color: teal
+          features:
+          - type: bar-gauge
+            min: 0
+            max: 100
+          grid_options:
+            columns: 6
+        - type: tile
+          entity: sensor.l10s_ultra_side_brush_left
+          name: Side brush
+          color: teal
+          features:
+          - type: bar-gauge
+            min: 0
+            max: 100
+          grid_options:
+            columns: 6
+        - type: tile
+          entity: sensor.l10s_ultra_filter_left
+          name: Filter
+          color: teal
+          features:
+          - type: bar-gauge
+            min: 0
+            max: 100
+          grid_options:
+            columns: 6
+        - type: tile
+          entity: sensor.l10s_ultra_sensor_dirty_left
+          name: Sensors
+          color: teal
+          features:
+          - type: bar-gauge
+            min: 0
+            max: 100
+          grid_options:
+            columns: 6
+        - type: tile
+          entity: sensor.l10s_ultra_mop_pad_left
+          name: Mop pad
+          color: teal
+          features:
+          - type: bar-gauge
+            min: 0
+            max: 100
+          grid_options:
+            columns: 6
+        - type: tile
+          entity: sensor.l10s_ultra_detergent_left
+          name: Detergent
+          color: teal
+          features:
+          - type: bar-gauge
+            min: 0
+            max: 100
+          grid_options:
+            columns: 6
+        - type: tile
+          entity: sensor.l10s_ultra_silver_ion_left
+          name: Silver ion
+          color: teal
+          features:
+          - type: bar-gauge
+            min: 0
+            max: 100
+          grid_options:
+            columns: 6
+    - title: System
+      path: system
+      icon: mdi:heart-pulse
+      type: sections
+      max_columns: 2
+      background: 'radial-gradient(130% 55% at 0% 0%, rgba(99, 102, 241, 0.22) 0%, rgba(99, 102, 241, 0) 62%), radial-gradient(110%
+        50% at 100% 100%, rgba(20, 184, 166, 0.14) 0%, rgba(20, 184, 166, 0) 60%), fixed #0b0d12'
+      sections:
+      - type: grid
+        cards:
+        - type: heading
+          heading: Health
+          icon: mdi:heart-pulse
+        - type: repairs
+          hide_empty: false
+          grid_options:
+            columns: full
+        - type: updates
+          hide_empty: false
+          grid_options:
+            columns: full
+        - type: discovered-devices
+          hide_empty: true
+          grid_options:
+            columns: full
+      - type: grid
+        cards:
+        - type: heading
+          heading: GI voice
+          icon: mdi:account-voice
+        - type: tile
+          entity: assist_satellite.home_assistant_voice_0a9b95_assist_satellite
+          name: GI
+          grid_options:
+            columns: 6
+        - type: tile
+          entity: switch.home_assistant_voice_0a9b95_mute
+          name: Mic muted
+          icon: mdi:microphone-off
+          tap_action:
+            action: toggle
+          grid_options:
+            columns: 6
+      - type: grid
+        cards:
+        - type: heading
+          heading: Devices
+          icon: mdi:devices
+        - type: tile
+          entity: sensor.pixel_9_pro_xl_battery_level
+          name: Pixel battery
+          grid_options:
+            columns: 6
+        - type: tile
+          entity: switch.zigbee2mqtt_bridge_permit_join
+          name: Zigbee pairing
+          grid_options:
+            columns: 6
+        - type: tile
+          entity: siren.tapo_h100
+          name: Tapo hub
+          grid_options:
+            columns: 6
+        - type: tile
+          entity: binary_sensor.tapo_t100_motion
+          name: Motion sensor
+          grid_options:
+            columns: 6

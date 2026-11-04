@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       annotations:
-        soyspray.vip/bootstrap-config-revision: "2026-11-05-bin-collections-v2"
+        soyspray.vip/bootstrap-config-revision: "2026-11-05-home-tabs-v1"
       labels:
         app: home-assistant
         component: main
@@ -51,8 +51,9 @@ spec:
               cp /bootstrap/scenes.yaml /config/scenes.yaml
               cp /bootstrap/templates.yaml /config/templates.yaml
               mkdir -p /config/dashboards
-              cp /bootstrap/mercury-dashboard.yaml /config/dashboards/mercury.yaml
-              cp /bootstrap/bins-dashboard.yaml /config/dashboards/bins.yaml
+              cp /bootstrap/home-dashboard.yaml /config/dashboards/home.yaml
+              # Power and Bins used to be separate sidebar dashboards.
+              rm -f /config/dashboards/mercury.yaml /config/dashboards/bins.yaml
               # These two files were managed by the initial Everyday promotion.
               # Everyday reads its own bundle; original GI keeps native sentences.
               for file in gi_starters.yaml gi_learned.yaml; do

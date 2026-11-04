@@ -25,20 +25,20 @@ def test_mercury_integration_is_installed_from_a_verified_revision() -> None:
     assert "rm -rf /config/custom_components\n" not in script
 
 
-def test_power_dashboard_is_declared_and_copied_into_the_config() -> None:
+def test_power_is_a_tab_of_the_home_dashboard() -> None:
     bootstrap = load_yaml("apps/home-assistant/manifests/configmap-bootstrap.yaml")["data"]
     init_containers = {item["name"]: item for item in _deployment_spec()["initContainers"]}
     copy_script = init_containers["bootstrap-config"]["command"][-1]
     configuration = bootstrap["configuration.yaml"]
 
-    assert "cp /bootstrap/mercury-dashboard.yaml /config/dashboards/mercury.yaml" in copy_script
+    assert "cp /bootstrap/home-dashboard.yaml /config/dashboards/home.yaml" in copy_script
     assert "currency: NZD" in configuration
-    assert "filename: dashboards/mercury.yaml" in configuration
+    assert "filename: dashboards/home.yaml" in configuration
     # Card resources stay in storage mode so existing UI resources keep working.
     assert "resource_mode" not in configuration
 
-    dashboard = yaml.safe_load(bootstrap["mercury-dashboard.yaml"])
-    cards = [card for section in dashboard["views"][0]["sections"] for card in section["cards"]]
+    views = {v["path"]: v for v in yaml.safe_load(bootstrap["home-dashboard.yaml"])["views"]}
+    cards = [card for section in views["power"]["sections"] for card in section["cards"]]
     card_types = {card["type"] for card in cards}
     assert {
         "custom:mercury-energy-usage-card",
