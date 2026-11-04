@@ -140,13 +140,13 @@
     "grams": 85
   },
   "top_cap": {
-    "triangles": 12348,
+    "triangles": 12620,
     "size": [
       245,
       209,
       16
     ],
-    "volumeCm3": 191.8,
+    "volumeCm3": 191.78,
     "grams": 176
   },
   "zigbee_mast": {
