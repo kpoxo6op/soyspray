@@ -235,3 +235,9 @@ def test_bins_dashboard_only_uses_entities_this_config_defines() -> None:
     used |= {e for card in cards for e in card.get("entities", [])}
     used |= {b["entity"] for b in dashboard["views"][0]["badges"]}
     assert used and used <= defined
+
+
+def test_a_reminder_sent_early_names_the_weekday() -> None:
+    hass = FakeHass(dt.datetime(2026, 11, 5, 10, tzinfo=NZDT))
+    hass.read_calendar(_events(("rubbish", "2026-11-11"), ("food scraps", "2026-11-11")))
+    assert "Rubbish and food scraps on Wednesday (Wed 11 Nov)" in _notification(hass)

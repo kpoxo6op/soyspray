@@ -606,7 +606,7 @@ data:
               {% set day = strptime(states('sensor.bins_next_collection'), '%Y-%m-%d') %}
               {% set icons = {'Rubbish': '🔴', 'Food scraps': '🟢', 'Recycling': '🟡'} %}
               {{ state_attr('sensor.bins_next_collection', 'summary') }}
-              {{- ' today' if d == 0 else ' tomorrow' }} ({{ day.strftime('%a %-d %b') }}), out before 7am.
+              {{- ' today' if d == 0 else ' tomorrow' if d == 1 else ' on ' ~ day.strftime('%A') }} ({{ day.strftime('%a %-d %b') }}), out before 7am.
               {% for bin in state_attr('sensor.bins_next_collection', 'bins') %}{{ icons.get(bin, '⚪') }} {{ bin }}{{ '  ' if not loop.last }}{% endfor %}
             data:
               tag: bins-reminder
