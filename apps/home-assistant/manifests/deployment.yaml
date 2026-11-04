@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       annotations:
-        soyspray.vip/bootstrap-config-revision: "2026-11-04-power-insights-v1"
+        soyspray.vip/bootstrap-config-revision: "2026-11-05-bin-collections-v1"
       labels:
         app: home-assistant
         component: main
@@ -52,6 +52,7 @@ spec:
               cp /bootstrap/templates.yaml /config/templates.yaml
               mkdir -p /config/dashboards
               cp /bootstrap/mercury-dashboard.yaml /config/dashboards/mercury.yaml
+              cp /bootstrap/bins-dashboard.yaml /config/dashboards/bins.yaml
               # These two files were managed by the initial Everyday promotion.
               # Everyday reads its own bundle; original GI keeps native sentences.
               for file in gi_starters.yaml gi_learned.yaml; do
@@ -151,6 +152,42 @@ spec:
               source_dir="${tmp_dir}/out/custom_components/mercury_co_nz"
               test -f "${source_dir}/manifest.json"
               rm -rf "${source_dir}/tests"
+              mkdir -p /config/custom_components
+              rm -rf "${install_dir}"
+              cp -R "${source_dir}" "${install_dir}"
+              echo "${revision}" > "${version_file}"
+          volumeMounts:
+            - name: config
+              mountPath: /config
+        - name: install-waste-collection
+          image: alpine:3.20
+          command:
+            - sh
+            - -c
+            - |
+              set -euo pipefail
+              apk add --no-cache ca-certificates git >/dev/null
+              # mampfes/hacs_waste_collection_schedule v2.36.0 (Auckland Council source)
+              revision="67cb32c01a65331cc0acc51eaa4311225a908e90"
+              expected_tree="db613968d04c6ad0237b6382b33e585bfaf0d4c2"
+              install_dir="/config/custom_components/waste_collection_schedule"
+              version_file="${install_dir}/.soyspray-version"
+
+              if [ -f "${version_file}" ] && [ "$(cat "${version_file}")" = "${revision}" ]; then
+                exit 0
+              fi
+
+              tmp_dir="$(mktemp -d)"
+              trap 'rm -rf "${tmp_dir}"' EXIT
+              git -C "${tmp_dir}" init -q
+              git -C "${tmp_dir}" fetch -q --depth 1 https://github.com/mampfes/hacs_waste_collection_schedule.git "${revision}"
+              test "$(git -C "${tmp_dir}" rev-parse FETCH_HEAD)" = "${revision}"
+              test "$(git -C "${tmp_dir}" rev-parse FETCH_HEAD:custom_components/waste_collection_schedule)" = "${expected_tree}"
+              mkdir -p "${tmp_dir}/out"
+              git -C "${tmp_dir}" archive FETCH_HEAD custom_components/waste_collection_schedule | tar -x -C "${tmp_dir}/out"
+              source_dir="${tmp_dir}/out/custom_components/waste_collection_schedule"
+              test -f "${source_dir}/manifest.json"
+              test -f "${source_dir}/waste_collection_schedule/source/aucklandcouncil_govt_nz.py"
               mkdir -p /config/custom_components
               rm -rf "${install_dir}"
               cp -R "${source_dir}" "${install_dir}"

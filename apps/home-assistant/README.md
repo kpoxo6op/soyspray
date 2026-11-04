@@ -116,6 +116,41 @@ days. Mercury's hourly cost excludes the daily charge while its daily cost
 includes it, so the plan check prices kWh itself and adds each plan's daily
 charge.
 
+## Bin collections
+
+The Deployment installs `mampfes/hacs_waste_collection_schedule` (v2.36.0)
+by Git revision, checking the commit and the
+`custom_components/waste_collection_schedule` tree hash before replacing only
+that folder. Its Auckland Council source reads the council's collection-day
+page for one property (the assessment number shown by the council's
+collection day finder). The council lists only the next date for each bin;
+the integration refreshes once a night.
+
+Add it once from Settings → Devices & services → Add integration → Waste
+Collection Schedule → New Zealand → Auckland Council, with the property's
+assessment number, then rename the calendar entity it creates to
+`calendar.bin_collections`. The config entry and number live in the HA PVC,
+never in Git, because the number identifies the home address.
+
+`templates.yaml` reads that calendar into `sensor.bins_schedule` and the
+countdown sensors `sensor.bins_next_collection`, `sensor.bins_rubbish`,
+`sensor.bins_food_scraps`, `sensor.bins_recycling` and `sensor.bins_status`.
+The **Bins** sidebar dashboard (`bins-dashboard.yaml`, copied to
+`/config/dashboards/bins.yaml`) shows them with the calendar.
+
+The phone (`notify.mobile_app_pixel_9_pro_xl`, group and channel `Bins`) is
+reminded at 18:30 the evening before a collection, again at 21:00, and at
+06:15 on the day, until "They're out" is pressed on the notification or the
+dashboard (`input_datetime.bins_out_for`). "In an hour" snoozes once.
+`input_boolean.bins_reminders_paused` pauses them. A 10:00 warning fires when
+no collection is due within eight days, which means the schedule stopped
+updating. `tests/test_home_assistant_bins.py` renders these templates for a
+full week, an off-recycling week and a frozen schedule.
+
+Inorganic collection is booked separately and is not on this calendar. To
+roll back, delete the config entry and revert the installer and dashboard
+commit; the component files remain on the PVC until removed.
+
 ## Fellow Stagg EKG Pro
 
 The Deployment installs the unofficial `bramboe/stagg-ekg-plus-ha` custom
