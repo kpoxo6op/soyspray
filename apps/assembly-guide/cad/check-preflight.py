@@ -278,14 +278,15 @@ try:
         and "toolpath outside placed model at layer 65" in old.get("error", ""),
         pinned_error=old.get("error"),
     )
-    rc, d = run(cad, root / "held-parts", ["top_cap", "mid_deck"])
+    hrc, held = run(cad, root / "held-parts", ["top_cap", "mid_deck"])
+    failures = {p: held["parts"][p]["geometry"]["failures_count"] for p in ("top_cap", "mid_deck")}
     record(
         "parts with real unsupported ceilings stay held",
-        rc == 1
-        and not d["pass"]
-        and all(d["parts"][p]["geometry"]["failures_count"] > 0 for p in ("top_cap", "mid_deck"))
+        hrc == 1
+        and not held["pass"]
+        and all(failures.values())
         and not list((root / "held-parts").rglob("*.gcode.3mf")),
-        failures={p: d["parts"][p]["geometry"]["failures_count"] for p in ("top_cap", "mid_deck")},
+        failures=failures,
     )
     old_report = sha(good / "preflight.json")
     old_jobs = {p: sha(good / p / (p + ".gcode.3mf")) for p in d["parts"]}
