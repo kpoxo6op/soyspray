@@ -68,6 +68,7 @@ data:
           - light.middle
           - light.bottom
 
+    template: !include templates.yaml
     automation: !include automations.yaml
     script: !include scripts.yaml
     scene: !include scenes.yaml
@@ -301,6 +302,162 @@ data:
           data:
             transition: 0
       mode: restart
+    - id: power_unusual_day
+      alias: Power tells the phone about an unusually heavy day
+      triggers:
+        - trigger: state
+          entity_id: sensor.power_latest_day
+          not_from:
+            - unknown
+            - unavailable
+          not_to:
+            - unknown
+            - unavailable
+      actions:
+        - variables:
+            days: "{{ state_attr('sensor.mercury_nz_energy_usage', 'daily_usage_history') or [] }}"
+            usual: >-
+              {% set past = days[-15:-1] %}
+              {{ ((past | sum(attribute='consumption')) / (past | count)) | round(1) if past | count >= 7 else 0 }}
+            latest: "{{ days | last if days else {} }}"
+        - condition: template
+          value_template: >-
+            {{ usual > 0 and latest.consumption > usual * 1.25 and latest.consumption - usual >= 2 }}
+        - variables:
+            top_hours: >-
+              {% set day = latest.date[:10] %}
+              {% set rows = (state_attr('sensor.mercury_nz_energy_usage', 'hourly_usage_history') or [])
+                            | selectattr('datetime', 'search', '^' ~ day)
+                            | sort(attribute='consumption', reverse=true) | list %}
+              {% set ns = namespace(out=[]) %}
+              {% for r in rows[:3] %}
+                {% set ns.out = ns.out + [as_datetime(r.datetime).strftime('%-I%p').lower() ~ ' ' ~ r.consumption ~ ' kWh'] %}
+              {% endfor %}
+              {{ ns.out | join(', ') }}
+        - action: notify.mobile_app_pixel_9_pro_xl
+          data:
+            title: >-
+              Power: {{ as_datetime(latest.date).strftime('%A') }} was {{ ((latest.consumption / usual - 1) * 100) | round(0) | int }}% above usual
+            message: >-
+              {{ latest.consumption }} kWh (${{ latest.cost }}) against a usual {{ usual }} kWh.
+              {% if top_hours %}Biggest hours: {{ top_hours }}.{% endif %}
+            data:
+              group: power
+              tag: power-unusual-day
+              clickAction: /mercury-power/mercury
+      mode: queued
+    - id: power_weekly_digest
+      alias: Power sends a Monday digest to the phone
+      triggers:
+        - trigger: time
+          at: "08:30:00"
+      conditions:
+        - condition: time
+          weekday:
+            - mon
+        - condition: template
+          value_template: >-
+            {{ (state_attr('sensor.mercury_nz_energy_usage', 'daily_usage_history') or []) | count >= 7 }}
+      actions:
+        - variables:
+            days: "{{ state_attr('sensor.mercury_nz_energy_usage', 'daily_usage_history') }}"
+            week: "{{ days[-7:] }}"
+            before: "{{ days[-14:-7] if days | count >= 14 else [] }}"
+            cost: "{{ (week | sum(attribute='cost')) | round(2) }}"
+            kwh: "{{ (week | sum(attribute='consumption')) | round(1) }}"
+            change: >-
+              {% if before | count == 7 %}
+                {% set prev = before | sum(attribute='consumption') %}
+                {{ ((kwh / prev - 1) * 100) | round(0) | int }}
+              {% else %}{% endif %}
+            plan_days: "{{ state_attr('sensor.power_plan_check', 'days') | int(0) }}"
+            plan_saving: "{{ state_attr('sensor.power_plan_check', 'saving_vs_now') | float(0) }}"
+        - action: notify.mobile_app_pixel_9_pro_xl
+          data:
+            title: "Power last week: ${{ '%.2f' | format(cost) }} for {{ kwh }} kWh"
+            message: >-
+              Up to {{ as_datetime(week[-1].date).strftime('%a %-d %b') }}.
+              {%- if change != '' %}
+              {%- if change == 0 %} Same as the week before.
+              {%- else %} {{ 'Up' if change > 0 else 'Down' }} {{ change | abs }}% on the week before.
+              {%- endif %}
+              {%- endif %}
+              {%- if has_value('sensor.power_always_on') %} Always-on load about
+              {{ states('sensor.power_always_on') | int }} W, roughly
+              ${{ state_attr('sensor.power_always_on', 'yearly_cost') | int(0) }} a year.
+              {%- endif %}
+              {%- if plan_days >= 7 %}
+              {%- if states('sensor.power_plan_check') != 'Mercury Flat Rates (now)' and plan_saving > 0 %}
+              Over {{ plan_days }} days, {{ states('sensor.power_plan_check') }} would have cost
+              ${{ '%.2f' | format(plan_saving) }} less than your plan.
+              {%- else %} Your plan was the cheapest of five over {{ plan_days }} days.
+              {%- endif %}
+              {%- endif %}
+            data:
+              group: power
+              tag: power-weekly
+              clickAction: /mercury-power/mercury
+      mode: single
+    - id: power_data_stale
+      alias: Power warns when Mercury data stops arriving
+      triggers:
+        - trigger: time
+          at: "10:00:00"
+      conditions:
+        - condition: template
+          value_template: "{{ states('sensor.power_data_age') | int(99) >= 4 }}"
+      actions:
+        - action: notify.mobile_app_pixel_9_pro_xl
+          data:
+            title: Mercury data has stopped
+            message: >-
+              {% if has_value('sensor.power_latest_day') %}The newest day from Mercury is {{ states('sensor.power_latest_day') }}
+              ({{ states('sensor.power_data_age') }} days ago; normally 2).{% else %}The Mercury integration has no data.{% endif %}
+              Check Settings → Devices & services → Mercury CO NZ; a changed Mercury password needs Reconfigure.
+            data:
+              group: power
+              tag: power-stale
+              clickAction: /config/integrations/integration/mercury_co_nz
+      mode: single
+    - id: power_bill_ready
+      alias: Power tells the phone when Mercury's bill summary arrives
+      triggers:
+        - trigger: state
+          entity_id: sensor.mercury_nz_projected_bill_note
+          id: first_summary
+          not_to:
+            - unknown
+            - unavailable
+        - trigger: state
+          entity_id: sensor.mercury_nz_billing_period_start
+          id: new_period
+          not_from:
+            - unknown
+            - unavailable
+          not_to:
+            - unknown
+            - unavailable
+      conditions:
+        # Once per billing period: the first summary after "available soon",
+        # then each time Mercury starts a new period.
+        - condition: template
+          value_template: >-
+            {% if trigger.id == 'first_summary' %}
+              {{ 'available soon' in (trigger.from_state.state if trigger.from_state else '') | lower
+                 and 'available soon' not in trigger.to_state.state | lower }}
+            {% else %}
+              {{ not trigger.to_state.state.startswith('0001') }}
+            {% endif %}
+      actions:
+        - action: notify.mobile_app_pixel_9_pro_xl
+          data:
+            title: Mercury bill update
+            message: "{{ states('sensor.mercury_nz_projected_bill_note') }}"
+            data:
+              group: power
+              tag: power-bill
+              clickAction: /mercury-power/mercury
+      mode: single
   scripts.yaml: |
     tapo_relax:
       alias: Tapo Relax
@@ -329,12 +486,150 @@ data:
         light.bottom:
           state: "on"
           effect: Relax
+  templates.yaml: |
+    # Power insights from the Mercury CO NZ sensors. Mercury's data lags about
+    # two days and lands one whole day at a time; these sensors read the
+    # integration's own history attributes on sensor.mercury_nz_energy_usage.
+    - sensor:
+        - name: Power latest day
+          unique_id: power_latest_day
+          icon: mdi:calendar-check
+          availability: >-
+            {{ (state_attr('sensor.mercury_nz_energy_usage', 'daily_usage_history') or []) | count > 0 }}
+          state: >-
+            {{ (state_attr('sensor.mercury_nz_energy_usage', 'daily_usage_history') | last).date[:10] }}
+        - name: Power data age
+          unique_id: power_data_age
+          icon: mdi:timer-sand
+          unit_of_measurement: d
+          availability: "{{ has_value('sensor.power_latest_day') }}"
+          state: >-
+            {{ (now().date() - strptime(states('sensor.power_latest_day'), '%Y-%m-%d').date()).days }}
+        - name: Power last 7 days cost
+          unique_id: power_last_7_days_cost
+          icon: mdi:cash-multiple
+          unit_of_measurement: NZD
+          device_class: monetary
+          availability: >-
+            {{ (state_attr('sensor.mercury_nz_energy_usage', 'daily_usage_history') or []) | count >= 7 }}
+          state: >-
+            {{ (state_attr('sensor.mercury_nz_energy_usage', 'daily_usage_history')[-7:]
+                | sum(attribute='cost')) | round(2) }}
+        - name: Power last 7 days usage
+          unique_id: power_last_7_days_usage
+          icon: mdi:meter-electric-outline
+          unit_of_measurement: kWh
+          availability: >-
+            {{ (state_attr('sensor.mercury_nz_energy_usage', 'daily_usage_history') or []) | count >= 7 }}
+          state: >-
+            {{ (state_attr('sensor.mercury_nz_energy_usage', 'daily_usage_history')[-7:]
+                | sum(attribute='consumption')) | round(1) }}
+        # The quietest hours approximate what never switches off: the cluster,
+        # network gear, fridge and standby loads.
+        - name: Power always on
+          unique_id: power_always_on
+          icon: mdi:power-plug-battery-outline
+          unit_of_measurement: W
+          device_class: power
+          availability: >-
+            {{ (state_attr('sensor.mercury_nz_energy_usage', 'hourly_usage_history') or []) | count >= 24 }}
+          state: >-
+            {% set v = state_attr('sensor.mercury_nz_energy_usage', 'hourly_usage_history')
+                       | map(attribute='consumption') | map('float', 0) | sort | list %}
+            {{ ((v[:3] | sum) / 3 * 1000) | round(0) }}
+          attributes:
+            yearly_cost: >-
+              {% set v = (state_attr('sensor.mercury_nz_energy_usage', 'hourly_usage_history') or [])
+                         | map(attribute='consumption') | map('float', 0) | sort | list %}
+              {% if v | count >= 24 %}
+                {{ ((v[:3] | sum) / 3 * 8760 * states('sensor.mercury_nz_current_rate') | float(0.3327)) | round(0) }}
+              {% endif %}
+
+    # Shadow bills: every complete day Mercury delivers is priced on the
+    # current plan and four alternatives, using the real hourly profile.
+    # Rates are Auckland (Vector) low-user prices incl. GST, checked
+    # 2026-11-04 from selectra.nz; refresh them when retailers reprice.
+    - trigger:
+        - trigger: state
+          entity_id: sensor.power_latest_day
+          not_to:
+            - unknown
+            - unavailable
+      action:
+        - variables:
+            # The sensor's own restored attributes carry the running totals.
+            previous: "{{ state_attr('sensor.power_plan_check', 'totals') or {} }}"
+            last_day: "{{ state_attr('sensor.power_plan_check', 'last_day') or '' }}"
+            days_counted: "{{ state_attr('sensor.power_plan_check', 'days') | int(0) }}"
+            hours: "{{ state_attr('sensor.mercury_nz_energy_usage', 'hourly_usage_history') or [] }}"
+            new_days: >-
+              {{ hours | map(attribute='datetime') | map('regex_replace', 'T.*$', '') | unique
+                 | select('gt', last_day) | list }}
+            priced: >-
+              {% set ns = namespace(flat=0, flex=0, octopus=0, kiwi=0, contact=0, days=0, last=last_day) %}
+              {% for day in new_days %}
+                {% set rows = hours | selectattr('datetime', 'search', '^' ~ day) | list %}
+                {% if rows | count >= 23 %}
+                  {% set d = namespace(flat=1.725, flex=1.725, octopus=1.725, kiwi=1.60, contact=2.07, free=0) %}
+                  {% for r in rows %}
+                    {% set t = as_datetime(r.datetime) %}
+                    {% set h = t.hour %}
+                    {% set weekday = t.weekday() < 5 %}
+                    {% set k = r.consumption | float(0) %}
+                    {% set night23 = h >= 23 or h < 7 %}
+                    {% set d.flat = d.flat + k * 0.3327 %}
+                    {% set d.flex = d.flex + k * (0.3838 if (7 <= h <= 10 or 17 <= h <= 20)
+                                                   else (0.3329 if h == 21 else 0.2820)) %}
+                    {% set d.octopus = d.octopus + k * (0.2125 if night23
+                                       else (0.4250 if weekday and (7 <= h <= 10 or 17 <= h <= 20) else 0.3445)) %}
+                    {% set kiwi_rate = 0.1786 if night23
+                                       else (0.5956 if weekday and (7 <= h <= 8 or 17 <= h <= 20) else 0.4467) %}
+                    {% set d.kiwi = d.kiwi + k * kiwi_rate %}
+                    {% if 9 <= h <= 16 or h >= 21 or h < 7 %}
+                      {% set d.free = [d.free, k * kiwi_rate] | max %}
+                    {% endif %}
+                    {% set d.contact = d.contact + k * (0.1990 if (h >= 21 or h < 7) else 0.3979) %}
+                  {% endfor %}
+                  {% set ns.flat = ns.flat + d.flat %}
+                  {% set ns.flex = ns.flex + d.flex %}
+                  {% set ns.octopus = ns.octopus + d.octopus %}
+                  {% set ns.kiwi = ns.kiwi + d.kiwi - d.free %}
+                  {% set ns.contact = ns.contact + d.contact %}
+                  {% set ns.days = ns.days + 1 %}
+                  {% set ns.last = day %}
+                {% endif %}
+              {% endfor %}
+              {{ {'days': ns.days, 'last': ns.last,
+                  'Mercury Flat Rates (now)': ns.flat, 'Mercury Flex Rates': ns.flex,
+                  'Octopus Flexi': ns.octopus, 'Electric Kiwi MoveMaster': ns.kiwi,
+                  'Contact Good Charge': ns.contact} }}
+            totals: >-
+              {% set ns = namespace(out={}) %}
+              {% for plan in ['Mercury Flat Rates (now)', 'Mercury Flex Rates', 'Octopus Flexi',
+                              'Electric Kiwi MoveMaster', 'Contact Good Charge'] %}
+                {% set ns.out = dict(ns.out, **{plan: ((previous.get(plan, 0) | float(0)) + priced[plan]) | round(2)}) %}
+              {% endfor %}
+              {{ ns.out }}
+      sensor:
+        - name: Power plan check
+          unique_id: power_plan_check
+          icon: mdi:scale-balance
+          state: >-
+            {{ (totals | dictsort(false, 'value') | first)[0] if (days_counted + priced.days) > 0 else 'waiting for data' }}
+          attributes:
+            days: "{{ days_counted + priced.days }}"
+            last_day: "{{ priced['last'] }}"
+            totals: "{{ totals }}"
+            saving_vs_now: >-
+              {{ (totals['Mercury Flat Rates (now)'] - (totals | dictsort(false, 'value') | first)[1]) | round(2) }}
+            rates_checked: "2026-11-04"
   mercury-dashboard.yaml: |
     # Mercury power dashboard. The Mercury CO NZ integration registers the
     # custom:mercury-* cards itself. The per-ICP sensors are renamed to the
     # sensor.mercury_nz_* ids below once, after the account is signed in.
     # Mercury reports an empty billing period (0001-01-01) until the first
-    # bill, so "This bill" waits for real dates and "Last 7 days" stands in.
+    # bill, so "This bill" waits for real dates. The power_* sensors come
+    # from templates.yaml.
     title: Power
     views:
       - title: Mercury
@@ -390,30 +685,33 @@ data:
                       - unknown
                       - unavailable
           - type: grid
-            visibility:
-              - condition: state
-                entity: sensor.mercury_nz_billing_period_start
-                state:
-                  - "0001-01-01"
-                  - unknown
-                  - unavailable
             cards:
               - type: heading
                 heading: Last 7 days
                 icon: mdi:calendar-week
                 heading_style: title
               - type: tile
-                entity: sensor.mercury_nz_current_bill_7_days
+                entity: sensor.power_last_7_days_cost
                 name: Cost
                 icon: mdi:cash-multiple
                 color: amber
                 vertical: true
               - type: tile
-                entity: sensor.mercury_nz_total_usage_7_days
+                entity: sensor.power_last_7_days_usage
                 name: Used
                 icon: mdi:meter-electric-outline
                 color: amber
                 vertical: true
+              - type: tile
+                entity: sensor.power_always_on
+                name: Always on
+                icon: mdi:power-plug-battery-outline
+                color: deep-orange
+              - type: tile
+                entity: sensor.power_plan_check
+                name: Cheapest plan so far
+                icon: mdi:scale-balance
+                color: green
           - type: grid
             visibility:
               - condition: state

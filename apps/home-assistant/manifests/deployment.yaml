@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       annotations:
-        soyspray.vip/bootstrap-config-revision: "2026-11-04-mercury-energy-v2"
+        soyspray.vip/bootstrap-config-revision: "2026-11-04-power-insights-v1"
       labels:
         app: home-assistant
         component: main
@@ -49,6 +49,7 @@ spec:
               cp /bootstrap/automations.yaml /config/automations.yaml
               cp /bootstrap/scripts.yaml /config/scripts.yaml
               cp /bootstrap/scenes.yaml /config/scenes.yaml
+              cp /bootstrap/templates.yaml /config/templates.yaml
               mkdir -p /config/dashboards
               cp /bootstrap/mercury-dashboard.yaml /config/dashboards/mercury.yaml
               # These two files were managed by the initial Everyday promotion.
