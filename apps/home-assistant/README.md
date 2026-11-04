@@ -109,7 +109,8 @@ Four automations notify `notify.mobile_app_pixel_9_pro_xl` (group `power`):
 a day at least 25% and 2 kWh above the previous fortnight's average, with its
 biggest hours; a Monday 08:30 digest; a 10:00 warning when Mercury's newest
 day is four or more days old (normally two; usually an expired password);
-and Mercury's bill note once it stops saying the summary is coming.
+and Mercury's bill note once per billing period (the first summary, then each
+new period).
 `tests/test_home_assistant_power.py` renders the templates against two real
 days. Mercury's hourly cost excludes the daily charge while its daily cost
 includes it, so the plan check prices kWh itself and adds each plan's daily

@@ -377,12 +377,22 @@ data:
             title: "Power last week: ${{ '%.2f' | format(cost) }} for {{ kwh }} kWh"
             message: >-
               Up to {{ as_datetime(week[-1].date).strftime('%a %-d %b') }}.
-              {% if change != '' %}{{ 'Up' if change > 0 else 'Down' }} {{ change | abs }}% on the week before. {% endif %}
-              {% if has_value('sensor.power_always_on') %}Always-on load about {{ states('sensor.power_always_on') | int }} W,
-              roughly ${{ state_attr('sensor.power_always_on', 'yearly_cost') | int(0) }} a year. {% endif %}
-              {% if plan_days >= 7 and plan_saving >= 1 %}Over {{ plan_days }} days, {{ states('sensor.power_plan_check') }}
-              would have cost ${{ '%.2f' | format(plan_saving) }} less than your plan.
-              {% elif plan_days >= 7 %}Your plan is still the cheapest of five checked over {{ plan_days }} days.{% endif %}
+              {%- if change != '' %}
+              {%- if change == 0 %} Same as the week before.
+              {%- else %} {{ 'Up' if change > 0 else 'Down' }} {{ change | abs }}% on the week before.
+              {%- endif %}
+              {%- endif %}
+              {%- if has_value('sensor.power_always_on') %} Always-on load about
+              {{ states('sensor.power_always_on') | int }} W, roughly
+              ${{ state_attr('sensor.power_always_on', 'yearly_cost') | int(0) }} a year.
+              {%- endif %}
+              {%- if plan_days >= 7 %}
+              {%- if states('sensor.power_plan_check') != 'Mercury Flat Rates (now)' and plan_saving > 0 %}
+              Over {{ plan_days }} days, {{ states('sensor.power_plan_check') }} would have cost
+              ${{ '%.2f' | format(plan_saving) }} less than your plan.
+              {%- else %} Your plan was the cheapest of five over {{ plan_days }} days.
+              {%- endif %}
+              {%- endif %}
             data:
               group: power
               tag: power-weekly
@@ -410,10 +420,17 @@ data:
               clickAction: /config/integrations/integration/mercury_co_nz
       mode: single
     - id: power_bill_ready
-      alias: Power tells the phone when Mercury's bill summary changes
+      alias: Power tells the phone when Mercury's bill summary arrives
       triggers:
         - trigger: state
           entity_id: sensor.mercury_nz_projected_bill_note
+          id: first_summary
+          not_to:
+            - unknown
+            - unavailable
+        - trigger: state
+          entity_id: sensor.mercury_nz_billing_period_start
+          id: new_period
           not_from:
             - unknown
             - unavailable
@@ -421,13 +438,21 @@ data:
             - unknown
             - unavailable
       conditions:
+        # Once per billing period: the first summary after "available soon",
+        # then each time Mercury starts a new period.
         - condition: template
-          value_template: "{{ 'available soon' not in trigger.to_state.state | lower }}"
+          value_template: >-
+            {% if trigger.id == 'first_summary' %}
+              {{ 'available soon' in (trigger.from_state.state if trigger.from_state else '') | lower
+                 and 'available soon' not in trigger.to_state.state | lower }}
+            {% else %}
+              {{ not trigger.to_state.state.startswith('0001') }}
+            {% endif %}
       actions:
         - action: notify.mobile_app_pixel_9_pro_xl
           data:
             title: Mercury bill update
-            message: "{{ trigger.to_state.state }}"
+            message: "{{ states('sensor.mercury_nz_projected_bill_note') }}"
             data:
               group: power
               tag: power-bill
