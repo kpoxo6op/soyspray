@@ -64,6 +64,21 @@ Xiaomi Home accounts, while this vacuum is paired to a Dreamehome account. The
 actual Dreame account/device config entry is still HA runtime state in the PVC
 after login.
 
+## Home dashboard
+
+The default panel, `/dashboard-home`, is a YAML dashboard declared in Git
+(`home-dashboard.yaml` in the bootstrap ConfigMap, copied to
+`/config/dashboards/home.yaml`). Every screen is a tab: Home, Bins, Power,
+Remote, Vacuum and System, so the sidebar holds only Home and HA's built-in
+panels. Change the dashboard in Git; the UI editor cannot save a YAML
+dashboard. Notifications open tabs by path (`/dashboard-home/bins`,
+`/dashboard-home/power`).
+
+Until 5 November 2026 this dashboard was a UI (storage) dashboard with the
+same URL. Its last stored copy is kept privately on the laptop; delete the
+storage entry before a YAML dashboard takes over its URL, because removing a
+shadowed storage entry later also unregisters the YAML panel until restart.
+
 ## Mercury power
 
 The Deployment installs the unofficial `bkintanar/home-assistant-mercury-co-nz`
@@ -81,8 +96,8 @@ account sensors as `sensor.mercury_nz_*` and per-ICP sensors on an
 `sensor.mercury_nz_<name>` (for example `sensor.mercury_nz_energy_usage`
 and `sensor.mercury_nz_current_rate`) so the dashboard finds them.
 
-The **Power** sidebar dashboard is declared in Git (`mercury-dashboard.yaml`
-in the bootstrap ConfigMap, copied to `/config/dashboards/mercury.yaml`). It
+The **Power** tab of the Home dashboard is declared in Git (see "Home
+dashboard" below). It
 uses the integration's own cards, which it registers as Lovelace resources at
 startup. HA's built-in Energy dashboard reads the
 `mercury_co_nz:<account>_energy_consumption` and `_energy_cost` statistics;
@@ -135,8 +150,8 @@ never in Git, because the number identifies the home address.
 `templates.yaml` reads that calendar into `sensor.bins_schedule` and the
 countdown sensors `sensor.bins_next_collection`, `sensor.bins_rubbish`,
 `sensor.bins_food_scraps`, `sensor.bins_recycling` and `sensor.bins_status`.
-The **Bins** sidebar dashboard (`bins-dashboard.yaml`, copied to
-`/config/dashboards/bins.yaml`) shows them with the calendar.
+The **Bins** tab of the Home dashboard shows them with the calendar, and a
+Bins badge appears on the Home tab when the bins should go out.
 
 The phone (`notify.mobile_app_pixel_9_pro_xl`, group and channel `Bins`) is
 reminded at 18:30 the evening before a collection, again at 21:00, and at

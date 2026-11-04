@@ -131,7 +131,7 @@ def test_waste_collection_is_installed_from_a_verified_revision() -> None:
     assert 'rm -rf "${install_dir}"' in script
     assert "rm -rf /config/custom_components\n" not in script
     copy_script = init_containers["bootstrap-config"]["command"][-1]
-    assert "cp /bootstrap/bins-dashboard.yaml /config/dashboards/bins.yaml" in copy_script
+    assert "cp /bootstrap/home-dashboard.yaml /config/dashboards/home.yaml" in copy_script
 
 
 def test_full_collection_is_announced_the_evening_before() -> None:
@@ -213,10 +213,28 @@ def test_a_frozen_schedule_goes_unavailable_and_warns() -> None:
     assert not _reminder_due(hass, "bins_evening_reminder")
 
 
-def test_bins_dashboard_only_uses_entities_this_config_defines() -> None:
+def _home_views() -> dict[str, dict]:
+    views = yaml.safe_load(_bootstrap()["home-dashboard.yaml"])["views"]
+    return {view["path"]: view for view in views}
+
+
+def test_every_screen_is_a_tab_and_links_point_at_tabs() -> None:
     bootstrap = _bootstrap()
     configuration = bootstrap["configuration.yaml"]
-    assert "filename: dashboards/bins.yaml" in configuration
+    dashboards = yaml.safe_load(configuration.replace("!include", ""))["lovelace"]["dashboards"]
+    assert list(dashboards) == ["dashboard-home"]
+    assert dashboards["dashboard-home"]["filename"] == "dashboards/home.yaml"
+    assert list(_home_views()) == ["home", "bins", "power", "remote", "vacuum", "system"]
+
+    # Notification taps and in-dashboard links open a tab that exists.
+    text = "\n".join(bootstrap.values())
+    links = set(re.findall(r"(?:clickAction|navigation_path): (/dashboard-home/[a-z]+)", text))
+    assert {"/dashboard-home/bins", "/dashboard-home/power"} <= links
+    assert {link.rsplit("/", 1)[1] for link in links} <= set(_home_views())
+
+
+def test_bins_tab_only_uses_entities_this_config_defines() -> None:
+    configuration = _bootstrap()["configuration.yaml"]
 
     defined = {CALENDAR}
     for block in _templates():
@@ -229,11 +247,11 @@ def test_bins_dashboard_only_uses_entities_this_config_defines() -> None:
         assert f"\n  {helper}:\n" in configuration
     defined |= {"input_boolean.bins_reminders_paused", "input_datetime.bins_out_for"}
 
-    dashboard = yaml.safe_load(bootstrap["bins-dashboard.yaml"])
-    cards = [card for section in dashboard["views"][0]["sections"] for card in section["cards"]]
+    view = _home_views()["bins"]
+    cards = [card for section in view["sections"] for card in section["cards"]]
     used = {card["entity"] for card in cards if "entity" in card}
     used |= {e for card in cards for e in card.get("entities", [])}
-    used |= {b["entity"] for b in dashboard["views"][0]["badges"]}
+    used |= {b["entity"] for b in view["badges"]}
     assert used and used <= defined
 
 
