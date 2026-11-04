@@ -348,6 +348,16 @@ module top_cap() {
     for (p = cap_bolts()) translate([p[0], p[1], z[0] - 1]) {
       cylinder(d = M4_D, h = z[1] - z[0] + 2);
       translate([0, 0, z[1] - z[0] + 1 - HEAD4[1]]) cylinder(d = HEAD4[0], h = HEAD4[1] + 1);
+      // The cap prints upside down, so each head seat is a ring-shaped ceiling. Two layers step it
+      // down to the screw hole: a slot as wide as the hole across the seat, then a square. Each
+      // layer bridges at most 6.6 mm between solid edges; the seat and the hole only get larger.
+      if (!web) translate([0, 0, z[1] - z[0] + 1 - HEAD4[1]]) {
+        translate([0, 0, -0.2]) intersection() {
+          cylinder(d = HEAD4[0], h = 0.2 + E);
+          translate([-HEAD4[0] / 2, -M4_D / 2, 0]) cube([HEAD4[0], M4_D, 0.2 + E]);
+        }
+        translate([-M4_D / 2, -M4_D / 2, -0.4]) cube([M4_D, M4_D, 0.2 + E]);
+      }
     }
     // grips: lift the whole rack here, the corner screws carry the load down to the base
     for (x = [14, REF_W - 36]) translate([x, 55, z[1] - 30]) linear_extrude(32) rrect([22, 100], 11);
