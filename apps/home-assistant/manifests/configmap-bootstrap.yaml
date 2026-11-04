@@ -943,12 +943,13 @@ data:
             {% elif d == 1 %}Put out tonight
             {% else %}Next {{ state_attr('sensor.bins_next_collection', 'when') }}{% endif %}
   home-dashboard.yaml: |
-    # Home dashboard (url /dashboard-home, the default panel). Every screen is a
-    # tab here, so the sidebar keeps only Home and HA's own panels.
+    # Home dashboard (url /dashboard-home, the default panel). Every screen
+    # lives here, so the sidebar keeps only Home and HA's own panels.
     # Tabs: Home, Bins (Auckland Council collections, sensor.bins_* from
     # templates.yaml), Power (Mercury CO NZ cards, registered by the integration;
     # per-ICP sensors renamed to sensor.mercury_nz_*; Mercury reports an empty
-    # billing period 0001-01-01 until the first bill), Remote, Vacuum, System.
+    # billing period 0001-01-01 until the first bill) and System. Remote and
+    # Vacuum are subviews opened from the Home tab, so four tabs fit a phone.
     title: Home
     views:
     - title: Home
@@ -1477,6 +1478,8 @@ data:
         50% at 100% 100%, rgba(20, 184, 166, 0.14) 0%, rgba(20, 184, 166, 0) 60%), fixed #0b0d12'
     - title: Remote
       path: remote
+      subview: true
+      back_path: /dashboard-home/home
       icon: mdi:remote-tv
       type: sections
       max_columns: 2
@@ -1853,6 +1856,8 @@ data:
             rows: 1
     - title: Vacuum
       path: vacuum
+      subview: true
+      back_path: /dashboard-home/home
       icon: mdi:robot-vacuum
       type: sections
       max_columns: 2

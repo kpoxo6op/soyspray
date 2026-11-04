@@ -224,7 +224,15 @@ def test_every_screen_is_a_tab_and_links_point_at_tabs() -> None:
     dashboards = yaml.safe_load(configuration.replace("!include", ""))["lovelace"]["dashboards"]
     assert list(dashboards) == ["dashboard-home"]
     assert dashboards["dashboard-home"]["filename"] == "dashboards/home.yaml"
-    assert list(_home_views()) == ["home", "bins", "power", "remote", "vacuum", "system"]
+    views = _home_views()
+    assert list(views) == ["home", "bins", "power", "remote", "vacuum", "system"]
+    # Four tabs fit a phone's top bar; Remote and Vacuum open from the Home tab.
+    tabs = [path for path, view in views.items() if not view.get("subview")]
+    assert tabs == ["home", "bins", "power", "system"]
+    home_links = re.findall(
+        r"navigation_path: (/dashboard-home/[a-z]+)", yaml.safe_dump(views["home"])
+    )
+    assert {"/dashboard-home/remote", "/dashboard-home/vacuum"} <= set(home_links)
 
     # Notification taps and in-dashboard links open a tab that exists.
     text = "\n".join(bootstrap.values())
