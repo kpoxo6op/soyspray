@@ -55,8 +55,15 @@ const PRINT_BATCHES = {
     { part: 'post_lower_b', at: [0, 30] },
     { part: 'post_lower_b', at: [0, 60] },
   ],
+  // All four upper posts: two A (front-left, rear-right) and two B, as the rack uses them.
+  upper_posts_remaining: [
+    { part: 'post_upper_a', at: [0, 0] },
+    { part: 'post_upper_b', at: [0, 30] },
+    { part: 'post_upper_a', at: [0, 60] },
+    { part: 'post_upper_b', at: [0, 90] },
+  ],
 };
-const BATCH_GAP_MM = 5;
+const BATCH_GAP_MM = 10;
 
 function batchMesh(name, results) {
   const placed = PRINT_BATCHES[name].map(({ part, at }) => {

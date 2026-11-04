@@ -81,6 +81,14 @@ share the plate, so a post that lifts or a nozzle clog can spoil all three.
 `check-preflight.py` verifies the job is exactly one current A and two current B
 and that an overlapping layout is refused.
 
+`upper_posts_remaining` is the same kind of preset for all four upper posts: two A
+and two B, 10 mm apart. It sliced to 191 min and 78 g, against 61 min and 20 g for
+one upper post. The layer check used to reject every upper post because its
+cap-nut slot floor lies exactly on the slicer's mid-layer sampling plane; a path may
+now fit just below that plane, while support is still judged only from the section
+above it. The E2E shows the pinned checker's false failure on the same job and that
+`top_cap` and `mid_deck` stay held for their real unsupported ceilings.
+
 Tests check the chapters, where each test check leaves its hardware, the tags,
 that every screw meets its own nut, cord lengths and overlaps, the buy list,
 Zigbee spacing, the 260 × 240 × 450 mm envelope, and that the copy asks for no

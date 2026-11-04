@@ -2,7 +2,7 @@
 
 Usage: python3 check-preflight.py ~/prints/new-preflight-check
 Requires the same dependencies and Flatpak access as preflight.mjs, plus Git history
-containing b0584b1c (the original unsupported shelf regression).
+containing b0584b1c (the original unsupported shelf regression) and 4bf33ded.
 """
 
 from collections import Counter
@@ -161,6 +161,67 @@ def layers_printing(gcode, footprints):
     return layers
 
 
+def check_batch(name, expected):
+    """Prepare a renderer batch preset and prove its exact fresh composition and printing."""
+    batch = root / name
+    rc, d = run(cad, batch, [name])
+    entry = d["parts"][name]
+    stl = batch / "stl" / (name + ".stl")
+    refs = root / (name + "-fresh-parts")
+    subprocess.run(
+        ["node", "render.mjs", "--output-dir", str(refs), *sorted(set(expected))],
+        cwd=cad,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    reference = {p: triangles(refs / "stl" / (p + ".stl")) for p in set(expected)}
+    pieces = islands(triangles(stl))
+    names = [
+        next((p for p, t in reference.items() if same_part(g, lo, t)), "unknown")
+        for g, lo, _ in pieces
+    ]
+    gaps = [
+        max(b[1][0] - a[2][0], a[1][0] - b[2][0], b[1][1] - a[2][1], a[1][1] - b[2][1])
+        for i, a in enumerate(pieces)
+        for b in pieces[i + 1 :]
+    ]
+    box = json.loads((batch / name / "result.json").read_text())["sliced_plates"][0]["objects"][0][
+        "bbox"
+    ]
+    machine = json.loads((cad / "print/machine.json").read_text())
+    offset = [float(v) for v in machine["extruder_offset"][0].split("x")]
+    low = [min(p[1][a] for p in pieces) for a in (0, 1)]
+    shift = [(box["x"], box["y"])[a] - low[a] - offset[a] for a in (0, 1)]
+    footprints = [
+        ([lo[a] + shift[a] for a in (0, 1)], [hi[a] + shift[a] for a in (0, 1)])
+        for _, lo, hi in pieces
+    ]
+    printed = layers_printing(batch / name / "plate_1.gcode", footprints)
+    job = batch / name / (name + ".gcode.3mf")
+    record(
+        f"{name} is exactly {', '.join(sorted(expected))} from fresh source,"
+        " each printed on every checked layer",
+        rc == 0
+        and d["pass"]
+        and not entry["problems"]
+        and entry["geometry"]["pass"] is True
+        and entry["stl"] == sha(stl)
+        and sha(job) == entry["job"]
+        and sorted(names) == sorted(expected)
+        and min(gaps) >= 9.99
+        and len(printed) == entry["geometry"]["layers_checked"]
+        and all(layer == set(range(len(pieces))) for layer in printed),
+        parts=names,
+        clearance_mm=round(min(gaps), 3),
+        bed_bbox=box,
+        layers=len(printed),
+        minutes=entry["minutes"],
+        grams=entry["grams"],
+        sha256=entry.get("job"),
+    )
+    return batch / name, stl
+
+
 try:
     good = root / "fixed-shelves"
     rc, d = run(cad, good, ["drive_tray", "switch_shelf"])
@@ -181,61 +242,51 @@ try:
             sha(artifact) == v["job"] and archived == (good / p / "plate_1.gcode").read_bytes(),
             sha256=sha(artifact),
         )
-    batch = root / "remaining-posts"
-    brc, bd = run(cad, batch, ["lower_posts_remaining"])
-    entry = bd["parts"]["lower_posts_remaining"]
-    stl = batch / "stl/lower_posts_remaining.stl"
-    refs = root / "fresh-posts"
+    check_batch("lower_posts_remaining", ["post_lower_a", "post_lower_b", "post_lower_b"])
+    upper, upper_stl = check_batch(
+        "upper_posts_remaining", ["post_upper_a", "post_upper_a", "post_upper_b", "post_upper_b"]
+    )
+    # The checker in the pinned preparer (4bf33ded) sampled only above the slicer's mid-layer
+    # plane, so the cap-nut slot floor on that plane failed this same job as "outside the model".
+    pinned = root / "pinned-checker"
+    for f in ("check-support.py", "check-support.py.lock", "print/machine.json"):
+        (pinned / f).parent.mkdir(parents=True, exist_ok=True)
+        (pinned / f).write_bytes(
+            subprocess.check_output(
+                ["git", "show", f"4bf33ded:apps/assembly-guide/cad/{f}"], cwd=repo
+            )
+        )
+    old_geometry = root / "pinned-checker-geometry.json"
     subprocess.run(
-        ["node", "render.mjs", "--output-dir", str(refs), "post_lower_a", "post_lower_b"],
-        cwd=cad,
-        check=True,
+        [
+            os.environ.get("UV", "uv"),
+            "run",
+            "--locked",
+            "--script",
+            str(pinned / "check-support.py"),
+            str(upper / "plate_1.gcode"),
+            str(upper_stl),
+            str(upper / "result.json"),
+            str(old_geometry),
+        ],
         stdout=subprocess.DEVNULL,
     )
-    reference = {
-        p: triangles(refs / "stl" / (p + ".stl")) for p in ("post_lower_a", "post_lower_b")
-    }
-    pieces = islands(triangles(stl))
-    names = [
-        next((p for p, t in reference.items() if same_part(g, lo, t)), "unknown")
-        for g, lo, _ in pieces
-    ]
-    gaps = [
-        max(b[1][0] - a[2][0], a[1][0] - b[2][0], b[1][1] - a[2][1], a[1][1] - b[2][1])
-        for i, a in enumerate(pieces)
-        for b in pieces[i + 1 :]
-    ]
-    box = json.loads((batch / "lower_posts_remaining/result.json").read_text())["sliced_plates"][0][
-        "objects"
-    ][0]["bbox"]
-    machine = json.loads((cad / "print/machine.json").read_text())
-    offset = [float(v) for v in machine["extruder_offset"][0].split("x")]
-    low = [min(p[1][a] for p in pieces) for a in (0, 1)]
-    shift = [(box["x"], box["y"])[a] - low[a] - offset[a] for a in (0, 1)]
-    footprints = [
-        ([lo[a] + shift[a] for a in (0, 1)], [hi[a] + shift[a] for a in (0, 1)])
-        for _, lo, hi in pieces
-    ]
-    printed = layers_printing(batch / "lower_posts_remaining/plate_1.gcode", footprints)
-    job = batch / "lower_posts_remaining/lower_posts_remaining.gcode.3mf"
+    old = json.loads(old_geometry.read_text())
     record(
-        "remaining lower posts are one current A and two current B, each printed on every checked layer",
-        brc == 0
-        and bd["pass"]
-        and not entry["problems"]
-        and entry["geometry"]["pass"] is True
-        and entry["stl"] == sha(stl)
-        and sha(job) == entry["job"]
-        and sorted(names) == ["post_lower_a", "post_lower_b", "post_lower_b"]
-        and min(gaps) > 0
-        and len(printed) == entry["geometry"]["layers_checked"]
-        and all(layer == set(range(len(pieces))) for layer in printed),
-        parts=names,
-        clearance_mm=round(min(gaps), 3),
-        layers=len(printed),
-        minutes=entry["minutes"],
-        grams=entry["grams"],
-        sha256=entry.get("job"),
+        "the pinned checker's mid-plane false failure is fixed on the same upper post job",
+        old["pass"] is False
+        and "toolpath outside placed model at layer 65" in old.get("error", ""),
+        pinned_error=old.get("error"),
+    )
+    hrc, held = run(cad, root / "held-parts", ["top_cap", "mid_deck"])
+    failures = {p: held["parts"][p]["geometry"]["failures_count"] for p in ("top_cap", "mid_deck")}
+    record(
+        "parts with real unsupported ceilings stay held",
+        hrc == 1
+        and not held["pass"]
+        and all(failures.values())
+        and not list((root / "held-parts").rglob("*.gcode.3mf")),
+        failures=failures,
     )
     old_report = sha(good / "preflight.json")
     old_jobs = {p: sha(good / p / (p + ".gcode.3mf")) for p in d["parts"]}
@@ -371,8 +422,8 @@ try:
     layout = (oldcad / "render.mjs").read_text()
     overlapping = layout.replace(
         "{ part: 'post_lower_b', at: [0, 30] }", "{ part: 'post_lower_b', at: [0, 10] }"
-    )
-    assert overlapping != layout
+    ).replace("{ part: 'post_upper_b', at: [0, 90] }", "{ part: 'post_upper_b', at: [0, 75] }")
+    assert overlapping.count("at: [0, 10]") == 1 and overlapping.count("at: [0, 75]") == 1
     (oldcad / "render.mjs").write_text(overlapping)
     subprocess.run(["git", "add", "render.mjs"], cwd=oldcad, check=True)
     subprocess.run(["git", "commit", "-qm", "E2E: overlapping post batch"], cwd=oldcad, check=True)
@@ -383,6 +434,15 @@ try:
         and not d["pass"]
         and "batch clearance" in d.get("error", "")
         and not list((root / "overlapping-batch").rglob("*.gcode.3mf")),
+        error=d.get("error", "")[-300:],
+    )
+    rc, d = run(oldcad, root / "overlapping-upper-batch", ["upper_posts_remaining"])
+    record(
+        "an overlapping upper post batch layout exports no job",
+        rc == 1
+        and not d["pass"]
+        and "batch clearance" in d.get("error", "")
+        and not list((root / "overlapping-upper-batch").rglob("*.gcode.3mf")),
         error=d.get("error", "")[-300:],
     )
     completed = True
