@@ -46,4 +46,4 @@ def test_power_dashboard_is_declared_and_copied_into_the_config() -> None:
         "custom:mercury-energy-monthly-summary-card",
     } <= card_types
     entities = {card["entity"] for card in cards if "entity" in card}
-    assert all(entity.startswith("sensor.mercury_nz_") for entity in entities)
+    assert all(entity.startswith(("sensor.mercury_nz_", "sensor.power_")) for entity in entities)

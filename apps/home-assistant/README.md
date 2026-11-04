@@ -92,6 +92,29 @@ email-hash ids). The account number is private and stays out of Git.
 To roll back, delete the Mercury config entry and revert the installer and
 dashboard commit. The component files remain on the PVC until removed.
 
+### Power insights
+
+`templates.yaml` (bootstrap ConfigMap) turns the Mercury history attributes
+into `sensor.power_*`: newest Mercury day and its age, last-7-day cost and
+kWh, the always-on load (mean of the three quietest hours of the last 48)
+with its yearly cost, and `sensor.power_plan_check`. The plan check prices
+every complete hourly day once on the current Mercury Flat Rates low-user
+plan and four Auckland alternatives (Mercury Flex Rates, Octopus Flexi,
+Electric Kiwi MoveMaster with its free hour, Contact Good Charge). Its state
+is the cheapest plan so far; attributes hold the running totals, day count
+and the date the rates were checked. Rates are hard-coded and go stale when
+retailers reprice; refresh them and the `rates_checked` date together.
+
+Four automations notify `notify.mobile_app_pixel_9_pro_xl` (group `power`):
+a day at least 25% and 2 kWh above the previous fortnight's average, with its
+biggest hours; a Monday 08:30 digest; a 10:00 warning when Mercury's newest
+day is four or more days old (normally two; usually an expired password);
+and Mercury's bill note once it stops saying the summary is coming.
+`tests/test_home_assistant_power.py` renders the templates against two real
+days. Mercury's hourly cost excludes the daily charge while its daily cost
+includes it, so the plan check prices kWh itself and adds each plan's daily
+charge.
+
 ## Fellow Stagg EKG Pro
 
 The Deployment installs the unofficial `bramboe/stagg-ekg-plus-ha` custom
