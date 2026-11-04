@@ -307,9 +307,15 @@ module deck_plate(z, plate, boxes = foot_boxes()) {
 module rear_slots(z, y0, y1) for (s = [[32, 92], [97, 156], [161, 221]])
   translate([s[0], y0, z[0] - 1]) linear_extrude(z[1] - z[0] + 2) rrect([s[1] - s[0], y1 - y0], 4);
 
-module vent_field(z, x0, x1, y0, y1, pitch = 9, w = 4.5) {
+// pointed: each slot ends in a 45 degree point at y0 instead of its rounding
+module vent_field(z, x0, x1, y0, y1, pitch = 9, w = 4.5, pointed = false) {
   n = floor((x1 - x0 - w) / pitch);
-  for (i = [0 : n]) translate([x0 + i * pitch, y0, z[0] - 1]) linear_extrude(z[1] - z[0] + 2) rrect([w, y1 - y0], w / 2);
+  for (i = [0 : n]) translate([x0 + i * pitch, y0, z[0] - 1]) linear_extrude(z[1] - z[0] + 2)
+    if (pointed) hull() {
+      polygon([[0, w / 2], [w / 2, 0], [w, w / 2]]);
+      translate([0, w / 2]) rrect([w, y1 - y0 - w / 2], w / 2);
+    }
+    else rrect([w, y1 - y0], w / 2);
 }
 
 module base_deck() {
@@ -323,17 +329,72 @@ module base_deck() {
   }
 }
 
+// The mid deck prints standing on its rear edge, the front of the rack up. Every face that then
+// looks down slopes at 45 degrees or closes in a short bridge, so nothing is printed over air:
+// - Each post pocket keeps its seat plane and its exact outline there (z 203 below, z 205 on top).
+//   Only its front wall slopes away from the seat, 3 mm over the 3 mm pocket depth.
+// - The front rim and the rear faces of the front pads stand on 4 mm fillets on the plate.
+// - Each lead slot keeps its 60 mm rear end and closes in a pointed roof towards the front.
+// - Each vent slot ends in a 45 degree point at the front instead of its rounding.
+// - The two rear corners meet the bed in a 45 degree chamfer instead of their flat rounding.
 module mid_deck() {
   z = MID_Z;
   difference() {
-    deck_plate(z, [z[0], z[0] + 4]);
-    post_pockets(z[0] - 1, z[0] + POCKET, foot_boxes());
-    post_pockets(z[1] - POCKET, z[1] + 1, foot_boxes());
+    union() {
+      deck_plate(z, [z[0], z[0] + 4]);
+      mid_fillets(z, z[0] + 4);
+      translate([0, 0, z[0]]) linear_extrude(z[1] - z[0]) { edge_corner(); mirror_x() edge_corner(); }
+    }
+    sloped_pockets(z[0] + POCKET, -1);
+    sloped_pockets(z[1] - POCKET, 1);
     screw_holes(joints(), z[0] - 1, z[1] + 1);
-    rear_slots(z, 150, 200);
-    if (!web) vent_field(z, 34, 222, 32, 138, 10, 6);
+    lead_slots(z, 141, 200);
+    if (!web) vent_field(z, 34, 222, 32, 138, 10, 6, pointed = true);
   }
 }
+
+// Post pockets from their seat plane out through the face on side `dir` (-1 below, +1 above).
+// The front wall moves forwards with the depth below the seat; the other walls stay vertical.
+module sloped_pockets(seat, dir) for (b = foot_boxes()) hull() {
+  size = [b[2] - b[0] + 2 * FIT, b[3] - b[1] + 2 * FIT];
+  translate([b[0] - FIT, b[1] - FIT, dir < 0 ? seat - E : seat]) linear_extrude(E) crect(size, 1.2);
+  translate([b[0] - FIT, b[1] - FIT - 4, seat + dir * 4 - (dir < 0 ? 0 : E)]) linear_extrude(E) crect(size + [0, 4], 1.2);
+}
+
+// Fillets under the faces that look down when the deck stands on its rear edge: in front of the
+// recess between the rims, and behind each front pad. Each grows 1 mm per mm towards the plate.
+module mid_fillets(z, plate) {
+  inner = [X1 - X0 - 6, DEPTH - 6];
+  intersection() {
+    translate([X0, 0, plate]) rbox([X1 - X0, DEPTH, z[1] - plate], CR);
+    union() {
+      difference() {
+        translate([X0 + 3, 3, plate]) linear_extrude(z[1] - plate) rrect(inner, CR - 3);
+        hull() {
+          translate([X0 + 3, 3 - 1, z[1] + 1]) linear_extrude(E) rrect(inner, CR - 3);
+          translate([X0 + 3, 3 + z[1] - plate + 1, plate - 1]) linear_extrude(E) rrect(inner, CR - 3);
+        }
+      }
+      for (b = foot_boxes()) if (is_front(b)) hull() {
+        translate([b[0] - 6, b[1] - 6, plate]) linear_extrude(z[1] - plate) rrect([b[2] - b[0] + 12, b[3] - b[1] + 12], 4);
+        translate([b[0] - 6, b[1] - 6 + z[1] - plate, plate]) linear_extrude(E) rrect([b[2] - b[0] + 12, b[3] - b[1] + 12], 4);
+      }
+    }
+  }
+}
+
+// Rear left plan corner, down to the bed: the rounding below its 45 degree point becomes a chamfer.
+module edge_corner() {
+  t = CR / sqrt(2);
+  polygon([[X0 + CR - t, DEPTH - CR + t], [X0 + 2 * CR - 2 * t, DEPTH], [X0 + CR, DEPTH], [X0 + CR, DEPTH - CR + t]]);
+}
+
+// Rear slots in the mid deck: the 60 mm rear end of each stays, its sides close in a 45 degree
+// roof that peaks at y = apex.
+module lead_slots(z, apex, rear) for (s = [[32, 92], [97, 156], [161, 221]])
+  translate([0, 0, z[0] - 1]) linear_extrude(z[1] - z[0] + 2)
+    polygon([[s[0], rear], [s[0], apex + (s[1] - s[0]) / 2], [(s[0] + s[1]) / 2, apex],
+             [s[1], apex + (s[1] - s[0]) / 2], [s[1], rear]]);
 
 module top_cap() {
   z = CAP_Z;
@@ -455,17 +516,24 @@ module keystone_panel() {
 
 // Zigbee mast: stands at least 1 m from every USB 3 port. The USB 2 extension presses into the
 // slot at the back, its socket sits in the top pocket and the dongle plugs in from above.
+// Three M10 washers push up into each of six ballast pockets from below. Each pocket closes in a
+// 45 degree cone to an 8 mm vent through the 13 mm foot, so no ring of it is printed over air.
+MAST_FOOT = 13;
 module zigbee_mast() translate([-300, 60, BASE_Z[0] - 4]) {
   difference() {
     union() {
-      cylinder(d = 84, h = 9);
+      cylinder(d = 84, h = MAST_FOOT);
       cylinder(d = 28, h = 140);
       translate([0, 0, 9]) cylinder(d1 = 44, d2 = 28, h = 14);
     }
-    for (a = [0 : 60 : 300]) rotate(a) translate([28, 0, -1]) cylinder(d = 21, h = 7);   // ballast: three M10 washers per pocket
+    for (a = [0 : 60 : 300]) rotate(a) translate([28, 0, 0]) {
+      translate([0, 0, -1]) cylinder(d = 21, h = 7);            // ballast: three M10 washers per pocket
+      translate([0, 0, 6]) cylinder(d1 = 21, d2 = 8, h = 6.5);
+      translate([0, 0, 12]) cylinder(d = 8, h = MAST_FOOT - 11);
+    }
     translate([-8.25, -4.5, 104]) cube([16.5, 9, 37]);          // extension socket, 16 x 8.5 mm housing
     translate([-3, 0, 14]) cube([6, 20, 127]);                  // cable slot along the back
-    translate([-3, 0, 5.99]) cube([6, 50, 8]);                  // cable exit through the foot
+    translate([-3, 0, 5.99]) cube([6, 50, MAST_FOOT - 4.99]);   // cable exit: a groove through the foot
   }
 }
 
@@ -525,12 +593,14 @@ module world_part(name) {
 }
 
 // Bed orientation: posts lie on the face with the tray holes, the top cap prints upside
-// down, the keystone panel lies on its outer face, everything else prints as it stands.
+// down, the mid deck stands on its rear edge, the keystone panel lies on its outer face,
+// everything else prints as it stands.
 module print_part(name) {
   lying = ["post_lower_a", "post_lower_b", "post_upper_a", "post_upper_b", "coupon_post"];
   if (len([for (n = lying) if (n == name) n]) > 0)
     multmatrix([[0, 0, 1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]]) world_part(name);
   else if (name == "top_cap") rotate([180, 0, 0]) world_part(name);
+  else if (name == "mid_deck") rotate([-90, 0, 0]) world_part(name);
   else if (name == "keystone_panel" || name == "coupon_keystone") rotate([-90, 0, 0]) world_part(name);
   else world_part(name);
 }

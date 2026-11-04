@@ -2,7 +2,7 @@
 
 Usage: python3 check-preflight.py ~/prints/new-preflight-check
 Requires the same dependencies and Flatpak access as preflight.mjs, plus Git history
-containing b0584b1c (the original unsupported shelf regression) and 4bf33ded.
+containing b0584b1c (the original unsupported shelf regression), 4bf33ded and a1d5e6bc.
 """
 
 from collections import Counter
@@ -146,19 +146,21 @@ def same_part(piece, low, reference):
 
 
 def layers_printing(gcode, footprints):
-    """For each model layer, which bed footprints receive extruded filament."""
+    """For each model layer, its height and which bed footprints receive extruded filament."""
     layers, x, y, relative = [], 0.0, 0.0, False
     for raw in gcode.read_text().splitlines():
         if raw == "; MACHINE_END_GCODE_START":
             break
         if raw.startswith("; CHANGE_LAYER"):
-            layers.append(set())
+            layers.append((None, set()))
+        elif raw.startswith("; Z_HEIGHT:") and layers:
+            layers[-1] = (float(raw.split(":", 1)[1]), layers[-1][1])
         words = dict(re.findall(r" ([XYE])(-?[\d.]+)", raw.split(";", 1)[0]))
         relative = raw.startswith("M83") or (relative and not raw.startswith("M82"))
         if re.match(r"G[0-3] ", raw):
             x, y = float(words.get("X", x)), float(words.get("Y", y))
             if layers and relative and float(words.get("E", 0)) > 0:
-                layers[-1].update(
+                layers[-1][1].update(
                     i
                     for i, (lo, hi) in enumerate(footprints)
                     if lo[0] - 1 <= x <= hi[0] + 1 and lo[1] - 1 <= y <= hi[1] + 1
@@ -202,10 +204,13 @@ def check_batch(name, expected):
         for _, lo, hi in pieces
     ]
     printed = layers_printing(batch / name / "plate_1.gcode", footprints)
+    # Each part receives filament on every layer up to its own top, and on none above it.
+    tops = [hi[2] for _, _, hi in pieces]
+    wanted = [{i for i, top in enumerate(tops) if z <= top + 0.01} for z, _ in printed]
     job = batch / name / (name + ".gcode.3mf")
     record(
         f"{name} is exactly {', '.join(sorted(expected))} from fresh source,"
-        " each printed on every checked layer",
+        " each printed on every layer up to its own height",
         rc == 0
         and d["pass"]
         and not entry["problems"]
@@ -215,8 +220,10 @@ def check_batch(name, expected):
         and sorted(names) == sorted(expected)
         and min(gaps) >= 9.99
         and len(printed) == entry["geometry"]["layers_checked"]
-        and all(layer == set(range(len(pieces))) for layer in printed),
+        and all(z is not None for z, _ in printed)
+        and all(got == want for (_, got), want in zip(printed, wanted)),
         parts=names,
+        layers_per_part=[sum(i in got for _, got in printed) for i in range(len(pieces))],
         clearance_mm=round(min(gaps), 3),
         bed_bbox=box,
         layers=len(printed),
@@ -283,15 +290,8 @@ try:
         and "toolpath outside placed model at layer 65" in old.get("error", ""),
         pinned_error=old.get("error"),
     )
-    hrc, held = run(cad, root / "held-parts", ["mid_deck"])
-    record(
-        "the mid deck's unsupported pocket ceilings stay held",
-        hrc == 1
-        and not held["pass"]
-        and held["parts"]["mid_deck"]["geometry"]["failures_count"]
-        and not list((root / "held-parts").rglob("*.gcode.3mf")),
-        failures=held["parts"]["mid_deck"]["geometry"]["failures_count"],
-    )
+    # The mid deck stands on its rear edge behind the mast; the mast stops at 140 mm.
+    check_batch("mid_deck_and_mast", ["zigbee_mast", "mid_deck"])
     # The top cap prints upside down. Two stepped layers now close each socket-head seat
     # onto its screw hole instead of a ring of wall over air.
     cap = root / "top-cap"
@@ -517,6 +517,50 @@ try:
         and all(radius(v) >= 2.249 for v in new if 4.41 <= v[2] <= 4.81)
         and all(radius(v) >= 3.99 for v in new if v[2] < 4.39),
         changed_triangles=sum((removed + added).values()),
+    )
+    # The mid deck as it lay flat (a1d5e6bc) closed each underside post pocket in a ceiling over air.
+    subprocess.run(
+        ["git", "restore", "--source=a1d5e6bc", "--", "soyrack.scad"], cwd=oldcad, check=True
+    )
+    subprocess.run(["git", "add", "soyrack.scad"], cwd=oldcad, check=True)
+    subprocess.run(["git", "commit", "-qm", "E2E: flat mid deck"], cwd=oldcad, check=True)
+    rc, d = run(oldcad, root / "flat-mid-deck", ["mid_deck"])
+    pocket_failures = [
+        f
+        for f in json.loads((root / "flat-mid-deck/mid_deck/geometry.json").read_text())["failures"]
+        if abs(f["z"] - 3.2) < 0.01
+    ]
+    record(
+        "the flat mid deck's post pocket ceilings stay blocked",
+        rc == 1
+        and not d["pass"]
+        and pocket_failures
+        and not list((root / "flat-mid-deck").rglob("*.gcode.3mf")),
+        failures=d["parts"]["mid_deck"]["geometry"]["failures_count"],
+    )
+    # The current batch with the old mast foot (a1d5e6bc): flat 21 mm ceilings over its washers.
+    current = (cad / "soyrack.scad").read_text()
+    old = (oldcad / "soyrack.scad").read_text()
+    module = lambda src: src[src.index("module zigbee_mast()") : src.index("// ---", src.index("module zigbee_mast()"))]
+    (oldcad / "soyrack.scad").write_text(current.replace(module(current), module(old)))
+    subprocess.run(["git", "add", "soyrack.scad"], cwd=oldcad, check=True)
+    subprocess.run(["git", "commit", "-qm", "E2E: old mast foot"], cwd=oldcad, check=True)
+    rc, d = run(oldcad, root / "old-mast-foot", ["mid_deck_and_mast"])
+    geometry = json.loads((root / "old-mast-foot/mid_deck_and_mast/geometry.json").read_text())
+    box = json.loads((root / "old-mast-foot/mid_deck_and_mast/result.json").read_text())[
+        "sliced_plates"
+    ][0]["objects"][0]["bbox"]
+    # The mast is the first 84 mm of the batch in y; on the bed it starts at the object's y.
+    in_mast = lambda f: max(f["from"][1], f["to"][1]) <= box["y"] + 84 + 1
+    record(
+        "the old mast foot's washer ceilings are blocked in the same batch",
+        rc == 1
+        and not d["pass"]
+        and geometry.get("failures")
+        and all(in_mast(f) and 6.1 <= f["z"] <= 6.5 for f in geometry["failures"])
+        and not list((root / "old-mast-foot").rglob("*.gcode.3mf")),
+        failures=len(geometry.get("failures", [])),
+        bed_bbox=box,
     )
     completed = True
 finally:
