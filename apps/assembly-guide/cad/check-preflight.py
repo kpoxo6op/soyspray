@@ -295,8 +295,8 @@ try:
     # The top cap prints upside down. Two stepped layers now close each socket-head seat
     # onto its screw hole instead of a ring of wall over air.
     cap = root / "top-cap"
-    rc, d = run(cad, cap, ["top_cap"])
-    entry = d["parts"]["top_cap"]
+    cap_rc, cap_report = run(cad, cap, ["top_cap"])
+    entry = cap_report["parts"]["top_cap"]
     seat_bridges = [
         b
         for b in json.loads((cap / "top_cap/geometry.json").read_text())["bridges"]
@@ -304,8 +304,8 @@ try:
     ]
     record(
         "top cap prints with every head seat layer bridged end to end",
-        rc == 0
-        and d["pass"]
+        cap_rc == 0
+        and cap_report["pass"]
         and not entry["problems"]
         and entry["geometry"]["pass"] is True
         and sha(cap / "top_cap/top_cap.gcode.3mf") == entry["job"]
