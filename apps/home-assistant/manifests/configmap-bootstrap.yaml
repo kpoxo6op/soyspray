@@ -1120,12 +1120,13 @@ data:
                 text_only: true
                 grid_options:
                   columns: full
-                content: >-
+                content: |
                   {% if has_value('sensor.bins_next_collection') %}
                   {%- set day = strptime(states('sensor.bins_next_collection'), '%Y-%m-%d') %}
                   {%- set icons = {'Rubbish': '🔴', 'Food scraps': '🟢', 'Recycling': '🟡'} %}
-                  # {{ state_attr('sensor.bins_next_collection', 'when') }}
-                  ### {{ day.strftime('%A %-d %B') }}
+                  {%- set when = state_attr('sensor.bins_next_collection', 'when') %}
+                  # {{ when }}
+                  ### {{ day.strftime('%-d %B') if when == day.strftime('%A') else day.strftime('%A %-d %B') }}
 
                   {% for bin in state_attr('sensor.bins_next_collection', 'bins') %}{{ icons.get(bin, '⚪') }} **{{ bin }}**&nbsp;&nbsp;{% endfor %}
 
@@ -1159,6 +1160,8 @@ data:
               - type: tile
                 entity: sensor.bins_rubbish
                 name: Rubbish
+                grid_options:
+                  columns: full
                 icon: mdi:trash-can
                 color: red
                 state_content:
@@ -1167,6 +1170,8 @@ data:
               - type: tile
                 entity: sensor.bins_food_scraps
                 name: Food scraps
+                grid_options:
+                  columns: full
                 icon: mdi:food-apple-outline
                 color: green
                 state_content:
@@ -1175,6 +1180,8 @@ data:
               - type: tile
                 entity: sensor.bins_recycling
                 name: Recycling
+                grid_options:
+                  columns: full
                 icon: mdi:recycle
                 color: amber
                 state_content:
