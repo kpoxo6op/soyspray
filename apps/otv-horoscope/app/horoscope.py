@@ -239,7 +239,8 @@ def covering(segs: list[tuple[float, Path]], start: float, end: float) -> list[t
 
 def caption(episode: Episode, sign: int | None = None) -> str:
     local = datetime.fromtimestamp(episode.start, VLAT)
-    text = f"Гороскоп ОТВ Прим, {local.day} {MONTHS[local.month - 1]}, эфир в {local:%H:%M} по Владивостоку"
+    # The evening reading is already for the next day, so name the airing, not the day.
+    text = f"Гороскоп ОТВ Прим, эфир {local.day} {MONTHS[local.month - 1]} в {local:%H:%M} по Владивостоку"
     return f"{SIGNS[sign][0]}. {text}" if sign is not None else text
 
 

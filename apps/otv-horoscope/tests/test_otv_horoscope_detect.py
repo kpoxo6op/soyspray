@@ -149,7 +149,7 @@ def test_recipients_may_name_their_sign():
 
 def test_sign_captions_lead_with_the_sign():
     episode = horoscope.Episode(1_793_930_400.0, 1_793_930_700.0, [0])
-    assert horoscope.caption(episode, 8).startswith("Стрелец. Гороскоп ОТВ Прим, 6 ноября")
+    assert horoscope.caption(episode, 8).startswith("Стрелец. Гороскоп ОТВ Прим, эфир 6 ноября")
 
 
 def test_each_chat_gets_the_whole_episode_or_its_own_sign(tmp_path, monkeypatch):
@@ -222,7 +222,7 @@ def test_old_buffer_segments_are_pruned(tmp_path):
 def test_caption_uses_vladivostok_time():
     episode = horoscope.Episode(1_793_930_400.0, 1_793_930_700.0, [0])  # 2026-11-06 02:00 UTC
     assert horoscope.caption(episode) == (
-        "Гороскоп ОТВ Прим, 6 ноября, эфир в 12:00 по Владивостоку"
+        "Гороскоп ОТВ Прим, эфир 6 ноября в 12:00 по Владивостоку"
     )
 
 
