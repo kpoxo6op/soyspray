@@ -38,16 +38,16 @@ spec:
             secretKeyRef:
               name: otv-horoscope-telegram
               key: bot-token
-        - name: TELEGRAM_CHAT_IDS
-          valueFrom:
-            secretKeyRef:
-              name: otv-horoscope-telegram
-              key: chat-ids
+        - name: TELEGRAM_CHAT_IDS_FILE
+          value: /etc/otv-horoscope/chat-ids
         volumeMounts:
         - name: work
           mountPath: /work
         - name: tmp
           mountPath: /tmp
+        - name: recipients
+          mountPath: /etc/otv-horoscope
+          readOnly: true
         readinessProbe:
           httpGet:
             path: /healthz
@@ -88,5 +88,11 @@ spec:
       - name: tmp
         emptyDir:
           sizeLimit: 256Mi
+      - name: recipients
+        secret:
+          secretName: otv-horoscope-telegram
+          items:
+          - key: chat-ids
+            path: chat-ids
       automountServiceAccountToken: false
       enableServiceLinks: false

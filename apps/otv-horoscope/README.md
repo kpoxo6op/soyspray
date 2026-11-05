@@ -47,7 +47,9 @@ ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root -
 ```
 
 To add a recipient, rerun it with the new full chat list. The person must first
-press Start in the bot, or Telegram refuses the message. The bootstrap never
+press Start in the bot (`https://t.me/soyboi_bot?start=goroskop`), or Telegram
+refuses the message. The chat list is a mounted Secret file read at each send, so
+the change applies within about a minute without restarting the recorder. The bootstrap never
 rotates an existing token; supply `otv_horoscope_telegram_bot_token` from an
 off-cluster Ansible Vault file only when the Secret is missing.
 

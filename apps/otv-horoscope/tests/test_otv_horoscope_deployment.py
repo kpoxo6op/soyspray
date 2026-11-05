@@ -27,20 +27,31 @@ def test_recorder_runs_unprivileged_with_a_bounded_disposable_buffer():
     assert not security["allowPrivilegeEscalation"]
     assert pod["automountServiceAccountToken"] is False
     volumes = {volume["name"]: volume for volume in pod["volumes"]}
-    assert set(volumes) == {"work", "tmp"}
-    assert all(
-        "emptyDir" in volume and "sizeLimit" in volume["emptyDir"] for volume in volumes.values()
-    )
+    assert set(volumes) == {"work", "tmp", "recipients"}
+    buffers = [volumes["work"], volumes["tmp"]]
+    assert all("emptyDir" in volume and "sizeLimit" in volume["emptyDir"] for volume in buffers)
     assert container["resources"]["limits"]["ephemeral-storage"]
 
 
 def test_telegram_identity_comes_only_from_the_bootstrap_secret():
     (container,) = deployment()["spec"]["template"]["spec"]["containers"]
     env = {item["name"]: item for item in container["env"]}
-    for name, key in (("TELEGRAM_BOT_TOKEN", "bot-token"), ("TELEGRAM_CHAT_IDS", "chat-ids")):
-        ref = env[name]["valueFrom"]["secretKeyRef"]
-        assert (ref["name"], ref["key"]) == ("otv-horoscope-telegram", key)
-        assert "value" not in env[name]
+    ref = env["TELEGRAM_BOT_TOKEN"]["valueFrom"]["secretKeyRef"]
+    assert (ref["name"], ref["key"]) == ("otv-horoscope-telegram", "bot-token")
+    assert "value" not in env["TELEGRAM_BOT_TOKEN"]
+
+
+def test_the_chat_list_is_a_mounted_secret_file_so_new_recipients_need_no_restart():
+    pod = deployment()["spec"]["template"]["spec"]
+    (container,) = pod["containers"]
+    env = {item["name"]: item for item in container["env"]}
+    assert "TELEGRAM_CHAT_IDS" not in env
+    volume = next(v for v in pod["volumes"] if v["name"] == "recipients")
+    assert volume["secret"]["secretName"] == "otv-horoscope-telegram"
+    assert volume["secret"]["items"] == [{"key": "chat-ids", "path": "chat-ids"}]
+    mount = next(m for m in container["volumeMounts"] if m["name"] == "recipients")
+    assert mount["readOnly"] and "subPath" not in mount  # subPath mounts never refresh
+    assert env["TELEGRAM_CHAT_IDS_FILE"]["value"] == f"{mount['mountPath']}/chat-ids"
 
 
 def test_promotion_changes_only_the_image(tmp_path):
