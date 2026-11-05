@@ -1,45 +1,47 @@
 ---
+# Uses kubectl on the control plane only; the node needs no Python Kubernetes client.
 - name: Read the existing horoscope Telegram Secret
-  kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Secret
-    namespace: otv-horoscope
-    name: otv-horoscope-telegram
-    kubeconfig: "{{ kubeconfig_path }}"
-  register: otv_horoscope_existing
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", -n, otv-horoscope, get, secret,
+           otv-horoscope-telegram, --ignore-not-found, -o, json]
+  register: otv_horoscope_existing_raw
+  changed_when: false
+  check_mode: false
   no_log: true
 
 - name: Read the existing Alertmanager Telegram bot as the default sender
-  kubernetes.core.k8s_info:
-    api_version: v1
-    kind: Secret
-    namespace: monitoring
-    name: alertmanager-telegram-secret
-    kubeconfig: "{{ kubeconfig_path }}"
-  register: otv_horoscope_alert_bot
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", -n, monitoring, get, secret,
+           alertmanager-telegram-secret, --ignore-not-found, -o, json]
+  register: otv_horoscope_alert_bot_raw
+  changed_when: false
+  check_mode: false
   no_log: true
 
 - name: Select supplied, existing or alert-bot values
   ansible.builtin.set_fact:
+    otv_horoscope_exists: "{{ otv_horoscope_existing_raw.stdout | trim | length > 0 }}"
     otv_horoscope_current_token: >-
-      {{ (otv_horoscope_existing.resources | first | default({})).data['bot-token'] | default('') | b64decode }}
+      {{ ((otv_horoscope_existing_raw.stdout or '{}') | from_json).get('data', {}).get('bot-token', '') | b64decode }}
     otv_horoscope_current_chats: >-
-      {{ (otv_horoscope_existing.resources | first | default({})).data['chat-ids'] | default('') | b64decode }}
+      {{ ((otv_horoscope_existing_raw.stdout or '{}') | from_json).get('data', {}).get('chat-ids', '') | b64decode }}
+    otv_horoscope_alert_token: >-
+      {{ ((otv_horoscope_alert_bot_raw.stdout or '{}') | from_json).get('data', {}).get('PROMETHEUS_TELEGRAM_BOT_TOKEN', '') | b64decode }}
+  no_log: true
+
+- name: Choose the token and chat list
+  ansible.builtin.set_fact:
     otv_horoscope_bootstrap_token: >-
       {{ otv_horoscope_telegram_bot_token | default(
-         (otv_horoscope_existing.resources | first | default({})).data['bot-token'] | default(
-         (otv_horoscope_alert_bot.resources | first | default({})).data['PROMETHEUS_TELEGRAM_BOT_TOKEN'] | default('')) | b64decode) }}
+         otv_horoscope_current_token if otv_horoscope_exists | bool else otv_horoscope_alert_token) }}
     otv_horoscope_bootstrap_chats: >-
-      {{ otv_horoscope_telegram_chat_ids | default(
-         (otv_horoscope_existing.resources | first | default({})).data['chat-ids'] | default('') | b64decode) }}
+      {{ otv_horoscope_telegram_chat_ids | default(otv_horoscope_current_chats) | string }}
   no_log: true
 
 - name: Require a bot token and a chat list of numeric Telegram chat ids
   ansible.builtin.assert:
     that:
-      - otv_horoscope_bootstrap_token is string
       - otv_horoscope_bootstrap_token is match('^[0-9]+:[A-Za-z0-9_-]{20,}$')
-      - otv_horoscope_bootstrap_chats is string
       - otv_horoscope_bootstrap_chats is match('^-?[0-9]+(,-?[0-9]+)*$')
     fail_msg: >-
       Supply otv_horoscope_telegram_chat_ids (comma-separated numeric chat ids) and, if neither
@@ -49,20 +51,19 @@
 
 - name: Refuse to rotate the bot token implicitly
   ansible.builtin.assert:
-    that: >-
-      otv_horoscope_existing.resources | length == 0 or
-      otv_horoscope_bootstrap_token == otv_horoscope_current_token
+    that: not (otv_horoscope_exists | bool) or otv_horoscope_bootstrap_token == otv_horoscope_current_token
     fail_msg: >-
       The supplied bot token differs from the existing otv-horoscope-telegram token. This
       bootstrap changes the chat list only; rotate the token as a separate reviewed operation.
   no_log: true
 
 - name: Apply the protected namespace before creating the Secret
-  kubernetes.core.k8s:
-    state: present
-    kubeconfig: "{{ kubeconfig_path }}"
-    definition: "{{ lookup('file', playbook_dir + '/namespace.yaml') | from_yaml }}"
-  when: otv_horoscope_existing.resources | length == 0
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", apply, -f, '-']
+    stdin: "{{ lookup('file', playbook_dir + '/namespace.yaml') }}"
+  register: otv_horoscope_namespace
+  changed_when: "'unchanged' not in otv_horoscope_namespace.stdout"
+  when: not (otv_horoscope_exists | bool) and not ansible_check_mode
 
 - name: Create the missing horoscope Telegram Secret
   ansible.builtin.command:
@@ -79,20 +80,16 @@
         chat-ids: {{ otv_horoscope_bootstrap_chats | to_json }}
   changed_when: true
   no_log: true
-  when: otv_horoscope_existing.resources | length == 0 and not ansible_check_mode
+  when: not (otv_horoscope_exists | bool) and not ansible_check_mode
 
 - name: Update the chat list of the existing Secret
-  kubernetes.core.k8s:
-    state: patched
-    kubeconfig: "{{ kubeconfig_path }}"
-    api_version: v1
-    kind: Secret
-    namespace: otv-horoscope
-    name: otv-horoscope-telegram
-    definition:
-      stringData:
-        chat-ids: "{{ otv_horoscope_bootstrap_chats }}"
+  ansible.builtin.command:
+    argv: [kubectl, --kubeconfig, "{{ kubeconfig_path }}", -n, otv-horoscope, patch, secret,
+           otv-horoscope-telegram, --type, merge, -p,
+           "{{ {'stringData': {'chat-ids': otv_horoscope_bootstrap_chats}} | to_json }}"]
+  changed_when: true
   no_log: true
   when:
-    - otv_horoscope_existing.resources | length == 1
+    - otv_horoscope_exists | bool
     - otv_horoscope_bootstrap_chats != otv_horoscope_current_chats
+    - not ansible_check_mode
