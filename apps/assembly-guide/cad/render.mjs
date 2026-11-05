@@ -70,6 +70,10 @@ const PRINT_BATCHES = {
   ],
 };
 const BATCH_GAP_MM = 10;
+// Print-only SCAD parts: rendered on request like a batch, never written to stl/ or the guide.
+// mid_deck_flat is the mid deck lying flat, with a breakaway lattice in its underside pockets.
+const PRINT_ONLY = ['mid_deck_flat'];
+const isPreset = (p) => Object.hasOwn(PRINT_BATCHES, p) || PRINT_ONLY.includes(p);
 
 function batchMesh(name, results) {
   const placed = PRINT_BATCHES[name].map(({ part, at }) => {
@@ -115,9 +119,9 @@ async function main() {
     chosen.splice(outputFlag, 2);
     if (!chosen.length) throw new Error('--output-dir requires explicit part names');
   }
-  for (const p of chosen) if (!all.includes(p) && !Object.hasOwn(PRINT_BATCHES, p)) throw new Error(`unknown part ${p}`);
+  for (const p of chosen) if (!all.includes(p) && !isPreset(p)) throw new Error(`unknown part ${p}`);
   // Batches are print jobs, not guide parts: keep them out of the linked stl/ folder.
-  if (outputFlag === -1 && chosen.some((p) => Object.hasOwn(PRINT_BATCHES, p)))
+  if (outputFlag === -1 && chosen.some(isPreset))
     throw new Error('print batches need --output-dir (or use preflight.mjs)');
   const parts = chosen.length ? chosen : all;
   const sources = [...new Set(parts.flatMap((part) => PRINT_BATCHES[part]?.map((p) => p.part) ?? [part]))];

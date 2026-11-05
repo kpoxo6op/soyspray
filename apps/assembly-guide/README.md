@@ -118,6 +118,28 @@ on an 8 mm edge, so a knock or a lifting corner can topple it; digital checks do
 prove that it stays put or how strong it is on edge. `base_tub` stays held: at
 245 x 240 mm it crosses the P1S excluded corner.
 
+`mid_deck_flat` is a print-only preset for the mid deck alone, lying flat on its underside
+and turned a quarter in plan: 209 x 245 x 8 mm on the bed, clear of the excluded corner. It
+is for reprinting the deck after the edge-standing print of `mid_deck_and_mast` failed; the
+mast is not in it. Lying flat, each underside post pocket would close in a 20.5 mm ceiling
+over air, so a breakaway lattice stands in each pocket from the bed to the seat plane: 2 mm
+ribs running front to back, a solid boss round the screw hole and a rib along the side face,
+where the pocket opens. The ceiling bridges at most about 7 mm across the rib tops. The
+underside pockets have straight walls, as in the base deck, because their sloped front walls
+would thin to nothing at the bed. The seat planes (z 203 below, z 205 on top), the pocket
+outlines, the screw holes and everything above the seat are the mid deck's. It sliced to
+282 min and 129 g. Prepare it like a part (`node preflight.mjs <new-job-dir> mid_deck_flat`
+or `prepare_print_job(part="mid_deck_flat")`); it is never written to `stl/` or the guide.
+
+After printing, break the lattice out of the four underside pockets with pliers and a flush
+cutter. The ribs are fused to the seat plane and the pocket walls, so scrape or file the seat
+flat and the walls clean until each lower post goes fully into its pocket and sits on the seat
+without rocking. Check the M4 hole through each seat is clear. `check-preflight.py` compares
+the flat deck with the canonical deck section by section (`check-flat-deck.py`), checks the
+lattice is printed in every pocket up to the seat plane, and checks that the same deck without
+its lattice is refused at the pocket ceilings. A digital pass says nothing about bed adhesion of
+a 245 mm PETG plate, how cleanly the lattice breaks out, or strength.
+
 Tests check the chapters, where each test check leaves its hardware, the tags,
 that every screw meets its own nut, cord lengths and overlaps, the buy list,
 Zigbee spacing, the 260 × 240 × 450 mm envelope, and that the copy asks for no
