@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: recorder
-        image: ghcr.io/kpoxo6op/otv-horoscope@sha256:0000000000000000000000000000000000000000000000000000000000000000
+        image: ghcr.io/kpoxo6op/otv-horoscope@sha256:fa58c6be5562b1de2bdada673b5daed8a47a01fe8d7d36a298cceeb9697d06a5
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
