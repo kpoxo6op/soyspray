@@ -3,6 +3,7 @@
 Usage: python3 check-preflight.py ~/prints/new-preflight-check
 Requires the same dependencies and Flatpak access as preflight.mjs, plus Git history
 containing b0584b1c (the original unsupported shelf regression), 4bf33ded and a1d5e6bc.
+The flat mid deck comparison runs check-flat-deck.py through uv.
 """
 
 from collections import Counter
@@ -292,6 +293,68 @@ try:
     )
     # The mid deck stands on its rear edge behind the mast; the mast stops at 140 mm.
     check_batch("mid_deck_and_mast", ["zigbee_mast", "mid_deck"])
+    # The mid deck lying flat, a quarter turn in plan, with a breakaway lattice in each
+    # underside post pocket.
+    flat = root / "mid-deck-flat"
+    flat_rc, flat_report = run(cad, flat, ["mid_deck_flat"])
+    entry = flat_report["parts"]["mid_deck_flat"]
+    flat_dir = flat / "mid_deck_flat"
+    plate = json.loads((flat_dir / "result.json").read_text())["sliced_plates"][0]
+    box = plate["objects"][0]["bbox"]
+    record(
+        "the flat mid deck prints lying flat with every layer supported",
+        flat_rc == 0
+        and flat_report["pass"]
+        and not entry["problems"]
+        and not plate.get("warning_message")
+        and entry["geometry"]["pass"] is True
+        and sha(flat_dir / "mid_deck_flat.gcode.3mf") == entry["job"]
+        and [round(box[k], 2) for k in ("width", "depth", "height")] == [209, 245, 8],
+        bed_bbox=box,
+        layers=entry["geometry"]["layers_checked"],
+        longest_bridge_mm=max(
+            b["unsupported_mm"]
+            for b in json.loads((flat_dir / "geometry.json").read_text())["bridges"]
+        ),
+        minutes=entry["minutes"],
+        grams=entry["grams"],
+        sha256=entry.get("job"),
+    )
+    # Against the canonical mid deck on edge, section by section: the same solid above the seat
+    # planes; below them nothing removed, material added only in the four underside pockets,
+    # solid pocket walls round each seat outline and a lattice inside it.
+    refs = root / "mid-deck-flat-reference"
+    subprocess.run(
+        ["node", "render.mjs", "--output-dir", str(refs), "mid_deck"],
+        cwd=cad,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    compared = subprocess.run(
+        [os.environ.get("UV", "uv"), "run", "--script", str(cad / "check-flat-deck.py"),
+         str(refs / "stl/mid_deck.stl"), str(flat / "stl/mid_deck_flat.stl"),
+         str(root / "mid-deck-flat-sections.json")],
+        capture_output=True,
+        text=True,
+    )
+    sections = json.loads((root / "mid-deck-flat-sections.json").read_text())
+    record(
+        "the flat mid deck is the canonical deck plus pocket lattices and straight pocket walls",
+        compared.returncode == 0 and sections["pass"] is True,
+        seat_outline_mm2=sections["seat_outline_mm2"],
+        report=str(root / "mid-deck-flat-sections.json"),
+    )
+    # The lattice is really printed: on every layer up to the seat plane, filament goes round
+    # each screw hole, inside the pockets and over 3 mm clear of their walls.
+    shift = (box["x"], box["y"] - 2)
+    bosses = [((x - 2 + shift[0], y - 2 + shift[1]), (x + 2 + shift[0], y + 2 + shift[1]))
+              for x, y in ((209 - 32, 14 - 4), (209 - 32, 239 - 4), (209 - 177, 14 - 4), (209 - 177, 239 - 4))]
+    under_seat = [got for z, got in layers_printing(flat_dir / "plate_1.gcode", bosses) if z <= 3.01]
+    record(
+        "every underside pocket's lattice is printed on each layer up to the seat plane",
+        len(under_seat) == 15 and all(got == {0, 1, 2, 3} for got in under_seat),
+        layers=[sorted(got) for got in under_seat],
+    )
     # The top cap prints upside down. Two stepped layers now close each socket-head seat
     # onto its screw hole instead of a ring of wall over air.
     cap = root / "top-cap"
@@ -561,6 +624,29 @@ try:
         and not list((root / "old-mast-foot").rglob("*.gcode.3mf")),
         failures=len(geometry.get("failures", [])),
         bed_bbox=box,
+    )
+    # The same flat deck without its breakaway lattice closes each pocket over air again.
+    lattice = "    for (k = [0 : 3]) pocket_lattice(k, f[1]);\n"
+    assert current.count(lattice) == 1
+    (oldcad / "soyrack.scad").write_text(current.replace(lattice, ""))
+    subprocess.run(["git", "add", "soyrack.scad"], cwd=oldcad, check=True)
+    subprocess.run(["git", "commit", "-qm", "E2E: flat deck without lattice"], cwd=oldcad, check=True)
+    rc, d = run(oldcad, root / "flat-without-lattice", ["mid_deck_flat"])
+    geometry = json.loads((root / "flat-without-lattice/mid_deck_flat/geometry.json").read_text())
+    record(
+        "the flat mid deck without its lattice is blocked at the pocket ceilings",
+        rc == 1
+        and not d["pass"]
+        and geometry.get("failures")
+        and all(abs(f["z"] - 3.2) < 0.01 for f in geometry["failures"])
+        and not list((root / "flat-without-lattice").rglob("*.gcode.3mf")),
+        failures=len(geometry.get("failures", [])),
+    )
+    # The deposition check above is not satisfied by the pocket walls alone.
+    bare = layers_printing(root / "flat-without-lattice/mid_deck_flat/plate_1.gcode", bosses)
+    record(
+        "without the lattice no filament goes round the screw holes below the seat plane",
+        all(not got for z, got in bare if z <= 3.01) and len([z for z, _ in bare if z <= 3.01]) == 15,
     )
     completed = True
 finally:
