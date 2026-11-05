@@ -31,19 +31,21 @@ MONTHS = (
 ).split()
 
 # Stems of the twelve signs in broadcast order, matched on lower-cased words.
+# Besides the case forms, they accept the slips whisper made on the 2026-11-05
+# airing ("Раком", "Левы", "Девом", "у рыб", "Фильцам" for "Тельцам").
 SIGNS = (
     ("Овен", r"ов(?:ен|н\w*)"),
-    ("Телец", r"тел(?:ец|ьц\w*)"),
+    ("Телец", r"(?:тел(?:ец|ьц\w*)|фил?ьц\w*)"),
     ("Близнецы", r"близнец\w*"),
-    ("Рак", r"рак(?:и|ам|ов|у)?"),
-    ("Лев", r"(?:лев|льв\w*)"),
-    ("Дева", r"дев(?:а|ы|ам|е)"),
-    ("Весы", r"вес(?:ы|ам|ов)"),
+    ("Рак", r"рак(?:и|ам|ами|ах|ов|у|е|ом)?"),
+    ("Лев", r"(?:лев(?:ы|ам|ов)?|льв\w*)"),
+    ("Дева", r"дев(?:а|ы|ам|ами|е|у|ой|ом)?"),
+    ("Весы", r"вес(?:ы|ам|ах|ов)"),
     ("Скорпион", r"скорпион\w*"),
     ("Стрелец", r"стрел(?:ец|ьц\w*)"),
     ("Козерог", r"козерог\w*"),
     ("Водолей", r"водоле\w*"),
-    ("Рыбы", r"рыб(?:ы|ам)"),
+    ("Рыбы", r"рыб(?:ы|ам|ах|е|у)?"),
 )
 SIGN_PATTERNS = [re.compile(rf"(?<!\w){stem}(?!\w)", re.I) for _, stem in SIGNS]
 TITLE = re.compile(r"гороскоп", re.I)
@@ -67,7 +69,7 @@ class Settings:
     buffer_minutes: int = 90
     lead_in: float = 45.0
     tail: float = 60.0
-    min_signs: int = 9
+    min_signs: int = 7
     sign_gap: float = 150.0
     dedup_hours: float = 10.0
     max_upload_bytes: int = 48 * 1024 * 1024
@@ -86,7 +88,7 @@ class Settings:
             buffer_minutes=int(env.get("BUFFER_MINUTES", 90)),
             lead_in=float(env.get("LEAD_IN_SECONDS", 45)),
             tail=float(env.get("TAIL_SECONDS", 60)),
-            min_signs=int(env.get("MIN_SIGNS", 9)),
+            min_signs=int(env.get("MIN_SIGNS", 7)),
             sign_gap=float(env.get("SIGN_GAP_SECONDS", 150)),
             dedup_hours=float(env.get("DEDUP_HOURS", 10)),
             whisper_model=env.get("WHISPER_MODEL", "/models/small"),
@@ -123,7 +125,7 @@ class Detector:
     # A run may skip up to this many unheard signs between two recognised ones.
     MAX_SKIP = 3
 
-    def __init__(self, min_signs: int = 9, sign_gap: float = 150.0):
+    def __init__(self, min_signs: int = 7, sign_gap: float = 150.0):
         self.min_signs = min_signs
         self.sign_gap = sign_gap
         self.candidate: Episode | None = None

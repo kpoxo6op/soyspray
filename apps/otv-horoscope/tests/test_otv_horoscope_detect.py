@@ -85,6 +85,53 @@ def test_a_stray_late_sign_does_not_block_the_rest_of_the_reading():
     assert episode is not None and len(set(episode.signs)) == 12
 
 
+# Whisper's text of the 2026-11-05 17:19 airing, which the first release missed.
+AIRED_2026_11_05 = [
+    (1765, "Овным в этот день могут поступить предложения."),
+    (1858, "Фильцам этот день принесет много загадок и тайн."),
+    (1892, "Близнецы"),
+    (1909, "Раке"),
+    (1913, "Раком сейчас необходимо перезагрузка."),
+    (1928, "Левы"),
+    (1932, "У львов сегодня не исключены неприятные встречи."),
+    (1948, "Девы"),
+    (1952, "Девом сегодня предстоит выбрать свой дальнейший путь."),
+    (2015, "У весов сегодня возможны проблемы."),
+    (2034, "Скорпионам нужно проявить осторожность."),
+    (2053, "Стрельцам в этот день нужно концентрироваться."),
+    (2070, "У козерогов день будет малопродуктивным."),
+    (2093, "Водолей сегодня окажутся в центре событий."),
+    (2110, "Рыбы"),
+    (2114, "Сегодня у рыб энергия бьет ключом."),
+]
+
+
+def test_the_misheard_forms_of_the_first_real_airing_are_signs():
+    detector = horoscope.Detector()
+    for at, text in AIRED_2026_11_05:
+        detector.feed(horoscope.Phrase(at, text))
+    episode = detector.complete(2120)
+    assert episode is not None
+    assert sorted(set(episode.signs)) == list(range(12))
+    assert episode.first_sign_at == 1765
+
+
+def test_the_eight_signs_the_live_run_heard_are_enough():
+    heard = [(1893, "Близнецам сегодня можно"), (1947, "«Девы»"), (1968, "«Весы»"),
+             (1998, "Скорпионам нужно проявить осторожность"), (2017, "Стрельцам в это день"),
+             (2034, "У козерогов день будет малопродуктивным"), (2049, "Водолей?"),
+             (2070, "Рыбы?")]  # fmt: skip
+    detector = horoscope.Detector()
+    for at, text in heard:
+        detector.feed(horoscope.Phrase(at, text))
+    assert detector.complete(2075) is not None
+
+
+def test_everyday_words_near_the_new_stems_are_not_signs():
+    text = "Ракета, ракурс, левый берег, девушка, весна, вес груза, рыбак и фильм"
+    assert horoscope.signs_in(text) == []
+
+
 def test_clip_window_covers_the_lead_in_and_tail():
     episode = horoscope.Episode(first_sign_at=2000.0, last_sign_at=2300.0, signs=[0], title_at=1990)
     assert horoscope.clip_window(episode, 45, 60) == (1945.0, 2360.0)
