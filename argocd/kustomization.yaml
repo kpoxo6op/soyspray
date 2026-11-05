@@ -12,6 +12,7 @@ resources:
   - ../apps/memes/argocd
   - ../apps/external-dns/argocd
   - ../apps/domain-health/argocd
+  - ../apps/otv-horoscope/argocd
   - ../apps/ai/argocd
   - ../apps/gi/argocd
   - ../apps/vaultwarden/argocd

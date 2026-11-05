@@ -55,8 +55,7 @@ off-cluster Ansible Vault file only when the Secret is missing.
 
 Source merges publish a tested GHCR image and open a draft digest promotion;
 the running pod changes only when that promotion merges. The Argo Application
-in `argocd/` is registered in the root after the first promotion so Argo never
-runs the placeholder digest. Roll back by reverting the promotion through
+in `argocd/` is registered in the [root](../../argocd/kustomization.yaml). Roll back by reverting the promotion through
 GitHub; do not delete the namespace or Secret.
 
 The app keeps no durable data. A pod restart loses the buffer and the record of
