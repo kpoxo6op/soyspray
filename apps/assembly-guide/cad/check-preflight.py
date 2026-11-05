@@ -625,10 +625,13 @@ try:
         failures=len(geometry.get("failures", [])),
         bed_bbox=box,
     )
-    # The same flat deck without its breakaway lattice closes each pocket over air again.
-    lattice = "    for (k = [0 : 3]) pocket_lattice(k, f[1]);\n"
+    # The same flat deck, straight pocket walls included, with an empty lattice closes each
+    # pocket ceiling over air again.
+    lattice = "module pocket_lattice(k, grow = 0) {"
     assert current.count(lattice) == 1
-    (oldcad / "soyrack.scad").write_text(current.replace(lattice, ""))
+    (oldcad / "soyrack.scad").write_text(
+        current.replace(lattice, "module pocket_lattice(k, grow = 0) {}\nmodule unused_lattice(k, grow = 0) {")
+    )
     subprocess.run(["git", "add", "soyrack.scad"], cwd=oldcad, check=True)
     subprocess.run(["git", "commit", "-qm", "E2E: flat deck without lattice"], cwd=oldcad, check=True)
     rc, d = run(oldcad, root / "flat-without-lattice", ["mid_deck_flat"])
