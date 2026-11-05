@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: exporter
-        image: ghcr.io/kpoxo6op/domain-health@sha256:c238a451a51399aeb7a7185e2adf33b9c7baff9fa977af8ba431fcd77fa3cedb
+        image: ghcr.io/kpoxo6op/domain-health@sha256:d68f50bfdddf0c75c7ee4f97c2eae58287dc0ff4f9a7ef1d147212d859577c2b
         imagePullPolicy: IfNotPresent
         ports:
         - name: metrics
