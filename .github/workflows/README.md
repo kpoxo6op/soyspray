@@ -69,6 +69,12 @@ runtime unchanged. Manual image checks publish only when `publish=true` is
 requested on the image workflow. The aggregate gate requires this image job when
 selected. The workflow does not merge or deploy.
 
+`otv-horoscope-image.yml` runs on horoscope pull requests and `main` pushes. It
+runs the detection and clipping tests, builds the recorder with its baked
+Whisper model, and checks the packaged runtime and real entrypoint without
+network access. A runtime merge publishes the tested GHCR image and opens a
+draft digest promotion through the shared action; it never deploys.
+
 Domain health and media helper keep their builds and real runtime checks in
 their own workflows. After those checks pass, both call
 `.github/actions/publish-image-promotion` for runtime-change detection, GHCR

@@ -1,0 +1,102 @@
+name: OTV horoscope image
+
+on:
+  push:
+    branches: [main]
+    paths: [apps/otv-horoscope/**, .github/workflows/otv-horoscope-image.yml]
+  pull_request:
+    paths: [apps/otv-horoscope/**, .github/workflows/otv-horoscope-image.yml]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish a tested image and open a draft promotion from main
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: otv-horoscope-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    env:
+      IMAGE: ghcr.io/kpoxo6op/otv-horoscope
+      IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - uses: azure/setup-kubectl@v5
+      - name: Check detection, clipping, promotion and manifests
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python -m pip install -r requirements-dev.txt
+          python -m pytest -q apps/otv-horoscope/tests
+          kubectl kustomize apps/otv-horoscope >/dev/null
+          kubectl kustomize apps/otv-horoscope/argocd >/dev/null
+      - uses: ./.github/actions/docker-hub-cache
+      - name: Build the immutable runtime
+        run: |
+          docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" \
+            --tag "$IMAGE:$IMAGE_TAG" apps/otv-horoscope
+      - name: Check the packaged runtime without external network access
+        run: |
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges --tmpfs /tmp:rw,size=256m,uid=1000,gid=1000 \
+            --mount "type=bind,source=$PWD/apps/otv-horoscope/tests/check_image.py,target=/checks/test_runtime.py,readonly" \
+            --entrypoint python3 "$IMAGE:$IMAGE_TAG" /checks/test_runtime.py
+      - name: Check the real entrypoint with disposable inputs
+        run: |
+          docker run --detach --name otv-horoscope-check --network none --read-only \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,size=64m,uid=1000,gid=1000 --tmpfs /work:rw,size=64m,uid=1000,gid=1000 \
+            --env STREAM_URL=http://127.0.0.1:9/live.m3u8 --env TELEGRAM_BOT_TOKEN=synthetic \
+            --env TELEGRAM_CHAT_IDS=1 "$IMAGE:$IMAGE_TAG"
+          docker exec -i otv-horoscope-check python3 - <<'PY'
+          import os, time, urllib.request, urllib.error
+          assert os.geteuid() == 1000
+          for attempt in range(60):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:8080/metrics', timeout=2) as response:
+                      assert response.status == 200
+                      assert b'otv_horoscope_episodes_sent 0' in response.read()
+                  break
+              except urllib.error.URLError:
+                  if attempt == 59: raise
+                  time.sleep(1)
+          try:
+              urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=2)
+              raise AssertionError('No live segment can arrive on the isolated network.')
+          except urllib.error.HTTPError as error:
+              assert error.code == 503
+          print('The unprivileged entrypoint serves metrics and reports the missing live stream.')
+          PY
+      - name: Remove the isolated test container
+        if: always()
+        run: docker rm --force otv-horoscope-check || true
+      - name: Publish and open the separate promotion when requested
+        uses: ./.github/actions/publish-image-promotion
+        with:
+          publish: ${{ github.event_name == 'push' || inputs.publish == true }}
+          app-slug: otv-horoscope
+          app-name: OTV horoscope
+          image: ${{ env.IMAGE }}
+          image-tag: ${{ env.IMAGE_TAG }}
+          runtime-paths: apps/otv-horoscope/app apps/otv-horoscope/Dockerfile apps/otv-horoscope/.dockerignore apps/otv-horoscope/runtime-requirements.lock apps/otv-horoscope/models.lock.json apps/otv-horoscope/download_model.py
+          manifest: apps/otv-horoscope/manifests/deployment.yaml
+          commit-subject: Promote the tested OTV horoscope runtime image
+          promotion-title: Promote the tested OTV horoscope runtime image
+          evidence: The image passed offline runtime checks (stream-format decoding, the baked Whisper model, clip cutting) and an entrypoint check with no network, an unprivileged user, a read-only filesystem and no capabilities. Promotion changes only the image digest.
+          verification: Confirm the recorder pod is Ready, `/metrics` shows fresh segments, and the next horoscope arrives in Telegram.
