@@ -195,6 +195,19 @@ def test_settings_read_chat_list_and_defaults():
     assert settings.segment_seconds == 60 and settings.lead_in == 45
 
 
+def test_recipients_are_reread_from_the_mounted_file(tmp_path):
+    chats = tmp_path / "chat-ids"
+    chats.write_text("336642153")
+    settings = horoscope.Settings.from_env(
+        {"STREAM_URL": "https://example.test/live.m3u8", "TELEGRAM_CHAT_IDS_FILE": str(chats)}
+    )
+    assert settings.recipients() == ["336642153"]
+    chats.write_text("336642153,42")
+    assert settings.recipients() == ["336642153", "42"]
+    chats.unlink()
+    assert settings.recipients() == []  # falls back to the (empty) start-up list
+
+
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="needs ffmpeg")
 def test_cut_joins_buffer_minutes_into_one_upload_sized_clip(tmp_path):
     live = tmp_path / "live"

@@ -76,6 +76,17 @@ class Settings:
     whisper_model: str = "/models/small"
     whisper_threads: int = 2
     port: int = 8080
+    chat_ids_file: Path | None = None
+
+    def recipients(self) -> list[str]:
+        """Chat ids to send to now; a mounted Secret file is re-read so new recipients
+        take effect without restarting the recorder and losing its buffer."""
+        if self.chat_ids_file is not None:
+            try:
+                return split_ids(self.chat_ids_file.read_text())
+            except OSError:
+                LOG.exception("could not read the chat list; using the one from start-up")
+        return self.chat_ids
 
     @classmethod
     def from_env(cls, env=os.environ) -> Settings:
@@ -83,7 +94,7 @@ class Settings:
             stream_url=env["STREAM_URL"],
             work=Path(env.get("WORK_DIR", "/work")),
             token=env.get("TELEGRAM_BOT_TOKEN", ""),
-            chat_ids=[c.strip() for c in env.get("TELEGRAM_CHAT_IDS", "").split(",") if c.strip()],
+            chat_ids=split_ids(env.get("TELEGRAM_CHAT_IDS", "")),
             segment_seconds=int(env.get("SEGMENT_SECONDS", 60)),
             buffer_minutes=int(env.get("BUFFER_MINUTES", 90)),
             lead_in=float(env.get("LEAD_IN_SECONDS", 45)),
@@ -94,7 +105,14 @@ class Settings:
             whisper_model=env.get("WHISPER_MODEL", "/models/small"),
             whisper_threads=int(env.get("WHISPER_THREADS", 2)),
             port=int(env.get("HTTP_PORT", 8080)),
+            chat_ids_file=Path(env["TELEGRAM_CHAT_IDS_FILE"])
+            if env.get("TELEGRAM_CHAT_IDS_FILE")
+            else None,
         )
+
+
+def split_ids(text: str) -> list[str]:
+    return [c.strip() for c in text.split(",") if c.strip()]
 
 
 def signs_in(text: str) -> list[int]:
@@ -401,7 +419,7 @@ def deliver(settings: Settings, state: State, health: Health, episode: Episode, 
     local = datetime.fromtimestamp(episode.start, VLAT)
     out = clips / f"goroskop-{local:%Y-%m-%d-%H%M}.mp4"
     duration = cut(settings, chosen, start, end, out)
-    for chat_id in settings.chat_ids:
+    for chat_id in settings.recipients():
         try:
             send_video(settings.token, chat_id, out, caption(episode), duration)
             health.bump("episodes_sent")
