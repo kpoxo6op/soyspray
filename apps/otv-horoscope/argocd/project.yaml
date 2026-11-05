@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: otv-horoscope
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '-10'
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  description: Record the ОТВ Прим horoscope from the live stream and send it to Telegram.
+  sourceRepos:
+  - https://github.com/kpoxo6op/soyspray.git
+  destinations:
+  - server: https://kubernetes.default.svc
+    namespace: otv-horoscope
+  clusterResourceWhitelist: []
+  namespaceResourceWhitelist:
+  - group: apps
+    kind: Deployment

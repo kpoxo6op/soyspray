@@ -11,6 +11,7 @@ are in [`argocd/catalog/`](../argocd/catalog/).
 - [Obsidian sync](obsidian-livesync): CouchDB note sync and recovery.
 - [Vaultwarden](vaultwarden): private human vault and restricted reader.
 - [Domain health](domain-health): domain checks and Prometheus metrics.
+- [ОТВ Прим horoscope](otv-horoscope): records the daily horoscope from the live stream and sends it to Telegram.
 - [DeepSeek Harness Remote](ai): private phone access to the official laptop-hosted DeepSeek Harness.
 - [ExternalDNS](external-dns): maintain ingress DNS through the existing Cloudflare identity.
 - [Boys](boys): shared calendar and accommodation links.

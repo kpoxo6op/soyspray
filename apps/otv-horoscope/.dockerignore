@@ -1,0 +1,7 @@
+*
+!Dockerfile
+!runtime-requirements.lock
+!models.lock.json
+!download_model.py
+!app/
+!app/horoscope.py

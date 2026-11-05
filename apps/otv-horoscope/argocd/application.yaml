@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otv-horoscope
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: '2'
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-method: Telegram video of each day's ОТВ Прим horoscope
+    soyspray.vip/data: none
+    soyspray.vip/backup: Off-cluster Vault input for the Telegram bot token and chat list
+    soyspray.vip/backup-cause: No persistent volume; the rolling video buffer and sent
+      clips are disposable.
+  labels:
+    soyspray.vip/owner: platform
+spec:
+  project: otv-horoscope
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: main
+    path: apps/otv-horoscope
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: otv-horoscope
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - PruneLast=true
