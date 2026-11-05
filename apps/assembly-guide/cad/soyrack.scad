@@ -337,7 +337,8 @@ module base_deck() {
 // - Each lead slot keeps its 60 mm rear end and closes in a pointed roof towards the front.
 // - Each vent slot ends in a 45 degree point at the front instead of its rounding.
 // - The two rear corners meet the bed in a 45 degree chamfer instead of their flat rounding.
-module mid_deck() {
+// straight: lying flat, the underside pockets keep straight walls (see mid_deck_flat).
+module mid_deck(straight = false) {
   z = MID_Z;
   difference() {
     union() {
@@ -345,7 +346,8 @@ module mid_deck() {
       mid_fillets(z, z[0] + 4);
       translate([0, 0, z[0]]) linear_extrude(z[1] - z[0]) { edge_corner(); mirror_x() edge_corner(); }
     }
-    sloped_pockets(z[0] + POCKET, -1);
+    if (straight) post_pockets(z[0] - 1, z[0] + POCKET, foot_boxes());
+    else sloped_pockets(z[0] + POCKET, -1);
     sloped_pockets(z[1] - POCKET, 1);
     screw_holes(joints(), z[0] - 1, z[1] + 1);
     lead_slots(z, 141, 200);
@@ -395,6 +397,43 @@ module lead_slots(z, apex, rear) for (s = [[32, 92], [97, 156], [161, 221]])
   translate([0, 0, z[0] - 1]) linear_extrude(z[1] - z[0] + 2)
     polygon([[s[0], rear], [s[0], apex + (s[1] - s[0]) / 2], [(s[0] + s[1]) / 2, apex],
              [s[1], apex + (s[1] - s[0]) / 2], [s[1], rear]]);
+
+// Print-only: the same mid deck lying flat on its underside, turned a quarter in plan so its
+// corner clears the bed's excluded corner. Flat, each underside post pocket would close in a
+// 20.5 mm ceiling over air, so a breakaway lattice of 1 mm ribs stands in it from the bed to the
+// seat plane, with a square boss round the screw hole and a 2.5 mm rib along the side face, where
+// the pocket opens. Every cell is 3 to 4.4 mm wide, so the ceiling bridges short spans between rib
+// tops. The ribs fuse to the seat plane and the pocket walls: break them out and scrape the seat
+// flat before fitting the posts. The deck itself is the canonical mid deck, unchanged.
+RIB = 1; EDGE_RIB = 2.5; RIB_INTO_WALL = 0.3;
+module mid_deck_flat() rotate(90) {
+  mid_deck(straight = true);
+  translate([0, 0, MID_Z[0]]) linear_extrude(POCKET + E) intersection() {
+    translate([X0 + 0.3, 0.3]) rrect([X1 - X0 - 0.6, DEPTH - 0.6], CR - 0.3);
+    for (k = [0 : 3]) pocket_lattice(k);
+  }
+}
+
+// Lattice in underside pocket k, drawn in place: ribs run front to back, the 2.5 mm one along
+// the side face.
+module pocket_lattice(k) {
+  b = foot_boxes()[k];
+  j = joints()[k];
+  lo = [b[0] - FIT, b[1] - FIT] - [RIB_INTO_WALL, RIB_INTO_WALL];
+  hi = [b[2] + FIT, b[3] + FIT] + [RIB_INTO_WALL, RIB_INTO_WALL];
+  h = M4_D / 2 + RIB + 0.25;                 // half the boss
+  left = b[0] <= X0;
+  inner = left ? b[2] + FIT : b[0] - FIT;    // the pocket wall towards the middle
+  ribs = [left ? [X0, EDGE_RIB] : [X1 - EDGE_RIB, EDGE_RIB], [j[0] - h, RIB], [j[0] + h - RIB, RIB],
+          [((left ? j[0] + h : j[0] - h) + inner) / 2 - RIB / 2, RIB]];
+  difference() {
+    union() {
+      translate(j - [h, h]) square(2 * h);
+      for (r = ribs) translate([r[0], lo[1]]) square([r[1], hi[1] - lo[1]]);
+    }
+    translate(j) circle(d = M4_D);
+  }
+}
 
 module top_cap() {
   z = CAP_Z;
@@ -601,6 +640,7 @@ module print_part(name) {
     multmatrix([[0, 0, 1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]]) world_part(name);
   else if (name == "top_cap") rotate([180, 0, 0]) world_part(name);
   else if (name == "mid_deck") rotate([-90, 0, 0]) world_part(name);
+  else if (name == "mid_deck_flat") mid_deck_flat();
   else if (name == "keystone_panel" || name == "coupon_keystone") rotate([-90, 0, 0]) world_part(name);
   else world_part(name);
 }
