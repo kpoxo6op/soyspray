@@ -38,13 +38,14 @@
       {{ otv_horoscope_telegram_chat_ids | default(otv_horoscope_current_chats) | string }}
   no_log: true
 
-- name: Require a bot token and a chat list of numeric Telegram chat ids
+- name: Require a bot token and a chat list of numeric Telegram chat ids, each with an optional sign
   ansible.builtin.assert:
     that:
       - otv_horoscope_bootstrap_token is match('^[0-9]+:[A-Za-z0-9_-]{20,}$')
-      - otv_horoscope_bootstrap_chats is match('^-?[0-9]+(,-?[0-9]+)*$')
+      - otv_horoscope_bootstrap_chats is match('^-?[0-9]+(:[^,:]+)?(,-?[0-9]+(:[^,:]+)?)*$')
     fail_msg: >-
-      Supply otv_horoscope_telegram_chat_ids (comma-separated numeric chat ids) and, if neither
+      Supply otv_horoscope_telegram_chat_ids (comma-separated numeric chat ids, each optionally
+      followed by ":<sign>" to get only that sign, e.g. 707102260:стрелец) and, if neither
       otv-horoscope-telegram nor the Alertmanager bot exists, otv_horoscope_telegram_bot_token
       through an Ansible Vault variables file.
   no_log: true

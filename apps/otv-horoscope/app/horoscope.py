@@ -47,6 +47,9 @@ SIGNS = (
     ("Водолей", r"водоле\w*"),
     ("Рыбы", r"рыб(?:ы|ам|ах|е|у)?"),
 )
+SIGN_LEAD_SECONDS = 2.0  # a little before the sign's name
+SIGN_ALONE_SECONDS = 40.0  # length when no later sign was heard (Рыбы, or a miss)
+SIGN_MAX_SECONDS = 75.0
 SIGN_PATTERNS = [re.compile(rf"(?<!\w){stem}(?!\w)", re.I) for _, stem in SIGNS]
 TITLE = re.compile(r"гороскоп", re.I)
 
@@ -131,6 +134,7 @@ class Episode:
     last_sign_at: float
     signs: list[int] = field(default_factory=list)
     title_at: float | None = None
+    sign_at: dict[int, float] = field(default_factory=dict)
 
     @property
     def start(self) -> float:
@@ -158,13 +162,14 @@ class Detector:
             if active and run.signs[-1] < sign <= run.signs[-1] + 1 + self.MAX_SKIP:
                 run.signs.append(sign)
                 run.last_sign_at = phrase.at
+                run.sign_at.setdefault(sign, phrase.at)
             elif sign <= self.MAX_SKIP - 1 and (not active or len(run.signs) < 3):
                 if active and run.signs[0] <= sign:
                     continue  # the same opening sign said again inside its paragraph
                 title = self.last_title
                 if title is not None and not 0 <= phrase.at - title <= 120:
                     title = None
-                self.candidate = Episode(phrase.at, phrase.at, [sign], title)
+                self.candidate = Episode(phrase.at, phrase.at, [sign], title, {sign: phrase.at})
 
     def complete(self, now: float) -> Episode | None:
         """Return a finished episode once its last sign is followed by quiet time."""
@@ -181,6 +186,28 @@ class Detector:
 
 def clip_window(episode: Episode, lead_in: float, tail: float) -> tuple[float, float]:
     return episode.start - lead_in, episode.last_sign_at + tail
+
+
+def sign_window(episode: Episode, sign: int) -> tuple[float, float] | None:
+    """The stretch of one sign's reading: from its name to the next sign heard after it.
+
+    None when the sign itself was not heard; the caller then sends the whole episode.
+    """
+    if sign not in episode.sign_at:
+        return None
+    start = episode.sign_at[sign]
+    later = [at for other, at in episode.sign_at.items() if other > sign and at > start]
+    end = min(later) - 0.5 if later else start + SIGN_ALONE_SECONDS
+    return start - SIGN_LEAD_SECONDS, min(end, start + SIGN_MAX_SECONDS)
+
+
+def recipient(entry: str) -> tuple[str, int | None]:
+    """Parse "chat_id" or "chat_id:sign name" from the chat list."""
+    chat, _, wanted = entry.partition(":")
+    found = signs_in(wanted) if wanted.strip() else []
+    if wanted.strip() and not found:
+        LOG.warning("unknown sign %r for one chat; it gets the whole episode", wanted.strip())
+    return chat.strip(), found[0] if found else None
 
 
 def segment_start(path: Path) -> float | None:
@@ -210,9 +237,10 @@ def covering(segs: list[tuple[float, Path]], start: float, end: float) -> list[t
     return chosen
 
 
-def caption(episode: Episode) -> str:
+def caption(episode: Episode, sign: int | None = None) -> str:
     local = datetime.fromtimestamp(episode.start, VLAT)
-    return f"Гороскоп ОТВ Прим, {local.day} {MONTHS[local.month - 1]}, эфир в {local:%H:%M} по Владивостоку"
+    text = f"Гороскоп ОТВ Прим, {local.day} {MONTHS[local.month - 1]}, эфир в {local:%H:%M} по Владивостоку"
+    return f"{SIGNS[sign][0]}. {text}" if sign is not None else text
 
 
 def multipart(fields: dict[str, str], file_field: str, file_name: str, data: bytes):
@@ -391,6 +419,19 @@ def cut(settings: Settings, chosen, start: float, end: float, out: Path) -> int:
     raise RuntimeError("The episode does not fit the Telegram upload limit.")
 
 
+def cut_sign(settings: Settings, segs, episode: Episode, sign: int, whole: Path):
+    """Cut one sign's part next to the whole clip, or None to fall back to the whole."""
+    window = sign_window(episode, sign)
+    if window is None:
+        LOG.warning("%s was not heard; sending the whole episode instead", SIGNS[sign][0])
+        return None
+    chosen = covering(segs, *window)
+    if not chosen:
+        return None
+    out = whole.with_name(f"{whole.stem}-{sign + 1:02d}.mp4")
+    return out, cut(settings, chosen, *window, out)
+
+
 def deliver(settings: Settings, state: State, health: Health, episode: Episode, live: Path) -> None:
     health.bump("episodes_found")
     health.set(last_episode=episode.start)
@@ -418,16 +459,24 @@ def deliver(settings: Settings, state: State, health: Health, episode: Episode, 
     clips.mkdir(exist_ok=True)
     local = datetime.fromtimestamp(episode.start, VLAT)
     out = clips / f"goroskop-{local:%Y-%m-%d-%H%M}.mp4"
-    duration = cut(settings, chosen, start, end, out)
-    for chat_id in settings.recipients():
+    whole = (out, cut(settings, chosen, start, end, out))
+    by_sign: dict[int, tuple[Path, int] | None] = {}
+    for entry in settings.recipients():
+        chat_id, sign = recipient(entry)
         try:
-            send_video(settings.token, chat_id, out, caption(episode), duration)
+            clip, wanted = whole, None
+            if sign is not None:
+                if sign not in by_sign:
+                    by_sign[sign] = cut_sign(settings, segs, episode, sign, out)
+                if by_sign[sign] is not None:
+                    clip, wanted = by_sign[sign], sign
+            send_video(settings.token, chat_id, clip[0], caption(episode, wanted), clip[1])
             health.bump("episodes_sent")
         except Exception:  # noqa: BLE001 - keep recording after a delivery failure
             health.bump("send_failures")
             LOG.exception("could not send the horoscope to one chat")
     state.mark(episode.start)
-    for old in sorted(clips.glob("*.mp4"))[:-5]:
+    for old in sorted(clips.glob("*.mp4"))[:-30]:
         old.unlink(missing_ok=True)
 
 

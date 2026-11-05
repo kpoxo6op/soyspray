@@ -46,7 +46,10 @@ ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root -
   apps/otv-horoscope/bootstrap.yml -e otv_horoscope_telegram_chat_ids=336642153 --check
 ```
 
-To add a recipient, rerun it with the new full chat list. The person must first
+To add a recipient, rerun it with the new full chat list. An entry may name a
+sign, as in `336642153,707102260:стрелец`: that chat then gets only that sign's
+part (from its name to the next sign), or the whole episode if the sign was not
+heard. The person must first
 press Start in the bot (`https://t.me/soyboi_bot?start=goroskop`), or Telegram
 refuses the message. The chat list is a mounted Secret file read at each send, so
 the change applies within about a minute without restarting the recorder. The bootstrap never

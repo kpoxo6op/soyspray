@@ -127,6 +127,66 @@ def test_the_eight_signs_the_live_run_heard_are_enough():
     assert detector.complete(2075) is not None
 
 
+def test_a_sign_clip_runs_from_its_name_to_the_next_sign_heard():
+    detector = horoscope.Detector()
+    for at, text in AIRED_2026_11_05:
+        detector.feed(horoscope.Phrase(at, text))
+    episode = detector.complete(2120)
+    assert horoscope.sign_window(episode, 8) == (2051, 2069.5)  # Стрелец until Козерог
+    assert horoscope.sign_window(episode, 11) == (2108, 2150)  # Рыбы: nothing follows
+    del episode.sign_at[9]
+    assert horoscope.sign_window(episode, 8) == (2051, 2092.5)  # Козерог missed: up to Водолей
+    del episode.sign_at[8]
+    assert horoscope.sign_window(episode, 8) is None
+
+
+def test_recipients_may_name_their_sign():
+    assert horoscope.recipient("336642153") == ("336642153", None)
+    assert horoscope.recipient("707102260:стрелец") == ("707102260", 8)
+    assert horoscope.recipient(" 707102260 : Стрелец ") == ("707102260", 8)
+    assert horoscope.recipient("707102260:котик") == ("707102260", None)
+
+
+def test_sign_captions_lead_with_the_sign():
+    episode = horoscope.Episode(1_793_930_400.0, 1_793_930_700.0, [0])
+    assert horoscope.caption(episode, 8).startswith("Стрелец. Гороскоп ОТВ Прим, 6 ноября")
+
+
+def test_each_chat_gets_the_whole_episode_or_its_own_sign(tmp_path, monkeypatch):
+    live = tmp_path / "live"
+    live.mkdir()
+    for minute in range(10):  # 2026-11-05 07:17 to 07:26 UTC
+        (live / f"20261105T07{17 + minute:02d}00Z.ts").write_bytes(b"")
+    base = horoscope.segment_start(live / "20261105T071700Z.ts")
+    episode = horoscope.Episode(base + 120, base + 420, list(range(12)))
+    episode.sign_at = {i: base + 120 + 25 * i for i in range(12)}
+    chats = tmp_path / "chat-ids"
+    chats.write_text("336642153,707102260:стрелец,42:овен")
+    settings = horoscope.Settings("https://example.test", tmp_path, "t", [], chat_ids_file=chats)
+    cuts, sent = [], []
+    monkeypatch.setattr(
+        horoscope, "cut", lambda _s, _c, start, end, out: cuts.append((out.name, end - start)) or 9
+    )
+    monkeypatch.setattr(
+        horoscope,
+        "send_video",
+        lambda _t, chat, video, text, _d: sent.append((chat, video.name, text)),
+    )
+    state = horoscope.State(tmp_path / "state.json")
+    horoscope.deliver(settings, state, horoscope.Health(), episode, live)
+    assert [name for name, _ in cuts] == [
+        "goroskop-2026-11-05-1719.mp4", "goroskop-2026-11-05-1719-09.mp4",
+        "goroskop-2026-11-05-1719-01.mp4",
+    ]  # fmt: skip
+    assert cuts[1][1] == 2 + 25 - 0.5
+    assert [(chat, video) for chat, video, _ in sent] == [
+        ("336642153", "goroskop-2026-11-05-1719.mp4"),
+        ("707102260", "goroskop-2026-11-05-1719-09.mp4"),
+        ("42", "goroskop-2026-11-05-1719-01.mp4"),
+    ]
+    assert sent[0][2].startswith("Гороскоп") and sent[1][2].startswith("Стрелец. Гороскоп")
+
+
 def test_everyday_words_near_the_new_stems_are_not_signs():
     text = "Ракета, ракурс, левый берег, девушка, весна, вес груза, рыбак и фильм"
     assert horoscope.signs_in(text) == []
