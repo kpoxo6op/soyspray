@@ -1,0 +1,50 @@
+[
+  {
+    "name": "intake-normal",
+    "exit": 0,
+    "expected": 0,
+    "seconds": 1.66,
+    "states": 4,
+    "steps": 4
+  },
+  {
+    "name": "intake-crash",
+    "exit": 1,
+    "expected": 1,
+    "seconds": 2.34,
+    "states": 14,
+    "steps": 19
+  },
+  {
+    "name": "stale-guarded",
+    "exit": 0,
+    "expected": 0,
+    "seconds": 1.67,
+    "states": 7,
+    "steps": 9
+  },
+  {
+    "name": "stale-mutant",
+    "exit": 1,
+    "expected": 1,
+    "seconds": 2.38,
+    "states": 7,
+    "steps": 9
+  },
+  {
+    "name": "promotion-current",
+    "exit": 0,
+    "expected": 0,
+    "seconds": 1.62,
+    "states": 6,
+    "steps": 6
+  },
+  {
+    "name": "promotion-mutant",
+    "exit": 1,
+    "expected": 1,
+    "seconds": 2.28,
+    "states": 7,
+    "steps": 8
+  }
+]

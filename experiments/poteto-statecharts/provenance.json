@@ -1,0 +1,20 @@
+{
+  "source_commit": "358c97f8019ef3f7448501b4625df9fe9483349e",
+  "pstack_commit": "4dd1d05818d19792e7cd6e818f1667f95f7e1dbe",
+  "pstack_version": "0.15.36",
+  "tlc_version": "1.7.4",
+  "tlc_sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88",
+  "pele_version": "1.9.0",
+  "node_version": "22.23.4",
+  "java_version": "Temurin 25.0.5+8",
+  "source_sha256": {
+    "apps/agents/evidence.py": "c374257c9813bed8a0bd29642d60f84349b10dd74bff8df411b654ae9337b5c7",
+    "apps/agents/pack.py": "8cecfae396b71bda9118d86123a31520fefd98cbbe6ca9a34b99d6798e7fa457",
+    "apps/agents/operations/retire_stale_sync.py": "bed332fce6decca92b597b41115b255b5b7f8074a9724d26e7e3bfe9f031a45f",
+    "apps/agents/tests/test_stale_sync.py": "aaa49278bafca53d621310a65ef57a035755385d4a0a64540c22b6f96ed04477",
+    ".github/actions/publish-image-promotion/action.yml": "b900a02661d67b88cfa321009f90e3436034560bb07fd94c449739d6b2156588",
+    "apps/domain-health/promote-image.py": "9a045a9d4dd38d404c91030247c29287ed911ccfa38dabdb1373c8c13960e63d",
+    "apps/domain-health/manifests/deployment.yaml": "7bfc21d03036e632960f2f1c5f83f978b67ebbb167a784971527dcc60f2787a1",
+    "apps/domain-health/argocd/application.yaml": "8b7554a7ac4cbc3e3b2bfe7c1ebcd346388cbddede90a159aa32b805f4cd20c9"
+  }
+}

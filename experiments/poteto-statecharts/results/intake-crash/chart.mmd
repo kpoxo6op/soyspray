@@ -1,0 +1,55 @@
+---
+title: "Evidence intake: interruption and retry"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: failure
+    lg1: ready
+    lg2: progress
+    lg3: Breaks RetryRecovers
+    lg4: Path to the RetryRecovers bug
+  }
+  class lg0 pink
+  class lg1 teal
+  class lg2 blue
+  class lg3 breaks
+  class lg4 bugPath
+  s0: Verified staging
+  s1: Marker written
+  s2: Verified staging: Stopped
+  s3: Published writable
+  s4: Marker written: Stopped
+  s5: Published read-only
+  s6: Marker written: Retry rejected
+  s7: Published writable: Stopped
+  s8: Published read-only: Stopped
+  s9: Published writable: Retry rejected
+  [*] --> s0
+  s0 --> s1: write completion marker
+  s0 --> s2: process stops
+  s1 --> s3: rename into versions
+  s1 --> s4: process stops
+  s2 --> s0: retry same archive
+  s3 --> s5: make root read-only
+  s3 --> s7: process stops
+  s4 --> s6: retry same archive
+  s5 --> s8: process stops
+  s7 --> s9: retry same archive
+  s8 --> s5: retry same archive
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 blue
+  class s0 bugPath
+  class s1 blue
+  class s1 bugPath
+  class s2 blue
+  class s3 blue
+  class s4 blue
+  class s4 bugPath
+  class s5 teal
+  class s6 pink
+  class s6 breaks
+  class s6 bugPath
+  class s7 blue
+  class s8 teal
+  class s9 pink
+  class s9 breaks

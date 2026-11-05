@@ -1,0 +1,41 @@
+---
+title: "Stale-operation recovery: last-moment replacement"
+---
+stateDiagram-v2
+  state "Legend" as legend {
+    lg0: safe
+    lg1: pending
+    lg2: Breaks NeverTerminateNewOperation
+    lg3: Path to the NeverTerminateNewOperation bug
+  }
+  class lg0 teal
+  class lg1 blue
+  class lg2 breaks
+  class lg3 bugPath
+  s0: Reviewed operation: Read checked
+  s1: New operation: Read checked
+  s2: Reviewed operation: Patch ready
+  s3: New operation: Patch ready
+  s4: New operation: Stopped
+  s5: Reviewed operation: Applied
+  s6: New operation: Applied
+  [*] --> s0
+  s0 --> s1: controller starts a new operation
+  s0 --> s2: re-read operation
+  s1 --> s4: re-read operation
+  s2 --> s3: controller starts a new operation
+  s2 --> s5: submit termination request
+  s3 --> s6: submit termination request
+  classDef breaks fill:#ffecee,stroke:#e72e3b,stroke-width:2.5px,color:#cd2834
+  class s0 blue
+  class s0 bugPath
+  class s1 blue
+  class s2 blue
+  class s2 bugPath
+  class s3 blue
+  class s3 bugPath
+  class s4 teal
+  class s5 blue
+  class s6 blue
+  class s6 breaks
+  class s6 bugPath

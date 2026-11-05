@@ -1,0 +1,39 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Warning: Please run the Java VM which executes TLC with a throughput optimized garbage collector by passing the "-XX:+UseParallelGC" property.
+(Use the -nowarning option to disable this warning.)
+Running breadth-first search Model-Checking with fp 0 and seed 4645906622721337991 with 1 worker on 12 cores with 512MB heap and 64MB offheap memory [pid: 2494518] (Linux 6.12.113+deb13-amd64 amd64, Eclipse Adoptium 25.0.5 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /tmp/soyspray-statecharts-w772m_7n/models/IntakeRecovery.tla
+Parsing file /tmp/statechart-5mE1Vr/statechart-Hn6pUf/tmp-verdict-1/Naturals.tla
+Semantic processing of module Naturals
+Semantic processing of module IntakeRecovery
+Starting... (2026-10-30 16:33:22)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-10-30 16:33:22.
+Error: Invariant RetryRecovers is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ crashes = 0
+/\ phase = "Verified staging"
+/\ worker = "Running"
+
+State 2: <WriteMarker line 10, col 16 to line 12, col 47 of module IntakeRecovery>
+/\ crashes = 0
+/\ phase = "Marker written"
+/\ worker = "Running"
+
+State 3: <Crash line 19, col 10 to line 21, col 27 of module IntakeRecovery>
+/\ crashes = 1
+/\ phase = "Marker written"
+/\ worker = "Stopped"
+
+State 4: <Retry line 22, col 10 to line 25, col 40 of module IntakeRecovery>
+/\ crashes = 1
+/\ phase = "Marker written"
+/\ worker = "Retry rejected"
+
+9 states generated, 9 distinct states found, 3 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 2 (minimum is 1, the maximum 2 and the 95th percentile is 2).
+Finished in 00s at (2026-10-30 16:33:22)
+Picked up JAVA_TOOL_OPTIONS: -Xmx512m
+
