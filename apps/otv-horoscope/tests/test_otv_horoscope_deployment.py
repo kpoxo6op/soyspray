@@ -45,7 +45,8 @@ def test_the_chat_list_is_a_mounted_secret_file_so_new_recipients_need_no_restar
     pod = deployment()["spec"]["template"]["spec"]
     (container,) = pod["containers"]
     env = {item["name"]: item for item in container["env"]}
-    assert "TELEGRAM_CHAT_IDS" not in env
+    # The env copy is only the start-up fallback (and what an older image reads).
+    assert env["TELEGRAM_CHAT_IDS"]["valueFrom"]["secretKeyRef"]["key"] == "chat-ids"
     volume = next(v for v in pod["volumes"] if v["name"] == "recipients")
     assert volume["secret"]["secretName"] == "otv-horoscope-telegram"
     assert volume["secret"]["items"] == [{"key": "chat-ids", "path": "chat-ids"}]

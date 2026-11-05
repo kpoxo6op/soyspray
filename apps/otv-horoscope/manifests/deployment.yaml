@@ -38,6 +38,11 @@ spec:
             secretKeyRef:
               name: otv-horoscope-telegram
               key: bot-token
+        - name: TELEGRAM_CHAT_IDS
+          valueFrom:
+            secretKeyRef:
+              name: otv-horoscope-telegram
+              key: chat-ids
         - name: TELEGRAM_CHAT_IDS_FILE
           value: /etc/otv-horoscope/chat-ids
         volumeMounts:
