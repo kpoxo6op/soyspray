@@ -15,8 +15,8 @@ solid, so with the lattice broken out each pocket is the seat outline, straight 
 
 import importlib.util
 import json
-from pathlib import Path
 import sys
+from pathlib import Path
 
 import numpy as np
 from shapely import box, unary_union
@@ -38,11 +38,15 @@ def mesh_section(stl, permute):
         offset=84,
     )["v"].astype(float)[:, :, permute]
     path = Path(out).with_suffix(f".{Path(stl).stem}.stl")
-    record = np.zeros(len(tri), dtype=np.dtype([("n", "<f4", (3,)), ("v", "<f4", (3, 3)), ("a", "<u2")]))
+    record = np.zeros(
+        len(tri), dtype=np.dtype([("n", "<f4", (3,)), ("v", "<f4", (3, 3)), ("a", "<u2")])
+    )
     record["v"] = tri
     path.write_bytes(data[:80] + len(tri).to_bytes(4, "little") + record.tobytes())
     low, high = tri.min(axis=(0, 1)), tri.max(axis=(0, 1))
-    size = dict(width=high[0] - low[0], depth=high[1] - low[1], height=high[2] - low[2], x=0, y=0, z=0)
+    size = dict(
+        width=high[0] - low[0], depth=high[1] - low[1], height=high[2] - low[2], x=0, y=0, z=0
+    )
     return support.sectioner(path, size, np.zeros(2)), [round(float(v), 3) for v in high - low]
 
 
