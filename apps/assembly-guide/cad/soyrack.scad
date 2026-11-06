@@ -247,7 +247,8 @@ module tub_vents() {
   }
   // floor: air between the bricks and under the cord loops, strap slots for the bricks and the board
   for (x = [BRICK_X[0] + 21.5, BRICK_X[1] + 21.5]) translate([x - 3, BRICK_Y[0] + 14, z0 - 1]) cube([6, 80, FLOOR + 2]);
-  for (p = [[21, 76], [143, 76]]) translate([p[0], p[1], z0 - 1]) cube([3, 22, FLOOR + 2]);
+  // beside the outer comb fins, not under them: each fin would cross its slot in a 22 mm span
+  for (p = [[19.5, 76], [143.5, 76]]) translate([p[0], p[1], z0 - 1]) cube([3, 22, FLOOR + 2]);
   for (x = [64, 217]) for (y = [TROUGH[0] + 1, TROUGH[1] - 4])
     translate([x, y, z0 - 1]) cube([22, 3, FLOOR + PLINTH + 2]);
   for (x = [146 : 10 : 226]) translate([x, 62, z0 - 1]) linear_extrude(FLOOR + 2) rrect([6, 76], 3);
@@ -257,6 +258,20 @@ module tub_vents() {
 // outlets 1 and 2 and beyond outlet 4. The trough side walls stop at 18 mm so the board's cord
 // leaves over the wall at either end.
 module trough_cut() translate([X0 - 1, TROUGH[0], BASE_Z[0] + 18]) cube([X1 - X0 + 2, BASE_DEPTH, 100]);
+
+// The P1S bed excludes its corner at x < 18, y < 28, and the slicer places and validates a part by
+// its convex hull, so only a straight cut can clear it. The rear left corner is cut from
+// `along the side` mm in front of the rear face to `along the rear` mm from the side. The cut leaves
+// the board's footprint and everything in front of the trough alone. The rear lip stops where the
+// cut would thin it below half its thickness; the floor runs on to the cut.
+TUB_RELIEF = [6.8, 72];
+module tub_relief() {
+  z0 = BASE_Z[0]; h = BASE_Z[1] - BASE_Z[0];
+  a = TUB_RELIEF[0]; b = TUB_RELIEF[1];
+  translate([0, 0, z0 - 1]) linear_extrude(h + 2)
+    polygon([[X0 - 1, BASE_DEPTH - a - a / b], [X0 + b + b / a, BASE_DEPTH + 1], [X0 - 1, BASE_DEPTH + 1]]);
+  translate([X0 - 1, BASE_DEPTH - WALL, z0 + FLOOR]) cube([1 + b * (1 - WALL / 2 / a), WALL + 1, h]);
+}
 
 module base_tub() {
   z0 = BASE_Z[0]; h = BASE_Z[1] - BASE_Z[0];
@@ -280,10 +295,18 @@ module base_tub() {
     for (j = joints()) translate([j[0], j[1], 0]) {
       translate([0, 0, BASE_NUT_Z - 4.5]) cylinder(d = M4_D, h = BASE_Z[1] - BASE_NUT_Z + 5.5);
       translate([0, 0, BASE_NUT_Z]) nut_slot_x(POST[2] / 2, j[0] < CX ? 1 : -1);
+      // The slot ceiling would close as a ring round the screw hole, over air. Two layers step it
+      // down to the hole: a strip as wide as the hole across the slot, then a square. The ceiling
+      // beside the strip stays the nut's seat plane; the hole only gets larger, by the strip and square.
+      if (!web) translate([-M4_D / 2, 0, BASE_NUT_Z + NUT4[1]]) {
+        translate([0, -NUT4[0] / 2, -E]) cube([M4_D, NUT4[0], 0.2 + E]);
+        translate([0, -M4_D / 2, 0.2 - E]) cube([M4_D, M4_D, 0.2 + E]);
+      }
     }
     tub_vents();
     trough_cut();
     on_front(0, [CX, z0 + 8]) label("SOYRACK", 6);
+    if (!web) tub_relief();
   }
 }
 
@@ -641,6 +664,7 @@ module world_part(name) {
 
 // Bed orientation: posts lie on the face with the tray holes, the top cap prints upside
 // down, the mid deck stands on its rear edge, the keystone panel lies on its outer face,
+// the power base is turned a quarter in plan so its relief meets the excluded bed corner,
 // everything else prints as it stands.
 module print_part(name) {
   lying = ["post_lower_a", "post_lower_b", "post_upper_a", "post_upper_b", "coupon_post"];
@@ -649,6 +673,7 @@ module print_part(name) {
   else if (name == "top_cap") rotate([180, 0, 0]) world_part(name);
   else if (name == "mid_deck") rotate([-90, 0, 0]) world_part(name);
   else if (name == "mid_deck_flat") mid_deck_flat();
+  else if (name == "base_tub") rotate(90) world_part(name);
   else if (name == "keystone_panel" || name == "coupon_keystone") rotate([-90, 0, 0]) world_part(name);
   else world_part(name);
 }
