@@ -188,6 +188,22 @@
       when: item.stdout | trim != item.item.value
       changed_when: true
 
+    - name: Read app permissions
+      ansible.builtin.command: adb -s {{ tv_serial }} shell appops get {{ item.package }} {{ item.op }}
+      loop: "{{ android_tv_appops }}"
+      loop_control: {label: "{{ item.package }} {{ item.op }}"}
+      register: tv_appops
+      changed_when: false
+
+    - name: Apply app permissions
+      ansible.builtin.command: >-
+        adb -s {{ tv_serial }} shell appops set
+        {{ item.item.package }} {{ item.item.op }} {{ item.item.mode }}
+      loop: "{{ tv_appops.results }}"
+      loop_control: {label: "{{ item.item.package }} {{ item.item.op }}={{ item.item.mode }}"}
+      when: "item.stdout is not search(item.item.op ~ ': ' ~ item.item.mode ~ '(;|$)', multiline=True)"
+      changed_when: true
+
     - name: Set options that only exist as settings screens
       ansible.builtin.shell: >-
         set -e;
