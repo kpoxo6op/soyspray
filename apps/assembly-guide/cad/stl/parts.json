@@ -10,17 +10,17 @@
     "grams": 159
   },
   "base_tub": {
-    "triangles": 7236,
+    "triangles": 7332,
     "size": [
-      245,
       240,
+      245,
       96
     ],
-    "volumeCm3": 519.96,
-    "grams": 445
+    "volumeCm3": 517.64,
+    "grams": 442
   },
   "coupon_base": {
-    "triangles": 476,
+    "triangles": 512,
     "size": [
       20,
       40,

@@ -115,8 +115,7 @@ foot. Alone, the slicer still turns the mast on the bed, which the layer check
 refuses; with the mast at the deck's left end the batch keeps its place. It sliced to
 567 min and 218 g, with no bridge longer than 1.2 mm. The deck has no brim and stands
 on an 8 mm edge, so a knock or a lifting corner can topple it; digital checks do not
-prove that it stays put or how strong it is on edge. `base_tub` stays held: at
-245 x 240 mm it crosses the P1S excluded corner.
+prove that it stays put or how strong it is on edge.
 
 `mid_deck_flat` is a print-only preset for the mid deck alone, lying flat on its underside
 and turned a quarter in plan: 209 x 245 x 8 mm on the bed, clear of the excluded corner. It
@@ -139,6 +138,31 @@ the flat deck with the canonical deck section by section (`check-flat-deck.py`),
 lattice is printed in every pocket up to the seat plane, and checks that the same deck without
 its lattice is refused at the pocket ceilings. A digital pass says nothing about bed adhesion of
 a 245 mm PETG plate, how cleanly the lattice breaks out, or strength.
+
+`base_tub` used to be refused because at 245 x 240 mm it crossed the P1S excluded corner. No
+placement of the full footprint clears that corner, and the slicer places and validates a part by
+its convex hull, so a notch does not help. It now prints turned a quarter in plan, 240 x 245 x
+96 mm, its rear left corner cut straight from 6.8 mm in front of the rear face to 72 mm along it.
+The rear lip stops 59 mm from that corner, where the cut would thin it below 1.2 mm. The trough
+floor runs on to the cut. Nothing in front of the cut changed: the corner blocks, nut slots, screw
+axes, comb, bricks' bays, vents and the rails under the board are the old tub's, and the guide's
+mesh is unchanged. The rear rail stands 0.4 mm shorter on its 4 mm stub left of the board, which
+sits wholly on solid rail. A board deeper than the rail may hang over the cut at that end.
+
+The layer check then found two defects no one had reached. Two brick strap slots ran under the
+outer comb fins, so each fin crossed its slot in a 22 mm span: the slots moved 1.5 and 0.5 mm
+sideways, beside the fins. Each nut slot ceiling closed as a ring round its screw hole, as the cap
+seats did, so it now steps to the hole in two 0.2 mm layers. The seat plane and hole axis stay, but
+the nut first bears on 11.1 mm2 there instead of 26.6 mm2, then 22.2 mm2 at 0.2 mm and the full
+26.6 mm2 at 0.4 mm above it. A digital pass does not measure how the seat takes the load, so stop
+tightening once the screw has pulled the stack tight.
+
+It sliced to 864 min and 395 g with 2 mm between its hull and the excluded corner. It covers
+53,000 mm2 of bed with no brim and runs to within 1 mm of the plate's edge, so a corner lifting
+late in a 14 hour job is the main risk. Its left wall also prints across 3.6 mm of the machine's
+load line leg at x 240; watch that first layer. The bed levelling box overlaps the excluded corner;
+how the printer probes there has not been observed. `check-preflight.py` compares it with the old tub section by section
+(`check-base-tub.py`) and refuses each of the three defects when put back.
 
 Tests check the chapters, where each test check leaves its hardware, the tags,
 that every screw meets its own nut, cord lengths and overlaps, the buy list,

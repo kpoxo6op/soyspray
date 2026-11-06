@@ -3,7 +3,7 @@
 Usage: python3 check-preflight.py ~/prints/new-preflight-check
 Requires the same dependencies and Flatpak access as preflight.mjs, plus Git history
 containing b0584b1c (the original unsupported shelf regression), 4bf33ded and a1d5e6bc.
-The flat mid deck comparison runs check-flat-deck.py through uv.
+The flat mid deck and power base comparisons run check-flat-deck.py and check-base-tub.py through uv.
 """
 
 from collections import Counter
@@ -650,6 +650,98 @@ try:
     record(
         "without the lattice no filament goes round the screw holes below the seat plane",
         all(not got for z, got in bare if z <= 3.01) and len([z for z, _ in bare if z <= 3.01]) == 15,
+    )
+    # The power base: every layer, the corner relief, and the tub it replaces in the rack.
+    tub = root / "base-tub"
+    tub_rc, tub_report = run(cad, tub, ["base_tub"])
+    entry = tub_report["parts"]["base_tub"]
+    tub_dir = tub / "base_tub"
+    plate = json.loads((tub_dir / "result.json").read_text())["sliced_plates"][0]
+    box = plate["objects"][0]["bbox"]
+    record(
+        "the power base prints on the bed with every layer supported",
+        tub_rc == 0
+        and tub_report["pass"]
+        and not entry["problems"]
+        and not plate.get("warning_message")
+        and entry["geometry"]["pass"] is True
+        and entry["geometry"]["layers_checked"] == 480
+        and entry["geometry"]["failures_count"] == 0
+        and sha(tub_dir / "base_tub.gcode.3mf") == entry["job"]
+        and [round(box[k], 2) for k in ("width", "depth", "height")] == [240, 245, 96],
+        bed_bbox=box,
+        layers=entry["geometry"]["layers_checked"],
+        longest_bridge_mm=max(
+            b["unsupported_mm"] for b in json.loads((tub_dir / "geometry.json").read_text())["bridges"]
+        ),
+        wall_over_air=entry["watch"],
+        minutes=entry["minutes"],
+        grams=entry["grams"],
+        sha256=entry.get("job"),
+    )
+    subprocess.run(["git", "restore", "--source=8210db5b", "--", "soyrack.scad"], cwd=oldcad, check=True)
+    tub_refs = root / "base-tub-reference"
+    subprocess.run(
+        ["node", "render.mjs", "--output-dir", str(tub_refs), "base_tub"],
+        cwd=oldcad,
+        check=True,
+        stdout=subprocess.DEVNULL,
+    )
+    compared = subprocess.run(
+        [os.environ.get("UV", "uv"), "run", "--script", str(cad / "check-base-tub.py"),
+         str(tub_refs / "stl/base_tub.stl"), str(tub), str(root / "base-tub-sections.json")],
+        capture_output=True,
+        text=True,
+    )
+    sections = json.loads((root / "base-tub-sections.json").read_text())
+    record(
+        "the power base is the old tub less the corner relief, moved strap slots and hole steps",
+        compared.returncode == 0 and sections["pass"] is True,
+        removed_mm3=sections["removed_mm3"],
+        nut_seats=sections["nut_seats"][0],
+        first_layer=sections["first_layer"],
+        report=str(root / "base-tub-sections.json"),
+    )
+    # Take each change back in the current tub: the same preparer must refuse it.
+    undo = {
+        "tub-without-relief": ("    if (!web) tub_relief();\n", ""),
+        "tub-strap-slots-under-fins": ("[[19.5, 76], [143.5, 76]]", "[[21, 76], [143, 76]]"),
+        "tub-ring-ceilings": ("      if (!web) translate([-M4_D / 2, 0, BASE_NUT_Z + NUT4[1]]) {", "      if (false) translate([-M4_D / 2, 0, BASE_NUT_Z + NUT4[1]]) {"),
+    }
+    outcome = {}
+    for name, (new, old) in undo.items():
+        assert current.count(new) == 1, name
+        (oldcad / "soyrack.scad").write_text(current.replace(new, old))
+        subprocess.run(["git", "add", "soyrack.scad"], cwd=oldcad, check=True)
+        subprocess.run(["git", "commit", "-qm", f"E2E: {name}"], cwd=oldcad, check=True)
+        rc, d = run(oldcad, root / name, ["base_tub"])
+        geometry = d["parts"]["base_tub"].get("geometry", {})
+        outcome[name] = dict(
+            rc=rc,
+            problems=d["parts"]["base_tub"]["problems"],
+            failing_z=sorted({f["z"] for f in geometry.get("failures", [])}),
+            jobs=[str(p) for p in (root / name).rglob("*.gcode.3mf")],
+        )
+    record(
+        "without its relief the turned tub cannot be arranged and exports no job",
+        outcome["tub-without-relief"]["rc"] == 1
+        and "failed" in outcome["tub-without-relief"]["problems"][0]
+        and not outcome["tub-without-relief"]["jobs"],
+        evidence=outcome["tub-without-relief"],
+    )
+    record(
+        "strap slots under the comb fins are blocked at those fins",
+        outcome["tub-strap-slots-under-fins"]["rc"] == 1
+        and outcome["tub-strap-slots-under-fins"]["failing_z"] == [3.6]
+        and not outcome["tub-strap-slots-under-fins"]["jobs"],
+        evidence=outcome["tub-strap-slots-under-fins"],
+    )
+    record(
+        "nut slot ceilings closing as rings round the screw holes are blocked at the seat",
+        outcome["tub-ring-ceilings"]["rc"] == 1
+        and outcome["tub-ring-ceilings"]["failing_z"] == [90.2]
+        and not outcome["tub-ring-ceilings"]["jobs"],
+        evidence=outcome["tub-ring-ceilings"],
     )
     completed = True
 finally:
