@@ -176,6 +176,48 @@ def test_repeat_airings_are_sent_once_and_state_survives_restart(tmp_path):
     assert json.loads((tmp_path / "state.json").read_text())["sent"] == [10_000]
 
 
+def test_a_replay_of_a_sent_reading_is_skipped_but_a_new_reading_is_not(tmp_path):
+    def heard(lines, start):
+        detector = horoscope.Detector()
+        for i, text in enumerate(lines):
+            detector.feed(horoscope.Phrase(start + i * 10, text))
+        return detector.complete(start + len(lines) * 10 + 200)
+
+    first = heard([text for _, text in AIRED_2026_11_05], 1000)
+    state = horoscope.State(tmp_path / "state.json")
+    assert len(first.words) >= horoscope.MIN_WORDS_TO_COMPARE
+    state.mark(first.start, first.words)
+    replay = heard([text for _, text in AIRED_2026_11_05[::2]], 9000)  # half heard
+    assert horoscope.State(tmp_path / "state.json").already_sent(replay.words)
+    assert not state.already_sent(heard(READING, 20000).words)  # next day's text
+
+
+def test_an_old_state_file_still_loads(tmp_path):
+    (tmp_path / "state.json").write_text('{"sent": [1793882213.86]}')
+    state = horoscope.State(tmp_path / "state.json")
+    assert state.recently_sent(1793882213.86 + 60, 1)
+    assert not state.already_sent({"много", "разных", "слов"})
+
+
+def test_an_echoed_list_of_signs_is_not_a_reading():
+    detector = horoscope.Detector()
+    for i in range(6):
+        detector.feed(horoscope.Phrase(1000 + i * 30, horoscope.PROMPT))
+    assert detector.complete(2000) is None
+
+
+def test_the_overlap_prefixes_the_previous_segment_tail():
+    np = pytest.importorskip("numpy")
+    rate = 16000
+    prev = np.ones(60 * rate, np.float32)
+    now = np.zeros(60 * rate, np.float32)
+    audio, lead = horoscope.with_overlap((1000.0, prev), 1060.0, now)
+    assert lead == horoscope.OVERLAP_SECONDS and len(audio) == len(now) + lead * rate
+    assert audio[0] == 1 and audio[-1] == 0
+    assert horoscope.with_overlap((1000.0, prev), 1300.0, now) == (now, 0.0)  # a gap
+    assert horoscope.with_overlap(None, 1060.0, now) == (now, 0.0)
+
+
 def test_telegram_upload_carries_caption_and_video_bytes():
     body, content_type = horoscope.multipart(
         {"chat_id": "42", "caption": "Гороскоп"}, "video", "clip.mp4", b"\x00\x01mp4"
