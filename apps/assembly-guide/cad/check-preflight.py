@@ -2,8 +2,9 @@
 
 Usage: python3 check-preflight.py ~/prints/new-preflight-check
 Requires the same dependencies and Flatpak access as preflight.mjs, plus Git history
-containing b0584b1c (the original unsupported shelf regression), 4bf33ded and a1d5e6bc.
-The flat mid deck and power base comparisons run check-flat-deck.py and check-base-tub.py through uv.
+containing b0584b1c (the original unsupported shelf regression), 4bf33ded, a1d5e6bc and
+b843191d (the fused pocket lattice). The flat mid deck and power base comparisons run
+check-flat-deck.py and check-base-tub.py through uv.
 """
 
 from collections import Counter
@@ -293,8 +294,7 @@ try:
     )
     # The mid deck stands on its rear edge behind the mast; the mast stops at 140 mm.
     check_batch("mid_deck_and_mast", ["zigbee_mast", "mid_deck"])
-    # The mid deck lying flat, a quarter turn in plan, with a breakaway lattice in each
-    # underside post pocket.
+    # The mid deck lying flat, a quarter turn in plan, with a plug in each underside post pocket.
     flat = root / "mid-deck-flat"
     flat_rc, flat_report = run(cad, flat, ["mid_deck_flat"])
     entry = flat_report["parts"]["mid_deck_flat"]
@@ -320,9 +320,21 @@ try:
         grams=entry["grams"],
         sha256=entry.get("job"),
     )
+    # The one-pocket coupon for testing plug removal and post fit before a whole deck.
+    coupon = root / "mid-deck-pocket-coupon"
+    coupon_rc, coupon_report = run(cad, coupon, ["mid_deck_pocket_coupon"])
+    entry = coupon_report["parts"]["mid_deck_pocket_coupon"]
+    record(
+        "the one-pocket coupon prints with every layer supported",
+        coupon_rc == 0 and coupon_report["pass"] and not entry["problems"],
+        minutes=entry["minutes"],
+        grams=entry["grams"],
+        sha256=entry.get("job"),
+    )
     # Against the canonical mid deck on edge, section by section: the same solid above the seat
     # planes; below them nothing removed, material added only in the four underside pockets,
-    # solid pocket walls round each seat outline and a lattice inside it.
+    # solid pocket walls round each seat outline and a plug inside it, with air between them in
+    # the CAD and in the actual beads. The coupon is the deck's corner on every layer.
     refs = root / "mid-deck-flat-reference"
     subprocess.run(
         ["node", "render.mjs", "--output-dir", str(refs), "mid_deck"],
@@ -330,30 +342,21 @@ try:
         check=True,
         stdout=subprocess.DEVNULL,
     )
-    compared = subprocess.run(
-        [os.environ.get("UV", "uv"), "run", "--script", str(cad / "check-flat-deck.py"),
-         str(refs / "stl/mid_deck.stl"), str(flat / "stl/mid_deck_flat.stl"),
-         str(root / "mid-deck-flat-sections.json")],
-        capture_output=True,
-        text=True,
-    )
-    sections = json.loads((root / "mid-deck-flat-sections.json").read_text())
+
+    def compare_flat(job, out, *more):
+        return subprocess.run(
+            [os.environ.get("UV", "uv"), "run", "--script", str(cad / "check-flat-deck.py"),
+             str(refs / "stl/mid_deck.stl"), str(job), str(root / out), *map(str, more)],
+            capture_output=True,
+            text=True,
+        ).returncode, json.loads((root / out).read_text())
+
+    compared, sections = compare_flat(flat, "mid-deck-flat-sections.json", coupon)
     record(
-        "the flat mid deck is the canonical deck plus pocket lattices and straight pocket walls",
-        compared.returncode == 0 and sections["pass"] is True,
-        seat_outline_mm2=sections["seat_outline_mm2"],
+        "the flat mid deck is the canonical deck plus separate plugs, and the coupon is its corner",
+        compared == 0 and sections["pass"] is True,
+        **{k: v for k, v in sections.items() if k not in ("layers", "beads")},
         report=str(root / "mid-deck-flat-sections.json"),
-    )
-    # The lattice is really printed: on every layer up to the seat plane, filament goes round
-    # each screw hole, inside the pockets and over 3 mm clear of their walls.
-    shift = (box["x"], box["y"] - 2)
-    bosses = [((x - 2 + shift[0], y - 2 + shift[1]), (x + 2 + shift[0], y + 2 + shift[1]))
-              for x, y in ((209 - 32, 14 - 4), (209 - 32, 239 - 4), (209 - 177, 14 - 4), (209 - 177, 239 - 4))]
-    under_seat = [got for z, got in layers_printing(flat_dir / "plate_1.gcode", bosses) if z <= 3.01]
-    record(
-        "every underside pocket's lattice is printed on each layer up to the seat plane",
-        len(under_seat) == 15 and all(got == {0, 1, 2, 3} for got in under_seat),
-        layers=[sorted(got) for got in under_seat],
     )
     # The top cap prints upside down. Two stepped layers now close each socket-head seat
     # onto its screw hole instead of a ring of wall over air.
@@ -625,31 +628,45 @@ try:
         failures=len(geometry.get("failures", [])),
         bed_bbox=box,
     )
-    # The same flat deck, straight pocket walls included, with an empty lattice closes each
-    # pocket ceiling over air again.
-    lattice = "module pocket_lattice(k, grow = 0) {"
-    assert current.count(lattice) == 1
-    (oldcad / "soyrack.scad").write_text(
-        current.replace(lattice, "module pocket_lattice(k, grow = 0) {}\nmodule unused_lattice(k, grow = 0) {")
-    )
+    # The same flat deck, straight pocket walls included, without plugs closes each pocket
+    # ceiling over air again.
+    plug = "module pocket_plug(k) {"
+    assert current.count(plug) == 1
+    (oldcad / "soyrack.scad").write_text(current.replace(plug, "module pocket_plug(k) {}\nmodule unused_plug(k) {"))
     subprocess.run(["git", "add", "soyrack.scad"], cwd=oldcad, check=True)
-    subprocess.run(["git", "commit", "-qm", "E2E: flat deck without lattice"], cwd=oldcad, check=True)
-    rc, d = run(oldcad, root / "flat-without-lattice", ["mid_deck_flat"])
-    geometry = json.loads((root / "flat-without-lattice/mid_deck_flat/geometry.json").read_text())
+    subprocess.run(["git", "commit", "-qm", "E2E: flat deck without plugs"], cwd=oldcad, check=True)
+    rc, d = run(oldcad, root / "flat-without-plugs", ["mid_deck_flat"])
+    geometry = json.loads((root / "flat-without-plugs/mid_deck_flat/geometry.json").read_text())
     record(
-        "the flat mid deck without its lattice is blocked at the pocket ceilings",
+        "the flat mid deck without its plugs is blocked at the pocket ceilings",
         rc == 1
         and not d["pass"]
         and geometry.get("failures")
         and all(abs(f["z"] - 3.2) < 0.01 for f in geometry["failures"])
-        and not list((root / "flat-without-lattice").rglob("*.gcode.3mf")),
+        and not list((root / "flat-without-plugs").rglob("*.gcode.3mf")),
         failures=len(geometry.get("failures", [])),
     )
-    # The deposition check above is not satisfied by the pocket walls alone.
-    bare = layers_printing(root / "flat-without-lattice/mid_deck_flat/plate_1.gcode", bosses)
+    # The lattice printed on 2026-11-06 (b843191d) passed every layer check and could not be
+    # removed: a support PASS says nothing about removal. The release check refuses it.
+    fused = subprocess.check_output(
+        ["git", "show", "b843191d:apps/assembly-guide/cad/soyrack.scad"], cwd=repo, text=True
+    )
+    (oldcad / "soyrack.scad").write_text(fused)
+    subprocess.run(["git", "add", "soyrack.scad"], cwd=oldcad, check=True)
+    subprocess.run(["git", "commit", "-qm", "E2E: fused pocket lattice"], cwd=oldcad, check=True)
+    rc, d = run(oldcad, root / "fused-lattice", ["mid_deck_flat"])
+    compared, sections = compare_flat(root / "fused-lattice", "fused-lattice-sections.json")
     record(
-        "without the lattice no filament goes round the screw holes below the seat plane",
-        all(not got for z, got in bare if z <= 3.01) and len([z for z, _ in bare if z <= 3.01]) == 15,
+        "the rejected fused lattice passes the support check and is refused by the release check",
+        rc == 0
+        and d["pass"]
+        and compared == 1
+        and sections["pass"] is False
+        and sections["min_bead_gap_mm"] == 0
+        and sections["crossing_paths"] > 0,
+        min_bead_gap_mm=sections["min_bead_gap_mm"],
+        crossing_paths=sections["crossing_paths"],
+        plug_contact_cad_mm2=sections["plug_contact_cad_mm2"],
     )
     # The power base: every layer, the corner relief, and the tub it replaces in the rack.
     tub = root / "base-tub"

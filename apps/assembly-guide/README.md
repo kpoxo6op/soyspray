@@ -121,23 +121,39 @@ prove that it stays put or how strong it is on edge.
 and turned a quarter in plan: 209 x 245 x 8 mm on the bed, clear of the excluded corner. It
 is for reprinting the deck after the edge-standing print of `mid_deck_and_mast` failed; the
 mast is not in it. Lying flat, each underside post pocket would close in a 20.5 mm ceiling
-over air, so a breakaway lattice stands in each pocket from the bed to the seat plane: 2 mm
-ribs running front to back, a solid boss round the screw hole and a rib along the side face,
-where the pocket opens. The ceiling bridges at most about 7 mm across the rib tops. The
-underside pockets have straight walls, as in the base deck, because their sloped front walls
-would thin to nothing at the bed. The seat planes (z 203 below, z 205 on top), the pocket
-outlines, the screw holes and everything above the seat are the mid deck's. It sliced to
-282 min and 129 g. Prepare it like a part (`node preflight.mjs <new-job-dir> mid_deck_flat`
-or `prepare_print_job(part="mid_deck_flat")`); it is never written to `stl/` or the guide.
+over air. The underside pockets have straight walls, as in the base deck, because their sloped
+front walls would thin to nothing at the bed. The seat planes (z 203 below, z 205 on top), the
+pocket outlines, the screw holes and everything above the seat are the mid deck's.
 
-After printing, break the lattice out of the four underside pockets with pliers and a flush
-cutter. The ribs are fused to the seat plane and the pocket walls, so scrape or file the seat
-flat and the walls clean until each lower post goes fully into its pocket and sits on the seat
-without rocking. Check the M4 hole through each seat is clear. `check-preflight.py` compares
-the flat deck with the canonical deck section by section (`check-flat-deck.py`), checks the
-lattice is printed in every pocket up to the seat plane, and checks that the same deck without
-its lattice is refused at the pocket ceilings. A digital pass says nothing about bed adhesion of
-a 245 mm PETG plate, how cleanly the lattice breaks out, or strength.
+**The first version failed.** The deck printed on 2026-11-06 had a lattice of 2 mm ribs and a
+solid boss in each pocket, 0.3 mm into the pocket walls and full contact with the seat. This
+README called it breakaway and promised cleanup with pliers and a flush cutter. It was wrong: the
+print finished, every layer check passed, and the lattice is solidly fused and cannot reasonably
+be removed at home. That deck is rejected. Do not cut or machine it out.
+
+Each pocket now holds a separate plug: a 1.4 mm plate on the bed, 0.4 mm clear of the pocket
+walls and 1.6 mm below the seat, with 0.6 mm fins rising to the seat plane. Fin tops are its
+only contact with the deck, 77.5 mm2 per pocket of the 717 mm2 outline, against 292 mm2 before.
+The ceiling bridges at most 6.6 mm between them. The slicer ignores fins this thin when it picks
+a bridge direction and bridges along the pocket, wall to wall, so the fins cross that direction.
+This is not a true release gap: the fin tops are welded to the ceiling's first layer. The layer
+check counts only the section directly below a path as support, and any toolpath outside the model
+is refused, so slicer support or a one-layer air gap above the plug would read as a 20 mm span
+over air and be refused. Allowing a gap would be a policy change to review, and it has not
+been made.
+
+**Hold the whole deck until a coupon passes.** `check-preflight.py` proves, from the CAD and the
+actual beads (`check-flat-deck.py`), that the plug is clear of the walls, that no toolpath runs from
+pocket to wall, and that the rejected lattice fails this check though it passes the support check.
+Nothing digital shows how hard a plug is to remove, what the seat looks like afterwards, or how
+well a post fits.
+
+`mid_deck_pocket_coupon` is the deck's front left corner with one pocket and its plug, the same on
+every layer as the deck: 47 x 29 x 8 mm, about 23 min and 7 g. To test it, rest the coupon with the
+pocket over a gap and push an M4 screw down through the seat's hole by hand, against the fins and
+plate. It passes only if the plug comes out with hand force and that screw, with no cutter, scraper
+or file, and a lower post then goes fully in and sits without rocking, with the M4 x 25 clear
+through the hole. Otherwise this design has failed too; change the design, do not push harder.
 
 `base_tub` used to be refused because at 245 x 240 mm it crossed the P1S excluded corner. No
 placement of the full footprint clears that corner, and the slicer places and validates a part by
