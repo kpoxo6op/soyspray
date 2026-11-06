@@ -421,14 +421,19 @@ module lead_slots(z, apex, rear) for (s = [[32, 92], [97, 156], [161, 221]])
 
 // Print-only: the mid deck lying flat on its underside, turned a quarter in plan so its corner
 // clears the bed's excluded corner. Flat, each underside post pocket would close in a 20.5 mm
-// ceiling over air, so a breakaway lattice stands in it from the bed to the seat plane: 2 mm ribs
-// running front to back, the boss round the screw hole and a rib along the side face, where the
-// pocket opens. Its cells are 3 to 5 mm wide, so the ceiling bridges short spans across rib tops.
-// The ribs fuse to the seat plane and the pocket walls: break them out and scrape the seat flat
-// before fitting the posts. The underside pockets are straight, as in the base deck: lying flat
-// their sloped front walls would thin to nothing at the bed. Seat planes, outlines, holes and
-// everything above z 203 are the mid deck's.
-RIB = 2; EDGE_RIB = 2.5; INNER_RIB = 1.25; RIB_INTO_WALL = 0.3;
+// ceiling over air, so a separate plug stands in it. Its plate lies on the bed, clear of the pocket
+// walls. Thin fins rise from the plate and stop two layers below the seat plane, so nothing is
+// modelled between plug and deck, and a sagging ceiling bead lands on a fin before it can sag far.
+// How easily a real plug comes out is known only from a print.
+// The underside pockets are straight, as in the base deck: lying flat their sloped front walls
+// would thin to nothing at the bed. Seat planes, outlines, holes and everything above z 203 are the
+// mid deck's.
+PLUG_GAP = 0.4;              // air between the plug and the pocket walls
+PLUG_PLATE = 1.4;            // leaves 1.6 mm of air under the bridged ceiling
+PLUG_AIR = 0.4;              // two empty 0.2 mm layers under the ceiling; see check-support.py
+FIN = 0.6;
+EDGE_FIN = 1.1; EDGE_PAD = 3;
+RING_R = 4; CORNER_IN = 1.8;
 module mid_deck_flat() rotate(90) {
   mid_deck();
   // fill each underside pocket's front wall back to straight, 0.2 mm into the existing wall
@@ -439,31 +444,53 @@ module mid_deck_flat() rotate(90) {
       post_pockets(MID_Z[0] - 1, MID_Z[0] + POCKET + 1, foot_boxes());
     }
   }
-  // each rib stands on a 0.4 mm foot 0.5 mm wider on each side, to hold the bed
-  for (f = [[POCKET + E, 0], [0.4, 0.5]]) translate([0, 0, MID_Z[0]]) linear_extrude(f[0]) intersection() {
-    translate([X0 + 0.3, 0.3]) rrect([X1 - X0 - 0.6, DEPTH - 0.6], CR - 0.3);
-    for (k = [0 : 3]) pocket_lattice(k, f[1]);
+  translate([0, 0, MID_Z[0]]) for (k = [0 : 3]) pocket_plug(k);
+}
+
+// Underside pocket k's outline where it lies in the deck, less the air gap.
+module plug_outline(k) {
+  b = foot_boxes()[k];
+  offset(delta = -PLUG_GAP) intersection() {
+    translate([X0, 0]) rrect([X1 - X0, DEPTH], CR);
+    translate([b[0] - FIT, b[1] - FIT]) crect([b[2] - b[0] + 2 * FIT, b[3] - b[1] + 2 * FIT], 1.2);
   }
 }
 
-// Lattice in underside pocket k, drawn in place.
-module pocket_lattice(k, grow = 0) {
+// The fins. The slicer bridges the ceiling along the pocket, wall to wall, so they cross it at most
+// 7.3 mm apart, one through the screw axis. Pads under the open side face stand below the deck's
+// wall loops across it, and a ring and a short cross fin below the wall loops round the screw hole.
+FIN_PITCH = 7.3125;
+module plug_fins(k) {
   b = foot_boxes()[k];
   j = joints()[k];
-  lo = [b[0] - FIT, b[1] - FIT] - [RIB_INTO_WALL, RIB_INTO_WALL];
-  hi = [b[2] + FIT, b[3] + FIT] + [RIB_INTO_WALL, RIB_INTO_WALL];
-  h = M4_D / 2 + RIB + 0.25;                 // half the boss
   left = b[0] <= X0;
-  // the boss's rib towards the middle is wider, so that cell is as narrow as the others
-  ribs = left ? [[X0, EDGE_RIB], [j[0] - h, RIB], [j[0] + h - RIB, RIB + INNER_RIB]]
-              : [[X1 - EDGE_RIB, EDGE_RIB], [j[0] + h - RIB, RIB], [j[0] - h - INNER_RIB, RIB + INNER_RIB]];
-  difference() {
-    offset(delta = grow) union() {
-      translate(j - [h, h]) square(2 * h);
-      for (r = ribs) translate([r[0], lo[1]]) square([r[1], hi[1] - lo[1]]);
-    }
-    translate(j) circle(d = M4_D);
+  edge = left ? X0 + PLUG_GAP : X1 - PLUG_GAP - EDGE_FIN;
+  away = is_front(b) ? -1 : 1;
+  for (i = [0 : 3]) translate([0, j[1] + away * i * FIN_PITCH]) {
+    translate([b[0], -FIN / 2]) square([b[2] - b[0], FIN]);
+    translate([edge, -EDGE_PAD / 2]) square([EDGE_FIN, EDGE_PAD]);
   }
+  // a quarter ring where the bridge lines end on the wall loops round the plan corner
+  translate([left ? X0 + CR : X1 - CR, is_front(b) ? CR : DEPTH - CR]) intersection() {
+    difference() { circle(r = CR - CORNER_IN + FIN / 2); circle(r = CR - CORNER_IN - FIN / 2); }
+    translate([left ? -CR : 0, is_front(b) ? -CR : 0]) square(CR);
+  }
+  translate(j) {
+    difference() { circle(r = RING_R + FIN / 2); circle(r = RING_R - FIN / 2); }
+    translate([-FIN / 2, -RING_R]) square([FIN, 2 * RING_R]);
+  }
+}
+
+module pocket_plug(k) {
+  linear_extrude(PLUG_PLATE) plug_outline(k);
+  linear_extrude(POCKET - PLUG_AIR) intersection() { plug_outline(k); plug_fins(k); }
+}
+
+// Print-only: the front left corner of mid_deck_flat with one pocket, its pad, the pocket above it
+// and its plug, as a small test of plug removal and post fit before printing a whole deck.
+module mid_deck_pocket_coupon() intersection() {
+  mid_deck_flat();
+  translate([-47, 3, 0]) cube([48, 30, 300]);
 }
 
 module top_cap() {
@@ -673,6 +700,7 @@ module print_part(name) {
   else if (name == "top_cap") rotate([180, 0, 0]) world_part(name);
   else if (name == "mid_deck") rotate([-90, 0, 0]) world_part(name);
   else if (name == "mid_deck_flat") mid_deck_flat();
+  else if (name == "mid_deck_pocket_coupon") mid_deck_pocket_coupon();
   else if (name == "base_tub") rotate(90) world_part(name);
   else if (name == "keystone_panel" || name == "coupon_keystone") rotate([-90, 0, 0]) world_part(name);
   else world_part(name);

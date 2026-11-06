@@ -121,23 +121,57 @@ prove that it stays put or how strong it is on edge.
 and turned a quarter in plan: 209 x 245 x 8 mm on the bed, clear of the excluded corner. It
 is for reprinting the deck after the edge-standing print of `mid_deck_and_mast` failed; the
 mast is not in it. Lying flat, each underside post pocket would close in a 20.5 mm ceiling
-over air, so a breakaway lattice stands in each pocket from the bed to the seat plane: 2 mm
-ribs running front to back, a solid boss round the screw hole and a rib along the side face,
-where the pocket opens. The ceiling bridges at most about 7 mm across the rib tops. The
-underside pockets have straight walls, as in the base deck, because their sloped front walls
-would thin to nothing at the bed. The seat planes (z 203 below, z 205 on top), the pocket
-outlines, the screw holes and everything above the seat are the mid deck's. It sliced to
-282 min and 129 g. Prepare it like a part (`node preflight.mjs <new-job-dir> mid_deck_flat`
-or `prepare_print_job(part="mid_deck_flat")`); it is never written to `stl/` or the guide.
+over air. The underside pockets have straight walls, as in the base deck, because their sloped
+front walls would thin to nothing at the bed. The seat planes (z 203 below, z 205 on top), the
+pocket outlines, the screw holes and everything above the seat are the mid deck's.
 
-After printing, break the lattice out of the four underside pockets with pliers and a flush
-cutter. The ribs are fused to the seat plane and the pocket walls, so scrape or file the seat
-flat and the walls clean until each lower post goes fully into its pocket and sits on the seat
-without rocking. Check the M4 hole through each seat is clear. `check-preflight.py` compares
-the flat deck with the canonical deck section by section (`check-flat-deck.py`), checks the
-lattice is printed in every pocket up to the seat plane, and checks that the same deck without
-its lattice is refused at the pocket ceilings. A digital pass says nothing about bed adhesion of
-a 245 mm PETG plate, how cleanly the lattice breaks out, or strength.
+**The first version failed.** The deck printed on 2026-11-06 had a lattice of 2 mm ribs and a
+solid boss in each pocket, 0.3 mm into the pocket walls and full contact with the seat. This
+README called it breakaway and promised cleanup with pliers and a flush cutter. It was wrong: the
+print finished, every layer check passed, and the lattice is solidly fused and cannot reasonably
+be removed at home. That deck is rejected. Do not cut or machine it out.
+
+**The second version was held.** Its separate plug had fins up to the seat plane, so 77.5 mm2 per
+pocket was still welded to the ceiling, and no one can carve that out at home. It never printed.
+
+Each pocket now holds a plug with nothing modelled between it and the deck: a 1.4 mm plate on the
+bed, 0.4 mm clear of the walls, and 0.6 mm fins that stop at z 2.6, two empty 0.2 mm layers under the
+seat plane. In the sliced job those two layers hold no solid over the plug, and the ceiling's first
+layer bridges wall to wall with its beads at least 0.29 mm above the fins, taking a bead as round
+and hanging from the nozzle. A bead that sags lands on a fin at most 6.6 mm from the last one, so
+the fins limit the sag and are not welded on purpose. Each fin crosses the bridge direction. Removal
+is by hand: lift the deck, then push an M4 screw down through the seat hole against the centre fin.
+
+The layer check normally refuses a ceiling over air. `RELEASE_INTERFACES` in `check-support.py` names
+this deck and its coupon. They alone are judged by geometry policy 2 and report it; every other part
+stays on policy 1. For them the plug's top counts as support for the first ceiling layer, under the
+same 8 mm span rule. An MCP server that admits only policy 1 refuses these jobs until a reviewed
+change admits policy 2, and that server change is separate. In return the part must pass stricter checks than before. The
+air gap must be exactly two empty layers, each plug must be 0.39 mm from the deck in the CAD and 0.2 mm
+in the beads, and each ceiling bead must be 0.15 mm above the plug. The first layer must also be 1 mm
+from the machine's load line. Bambu's cantilever warning
+reads only the layer under a ceiling, so no real gap passes it with support off. These two parts
+alone slice with support on, manual, with no enforcers (`PROCESS_OVERLAYS` in `preflight.mjs`). That
+generates no support. Its deck differs from the shared profile's by at most 1.01 mm of path and 0.14 mm
+of filament in any layer and feature, out of 1.33 km, and the E2E limits that. Slices are not
+byte-repeatable: two on one profile differ by 0.014 mm and 0.06 mm of filament. Real
+slicer support was tried and not used: its full-area interface sits about 0.07 mm below the beads, on
+layers the check cannot compare. `check-preflight.py` shows the welded fins, one-layer and three-layer
+gaps, a plug on or near its walls, sparse fins, the rejected lattice, a missing plug, an undeclared
+part name, the shared profile and a moved load line are each refused.
+
+The deck's first layer is 1.59 mm from the load line, its nearest stroke, measured between beads from
+the start G-code and the actual first layer, and 5.6 mm from the excluded corner. No brim or skirt.
+
+**Nothing here proves it comes out, fits or holds.** The first ceiling layer spans 20 mm, and its walls
+cross each open side face in a 32 mm line. Sag or stringing may still tack beads to fins, and the
+seat under a bridge can sit up to about 0.4 mm low, so a post may stop that much short of the seat
+plane. Bed adhesion of the plates, warp of a 245 mm deck and strength are also unknown. If a plug
+will not come out by hand and with that screw, this design has failed: do not cut, scrape or push
+harder.
+
+`mid_deck_pocket_coupon` is the deck's front left corner with one pocket and its plug, the same on
+every layer as the deck: 47 x 29 x 8 mm, about 23 min and 7 g, for testing this before any further deck.
 
 `base_tub` used to be refused because at 245 x 240 mm it crossed the P1S excluded corner. No
 placement of the full footprint clears that corner, and the slicer places and validates a part by
