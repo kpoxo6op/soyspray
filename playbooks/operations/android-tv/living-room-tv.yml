@@ -99,6 +99,12 @@ android_tv_settings:
   - {namespace: global, key: package_verifier_enable, value: "0"}
   - {namespace: global, key: verifier_verify_adb_installs, value: "0"}
 
+# App permissions set with `appops set PACKAGE OP MODE`. SmartTube's remote
+# control, which lets a phone's YouTube app cast to it after "Link with TV
+# code", needs the overlay permission.
+android_tv_appops:
+  - {package: app.smarttube.fdroid, op: SYSTEM_ALERT_WINDOW, mode: allow}
+
 # Options that exist only as settings screens. `open` is an intent action and
 # `path` the rows to enter; `label` names the toggle row, or `*` for a screen
 # with one toggle.
