@@ -49,6 +49,22 @@ SIGNS = (
 )
 SIGN_PATTERNS = [re.compile(rf"(?<!\w){stem}(?!\w)", re.I) for _, stem in SIGNS]
 TITLE = re.compile(r"гороскоп", re.I)
+WORD = re.compile(r"[а-яё]{5,}")
+# Whisper's decoder is nudged towards the sign names by showing them as prior text.
+PROMPT = "Гороскоп. Овен, Телец, Близнецы, Рак, Лев, Дева, Весы, Скорпион, Стрелец, Козерог, Водолей, Рыбы."
+# The channel replays one reading about eight times a day; a new one starts in the
+# evening. Readings whose words overlap this much are the same reading.
+SAME_READING = 0.5
+MIN_WORDS_TO_COMPARE = 15
+
+
+def content_words(text: str) -> set[str]:
+    """Longer words of a phrase, without sign names, for comparing two readings."""
+    return {w for w in WORD.findall(text.lower()) if not signs_in(w)}
+
+
+def overlap(a: set[str], b: set[str]) -> float:
+    return len(a & b) / min(len(a), len(b)) if a and b else 0.0
 
 
 @dataclass(frozen=True)
@@ -71,7 +87,7 @@ class Settings:
     tail: float = 60.0
     min_signs: int = 7
     sign_gap: float = 150.0
-    dedup_hours: float = 10.0
+    dedup_hours: float = 1.0
     max_upload_bytes: int = 48 * 1024 * 1024
     whisper_model: str = "/models/small"
     whisper_threads: int = 2
@@ -101,7 +117,7 @@ class Settings:
             tail=float(env.get("TAIL_SECONDS", 60)),
             min_signs=int(env.get("MIN_SIGNS", 7)),
             sign_gap=float(env.get("SIGN_GAP_SECONDS", 150)),
-            dedup_hours=float(env.get("DEDUP_HOURS", 10)),
+            dedup_hours=float(env.get("DEDUP_HOURS", 1)),
             whisper_model=env.get("WHISPER_MODEL", "/models/small"),
             whisper_threads=int(env.get("WHISPER_THREADS", 2)),
             port=int(env.get("HTTP_PORT", 8080)),
@@ -131,6 +147,7 @@ class Episode:
     last_sign_at: float
     signs: list[int] = field(default_factory=list)
     title_at: float | None = None
+    words: set[str] = field(default_factory=set)
 
     @property
     def start(self) -> float:
@@ -152,7 +169,10 @@ class Detector:
     def feed(self, phrase: Phrase) -> None:
         if TITLE.search(phrase.text):
             self.last_title = phrase.at
-        for sign in signs_in(phrase.text):
+        found = signs_in(phrase.text)
+        if len(found) >= 4:
+            found = []  # a list of signs is the prompt echoed back, never a reading
+        for sign in found:
             run = self.candidate
             active = run is not None and phrase.at - run.last_sign_at <= self.sign_gap
             if active and run.signs[-1] < sign <= run.signs[-1] + 1 + self.MAX_SKIP:
@@ -165,6 +185,9 @@ class Detector:
                 if title is not None and not 0 <= phrase.at - title <= 120:
                     title = None
                 self.candidate = Episode(phrase.at, phrase.at, [sign], title)
+        run = self.candidate
+        if run and run.first_sign_at <= phrase.at <= run.last_sign_at + self.sign_gap:
+            run.words |= content_words(phrase.text)
 
     def complete(self, now: float) -> Episode | None:
         """Return a finished episode once its last sign is followed by quiet time."""
@@ -266,13 +289,23 @@ class State:
         try:
             self.data = json.loads(path.read_text())
         except (OSError, ValueError):
-            self.data = {"sent": []}
+            self.data = {}
+        self.data.setdefault("sent", [])
+        self.data.setdefault("readings", [])
 
     def recently_sent(self, at: float, hours: float) -> bool:
         return any(abs(at - sent) < hours * 3600 for sent in self.data["sent"])
 
-    def mark(self, at: float) -> None:
+    def already_sent(self, words: set[str]) -> bool:
+        """True when a sent reading had mostly the same words (a replay)."""
+        if len(words) < MIN_WORDS_TO_COMPARE:
+            return False  # too little heard to tell; a duplicate beats a miss
+        return any(overlap(words, set(old)) >= SAME_READING for old in self.data["readings"])
+
+    def mark(self, at: float, words: set[str] = frozenset()) -> None:
         self.data["sent"] = [*self.data["sent"][-50:], at]
+        if words:
+            self.data["readings"] = [*self.data["readings"][-9:], sorted(words)]
         tmp = self.path.with_suffix(".tmp")
         tmp.write_text(json.dumps(self.data))
         tmp.replace(self.path)
@@ -366,6 +399,22 @@ def audio_samples(path: Path):
     return np.frombuffer(raw, np.float32)
 
 
+OVERLAP_SECONDS = 8.0
+
+
+def with_overlap(previous, seg_start: float, samples, rate: int = 16000):
+    """Prefix the tail of the previous segment so a word cut at the boundary is heard.
+
+    Returns the audio and how many seconds of it come from the previous segment.
+    """
+    import numpy as np
+
+    if previous is None or not 0 < seg_start - previous[0] <= 90:
+        return samples, 0.0
+    tail = previous[1][-int(OVERLAP_SECONDS * rate) :]
+    return np.concatenate([tail, samples]), len(tail) / rate
+
+
 def cut(settings: Settings, chosen, start: float, end: float, out: Path) -> int:
     """Join the buffer segments, trim to the window and fit the Telegram upload limit."""
     listing = out.with_suffix(".txt")
@@ -399,6 +448,9 @@ def deliver(settings: Settings, state: State, health: Health, episode: Episode, 
     if state.recently_sent(episode.start, settings.dedup_hours):
         LOG.info("an airing within %s h was already sent; skipping", settings.dedup_hours)
         return
+    if state.already_sent(episode.words):
+        LOG.info("this is a replay of a reading already sent; skipping")
+        return
     start, end = clip_window(episode, settings.lead_in, settings.tail)
     give_up = time.time() + (end - start) + 900
     while True:
@@ -426,7 +478,7 @@ def deliver(settings: Settings, state: State, health: Health, episode: Episode, 
         except Exception:  # noqa: BLE001 - keep recording after a delivery failure
             health.bump("send_failures")
             LOG.exception("could not send the horoscope to one chat")
-    state.mark(episode.start)
+    state.mark(episode.start, episode.words)
     for old in sorted(clips.glob("*.mp4"))[:-5]:
         old.unlink(missing_ok=True)
 
@@ -451,6 +503,7 @@ def main() -> None:
     detector = Detector(settings.min_signs, settings.sign_gap)
     done: set[Path] = set()
     heard_until = 0.0
+    previous: tuple[float, object] | None = None  # (start, samples) of the last segment
     while True:
         now = time.time()
         segs = segments(live)
@@ -462,11 +515,16 @@ def main() -> None:
             done.add(path)
             began = time.monotonic()
             try:
+                samples = audio_samples(path)
+                audio, lead = with_overlap(previous, seg_start, samples)
+                previous = (seg_start, samples)
                 pieces, _ = model.transcribe(
-                    audio_samples(path), language="ru", vad_filter=True, beam_size=1
+                    audio, language="ru", vad_filter=True, beam_size=5, initial_prompt=PROMPT
                 )
                 for piece in pieces:
-                    phrase = Phrase(seg_start + piece.start, piece.text)
+                    if piece.end <= lead:
+                        continue  # wholly inside the overlap: heard with the last segment
+                    phrase = Phrase(seg_start - lead + piece.start, piece.text)
                     if signs_in(phrase.text) or TITLE.search(phrase.text):
                         local = datetime.fromtimestamp(phrase.at, VLAT)
                         LOG.info("heard at %s: %s", f"{local:%H:%M:%S}", phrase.text.strip())

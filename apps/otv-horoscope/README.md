@@ -53,6 +53,15 @@ the change applies within about a minute without restarting the recorder. The bo
 rotates an existing token; supply `otv_horoscope_telegram_bot_token` from an
 off-cluster Ansible Vault file only when the Secret is missing.
 
+## Replays
+
+ОТВ Прим replays the same reading about eight times a day (seen 2026-11-05/06 at
+17:20, 22:36, 01:30, 03:34, 06:36, 08:35, 12:23 and 14:23 Vladivostok time); a
+new reading, already for the next day, starts in the evening. The recorder sends
+the first airing of each reading it recognises and skips replays whose words
+mostly match a reading already sent, so a missed first airing is caught by the
+next replay.
+
 ## Build, deploy and limits
 
 Source merges publish a tested GHCR image and open a draft digest promotion;
