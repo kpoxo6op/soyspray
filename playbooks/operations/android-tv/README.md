@@ -64,6 +64,16 @@ router at once. With the Sony and Samba TV services disabled, the TV's own
 traffic is Google Play services and the Chromecast receiver, which stay
 allowed so casting keeps working.
 
+## Casting from a phone
+
+Google's YouTube TV app is disabled, so the phone's YouTube Cast button has no
+receiver. Phones cast to SmartTube instead: in SmartTube open Settings → Remote
+control, switch it on and choose Add device for a code, then on the phone open
+YouTube (ReVanced works) → Settings → General → Watch on TV → Link with TV code.
+The playbook grants SmartTube the overlay permission its remote control needs;
+the switch and linked phones are SmartTube preferences, so repeat them after
+clearing its data or a factory reset.
+
 ## Limits
 
 AirPlay is a persistent Sony app that starts even when disabled and crash-loops
