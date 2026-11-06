@@ -3,8 +3,8 @@
 Usage: python3 check-preflight.py ~/prints/new-preflight-check
 Requires the same dependencies and Flatpak access as preflight.mjs, plus Git history
 containing b0584b1c (the original unsupported shelf regression), 4bf33ded, a1d5e6bc and
-b843191d (the fused pocket lattice). The flat mid deck and power base comparisons run
-check-flat-deck.py and check-base-tub.py through uv.
+b843191d (the fused pocket lattice). The flat mid deck and power base comparisons and the release
+interface's refusals run check-flat-deck.py, check-base-tub.py and check-support.py through uv.
 """
 
 from collections import Counter
@@ -302,15 +302,26 @@ try:
     plate = json.loads((flat_dir / "result.json").read_text())["sliced_plates"][0]
     box = plate["objects"][0]["bbox"]
     record(
-        "the flat mid deck prints lying flat with every layer supported",
+        "the flat mid deck prints with a real air gap over each plug and every layer supported",
         flat_rc == 0
         and flat_report["pass"]
         and not entry["problems"]
         and not plate.get("warning_message")
         and entry["geometry"]["pass"] is True
         and sha(flat_dir / "mid_deck_flat.gcode.3mf") == entry["job"]
-        and [round(box[k], 2) for k in ("width", "depth", "height")] == [209, 245, 8],
+        and [round(box[k], 2) for k in ("width", "depth", "height")] == [209, 245, 8]
+        and flat_report["geometry_policy_version"] == 2
+        and entry["geometry"]["policy_version"] == 2
+        and entry["geometry"]["release_interface"]["pass"] is True
+        and entry["geometry"]["release_interface"]["air_layers"] == 2
+        and entry["geometry"]["release_interface"]["solid_in_air_mm2"] == 0
+        and entry["geometry"]["release_interface"]["min_ceiling_bead_clearance_mm"] >= 0.15
+        and entry["geometry"]["release_interface"]["load_line"]["bead_clearance_mm"] >= 1
+        and entry["geometry"]["release_interface"]["load_line"]["overlap_mm2"] == 0
+        and not re.search(r"^; FEATURE: (Brim|Skirt|Support)", (flat_dir / "plate_1.gcode").read_text(), re.M),
         bed_bbox=box,
+        release_interface=entry["geometry"]["release_interface"],
+        process=entry.get("process"),
         layers=entry["geometry"]["layers_checked"],
         longest_bridge_mm=max(
             b["unsupported_mm"]
@@ -369,9 +380,12 @@ try:
         if 4.5 <= b["z"] <= 5.1
     ]
     record(
-        "top cap prints with every head seat layer bridged end to end",
+        "top cap prints with every head seat layer bridged end to end, still on policy 1",
         cap_rc == 0
         and cap_report["pass"]
+        and cap_report["geometry_policy_version"] == 1
+        and cap_report["parts"]["top_cap"]["geometry"]["policy_version"] == 1
+        and "release_interface" not in cap_report["parts"]["top_cap"]["geometry"]
         and not entry["problems"]
         and entry["geometry"]["pass"] is True
         and sha(cap / "top_cap/top_cap.gcode.3mf") == entry["job"]
@@ -646,8 +660,158 @@ try:
         and not list((root / "flat-without-plugs").rglob("*.gcode.3mf")),
         failures=len(geometry.get("failures", [])),
     )
+    # Each way out of the release interface, through the real renderer, slicer and gate. The coupon
+    # is the deck's corner and takes seconds; the welded design and the shared profile use the deck.
+    def plug_variant(out, part, old, new):
+        assert current.count(old) == 1, old
+        (oldcad / "soyrack.scad").write_text(current.replace(old, new))
+        subprocess.run(["git", "add", "soyrack.scad"], cwd=oldcad, check=True)
+        subprocess.run(["git", "commit", "-qm", f"E2E: {out}"], cwd=oldcad, check=True)
+        rc, report = run(oldcad, root / out, [part])
+        geometry = json.loads((root / out / part / "geometry.json").read_text())
+        why = [f.get("why") or "" for f in geometry.get("failures", [])]
+        return rc, report, geometry, why, not list((root / out).rglob("*.gcode.3mf"))
+
+    def refused(name, out, part, old, new, reason):
+        rc, report, geometry, why, no_job = plug_variant(out, part, old, new)
+        record(
+            name,
+            rc == 1
+            and not report["pass"]
+            and no_job
+            and geometry["release_interface"]["pass"] is False
+            and any(reason in w for w in why),
+            reasons=sorted({re.sub(r"-?[\d.]+ ", "", w) for w in why if w})[:6],
+            failures=len(why),
+        )
+
+    refused(
+        "fin tops welded to the ceiling, the previous design, are refused",
+        "welded-fins", "mid_deck_flat", "PLUG_AIR = 0.4;", "PLUG_AIR = 0;", "solid in the air gap",
+    )
+    refused(
+        "a one-layer gap, too close to the ceiling beads, is refused",
+        "one-layer-gap", "mid_deck_pocket_coupon", "PLUG_AIR = 0.4;", "PLUG_AIR = 0.2;", "solid in the air gap",
+    )
+    refused(
+        "a three-layer gap, which leaves the declared plug top empty, is refused",
+        "three-layer-gap", "mid_deck_pocket_coupon", "PLUG_AIR = 0.4;", "PLUG_AIR = 0.6;", "no separate plug",
+    )
+    refused(
+        "a plug joined to its walls is not a plug and is refused",
+        "plug-on-walls", "mid_deck_pocket_coupon", "PLUG_GAP = 0.4;", "PLUG_GAP = -0.3;", "no separate plug",
+    )
+    refused(
+        "a plug too close to its walls is refused",
+        "plug-near-walls", "mid_deck_pocket_coupon", "PLUG_GAP = 0.4;", "PLUG_GAP = 0.2;", "from the deck",
+    )
+    rc, report, geometry, why, no_job = plug_variant(
+        "sparse-fins", "mid_deck_pocket_coupon", "FIN_PITCH = 7.3125;", "FIN_PITCH = 14.625;"
+    )
+    record(
+        "fins too far apart still break the 8 mm span rule over the gap",
+        rc == 1
+        and no_job
+        and any((f.get("unsupported_mm") or 0) > 8 and abs(f["z"] - 3.2) < 0.01 for f in geometry["failures"]),
+        longest_mm=max(f.get("unsupported_mm") or 0 for f in geometry["failures"]),
+    )
+    # The same gap on the shared profile: the slicer's warning still refuses it, and the release
+    # profile changes nothing that matters in what is deposited.
+    (oldcad / "soyrack.scad").write_text(current)
+    overlays = "const PROCESS_OVERLAYS = { mid_deck_flat: RELEASE_PROCESS, mid_deck_pocket_coupon: RELEASE_PROCESS };"
+    source = (cad / "preflight.mjs").read_text()
+    assert source.count(overlays) == 1
+    (oldcad / "preflight.mjs").write_text(source.replace(overlays, "const PROCESS_OVERLAYS = {};"))
+    subprocess.run(["git", "add", "soyrack.scad", "preflight.mjs"], cwd=oldcad, check=True)
+    subprocess.run(["git", "commit", "-qm", "E2E: gap on the shared profile"], cwd=oldcad, check=True)
+    rc, d = run(oldcad, root / "gap-shared-profile", ["mid_deck_flat"])
+    (oldcad / "preflight.mjs").write_text(source)
+    subprocess.run(["git", "add", "preflight.mjs"], cwd=oldcad, check=True)
+    subprocess.run(["git", "commit", "-qm", "E2E: release profile back"], cwd=oldcad, check=True)
+
+    def deposits(gcode):
+        """Deposited path and filament per layer and feature. Slices of one input differ in path
+        order and retraction, so whole lines do not compare."""
+        totals, z, feature, x, y = {}, None, None, 0.0, 0.0
+        body = gcode.read_text().split("; MACHINE_START_GCODE_END", 1)[1]
+        for line in body.split("; MACHINE_END_GCODE_START", 1)[0].splitlines():
+            if line.startswith("; Z_HEIGHT:"):
+                z = float(line[11:])
+            elif line.startswith("; FEATURE:"):
+                feature = line[10:].strip()
+            elif re.match(r"G[0-3] ", line):
+                a = dict(re.findall(r"([XYE])(-?[\d.]+)", line.split(";")[0]))
+                nx, ny = float(a.get("X", x)), float(a.get("Y", y))
+                moved, e = ((nx - x) ** 2 + (ny - y) ** 2) ** 0.5, float(a.get("E", 0))
+                if e > 0 and moved > 0:
+                    row = totals.setdefault((z, feature), [0.0, 0.0])
+                    row[0] += moved
+                    row[1] += e
+                x, y = nx, ny
+        return totals
+
+    shared = deposits(root / "gap-shared-profile/mid_deck_flat/plate_1.gcode")
+    admitted = deposits(flat_dir / "plate_1.gcode")
+    path_mm = max(abs(shared[k][0] - admitted[k][0]) for k in admitted) if shared.keys() == admitted.keys() else None
+    filament_mm = max(abs(shared[k][1] - admitted[k][1]) for k in admitted) if shared.keys() == admitted.keys() else None
+    record(
+        "the gap on the shared profile is refused by the slicer, and the release profile deposits practically the same",
+        rc == 1
+        and any("floating cantilever" in p for p in d["parts"]["mid_deck_flat"]["problems"])
+        and d["parts"]["mid_deck_flat"]["geometry"]["pass"] is True
+        and not list((root / "gap-shared-profile").rglob("*.gcode.3mf"))
+        and path_mm is not None
+        and path_mm <= 1.5
+        and filament_mm <= 0.25,
+        problems=d["parts"]["mid_deck_flat"]["problems"],
+        layer_features=len(admitted),
+        max_path_difference_mm=path_mm,
+        max_filament_difference_mm=filament_mm,
+    )
+
+    def support_check(out, gcode, stl):
+        folder = root / out
+        report = folder / "geometry.json"
+        done = subprocess.run(
+            [os.environ.get("UV", "uv"), "run", "--locked", "--script", str(cad / "check-support.py"),
+             str(gcode), str(stl), str(flat_dir / "result.json"), str(report)],
+            capture_output=True, text=True,
+        )
+        return done.returncode, json.loads(report.read_text())
+
+    # The extension belongs to the parts it names: the same job under another name gets none of it.
+    (root / "undeclared").mkdir()
+    other = root / "undeclared/mid_deck_flat_copy.stl"
+    shutil.copy2(flat / "stl/mid_deck_flat.stl", other)
+    rc, geometry = support_check("undeclared", flat_dir / "plate_1.gcode", other)
+    record(
+        "the same gapped job under an undeclared part name is refused at the ceilings",
+        rc == 1
+        and geometry["pass"] is False
+        and geometry["policy_version"] == 1
+        and "release_interface" not in geometry
+        and all(abs(f["z"] - 3.2) < 0.01 for f in geometry["failures"])
+        and max(f["unsupported_mm"] for f in geometry["failures"]) > 8,
+        failures=len(geometry.get("failures", [])),
+        longest_mm=max((f["unsupported_mm"] for f in geometry.get("failures", [])), default=None),
+    )
+    # A load line moved under the deck's first layer, in otherwise real G-code.
+    text = (flat_dir / "plate_1.gcode").read_text()
+    head, tail = text.split("; MACHINE_START_GCODE_END", 1)
+    assert head.count("\nG0 Y1.5 E0.700\n") == 1
+    (root / "moved-load-line").mkdir()
+    moved = root / "moved-load-line/plate_1.gcode"
+    moved.write_text(head.replace("\nG0 Y1.5 E0.700\n", "\nG0 Y9 E0.700\n") + "; MACHINE_START_GCODE_END" + tail)
+    rc, geometry = support_check("moved-load-line", moved, flat / "stl/mid_deck_flat.stl")
+    record(
+        "a load line under the first layer is refused",
+        rc == 1
+        and any("load line" in (f.get("why") or "") for f in geometry["failures"])
+        and geometry["release_interface"]["load_line"]["overlap_mm2"] > 0,
+        load_line=geometry.get("release_interface", {}).get("load_line"),
+    )
     # The lattice printed on 2026-11-06 (b843191d) passed every layer check and could not be
-    # removed: a support PASS says nothing about removal. The release check refuses it.
+    # removed. A support PASS says nothing about removal; the release interface now refuses it.
     fused = subprocess.check_output(
         ["git", "show", "b843191d:apps/assembly-guide/cad/soyrack.scad"], cwd=repo, text=True
     )
@@ -657,9 +821,11 @@ try:
     rc, d = run(oldcad, root / "fused-lattice", ["mid_deck_flat"])
     compared, sections = compare_flat(root / "fused-lattice", "fused-lattice-sections.json")
     record(
-        "the rejected fused lattice passes the support check and is refused by the release check",
-        rc == 0
-        and d["pass"]
+        "the rejected fused lattice is refused by the release interface and the section comparison",
+        rc == 1
+        and not d["pass"]
+        and d["parts"]["mid_deck_flat"]["geometry"]["release_interface"]["pass"] is False
+        and not list((root / "fused-lattice").rglob("*.gcode.3mf"))
         and compared == 1
         and sections["pass"] is False
         and sections["min_bead_gap_mm"] == 0
@@ -703,6 +869,18 @@ try:
         cwd=oldcad,
         check=True,
         stdout=subprocess.DEVNULL,
+    )
+    # The tub's real first layer does share the load line's leg, in the same measure the deck passes.
+    subprocess.run(
+        [os.environ.get("UV", "uv"), "run", "--locked", "--script", str(cad / "check-support.py"),
+         "--load-line", str(tub_dir / "plate_1.gcode"), str(root / "base-tub-load-line.json")],
+        capture_output=True, check=True,
+    )
+    tub_line = json.loads((root / "base-tub-load-line.json").read_text())
+    record(
+        "the load line measure finds the overlap on the power base's real first layer",
+        tub_line["bead_clearance_mm"] == 0 and tub_line["overlap_mm2"] > 0,
+        **tub_line,
     )
     compared = subprocess.run(
         [os.environ.get("UV", "uv"), "run", "--script", str(cad / "check-base-tub.py"),

@@ -422,14 +422,15 @@ module lead_slots(z, apex, rear) for (s = [[32, 92], [97, 156], [161, 221]])
 // Print-only: the mid deck lying flat on its underside, turned a quarter in plan so its corner
 // clears the bed's excluded corner. Flat, each underside post pocket would close in a 20.5 mm
 // ceiling over air, so a separate plug stands in it. Its plate lies on the bed, clear of the pocket
-// walls and well below the seat. Only thin fins rise from the plate to the seat plane, so the ceiling
-// bridges short spans between fin tops and the fin tops are the plug's only contact with the deck.
-// How easily a plug comes out is known only from a printed mid_deck_pocket_coupon.
+// walls. Thin fins rise from the plate and stop two layers below the seat plane, so nothing is
+// modelled between plug and deck, and a sagging ceiling bead lands on a fin before it can sag far.
+// How easily a real plug comes out is known only from a print.
 // The underside pockets are straight, as in the base deck: lying flat their sloped front walls
 // would thin to nothing at the bed. Seat planes, outlines, holes and everything above z 203 are the
 // mid deck's.
 PLUG_GAP = 0.4;              // air between the plug and the pocket walls
 PLUG_PLATE = 1.4;            // leaves 1.6 mm of air under the bridged ceiling
+PLUG_AIR = 0.4;              // two empty 0.2 mm layers under the ceiling; see check-support.py
 FIN = 0.6;
 EDGE_FIN = 1.1; EDGE_PAD = 3;
 RING_R = 4; CORNER_IN = 1.8;
@@ -456,8 +457,8 @@ module plug_outline(k) {
 }
 
 // The fins. The slicer bridges the ceiling along the pocket, wall to wall, so they cross it at most
-// 7.3 mm apart, one through the screw axis. Pads under the open side face carry the deck's wall
-// loops across it, and a ring and a short cross fin carry the wall loops round the screw hole.
+// 7.3 mm apart, one through the screw axis. Pads under the open side face stand below the deck's
+// wall loops across it, and a ring and a short cross fin below the wall loops round the screw hole.
 FIN_PITCH = 7.3125;
 module plug_fins(k) {
   b = foot_boxes()[k];
@@ -482,7 +483,7 @@ module plug_fins(k) {
 
 module pocket_plug(k) {
   linear_extrude(PLUG_PLATE) plug_outline(k);
-  linear_extrude(POCKET + E) intersection() { plug_outline(k); plug_fins(k); }
+  linear_extrude(POCKET - PLUG_AIR) intersection() { plug_outline(k); plug_fins(k); }
 }
 
 // Print-only: the front left corner of mid_deck_flat with one pocket, its pad, the pocket above it

@@ -13,9 +13,10 @@ removed, and material may be added only inside the four underside post pockets: 
 outline that is the plug; outside it the pocket walls are solid, so with the plug out each pocket
 is the seat outline, straight down to the bed.
 
-The plug must stay separate from the walls in the CAD and in the actual beads: no toolpath may run
-from a pocket into its wall, and the beads must leave air between them. The coupon must be the
-deck's corner on every layer, with its ceiling bridged in the same direction.
+The plug must stay separate from the deck in the CAD and in the actual beads: no toolpath may run
+from a pocket into its wall, the beads must leave air between them, and the two layers under each
+ceiling hold nothing in the pocket. The coupon must be the deck's corner on every layer, with its
+ceiling bridged in the same direction.
 
 This proves clearance in the print file. It says nothing about how easily a real plug comes out.
 """
@@ -40,7 +41,7 @@ AREA = 0.01  # mm2: below triangle and rounding noise, far below one 0.4 mm bead
 SEAT = 3.0
 MIN_CAD_GAP = 0.39  # mm of air between the plug and the walls in the CAD
 MIN_BEAD_GAP = 0.2  # mm of air between plug and wall beads, at their nominal widths
-MAX_CONTACT = 130  # mm2 of plug per pocket under the seat, of the seat's 700 mm2
+PLUG_TOP = 2.6  # below the seat by the two empty layers
 MIN_PLUG = 30  # mm2 per pocket per layer, so a pocket cannot lose its plug unnoticed
 COUPON_AT = (162, 0)  # lowest corner of the coupon on the flat deck's bed origin
 OFFSET = np.array(
@@ -142,7 +143,7 @@ seat_outline = [outline(z) for z in zones]
 seats = unary_union(seat_outline)
 walls = pockets.difference(seats).intersection(deck)
 layers, ok = [], edge_size == flat_size
-contact = []
+contact, plug_top = [], []
 for k in range(40):
     # Sample both meshes at one plane; move it by a few 1e-5 mm where float rounding of a cut
     # leaves a section open (a comparison plane, not a printed layer).
@@ -168,33 +169,47 @@ for k in range(40):
         row["open_wall_mm2"] = round(walls.difference(f).area, 4)
         row["plug_mm2"] = [round(p.area, 2) for p in plugs]
         # measured to the wall, so the 0.05 mm is not counted as air
-        row["plug_wall_gap_mm"] = [round(p.distance(solid), 3) for p in plugs]
-        contact = row["plug_mm2"]
+        row["plug_wall_gap_mm"] = [round(p.distance(solid), 3) for p in plugs if not p.is_empty]
         ok &= (
             row["removed_mm2"] < AREA
             and row["added_outside_pockets_mm2"] < AREA
             and row["open_wall_mm2"] < AREA
-            and all(a > MIN_PLUG for a in row["plug_mm2"])
             and all(g >= MIN_CAD_GAP for g in row["plug_wall_gap_mm"])
         )
+        if z < PLUG_TOP:
+            plug_top = row["plug_mm2"]
+            ok &= all(a > MIN_PLUG for a in row["plug_mm2"])
+        else:
+            contact = row["plug_mm2"]
+            ok &= all(a < AREA for a in row["plug_mm2"])
     layers.append(row)
-ok &= all(a <= MAX_CONTACT for a in contact)
 flat_beads, flat_angles = beads(flat_job, "mid_deck_flat", seat_outline)
-ok &= len(flat_beads) == 60 and all(
-    r["crossing_paths"] == 0
-    and r["bead_gap_mm"] is not None
-    and r["bead_gap_mm"] >= MIN_BEAD_GAP
-    and r["plug_beads_mm2"] > MIN_PLUG
-    for r in flat_beads
-)
+
+
+def beads_ok(rows):
+    return all(
+        r["crossing_paths"] == 0
+        and (
+            r["bead_gap_mm"] is not None
+            and r["bead_gap_mm"] >= MIN_BEAD_GAP
+            and r["plug_beads_mm2"] > MIN_PLUG
+            if r["z"] < PLUG_TOP + 0.01
+            else r["plug_beads_mm2"] == 0
+        )
+        for r in rows
+    )
+
+
+ok &= len(flat_beads) == 60 and beads_ok(flat_beads)
 result = {
     "edge_size_as_flat": edge_size,
     "flat_size": flat_size,
     "seat_outline_mm2": [round(s.area, 2) for s in seat_outline],
     "seat_outline_bounds": [[round(v, 3) for v in s.bounds] for s in seat_outline],
+    "plug_top_cad_mm2": plug_top,
     "plug_contact_cad_mm2": contact,
     "plug_contact_beads_mm2": [r["plug_beads_mm2"] for r in flat_beads if abs(r["z"] - SEAT) < 0.01],
-    "min_cad_gap_mm": min((min(r["plug_wall_gap_mm"]) for r in layers if "plug_wall_gap_mm" in r), default=None),
+    "min_cad_gap_mm": min((g for r in layers for g in r.get("plug_wall_gap_mm", [])), default=None),
     "min_bead_gap_mm": min((r["bead_gap_mm"] for r in flat_beads if r["bead_gap_mm"] is not None), default=None),
     "first_layer_bead_gap_mm": [r["bead_gap_mm"] for r in flat_beads[:4]],
     "crossing_paths": sum(r["crossing_paths"] for r in flat_beads),
@@ -224,7 +239,9 @@ if coupon_job:
     result["coupon"] = {
         "size": coupon_size,
         "max_section_difference_mm2": round(different, 4),
-        "min_bead_gap_mm": min(r["bead_gap_mm"] for r in coupon_beads),
+        "min_bead_gap_mm": min(
+            (r["bead_gap_mm"] for r in coupon_beads if r["bead_gap_mm"] is not None), default=None
+        ),
         "crossing_paths": sum(r["crossing_paths"] for r in coupon_beads),
         "ceiling_bridge_angles_deg": coupon_angles,
         "deck_corner_bridge_angles_deg": deck_angles,
@@ -232,7 +249,7 @@ if coupon_job:
     ok &= (
         different < AREA
         and len(coupon_beads) == 15
-        and result["coupon"]["min_bead_gap_mm"] >= MIN_BEAD_GAP
+        and beads_ok(coupon_beads)
         and result["coupon"]["crossing_paths"] == 0
         and coupon_angles == deck_angles
         and len(coupon_angles) > 0

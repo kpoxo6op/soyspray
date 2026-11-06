@@ -71,7 +71,7 @@ const PRINT_BATCHES = {
 };
 const BATCH_GAP_MM = 10;
 // Print-only SCAD parts: rendered on request like a batch, never written to stl/ or the guide.
-// mid_deck_flat is the mid deck lying flat, with a removable plug in each underside pocket;
+// mid_deck_flat is the mid deck lying flat, with a separate plug in each underside pocket;
 // mid_deck_pocket_coupon is one corner of it.
 const PRINT_ONLY = ['mid_deck_flat', 'mid_deck_pocket_coupon'];
 const isPreset = (p) => Object.hasOwn(PRINT_BATCHES, p) || PRINT_ONLY.includes(p);

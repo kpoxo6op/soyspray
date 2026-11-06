@@ -131,29 +131,47 @@ README called it breakaway and promised cleanup with pliers and a flush cutter. 
 print finished, every layer check passed, and the lattice is solidly fused and cannot reasonably
 be removed at home. That deck is rejected. Do not cut or machine it out.
 
-Each pocket now holds a separate plug: a 1.4 mm plate on the bed, 0.4 mm clear of the pocket
-walls and 1.6 mm below the seat, with 0.6 mm fins rising to the seat plane. Fin tops are its
-only contact with the deck, 77.5 mm2 per pocket of the 717 mm2 outline, against 292 mm2 before.
-The ceiling bridges at most 6.6 mm between them. The slicer ignores fins this thin when it picks
-a bridge direction and bridges along the pocket, wall to wall, so the fins cross that direction.
-This is not a true release gap: the fin tops are welded to the ceiling's first layer. The layer
-check counts only the section directly below a path as support, and any toolpath outside the model
-is refused, so slicer support or a one-layer air gap above the plug would read as a 20 mm span
-over air and be refused. Allowing a gap would be a policy change to review, and it has not
-been made.
+**The second version was held.** Its separate plug had fins up to the seat plane, so 77.5 mm2 per
+pocket was still welded to the ceiling, and no one can carve that out at home. It never printed.
 
-**Hold the whole deck until a coupon passes.** `check-preflight.py` proves, from the CAD and the
-actual beads (`check-flat-deck.py`), that the plug is clear of the walls, that no toolpath runs from
-pocket to wall, and that the rejected lattice fails this check though it passes the support check.
-Nothing digital shows how hard a plug is to remove, what the seat looks like afterwards, or how
-well a post fits.
+Each pocket now holds a plug with nothing modelled between it and the deck: a 1.4 mm plate on the
+bed, 0.4 mm clear of the walls, and 0.6 mm fins that stop at z 2.6, two empty 0.2 mm layers under the
+seat plane. In the sliced job those two layers hold no solid over the plug, and the ceiling's first
+layer bridges wall to wall with its beads at least 0.29 mm above the fins, taking a bead as round
+and hanging from the nozzle. A bead that sags lands on a fin at most 6.6 mm from the last one, so
+the fins limit the sag and are not welded on purpose. Each fin crosses the bridge direction. Removal
+is by hand: lift the deck, then push an M4 screw down through the seat hole against the centre fin.
+
+The layer check normally refuses a ceiling over air. `RELEASE_INTERFACES` in `check-support.py` names
+this deck and its coupon. They alone are judged by geometry policy 2 and report it; every other part
+stays on policy 1. For them the plug's top counts as support for the first ceiling layer, under the
+same 8 mm span rule. An MCP server that admits only policy 1 refuses these jobs until a reviewed
+change admits policy 2, and that server change is separate. In return the part must pass stricter checks than before. The
+air gap must be exactly two empty layers, each plug must be 0.39 mm from the deck in the CAD and 0.2 mm
+in the beads, and each ceiling bead must be 0.15 mm above the plug. The first layer must also be 1 mm
+from the machine's load line. Bambu's cantilever warning
+reads only the layer under a ceiling, so no real gap passes it with support off. These two parts
+alone slice with support on, manual, with no enforcers (`PROCESS_OVERLAYS` in `preflight.mjs`). That
+generates no support. Its deck differs from the shared profile's by at most 1.01 mm of path and 0.14 mm
+of filament in any layer and feature, out of 1.33 km, and the E2E limits that. Slices are not
+byte-repeatable: two on one profile differ by 0.014 mm and 0.06 mm of filament. Real
+slicer support was tried and not used: its full-area interface sits about 0.07 mm below the beads, on
+layers the check cannot compare. `check-preflight.py` shows the welded fins, one-layer and three-layer
+gaps, a plug on or near its walls, sparse fins, the rejected lattice, a missing plug, an undeclared
+part name, the shared profile and a moved load line are each refused.
+
+The deck's first layer is 1.59 mm from the load line, its nearest stroke, measured between beads from
+the start G-code and the actual first layer, and 5.6 mm from the excluded corner. No brim or skirt.
+
+**Nothing here proves it comes out, fits or holds.** The first ceiling layer spans 20 mm, and its walls
+cross each open side face in a 32 mm line. Sag or stringing may still tack beads to fins, and the
+seat under a bridge can sit up to about 0.4 mm low, so a post may stop that much short of the seat
+plane. Bed adhesion of the plates, warp of a 245 mm deck and strength are also unknown. If a plug
+will not come out by hand and with that screw, this design has failed: do not cut, scrape or push
+harder.
 
 `mid_deck_pocket_coupon` is the deck's front left corner with one pocket and its plug, the same on
-every layer as the deck: 47 x 29 x 8 mm, about 23 min and 7 g. To test it, rest the coupon with the
-pocket over a gap and push an M4 screw down through the seat's hole by hand, against the fins and
-plate. It passes only if the plug comes out with hand force and that screw, with no cutter, scraper
-or file, and a lower post then goes fully in and sits without rocking, with the M4 x 25 clear
-through the hole. Otherwise this design has failed too; change the design, do not push harder.
+every layer as the deck: 47 x 29 x 8 mm, about 23 min and 7 g, for testing this before any further deck.
 
 `base_tub` used to be refused because at 245 x 240 mm it crossed the P1S excluded corner. No
 placement of the full footprint clears that corner, and the slicer places and validates a part by

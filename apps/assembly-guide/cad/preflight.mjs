@@ -18,6 +18,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 const PROFILES = resolve(here, 'print');
 const STUDIO = (process.env.BAMBU_STUDIO || 'flatpak run com.bambulab.BambuStudio').split(' ');
 const WATCH_MM = 5;            // report walls that cross at least this much open air
+// Parts with a modelled plug under a ceiling over a real air gap. Bambu's "floating cantilever"
+// warning reads only the layer below a ceiling, so no gap passes it with support off. Support on,
+// manual, with no enforcer, generates no support and deposits practically the same. check-support.py judges
+// those ceilings instead, and refuses a support toolpath. Every other part uses process.json.
+const RELEASE_PROCESS = { enable_support: '1', support_type: 'normal(manual)' };
+const PROCESS_OVERLAYS = { mid_deck_flat: RELEASE_PROCESS, mid_deck_pocket_coupon: RELEASE_PROCESS };
+// These parts are judged by policy 2, and a run says so: admission that knows only policy 1 refuses it.
+const policyOf = (part) => (Object.hasOwn(PROCESS_OVERLAYS, part) ? 2 : 1);
 
 const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 const run = (cmd, args, opts) => spawnSync(cmd, args, { cwd: here, encoding: 'utf8', ...opts });
@@ -38,10 +46,16 @@ function heightOf(stl) {
 
 function slice(part, stl, dir) {
   mkdirSync(dir);   // a new run never replaces an earlier job or its evidence
+  let processFile = `${PROFILES}/process.json`;
+  const overlay = Object.hasOwn(PROCESS_OVERLAYS, part) ? PROCESS_OVERLAYS[part] : null;
+  if (overlay) {
+    processFile = resolve(dir, 'process.json');
+    writeFileSync(processFile, JSON.stringify({ ...JSON.parse(readFileSync(`${PROFILES}/process.json`, 'utf8')), ...overlay }, null, 2) + '\n');
+  }
   const log = openSync(resolve(dir, 'slicing.log'), 'w');
   try {
     const r = run(STUDIO[0], [...STUDIO.slice(1), '--debug', '2',
-      '--load-settings', `${PROFILES}/machine.json;${PROFILES}/process.json`,
+      '--load-settings', `${PROFILES}/machine.json;${processFile}`,
       '--load-filaments', `${PROFILES}/filament.json`,
       '--arrange', '1', '--orient', '0', '--slice', '0',
       '--export-3mf', `${part}.gcode.3mf`, '--outputdir', dir, stl], { stdio: ['ignore', log, log] });
@@ -82,6 +96,8 @@ function check(part) {
   const batch = JSON.parse(readFileSync(resolve(out, 'stl', 'parts.json'), 'utf8'))[part]?.batch;
   if (batch) res.batch = batch;
   slice(part, stl, dir);
+  const overlay = Object.hasOwn(PROCESS_OVERLAYS, part) ? PROCESS_OVERLAYS[part] : null;
+  if (overlay) res.process = { overlay, sha256: sha256(resolve(dir, 'process.json')) };
   const resultFile = resolve(dir, 'result.json');
   if (!existsSync(resultFile)) return { ...res, problems: [...res.problems, `no slicer result in ${dir} (it must be under $HOME)`] };
   const result = JSON.parse(readFileSync(resultFile, 'utf8'));
@@ -106,8 +122,16 @@ function check(part) {
     res.geometry = { ...geometry, failures: (geometry.failures ?? []).slice(0, 20),
       bridges: (geometry.bridges ?? []).slice(0, 20), failures_count: geometry.failures?.length ?? 0,
       bridges_count: geometry.bridges?.length ?? 0, evidence_sha256: sha256(geometryFile) };
-    if (geometryRun.status !== 0 || geometry.pass !== true || geometry.policy_version !== 1)
+    if (geometryRun.status !== 0 || geometry.pass !== true || geometry.policy_version !== policyOf(part))
       res.problems.push(`layer support check failed: ${geometry.error ?? `${geometry.failures.length} unsupported paths; see geometry.json`}`);
+    if (overlay && geometry.release_interface?.pass !== true)
+      res.problems.push('the part has the release profile but no passing release interface');
+  }
+  if (overlay) {
+    const text = readFileSync(gcode, 'utf8');
+    for (const [key, value] of Object.entries(overlay))
+      if (!text.includes(`\n; ${key} = ${value}\n`)) res.problems.push(`the job was not sliced with ${key} = ${value}`);
+    if (/^; FEATURE: Support/m.test(text)) res.problems.push('the slicer generated support');
   }
   const machine = JSON.parse(readFileSync(resolve(PROFILES, 'machine.json'), 'utf8'));
   const processProfile = JSON.parse(readFileSync(resolve(PROFILES, 'process.json'), 'utf8'));
@@ -132,7 +156,7 @@ try {
   console.error(`Use a NEW job directory; existing jobs are never overwritten: ${error.message}`);
   process.exit(2);
 }
-const report = { schema_version: 2, geometry_policy_version: 1,
+const report = { schema_version: 2, geometry_policy_version: Math.max(...parts.map(policyOf)),
   pass: false, state: 'running', checkedAt: new Date().toISOString(), profiles: {}, parts: {} };
 function saveReport() {
   const tmp = resolve(out, 'preflight.json.tmp');
