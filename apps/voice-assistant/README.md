@@ -145,10 +145,18 @@ Two retries are separated by 30 seconds; failed stops or repeated failures can
 request a native reboot. The device persists the reason and a three-reboot
 budget, then stops automatic actions until 30 minutes of healthy listening.
 
+Home Assistant can return after a network drop without resubscribing to voice;
+on 7 Nov 2026 the ring stayed red for 19 hours that way. The device counts
+Home Assistant API clients separately from the voice subscription. When Home
+Assistant stays connected, unmuted and outside OTA, but voice has no client for
+two minutes, the device requests a native reboot with reason `7`. The same
+three-reboot budget applies. A full Home Assistant outage is not treated as a
+fault. Reloading the ESPHome entry in Home Assistant is the manual fix.
+
 Diagnostic entities expose expected listening, run acknowledgement, running
 state, microphone frame age, stage, recovery reason/count, reboot budget and
 exhaustion. Reason codes are `1` not running, `2` no acknowledgement, `3` stale
-microphone, `4` stop timeout, `5` interaction timeout and `6` manual recovery.
+microphone, `4` stop timeout, `5` interaction timeout, `6` manual recovery and `7` no voice client.
 The **Recover GI listening** button runs the same bounded soft recovery.
 `GI_RECOVERY` logs contain only these codes and actions. Home Assistant records
 the diagnostic entity changes; no audio, transcripts or audio levels are exported.
