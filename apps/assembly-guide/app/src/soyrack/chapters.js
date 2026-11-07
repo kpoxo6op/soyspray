@@ -102,7 +102,7 @@ export const SOYRACK_CHAPTERS = [
   },
   {
     id: 'mid-deck', title: 'Mid deck', view: 'frame',
-    text: 'Lower the mid deck onto the posts, over their top feet.',
+    text: 'Take the four plugs out first: lift the deck off the plate, then push an M4 screw by hand through each corner hole, from the top, against its plug. Release is untested: if one stays, stop; never cut or push harder. Lower the deck over the post feet by hand; never force it.',
     script(c) {
       c.show(['mid_deck']);
       lower(c, ['mid_deck'], HOLD_IN, { rise: 60, dur: 2.0 });

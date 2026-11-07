@@ -4,6 +4,7 @@ import { TIES } from './cables.js';
 
 const STL = 'https://github.com/kpoxo6op/soyspray/raw/main/apps/assembly-guide/cad/stl/';
 export const CAD_FOLDER = 'https://github.com/kpoxo6op/soyspray/tree/main/apps/assembly-guide/cad';
+export const PRINT_NOTES = 'https://github.com/kpoxo6op/soyspray/blob/main/apps/assembly-guide/README.md';
 const ali = (terms) => `https://www.aliexpress.com/w/wholesale-${terms}.html`;
 export const BOARD_LINK = 'https://www.legrand.co.nz/en/catalog/products/hpm-general-purpose-4-outlet-powerboard-white-d1051';
 export const CHECKED = '2026-10-29';
@@ -16,18 +17,18 @@ export const TEST_PRINTS = [
 ];
 
 export const PRINTED = [
-  { part: 'base_tub', quantity: 1, name: 'Power base', detail: 'Bricks, board, switch adapter and the cord loops; a nut slot inside each corner. Prints as it stands.' },
+  { part: 'base_tub', quantity: 1, name: 'Power base', detail: 'Bricks, board, switch adapter and the cord loops; a nut slot inside each corner. The file is turned a quarter, with its rear left corner cut straight for the printer’s excluded bed corner; the 3D view keeps that corner square.' },
   { part: 'base_deck', quantity: 1, name: 'Base deck', detail: 'Lower bay floor with three rear lead slots.' },
   { part: 'post_lower_a', quantity: 2, name: 'Lower post A', detail: 'Front left and rear right; a foot at each end. Lies on its numbered face.' },
   { part: 'post_lower_b', quantity: 2, name: 'Lower post B', detail: 'Front right and rear left. Lies on its numbered face.' },
-  { part: 'mid_deck', quantity: 1, name: 'Mid deck', detail: 'Between the bays; the post feet screw together through its corners.' },
+  { part: 'mid_deck', quantity: 1, name: 'Mid deck', preset: 'mid_deck_flat', grams: 130, detail: 'Between the bays; the post feet screw together through its corners. It prints flat, turned a quarter on the bed: 209 × 245 × 8 mm, about 282 min, with a separate temporary plug in each of the four underside pockets. The plugs are not rack parts. Lift the deck off the plate, then push an M4 screw by hand through each corner hole, from the top, against its plug. Plug release, post fit and strength are untested on a real deck. If a plug stays, or the deck will not seat by hand, stop: do not cut, scrape or force it. A seat may sit up to about 0.4 mm low, so a post can stop that far short. An older deck with a fused lattice in its pockets is rejected.' },
   { part: 'post_upper_a', quantity: 2, name: 'Upper post A', detail: 'Front left and rear right; the top cap screws into it.' },
   { part: 'post_upper_b', quantity: 2, name: 'Upper post B', detail: 'Front right and rear left.' },
-  { part: 'top_cap', quantity: 1, name: 'Top cap', detail: 'Grips; the four screw heads sit flush. Prints upside down.' },
+  { part: 'top_cap', quantity: 1, name: 'Top cap', detail: 'Grips; the four screw heads sit flush. Prints upside down. Brush any stray strand out of each head seat before fitting its screw.' },
   { part: 'drive_tray', quantity: 1, name: 'Drive tray', detail: 'Seagate and Touro side by side, lower holes 16 and 18.' },
   { part: 'switch_shelf', quantity: 1, name: 'Switch shelf', detail: 'Upper holes 1 and 3.' },
   { part: 'keystone_panel', quantity: 1, name: 'Keystone panel', detail: 'Four slots on the rear upper posts. Lies on its outer face.' },
-  { part: 'zigbee_mast', quantity: 1, name: 'Zigbee mast', detail: 'Stands 1 m or more from the USB 3 ports. Ballast: three M10 washers in each of six pockets.' },
+  { part: 'zigbee_mast', quantity: 1, name: 'Zigbee mast', detail: 'Stands 1 m or more from the USB 3 ports. Ballast: three M10 washers in each of six pockets. Do not print this STL alone: its bed placement is not qualified. The old combined preset also includes the superseded on-edge deck. Use an existing mast; a new mast needs a separately qualified print job.' },
 ];
 
 export const BUY = [
@@ -52,25 +53,32 @@ export const SOYRACK_LINKS = [
   ...PRINTED.map((p) => `${STL}${p.part}.stl`),
   ...TEST_PRINTS.map((p) => `${STL}${p.part}.stl`),
   CAD_FOLDER,
+  PRINT_NOTES,
   ...BUY.map((b) => b.url),
 ];
 
-const grams = (part) => printList[part]?.grams ?? 0;
-export const RACK_GRAMS = PRINTED.reduce((sum, p) => sum + grams(p.part) * p.quantity, 0);
-export const TEST_GRAMS = TEST_PRINTS.reduce((sum, p) => sum + grams(p.part), 0);
+// A part printed through a preset carries that job's sliced weight; the rest are estimates.
+const grams = (p) => p.grams ?? printList[p.part]?.grams ?? 0;
+export const RACK_GRAMS = PRINTED.reduce((sum, p) => sum + grams(p) * p.quantity, 0);
+export const TEST_GRAMS = TEST_PRINTS.reduce((sum, p) => sum + grams(p), 0);
 
 const link = (url, label) => `<a href="${url}" target="_blank" rel="noopener noreferrer">${label} ↗</a>`;
 const kg = (g) => (g / 1000).toFixed(1);
+const stlLink = (p) => link(`${STL}${p.part}.stl`, `${p.part}.stl`);
+// A preset part is printed from its preset; its STL is the assembled shape, on edge.
+const printLinks = (p) => (p.preset
+  ? `Print preset <strong>${p.preset}</strong> · ${link(PRINT_NOTES, 'print notes')}<br>${stlLink(p)} is only the assembled shape, standing on edge: do not print it.`
+  : stlLink(p));
 
 export function soyrackSheetHTML() {
-  const printed = (p, q = p.quantity) => `<li><span class="part-qty">${q}×</span><div><strong>${p.name}</strong><p>${p.detail} About ${grams(p.part)} g each.</p>${link(`${STL}${p.part}.stl`, `${p.part}.stl`)}</div></li>`;
+  const printed = (p, q = p.quantity) => `<li><span class="part-qty">${q}×</span><div><strong>${p.name}</strong><p>${p.detail} About ${grams(p)} g each.</p>${printLinks(p)}</div></li>`;
   const bought = (b) => `<li><span class="part-qty">${b.quantity}×</span><div><strong>${b.name}</strong><p>${b.detail}</p>${link(b.url, b.shop || 'AliExpress search')} · checked ${CHECKED}</div></li>`;
   return `<header><div><span class="sheet-eyebrow">ASSEMBLY KIT · Soyrack</span><h2 id="partsTitle">Parts and where to buy</h2></div><button id="closeParts" type="button" aria-label="Close parts sheet">×</button></header>
     <div class="sheet-body"><p class="sheet-intro">A new printed rack around your three node trays: a power base that holds the bricks, the board and every cord at full length, posts screwed to the decks at each corner, a drive tray, a switch shelf, a keystone panel and a Zigbee mast. It goes together with M4 screws and nuts only. Every part fits a 256 mm bed. About ${kg(RACK_GRAMS)} kg of PETG for the rack.</p>
     <h3>Print first</h3><ul class="parts-list">${TEST_PRINTS.map((p) => printed(p, 1)).join('')}</ul>
     <p class="sheet-note">About ${TEST_GRAMS} g in all. The first five chapters show each check. If a fit is loose or tight, say which one before the big prints.</p>
     <h3>Print</h3><ul class="parts-list">${PRINTED.map((p) => printed(p)).join('')}</ul>
-    <p class="sheet-note">PETG, 0.4 mm nozzle, 0.2 mm layers, 4 walls, 5 top and bottom layers, 15 % gyroid, no supports. The files are already turned for the bed. Source files and render script: ${link(CAD_FOLDER, 'source folder')}.</p>
+    <p class="sheet-note">PETG, 0.4 mm nozzle, 0.2 mm layers, 4 walls, 5 top and bottom layers, 15 % gyroid. No support material is generated: the mid deck’s four plugs come with its preset. The files are already turned for the bed. Source files and render script: ${link(CAD_FOLDER, 'source folder')}.</p>
     <h3>Buy</h3><ul class="parts-list">${BUY.map(bought).join('')}</ul>
     <h3>Carries over</h3><ul class="assumptions">${CARRY_OVER.map((s) => `<li>${s}</li>`).join('')}</ul>
     <p class="sheet-note">Every joint is an M4 screw into an M4 nut held by the print. Tighten until snug; PETG needs no force. Rack footprint 245 × 240 mm, 388 mm tall. It stands on the TV unit on its four pads: no holes, screws or glue in the unit.</p></div>`;

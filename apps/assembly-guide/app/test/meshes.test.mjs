@@ -47,3 +47,23 @@ test('placements and meshes match one to one', () => {
   assert.deepEqual([...new Set(instances.map((it) => it.part))].sort(), Object.keys(meshes).sort());
   assert.equal(instances.filter((it) => it.part === 'trayVent').length, 3);
 });
+
+const worldVertices = ({ positions, centre }) => Array.from({ length: positions.length / 3 }, (_, i) =>
+  [0, 1, 2].map((k) => positions[i * 3 + k] + centre[k]));
+
+// Contract: the guide carries the current base. The floor strap slots moved beside the outer comb
+// fins, and the old mesh still showed them under the fins.
+test('the browser base shows the strap slots beside the comb fins', () => {
+  const corner = (x) => worldVertices(meshes.base_tub).some((v) =>
+    Math.abs(v[0] - x) < 0.01 && Math.abs(v[1] - 76) < 0.01 && Math.abs(v[2] + 104) < 0.01);
+  assert.ok(corner(19.5) && corner(143.5), 'current slots');
+  assert.ok(!corner(21) && !corner(143), 'old slots are gone');
+});
+
+// Contract: the plugs are print-only. The assembled deck has no plate top (z 201.4) or fin top
+// (z 202.6) in its underside pockets.
+test('the assembled mid deck carries no print plugs', () => {
+  const inPlug = worldVertices(meshes.mid_deck).filter((v) => [201.4, 202.6].some((z) => Math.abs(v[2] - z) < 0.01));
+  assert.deepEqual(inPlug, []);
+  assert.equal(printList.mid_deck_flat, undefined);
+});

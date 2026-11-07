@@ -218,6 +218,21 @@ test('the guide asks for screws and nuts only and drills nothing', () => {
   assert.match(copy, /no holes, screws or glue in the unit/);
 });
 
+// Contract: the mid deck is printed from its flat preset, not the on-edge STL that failed, and the
+// guide never promises that a stuck plug can be cut or forced out.
+test('the sheet sends the mid deck to its preset with a hand-only plug release', () => {
+  const entry = soyrackSheetHTML().split('<li>').find((li) => li.includes('<strong>Mid deck</strong>'));
+  assert.match(entry, /Print preset <strong>mid_deck_flat<\/strong>/);
+  assert.match(entry, /mid_deck\.stl ↗<\/a> is only the assembled shape.*do not print it/);
+  assert.match(entry, /untested/);
+  const chapter = tl.chapters.find((c) => c.id === 'mid-deck').text;
+  for (const copy of [entry, chapter]) {
+    assert.match(copy, /M4 screw by hand/);
+    assert.match(copy, /stop/);
+    assert.doesNotMatch(copy, /pliers|flush cutter|breakaway|carve|snap/i);
+  }
+});
+
 // Contract: the buy list covers every fastener the scene installs. The node trays carry over
 // with their own screws, so only the new M4 × 12 are bought. The test checks take one corner
 // screw, three nuts and two M4 × 12 from the same packs.
