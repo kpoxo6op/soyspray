@@ -34,7 +34,9 @@ Every stock cord is drawn at its real length, its spare wound into strapped
 loops (`app/src/soyrack/cables.js`). The guide opens with four small test prints
 and how to check each fit, with tags in the 3D view naming every piece and
 fastener (`app/src/soyrack/testprints.js`, `app/src/tags.js`). The Parts sheet
-links the STLs in `cad/stl/`. `cad/soyrack.scad` is the source;
+links the STLs in `cad/stl/`, except that the mid deck is printed from its
+`mid_deck_flat` preset. Its `mid_deck.stl` and browser mesh stay the assembled deck,
+with no plugs. `cad/soyrack.scad` is the source;
 `cd cad && npm ci && node render.mjs` renders the print STLs (lying on the bed
 origin), the browser meshes and the print list in `app/data/v3/`. The node tray
 mesh is `app/data/trays.bin`, which `app/tools/regenerate-data.sh` repacks from a
@@ -163,7 +165,8 @@ part name, the shared profile and a moved load line are each refused.
 The deck's first layer is 1.59 mm from the load line, its nearest stroke, measured between beads from
 the start G-code and the actual first layer, and 5.6 mm from the excluded corner. No brim or skirt.
 
-**Nothing here proves it comes out, fits or holds.** The first ceiling layer spans 20 mm, and its walls
+**Nothing here proves it comes out, fits or holds.** A deck of this version finished all 40 layers
+on 2026-11-07; its plug release, fit and strength have not been tried. The first ceiling layer spans 20 mm, and its walls
 cross each open side face in a 32 mm line. Sag or stringing may still tack beads to fins, and the
 seat under a bridge can sit up to about 0.4 mm low, so a post may stop that much short of the seat
 plane. Bed adhesion of the plates, warp of a 245 mm deck and strength are also unknown. If a plug
@@ -179,8 +182,8 @@ its convex hull, so a notch does not help. It now prints turned a quarter in pla
 96 mm, its rear left corner cut straight from 6.8 mm in front of the rear face to 72 mm along it.
 The rear lip stops 59 mm from that corner, where the cut would thin it below 1.2 mm. The trough
 floor runs on to the cut. Nothing in front of the cut changed: the corner blocks, nut slots, screw
-axes, comb, bricks' bays, vents and the rails under the board are the old tub's, and the guide's
-mesh is unchanged. The rear rail stands 0.4 mm shorter on its 4 mm stub left of the board, which
+axes, comb, bricks' bays, vents and the rails under the board are the old tub's. The guide's mesh
+keeps the square corner and shows only the moved strap slots below. The rear rail stands 0.4 mm shorter on its 4 mm stub left of the board, which
 sits wholly on solid rail. A board deeper than the rail may hang over the cut at that end.
 
 The layer check then found two defects no one had reached. Two brick strap slots ran under the
