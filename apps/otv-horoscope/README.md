@@ -27,7 +27,10 @@ kubectl -n otv-horoscope exec deploy/otv-horoscope -- python3 -c \
 
 The log prints every phrase with a sign name and each detected episode with its
 Vladivostok airtime. `/healthz` fails when no live segment arrived for five
-minutes; `/metrics` counts found, sent and failed episodes.
+minutes, or when ten minutes of segments had no decodable audio (the recorder
+once kept writing segments without sound after a stream glitch); the liveness
+probe then restarts the container, which keeps the buffer and the sent-readings
+state; `/metrics` counts found, sent and failed episodes.
 
 Tune detection with environment variables on the Deployment:
 `LEAD_IN_SECONDS`, `TAIL_SECONDS`, `MIN_SIGNS`, `SIGN_GAP_SECONDS`,
