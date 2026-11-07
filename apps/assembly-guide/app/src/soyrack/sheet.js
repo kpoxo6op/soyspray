@@ -28,7 +28,7 @@ export const PRINTED = [
   { part: 'drive_tray', quantity: 1, name: 'Drive tray', detail: 'Seagate and Touro side by side, lower holes 16 and 18.' },
   { part: 'switch_shelf', quantity: 1, name: 'Switch shelf', detail: 'Upper holes 1 and 3.' },
   { part: 'keystone_panel', quantity: 1, name: 'Keystone panel', detail: 'Four slots on the rear upper posts. Lies on its outer face.' },
-  { part: 'zigbee_mast', quantity: 1, name: 'Zigbee mast', detail: 'Stands 1 m or more from the USB 3 ports. Ballast: three M10 washers in each of six pockets.' },
+  { part: 'zigbee_mast', quantity: 1, name: 'Zigbee mast', detail: 'Stands 1 m or more from the USB 3 ports. Ballast: three M10 washers in each of six pockets. Do not print this STL alone: its bed placement is not qualified. The old combined preset also includes the superseded on-edge deck. Use an existing mast; a new mast needs a separately qualified print job.' },
 ];
 
 export const BUY = [

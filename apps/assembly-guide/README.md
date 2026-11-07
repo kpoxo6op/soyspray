@@ -42,6 +42,11 @@ origin), the browser meshes and the print list in `app/data/v3/`. The node tray
 mesh is `app/data/trays.bin`, which `app/tools/regenerate-data.sh` repacks from a
 RackStack checkout. `cad/` and `app/tools/` stay out of the image.
 
+The mast's standalone STL is not a qualified print job. The Parts sheet keeps
+its reference link, but warns against printing it alone or using the old combined
+preset with the superseded on-edge deck. An existing mast can be assembled;
+a new mast needs a separately qualified job.
+
 Before a print, the trusted preparer renders committed CAD into a new isolated
 job directory and slices **those fresh bytes**, ignoring cached repository STLs.
 It uses Bambu Studio 02.08.02.61 and the P1S 0.4 mm PETG profiles in `cad/print/`.
