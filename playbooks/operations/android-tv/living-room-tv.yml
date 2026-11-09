@@ -128,9 +128,9 @@ android_tv_apps:
     sha256: 480a950cdd23b365fdba2806f67e191c4b8918c9610c5d19bca95ec511910d29
     signer_sha256: 7d00411fa20a6fb82c0eddffb73daa91a101dbe5ccfb9387b720e836cf71d7a1
   - package: app.smarttube.fdroid
-    version_name: "32.56"
-    url: https://f-droid.org/repo/app.smarttube.fdroid_2446.apk
-    sha256: 04884ce41c43671120fbaa81bc8953dfb617380dc038f12aca649a3d5b446a33
+    version_name: "32.68"
+    url: https://f-droid.org/repo/app.smarttube.fdroid_2458.apk
+    sha256: d88cafc1b204b7cdb7784e4f559051025fa1a5dd4985875121592d21925dafda
     signer_sha256: 33791872daccf601a31bd73d329245f80f69044f76e1a794586fb857f09deaa8
   - package: org.jellyfin.androidtv
     version_name: "0.19.10"
