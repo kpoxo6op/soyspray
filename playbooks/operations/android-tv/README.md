@@ -66,13 +66,17 @@ allowed so casting keeps working.
 
 ## Casting from a phone
 
-Google's YouTube TV app is disabled, so the phone's YouTube Cast button has no
-receiver. Phones cast to SmartTube instead: in SmartTube open Settings → Remote
-control, switch it on and choose Add device for a code, then on the phone open
-YouTube (ReVanced works) → Settings → General → Watch on TV → Link with TV code.
-The playbook grants SmartTube the overlay permission its remote control needs;
-the switch and linked phones are SmartTube preferences, so repeat them after
-clearing its data or a factory reset.
+SmartTube is the receiver for YouTube on this TV. Open **Settings → Remote
+control** in SmartTube and enable it. Previously linked phones can select the
+TV in YouTube or ReVanced. For a new pairing, choose **Add device** on the TV
+and **Watch on TV → Link with TV code** on the phone. The TV playbook grants
+the overlay permission. SmartTube stores its remote-control switch and linked
+phones locally.
+
+Set **Settings → Player → Video buffer → High** on the Sony. To check the whole
+path, start a cartoon from the phone, pause it there and confirm the picture
+stops on the TV. Resume from the phone and watch past the point where it
+previously buffered. A video started directly on the TV tests only the receiver.
 
 ## Limits
 
