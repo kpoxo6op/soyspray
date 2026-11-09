@@ -127,6 +127,12 @@ android_tv_apps:
     url: https://github.com/Moonfin-Client/Moonfin-Core/releases/download/2.7.0/Moonfin_AndroidTV_v2.7.0.apk
     sha256: f4a1fb053377b65653b356f029f65bfc1999c00954a3a8c75028efb5f80ee5e8
     signer_sha256: 7d00411fa20a6fb82c0eddffb73daa91a101dbe5ccfb9387b720e836cf71d7a1
+  # Moonfin can hand legacy cartoon files to VLC on this 32-bit Sony.
+  - package: org.videolan.vlc
+    version_name: "3.7.2"
+    url: https://f-droid.org/repo/org.videolan.vlc_13070205.apk
+    sha256: e8ff40c4a1ebc377ec32e22aec69b617c5b25677c1b4735c06b96322257f1aa8
+    signer_sha256: 80535be61eedb9a03b0476a6f493d496c3498770404339ea7a8000f5e61d22c0
   - package: app.smarttube.fdroid
     version_name: "32.56"
     url: https://f-droid.org/repo/app.smarttube.fdroid_2446.apk
