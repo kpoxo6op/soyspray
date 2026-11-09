@@ -96,23 +96,36 @@ does not reapply it.
 
 Before trying USB fastboot or rooting, read the [26 October attempt and recovery](usb-fastboot-recovery.md). A bootloader reboot with the C-to-A connection left this TV at the Sony logo and required a physical factory reset. An A-to-A connection remains untested.
 
-## Moonfin appearance and sign-in
+## Moonfin setup and playback
 
-Moonfin 2.7.0 opens the same Jellyfin library at https://tv.soyspray.vip.
+Moonfin 3.0.0 opens the same Jellyfin library at https://tv.soyspray.vip.
 Approve its fresh Quick Connect code from a signed-in Jellyfin browser. The
 code expires; reopen the client sign-in flow to request another one.
 
 After sign-in, choose Left Sidebar, Banner home header, Modern rows, Modern
-details and Glass theme in the setup wizard. Under Personalization → Home
+details and Glass theme in the setup wizard. Under Settings → Appearance → Home
 Screen, disable Modern cards on My Media row to use landscape library artwork.
 Then set Settings →
-Personalization → General Style → Glass Quality to **Reduced**. Auto quality
+Appearance → Glass Quality to **Reduced**. Auto quality
 crashed in the Sony Mali graphics driver during the first Live TV launch;
 Reduced passed the subsequent channel playback check. Keep this setting when
 repeating setup, and test both a library title and Live TV before switching the
 launcher tile. These display preferences live in the client and need repeating
 after clearing its data or a factory reset; the playbook pins the APK but does
 not restore private client preferences or authentication.
+
+On the Sony, open **Settings → Playback → Audio → Transcode Audio Codecs**,
+select **AC3**, **MP3** and **MP2**, and save. Keep the built-in Media3 player.
+These audio tracks are common in the cartoon library's MPEG-4 AVI files.
+With the default profile the Sony can buffer the file while the picture stays
+at zero. With these selections Jellyfin serves the affected cartoons as H.264
+and AAC. The TV can keep its normal streaming bitrate for other videos.
+
+After setup, play an AC3 cartoon and an MP3 cartoon from their Moonfin detail
+pages. Check for moving pictures and advancing playback after the first minute.
+The TV exposes position and buffered position separately in
+`adb -s 192.168.20.232:5555 shell dumpsys media_session`. Reapply the audio
+selections if Moonfin's settings are reset.
 
 The official Jellyfin client remains installed and signed in as a fallback.
 The home-screen Guide continues to use it for indirect streams. To roll back
