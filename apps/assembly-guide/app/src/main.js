@@ -6,6 +6,7 @@ import { Player } from './player.js';
 import { createUI } from './ui.js';
 import { createPartsUI } from './parts-ui.js';
 import { createTags } from './tags.js';
+import { createLoop } from './loop.js';
 import { Viewer } from './scene.js';
 import { buildSoyrackTimeline, SoyrackStage, soyrackSheetHTML, FLOOR_Z } from './soyrack/index.js';
 
@@ -55,24 +56,21 @@ window.addEventListener('resize', () => {
 });
 
 // ---------------------------------------------------------------- render loop (on demand)
-let raf = 0;
 let last = 0;
-function frame(now) {
-  raf = 0;
+const loop = createLoop((now) => {
   const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
   last = now;
   if (player.tick(dt)) viewer.setTime(player.time);
+  if (player.playing && dt > 0) viewer.adapt(dt * 1000);
   const cameraMoving = viewer.update(dt);
   if (viewer.dirty) viewer.render();
   tags.update();
-  if (player.playing || cameraMoving || viewer.tween) {
-    raf = requestAnimationFrame(frame);
-  } else {
-    last = 0;
-  }
-}
+  const more = player.playing || cameraMoving || Boolean(viewer.tween);
+  if (!more) last = 0;
+  return more;
+});
 function schedule() {
-  if (!raf) raf = requestAnimationFrame(frame);
+  loop.schedule();
 }
 viewer.controls.addEventListener('change', schedule);
 viewer.controls.addEventListener('start', schedule);
@@ -101,16 +99,24 @@ reducedMotion.addEventListener?.('change', () => {
 });
 
 // ---------------------------------------------------------------- start
-const startAt = readHashTime();
-if (startAt !== null) player.seek(startAt, 'restore');
-syncInset();
-viewer.setTime(player.time);
-ui.update();
-schedule();
-root.classList.add('ready');
+// Shaders compile behind the hidden page; a failed warm-up only means they compile on first use instead.
+viewer
+  .warmUp()
+  .catch((err) => console.error(err))
+  .then(() => {
+    const startAt = readHashTime();
+    if (startAt !== null) player.seek(startAt, 'restore');
+    syncInset();
+    viewer.setTime(player.time);
+    ui.update();
+    schedule();
+    root.classList.add('ready');
+    // Debug handle for tools/perf-audit.mjs and the browser console; the page itself never reads it.
+    window.__soyrack = { player, timeline, viewer, tags };
 
-if (startAt === null && !reducedMotion.matches) {
-  setTimeout(() => {
-    if (!player.playing && player.time === 0 && !player.scrubbing) player.play();
-  }, 900);
-}
+    if (startAt === null && !reducedMotion.matches) {
+      setTimeout(() => {
+        if (!player.playing && player.time === 0 && !player.scrubbing) player.play();
+      }, 900);
+    }
+  });

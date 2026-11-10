@@ -38,6 +38,12 @@ Shaders compile behind the loading screen (`warmUp` in `app/src/main.js`); actor
 their opacity changes (`Actor.commit`); the pod's insides draw only while the hatch is open. Phones render at up
 to 1.5x and `Stage.adapt` lowers the resolution when frames run slow; desktops start at up to 2x.
 
+`app/src/loop.js` runs the player: one animation-frame callback per displayed frame, however often the player
+or the camera asks for one. After a build,
+`PLAYWRIGHT_PATH=<playwright> node tools/perf-audit.mjs --max-frame-requests 1 --max-new-programs 0` (in `app/`)
+plays the guide in a headless Chromium and fails if a frame queues more than one callback or a shader compiles
+after the loading screen. It needs a Playwright with Chromium and is not part of `npm test`.
+
 ## Checks
 
 ```sh
@@ -57,3 +63,7 @@ that pins the digest in `manifests/deployment.yaml`. The running site changes
 only when that promotion merges and Argo CD syncs. Roll back by reverting the
 promotion. Check the Application is Synced and Healthy, the page and models load
 from a tailnet device, and public DNS has no record for `pearl.soyspray.vip`.
+
+`nginx.conf` serves the gzip copy the image build stores beside every script, model, decoder and print file,
+caches URLs that carry a content revision (`?v=`) for a year and has the page itself checked on every visit.
+The image workflow checks those headers on the built image.

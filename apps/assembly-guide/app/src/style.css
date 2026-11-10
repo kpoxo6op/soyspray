@@ -43,6 +43,29 @@ body {
   opacity: 1;
 }
 
+/* Shown only if getting ready takes longer than a moment (the shaders compile before the first frame). */
+.loading {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink-dim);
+  font-size: 14px;
+  pointer-events: none;
+  animation: loading-in 0.3s 0.5s both;
+}
+
+#app.ready ~ .loading,
+#app.no-webgl ~ .loading {
+  display: none;
+}
+
+@keyframes loading-in {
+  from {
+    opacity: 0;
+  }
+}
+
 .stage {
   position: absolute;
   inset: 0;

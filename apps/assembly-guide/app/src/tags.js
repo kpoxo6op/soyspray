@@ -41,6 +41,15 @@ export function createTags({ root, before, player, timeline, viewer }) {
   const offset = new Vector3();
   let width = 0;
 
+  // The boxes of the tag layer and the canvas, measured once and again after either changes size. Measuring
+  // on every frame would force the browser to lay the page out in the middle of each frame.
+  let boxes = null;
+  const remeasure = new ResizeObserver(() => {
+    boxes = null;
+  });
+  remeasure.observe(layer);
+  remeasure.observe(viewer.canvas);
+
   function show(it, on) {
     if (it.on === on) return;
     it.on = on;
@@ -51,8 +60,8 @@ export function createTags({ root, before, player, timeline, viewer }) {
 
   function update() {
     const t = player.time;
-    const box = layer.getBoundingClientRect();
-    const canvas = viewer.canvas.getBoundingClientRect();
+    if (!boxes) boxes = { box: layer.getBoundingClientRect(), canvas: viewer.canvas.getBoundingClientRect() };
+    const { box, canvas } = boxes;
     const floor = box.height - viewer.bottomInset; // keep clear of the caption and transport bar
     if (box.width !== width) {
       width = box.width;
@@ -70,7 +79,7 @@ export function createTags({ root, before, player, timeline, viewer }) {
       q.set(s.q[0], s.q[1], s.q[2], s.q[3]);
       offset.set(...(it.tag.at || [0, 0, 0])).applyQuaternion(q);
       p.set(s.p[0], s.p[1], s.p[2]).add(offset);
-      const a = viewer.projectRackPoint(p);
+      const a = viewer.projectRackPoint(p, canvas.width, canvas.height);
       const ax = a.x + canvas.left - box.left;
       const ay = a.y + canvas.top - box.top;
       if (!a.visible || ay > floor) {

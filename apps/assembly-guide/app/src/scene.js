@@ -125,7 +125,14 @@ export class Viewer {
     this.tween = null;
 
     const renderer = injected || new WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    // Phones have 2.5-3x screens and small GPUs: start at 1.5 and let adapt() trade resolution for frame rate.
+    this.maxRatio = Math.min(window.devicePixelRatio || 1, phone ? 1.5 : 2);
+    this.minRatio = Math.min(this.maxRatio, phone ? 0.85 : 1);
+    this.ratio = this.maxRatio;
+    this.frameMs = 16;
+    this.slow = 0;
+    this.quick = 0;
+    renderer.setPixelRatio(this.ratio);
     renderer.setClearColor(0x000000, 0);
     renderer.outputColorSpace = SRGBColorSpace;
     renderer.toneMapping = NeutralToneMapping;
@@ -182,6 +189,7 @@ export class Viewer {
     this.controls = controls;
 
     this.raycaster = new Raycaster();
+    this.projected = new Vector3();
     this.canvas.addEventListener('dblclick', (e) => this.focusAt(e.clientX, e.clientY));
     this.installDoubleTap();
 
@@ -319,14 +327,43 @@ export class Viewer {
   /** Apply the timeline state at time t. */
   setTime(t) {
     evaluate(this.timeline, t, this.state);
+    // `moved`: some node changed place, so world matrices and screw instances need updating. `shadows`: something
+    // that casts a shadow changed place, appeared or left, so the shadow map needs redrawing. Parts hold still
+    // for most of the timeline (captions, camera moves, fades), and those frames keep the last shadow map.
+    let moved = !this.placed;
+    let shadows = !this.placed;
+    this.placed = true;
+    const screwsCast = this.screwSets.some(({ im }) => im.castShadow); // they do not today; this keeps it true if they ever do
     for (const [id, rec] of this.objects) {
       const s = this.state.get(id);
-      rec.obj.position.set(s.p[0], s.p[1], s.p[2]);
-      rec.obj.quaternion.set(s.q[0], s.q[1], s.q[2], s.q[3]);
+      const { p, q } = s;
+      const at = rec.obj.position;
+      const turn = rec.obj.quaternion;
+      const shifted = at.x !== p[0] || at.y !== p[1] || at.z !== p[2] || turn.x !== q[0] || turn.y !== q[1] || turn.z !== q[2] || turn.w !== q[3];
+      if (shifted) {
+        at.set(p[0], p[1], p[2]);
+        turn.set(q[0], q[1], q[2], q[3]);
+        moved = true;
+      }
       const kind = rec.node.kind;
-      if (kind === 'group' || kind === 'screw') continue;
+      if (kind === 'screw') {
+        const drawn = s.alpha > 0.5;
+        if (rec.drawn !== drawn) {
+          rec.drawn = drawn;
+          moved = true;
+          if (screwsCast) shadows = true;
+        } else if (shifted && drawn && screwsCast) shadows = true;
+        continue;
+      }
+      if (kind === 'group') {
+        if (shifted) shadows = true; // whatever it carries moved with it
+        continue;
+      }
       const visible = s.alpha > 0.004;
-      if (rec.obj.visible !== visible) rec.obj.visible = visible;
+      if (rec.obj.visible !== visible) {
+        rec.obj.visible = visible;
+        shadows = true;
+      } else if (shifted && visible) shadows = true; // a part still hidden casts nothing
       if (!visible) continue;
       const transparent = s.alpha < 0.995;
       for (const m of rec.materials) {
@@ -337,27 +374,34 @@ export class Viewer {
         m.opacity = s.alpha;
         m.userData.glow.value = s.glow;
       }
-      rec.obj.castShadow = s.alpha > 0.6;
+      const casts = s.alpha > 0.6;
+      if (rec.obj.castShadow !== casts) {
+        rec.obj.castShadow = casts;
+        shadows = true;
+      }
     }
-    this.root.updateMatrixWorld(true);
+    if (moved) this.root.updateMatrixWorld(true);
     if (this.stage) {
-      this.stage.setTime(t);
+      // A stage that does not say whether it changed is taken to have changed.
+      if (this.stage.setTime(t) !== false) shadows = true;
       const frame = this.stage.camera();
       if (frame.key !== this.cameraKey) {
         this.cameraKey = frame.key;
         if (this.pristine) this.applyHomeView(!this.reducedMotion);
       }
     }
-    const hidden = new Matrix4().makeScale(0, 0, 0);
-    for (const { im, ids } of this.screwSets) {
-      ids.forEach((id, i) => {
-        const s = this.state.get(id);
-        im.setMatrixAt(i, s.alpha > 0.5 ? this.objects.get(id).obj.matrixWorld : hidden);
-      });
-      im.instanceMatrix.needsUpdate = true;
+    if (moved) {
+      const hidden = new Matrix4().makeScale(0, 0, 0);
+      for (const { im, ids } of this.screwSets) {
+        ids.forEach((id, i) => {
+          const s = this.state.get(id);
+          im.setMatrixAt(i, s.alpha > 0.5 ? this.objects.get(id).obj.matrixWorld : hidden);
+        });
+        im.instanceMatrix.needsUpdate = true;
+      }
     }
+    if (shadows) this.shadowDirty = true;
     this.dirty = true;
-    this.shadowDirty = true;
   }
 
   /** World-space box enclosing everything the timeline ever shows. */
@@ -445,11 +489,14 @@ export class Viewer {
     this.moveCamera(home.position, home.target, animate);
   }
 
-  projectRackPoint(p) {
-    this.root.updateMatrixWorld(true);
-    const v=p.clone().applyMatrix4(this.root.matrixWorld).project(this.camera);
-    const rect=this.canvas.getBoundingClientRect();
-    return {x:(v.x+1)*rect.width/2,y:(1-v.y)*rect.height/2,visible:Math.abs(v.x)<1&&Math.abs(v.y)<1&&v.z<1};
+  /**
+   * Where a point in the rack's frame lands on the canvas, in CSS pixels of a canvas `width` x `height`.
+   * It reads the matrices that setTime and the last render left behind and measures nothing, so the
+   * name tags can call it for every tag on every frame.
+   */
+  projectRackPoint(p, width, height) {
+    const v = this.projected.copy(p).applyMatrix4(this.root.matrixWorld).project(this.camera);
+    return { x: ((v.x + 1) * width) / 2, y: ((1 - v.y) * height) / 2, visible: Math.abs(v.x) < 1 && Math.abs(v.y) < 1 && v.z < 1 };
   }
 
   resetView() {
@@ -539,6 +586,65 @@ export class Viewer {
     }
     if (this.controls.update(dt)) active = true;
     return active;
+  }
+
+  /** Feed the time between played frames. Sustained slow frames lower the resolution a step; quick ones restore it. */
+  adapt(ms) {
+    this.frameMs += (Math.min(ms, 100) - this.frameMs) * 0.1;
+    this.slow = this.frameMs > 24 ? this.slow + 1 : 0;
+    this.quick = this.frameMs < 13 ? this.quick + 1 : 0;
+    let next = this.ratio;
+    if (this.slow > 45 && this.ratio > this.minRatio) next = Math.max(this.minRatio, this.ratio - 0.25);
+    if (this.quick > 120 && this.ratio < this.maxRatio) next = Math.min(this.maxRatio, this.ratio + 0.25);
+    if (next !== this.ratio) {
+      this.ratio = next;
+      this.slow = this.quick = 0;
+      this.renderer.setPixelRatio(next); // three resizes the drawing buffer to match
+      this.dirty = true;
+    }
+  }
+
+  /**
+   * Compile every shader the timeline will need before playback starts. Each part swaps between an opaque and
+   * a see-through program as it fades, and a program compiled on first use freezes the page for that frame.
+   */
+  async warmUp() {
+    const objects = [];
+    const materials = new Set();
+    this.scene.traverse((o) => {
+      objects.push([o, o.visible]);
+      if (!o.material) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) materials.add(m);
+    });
+    const was = [...materials].map((m) => [m, m.transparent]);
+    for (const [o] of objects) o.visible = true;
+    const pass = async () => {
+      try {
+        await this.renderer.compileAsync(this.scene, this.camera);
+      } catch {
+        /* older browsers: the render below compiles them instead */
+      }
+      this.renderer.shadowMap.needsUpdate = true;
+      this.renderer.render(this.scene, this.camera);
+    };
+    for (const transparent of [false, true]) {
+      for (const m of materials) {
+        if (m.transparent !== transparent) {
+          m.transparent = transparent;
+          m.needsUpdate = true;
+        }
+      }
+      await pass();
+    }
+    for (const [m, transparent] of was) {
+      if (m.transparent !== transparent) {
+        m.transparent = transparent;
+        m.needsUpdate = true;
+      }
+    }
+    for (const [o, visible] of objects) o.visible = visible;
+    this.dirty = true;
+    this.shadowDirty = true;
   }
 
   render() {
