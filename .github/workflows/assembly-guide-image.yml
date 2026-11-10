@@ -6,12 +6,14 @@ on:
     paths:
       - apps/assembly-guide/app/**
       - apps/assembly-guide/Dockerfile
+      - apps/assembly-guide/nginx.conf
       - apps/assembly-guide/.dockerignore
       - .github/workflows/assembly-guide-image.yml
   pull_request:
     paths:
       - apps/assembly-guide/app/**
       - apps/assembly-guide/Dockerfile
+      - apps/assembly-guide/nginx.conf
       - apps/assembly-guide/.dockerignore
       - .github/workflows/assembly-guide-image.yml
   workflow_dispatch:
@@ -53,6 +55,17 @@ jobs:
           test -s "$RUNNER_TEMP/assembly-index.html"
           test "$(wc -c < "$RUNNER_TEMP/assembly-app.js")" -gt 500000
           test -s "$RUNNER_TEMP/assembly-app.css"
+          script="$(grep -oE 'app\.js\?v=[0-9a-f]{16}' "$RUNNER_TEMP/assembly-index.html" | head -1)"
+          curl --fail --silent --header 'Accept-Encoding: gzip' \
+            --dump-header "$RUNNER_TEMP/assembly-app.headers" \
+            -o "$RUNNER_TEMP/assembly-app.js.gz" "http://127.0.0.1:4173/$script"
+          grep -qi '^content-encoding: gzip' "$RUNNER_TEMP/assembly-app.headers"
+          grep -qi '^cache-control: public, max-age=31536000, immutable' "$RUNNER_TEMP/assembly-app.headers"
+          gzip -dc "$RUNNER_TEMP/assembly-app.js.gz" | cmp - "$RUNNER_TEMP/assembly-app.js"
+          test "$(wc -c < "$RUNNER_TEMP/assembly-app.js.gz")" -lt 450000
+          curl --fail --silent --dump-header "$RUNNER_TEMP/assembly-index.headers" \
+            -o /dev/null http://127.0.0.1:4173/
+          grep -qi '^cache-control: no-cache' "$RUNNER_TEMP/assembly-index.headers"
       - name: Remove isolated test container
         if: always()
         run: docker rm --force assembly-guide-image-check || true

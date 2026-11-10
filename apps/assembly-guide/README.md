@@ -10,8 +10,11 @@ static files in `app/dist/` and checks the player and 3D assembly contracts.
 The Dockerfile packages that build into an immutable nginx image. The image
 workflow tests the packaged HTTP server, publishes on `main`, and reports its
 digest. A separate promotion PR pins that digest in the Deployment. Built asset
-URLs contain content revisions so returning phone browsers fetch the promoted
-player instead of reusing an older cached script.
+URLs contain content revisions, so `nginx.conf` lets a browser keep a revisioned
+file for a year while the page itself is checked on every visit: a promoted
+player is picked up at once and nothing else is downloaded twice. The image also
+carries a gzip copy of each file, which nginx serves as is; the 1 MB script
+travels as about 340 KB.
 
 The app stores no state and requires no backup. To roll back, promote the
 previous known-good image digest through a PR. Check the Argo Application is

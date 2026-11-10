@@ -57,3 +57,7 @@ that pins the digest in `manifests/deployment.yaml`. The running site changes
 only when that promotion merges and Argo CD syncs. Roll back by reverting the
 promotion. Check the Application is Synced and Healthy, the page and models load
 from a tailnet device, and public DNS has no record for `pearl.soyspray.vip`.
+
+`nginx.conf` serves the gzip copy the image build stores beside every script, model, decoder and print file,
+caches URLs that carry a content revision (`?v=`) for a year and has the page itself checked on every visit.
+The image workflow checks those headers on the built image.
