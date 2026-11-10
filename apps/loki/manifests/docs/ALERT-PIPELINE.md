@@ -44,7 +44,7 @@ one-shot failure, which is exactly what the backup-job rules must catch.
 
 | Counter | Source | Replaces |
 | --- | --- | --- |
-| `soyspray_log_media_backup_failure_total` | immich `aws-sync` | `ImmichMediaBackupFailureImmediate` |
+| `soyspray_log_media_backup_failure_total` | immich `restic-backup`, `pg-dump` | `ImmichMediaBackupFailureImmediate` |
 | `soyspray_log_couchdb_backup_failure_total` | obsidian `backup` | `ObsidianBackupFailureImmediate` |
 | `soyspray_log_database_backup_failure_total` | postgresql barman error lines | `CNPGBackupBarmanError` |
 | `soyspray_log_database_archive_failure_total` | postgresql `archive_command` failures | `CNPGWalArchiveFailure` |

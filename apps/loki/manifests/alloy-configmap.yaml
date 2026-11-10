@@ -72,12 +72,12 @@ data:
       // stage.metrics blocks is a registration conflict, and the namespace
       // label already separates the sources.
       stage.match {
-        selector = "{job=\"kubernetes-pods\", namespace=\"immich\", container=\"aws-sync\"} |~ \"(?i)(an error occurred|error|accessdenied|expiredtoken|slowdown|requesttimetooskewed|read-only file system|connection reset)\""
+        selector = "{job=\"kubernetes-pods\", namespace=\"immich\", container=~\"restic-backup|pg-dump\"} |~ \"(?i)(an error occurred|error|accessdenied|expiredtoken|slowdown|requesttimetooskewed|read-only file system|connection reset)\""
 
         stage.metrics {
           metric.counter {
             name              = "soyspray_log_media_backup_failure_total"
-            description       = "Backup tool failure lines from the Immich media offsite sync."
+            description       = "Backup tool failure lines from the Immich paired backup."
             prefix            = ""
             match_all         = true
             action            = "inc"
