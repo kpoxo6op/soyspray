@@ -51,7 +51,9 @@ class Laid {
     const c = this.chapter;
     const alpha = Math.max(0, Math.min(1, (t - (c.start - 0.3)) / FADE_IN));
     const active = t >= c.start && t < c.end;
-    this.object.visible = alpha > 0.003;
+    const visible = alpha > 0.003;
+    const changed = this.object.visible !== visible; // it casts a shadow whenever it shows
+    this.object.visible = visible;
     if (alpha !== this.alpha) {
       this.alpha = alpha;
       for (const m of this.materials) {
@@ -70,6 +72,7 @@ class Laid {
         m.emissiveIntensity = active ? 0.19 : 0;
       }
     }
+    return changed;
   }
 }
 
@@ -112,10 +115,13 @@ export class SoyrackStage {
     this.time = 0;
   }
 
+  /** Returns whether a cord or strap appeared or left, which is when the shadows need redrawing. */
   setTime(t) {
     this.time = t;
-    for (const l of this.leads) l.update(t);
-    for (const l of this.ties) l.update(t);
+    let changed = false;
+    for (const l of this.leads) if (l.update(t)) changed = true;
+    for (const l of this.ties) if (l.update(t)) changed = true;
+    return changed;
   }
 
   camera() {

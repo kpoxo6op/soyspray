@@ -61,6 +61,7 @@ const loop = createLoop((now) => {
   const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
   last = now;
   if (player.tick(dt)) viewer.setTime(player.time);
+  if (player.playing && dt > 0) viewer.adapt(dt * 1000);
   const cameraMoving = viewer.update(dt);
   if (viewer.dirty) viewer.render();
   tags.update();
