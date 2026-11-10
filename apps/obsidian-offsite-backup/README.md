@@ -4,7 +4,7 @@ Daily backup of Obsidian LiveSync CouchDB data to AWS S3.
 
 ## Overview
 
-- CronJob runs daily at 03:00 UTC
+- CronJob runs daily at 12:55 Pacific/Auckland time
 - Backs up all user databases (excludes system databases starting with `_`)
 - Compresses backups with gzip
 - Uploads to S3 with date-based paths: `s3://bucket/obsidian-livesync/YYYYMMDD-HHMMSS/`

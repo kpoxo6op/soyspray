@@ -1,4 +1,4 @@
-# Node-0 OpenClaw retirement
+# Retirement operations
 
 ## Legacy DeepSeek Harness route name
 
@@ -24,7 +24,7 @@ DNS provider credentials, or any namespace other than `opencode-remote`.
 OpenClaw runs on the laptop. `node0-openclaw.yml` removes only the verified
 old installation on node-0. Keep this operation through the migration window.
 
-Push the branch and run `make go`. Then check the exact node-0 operation:
+Push the branch and run `make check`. Then check the exact node-0 operation:
 
 ```bash
 source soyspray-venv/bin/activate

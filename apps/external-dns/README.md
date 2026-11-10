@@ -9,8 +9,7 @@ Keep chart `1.14.0`, domain filter `soyspray.vip`, policy `upsert-only`, TXT own
 TLS settings in `values.yaml` preserve how hostnames are selected. Do not rotate
 the API token or change DNS ownership as part of a deployment cleanup.
 
-The native root owns the Application and a dedicated AppProject. The existing
-`default` project stays in place for other apps. Application and project guards
+The native root owns the Application and a dedicated AppProject. Application and project guards
 prevent pruning or cascading deletion. The chart keeps its existing resource
 names and cluster read permissions.
 

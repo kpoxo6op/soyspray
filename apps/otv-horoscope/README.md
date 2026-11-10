@@ -10,7 +10,7 @@ the twelve zodiac signs read in order (Овен to Рыбы, a few missed words 
 as one episode. It starts the clip at the spoken «Гороскоп» title, or the first
 sign, minus a 45-second lead-in and ends it a minute after the last sign. The
 clip is re-encoded to fit the 50 MB bot upload limit and sent to each chat in
-the Secret. A repeat airing within 10 hours is not sent again.
+the Secret. A repeat airing within 1 hour is not sent again.
 
 The channel also publishes each day's text, without video, at
 <https://otvprim.tv/programs/goroskop/>.

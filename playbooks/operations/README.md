@@ -4,52 +4,37 @@ Cluster operation playbooks organized by functional area.
 
 ## Structure
 
-### nodes/
-Node management and configuration playbooks.
+Each directory has its own README with the current playbooks.
 
-- install-node-tools.yml - Install common tools on nodes
-- restart-node.yml - Restart cluster nodes
-- configure-openwrt-syslog.yml - Configure rsyslog to receive logs from OpenWrt router
-
-### networking/
-Network setup and tooling playbooks.
-
-- install-tailscale.yml - Install Tailscale VPN
-- remove-tailscale.yml - Remove Tailscale VPN
-- publish-headlamp-token.yml - Generate and publish Headlamp token
-- set-lan-ingress-hairpin.yml - Let LAN-only devices open `*.soyspray.vip` through OpenWrt
-
-### storage/
-Storage initialization and management playbooks.
-
-- initialize-longhorn-storage.yml - Initialize Longhorn storage system
-- prepare-longhorn-worker-ssd.yml - repartition, format, and mount new worker SSDs at `/storage` by per-host `/dev/disk/by-id` paths
-- prepare-media-usb-disk.yml - repartition, format, mount, and prepare the USB media disk at `/srv/media`
-
-### security/
-Security playbooks.
-
-- sync-certificates.yml - Synchronize TLS certificates across namespaces
+### agents/
+Private evidence intake for agent workloads. See [agents](agents/README.md).
 
 ### android-tv/
-
-[Living-room Android TV](android-tv): debloat, privacy settings, pinned apps
-and the router reservation, kept as declared state and synced over ADB.
+Living-room Android TV state, synced over ADB. See [android-tv](android-tv/README.md).
 
 ### boys/
+Private Boys trip bootstrap. See [boys](boys/README.md).
 
-[Private Boys trip bootstrap](boys) from off-cluster Ansible Vault input.
+### networking/
+Network setup and tooling. See [networking](networking/README.md).
+
+### nodes/
+Node management and configuration. See [nodes](nodes/README.md).
 
 ### recovery/
-
-Critical S3 backups, encrypted runtime exports, and isolated restore operations.
-See [the recovery guide](recovery).
+Backups and isolated restore operations. See [recovery](recovery/README.md).
 
 ### retirement/
+Retirement operations. See [retirement](retirement/README.md).
 
-The [node-0 retirement operation](retirement) verifies that the old
-OpenClaw installation is absent. OpenClaw runs on the laptop. Keep this
-retryable playbook through the migration window.
+### security/
+Security maintenance. See [security](security/README.md).
+
+### storage/
+Storage preparation and management. See [storage](storage/README.md).
+
+### voice/
+Bounded voice pipeline tests. See [voice](voice/README.md).
 
 ## Usage
 

@@ -27,8 +27,8 @@ live channel and guide. The ingress exposes only those two paths.
 The app source and channel catalog are in `app/`; Kubernetes manifests are in
 `manifests/`. The helper runs from a pinned GHCR image. Source edits build a tested
 image and open a separate digest promotion. They cannot change the running app.
-Rollback restores a reviewed image through Ansible without deleting shared media
-resources or changing credentials.
+To roll back, revert the pull request; Argo CD reconciles. Do not delete shared
+media resources or change credentials.
 
 ## Channels and guide
 
@@ -60,8 +60,8 @@ draft digest promotion. A source-only merge does not change the running app.
 
 Promotion changes only the digest. Unknown runtime overrides stop promotion for
 review. Service names, selectors, resource limits, probes, temporary storage and
-security settings are preserved. The workflow never merges or deploys. Roll back
-the reviewed digest through the standard Ansible operation.
+security settings are preserved. The workflow never merges or deploys. To roll
+back, revert the pull request; Argo CD reconciles.
 
 `make check APP=media-helper` checks source behavior, cache concurrency, promotion
 safety and existing consumer contracts. Docker is needed only for the image and

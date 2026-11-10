@@ -5,7 +5,8 @@ This directory contains cluster checks and operator helpers.
 ## Credential trial
 
 - `agent-secret` signs in as the dedicated Vaultwarden automation account and
-  reads only `hays-online-timesheets`. It needs `bw`, `kubectl`, and cluster
+  reads only the items in an allowlist in
+  `apps/vaultwarden/agent_secret.py`. It needs `bw`, `kubectl`, and cluster
   access. The command prints plaintext credential JSON, so do not send its
   output to logs or GitHub. It never uses the human master password.
 - `hays-open-submitted-timesheet` uses that item to sign in to Hays and open
@@ -47,6 +48,20 @@ Use `make status-page-check` to validate the external status configuration,
   or refreshes its rotation cutoff. `argocd_login.py` uses the pinned CLI's
   terminal input with echo disabled and output suppressed. Run `make argo-login`;
   use the [security guide](../playbooks/operations/security/README.md) for rotation.
+- `argocd_cli.py` uses the upstream Argo CD CLI version installed in the cluster.
+- `recovery_preflight.py` validates the minimal installed recovery runtime and
+  selected Git source.
+- `restore_common.py` holds shared checks and lifecycle helpers for isolated
+  Longhorn recovery operations. `restore_durable.py` restores the daily
+  small-volume backups through the shared isolated runner.
+  `check_durable_data.py` reads every restored file and validates supported
+  structured formats in private copies.
+- `ha_voice_smoke.py` tests the Wyoming path from Piper to Speech-to-Phrase.
+  `ha_gi_wake_smoke.py` tests the Wyoming path from Piper to the GI detector.
+- `render_gi_voice_pe.py` builds a Voice PE config that sends wake detection to
+  Home Assistant.
+- `train_gi_personalized.py` trains a private GI wake model from one recording
+  of repeated GI speech.
 
 ```sh
 scripts/check-ha-stretch.sh --expect-current --repo-only
