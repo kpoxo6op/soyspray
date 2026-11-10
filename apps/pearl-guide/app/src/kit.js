@@ -1,5 +1,6 @@
 // Stage 0 shopping list. Jaycar, PB Tech and Spotlight prices were read on their NZ sites on 31 October 2026.
-// AliExpress prices are typical asking prices on that date, not quotes: listings change daily.
+// AliExpress prices are typical asking prices on that date, not quotes: listings change daily. The switch and the
+// 10 kΩ resistors were added on 10 November 2026 (Jaycar RR0596 read that day).
 
 export const CHECKED = '31 Oct 2026';
 
@@ -20,6 +21,7 @@ export const GROUPS = [
       { id: 'jst', name: 'JST-PH 2.0 two-pin leads, plugs and sockets, 10 pairs', why: 'The battery lead you solder to the motor.', shop: 'AliExpress', url: ali('jst ph 2.0 2 pin male female cable 10 pairs'), price: 5, est: true },
       { id: 'wire', name: '28 AWG silicone wire, five colours', why: 'Pearl’s wire. Soft, and the insulation does not melt back.', shop: 'AliExpress', url: ali('28awg silicone wire 5 colors'), price: 8, est: true },
       { id: 'stripper', name: 'Precision wire stripper, 30 to 20 AWG', why: 'Jaycar’s strippers stop at 24 AWG; 28 AWG needs this.', shop: 'AliExpress', url: ali('precision wire stripper 30-20 awg'), price: 12, est: true },
+      { id: 'switch', name: 'SS-12D00 sub-miniature slide switches, 10', why: 'Pearl’s power switch, and one for the practice lead. Body about 8.5 × 3.7 mm.', shop: 'AliExpress', url: ali('ss-12d00 slide switch'), price: 3, est: true },
       { id: 'drivers', name: 'DRV8833 motor driver boards, 3', why: 'Cheap copies of Pearl’s driver to practise small joints on.', shop: 'AliExpress', url: ali('drv8833 motor driver module'), price: 6, est: true },
     ],
   },
@@ -37,6 +39,7 @@ export const GROUPS = [
       { id: 'cutters', name: 'Stainless steel side cutters', code: 'TH1890', why: 'Trims leads flush after a joint.', price: 26.9 },
       { id: 'tweezers', name: 'Precision tweezers', code: 'TH1754', why: 'Holds a wire end on a pad.', price: 7.9 },
       { id: 'practice', name: 'Learn to Solder kit: 3D traffic light', code: 'XC3758', why: 'Your first forty joints, and it lights up when you are done.', price: 25.9 },
+      { id: 'resistors', name: '10 kΩ resistors, pack of 8', code: 'RR0596', why: 'Two make the battery divider you check with the meter.', price: 1 },
       { id: 'heatshrink', name: 'Heatshrink assortment, 1.5 to 10 mm', code: 'WH5525', why: 'Covers splices.', price: 11.9 },
       { id: 'sleeve', name: '1.5 mm white heatshrink', code: 'WH5570', why: 'Sleeves Pearl’s red and blue motor leads so they disappear on the white pod.', price: 2.1 },
       { id: 'glasses', name: 'Wrap-around clear safety glasses', code: 'TH3002', why: 'Solder and clipped leads can flick.', price: 5.9 },
