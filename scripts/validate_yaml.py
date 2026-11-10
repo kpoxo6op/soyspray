@@ -13,8 +13,6 @@ YAML_ROOTS = [
     ".github",
     "apps",
     "argocd",
-    "kubernetes",
-    "platform",
     "inventory",
     "tests",
 ]

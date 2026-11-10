@@ -51,11 +51,6 @@ The [node-0 retirement operation](retirement) verifies that the old
 OpenClaw installation is absent. OpenClaw runs on the laptop. Keep this
 retryable playbook through the migration window.
 
-### examples/
-Example and utility playbooks.
-
-- show-hello.yml - Example playbook demonstrating basic operations
-
 ## Usage
 
 All playbooks follow standard Ansible execution pattern:

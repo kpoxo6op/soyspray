@@ -35,7 +35,7 @@ KUSTOMIZATIONS := \
 	apps/dispatcharr/manifests \
 	apps/jellyfin/manifests
 
-.PHONY: help setup act check shared-test shared-check full-check app-command diff smoke restore-check boys-check autism-traits-check docs-check docs-serve lint validate validate-skills status-page-check prometheus-check \
+.PHONY: help setup act check shared-test shared-check full-check app-command diff smoke restore-check boys-check autism-traits-check docs-check docs-serve lint validate status-page-check prometheus-check \
 	test render go voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
 	list-apps node0 node1 node2 master worker1 worker2 worker3 clean
 
@@ -115,15 +115,12 @@ lint: ## Check Python style and common defects
 		playbooks/operations/security/repair-argocd-ingress.yml \
 		playbooks/operations/security/retire-authentik-argo-keys.yml
 
-validate: validate-skills status-page-check prometheus-check ## Validate YAML and rendered manifests
+validate: status-page-check prometheus-check ## Validate YAML and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py
 	for path in $(KUSTOMIZATIONS); do \
 		printf 'Rendered %s\n' "$$path"; \
 		kubectl kustomize "$$path" >/dev/null; \
 	done
-
-validate-skills: ## Validate reusable project-local Agent Skills
-	$(PYTHON) scripts/validate_skills.py
 
 prometheus-check: ## Check monitoring rules and backup alert behavior with pinned promtool
 	$(PYTHON) scripts/check_prometheus.py
@@ -183,4 +180,4 @@ worker3: node2
 
 clean: ## Remove generated local output
 	rm -rf .build .pytest_cache
-	find kubernetes scripts tests -type d -name __pycache__ -prune -exec rm -rf {} +
+	find apps playbooks scripts tests -name node_modules -prune -o -type d -name __pycache__ -prune -exec rm -rf {} +
