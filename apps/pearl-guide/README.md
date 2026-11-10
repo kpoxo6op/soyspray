@@ -38,6 +38,12 @@ Shaders compile behind the loading screen (`warmUp` in `app/src/main.js`); actor
 their opacity changes (`Actor.commit`); the pod's insides draw only while the hatch is open. Phones render at up
 to 1.5x and `Stage.adapt` lowers the resolution when frames run slow; desktops start at up to 2x.
 
+`app/src/loop.js` runs the player: one animation-frame callback per displayed frame, however often the player
+or the camera asks for one. After a build,
+`PLAYWRIGHT_PATH=<playwright> node tools/perf-audit.mjs --max-frame-requests 1 --max-new-programs 0` (in `app/`)
+plays the guide in a headless Chromium and fails if a frame queues more than one callback or a shader compiles
+after the loading screen. It needs a Playwright with Chromium and is not part of `npm test`.
+
 ## Checks
 
 ```sh

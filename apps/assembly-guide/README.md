@@ -209,6 +209,13 @@ load line leg at x 240; watch that first layer. The bed levelling box overlaps t
 how the printer probes there has not been observed. `check-preflight.py` compares it with the old tub section by section
 (`check-base-tub.py`) and refuses each of the three defects when put back.
 
+Performance is checked by count, not by feel. `app/src/loop.js` runs the player: one animation-frame callback
+per displayed frame, however often the player or the camera asks for one. After a build,
+`PLAYWRIGHT_PATH=<playwright> node tools/perf-audit.mjs --max-frame-requests 1` (in `app/`) plays the guide in
+a headless Chromium and reports frame requests per frame, shader programs compiled after the page was ready,
+layout reads per frame and draw calls per chapter; each `--max-*` flag turns a number into a pass or fail.
+It needs a Playwright with Chromium and is not part of `npm test`.
+
 Tests check the chapters, where each test check leaves its hardware, the tags,
 that every screw meets its own nut, cord lengths and overlaps, the buy list,
 Zigbee spacing, the 260 × 240 × 450 mm envelope, and that the copy asks for no

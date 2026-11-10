@@ -6,6 +6,7 @@ import { CHAPTERS, buildTimeline, makeDirector } from './story.js';
 import { Player } from './player.js';
 import { createUI } from './ui.js';
 import { createSheets } from './sheets.js';
+import { createLoop } from './loop.js';
 
 const root = document.getElementById('app');
 const stageEl = document.getElementById('stage');
@@ -74,10 +75,9 @@ async function start() {
     syncInsets();
   });
 
-  let raf = 0;
   let last = 0;
-  function frame(now) {
-    raf = 0;
+  let idleFrames = 0;
+  const loop = createLoop((now) => {
     const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
     last = now;
     player.tick(dt);
@@ -85,19 +85,14 @@ async function start() {
     direct(player.time);
     stage.controls.update();
     stage.render();
-    if (player.playing || stage.controls.enableDamping) {
-      raf = requestAnimationFrame(frame);
-      if (!player.playing && idleFrames++ > 90) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-        last = 0;
-      }
-    } else last = 0;
-  }
-  let idleFrames = 0;
+    // Damping keeps the camera gliding after a drag: allow it 90 quiet frames, then rest.
+    const more = player.playing || (stage.controls.enableDamping && idleFrames++ <= 90);
+    if (!more) last = 0;
+    return more;
+  });
   function schedule() {
     idleFrames = 0;
-    if (!raf) raf = requestAnimationFrame(frame);
+    loop.schedule();
   }
   stage.controls.addEventListener('change', schedule);
   stage.controls.addEventListener('start', schedule);
