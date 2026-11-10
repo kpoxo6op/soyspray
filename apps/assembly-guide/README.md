@@ -211,11 +211,12 @@ how the printer probes there has not been observed. `check-preflight.py` compare
 
 Performance is checked by count, not by feel. `app/src/loop.js` runs the player: one animation-frame callback
 per displayed frame, however often the player or the camera asks for one. Every shader compiles before the
-page appears (`Viewer.warmUp` in `app/src/scene.js`), so playback never stops to compile one. After a build,
-`PLAYWRIGHT_PATH=<playwright> node tools/perf-audit.mjs --max-frame-requests 1 --max-new-programs 0` (in `app/`)
-plays the guide in a headless Chromium and reports frame requests per frame, shader programs compiled after the
-page was ready, layout reads per frame and draw calls per chapter; each `--max-*` flag turns a number into a
-pass or fail. It needs a Playwright with Chromium and is not part of `npm test`.
+page appears (`Viewer.warmUp` in `app/src/scene.js`), so playback never stops to compile one. Name tags are
+placed from boxes measured once and again after a resize, never per frame (`app/src/tags.js`). After a build,
+`PLAYWRIGHT_PATH=<playwright> node tools/perf-audit.mjs --max-frame-requests 1 --max-new-programs 0 --max-layout-reads 1`
+(in `app/`) plays the guide in a headless Chromium and reports frame requests per frame, shader programs
+compiled after the page was ready, layout reads per frame and draw calls per chapter; each `--max-*` flag turns
+a number into a pass or fail. It needs a Playwright with Chromium and is not part of `npm test`.
 
 Tests check the chapters, where each test check leaves its hardware, the tags,
 that every screw meets its own nut, cord lengths and overlaps, the buy list,

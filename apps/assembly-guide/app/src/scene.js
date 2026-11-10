@@ -182,6 +182,7 @@ export class Viewer {
     this.controls = controls;
 
     this.raycaster = new Raycaster();
+    this.projected = new Vector3();
     this.canvas.addEventListener('dblclick', (e) => this.focusAt(e.clientX, e.clientY));
     this.installDoubleTap();
 
@@ -445,11 +446,14 @@ export class Viewer {
     this.moveCamera(home.position, home.target, animate);
   }
 
-  projectRackPoint(p) {
-    this.root.updateMatrixWorld(true);
-    const v=p.clone().applyMatrix4(this.root.matrixWorld).project(this.camera);
-    const rect=this.canvas.getBoundingClientRect();
-    return {x:(v.x+1)*rect.width/2,y:(1-v.y)*rect.height/2,visible:Math.abs(v.x)<1&&Math.abs(v.y)<1&&v.z<1};
+  /**
+   * Where a point in the rack's frame lands on the canvas, in CSS pixels of a canvas `width` x `height`.
+   * It reads the matrices that setTime and the last render left behind and measures nothing, so the
+   * name tags can call it for every tag on every frame.
+   */
+  projectRackPoint(p, width, height) {
+    const v = this.projected.copy(p).applyMatrix4(this.root.matrixWorld).project(this.camera);
+    return { x: ((v.x + 1) * width) / 2, y: ((1 - v.y) * height) / 2, visible: Math.abs(v.x) < 1 && Math.abs(v.y) < 1 && v.z < 1 };
   }
 
   resetView() {
