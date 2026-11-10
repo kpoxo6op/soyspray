@@ -541,6 +541,49 @@ export class Viewer {
     return active;
   }
 
+  /**
+   * Compile every shader the timeline will need before playback starts. Each part swaps between an opaque and
+   * a see-through program as it fades, and a program compiled on first use freezes the page for that frame.
+   */
+  async warmUp() {
+    const objects = [];
+    const materials = new Set();
+    this.scene.traverse((o) => {
+      objects.push([o, o.visible]);
+      if (!o.material) return;
+      for (const m of Array.isArray(o.material) ? o.material : [o.material]) materials.add(m);
+    });
+    const was = [...materials].map((m) => [m, m.transparent]);
+    for (const [o] of objects) o.visible = true;
+    const pass = async () => {
+      try {
+        await this.renderer.compileAsync(this.scene, this.camera);
+      } catch {
+        /* older browsers: the render below compiles them instead */
+      }
+      this.renderer.shadowMap.needsUpdate = true;
+      this.renderer.render(this.scene, this.camera);
+    };
+    for (const transparent of [false, true]) {
+      for (const m of materials) {
+        if (m.transparent !== transparent) {
+          m.transparent = transparent;
+          m.needsUpdate = true;
+        }
+      }
+      await pass();
+    }
+    for (const [m, transparent] of was) {
+      if (m.transparent !== transparent) {
+        m.transparent = transparent;
+        m.needsUpdate = true;
+      }
+    }
+    for (const [o, visible] of objects) o.visible = visible;
+    this.dirty = true;
+    this.shadowDirty = true;
+  }
+
   render() {
     if (this.shadowDirty) {
       this.renderer.shadowMap.needsUpdate = true;

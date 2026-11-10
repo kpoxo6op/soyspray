@@ -98,18 +98,24 @@ reducedMotion.addEventListener?.('change', () => {
 });
 
 // ---------------------------------------------------------------- start
-const startAt = readHashTime();
-if (startAt !== null) player.seek(startAt, 'restore');
-syncInset();
-viewer.setTime(player.time);
-ui.update();
-schedule();
-root.classList.add('ready');
-// Debug handle for tools/perf-audit.mjs and the browser console; the page itself never reads it.
-window.__soyrack = { player, timeline, viewer, tags };
+// Shaders compile behind the hidden page; a failed warm-up only means they compile on first use instead.
+viewer
+  .warmUp()
+  .catch((err) => console.error(err))
+  .then(() => {
+    const startAt = readHashTime();
+    if (startAt !== null) player.seek(startAt, 'restore');
+    syncInset();
+    viewer.setTime(player.time);
+    ui.update();
+    schedule();
+    root.classList.add('ready');
+    // Debug handle for tools/perf-audit.mjs and the browser console; the page itself never reads it.
+    window.__soyrack = { player, timeline, viewer, tags };
 
-if (startAt === null && !reducedMotion.matches) {
-  setTimeout(() => {
-    if (!player.playing && player.time === 0 && !player.scrubbing) player.play();
-  }, 900);
-}
+    if (startAt === null && !reducedMotion.matches) {
+      setTimeout(() => {
+        if (!player.playing && player.time === 0 && !player.scrubbing) player.play();
+      }, 900);
+    }
+  });
