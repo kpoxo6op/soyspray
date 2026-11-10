@@ -108,7 +108,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({cluster=\"soyspray\",job=\"kubernetes-events\"} |= \"immich-media-offsite-sync\" |= \"Saw completed job\"[30h]))",
+          "expr": "sum(count_over_time({cluster=\"soyspray\",job=\"kubernetes-events\"} |= \"immich-paired-backup\" |= \"Saw completed job\"[30h]))",
           "instant": true,
           "queryType": "instant",
           "refId": "A"
@@ -442,7 +442,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({namespace=\"immich\",container=\"aws-sync\"} |~ \"(?i)(an error occurred \\\\(|error|accessdenied|expiredtoken|slowdown|requesttimetoo skewed|read-only file system|connection reset)\"[48h])) + sum(count_over_time({cluster=\"soyspray\",job=\"kubernetes-events\"} |= \"BackoffLimitExceeded\" |= \"immich-media-offsite-sync\"[48h]))",
+          "expr": "sum(count_over_time({namespace=\"immich\",container=~\"restic-backup|pg-dump\"} |~ \"(?i)(an error occurred \\\\(|error|accessdenied|expiredtoken|slowdown|requesttimetoo skewed|read-only file system|connection reset)\"[48h])) + sum(count_over_time({cluster=\"soyspray\",job=\"kubernetes-events\"} |= \"BackoffLimitExceeded\" |= \"immich-paired-backup\"[48h]))",
           "instant": true,
           "queryType": "instant",
           "refId": "A"
@@ -676,7 +676,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({cluster=\"soyspray\",job=\"kubernetes-events\"} |= \"immich-media-offsite-sync\" |= \"Saw completed job\"[24h]))",
+          "expr": "sum(count_over_time({cluster=\"soyspray\",job=\"kubernetes-events\"} |= \"immich-paired-backup\" |= \"Saw completed job\"[24h]))",
           "legendFormat": "Immich media",
           "queryType": "range",
           "refId": "A"
@@ -751,7 +751,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "{cluster=\"soyspray\",job=\"kubernetes-events\"} |= \"immich-media-offsite-sync\"",
+          "expr": "{cluster=\"soyspray\",job=\"kubernetes-events\"} |= \"immich-paired-backup\"",
           "queryType": "range",
           "refId": "A"
         }

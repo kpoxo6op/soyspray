@@ -107,7 +107,7 @@ spec:
               max_over_time(
                 soyspray_event_job_backoff_total{
                   type="Warning",
-                  kubernetes_event_involved_object_name=~".*(immich-media-offsite-sync|obsidian-couchdb-offsite-backup).*"
+                  kubernetes_event_involved_object_name=~".*(immich-paired-backup|obsidian-couchdb-offsite-backup).*"
                 }[5m]
               )
             ) > 0

@@ -4,6 +4,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: booklore-mariadb
   namespace: media
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
   accessModes:
     - ReadWriteOnce
