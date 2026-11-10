@@ -9,7 +9,7 @@ check:
 	cd $(ROOT) && kubectl kustomize apps/gi/argocd >/dev/null
 
 diff:
-	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app gi
+	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app gi --package apps/gi/manifests
 
 bootstrap:
 	cd $(ROOT) && $(ANSIBLE) apps/gi/bootstrap.yml

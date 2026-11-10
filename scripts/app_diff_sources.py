@@ -10,6 +10,12 @@ import yaml
 def revision_arguments(live, desired, repo, commit):
     """Revision overrides cannot change value paths, parameters, or deployment policy."""
     before, after = copy.deepcopy(live["spec"]), copy.deepcopy(desired["spec"])
+    # Argo drops these false fields when serializing Applications.
+    for spec in (before, after):
+        automated = spec.get("syncPolicy", {}).get("automated", {})
+        for key in ("prune", "allowEmpty"):
+            if automated.get(key) is False:
+                automated.pop(key)
     if before.get("source") and after.get("source"):
         old, new = before["source"], after["source"]
         if (
@@ -56,12 +62,6 @@ def revision_arguments(live, desired, repo, commit):
         args.extend(["--source-positions", str(position), "--revisions", revision])
         old.pop("targetRevision", None)
         new.pop("targetRevision", None)
-    # Argo drops these false fields when serializing Applications.
-    for spec in (before, after):
-        automated = spec.get("syncPolicy", {}).get("automated", {})
-        for key in ("prune", "allowEmpty"):
-            if automated.get(key) is False:
-                automated.pop(key)
     if not charts or not git_sources or before != after:
         raise ValueError(
             "Application settings changed; revision-only comparison cannot render the proposed "

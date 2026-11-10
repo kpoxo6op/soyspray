@@ -107,6 +107,15 @@ def test_single_git_source_uses_exact_pushed_commit_and_keeps_original_inputs():
     assert live == original
 
 
+def test_single_git_source_ignores_false_fields_argo_drops():
+    desired = yaml.safe_load((ROOT / "apps/media-helper/argocd/application.yaml").read_text())
+    desired["spec"]["syncPolicy"]["automated"].update(prune=False, allowEmpty=False)
+    live = copy.deepcopy(desired)
+    for key in ("prune", "allowEmpty"):
+        live["spec"]["syncPolicy"]["automated"].pop(key, None)
+    assert revision_arguments(live, desired, REPO, COMMIT) == ["--revision", COMMIT]
+
+
 @pytest.mark.parametrize(
     "change",
     [

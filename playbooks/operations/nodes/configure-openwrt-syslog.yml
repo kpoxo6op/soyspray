@@ -40,7 +40,9 @@
         state: started
 
     - name: Verify UDP port is listening
-      ansible.builtin.command: ss -lunp | grep ":{{ syslog_port }} "
+      ansible.builtin.shell: set -o pipefail && ss -lunp | grep ":{{ syslog_port }} "
+      args:
+        executable: /bin/bash
       register: port_check
       changed_when: false
       failed_when: false

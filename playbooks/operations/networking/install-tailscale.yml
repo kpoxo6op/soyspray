@@ -65,3 +65,4 @@
     - name: Bring up Tailscale with auth key
       ansible.builtin.command: "tailscale up --authkey={{ tailscale_auth_key }} {{ tailscale_extra_args }}"
       when: tailscale_status.rc != 0
+      no_log: true
