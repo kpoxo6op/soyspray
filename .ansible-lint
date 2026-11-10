@@ -1,0 +1,6 @@
+---
+# Vendored and generated trees are not ours to lint.
+exclude_paths:
+  - kubespray/
+  - collections/
+  - soyspray-venv/

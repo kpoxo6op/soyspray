@@ -23,7 +23,6 @@ scripts/hays-open-submitted-timesheet
 - `configure_status_page.py` manages the external public status page and its
   DNS-only CNAME. Its `--fallback` switch activates the hosted Better Stack
   address when the custom hostname must be bypassed.
-- `validate_skills.py` checks the Agent Skills under `.agents/skills`.
 - `check_prometheus.py` checks native monitoring rules and backup behavior with
   pinned upstream `promtool`. Use `make prometheus-check`.
 - `validate_yaml.py` parses the YAML files used by the local quality gate.

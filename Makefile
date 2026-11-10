@@ -6,38 +6,51 @@ VENV := soyspray-venv
 PYTHON := $(if $(wildcard $(VENV)/bin/python),$(VENV)/bin/python,python3)
 PYTEST := $(PYTHON) -m pytest
 INVENTORY := inventory/soycluster/hosts.yml
-ANSIBLE := source $(VENV)/bin/activate && ansible-playbook -i $(INVENTORY) --become --become-user=root --user ubuntu
 AUTISM_TRAITS_APP := apps/autism-traits/app
-VAULTWARDEN_PACKAGE := apps/vaultwarden/manifests
-OBSIDIAN_PACKAGE := apps/obsidian-livesync/manifests
-FORMAT ?= text
 
 NODE0 := 192.168.20.10
 NODE1 := 192.168.20.11
 NODE2 := 192.168.20.12
 
-KUSTOMIZATIONS := \
-	argocd \
-	apps/prometheus/config \
-	apps/autism-traits/manifests \
-	apps/assembly-guide/manifests \
-	apps/pearl-guide/manifests \
-	apps/gi/manifests \
-	apps/boys/manifests \
-	apps/domain-health \
-	apps/otv-horoscope \
-	apps/immich/database/production \
-	apps/immich/database/alias \
-	$(VAULTWARDEN_PACKAGE) \
-	$(OBSIDIAN_PACKAGE) \
-	apps/voice-assistant/manifests \
-	apps/media-helper \
-	apps/dispatcharr/manifests \
-	apps/jellyfin/manifests
+# Every tracked kustomization renders in the gate. The ones that inflate a
+# Helm chart need Helm and network access, so Argo CD renders those.
+KUSTOMIZATIONS := $(shell git ls-files '*kustomization.yaml' | xargs grep -L '^helmCharts:' | xargs -n1 dirname | sort)
 
-.PHONY: help setup act check shared-test shared-check full-check app-command diff smoke restore-check boys-check autism-traits-check docs-check docs-serve lint validate validate-skills status-page-check prometheus-check \
+# Suites that need their own image dependencies run in their image workflows.
+TEST_SKIP := apps/memes/tests/ apps/voice-assistant/intent-agent/tests/
+TEST_PATHS := tests $(filter-out $(TEST_SKIP),$(sort $(dir $(shell git ls-files 'apps/*test_*.py'))))
+
+# Every tracked .yml under these folders is Ansible (manifests use .yaml).
+# The skip list holds files with known findings: rarely-run or destructive
+# operations that cannot be re-tested casually. Fix one, then remove it here.
+# apps/node-backup/bootstrap.yml loads a private vault file, so its syntax
+# check fails on any machine that has the file but no vault password.
+# recovery/provision-s3.yml needs the extra collections in
+# playbooks/operations/recovery/requirements.yml.
+ANSIBLE_LINT_SKIP := \
+	apps/immich/recovery/restore.yml \
+	apps/node-backup/bootstrap.yml \
+	apps/node-backup/run.yml \
+	playbooks/argocd/config/argocd-configure-ingress.yml \
+	playbooks/argocd/config/argocd-enable-kustomize.yml \
+	playbooks/argocd/config/argocd-publish-service.yml \
+	playbooks/operations/networking/install-tailscale.yml \
+	playbooks/operations/networking/remove-tailscale.yml \
+	playbooks/operations/nodes/configure-openwrt-syslog.yml \
+	playbooks/operations/nodes/configure-zigbee-udev-alias.yml \
+	playbooks/operations/nodes/restart-node.yml \
+	playbooks/operations/recovery/provision-s3.yml \
+	playbooks/operations/recovery/select-authentik-database.yml \
+	playbooks/operations/security/sync-certificates.yml \
+	playbooks/operations/storage/initialize-longhorn-storage.yml \
+	playbooks/operations/storage/prepare-longhorn-worker-ssd.yml \
+	playbooks/operations/storage/prepare-media-usb-disk.yml \
+	roles/app-secret/tasks/main.yml
+ANSIBLE_FILES := $(filter-out $(ANSIBLE_LINT_SKIP),$(shell git ls-files 'apps/*.yml' 'argocd/*.yml' 'playbooks/*.yml' 'roles/*.yml'))
+
+.PHONY: help setup act check shared-test shared-check full-check app-command diff smoke restore-check boys-check autism-traits-check docs-check docs-serve lint validate status-page-check prometheus-check \
 	test render go voice-pe-render voice-pe-check voice-pe-compile voice-pe-upload status-page status-page-fallback argo-login \
-	list-apps node0 node1 node2 master worker1 worker2 worker3 clean
+	list-apps node0 node1 node2 clean
 
 help: ## Show the operator commands
 	printf 'Soyspray operator commands\n\n'
@@ -84,46 +97,22 @@ autism-traits-check: ## Check and build the autism traits web application
 	cd $(AUTISM_TRAITS_APP) && npm run check
 
 docs-check: ## Build the human documentation with strict validation
-	$(VENV)/bin/mkdocs build --strict
+	$(PYTHON) -m mkdocs build --strict
 
 docs-serve: ## Preview the human documentation locally
-	$(VENV)/bin/mkdocs serve
+	$(PYTHON) -m mkdocs serve
 
-lint: ## Check Python style and common defects
-	$(PYTHON) -m ruff check apps/voice-assistant/health apps/voice-assistant/intent-agent apps/voice-assistant/stt apps/loki/tests apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/cert-manager-config/*.py apps/gi/tests apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/otv-horoscope apps/immich apps/prometheus/tests playbooks/operations/android-tv scripts tests
-	$(PYTHON) -m ruff format --check apps/voice-assistant/health apps/voice-assistant/intent-agent apps/voice-assistant/stt apps/loki/tests apps/boys/app apps/boys/tests apps/autism-traits/*.py apps/autism-traits/tests apps/boys/*.py apps/external-dns/tests apps/domain-health/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/obsidian-livesync/*.py apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/cert-manager-config/*.py apps/gi/tests apps/media-helper/app apps/media-helper/*.py apps/vaultwarden/*.py apps/domain-health/app apps/domain-health/*.py apps/otv-horoscope apps/immich apps/prometheus/tests playbooks/operations/android-tv scripts tests
-	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		apps/autism-traits/bootstrap.yml apps/boys/bootstrap*.yml apps/external-dns/*.yml apps/domain-health/*.yml apps/otv-horoscope/*.yml apps/vaultwarden/*.yml apps/obsidian-livesync/*.yml apps/cert-manager-config/*.yml apps/gi/*.yml apps/prometheus/*.yml argocd/bootstrap/repositories.yml apps/authentik/bootstrap/tasks/certificate.yml \
-		apps/voice-assistant/bootstrap/tasks/*.yml apps/voice-assistant/bootstrap/defaults/*.yml
-	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint \
-		apps/live-tv/bootstrap/tasks/*.yml apps/live-tv/bootstrap/defaults/*.yml \
-		playbooks/operations/boys/*.yml
-	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint playbooks/bootstrap-apps.yml \
-		playbooks/bootstrap-app-inputs.yml \
-		playbooks/operations/nodes/snapshot-etcd.yml \
-		playbooks/operations/networking/test-cluster-network.yml \
-		playbooks/operations/networking/set-lan-ingress-hairpin.yml \
-		playbooks/operations/android-tv/sync-android-tv.yml \
-		playbooks/operations/voice/test-stalled-stream.yml \
-		playbooks/operations/recovery/restore-volume.yml playbooks/operations/recovery/cleanup-restore.yml playbooks/operations/recovery/start-restored-app.yml \
-		playbooks/operations/recovery/configure-longhorn.yml playbooks/operations/recovery/backup-daily-now.yml \
-		playbooks/operations/recovery/check-ha-voice-installer.yml playbooks/operations/recovery/check-gi-stt-node.yml \
-		playbooks/operations/storage/repair-voice-multipath.yml \
-		playbooks/operations/retirement/*.yml \
-		playbooks/operations/security/require-delivered.yml \
-		playbooks/operations/security/rotate-argocd-admin.yml \
-		playbooks/operations/security/repair-argocd-ingress.yml \
-		playbooks/operations/security/retire-authentik-argo-keys.yml
+lint: ## Check Python style, common defects and Ansible files
+	$(PYTHON) -m ruff check .
+	$(PYTHON) -m ruff format --check .
+	PATH=$(CURDIR)/$(VENV)/bin:$$PATH $(PYTHON) -m ansiblelint $(ANSIBLE_FILES)
 
-validate: validate-skills status-page-check prometheus-check ## Validate YAML and rendered manifests
+validate: status-page-check prometheus-check ## Validate YAML and rendered manifests
 	$(PYTHON) scripts/validate_yaml.py
 	for path in $(KUSTOMIZATIONS); do \
 		printf 'Rendered %s\n' "$$path"; \
 		kubectl kustomize "$$path" >/dev/null; \
 	done
-
-validate-skills: ## Validate reusable project-local Agent Skills
-	$(PYTHON) scripts/validate_skills.py
 
 prometheus-check: ## Check monitoring rules and backup alert behavior with pinned promtool
 	$(PYTHON) scripts/check_prometheus.py
@@ -132,7 +121,7 @@ status-page-check:
 	$(MAKE) --no-print-directory -f apps/status-page/Makefile check
 
 test: ## Run the focused test suite
-	$(PYTEST) -q tests apps/loki/tests apps/immich/tests apps/immich-offsite-backup/tests --ignore=apps/immich-offsite-backup/tests/test_backup.py apps/autism-traits/tests apps/boys/tests apps/external-dns/tests apps/domain-health/tests apps/otv-horoscope/tests apps/vaultwarden/tests apps/obsidian-livesync/tests apps/headlamp/tests apps/media-helper/tests apps/cert-manager-config/tests apps/gi/tests apps/prometheus/tests
+	$(PYTEST) -q $(TEST_PATHS) --ignore=apps/immich-offsite-backup/tests/test_backup.py
 
 render: ## Render all managed Kustomize packages
 	for path in $(KUSTOMIZATIONS); do \
@@ -176,11 +165,6 @@ node1: ## SSH to node-1
 node2: ## SSH to node-2
 	ssh ubuntu@$(NODE2)
 
-# Compatibility aliases for the older cluster workflow.
-master worker1: node0
-worker2: node1
-worker3: node2
-
 clean: ## Remove generated local output
 	rm -rf .build .pytest_cache
-	find kubernetes scripts tests -type d -name __pycache__ -prune -exec rm -rf {} +
+	find apps playbooks scripts tests -name node_modules -prune -o -type d -name __pycache__ -prune -exec rm -rf {} +

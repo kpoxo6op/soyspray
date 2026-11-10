@@ -34,16 +34,6 @@ configMapGenerator:
       annotations:
         kustomize.toolkit.fluxcd.io/substitute: disabled
 
-  # Commented out large dashboard (202KB) that may cause "Too long" errors
-  # - name: grafana-dashboard-k8s-leospbru
-  #   files:
-  #     - dashboards/k8s-leospbru.json
-  #   options:
-  #     labels:
-  #       grafana_dashboard: "1"
-  #     annotations:
-  #       kustomize.toolkit.fluxcd.io/substitute: disabled
-
   - name: grafana-dashboard-longhorn-adegoodyer
     files:
       - dashboards/longhorn-dashboard-adegoodyer.json
@@ -88,17 +78,6 @@ configMapGenerator:
         grafana_dashboard: "1"
       annotations:
         kustomize.toolkit.fluxcd.io/substitute: disabled
-
-  # Commented out large dashboard that causes "Too long" errors
-  # - name: grafana-dashboard-node-exporter-full
-  #   files:
-  #     - dashboards/node-exporter-full-rfmoz.json
-  #   options:
-  #     labels:
-  #       grafana_dashboard: "1"
-  #     annotations:
-  #       kustomize.toolkit.fluxcd.io/substitute: disabled
-  #     disableNameSuffixHash: true
 
 resources:
   - alerts/backups-essential.yaml

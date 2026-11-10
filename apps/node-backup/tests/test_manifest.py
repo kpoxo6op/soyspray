@@ -31,7 +31,9 @@ class NodeBackupManifest(unittest.TestCase):
         self.assertTrue(mounts["media-downloads"]["readOnly"])
 
     def test_credentials_use_the_documented_secret_contract(self) -> None:
-        container = self.manifest["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"][0]
+        container = self.manifest["spec"]["jobTemplate"]["spec"]["template"]["spec"]["containers"][
+            0
+        ]
         names = {entry["name"] for entry in container["env"]}
         self.assertIn({"name": "TMPDIR", "value": "/work"}, container["env"])
         self.assertTrue(

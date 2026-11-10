@@ -180,9 +180,8 @@ def receiver_result(core, name, namespace):
 
 
 def run(args):
-    from kubernetes.stream import stream
-
     from kubernetes import client, config
+    from kubernetes.stream import stream
 
     revision = pushed(Path(__file__).resolve().parents[3])
     promotion = json.loads(args.promotion.read_text())
