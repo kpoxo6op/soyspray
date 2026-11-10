@@ -2,14 +2,18 @@ name: GI speech recognition image
 
 on:
   pull_request:
-    paths: [apps/voice-assistant/stt/**, .github/workflows/gi-stt-image.yml, playbooks/operations/recovery/check-ha-voice-installer*]
+    paths: [apps/voice-assistant/stt/**, .github/workflows/gi-stt-image.yml]
   push:
     branches: [main]
-    paths: [apps/voice-assistant/stt/**, .github/workflows/gi-stt-image.yml, playbooks/operations/recovery/check-ha-voice-installer*]
+    paths: [apps/voice-assistant/stt/**, .github/workflows/gi-stt-image.yml]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: gi-stt-image-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   stt-image:
@@ -25,10 +29,10 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
-          python-version: 3.12
+          python-version: "3.12"
       - name: Check model integrity and archive confinement
         run: |
-          python -m pip install pytest
+          python -m pip install pytest==8.4.1
           python -m pytest -q apps/voice-assistant/stt/tests
       - uses: ./.github/actions/docker-hub-cache
       - name: Build the offline speech image

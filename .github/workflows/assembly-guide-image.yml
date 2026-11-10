@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: assembly-guide-image-${{ github.ref }}
+  group: assembly-guide-image-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:

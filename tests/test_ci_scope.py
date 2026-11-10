@@ -181,10 +181,16 @@ def test_gi_changes_select_its_boundary_checks(path):
     assert ci_scope.select([path]) == selected(gi=True)
 
 
-def test_immich_recovery_changes_select_native_image_checks():
-    assert ci_scope.select(["apps/immich-offsite-backup/manifests/runtime/dump.sql"]) == selected(
-        immich=True
-    )
+@pytest.mark.parametrize(
+    "path",
+    [
+        "apps/immich-offsite-backup/manifests/runtime/dump.sql",
+        "apps/immich-offsite-backup/tests/test_backup.py",
+        "apps/immich/bootstrap/tasks/main.yml",
+    ],
+)
+def test_immich_recovery_changes_select_native_image_checks(path):
+    assert ci_scope.select([path]) == selected(immich=True)
 
 
 def test_domain_health_changes_select_the_native_image_checks():

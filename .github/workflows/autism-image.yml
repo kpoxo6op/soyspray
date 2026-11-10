@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: autism-image-${{ github.ref }}
+  group: autism-image-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -129,7 +129,7 @@ jobs:
 
           The image passed scoring, HTTP, TLS, privacy-header and phone/desktop browser checks. This promotion changes the image digest and preserves the TLS Secret, namespace, Service, tunnel, network policies and browser-only scoring.
 
-          Run \`make go\` and deploy through the standard Ansible path. Verify both the private origin and public tunnel before merge. Roll back the digest and compatible configuration together. This workflow does not merge or deploy.
+          Run \`make check APP=autism-traits\`. After this promotion merges, Argo CD follows \`main\` and reconciles the tested digest. Verify both the private origin and public tunnel afterwards. Roll back through GitHub by reverting this promotion. This workflow does not merge or deploy.
 
           Commits, oldest first:
 

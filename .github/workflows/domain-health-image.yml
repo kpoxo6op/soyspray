@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: domain-health-image-${{ github.ref }}
+  group: domain-health-image-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
