@@ -9,8 +9,8 @@ starting, honor its STOP conditions, and update your row when done.
 
 | Plan | Title | Priority | Effort | Depends on | Status |
 |------|-------|----------|--------|------------|--------|
-| [001](001-one-frame-callback-per-frame.md) | Each guide runs one animation-frame callback per displayed frame | P1 | S | — | TODO |
-| [002](002-compressed-cacheable-delivery.md) | Both guides are served compressed and cached by content revision | P1 | M | — | TODO |
+| [001](001-one-frame-callback-per-frame.md) | Each guide runs one animation-frame callback per displayed frame | P1 | S | — | DONE |
+| [002](002-compressed-cacheable-delivery.md) | Both guides are served compressed and cached by content revision | P1 | M | — | DONE |
 | [003](003-assembly-shader-warm-up.md) | The assembly guide compiles every shader before playback starts | P1 | S | 001 | TODO |
 | [004](004-assembly-name-tags-without-layout-reads.md) | The assembly guide places name tags without reading layout every frame | P2 | S | 003 | TODO |
 | [005](005-assembly-shadows-and-resolution.md) | The assembly guide redraws shadows only when something moved and adapts its resolution | P2 | M | 004 | TODO |
