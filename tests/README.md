@@ -3,15 +3,8 @@
 The test suite checks repository behavior and deployment rules without
 requiring a live cluster.
 
-| File | Coverage |
-| --- | --- |
-| [`test_hays_open_submitted_timesheet.py`](test_hays_open_submitted_timesheet.py) | Safe proof and credential boundary for the submitted-timesheet opener |
-| [`test_live_tv.py`](test_live_tv.py) | Live TV catalog, Jellyfin guide, playback services, SSO, and lifecycle contracts |
-| [`test_render.py`](test_render.py) | Kustomize rendering and manifest expectations |
-| [`test_sso.py`](test_sso.py) | Authentik secrets, base blueprints, and recovery access |
-| [`test_sso_headlamp.py`](test_sso_headlamp.py) | Headlamp OIDC and Authentik secret-change rollout |
-| [`test_sso_legacy_proxy.py`](test_sso_legacy_proxy.py) | Authentik forward auth and machine API exceptions |
-| [`test_sso_native_apps.py`](test_sso_native_apps.py) | Native application OIDC clients and access groups |
+Tests that cover repository rules or more than one app belong in `tests/`.
+Tests for a single app belong in that app's `apps/<name>/tests` folder.
 
 [`conftest.py`](conftest.py) provides shared paths and manifest helpers. Run the
 focused suite with `make test`, or the complete local gate with `make check`.
@@ -21,4 +14,4 @@ ownership, recovery, or publication that a broader check would miss. Prefer
 real commands and user paths where practical. A rendered manifest can protect
 a deployment contract, but its current image digest or wording is not itself
 a test oracle. Avoid source-text mirrors, repeated coverage, and prose quotas.
-Run affected checks after changes; use `make go` before delivery.
+Run affected checks after changes; use `make check` before delivery.

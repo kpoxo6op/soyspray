@@ -4,9 +4,6 @@ Argo CD bootstrap and controller configuration.
 
 ## Structure
 
-### playbooks/
-Ansible playbooks for bootstrapping and configuring Argo CD itself.
-
 The running installation belongs to the pinned, non-pruning self-management
 Application under [apps/argocd](../../apps/argocd/README.md). Kubespray's Argo
 addon stays disabled. Ansible owns configuration, custom Service/Ingress and

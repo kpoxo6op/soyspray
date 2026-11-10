@@ -7,7 +7,7 @@ stable dashboard ConfigMap names and prunes removed files, so a Git revert
 also removes a temporary dashboard or rule. The Prometheus stack and CRDs have
 separate, non-pruning owners.
 
-Run `make check APP=prometheus`, `make diff APP=prometheus`, and `make go`
+Run `make check APP=prometheus`, `make diff APP=prometheus`, and `make check`
 before merging. Check `kubectl -n argocd get application prometheus-config`
 after delivery. The AppProject permits only ConfigMaps and PrometheusRules in
 `monitoring`; it cannot manage cluster resources, Secrets, or volumes.

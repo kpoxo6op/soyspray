@@ -14,7 +14,7 @@ conservative resource limits.
 
 ## Hardware Configuration
 
-Using the same devices as attempted with Rook/Ceph:
+Devices:
 
 - node-0: /dev/sda
 - node-1: /dev/sda
@@ -22,13 +22,8 @@ Using the same devices as attempted with Rook/Ceph:
 
 ## Resource Usage
 
-Much lighter than Ceph, configured with:
-
-- Manager: 250m CPU, 256Mi memory
-- Driver: 250m CPU, 256Mi memory
-- Instance Manager: 250m CPU, 256Mi memory
-
-Total per node: ~750m CPU, 768Mi memory
+Component CPU and memory requests and limits are set in
+[`manifests/kustomization.yaml`](manifests/kustomization.yaml).
 
 ## Storage and Node Preparation
 
@@ -36,28 +31,9 @@ Created from longhornctl output
 
 `longhornctl check preflight --kube-config ~/.kube/config`
 
-```bash
-ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/operations/storage/initialize-longhorn-storage.yml
-```
-
-## Maintenance and Troubleshooting
-
-For maintenance procedures, including uninstallation and cleanup, see:
-
-- [Longhorn Maintenance Procedures](manifests/docs)
-
-## Prometheus Storage Plan
-
-We will create a high-performance storage solution for Prometheus using Longhorn on miniPC SSDs:
-
-1. Create a dedicated `longhorn-monitoring` StorageClass with optimized settings
-2. Configure replicated volumes backed by the SSD on each node
-3. Configure Prometheus to use this storage via PersistentVolumeClaims
-4. Implement proper retention and compaction settings
-
-For detailed implementation plans, performance benchmarks, and configuration parameters, see:
-
-- Prometheus storage is maintained in `apps/prometheus/README.md`.
+The worker SSD preparation playbook is
+`playbooks/operations/storage/prepare-longhorn-worker-ssd.yml`. It takes a
+stable `/dev/disk/by-id` path per host.
 
 ## Observe storage and backup state
 
@@ -68,7 +44,7 @@ backup metrics do not include the snapshot time, so they do not prove backup age
 Use Longhorn Backup custom resources and the Longhorn UI for snapshot times.
 The kube-state-metrics rules retain the native critical-backup age alerts.
 
-Run `make go`, merge the pull request, and let Argo reconcile `main`. Verify the Application,
+Run `make check`, merge the pull request, and let Argo reconcile `main`. Verify the Application,
 ServiceMonitor, Prometheus target health, and existing volume identities and
 replica counts. Disabling the ServiceMonitor stops telemetry; it does not stop
 Longhorn or change storage.

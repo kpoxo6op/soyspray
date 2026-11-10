@@ -101,7 +101,7 @@ and rejected access outside the prefix before deploying a backup workload.
 
 ## Check and rollback
 
-Run `ansible-lint` and the playbook syntax check, then `make go`. After the
+Run `ansible-lint` and the playbook syntax check, then `make check`. After the
 first apply, repeat the operation and check that it makes no changes. Verify
 the bucket settings and test the dedicated identity before adding schedules.
 
@@ -130,7 +130,7 @@ with three replicas. It enables filesystem freezing for these volumes and
 assigns each claim to its explicit `critical` or `durable-small` group. It keeps their names, claims,
 data, and application ownership.
 
-Push the branch and run `make go`. Use the standard inventory and privilege
+Push the branch and run `make check`. Use the standard inventory and privilege
 settings for check mode, then omit `--check` to apply:
 
 ```bash
@@ -265,7 +265,7 @@ service-account token, host mounts, or public endpoint. The container uses a
 pinned Python image and stops after four hours. The disposable volume has one
 replica and no selected backup jobs.
 
-Push the branch and run `make go`. Select an actual completed backup name:
+Push the branch and run `make check`. Select an actual completed backup name:
 
 ```bash
 source soyspray-venv/bin/activate

@@ -4,7 +4,7 @@ This folder holds operating notes and maintenance references.
 
 ## Current runbooks
 
-- [`android-tv/README.md`](android-tv) covers television buying checks, Jellyfin, SmartTube, and Home Assistant setup.
+- [`playbooks/operations/android-tv/README.md`](../playbooks/operations/android-tv/README.md) is the Android TV guide.
 
 - [`public-status-page.md`](public-status-page.md) describes the external
   Better Stack status page, outage handling, extension, diagnosis, fallback,

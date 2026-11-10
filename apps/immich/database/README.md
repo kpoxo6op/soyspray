@@ -23,7 +23,7 @@ Run the maintained application checks from the repository root:
 ```sh
 kubectl -n argocd get application immich -o yaml
 make check APP=immich
-make go
+make check
 ```
 
 Render the database paths directly when reviewing a manifest change:
