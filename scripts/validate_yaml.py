@@ -14,12 +14,36 @@ YAML_ROOTS = [
     "apps",
     "argocd",
     "inventory",
+    "playbooks",
+    "roles",
     "tests",
 ]
+SKIPPED_DIRECTORIES = {"node_modules"}
 
 
 class RepositoryLoader(yaml.SafeLoader):
-    pass
+    """Safe loading that also rejects a mapping key written twice.
+
+    YAML parsers keep the last duplicate and silently drop the others, so a
+    repeated top-level key in a values file discards settings without a word.
+    """
+
+    def construct_mapping(self, node, deep=False):
+        seen = set()
+        for key_node, _ in node.value:
+            if key_node.tag == "tag:yaml.org,2002:merge":
+                continue
+            key = self.construct_object(key_node, deep=True)
+            try:
+                duplicate = key in seen
+            except TypeError:
+                continue
+            if duplicate:
+                raise yaml.constructor.ConstructorError(
+                    None, None, f"duplicate key {key!r}", key_node.start_mark
+                )
+            seen.add(key)
+        return super().construct_mapping(node, deep=deep)
 
 
 def tagged(loader, tag, node):
@@ -33,13 +57,21 @@ def tagged(loader, tag, node):
 RepositoryLoader.add_multi_constructor("!", tagged)
 
 
+def load(text: str) -> list:
+    return list(yaml.load_all(text, Loader=RepositoryLoader))
+
+
 def yaml_files() -> list[Path]:
     paths: list[Path] = []
     for root in YAML_ROOTS:
         base = ROOT / root
         if not base.exists():
             continue
-        paths.extend(path for path in base.rglob("*") if path.suffix in {".yaml", ".yml"})
+        paths.extend(
+            path
+            for path in base.rglob("*")
+            if path.suffix in {".yaml", ".yml"} and not SKIPPED_DIRECTORIES.intersection(path.parts)
+        )
     return sorted(set(paths))
 
 
@@ -47,7 +79,7 @@ def main() -> int:
     errors: list[str] = []
     for path in yaml_files():
         try:
-            list(yaml.load_all(path.read_text(encoding="utf-8"), Loader=RepositoryLoader))
+            load(path.read_text(encoding="utf-8"))
         except yaml.YAMLError as exc:
             errors.append(f"{path.relative_to(ROOT)}: {exc}")
 
