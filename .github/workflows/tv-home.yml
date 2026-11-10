@@ -19,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: tv-home-${{ github.ref }}
+  group: tv-home-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:

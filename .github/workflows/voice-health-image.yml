@@ -4,9 +4,6 @@ on:
   pull_request:
     paths:
       - apps/voice-assistant/health/**
-      - tests/test_voice_health.py
-      - tests/voice_health_scenarios.cpp
-      - apps/voice-assistant/firmware/**
       - .github/workflows/voice-health-image.yml
   push:
     branches: [main]
@@ -17,6 +14,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: voice-health-image-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   image:
