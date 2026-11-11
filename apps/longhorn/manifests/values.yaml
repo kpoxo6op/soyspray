@@ -7,7 +7,7 @@ persistence:
 
 defaultSettings:
   defaultReplicaCount: "3"
-  concurrentReplicaRebuildPerNodeLimit: "4"
+  concurrentReplicaRebuildPerNodeLimit: "1"
   priorityClass: null
   disableRevisionCounter: null
 
