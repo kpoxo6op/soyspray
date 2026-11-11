@@ -1,0 +1,102 @@
+---
+- name: Retry Ethernet negotiation on one explicit worker while the cluster is up
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    kubeconfig_path: "{{ lookup('env', 'HOME') }}/.kube/config"
+  tasks:
+    - name: Limit the operation to one explicit non-storage-owner node
+      ansible.builtin.assert:
+        that:
+          - network_node is defined
+          - network_node in ['node-1', 'node-2']
+          - network_node in groups['kube_node']
+
+    - name: Read Kubernetes node readiness
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Node
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: network_nodes
+
+    - name: Require all three expected nodes ready before a brief link interruption
+      ansible.builtin.assert:
+        quiet: true
+        that:
+          - network_nodes.resources | map(attribute='metadata.name') | sort == ['node-0', 'node-1', 'node-2']
+          - item.status.conditions | selectattr('type', 'equalto', 'Ready') | map(attribute='status') | list == ['True']
+          - not item.spec.unschedulable | default(false)
+      loop: "{{ network_nodes.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Inspect and retry only the selected physical link
+      delegate_to: "{{ network_node }}"
+      connection: ssh
+      become: true
+      block:
+        - name: Read the selected host identity
+          ansible.builtin.command: hostname
+          register: network_hostname
+          changed_when: false
+          check_mode: false
+
+        - name: Read negotiated Ethernet speed
+          ansible.builtin.command: cat /sys/class/net/eno1/speed
+          register: network_speed
+          changed_when: false
+          check_mode: false
+
+        - name: Read advertised link modes
+          ansible.builtin.command: ethtool eno1
+          register: network_modes
+          changed_when: false
+          check_mode: false
+
+        - name: Refuse a different host or an unexpected network state
+          ansible.builtin.assert:
+            that:
+              - network_hostname.stdout == network_node
+              - network_speed.stdout in ['100', '1000']
+              - "'1000baseT/Full' in network_modes.stdout"
+              - "'Auto-negotiation: on' in network_modes.stdout"
+              - "'Link detected: yes' in network_modes.stdout"
+
+        - name: Retry normal negotiation once without forcing speed or changing addressing
+          ansible.builtin.command: ethtool -r eno1
+          async: 30
+          poll: 0
+          register: network_retry
+          changed_when: true
+          when:
+            - not ansible_check_mode
+            - network_speed.stdout == '100'
+
+        - name: Wait for the same node to be reachable again
+          ansible.builtin.wait_for_connection:
+            delay: 3
+            timeout: 60
+          when: network_retry.ansible_job_id is defined
+
+        - name: Check the negotiation command result
+          ansible.builtin.async_status:
+            jid: "{{ network_retry.ansible_job_id }}"
+          register: network_result
+          until: network_result.finished
+          retries: 5
+          delay: 2
+          when: network_retry.ansible_job_id is defined
+
+        - name: Report the resulting link speed
+          ansible.builtin.command: cat /sys/class/net/eno1/speed
+          register: network_after
+          changed_when: false
+          check_mode: false
+
+        - name: Require the link to have returned without claiming gigabit
+          ansible.builtin.assert:
+            that:
+              - network_after.stdout in ['100', '1000']
+            success_msg: "{{ network_node }} negotiated {{ network_after.stdout }} Mbps."
