@@ -1,10 +1,11 @@
 ---
 - name: Reserve capacity for three copies on the existing dedicated SSDs
-  hosts: kube_control_plane[0]
+  hosts: localhost
+  connection: local
   gather_facts: false
-  become: true
+  become: false
   vars:
-    kubeconfig_path: /etc/kubernetes/admin.conf
+    kubeconfig_path: "{{ lookup('env', 'HOME') }}/.kube/config"
     replica_disks:
       - {node: node-0, disk: replacement-pny-500gb}
       - {node: node-1, disk: default-disk-9393086242afc42e}

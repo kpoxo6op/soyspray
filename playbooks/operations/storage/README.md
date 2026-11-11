@@ -73,3 +73,7 @@ identity and free-space guards; it leaves the stale node-0 disk entry untouched.
 Wait for all attached volumes to be healthy and verify three running RW replicas
 on distinct nodes before disconnecting hardware. The reservation does not change
 100% provisioning or the 25% actual-free-space floor.
+
+Both replica-capacity operations run on the laptop with its existing kubeconfig
+and Kubernetes Python client in `soyspray-venv`; no extra Python packages are
+installed on cluster nodes. Override `kubeconfig_path` for another private config.
