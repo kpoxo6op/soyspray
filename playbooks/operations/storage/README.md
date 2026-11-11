@@ -77,3 +77,25 @@ on distinct nodes before disconnecting hardware. The reservation does not change
 Both replica-capacity operations run on the laptop with its existing kubeconfig
 and Kubernetes Python client in `soyspray-venv`; no extra Python packages are
 installed on cluster nodes. Override `kubeconfig_path` for another private config.
+
+## Longhorn mounts during failover
+
+`repair-longhorn-multipath.yml` applies the same device/WWID, exclusive-slave and
+zero-open-user guards to an explicitly named existing claim. Run from a pushed
+revision with the three-node inventory and the laptop's Kubernetes environment:
+
+```sh
+ansible-playbook -i inventory/soycluster/hosts.yml --user ubuntu \
+  playbooks/operations/storage/repair-longhorn-multipath.yml \
+  -e storage_namespace=postgresql -e storage_claim=immich-db-a-3 --check
+```
+
+Remove `--check` only after the guard identifies the intended unused map. It
+writes `soyspray-longhorn.conf` on the claim's current node and releases only
+that map. With no map, it still installs the exclusion to prevent the conflict
+on later attaches. It refuses a shared WWID used by any non-Longhorn device.
+It does not format devices, delete pods/claims, or detach volumes. Verify the
+original claim identity and the consuming application's readiness afterwards.
+The selected volume must be attached and healthy. Restore the previous fragment
+through Ansible and reconfigure multipath to roll back, acknowledging that this
+can bring the mount conflict back. Do not flush maps globally.
