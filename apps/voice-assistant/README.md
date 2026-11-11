@@ -315,6 +315,9 @@ on the same node as the original model PVC. GI Everyday uses
 `stt.speech_to_phrase` with its promoted sentence bundle. Its matcher reads the
 bundle directly, so custom sentences do not change original GI's native agent.
 Selecting GI therefore bypasses both the Everyday agent and its recognizer.
+The original recognizer reserves 400m CPU and can use up to two cores. Its
+read-only source-model mount requires placement beside `speech-to-phrase`;
+leave room for both services when checking two-node maintenance capacity.
 
 GI Everyday uses open local speech recognition to retain negation and reported
 speech. Every turn that Parakeet does not hear as an exact command is also decoded
