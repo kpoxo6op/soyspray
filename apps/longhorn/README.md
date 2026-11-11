@@ -66,3 +66,15 @@ This makes room for the third Immich library copy, three monitoring copies and
 additional PostgreSQL standbys. It neither formats disks nor moves mounts.
 Restore the old reservation only after allocated replicas fit that smaller budget;
 do not remove data or replicas merely to roll back the reservation.
+
+Longhorn 1.10's driver deployer skips existing CSI Deployments when their version
+is unchanged, even when its replica-count environment changes. After merging the
+chart values, run `playbooks/operations/storage/csi-controller-replicas.yml`
+with `--check`, then without it. This guards the four existing identities and
+changes only replicas from one to three; it does not recreate CSI components.
+Verify three ready pods per controller and placement across nodes. Future
+controller creation uses the matching chart values.
+
+Allow one replica rebuild per target node at a time. This limits competing copy
+traffic on the observed slow links while keeping the three-copy target. It does
+not repair the links or prove a successful rebuild; wait for actual RW replicas.

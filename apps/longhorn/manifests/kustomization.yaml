@@ -15,6 +15,7 @@ resources:
   - authentik-forward-auth.yaml
   - setting-default-data-path.yaml
   - setting-node-down-pod-deletion.yaml
+  - setting-rebuild-concurrency.yaml
   - storageclass-rwx.yaml
 
 patches:
