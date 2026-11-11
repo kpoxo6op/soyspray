@@ -1,10 +1,11 @@
 ---
 - name: Set the deliberate replica policy for disposable monitoring data
-  hosts: kube_control_plane[0]
+  hosts: localhost
+  connection: local
   gather_facts: false
-  become: true
+  become: false
   vars:
-    kubeconfig_path: /etc/kubernetes/admin.conf
+    kubeconfig_path: "{{ lookup('env', 'HOME') }}/.kube/config"
     monitoring_replicas: 1
     monitoring_claim_names:
       - prometheus-kube-prometheus-stack-prometheus-db-prometheus-kube-prometheus-stack-prometheus-0

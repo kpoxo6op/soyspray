@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/name: assembly-guide
     app.kubernetes.io/part-of: assembly-guide
 spec:
-  replicas: 1
+  replicas: 2
   revisionHistoryLimit: 2
   strategy:
     type: RollingUpdate
@@ -22,6 +22,13 @@ spec:
         app.kubernetes.io/name: assembly-guide
         app.kubernetes.io/part-of: assembly-guide
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: assembly-guide
+              topologyKey: kubernetes.io/hostname
       automountServiceAccountToken: false
       enableServiceLinks: false
       securityContext:

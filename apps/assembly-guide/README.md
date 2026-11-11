@@ -227,3 +227,6 @@ Zigbee spacing, the 260 × 240 × 450 mm envelope, and that the copy asks for no
 drilling. Manufacturing fit belongs to the real slicer/layer E2E, not a nominal
 256 mm bounding-box test. Original CAD, photos and private
 notes stay outside the runtime package.
+
+Two web replicas run on separate nodes so a single node outage leaves the guide
+available. The currently loaded player also runs entirely in the browser.

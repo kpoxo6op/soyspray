@@ -64,3 +64,16 @@ One replica is not protection from disk loss. This policy is limited to
 disposable metrics and logs. Backups, isolated restores, and the node recovery
 guide remain the supported recovery evidence; there is no separate node
 evacuation or restore workflow.
+
+For single-node maintenance, retain three monitoring replicas with
+`monitoring-replicas.yml -e monitoring_replicas=3`. First run
+`reserve-replica-capacity.yml` with `--check`, then apply it from a pushed
+revision. It changes only the known SSD reservations from 30% to 15%, with
+identity and free-space guards; it leaves the stale node-0 disk entry untouched.
+Wait for all attached volumes to be healthy and verify three running RW replicas
+on distinct nodes before disconnecting hardware. The reservation does not change
+100% provisioning or the 25% actual-free-space floor.
+
+Both replica-capacity operations run on the laptop with its existing kubeconfig
+and Kubernetes Python client in `soyspray-venv`; no extra Python packages are
+installed on cluster nodes. Override `kubeconfig_path` for another private config.
