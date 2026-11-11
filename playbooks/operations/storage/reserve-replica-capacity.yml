@@ -1,0 +1,61 @@
+---
+- name: Reserve capacity for three copies on the existing dedicated SSDs
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    replica_disks:
+      - {node: node-0, disk: replacement-pny-500gb}
+      - {node: node-1, disk: default-disk-9393086242afc42e}
+      - {node: node-2, disk: default-disk-bb1706d0bbee1156}
+    previous_reserved: 147331952640
+    replica_reserved: 73665976320
+  tasks:
+    - name: Read the three known storage nodes
+      kubernetes.core.k8s_info:
+        api_version: longhorn.io/v1beta2
+        kind: Node
+        namespace: longhorn-system
+        name: "{{ item.node }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      loop: "{{ replica_disks }}"
+      register: replica_nodes
+      loop_control:
+        label: "{{ item.node }}"
+
+    - name: Check every disk before changing any reservation
+      ansible.builtin.assert:
+        that:
+          - item.resources | length == 1
+          - item.resources[0].spec.disks[item.item.disk].path == '/storage'
+          - item.resources[0].spec.disks[item.item.disk].diskType == 'filesystem'
+          - item.resources[0].spec.disks[item.item.disk].allowScheduling
+          - not item.resources[0].spec.disks[item.item.disk].evictionRequested
+          - item.resources[0].spec.disks[item.item.disk].storageReserved in [previous_reserved, replica_reserved]
+          - item.resources[0].status.diskStatus[item.item.disk].storageMaximum == 491106508800
+          - item.resources[0].status.diskStatus[item.item.disk].storageAvailable > 245553254400
+          - >-
+            item.resources[0].status.diskStatus[item.item.disk].conditions
+            | selectattr('type', 'equalto', 'Ready') | map(attribute='status') | list == ['True']
+      loop: "{{ replica_nodes.results }}"
+      loop_control:
+        label: "{{ item.item.node }}"
+
+    - name: Change only the reservation on the verified SSD
+      kubernetes.core.k8s_json_patch:
+        api_version: longhorn.io/v1beta2
+        kind: Node
+        namespace: longhorn-system
+        name: "{{ item.item.node }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        patch: >-
+          {{ [
+            {'op': 'test', 'path': '/metadata/uid', 'value': item.resources[0].metadata.uid},
+            {'op': 'test', 'path': '/spec/disks', 'value': item.resources[0].spec.disks},
+            {'op': 'replace', 'path': '/spec/disks/' + item.item.disk + '/storageReserved', 'value': replica_reserved}
+          ] }}
+      loop: "{{ replica_nodes.results }}"
+      loop_control:
+        label: "{{ item.item.node }}"
+      when: item.resources[0].spec.disks[item.item.disk].storageReserved != replica_reserved

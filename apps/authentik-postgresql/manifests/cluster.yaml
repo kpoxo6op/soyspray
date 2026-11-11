@@ -4,7 +4,11 @@ metadata:
   name: authentik-postgresql
   namespace: authentik
 spec:
-  instances: 2
+  instances: 3
+  affinity:
+    enablePodAntiAffinity: true
+    podAntiAffinityType: required
+    topologyKey: kubernetes.io/hostname
   imageName: ghcr.io/cloudnative-pg/postgresql:17.5
   bootstrap:
     initdb:
@@ -25,6 +29,10 @@ spec:
   monitoring:
     enablePodMonitor: true
   postgresql:
+    synchronous:
+      method: any
+      number: 1
+      dataDurability: required
     parameters:
       archive_timeout: 5min
   backup:

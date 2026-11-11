@@ -48,3 +48,21 @@ Run `make check`, merge the pull request, and let Argo reconcile `main`. Verify 
 ServiceMonitor, Prometheus target health, and existing volume identities and
 replica counts. Disabling the ServiceMonitor stops telemetry; it does not stop
 Longhorn or change storage.
+
+## Single-node outages
+
+CSI controllers run three copies. Longhorn deletes terminating Deployment and
+StatefulSet pods on a down node so their existing volumes can attach elsewhere.
+This permits automatic recovery after Kubernetes marks and evicts the lost pods;
+it is not uninterrupted service. Physically power off a node before disconnecting
+its network for maintenance: a partitioned, still-running writer is not a safely
+fenced machine. Never lose a second node until replicas have recovered.
+
+The guarded `playbooks/operations/storage/reserve-replica-capacity.yml` operation
+changes only the three known dedicated SSD reservations from 30% to 15%.
+It requires matching disk identities, sizes, ready state and over 50% real free
+space. The 100% provisioning limit and 25% minimum-free-space protection remain.
+This makes room for the third Immich library copy, three monitoring copies and
+additional PostgreSQL standbys. It neither formats disks nor moves mounts.
+Restore the old reservation only after allocated replicas fit that smaller budget;
+do not remove data or replicas merely to roll back the reservation.
