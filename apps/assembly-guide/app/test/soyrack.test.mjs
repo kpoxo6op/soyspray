@@ -11,6 +11,7 @@ import { CABLES, CABLE_BY_ID, MAST_RUN, TIES } from '../src/soyrack/cables.js';
 import { DEVICES, DEVICE_BY_ID, FLOOR_Z } from '../src/soyrack/rack.js';
 import { BUY, PRINTED, TEST_PRINTS, soyrackSheetHTML } from '../src/soyrack/sheet.js';
 import { PIECES, HOLES, JOINT, FOOT_TOP, BASE_NUT, NUT_Y, WINDOWS, onPiece } from '../src/soyrack/testprints.js';
+import { CRIMP_IDS } from '../src/soyrack/crimp.js';
 
 const tl = buildSoyrackTimeline(meshes);
 const shown = [...tl.nodes.values()].filter((n) => n.kind !== 'group');
@@ -48,7 +49,7 @@ test('the guide opens with the test prints alone and ends with everything else i
   const base = evaluate(tl, tl.chapters.find((c) => c.id === 'power-base').start);
   for (const n of shown.filter((n) => TEST_PIECE.test(n.id))) assert.ok(base.get(n.id).alpha < 0.01, `${n.id} cleared away`);
   const end = evaluate(tl, tl.duration);
-  for (const n of shown.filter((n) => !TEST_PIECE.test(n.id))) {
+  for (const n of shown.filter((n) => !TEST_PIECE.test(n.id) && !CRIMP_IDS.test(n.id))) {
     const s = end.get(n.id);
     assert.ok(s.alpha > 0.999, `${n.id} shown at the end`);
     assert.ok(s.glow < 1e-6, `${n.id} settled at the end`);

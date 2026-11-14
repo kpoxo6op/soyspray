@@ -5,6 +5,8 @@ import { decodeMeshes } from './meshes.js';
 import { Player } from './player.js';
 import { createUI } from './ui.js';
 import { createPartsUI } from './parts-ui.js';
+import { createChaptersUI, chapterFromHash } from './chapters-ui.js';
+import { legendHTML } from './soyrack/legend.js';
 import { createTags } from './tags.js';
 import { createLoop } from './loop.js';
 import { Viewer } from './scene.js';
@@ -23,7 +25,8 @@ const player = new Player(timeline);
 
 function readHashTime() {
   const m = /(?:^|[#&])t=(\d+(?:\.\d+)?)/.exec(window.location.hash);
-  return m ? Number(m[1]) : null;
+  if (m) return Number(m[1]);
+  return chapterFromHash(timeline, window.location.hash)?.start ?? null;
 }
 
 let viewer;
@@ -37,9 +40,15 @@ try {
   throw err;
 }
 
-const ui = createUI({ root, player, timeline, viewer, reducedMotion, onUserActivity: () => schedule() });
+const chaptersUI = createChaptersUI({ player, timeline });
+const ui = createUI({ root, player, timeline, viewer, reducedMotion, onUserActivity: () => schedule(), legends: { t568b: legendHTML() }, onChapters: chaptersUI.open });
 
 createPartsUI({ player, sheet: soyrackSheetHTML });
+// A chapter link followed while the guide is open jumps there.
+window.addEventListener('hashchange', () => {
+  const c = chapterFromHash(timeline, window.location.hash);
+  if (c) player.goToChapter(c.index);
+});
 const tags = createTags({ root, before: hud, player, timeline, viewer });
 
 // Keep the 3D content centred in the area above the caption and transport bar.

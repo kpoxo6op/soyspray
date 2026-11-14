@@ -12,6 +12,7 @@
 <body>
 <main id="app">
   <div id="stage" class="stage"></div>
+  <div id="legend" class="legend" hidden></div>
   <div id="hud" class="hud">
     <div id="caption" class="caption">
       <h1 class="chapter"><span id="chapterNo" class="chapter-no">01</span><span id="chapterTitle" class="chapter-title">Test prints first</span></h1>
@@ -33,6 +34,7 @@
           <div class="time"><span id="timeNow">0:00</span><span class="time-sep"> / </span><span id="timeTotal">0:00</span></div>
         </div>
         <div class="group">
+          <button id="btnChapters" class="btn btn-text" type="button" aria-label="Chapters" title="Chapters (C)">Chapters</button>
           <button id="btnParts" class="btn btn-text" type="button" aria-label="Parts and where to buy" title="Parts and where to buy">Parts</button>
           <button id="btnSpeed" class="btn btn-text" type="button" aria-label="Playback speed 1×" title="Playback speed">1×</button>
           <button id="btnView" class="btn" type="button" aria-label="Reset view" title="Reset view (V)"></button>
@@ -42,6 +44,7 @@
     </div>
   </div>
   <dialog id="partsSheet" aria-labelledby="partsTitle"></dialog>
+  <dialog id="chaptersSheet" class="sheet" aria-labelledby="chaptersTitle"></dialog>
   <noscript><p class="noscript">This page needs JavaScript for the 3D view.</p></noscript>
 </main>
 <div class="loading" role="status">Loading the 3D view</div>

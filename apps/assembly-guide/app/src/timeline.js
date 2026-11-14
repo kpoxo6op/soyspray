@@ -145,8 +145,9 @@ export function buildTimeline(data, chapterDefs, devices = []) {
       mesh: s.type, dir: s.dir, out: s.out, final: { p: s.head, q: s.q ?? qfromTo(SCREW_AXIS, s.dir) },
     }));
   }
+  // A device may ride in a group (its centre is then in the group's frame), like a part.
   for (const d of devices) {
-    add(node(d.id, null, 'device', { mesh: d.model, device: d, final: { p: d.centre, q: d.q || ID_Q } }));
+    add(node(d.id, d.group ? parentOf(d.group) : null, 'device', { mesh: d.model, device: d, final: { p: d.centre, q: d.q || ID_Q } }));
   }
 
   const chapters = [];
@@ -155,7 +156,10 @@ export function buildTimeline(data, chapterDefs, devices = []) {
     const c = new Chapter(nodes, t, chapters.length);
     def.script(c);
     const end = Math.round((c.end + HOLD_OUT)*1e9)/1e9;
-    chapters.push({ index: chapters.length, id: def.id, title: def.title, text: def.text, start: t, end, view: def.view, tags: def.tags || [] });
+    chapters.push({
+      index: chapters.length, id: def.id, title: def.title, text: def.text, start: t, end, view: def.view, tags: def.tags || [],
+      section: def.section || null, legend: def.legend || null,
+    });
     t = end;
   }
 

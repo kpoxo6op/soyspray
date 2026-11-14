@@ -46,7 +46,7 @@ export const BUY = [
 export const CARRY_OVER = [
   'Three ventilated node trays and their twelve M4 × 12 screws.',
   'Nodes, both drives, the switch and its plug-in adapter, three Lenovo bricks with their own mains cords, and the Zigbee dongle.',
-  'Cat6 UTP cable and RJ45 plugs for five short crimped leads and the lead out to the router.',
+  'Spare Ethernet cable, clear RJ45 plugs, boots and the crimp kit (crimper, yellow stripper, 468 tester) for five short leads and the lead out to the router.',
 ];
 
 export const SOYRACK_LINKS = [
