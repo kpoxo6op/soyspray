@@ -365,13 +365,15 @@ export class Viewer {
         shadows = true;
       } else if (shifted && visible) shadows = true; // a part still hidden casts nothing
       if (!visible) continue;
-      const transparent = s.alpha < 0.995;
       for (const m of rec.materials) {
+        // A see-through material (a clear plug) keeps its own opacity as the part fades.
+        const opacity = s.alpha * (m.userData.opacity ?? 1);
+        const transparent = opacity < 0.995;
         if (m.transparent !== transparent) {
           m.transparent = transparent;
           m.needsUpdate = true;
         }
-        m.opacity = s.alpha;
+        m.opacity = opacity;
         m.userData.glow.value = s.glow;
       }
       const casts = s.alpha > 0.6;

@@ -7,6 +7,7 @@ import { chapterAt } from '../timeline.js';
 import { polyLength } from '../cablepath.js';
 import { CABLES, TIES } from './cables.js';
 import { buildTie } from './models.js';
+import { CRIMP_VIEWS } from './crimp.js';
 
 const box = ([min, max]) => new Box3(new Vector3(...min), new Vector3(...max));
 
@@ -27,6 +28,7 @@ export const VIEWS = {
   tall: { box: [[-5, -5, -115], [258, 245, 295]], view: { azimuth: 0.55, elevation: 0.26 } },
   rear: { box: [[-5, -5, -115], [262, 252, 295]], view: { azimuth: 2.6, elevation: 0.3 } },
   zigbee: { box: [[-990, -10, -115], [262, 320, 295]], view: { azimuth: 3.6, elevation: 0.42 } },
+  ...CRIMP_VIEWS,
 };
 
 const FADE_IN = 1.1;

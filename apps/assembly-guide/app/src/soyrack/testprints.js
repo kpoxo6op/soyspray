@@ -122,7 +122,7 @@ const SEE_THROUGH = 0.3;
 
 export const TEST_CHAPTERS = [
   {
-    id: 'test-prints', title: 'Test prints first', view: 'prints',
+    id: 'test-prints', section: 'Test prints', title: 'Test prints first', view: 'prints',
     text: 'Print these four small pieces before the big parts. Each checks a fit the rack depends on, and the next chapters show what goes where and with what: M4 nuts, M4 screws and two keystone couplers, nothing else.',
     tags: [
       { text: 'Post end', node: POST, at: [0, 0, 22], side: 'n', from: 1.5 },

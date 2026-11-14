@@ -17,7 +17,7 @@ const svg = (path) => `<svg viewBox="0 0 24 24" aria-hidden="true" focusable="fa
 
 const IDLE_MS = 2600;
 
-export function createUI({ root, player, timeline, viewer, reducedMotion, onUserActivity }) {
+export function createUI({ root, player, timeline, viewer, reducedMotion, onUserActivity, legends = {}, onChapters = null }) {
   const $ = (id) => root.querySelector(`#${id}`);
   const hud = $('hud');
   const scrubber = $('scrubber');
@@ -30,6 +30,8 @@ export function createUI({ root, player, timeline, viewer, reducedMotion, onUser
   const chapterTitle = $('chapterTitle');
   const chapterText = $('chapterText');
   const caption = $('caption');
+  const legend = $('legend');
+  let legendShown = null;
   const live = $('live');
   const timeNow = $('timeNow');
   const timeTotal = $('timeTotal');
@@ -139,6 +141,13 @@ export function createUI({ root, player, timeline, viewer, reducedMotion, onUser
     chapterNo.textContent = pad(i + 1);
     chapterTitle.textContent = c.title;
     chapterText.textContent = c.text;
+    // A chapter may pin a reference strip (the T568B wire order) over the view.
+    const key = legends[c.legend] ? c.legend : null;
+    if (key !== legendShown) {
+      legendShown = key;
+      legend.hidden = !key;
+      legend.innerHTML = key ? legends[key] : '';
+    }
   }
 
   function renderCaption(i, animate) {
@@ -299,7 +308,7 @@ export function createUI({ root, player, timeline, viewer, reducedMotion, onUser
 
   // ---------------------------------------------------------- keyboard
   window.addEventListener('keydown', (e) => {
-    if (e.defaultPrevented || document.getElementById('partsSheet')?.open) return;
+    if (e.defaultPrevented || document.querySelector('dialog[open]')) return;
     // Leave browser shortcuts alone (Ctrl/Cmd+R, Ctrl+F, Alt+letters ...); modifiers only combine with arrows.
     if ((e.ctrlKey || e.metaKey || e.altKey) && !e.key.startsWith('Arrow')) return;
     const tag = e.target?.tagName;
@@ -365,6 +374,11 @@ export function createUI({ root, player, timeline, viewer, reducedMotion, onUser
       case 'f':
       case 'F':
         toggleFullscreen();
+        break;
+      case 'c':
+      case 'C':
+        if (!onChapters) return;
+        onChapters();
         break;
       case 'v':
       case 'V':

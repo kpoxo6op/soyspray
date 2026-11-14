@@ -45,6 +45,15 @@ origin), the browser meshes and the print list in `app/data/v3/`. The node tray
 mesh is `app/data/trays.bin`, which `app/tools/regenerate-data.sh` repacks from a
 RackStack checkout. `cad/` and `app/tools/` stay out of the image.
 
+Before the leads go in, the Ethernet leads section teaches crimping with the
+kit in the case: five short leads cut to their routes (44, 40 and 34 cm for the
+nodes, 19 cm for each keystone lead), the boot on first, a 3 cm strip, T568B
+order with a colour strip on screen, a 13 mm trim, the clear plug, the crimp and
+the 468 tester, including what its lamps show for an open, swapped or shorted
+wire (`app/src/soyrack/crimp.js`, `crimp-layout.js`, `crimp-models.js`). The
+Chapters button (or `C`) lists every chapter by section, and a `#chapter-id`
+link such as `#crimp-plan` opens the guide at that chapter.
+
 The mast's standalone STL is not a qualified print job. The Parts sheet keeps
 its reference link, but warns against printing it alone or using the old combined
 preset with the superseded on-edge deck. An existing mast can be assembled;
