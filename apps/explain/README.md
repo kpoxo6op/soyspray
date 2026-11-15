@@ -1,25 +1,45 @@
 # Explain catalog
 
 One private site for the 3D guides: `https://explain.soyspray.vip` lists every guide
-and chapter, `/assembly/` is the Soyrack assembly guide and `/pearl/` is the Pearl
-guide. It is served like the guides: a static image behind the private
+and chapter, `/assembly/` is the Soyrack assembly guide, `/pearl/` is the Pearl
+guide and `/network/` explains the home network from zero (built into this image,
+`app/network/`). It is served like the guides: a static image behind the private
 `soyspray.vip` ingress, reachable over Tailscale split DNS and the LAN only. Do not
 add a public DNS record or a tunnel for this host.
 
 ## How the paths work
 
-This app serves only the catalog page at `/`. The guides keep their own images and
-Deployments. Each guide has a second Ingress, `ingress-explain.yaml`, for
+This app serves the catalog page at `/` and the network explainer at `/network/`.
+The Soyrack and Pearl guides keep their own images and Deployments. Each guide has a second Ingress, `ingress-explain.yaml`, for
 `explain.soyspray.vip` with the path `/assembly` or `/pearl`. ingress-nginx merges
 the three Ingresses into one server, with the certificate from this app's Ingress.
 Each guide's `nginx.conf` strips its prefix, so `/pearl/app.js?v=…` is the same file
 as `pearl.soyspray.vip/app.js?v=…`, and `/pearl` redirects to `/pearl/` so the page's
-relative asset URLs resolve. `assembly.soyspray.vip` and `pearl.soyspray.vip` keep
-working unchanged.
+relative asset URLs resolve.
 
-Because the guides now share an origin with the catalog, the catalog shows the
-Pearl guide's own Done ticks (`pearl.stage0.done` in local storage). Ticks a reader
-made on `pearl.soyspray.vip` stay with that host.
+The old hosts moved here for good: `assembly.soyspray.vip` answers with a 301 to
+`/assembly/`, and `pearl.soyspray.vip` answers with a page that carries the reader's
+ticks across before forwarding (see each guide's README). Because the guides share
+an origin with the catalog, the catalog shows each guide's own Done ticks
+(`pearl.stage0.done`, `explain.network.done` in local storage).
+
+## Network explainer
+
+`app/network/` is a 3D player in 16 chapters for someone who has never set up a
+network: addresses and the router's jobs, the WAN line and NAT, the LAN cable and
+Wi-Fi, the cluster's addresses, the pod network, how a name reaches a site,
+Tailscale and today's firewalls (chapters 1 to 11, from the router's and cluster's
+real settings, read on 15 Nov 2026), then proposals: subnets, rules between them,
+how to get there, monitoring and other ideas (12 to 16). Captions follow the Pearl
+guide's standards; every term is in the Words panel. `story.js` holds the chapters
+as data, `scene.js` draws the network as plain blocks, and the player controls are
+Pearl's. Nothing in it names the public address or the provider's prefix; a test
+checks that every address in the story is private, Tailscale or a public resolver.
+
+Performance follows the other guides: one animation frame at a time and none while
+paused, every shader compiled behind the loading screen, lambert materials and no
+shadows, packets and ruler ticks instanced, phones at 1.5× resolution stepping down
+under load. `node tools/perf-audit.mjs` (with Playwright) measures it.
 
 ## UI SDK
 
@@ -66,10 +86,12 @@ The first merge does not register this app with Argo. Merging a change under `ap
 `Dockerfile`, `nginx.conf` or `.dockerignore` builds and tests the image, publishes it
 and opens a draft promotion PR that pins the digest in `manifests/deployment.yaml`.
 After the first promotion merges, a separate PR adds `../apps/explain/argocd` to
-`argocd/kustomization.yaml`. The guides' prefix routes need their own promoted images
-(the `nginx.conf` change) before `/pearl/` and `/assembly/` serve. Roll back by
-reverting a promotion; the old guide hosts do not depend on any of this.
+`argocd/kustomization.yaml`. Merge the guides' promotions only after
+`explain.soyspray.vip/` and `/network/` load: those images both serve the prefixed
+paths and turn the old hosts into redirects to this site. Until then the old hosts
+keep serving the guides as before. Roll back by reverting a promotion.
 
-Check the Application is Synced and Healthy, that `/`, `/assembly/#crimp-plan` and
-`/pearl/#t=191` load from a tailnet device, and that public DNS has no record for
+Check the Application is Synced and Healthy, that `/`, `/network/`,
+`/assembly/#crimp-plan` and `/pearl/#t=191` load from a tailnet device, that
+`assembly.soyspray.vip/#crimp-plan` and `pearl.soyspray.vip/#t=191` land on those, and that public DNS has no record for
 `explain.soyspray.vip`. The app stores nothing and needs no backup.

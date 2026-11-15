@@ -75,6 +75,17 @@ jobs:
             grep -qi '^cache-control: public, max-age=31536000, immutable' "$RUNNER_TEMP/explain-asset.headers"
           done
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$base/missing")" = 404
+          # the network explainer, served from this image
+          curl --fail --silent --dump-header "$RUNNER_TEMP/net.headers" -o "$RUNNER_TEMP/net.html" "$base/network/"
+          grep -q '<title>Network' "$RUNNER_TEMP/net.html"
+          grep -qi '^cache-control: no-cache' "$RUNNER_TEMP/net.headers"
+          test "$(curl --silent --output /dev/null --write-out '%{redirect_url}' "$base/network")" = "$base/network/"
+          for asset in $(grep -oE 'app\.(js|css)\?v=[0-9a-f]{16}' "$RUNNER_TEMP/net.html"); do
+            curl --fail --silent --header 'Accept-Encoding: gzip' \
+              --dump-header "$RUNNER_TEMP/net-asset.headers" --output /dev/null "$base/network/$asset"
+            grep -qi '^content-encoding: gzip' "$RUNNER_TEMP/net-asset.headers"
+            grep -qi '^cache-control: public, max-age=31536000, immutable' "$RUNNER_TEMP/net-asset.headers"
+          done
       - name: Remove isolated test container
         if: always()
         run: docker rm --force explain-check || true
@@ -89,5 +100,5 @@ jobs:
           manifest: apps/explain/manifests/deployment.yaml
           commit-subject: Promote the tested explain catalog image digest
           promotion-title: Promote the tested explain catalog image
-          evidence: The image built, passed its catalog tests, and served the page and its revisioned, gzipped assets from a read-only container.
+          evidence: The image built, passed its catalog and network guide tests, and served both pages and their revisioned, gzipped assets from a read-only container.
           verification: Open explain.soyspray.vip from a tailnet device after Argo reports the Application Synced and Healthy.

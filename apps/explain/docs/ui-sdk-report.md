@@ -96,10 +96,10 @@ tools, which is what the catalog test below shows: no screenshots on either side
 - `/assembly/` and `/pearl/` are the existing guides, served by their own images. A
   second Ingress per guide adds the path to the new host, and each guide's nginx strips
   its prefix. The bytes, caching and gzip are the same as on the old hosts.
-- `assembly.soyspray.vip` and `pearl.soyspray.vip` keep working unchanged. I chose
-  that over a redirect so nothing breaks while you try the new site, and Pearl ticks
-  saved on the old host are not stranded. A permanent redirect is a two-line Ingress
-  change once you are happy with the new paths.
+- `assembly.soyspray.vip` and `pearl.soyspray.vip` now redirect here for good (your
+  call, 15 Nov). The old Pearl host first carries the reader's ticks across, since
+  browsers keep them per site. A third guide, `/network/`, explains the home network
+  from zero and is built into this image.
 - Where UI SDK fits: the catalog's controls (search, picker, switch, meters, buttons)
   and a custom chapter primitive, plus the bridge. I did not put it inside the 3D
   guides. Their player is a canvas, which is where a bridge would help agents most

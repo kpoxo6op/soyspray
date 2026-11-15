@@ -10,7 +10,7 @@ diff:
 	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app pearl-guide --package apps/pearl-guide/manifests
 
 smoke:
-	@printf 'unknown: open https://pearl.soyspray.vip from a tailnet device and play one chapter.\n'; exit 2
+	@printf 'unknown: open https://explain.soyspray.vip/pearl/ from a tailnet device and play one chapter.\n'; exit 2
 
 restore-check:
 	@printf 'not-required: pearl-guide has no persistent state.\n'

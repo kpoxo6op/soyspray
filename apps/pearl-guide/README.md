@@ -1,9 +1,16 @@
 # Pearl guide
 
 Private build guide for Pearl, the indoor helium camera robot, served at
-`https://pearl.soyspray.vip` the same way as the assembly guide: a static image
-behind the private `soyspray.vip` ingress, reachable over Tailscale split DNS and
-the LAN only. Do not add a public DNS record or a tunnel for this host.
+`https://explain.soyspray.vip/pearl/` beside the other guides (`apps/explain`): a
+static image behind the private `soyspray.vip` ingress, reachable over Tailscale
+split DNS and the LAN only. Do not add a public DNS record or a tunnel for it.
+
+`pearl.soyspray.vip` moved there for good on 15 Nov 2026. Its page now answers
+with `public/moved.html`, which reads the reader's ticks on the old host (they are
+stored per site), sends them to `/pearl/?carry=…` with the chapter in the hash,
+and the guide merges them (`adoptCarried` in `app/src/sheets.js`); every other
+old path is a 301 to the same path under `/pearl/`. Keep `manifests/ingress.yaml`
+and its certificate so old links keep landing on the redirect.
 
 Stage 0 is a 3D player in seven chapters: meet Pearl, buy the kit, load the
 printer (about 2 m of leftover PETG through Boris's Bambu Lab P1S, and a first
@@ -62,7 +69,8 @@ builds and tests the image, publishes it to GHCR and opens a draft promotion PR
 that pins the digest in `manifests/deployment.yaml`. The running site changes
 only when that promotion merges and Argo CD syncs. Roll back by reverting the
 promotion. Check the Application is Synced and Healthy, the page and models load
-from a tailnet device, and public DNS has no record for `pearl.soyspray.vip`.
+from a tailnet device at `explain.soyspray.vip/pearl/`, `pearl.soyspray.vip`
+forwards there with its ticks, and public DNS has no record for either host.
 
 `nginx.conf` serves the gzip copy the image build stores beside every script, model, decoder and print file,
 caches URLs that carry a content revision (`?v=`) for a year and has the page itself checked on every visit.

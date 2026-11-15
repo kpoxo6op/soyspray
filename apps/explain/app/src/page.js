@@ -82,7 +82,7 @@ export function renderPage(guides, { bridge, css, js }) {
 <main id="app" class="${bridge ? 'bridge' : 'plain'}">
 <header class="top">
   <h1>Soyspray explainers</h1>
-  <p class="lede">3D guides for things built at home. Open a guide, or find a chapter and start the guide there. Ticks stay in this browser.</p>
+  <p class="lede">3D guides for things built and run at home. Open a guide, or find a chapter and start the guide there. Ticks stay in this browser.</p>
 </header>
 <section class="guides" aria-label="Guides">
 ${guides.map((g) => guideBlock(g, bridge)).join('\n')}

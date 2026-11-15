@@ -90,6 +90,15 @@ jobs:
             --dump-header "$RUNNER_TEMP/pearl-prefix-file.headers" --output /dev/null "$base/pearl/files/pearl_v3_1_shell.stl"
           grep -qi '^content-disposition: attachment' "$RUNNER_TEMP/pearl-prefix-file.headers"
           curl --fail --silent --output /dev/null "$base/pearl/data/pearl.glb"
+      - name: Check pearl.soyspray.vip forwards to explain.soyspray.vip/pearl/
+        run: |
+          base=http://127.0.0.1:4173
+          old=(--header 'Host: pearl.soyspray.vip')
+          curl --fail --silent "${old[@]}" --dump-header "$RUNNER_TEMP/moved.headers" --output "$RUNNER_TEMP/moved.html" "$base/"
+          grep -q "location.replace('https://explain.soyspray.vip/pearl/'" "$RUNNER_TEMP/moved.html"
+          grep -qi '^cache-control: no-cache' "$RUNNER_TEMP/moved.headers"
+          test "$(curl --silent "${old[@]}" --output /dev/null --write-out '%{http_code} %{redirect_url}' "$base/files/pearl_v3_1_shell.stl")" \
+            = "301 https://explain.soyspray.vip/pearl/files/pearl_v3_1_shell.stl"
       - name: Remove isolated test container
         if: always()
         run: docker rm --force pearl-guide-check || true
@@ -105,4 +114,4 @@ jobs:
           commit-subject: Promote the tested Pearl guide image digest
           promotion-title: Promote the tested Pearl guide image
           evidence: The image built, passed its content, kit and build tests, and served the page, models, decoder and print files from a read-only container.
-          verification: Open pearl.soyspray.vip from a tailnet device after Argo reports the Application Synced and Healthy.
+          verification: Merge only after explain.soyspray.vip loads. Then open explain.soyspray.vip/pearl/ from a tailnet device, and check pearl.soyspray.vip forwards there with its ticks.

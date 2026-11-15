@@ -333,5 +333,143 @@
     "goal": "Solder a motor, fit it in a printed duct and weigh its push."
    }
   ]
+ },
+ {
+  "slug": "network",
+  "title": "Network, explained",
+  "summary": "Your home network from zero: addresses, the router, the cluster, Tailscale and firewalls, then subnets and monitoring.",
+  "path": "/network/",
+  "store": "explain.network.done",
+  "link": "id",
+  "chapters": [
+   {
+    "id": "basics",
+    "title": "What a network is",
+    "section": "Your network today",
+    "start": 0,
+    "length": 34.8,
+    "goal": "Devices, packets and addresses, with your home as the example."
+   },
+   {
+    "id": "router",
+    "title": "The router’s three jobs",
+    "section": "Your network today",
+    "start": 34.8,
+    "length": 44.7,
+    "goal": "Lending addresses, looking up names and guarding the door."
+   },
+   {
+    "id": "addresses",
+    "title": "Reading an address",
+    "section": "Your network today",
+    "start": 79.5,
+    "length": 53.6,
+    "goal": "What 192.168.20.0/24 means and who gets which number."
+   },
+   {
+    "id": "wan",
+    "title": "The line in",
+    "section": "Your network today",
+    "start": 133.1,
+    "length": 75.6,
+    "goal": "One public address shared by the whole house, and the one door left open."
+   },
+   {
+    "id": "lan",
+    "title": "Wired and Wi-Fi",
+    "section": "Your network today",
+    "start": 208.7,
+    "length": 65.4,
+    "goal": "The switch, a slow cable to replace, and a Wi-Fi radio that is off."
+   },
+   {
+    "id": "cluster",
+    "title": "The cluster’s addresses",
+    "section": "Your network today",
+    "start": 274.1,
+    "length": 65.5,
+    "goal": "Three computers working as one, and the addresses its apps answer on."
+   },
+   {
+    "id": "inside",
+    "title": "Inside the cluster",
+    "section": "Your network today",
+    "start": 339.6,
+    "length": 45.7,
+    "goal": "A second, hidden network for apps, and the small phone book on each computer."
+   },
+   {
+    "id": "names",
+    "title": "How a name finds a site",
+    "section": "Your network today",
+    "start": 385.3,
+    "length": 56.4,
+    "goal": "Every step from typing booklore.soyspray.vip to the page arriving."
+   },
+   {
+    "id": "tailscale",
+    "title": "Away from home",
+    "section": "Your network today",
+    "start": 441.7,
+    "length": 46.6,
+    "goal": "Private tunnels that bring your phone home from anywhere."
+   },
+   {
+    "id": "firewalls",
+    "title": "Your firewalls today",
+    "section": "Your network today",
+    "start": 488.3,
+    "length": 67.4,
+    "goal": "The router’s three zones and the cluster’s own rules."
+   },
+   {
+    "id": "flat",
+    "title": "One flat network",
+    "section": "Your network today",
+    "start": 555.7,
+    "length": 36.4,
+    "goal": "Why every device seeing every other device is the weak spot today."
+   },
+   {
+    "id": "split",
+    "title": "What subnets could do",
+    "section": "What you could add",
+    "start": 592.1,
+    "length": 43,
+    "goal": "A proposal: lab, home, gadget and guest streets with the router between them."
+   },
+   {
+    "id": "rules",
+    "title": "Rules between subnets",
+    "section": "What you could add",
+    "start": 635.1,
+    "length": 46.7,
+    "goal": "What each street may reach, and what a hacked gadget would still see."
+   },
+   {
+    "id": "how",
+    "title": "How to get there",
+    "section": "What you could add",
+    "start": 681.8,
+    "length": 57.2,
+    "goal": "Wi-Fi first, then the cluster’s lists, then a better switch if cables must split too."
+   },
+   {
+    "id": "monitoring",
+    "title": "Watching the network",
+    "section": "What you could add",
+    "start": 739,
+    "length": 73.8,
+    "goal": "What is recorded today, the gaps, and the alerts worth having."
+   },
+   {
+    "id": "more",
+    "title": "More you could do",
+    "section": "What you could add",
+    "start": 812.8,
+    "length": 65.6,
+    "goal": "Private name lookups, ad blocking, smooth calls, tighter Tailscale, and what to do first."
+   }
+  ]
  }
 ]

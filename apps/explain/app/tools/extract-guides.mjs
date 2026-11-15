@@ -1,6 +1,7 @@
-// Reads the chapter lists of the two guides from their own sources and writes data/guides.json, which the
-// catalog ships. Run it after a guide changes its chapters: `node tools/extract-guides.mjs` (in app/), with
-// `npm ci` done in apps/pearl-guide/app and apps/assembly-guide/app. `npm test` fails when the file is stale.
+// Reads the chapter lists of the guides from their own sources and writes data/guides.json, which the catalog
+// ships. Run it after a guide changes its chapters: `node tools/extract-guides.mjs` (in app/), with `npm ci` done
+// in apps/pearl-guide/app and apps/assembly-guide/app. `npm test` fails when the file is stale. The network
+// explainer lives in this app (network/), so its list is always checked.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -49,7 +50,30 @@ export async function extractGuides() {
       link: 'time',
       chapters: pearl,
     },
+    await networkGuide(),
   ];
+}
+
+/** The network explainer's entry, from network/story.js in this app. */
+export async function networkGuide() {
+  const { buildTimeline } = await import('../network/story.js');
+  const chapters = buildTimeline().chapters.map((c) => ({
+    id: c.id,
+    title: c.title,
+    section: c.index < 11 ? 'Your network today' : 'What you could add',
+    start: round(c.start),
+    length: round(c.end - c.start),
+    goal: c.goal,
+  }));
+  return {
+    slug: 'network',
+    title: 'Network, explained',
+    summary: 'Your home network from zero: addresses, the router, the cluster, Tailscale and firewalls, then subnets and monitoring.',
+    path: '/network/',
+    store: 'explain.network.done',
+    link: 'id',
+    chapters,
+  };
 }
 
 const round = (s) => Math.round(s * 10) / 10;

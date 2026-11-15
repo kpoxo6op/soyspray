@@ -1,9 +1,16 @@
 # Soyspray assembly guide
 
 The static 3D rack assembly player is served by a Kubernetes Deployment and
-Service through the existing private `soyspray.vip` ingress. Tailscale split DNS
-resolves `assembly.soyspray.vip` through OpenWrt to the cluster ingress. Do not
-create a public DNS record or Cloudflare Tunnel for this host.
+Service through the existing private `soyspray.vip` ingress, at
+`https://explain.soyspray.vip/assembly/` beside the other guides (`apps/explain`).
+Tailscale split DNS resolves it through OpenWrt to the cluster ingress. Do not
+create a public DNS record or Cloudflare Tunnel for it.
+
+`assembly.soyspray.vip` moved there for good on 15 Nov 2026: `nginx.conf`
+answers every request on that host with a 301 to the same path under
+`/assembly/`, and the browser keeps the `#chapter`. The guide stores nothing in
+the browser, so nothing needs carrying across. Keep `manifests/ingress.yaml` and
+its certificate so old links keep landing on the redirect.
 
 The source is in `app/`. `npm ci && npm run build && npm test` builds the three
 static files in `app/dist/` and checks the player and 3D assembly contracts.
@@ -19,7 +26,7 @@ travels as about 340 KB.
 The app stores no state and requires no backup. To roll back, promote the
 previous known-good image digest through a PR. Check the Argo Application is
 Synced and Healthy, the ingress serves the page and two assets, and public DNS
-has no record for `assembly.soyspray.vip`.
+has no record for `explain.soyspray.vip` or `assembly.soyspray.vip`.
 
 The guide shows one rack, Soyrack: a printed PETG rack around the three
 ventilated node trays from the old rack. It has a power base for the bricks, a

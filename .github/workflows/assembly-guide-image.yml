@@ -80,6 +80,12 @@ jobs:
           grep -qi '^content-encoding: gzip' "$RUNNER_TEMP/assembly-prefix-app.headers"
           grep -qi '^cache-control: public, max-age=31536000, immutable' "$RUNNER_TEMP/assembly-prefix-app.headers"
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$base/assembly/missing")" = 404
+      - name: Check assembly.soyspray.vip forwards to explain.soyspray.vip/assembly/
+        run: |
+          for path in / "/app.js?v=0123456789abcdef"; do
+            test "$(curl --silent --header 'Host: assembly.soyspray.vip' --output /dev/null --write-out '%{http_code} %{redirect_url}' "http://127.0.0.1:4173$path")" \
+              = "301 https://explain.soyspray.vip/assembly$path"
+          done
       - name: Remove isolated test container
         if: always()
         run: docker rm --force assembly-guide-image-check || true

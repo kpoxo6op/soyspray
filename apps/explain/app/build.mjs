@@ -1,8 +1,9 @@
 // Renders the catalog page from data/guides.json, bundles its script and stylesheet, and stamps both with a
-// content revision. `node build.mjs` writes dist/ (the shipped page, with UI SDK); `--plain` writes dist-plain/,
-// the same page with native controls only, for the agent comparison.
+// content revision. `node build.mjs` writes dist/ (the shipped page, with UI SDK) and dist/network/ (the network
+// explainer, a 3D guide served from this image); `--plain` writes dist-plain/, the catalog with native controls
+// only, for the agent comparison.
 import { build } from 'esbuild';
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,4 +35,24 @@ const html = renderPage(guides, {
   js: `app.js?v=${rev(resolve(out, 'app.js'))}`,
 });
 writeFileSync(resolve(out, 'index.html'), html);
+
+if (!plain) {
+  const net = resolve(out, 'network');
+  mkdirSync(net, { recursive: true });
+  await build({
+    entryPoints: [resolve(here, 'network/main.js')],
+    outfile: resolve(net, 'app.js'),
+    bundle: true,
+    format: 'iife',
+    platform: 'browser',
+    target: ['es2020', 'safari15'],
+    minify: !process.env.EXPLAIN_DEBUG,
+    legalComments: 'eof',
+    logLevel: 'warning',
+  });
+  copyFileSync(resolve(here, 'network/network.svg'), resolve(net, 'network.svg'));
+  let page = readFileSync(resolve(here, 'network/index.html'), 'utf8');
+  for (const asset of ['app.js', 'app.css', 'network.svg']) page = page.replace(`"${asset}"`, `"${asset}?v=${rev(resolve(net, asset))}"`);
+  writeFileSync(resolve(net, 'index.html'), page);
+}
 console.log('built', out);
