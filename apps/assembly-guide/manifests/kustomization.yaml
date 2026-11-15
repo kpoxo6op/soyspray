@@ -6,6 +6,7 @@ resources:
   - deployment.yaml
   - service.yaml
   - ingress.yaml
+  - ingress-explain.yaml
   - networkpolicy.yaml
 labels:
   - pairs:

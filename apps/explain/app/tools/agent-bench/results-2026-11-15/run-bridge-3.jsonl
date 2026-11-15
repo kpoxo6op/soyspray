@@ -1,0 +1,4 @@
+{"at":1794705994827,"ms":16,"cmd":"snapshot","args":[],"chars":6665,"screenshot":false}
+{"at":1794705998053,"ms":152,"cmd":"act","args":["{\"steps\":[{\"ref\":\"c48\",\"action\":\"setDone\",\"args\":[true]},{\"ref\":\"c49\",\"action\":\"setDone\",\"args\":[true]},{\"ref\":\"c4\",\"action\":\"setValue\",\"args\":[\"assembly\"]},{\"ref\":\"c2\",\"action\":\"setValue\",\"args\":[\"crimp\"]},{\"ref\":\"c5\",\"action\":\"setChecked\",\"args\":[true]}]}"],"chars":968,"screenshot":false}
+{"at":1794706001839,"ms":16,"cmd":"act","args":["{\"steps\":[{\"ref\":\"c35\",\"action\":\"setDone\",\"args\":[true]}]}"],"chars":175,"screenshot":false}
+{"at":1794706001930,"ms":6,"cmd":"snapshot","args":[],"chars":2515,"screenshot":false}

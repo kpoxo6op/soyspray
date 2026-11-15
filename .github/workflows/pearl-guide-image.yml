@@ -72,6 +72,24 @@ jobs:
           curl --fail --silent --dump-header "$RUNNER_TEMP/pearl-index.headers" \
             --output /dev/null http://127.0.0.1:4173/
           grep -qi '^cache-control: no-cache' "$RUNNER_TEMP/pearl-index.headers"
+      - name: Check the guide under explain.soyspray.vip/pearl/
+        run: |
+          base=http://127.0.0.1:4173
+          curl --silent --dump-header "$RUNNER_TEMP/pearl-prefix.headers" --output /dev/null "$base/pearl"
+          grep -qi '^HTTP/1.1 301' "$RUNNER_TEMP/pearl-prefix.headers"
+          grep -qi '^location: /pearl/\s*$' "$RUNNER_TEMP/pearl-prefix.headers"
+          curl --fail --silent --output "$RUNNER_TEMP/pearl-prefix.html" "$base/pearl/"
+          cmp "$RUNNER_TEMP/pearl-prefix.html" <(curl --fail --silent "$base/")
+          script="$(grep -oE 'app\.js\?v=[0-9a-f]{16}' "$RUNNER_TEMP/pearl-prefix.html" | head -1)"
+          curl --fail --silent --header 'Accept-Encoding: gzip' \
+            --dump-header "$RUNNER_TEMP/pearl-prefix-app.headers" --output /dev/null "$base/pearl/$script"
+          grep -qi '^content-encoding: gzip' "$RUNNER_TEMP/pearl-prefix-app.headers"
+          grep -qi '^cache-control: public, max-age=31536000, immutable' "$RUNNER_TEMP/pearl-prefix-app.headers"
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$base/pearl/missing")" = 404
+          curl --fail --silent --header 'Accept-Encoding: gzip' \
+            --dump-header "$RUNNER_TEMP/pearl-prefix-file.headers" --output /dev/null "$base/pearl/files/pearl_v3_1_shell.stl"
+          grep -qi '^content-disposition: attachment' "$RUNNER_TEMP/pearl-prefix-file.headers"
+          curl --fail --silent --output /dev/null "$base/pearl/data/pearl.glb"
       - name: Remove isolated test container
         if: always()
         run: docker rm --force pearl-guide-check || true
