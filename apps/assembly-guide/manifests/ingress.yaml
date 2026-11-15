@@ -1,3 +1,5 @@
+# assembly.soyspray.vip, kept with its certificate so old links still work: nginx.conf answers this host with a
+# redirect to explain.soyspray.vip/assembly/ (ingress-explain.yaml), the guide's address since 15 Nov 2026.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

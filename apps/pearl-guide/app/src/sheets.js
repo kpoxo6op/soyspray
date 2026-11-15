@@ -21,6 +21,33 @@ function save(key, set) {
   }
 }
 
+/**
+ * Ticks saved on the old pearl.soyspray.vip arrive once as ?carry={"pearl.stage0.done":[...]} from
+ * public/moved.html. Merge them into this site's storage and drop the parameter from the address.
+ */
+export function adoptCarried(loc = window.location, hist = window.history) {
+  const raw = new URLSearchParams(loc.search).get('carry');
+  if (raw === null) return false;
+  try {
+    const data = JSON.parse(raw);
+    for (const key of Object.values(KEY)) {
+      const list = Array.isArray(data?.[key]) ? data[key].filter((v) => typeof v === 'string' && v.length <= 64).slice(0, 200) : [];
+      if (!list.length) continue;
+      const set = load(key);
+      list.forEach((v) => set.add(v));
+      save(key, set);
+    }
+  } catch {
+    /* a damaged link carries nothing */
+  }
+  try {
+    hist.replaceState(null, '', loc.pathname + loc.hash);
+  } catch {
+    /* some browsers refuse replaceState on file:// */
+  }
+  return true;
+}
+
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 function shell(dialog, title, body) {
@@ -29,6 +56,7 @@ function shell(dialog, title, body) {
 }
 
 export function createSheets({ root, timeline, player, onOpen }) {
+  adoptCarried();
   const kitTicks = load(KEY.kit);
   const doneTicks = load(KEY.done);
   const dialogs = {

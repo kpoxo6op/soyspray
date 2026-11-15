@@ -1,0 +1,19 @@
+{
+  "name": "explain-catalog",
+  "private": true,
+  "version": "1.0.0",
+  "description": "One home for the Soyspray 3D guides, built with UI SDK web components and its agent bridge",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@ui-sdk/core": "0.1.0-beta.2",
+    "@ui-sdk/web": "0.1.0-beta.2",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

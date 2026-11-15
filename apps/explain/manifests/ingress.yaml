@@ -1,0 +1,32 @@
+# explain.soyspray.vip: the catalog at /, and the two guides at /assembly/ and /pearl/. Those two paths are
+# Ingresses in the guides' own namespaces (apps/*-guide/manifests/ingress-explain.yaml) with the same host;
+# ingress-nginx merges them into one server, and this Ingress carries its certificate.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: explain
+  labels:
+    app.kubernetes.io/name: explain
+    app.kubernetes.io/part-of: explain
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/ingress-hostname-source: annotation-only
+    external-dns.kubernetes.io/ingress-hostname-source: annotation-only
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - explain.soyspray.vip
+      secretName: explain-tls
+  rules:
+    - host: explain.soyspray.vip
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: explain
+                port:
+                  name: http

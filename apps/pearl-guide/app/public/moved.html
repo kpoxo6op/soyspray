@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en-NZ">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="dark">
+<title>Pearl has moved</title>
+<noscript><meta http-equiv="refresh" content="0; url=https://explain.soyspray.vip/pearl/"></noscript>
+<script>
+  // pearl.soyspray.vip moved to explain.soyspray.vip/pearl/. Ticks are stored per site, so this page, served on the
+  // old host, reads them and hands them to the new address once as ?carry=; the guide merges them and drops the
+  // parameter (src/sheets.js, adoptCarried). The chapter or moment in the hash comes along.
+  (function () {
+    var carry = {};
+    ['pearl.stage0.done', 'pearl.stage0.kit'].forEach(function (key) {
+      try {
+        var list = JSON.parse(localStorage.getItem(key) || '[]');
+        if (Array.isArray(list) && list.length) carry[key] = list;
+        // carried once: a later visit to an old bookmark must not bring back ticks undone on the new site
+        localStorage.removeItem(key);
+      } catch (e) {
+        /* blocked storage or a damaged value: nothing to carry for this key */
+      }
+    });
+    var query = Object.keys(carry).length ? '?carry=' + encodeURIComponent(JSON.stringify(carry)) : '';
+    location.replace('https://explain.soyspray.vip/pearl/' + query + location.hash);
+  })();
+</script>
+<style>
+  body { margin: 0; padding: 24px; background: #100e0c; color: #efebe4; font: 16px/1.5 system-ui, sans-serif; }
+  a { color: #e8ae62; }
+</style>
+</head>
+<body>
+<p>The Pearl guide has moved to <a href="https://explain.soyspray.vip/pearl/">explain.soyspray.vip/pearl</a>.</p>
+</body>
+</html>

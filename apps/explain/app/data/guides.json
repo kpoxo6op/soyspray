@@ -1,0 +1,475 @@
+[
+ {
+  "slug": "assembly",
+  "title": "Soyrack assembly",
+  "summary": "Print, crimp and bolt together the PETG rack that holds the three cluster nodes, the switch and the power base.",
+  "path": "/assembly/",
+  "store": "explain.assembly.done",
+  "link": "id",
+  "chapters": [
+   {
+    "id": "test-prints",
+    "title": "Test prints first",
+    "section": "Test prints",
+    "start": 0,
+    "length": 8.7
+   },
+   {
+    "id": "test-joint",
+    "title": "Corner joint",
+    "section": "Test prints",
+    "start": 8.7,
+    "length": 18.8
+   },
+   {
+    "id": "test-tray-nuts",
+    "title": "Nuts for the shelf screws",
+    "section": "Test prints",
+    "start": 27.5,
+    "length": 9.3
+   },
+   {
+    "id": "test-keystone",
+    "title": "Keystone couplers in the strip",
+    "section": "Test prints",
+    "start": 36.8,
+    "length": 8.7
+   },
+   {
+    "id": "test-report",
+    "title": "Tell me how each one fits",
+    "section": "Test prints",
+    "start": 45.5,
+    "length": 8.4
+   },
+   {
+    "id": "power-base",
+    "title": "Power base",
+    "section": "Build the rack",
+    "start": 53.9,
+    "length": 9
+   },
+   {
+    "id": "bricks-board",
+    "title": "Bricks and board",
+    "section": "Build the rack",
+    "start": 62.9,
+    "length": 11.4
+   },
+   {
+    "id": "mains-cords",
+    "title": "Mains cords",
+    "section": "Build the rack",
+    "start": 74.3,
+    "length": 8.9
+   },
+   {
+    "id": "dc-cords",
+    "title": "Lenovo cords",
+    "section": "Build the rack",
+    "start": 83.2,
+    "length": 8.9
+   },
+   {
+    "id": "base-deck",
+    "title": "Base deck",
+    "section": "Build the rack",
+    "start": 92.1,
+    "length": 5.2
+   },
+   {
+    "id": "lower-posts",
+    "title": "Lower posts",
+    "section": "Build the rack",
+    "start": 97.3,
+    "length": 10.5
+   },
+   {
+    "id": "mid-deck",
+    "title": "Mid deck",
+    "section": "Build the rack",
+    "start": 107.8,
+    "length": 5.3
+   },
+   {
+    "id": "upper-posts",
+    "title": "Upper posts",
+    "section": "Build the rack",
+    "start": 113.1,
+    "length": 11
+   },
+   {
+    "id": "node-0",
+    "title": "node-0",
+    "section": "Build the rack",
+    "start": 124.1,
+    "length": 9.4
+   },
+   {
+    "id": "node-1",
+    "title": "node-1",
+    "section": "Build the rack",
+    "start": 133.5,
+    "length": 9.4
+   },
+   {
+    "id": "node-2",
+    "title": "node-2",
+    "section": "Build the rack",
+    "start": 142.8,
+    "length": 9.4
+   },
+   {
+    "id": "drive-tray",
+    "title": "USB drives",
+    "section": "Build the rack",
+    "start": 152.2,
+    "length": 9.9
+   },
+   {
+    "id": "switch",
+    "title": "Eight-port switch",
+    "section": "Build the rack",
+    "start": 162.1,
+    "length": 9.4
+   },
+   {
+    "id": "keystone-panel",
+    "title": "Keystone panel",
+    "section": "Build the rack",
+    "start": 171.5,
+    "length": 8.8
+   },
+   {
+    "id": "top-cap",
+    "title": "Top cap",
+    "section": "Build the rack",
+    "start": 180.3,
+    "length": 9.4
+   },
+   {
+    "id": "power-leads",
+    "title": "Power leads",
+    "section": "Build the rack",
+    "start": 189.7,
+    "length": 8.1
+   },
+   {
+    "id": "crimp-plan",
+    "title": "Five short leads",
+    "section": "Ethernet leads",
+    "start": 197.8,
+    "length": 11.6
+   },
+   {
+    "id": "crimp-kit",
+    "title": "The kit",
+    "section": "Ethernet leads",
+    "start": 209.4,
+    "length": 11.3
+   },
+   {
+    "id": "crimp-plugs",
+    "title": "Clear or metal plugs",
+    "section": "Ethernet leads",
+    "start": 220.7,
+    "length": 11.2
+   },
+   {
+    "id": "crimp-boot",
+    "title": "Boot on first",
+    "section": "Ethernet leads",
+    "start": 231.9,
+    "length": 7.5
+   },
+   {
+    "id": "crimp-strip",
+    "title": "Strip 3 cm of jacket",
+    "section": "Ethernet leads",
+    "start": 239.4,
+    "length": 12.2
+   },
+   {
+    "id": "crimp-untwist",
+    "title": "Untwist and line up",
+    "section": "Ethernet leads",
+    "start": 251.6,
+    "length": 11.1
+   },
+   {
+    "id": "crimp-trim",
+    "title": "Trim to 13 mm",
+    "section": "Ethernet leads",
+    "start": 262.7,
+    "length": 11.1
+   },
+   {
+    "id": "crimp-plug",
+    "title": "Into the plug",
+    "section": "Ethernet leads",
+    "start": 273.7,
+    "length": 10.9
+   },
+   {
+    "id": "crimp-check",
+    "title": "Look before you crimp",
+    "section": "Ethernet leads",
+    "start": 284.6,
+    "length": 8.3
+   },
+   {
+    "id": "crimp-press",
+    "title": "Crimp",
+    "section": "Ethernet leads",
+    "start": 292.9,
+    "length": 12.8
+   },
+   {
+    "id": "crimp-boot-on",
+    "title": "Boot over, then the other end",
+    "section": "Ethernet leads",
+    "start": 305.7,
+    "length": 9.9
+   },
+   {
+    "id": "crimp-test",
+    "title": "Test with the 468",
+    "section": "Ethernet leads",
+    "start": 315.6,
+    "length": 12.4
+   },
+   {
+    "id": "crimp-faults",
+    "title": "When the lamps are wrong",
+    "section": "Ethernet leads",
+    "start": 328.1,
+    "length": 15.8
+   },
+   {
+    "id": "ethernet",
+    "title": "Ethernet",
+    "section": "Leads in and done",
+    "start": 343.8,
+    "length": 8.1
+   },
+   {
+    "id": "usb-zigbee",
+    "title": "USB and Zigbee",
+    "section": "Leads in and done",
+    "start": 351.9,
+    "length": 8.1
+   },
+   {
+    "id": "soyrack",
+    "title": "Soyrack",
+    "section": "Leads in and done",
+    "start": 360,
+    "length": 6.5
+   }
+  ]
+ },
+ {
+  "slug": "pearl",
+  "title": "Pearl, stage 0",
+  "summary": "Buy the kit, print the pod, learn to solder and float the first orb of the indoor helium camera robot.",
+  "path": "/pearl/",
+  "store": "pearl.stage0.done",
+  "link": "time",
+  "chapters": [
+   {
+    "id": "meet",
+    "title": "Meet Pearl",
+    "section": "Stage 0",
+    "start": 0,
+    "length": 52,
+    "goal": "What you are building, in half a minute."
+   },
+   {
+    "id": "buy",
+    "title": "Buy the kit",
+    "section": "Stage 0",
+    "start": 52,
+    "length": 35,
+    "goal": "Order the online parts first, then make one trip to Jaycar."
+   },
+   {
+    "id": "load",
+    "title": "Load the printer",
+    "section": "Stage 0",
+    "start": 87,
+    "length": 104,
+    "goal": "Feed the leftover PETG into your P1S and print one side duct."
+   },
+   {
+    "id": "print",
+    "title": "Print the pod",
+    "section": "Stage 0",
+    "start": 191,
+    "length": 63,
+    "goal": "Six parts on your P1S, weighed and test-fitted."
+   },
+   {
+    "id": "solder",
+    "title": "Learn to solder",
+    "section": "Stage 0",
+    "start": 254,
+    "length": 92,
+    "goal": "Practise until every joint looks like the good one."
+   },
+   {
+    "id": "float",
+    "title": "Float the orb",
+    "section": "Stage 0",
+    "start": 346,
+    "length": 67,
+    "goal": "Fill one balloon and measure what it can lift. This decides the pod."
+   },
+   {
+    "id": "spin",
+    "title": "Spin a fan",
+    "section": "Stage 0",
+    "start": 413,
+    "length": 51,
+    "goal": "Solder a motor, fit it in a printed duct and weigh its push."
+   }
+  ]
+ },
+ {
+  "slug": "network",
+  "title": "Network, explained",
+  "summary": "Your home network from zero: addresses, the router, the cluster, Tailscale and firewalls, then subnets and monitoring.",
+  "path": "/network/",
+  "store": "explain.network.done",
+  "link": "id",
+  "chapters": [
+   {
+    "id": "basics",
+    "title": "What a network is",
+    "section": "Your network today",
+    "start": 0,
+    "length": 34.8,
+    "goal": "Devices, packets and addresses, with your home as the example."
+   },
+   {
+    "id": "router",
+    "title": "The router’s three jobs",
+    "section": "Your network today",
+    "start": 34.8,
+    "length": 44.7,
+    "goal": "Lending addresses, looking up names and guarding the door."
+   },
+   {
+    "id": "addresses",
+    "title": "Reading an address",
+    "section": "Your network today",
+    "start": 79.5,
+    "length": 53.6,
+    "goal": "What 192.168.20.0/24 means and who gets which number."
+   },
+   {
+    "id": "wan",
+    "title": "The line in",
+    "section": "Your network today",
+    "start": 133.1,
+    "length": 75.6,
+    "goal": "One public address shared by the whole house, and the one door left open."
+   },
+   {
+    "id": "lan",
+    "title": "Wired and Wi-Fi",
+    "section": "Your network today",
+    "start": 208.7,
+    "length": 65.4,
+    "goal": "The switch, a slow cable to replace, and a Wi-Fi radio that is off."
+   },
+   {
+    "id": "cluster",
+    "title": "The cluster’s addresses",
+    "section": "Your network today",
+    "start": 274.1,
+    "length": 65.5,
+    "goal": "Three computers working as one, and the addresses its apps answer on."
+   },
+   {
+    "id": "inside",
+    "title": "Inside the cluster",
+    "section": "Your network today",
+    "start": 339.6,
+    "length": 45.7,
+    "goal": "A second, hidden network for apps, and the small phone book on each computer."
+   },
+   {
+    "id": "names",
+    "title": "How a name finds a site",
+    "section": "Your network today",
+    "start": 385.3,
+    "length": 56.4,
+    "goal": "Every step from typing booklore.soyspray.vip to the page arriving."
+   },
+   {
+    "id": "tailscale",
+    "title": "Away from home",
+    "section": "Your network today",
+    "start": 441.7,
+    "length": 46.6,
+    "goal": "Private tunnels that bring your phone home from anywhere."
+   },
+   {
+    "id": "firewalls",
+    "title": "Your firewalls today",
+    "section": "Your network today",
+    "start": 488.3,
+    "length": 67.4,
+    "goal": "The router’s three zones and the cluster’s own rules."
+   },
+   {
+    "id": "flat",
+    "title": "One flat network",
+    "section": "Your network today",
+    "start": 555.7,
+    "length": 36.4,
+    "goal": "Why every device seeing every other device is the weak spot today."
+   },
+   {
+    "id": "split",
+    "title": "What subnets could do",
+    "section": "What you could add",
+    "start": 592.1,
+    "length": 43,
+    "goal": "A proposal: lab, home, gadget and guest streets with the router between them."
+   },
+   {
+    "id": "rules",
+    "title": "Rules between subnets",
+    "section": "What you could add",
+    "start": 635.1,
+    "length": 46.7,
+    "goal": "What each street may reach, and what a hacked gadget would still see."
+   },
+   {
+    "id": "how",
+    "title": "How to get there",
+    "section": "What you could add",
+    "start": 681.8,
+    "length": 57.2,
+    "goal": "Wi-Fi first, then the cluster’s lists, then a better switch if cables must split too."
+   },
+   {
+    "id": "monitoring",
+    "title": "Watching the network",
+    "section": "What you could add",
+    "start": 739,
+    "length": 73.8,
+    "goal": "What is recorded today, the gaps, and the alerts worth having."
+   },
+   {
+    "id": "more",
+    "title": "More you could do",
+    "section": "What you could add",
+    "start": 812.8,
+    "length": 65.6,
+    "goal": "Private name lookups, ad blocking, smooth calls, tighter Tailscale, and what to do first."
+   }
+  ]
+ }
+]
