@@ -1,7 +1,8 @@
 # Authentik
 
 Authentik provides single sign-on for private cluster applications. The Ansible
-role creates stable runtime secrets and applies this Argo CD application.
+input role preserves runtime credentials and publishes blueprints. Argo CD owns
+the Authentik Application definitions.
 
 The single worker has a disruption budget of `minAvailable: 1`. Planned node
 maintenance must handle this budget explicitly and restore it afterwards.
@@ -14,8 +15,8 @@ The blueprints define two access groups:
 - `cluster-admins` can use administrative applications and Jellyfin
   administration.
 
-`blueprints/legacy-forward-auth.yaml` protects browser surfaces through the
-Authentik proxy outpost. `blueprints/native-apps.yaml` defines OpenID Connect
+`manifests/blueprints/legacy-forward-auth.yaml` protects browser surfaces through the
+Authentik proxy outpost. `manifests/blueprints/native-apps.yaml` defines OpenID Connect
 (OIDC) clients for applications that support native sign-in. Jellyfin uses
 native OIDC in a browser. Dispatcharr uses forward auth as an access gate and
 still requires its local administrator login.
@@ -37,7 +38,7 @@ The separate policy bindings still control `media-users` and `cluster-admins`.
 Keep application slugs, provider IDs, launch URLs, keys, and bindings unchanged
 when changing presentation.
 
-After pushing the reviewed branch and running `make go`, publish only the
+After pushing the reviewed branch and running `make check`, publish only the
 blueprints with:
 
 ```bash
@@ -68,7 +69,7 @@ ansible-playbook -i inventory/soycluster/hosts.yml playbooks/bootstrap-app-input
 After checks pass, merge the pull request. Use this only for private inputs:
 
 ```bash
-make go
+make check
 source soyspray-venv/bin/activate
 ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/bootstrap-app-inputs.yml --tags authentik
 ```

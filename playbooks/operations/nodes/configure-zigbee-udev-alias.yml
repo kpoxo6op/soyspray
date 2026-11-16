@@ -16,7 +16,7 @@
     udev_rule_file: "/etc/udev/rules.d/99-zigbee.rules"
   tasks:
     - name: Check if Zigbee USB device is present
-      ansible.builtin.command: lsusb | grep -i "{{ zigbee_vendor_id }}:{{ zigbee_product_id }}"
+      ansible.builtin.command: lsusb -d "{{ zigbee_vendor_id }}:{{ zigbee_product_id }}"
       register: usb_check
       changed_when: false
       failed_when: false

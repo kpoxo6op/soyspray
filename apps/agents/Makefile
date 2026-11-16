@@ -3,7 +3,7 @@ include $(dir $(lastword $(MAKEFILE_LIST)))../common.mk
 
 check:
 	cd $(ROOT)/apps/agents/app && npm ci && npm run build && npm test
-	cd $(ROOT)/apps/agents && $(PYTHON) -m unittest discover -s tests -v
+	cd $(ROOT)/apps/agents && $(PYTHON_ABS) -m unittest discover -s tests -v
 	cd $(ROOT) && $(PYTHON) -m ruff check apps/agents
 	cd $(ROOT) && $(PYTHON) -m ruff format --check apps/agents
 	cd $(ROOT) && kubectl kustomize apps/agents/storage >/dev/null

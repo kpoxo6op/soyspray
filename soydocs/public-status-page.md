@@ -46,8 +46,8 @@ not serve separate copies at the same time.
 
 ## Source of truth
 
-- [`../platform/public-status.json`](../platform/public-status.json) defines the
-  page, DNS record, and monitored services.
+- [`../apps/status-page/public-status.json`](../apps/status-page/public-status.json)
+  defines the page, DNS record, and monitored services.
 - [`../scripts/configure_status_page.py`](../scripts/configure_status_page.py)
   reconciles Better Stack and Cloudflare.
 - [`../tests/test_public_status.py`](../tests/test_public_status.py) checks
@@ -55,7 +55,7 @@ not serve separate copies at the same time.
   behavior.
 - [`../Makefile`](../Makefile) supplies `status-page-check`, `status-page`, and
   `status-page-fallback`.
-- [`../platform/README.md`](../platform) contains the short operator
+- [`../apps/status-page/README.md`](../apps/status-page/README.md) contains the short operator
   procedure.
 
 The reconciler creates or updates declared items. It does not delete an
@@ -142,7 +142,7 @@ curl --fail --silent --show-error --location \
   https://example.soyspray.vip/ | rg -F 'Expected page text'
 ```
 
-Add one object to `services` in `platform/public-status.json`:
+Add one object to `services` in `apps/status-page/public-status.json`:
 
 ```json
 {
@@ -331,7 +331,7 @@ clipboard conversion.
 
 ### Reconciler returns HTTP 403 for subscription settings
 
-Do not add `subscribable` to `platform/public-status.json` on the free plan.
+Do not add `subscribable` to `apps/status-page/public-status.json` on the free plan.
 The current configuration intentionally omits this paid setting.
 
 ### Reconciler reports duplicates

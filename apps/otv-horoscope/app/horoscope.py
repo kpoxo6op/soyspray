@@ -311,12 +311,16 @@ class State:
         tmp.replace(self.path)
 
 
+NO_AUDIO_SECONDS = 600  # live segments without decodable sound: restart the recorder
+
+
 class Health:
-    def __init__(self):
+    def __init__(self, started: float | None = None):
         self.lock = threading.Lock()
         self.values = {
             "last_segment": 0.0,
             "last_transcribed": 0.0,
+            "last_audio": time.time() if started is None else started,
             "episodes_found": 0,
             "episodes_sent": 0,
             "send_failures": 0,
@@ -342,10 +346,17 @@ def serve(health: Health, port: int, now=time.time) -> http.server.ThreadingHTTP
         def do_GET(self):  # noqa: N802
             values = health.snapshot()
             if self.path == "/healthz":
-                fresh = now() - values["last_segment"] < 300
-                self.send_response(200 if fresh else 503)
+                problem = None
+                if now() - values["last_segment"] >= 300:
+                    problem = b"no recent live segment\n"
+                elif now() - values["last_audio"] >= NO_AUDIO_SECONDS:
+                    # The recorder can keep writing segments whose audio no longer
+                    # decodes. A liveness restart starts a fresh recorder and keeps
+                    # the buffer and state in the pod's emptyDir.
+                    problem = b"live segments have no audio\n"
+                self.send_response(503 if problem else 200)
                 self.end_headers()
-                self.wfile.write(b"ok\n" if fresh else b"no recent live segment\n")
+                self.wfile.write(problem or b"ok\n")
             elif self.path == "/metrics":
                 body = "".join(f"otv_horoscope_{key} {value}\n" for key, value in values.items())
                 self.send_response(200)
@@ -516,6 +527,8 @@ def main() -> None:
             began = time.monotonic()
             try:
                 samples = audio_samples(path)
+                if len(samples):
+                    health.set(last_audio=time.time())
                 audio, lead = with_overlap(previous, seg_start, samples)
                 previous = (seg_start, samples)
                 pieces, _ = model.transcribe(

@@ -155,6 +155,8 @@ def policy_binary(tmp_path_factory):
         "busy_cap",
         "stop_timeout",
         "reconnect",
+        "orphan",
+        "orphan_guards",
     ],
 )
 def test_device_recovery_contract(policy_binary, scenario):

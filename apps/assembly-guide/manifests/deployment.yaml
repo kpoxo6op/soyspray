@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/name: assembly-guide
     app.kubernetes.io/part-of: assembly-guide
 spec:
-  replicas: 1
+  replicas: 2
   revisionHistoryLimit: 2
   strategy:
     type: RollingUpdate
@@ -22,6 +22,13 @@ spec:
         app.kubernetes.io/name: assembly-guide
         app.kubernetes.io/part-of: assembly-guide
     spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app.kubernetes.io/name: assembly-guide
+              topologyKey: kubernetes.io/hostname
       automountServiceAccountToken: false
       enableServiceLinks: false
       securityContext:
@@ -32,7 +39,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: web
-          image: ghcr.io/kpoxo6op/assembly-guide@sha256:f6b2d4cb0b692597a720b3de0cc9c8f431176575dcc95fd4988d9792f8c67de1
+          image: ghcr.io/kpoxo6op/assembly-guide@sha256:affc68ae6f2f05a70f9e8a579b8104ce254d51ef710305839dd34db197e2eb19
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

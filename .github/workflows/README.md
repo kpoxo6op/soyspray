@@ -15,8 +15,8 @@ unexpectedly skipped required checks. CI does not deploy or modify the cluster.
 Changes to local composite actions also select all application checks, so an
 action-only edit cannot bypass the real image-build and publication guards.
 
-The domain health, media helper, and Immich image jobs configure the hosted
-runner's Docker daemon to check Google's public `mirror.gcr.io` cache before
+Image workflows that call `./.github/actions/docker-hub-cache` configure the
+hosted runner's Docker daemon to check Google's public `mirror.gcr.io` cache before
 Docker Hub. This reduces unauthenticated pull-rate failures while retaining the
 Dockerfiles' exact digest pins and all packaged runtime and restore checks.
 An uncached image falls back to Docker Hub; a failed pull still fails CI.
@@ -40,46 +40,12 @@ one. Keep `make check` as the complete local gate. The Docker-based Immich tests
 can also run separately with `python3 apps/immich-offsite-backup/tests/test_backup.py`; they never
 connect to Kubernetes or the production repository.
 
-`boys-image.yml` builds and checks the Boys image on source pull requests.
-Test-only changes run the checks without publishing another digest. Runtime
-source, Dockerfile, or build-context changes open a promotion after merge.
-Use manual dispatch when a build-workflow change needs a new runtime image. A
-successful runtime build publishes its GHCR digest and opens a draft promotion
-PR. It has no cluster credentials and does not merge or deploy. Reruns use a
-new image tag and promotion branch so they cannot overwrite a reviewed draft.
-Close superseded promotion drafts during review.
-
-The [autism image workflow](autism-image.yml) builds the static site with pinned
-upstream images and checks the running image with phone and desktop browsers.
-Source merges open a draft digest and configuration promotion. The running site
-changes only when that promotion is deployed. See the [app guide](../../apps/autism-traits/README.md).
-
-`immich-backup-image.yml` is called by the affected Immich CI job. It builds the
-script bundle and runs the PostgreSQL/Restic recovery tests against the packaged
-files. Only runtime changes merged to main publish an image and open a draft
-Kustomize digest promotion. Manual checks do not publish unless `publish=true`
-is requested on this image workflow. No cluster or backup credentials enter CI.
-
-`domain-health-image.yml` is called by affected-app CI and full manual CI. It
-builds the standard-library exporter on a pinned
-upstream Python image. It tests runtime behavior and the real entrypoint without
-external network access. Source merges publish a tested image and open a draft
-digest/configuration promotion. A source-only merge leaves the frozen active
-runtime unchanged. Manual image checks publish only when `publish=true` is
-requested on the image workflow. The aggregate gate requires this image job when
-selected. The workflow does not merge or deploy.
-
-`otv-horoscope-image.yml` runs on horoscope pull requests and `main` pushes. It
-runs the detection and clipping tests, builds the recorder with its baked
-Whisper model, and checks the packaged runtime and real entrypoint without
-network access. A runtime merge publishes the tested GHCR image and opens a
-draft digest promotion through the shared action; it never deploys.
-
-Domain health and media helper keep their builds and real runtime checks in
-their own workflows. After those checks pass, both call
-`.github/actions/publish-image-promotion` for runtime-change detection, GHCR
-publication, immutable digest capture, and the separate draft promotion. The
-shared action has no cluster, backup, or personal credentials. Pull requests
-and test-only changes cannot publish. A source merge leaves the running digest
-unchanged until its promotion is reviewed and merged; Argo CD then follows
-`main`.
+Each `*-image.yml` workflow builds and checks one app's image. The file list
+in this folder is the index; read each workflow file for its triggers and
+publication rules. They share one contract: pull requests and test-only changes
+never publish; a runtime change merged to `main` publishes the tested image to
+GHCR. Most workflows then open a draft digest promotion pull request; the three
+voice workflows (`gi-stt`, `gi-voice`, `voice-health`) report the digest for a
+separate reviewed promotion. No workflow holds cluster credentials, merges, or
+deploys. The running digest changes only when a promotion is reviewed and merged
+and Argo CD follows `main`.

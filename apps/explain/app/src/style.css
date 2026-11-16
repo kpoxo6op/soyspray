@@ -1,0 +1,105 @@
+/* One accent, amber, for progress and focus, on the guides' dark room. System type, sentence case. */
+:root {
+  --bg: #100e0c;
+  --panel: #1a1714;
+  --line: #2e2924;
+  --text: #ece6de;
+  --muted: #a39a8f;
+  --accent: #e8ae62;
+  --ink: #1b130a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { background: var(--bg); }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+main { max-width: 880px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 30px; line-height: 1.2; margin: 0 0 8px; }
+h2 { font-size: 21px; margin: 0 0 6px; }
+h3 { font-size: 18px; margin: 28px 0 4px; }
+h4 { font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); margin: 16px 0 6px; font-weight: 600; }
+p { margin: 0 0 8px; }
+.lede { color: var(--muted); max-width: 60ch; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+[hidden] { display: none !important; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top { margin-bottom: 28px; }
+.guides { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin-bottom: 40px; }
+.guide { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 6px; }
+.guide p { color: var(--muted); }
+.guide .meta { font-size: 14px; }
+.guide .open, .guide ui-button { margin-top: auto; }
+.open {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 16px;
+  background: var(--accent); color: var(--ink); border-radius: 8px; font-weight: 600; text-decoration: none;
+}
+ui-button { display: contents; }
+
+/* Meters: UI SDK parts and the native meter look the same. */
+ui-meter, .meter { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 8px; font-size: 14px; color: var(--muted); margin: 4px 0 10px; }
+ui-meter-track { grid-column: 1 / -1; height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+ui-meter-indicator { display: block; height: 100%; width: var(--meter-percentage, 0%); background: var(--accent); }
+.meter meter { grid-column: 1 / -1; grid-row: 2; width: 100%; height: 6px; }
+.meter output { grid-row: 1; grid-column: 2; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; margin: 12px 0; }
+.search { display: flex; flex-direction: column; gap: 4px; flex: 1 1 240px; font-size: 14px; color: var(--muted); }
+ui-input-group { display: flex; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+ui-input { flex: 1; display: block; }
+input[type="search"] {
+  width: 100%; min-height: 44px; padding: 0 12px; background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); border-radius: 8px; font: inherit;
+}
+ui-input input[type="search"] { border: 0; background: transparent; }
+ui-input-clear button { min-width: 44px; min-height: 44px; background: none; border: 0; color: var(--muted); font-size: 20px; cursor: pointer; }
+ui-input-clear button:not([data-filled]) { visibility: hidden; }
+
+ui-segmented-control, .segments { position: relative; display: inline-flex; isolation: isolate; border: 1px solid var(--line); border-radius: 8px; padding: 3px; margin: 0; background: var(--panel); }
+ui-segmented-control-item, .segments label span { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 6px; cursor: pointer; color: var(--muted); }
+ui-segmented-control-item[data-checked], .segments input:checked + span { color: var(--ink); font-weight: 600; }
+.segments input { position: absolute; opacity: 0; pointer-events: none; }
+.segments input:checked + span { background: var(--accent); }
+.segments input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+ui-segmented-control-indicator {
+  position: absolute; z-index: -1; border-radius: 6px; background: var(--accent);
+  top: var(--segmented-control-indicator-top); left: var(--segmented-control-indicator-left);
+  width: var(--segmented-control-indicator-width); height: var(--segmented-control-indicator-height);
+}
+@media (prefers-reduced-motion: no-preference) {
+  ui-segmented-control-indicator { transition: left 0.18s ease, width 0.18s ease; }
+}
+
+.toggle { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; color: var(--muted); cursor: pointer; }
+ui-switch, .toggle input {
+  appearance: none; position: relative; display: inline-block; width: 40px; height: 24px; margin: 0;
+  border-radius: 12px; background: var(--line); cursor: pointer;
+}
+ui-switch-thumb, .toggle input::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--text);
+}
+ui-switch[data-checked], .toggle input:checked { background: var(--accent); }
+ui-switch[data-checked] ui-switch-thumb, .toggle input:checked::after { left: 19px; background: var(--ink); }
+
+.count { color: var(--muted); font-size: 14px; }
+.list ol { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.list li { border-bottom: 1px solid var(--line); }
+soy-chapter, .chapter { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0 12px; padding: 6px 0; }
+soy-chapter a, .chapter a { display: flex; justify-content: space-between; gap: 12px; min-height: 40px; align-items: center; text-decoration: none; }
+soy-chapter a:hover .t, .chapter a:hover .t { text-decoration: underline; }
+.d { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.goal { grid-column: 1; color: var(--muted); font-size: 14px; margin: -4px 0 4px; }
+soy-chapter-done { display: contents; }
+soy-chapter button, .chapter button {
+  grid-row: 1; grid-column: 2; min-width: 64px; min-height: 36px; padding: 0 10px; border-radius: 6px; font: inherit; font-size: 14px;
+  background: transparent; color: var(--muted); border: 1px solid var(--line); cursor: pointer;
+}
+soy-chapter button[aria-pressed="true"], .chapter button[aria-pressed="true"] { background: var(--accent); color: var(--ink); border-color: var(--accent); font-weight: 600; }
+li:has(button[aria-pressed="true"]) .t { color: var(--muted); }
+.empty { color: var(--muted); padding: 16px 0; }

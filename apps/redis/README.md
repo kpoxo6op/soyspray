@@ -6,7 +6,7 @@ Redis is deployed as a dependency for Immich and other applications in the clust
 
 - **Architecture:** Standalone
 - **Authentication:** Disabled (uses `ALLOW_EMPTY_PASSWORD=yes`)
-- **Storage:** Longhorn persistent volume (5Gi)
+- **Storage:** Longhorn persistent volume (8Gi)
 - **Registry:** `bitnamilegacy/redis` (Bitnami Legacy due to 2024/2025 catalog changes)
 
 ## Quick Validation

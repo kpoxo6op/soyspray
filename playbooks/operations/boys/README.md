@@ -10,7 +10,7 @@ the [Boys data interface](../../../apps/boys/app). Keep destination,
 dates, and private content in this encrypted file. Keep its Vault password and
 an offline copy outside the cluster. Do not put either in Git or shell history.
 
-Push the operation branch, run `make go`, then use the normal inventory:
+Push the operation branch, run `make check`, then use the normal inventory:
 
 ```sh
 source soyspray-venv/bin/activate

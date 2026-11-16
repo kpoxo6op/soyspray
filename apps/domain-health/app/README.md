@@ -6,7 +6,5 @@ Cloudflare zone state, and public nameservers. It exposes `/metrics` and
 identity. Read the [app README](..) for deployment and private inputs.
 
 The Dockerfile packages this source. Source merges build an image and open a
-separate digest promotion. During the initial transition, Kustomize reads the
-frozen copy in `manifests/legacy-exporter.py`, so new source cannot change the
-running ConfigMap. The same standard-library runtime tests run locally and
+separate digest promotion. The same standard-library runtime tests run locally and
 inside the image.

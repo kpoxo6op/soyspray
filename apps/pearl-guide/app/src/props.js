@@ -255,8 +255,8 @@ export function heatshrink(length = 12, radius = 1.5, color = 'black') {
 }
 
 /** A straight thread between two points; call setEnds(a, b) each frame. */
-export function thread() {
-  const m = mesh(new CylinderGeometry(0.3 * MM, 0.3 * MM, 1, 6), std(0xf2f0ea, 0.8), false);
+export function thread(radius = 0.3) {
+  const m = mesh(new CylinderGeometry(radius * MM, radius * MM, 1, radius > 0.5 ? 12 : 6), std(0xf2f0ea, 0.8), false);
   const up = new Vector3(0, 1, 0);
   const d = new Vector3();
   m.userData.setEnds = (a, b) => {
@@ -325,5 +325,40 @@ export function airflow(radius = 15, height = 90, count = 14) {
       s.scale.y = 0.6 + k;
     }
   };
+  return g;
+}
+
+/** A sub-miniature slide switch (SS-12D00 type), lying on its back: body 8.5 × 3.5 × 3.7 mm along x, the lever up
+ * (userData.lever slides 2 mm along x), three 2 mm pins along +z. Pin ends: userData.pins (local metres). */
+export function slideSwitch() {
+  const g = new Group();
+  const body = mesh(new RoundedBoxGeometry(8.5 * MM, 3.5 * MM, 3.7 * MM, 2, 0.3 * MM), MAT.black);
+  body.position.y = 1.75 * MM;
+  const plate = mesh(new BoxGeometry(8.6 * MM, 0.25 * MM, 3.8 * MM), MAT.steel);
+  plate.position.y = 3.55 * MM;
+  const lever = mesh(new BoxGeometry(1.5 * MM, 3 * MM, 1.5 * MM), MAT.white);
+  lever.position.set(-1 * MM, 5.1 * MM, 0);
+  g.add(body, plate, lever);
+  g.userData.lever = lever;
+  g.userData.pins = [];
+  for (const x of [-2.5, 0, 2.5]) {
+    const pin = mesh(new BoxGeometry(0.5 * MM, 0.3 * MM, 2 * MM), MAT.tin);
+    pin.position.set(x * MM, 1.75 * MM, 2.85 * MM);
+    g.add(pin);
+    g.userData.pins.push([x * MM, 1.75 * MM, 3.85 * MM]);
+  }
+  return g;
+}
+
+/** A multimeter probe: the tip at the origin, the handle up along +y. */
+export function probe(color = 'red') {
+  const g = new Group();
+  const tip = mesh(new CylinderGeometry(0.15 * MM, 0.5 * MM, 12 * MM, 10), MAT.steel);
+  tip.position.y = 6 * MM;
+  const grip = mesh(new CylinderGeometry(2.6 * MM, 2.2 * MM, 70 * MM, 20), MAT[color]);
+  grip.position.y = 47 * MM;
+  const guard = mesh(new CylinderGeometry(4 * MM, 4 * MM, 1.5 * MM, 20), MAT[color]);
+  guard.position.y = 18 * MM;
+  g.add(tip, grip, guard);
   return g;
 }

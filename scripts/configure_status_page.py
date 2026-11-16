@@ -13,7 +13,7 @@ from urllib.parse import urlencode, urlparse
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_CONFIG = ROOT / "platform/public-status.json"
+DEFAULT_CONFIG = ROOT / "apps/status-page/public-status.json"
 BETTER_STACK_API = "https://uptime.betterstack.com/api/v2"
 CLOUDFLARE_API = "https://api.cloudflare.com/client/v4"
 

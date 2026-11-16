@@ -8,7 +8,7 @@ int main(int argc, char **argv) {
   assert(argc == 2);
   std::string scenario(argv[1]);
   gi::Supervisor policy;
-  gi::Input in{1000, true, false, false, true, true, 0, 0};
+  gi::Input in{1000, true, false, false, true, true, 0, 0, true};
   policy.frame(in.now);
   assert(policy.tick(in) == Action::NONE);
   in.now += 181000;
@@ -108,6 +108,44 @@ int main(int argc, char **argv) {
     assert(policy.tick(in) == Action::NONE);
     in.now += 15000;
     assert(policy.tick(in) == Action::RETRY);
+  } else if (scenario == "orphan") {
+    // Network drop: Home Assistant's API returns but voice is never resubscribed.
+    in.connected = false;
+    in.running = false;
+    in.acknowledged = false;
+    in.ha_connected = true;
+    assert(policy.tick(in) == Action::NONE);
+    in.now += 119999;
+    assert(policy.tick(in) == Action::NONE);
+    assert(!policy.expected);
+    in.now += 1;
+    assert(policy.tick(in) == Action::REBOOT);
+    assert(policy.reason == gi::Reason::NO_VOICE_CLIENT);
+    in.now += 1000;
+    assert(policy.tick(in) == Action::NONE);
+    in.reboot_count = 3;
+    in.now += 120000;
+    assert(policy.tick(in) == Action::EXHAUSTED);
+  } else if (scenario == "orphan_guards") {
+    in.connected = false;
+    in.running = false;
+    in.acknowledged = false;
+    for (int guard = 0; guard < 3; ++guard) {
+      in.ha_connected = guard != 0;  // Home Assistant fully away is a normal outage.
+      in.muted = guard == 1;
+      in.ota = guard == 2;
+      for (int second = 0; second < 300; ++second) {
+        in.now += 1000;
+        assert(policy.tick(in) == Action::NONE);
+      }
+    }
+    in.muted = false;
+    in.ota = false;
+    in.now += 60000;
+    assert(policy.tick(in) == Action::NONE);
+    in.connected = true;  // Voice resubscribes in time: no reboot.
+    in.now += 60000;
+    assert(policy.tick(in) == Action::NONE);
   } else {
     return 2;
   }

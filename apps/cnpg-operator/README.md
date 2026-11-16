@@ -53,7 +53,7 @@ The ObjectStores and their CRD use `Prune=false,Delete=false`. Removing the
 Application or a Git path must not cascade through the archive configuration.
 The upstream manifest stays unchanged; Kustomize adds the CRD protection.
 
-Run `make go`, then merge the pull request. Argo reconciles the operator from
+Run `make check`, then merge the pull request. Argo reconciles the operator from
 `main`. Verify both source revisions and plugin health. Database migrations are
 separate.
 
@@ -61,7 +61,3 @@ The Application uses server-side apply for large CNPG schemas. Server-side
 diff lets the Kubernetes API compare fields that the older Argo schema does
 not recognize. Client-side apply migration is disabled to avoid the large
 last-applied annotation.
-
-To retry a completed failed operation with these settings, add
-`-e cnpg_operator_sync=true`. This requires an idle Application and uses a
-resource-version guard. The explicit sync does not prune resources.

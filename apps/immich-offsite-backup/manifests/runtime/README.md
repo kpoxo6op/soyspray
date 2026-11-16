@@ -1,10 +1,10 @@
 # Immich paired backup
 
-This folder defines the suspended paired backup CronJob for Immich. The
+This folder defines the paired backup CronJob for Immich. The
 existing `immich-offsite-backup` Application keeps its current identity and
 source path and includes this folder from its Kustomization.
 
-The CronJob runs every 30 minutes when enabled. It uses `Forbid` concurrency
+The CronJob runs every 30 minutes (`*/30 * * * *`). It uses `Forbid` concurrency
 and runs three ordered stages:
 
 1. Copy `dump.sh`, `dump.sql`, and `backup.sh` from the pinned script bundle.
@@ -13,7 +13,7 @@ and runs three ordered stages:
 3. Run the Restic backup against the same snapshot and the original content
    under `/usr/src/app/upload`.
 
-The paired job stays suspended until a real backup and isolated restore pass. The Secret must contain exactly these operational keys:
+The Secret must contain exactly these operational keys:
 
 ```text
 PGHOST
@@ -38,13 +38,12 @@ script image is the tested immutable digest recorded in `kustomization.yaml`.
 The library PVC is mounted read-only at `/usr/src/app/upload`, and required pod
 affinity keeps the job with the Immich server because the claim is RWO.
 
-Enable the schedule only after the root Ansible work creates the Secret and an
-isolated backup and restore check passes. Keep the existing nightly media job
-until the paired replacement is verified.
+The CronJob is not suspended and runs on its schedule. It has replaced the
+nightly media-only copy.
 
 ## Operator commands
 
-Run `make go` on the pushed branch first. Merge application changes to `main`.
+Run `make check` on the pushed branch first. Merge application changes to `main`.
 Argo CD owns the CronJob. Use Ansible only for the private Secret and deliberate
 one-time backup operations:
 

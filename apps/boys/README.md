@@ -53,7 +53,7 @@ key, and `boys_cloudflared_token` as the existing tunnel token. Restore these
 values from the off-cluster runtime archive. Do not generate replacements.
 Keep the Vault password and an offline recovery copy outside the cluster.
 
-Push the branch and run `make go`, then run:
+Push the branch and run `make check`, then run:
 
 ```sh
 source soyspray-venv/bin/activate

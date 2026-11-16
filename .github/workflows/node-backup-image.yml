@@ -14,14 +14,23 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  packages: write
-  pull-requests: write
+  contents: read
+
+concurrency:
+  group: node-backup-image-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   image:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    env:
+      IMAGE: ghcr.io/kpoxo6op/node-backup
+      IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -42,23 +51,23 @@ jobs:
             soyspray-node-backup:test /app/tests/test_backup.py
           python3 -m unittest discover -s apps/node-backup/tests -p 'test_manifest.py'
       - name: Publish the tested source image
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-          image="ghcr.io/kpoxo6op/node-backup:$GITHUB_SHA"
+          image="$IMAGE:$IMAGE_TAG"
           docker tag soyspray-node-backup:test "$image"
           docker push "$image"
           docker image inspect "$image" --format '{{index .RepoDigests 0}}' >> "$GITHUB_STEP_SUMMARY"
       - name: Open a separate digest promotion
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          image="ghcr.io/kpoxo6op/node-backup:$GITHUB_SHA"
+          image="$IMAGE:$IMAGE_TAG"
           export IMAGE_REF="$(docker image inspect "$image" --format '{{index .RepoDigests 0}}')"
-          branch="codex/promote-node-backup-${GITHUB_RUN_ID}"
+          branch="promote/node-backup-${GITHUB_SHA:0:12}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           git switch -c "$branch"
           python3 - <<'PYCODE'
           import os
@@ -69,11 +78,12 @@ jobs:
           s = re.sub(r'image: ghcr.io/kpoxo6op/node-backup:\S+|image: ghcr.io/kpoxo6op/node-backup@\S+', 'image: ' + os.environ['IMAGE_REF'], s)
           p.write_text(s)
           PYCODE
+          if git diff --quiet; then exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add apps/node-backup/manifests/cronjob.yaml
           git commit -m 'Promote the tested node backup image'
           git push origin "$branch"
           commit="$(git rev-parse HEAD)"
-          printf 'Promote the tested node backup image. The schedule stays suspended until a real backup and restore pass.\n\nImage: `%s`.\n\nCommit: [%s](https://github.com/%s/commit/%s).\n' "$IMAGE_REF" "$commit" "$GITHUB_REPOSITORY" "$commit" > "$RUNNER_TEMP/promotion.md"
+          printf 'Promote the tested node backup image. The source merge left the running image unchanged. After this promotion merges, Argo CD follows main and the next scheduled backup uses the tested digest. Roll back through GitHub by reverting this promotion.\n\nImage: `%s`.\n\nCommit: [%s](https://github.com/%s/commit/%s).\n' "$IMAGE_REF" "$commit" "$GITHUB_REPOSITORY" "$commit" > "$RUNNER_TEMP/promotion.md"
           gh pr create --draft --base main --head "$branch" --title 'Promote the tested node backup image' --body-file "$RUNNER_TEMP/promotion.md"

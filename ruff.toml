@@ -1,4 +1,19 @@
 line-length = 100
 
+extend-exclude = [
+    "kubespray",
+    # Not yet clean. Each of these ships in an image or a ConfigMap, or is CAD
+    # tooling, so a style-only edit would trigger a rebuild or a rollout.
+    # Clean a file when it is next changed for a real reason, then remove it
+    # from this list.
+    "apps/assembly-guide/app/tools",
+    "apps/assembly-guide/cad",
+    "apps/dispatcharr/manifests/okru.py",
+    "apps/dispatcharr/manifests/reconcile.py",
+    "apps/jellyfin/manifests/bootstrap.py",
+    "apps/node-backup/scripts/backup.py",
+    "apps/pearl-guide/promote-image.py",
+]
+
 [lint]
 select = ["E4", "E7", "E9", "F", "I", "B"]

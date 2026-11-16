@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: agents-image-${{ github.ref }}
+  group: agents-image-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -31,11 +31,14 @@ jobs:
         run: |
           python3 -m pip install PyYAML==6.0.3 kubernetes==36.0.3
           python3 -m unittest discover -s apps/agents/tests -v
-          ! grep -R -F 'FIXTURE' apps/agents/app/src
+          if grep -R -F 'FIXTURE' apps/agents/app/src; then
+            echo 'Fixture data must not ship in the app source.' >&2
+            exit 1
+          fi
           docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" --tag "$IMAGE:$IMAGE_TAG" apps/agents
       - name: Preserve the built image for a private release scan
         run: docker save --output "$RUNNER_TEMP/agents-runtime.tar" "$IMAGE:$IMAGE_TAG"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: agents-runtime-image
           path: ${{ runner.temp }}/agents-runtime.tar

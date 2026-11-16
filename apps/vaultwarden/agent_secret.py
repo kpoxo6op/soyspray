@@ -162,7 +162,7 @@ def read_item(name: str) -> dict[str, str]:
             username = login.get("username") or ""
             item_password = login.get("password")
             if not isinstance(username, str) or (name == ITEM_NAME and not username):
-                raise AgentSecretError("the Hays item has no username")
+                raise AgentSecretError("the vault item has no username")
             pin_only = (
                 name in ERRANDS_ITEMS
                 and item_password is None
@@ -175,7 +175,7 @@ def read_item(name: str) -> dict[str, str]:
                 # An app login can hold only its PIN, in a custom field named "Pin".
                 item_password = ""
             elif not isinstance(item_password, str) or not item_password:
-                raise AgentSecretError("the Hays item has no password")
+                raise AgentSecretError("the vault item has no password")
             result = {"username": username, "password": item_password}
             if name in ERRANDS_ITEMS:
                 for field in ("password", "pin", "username"):

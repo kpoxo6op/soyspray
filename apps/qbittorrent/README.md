@@ -81,17 +81,3 @@ qBittorrent integrates with Booklore via filesystem. The `books` category downlo
 ### Direct Library Indexing (Recommended)
 
 No script needed. Booklore mounts the same PVC and indexes `/downloads/books` as a Library.
-
-## Delete the app manually
-
-Delete from argocd
-
-```sh
-kubectl patch application qbittorrent -n argocd -p '{"metadata":{"finalizers":[]}}' --type=merge
-kubectl delete deployment qbittorrent -n media
-kubectl delete job qbittorrent-bootstrap -n media
-kubectl delete service qbittorrent qbittorrent-peers -n media
-kubectl delete configmap -n media -l app=qbittorrent
-kubectl delete ingress qbittorrent-ingress -n media
-kubectl delete pvc qbittorrent-config media-downloads -n media
-```

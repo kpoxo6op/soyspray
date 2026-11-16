@@ -5,6 +5,8 @@ kind: PersistentVolumeClaim
 metadata:
   name: zigbee2mqtt-data
   namespace: home-automation
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
   accessModes:
     - ReadWriteOnce

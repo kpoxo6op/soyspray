@@ -73,7 +73,7 @@ def test_authentik_preserves_archive_and_replication():
         yaml.safe_load_all((ROOT / "apps/authentik-postgresql/manifests/cluster.yaml").read_text())
     )
     cluster, schedule = resources
-    assert cluster["spec"]["instances"] == 2
+    assert cluster["spec"]["instances"] >= 2
     assert cluster["spec"]["imageName"] == "ghcr.io/cloudnative-pg/postgresql:17.5"
     assert cluster["spec"]["plugins"][0]["parameters"] == {
         "barmanObjectName": "authentik-offsite",

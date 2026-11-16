@@ -1,0 +1,27 @@
+# The same guide at explain.soyspray.vip/pearl/, beside the catalog (apps/explain). ingress-nginx merges this
+# rule into the explain.soyspray.vip server, which takes its certificate from the explain Ingress; nginx.conf
+# strips the prefix. This is the guide's address; pearl.soyspray.vip (ingress.yaml) only redirects here.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pearl-guide-explain
+  labels:
+    app.kubernetes.io/name: pearl-guide
+    app.kubernetes.io/part-of: pearl-guide
+  annotations:
+    external-dns.alpha.kubernetes.io/ingress-hostname-source: annotation-only
+    external-dns.kubernetes.io/ingress-hostname-source: annotation-only
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: explain.soyspray.vip
+      http:
+        paths:
+          - path: /pearl
+            pathType: Prefix
+            backend:
+              service:
+                name: pearl-guide
+                port:
+                  name: http

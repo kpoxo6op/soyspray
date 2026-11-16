@@ -36,8 +36,7 @@ AGENTS.md with `apps/domain-health/bootstrap.yml --ask-vault-pass
 
 The app has no persistent volume. Preserve its private bootstrap inputs for
 recovery. A full recreation and independent delivery check remain unknown.
-Rollback restores the reviewed Application source and project through Ansible;
-do not delete the app, namespace, or identities as a rollback step.
+To roll back, revert the pull request; Argo CD reconciles. Do not delete the app, namespace, or identities as a rollback step.
 
 ## Build and promote the runtime
 

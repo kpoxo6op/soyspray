@@ -67,3 +67,9 @@ gh workflow run immich-backup-image.yml --ref main -f publish=true
 
 Roll back the digest and dependent configuration together. Keep all existing
 claims, database identities, and S3 archives during recovery adoption.
+
+The database runs three instances, one per node, and commits wait for one
+synchronous standby. A single-node outage leaves two instances available;
+failover still interrupts connections briefly. Losing two nodes can block writes.
+The original cluster, database and PVC identities remain unchanged. Do not scale
+back to one instance while synchronous replication is required.

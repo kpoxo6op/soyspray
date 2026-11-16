@@ -69,7 +69,7 @@ tests:
       # Created on the first match, so the first sample is already 1 and later
       # samples stay flat. increase() alone would never see this failure.
       - series: >-
-          soyspray_log_media_backup_failure_total{namespace="immich",container="aws-sync",
+          soyspray_log_media_backup_failure_total{namespace="immich",container="restic-backup",
           pod="immich-paired-backup-1",cluster="soyspray",job="kubernetes-pods"}
         values: "1x20"
       - series: >-
@@ -83,9 +83,9 @@ tests:
           - exp_labels:
               severity: warning
               namespace: immich
-              container: aws-sync
+              container: restic-backup
             exp_annotations:
-              summary: "Backup tool errors in immich/aws-sync"
+              summary: "Backup tool errors in immich/restic-backup"
               description: >-
                 A backup container logged a failure line in the last 5 minutes. The backup record
                 may still look current. Read the container logs in Grafana before the next
@@ -131,7 +131,7 @@ tests:
       # A single terminal event creates the series at 1 and never repeats.
       - series: >-
           soyspray_event_job_backoff_total{namespace="immich",type="Warning",
-          kubernetes_event_involved_object_name="immich-media-offsite-sync-28912345",
+          kubernetes_event_involved_object_name="immich-paired-backup-28912345",
           cluster="soyspray"}
         values: "1x20"
       - series: >-
@@ -145,9 +145,9 @@ tests:
           - exp_labels:
               severity: warning
               namespace: immich
-              kubernetes_event_involved_object_name: immich-media-offsite-sync-28912345
+              kubernetes_event_involved_object_name: immich-paired-backup-28912345
             exp_annotations:
-              summary: "Backup job immich-media-offsite-sync-28912345 hit its backoff limit"
+              summary: "Backup job immich-paired-backup-28912345 hit its backoff limit"
               description: >-
                 Kubernetes reported BackoffLimitExceeded for a backup job in immich. The job will
                 not retry until the next schedule.

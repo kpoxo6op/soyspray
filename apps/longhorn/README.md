@@ -14,7 +14,7 @@ conservative resource limits.
 
 ## Hardware Configuration
 
-Using the same devices as attempted with Rook/Ceph:
+Devices:
 
 - node-0: /dev/sda
 - node-1: /dev/sda
@@ -22,13 +22,8 @@ Using the same devices as attempted with Rook/Ceph:
 
 ## Resource Usage
 
-Much lighter than Ceph, configured with:
-
-- Manager: 250m CPU, 256Mi memory
-- Driver: 250m CPU, 256Mi memory
-- Instance Manager: 250m CPU, 256Mi memory
-
-Total per node: ~750m CPU, 768Mi memory
+Component CPU and memory requests and limits are set in
+[`manifests/kustomization.yaml`](manifests/kustomization.yaml).
 
 ## Storage and Node Preparation
 
@@ -36,28 +31,9 @@ Created from longhornctl output
 
 `longhornctl check preflight --kube-config ~/.kube/config`
 
-```bash
-ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu playbooks/operations/storage/initialize-longhorn-storage.yml
-```
-
-## Maintenance and Troubleshooting
-
-For maintenance procedures, including uninstallation and cleanup, see:
-
-- [Longhorn Maintenance Procedures](manifests/docs)
-
-## Prometheus Storage Plan
-
-We will create a high-performance storage solution for Prometheus using Longhorn on miniPC SSDs:
-
-1. Create a dedicated `longhorn-monitoring` StorageClass with optimized settings
-2. Configure replicated volumes backed by the SSD on each node
-3. Configure Prometheus to use this storage via PersistentVolumeClaims
-4. Implement proper retention and compaction settings
-
-For detailed implementation plans, performance benchmarks, and configuration parameters, see:
-
-- Prometheus storage is maintained in `apps/prometheus/README.md`.
+The worker SSD preparation playbook is
+`playbooks/operations/storage/prepare-longhorn-worker-ssd.yml`. It takes a
+stable `/dev/disk/by-id` path per host.
 
 ## Observe storage and backup state
 
@@ -68,7 +44,37 @@ backup metrics do not include the snapshot time, so they do not prove backup age
 Use Longhorn Backup custom resources and the Longhorn UI for snapshot times.
 The kube-state-metrics rules retain the native critical-backup age alerts.
 
-Run `make go`, merge the pull request, and let Argo reconcile `main`. Verify the Application,
+Run `make check`, merge the pull request, and let Argo reconcile `main`. Verify the Application,
 ServiceMonitor, Prometheus target health, and existing volume identities and
 replica counts. Disabling the ServiceMonitor stops telemetry; it does not stop
 Longhorn or change storage.
+
+## Single-node outages
+
+CSI controllers run three copies. Longhorn deletes terminating Deployment and
+StatefulSet pods on a down node so their existing volumes can attach elsewhere.
+This permits automatic recovery after Kubernetes marks and evicts the lost pods;
+it is not uninterrupted service. Physically power off a node before disconnecting
+its network for maintenance: a partitioned, still-running writer is not a safely
+fenced machine. Never lose a second node until replicas have recovered.
+
+The guarded `playbooks/operations/storage/reserve-replica-capacity.yml` operation
+changes only the three known dedicated SSD reservations from 30% to 15%.
+It requires matching disk identities, sizes, ready state and over 50% real free
+space. The 100% provisioning limit and 25% minimum-free-space protection remain.
+This makes room for the third Immich library copy, three monitoring copies and
+additional PostgreSQL standbys. It neither formats disks nor moves mounts.
+Restore the old reservation only after allocated replicas fit that smaller budget;
+do not remove data or replicas merely to roll back the reservation.
+
+Longhorn 1.10's driver deployer skips existing CSI Deployments when their version
+is unchanged, even when its replica-count environment changes. After merging the
+chart values, run `playbooks/operations/storage/csi-controller-replicas.yml`
+with `--check`, then without it. This guards the four existing identities and
+changes only replicas from one to three; it does not recreate CSI components.
+Verify three ready pods per controller and placement across nodes. Future
+controller creation uses the matching chart values.
+
+Allow one replica rebuild per target node at a time. This limits competing copy
+traffic on the observed slow links while keeping the three-copy target. It does
+not repair the links or prove a successful rebuild; wait for actual RW replicas.

@@ -59,7 +59,7 @@ export function buildScene(stage, assets) {
   twins('coin_10c', ['coin7', 'coin8']);
   twins('motor', ['motor1', 'motor2', 'motor_rig']);
   twins('prop', ['prop1', 'prop2', 'prop3', 'prop4', 'prop_rig']);
-  twins('socket_lead', ['lead1', 'lead2']);
+  twins('socket_lead', ['lead1', 'lead2', 'lead3']);
   twins('driver', ['driver1', 'driver2', 'driver3']);
 
   // printed parts, in print orientation
@@ -126,6 +126,19 @@ export function buildScene(stage, assets) {
   cast.add('block', P.block(50, 30, 40));
   cast.add('tape', new Mesh(new BoxGeometry(30 * MM, 0.25 * MM, 12 * MM), P.MAT.tape));
   cast.add('air', P.airflow(15, 90));
+  // the switched battery lead and its divider (chapter 5)
+  cast.add('switch', P.slideSwitch());
+  cast.add('swRed', P.wire('red', 30, 3));
+  cast.add('swBlack', P.wire('black', 30, 3));
+  cast.add('resA', P.resistor());
+  cast.add('resB', P.resistor());
+  for (const n of ['jS1', 'jS2', 'jS3', 'jS4', 'jS5', 'jS6']) cast.add(n, P.joint('good', 0.7));
+  cast.add('probeR', P.probe('red'));
+  cast.add('probeB', P.probe('black'));
+  for (const [n, c] of [['cordR', 0xc3261f], ['cordB', 0x18191b]]) {
+    cast.add(n, P.thread(1.4));
+    cast.get(n).mats.forEach((m) => m.color.setHex(c));
+  }
 
   // label anchors: an empty at the top centre of each actor's rest shape, made on first use
   const anchors = new Map();

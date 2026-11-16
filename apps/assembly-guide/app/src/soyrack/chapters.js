@@ -4,6 +4,7 @@ import { add3 } from '../math.js';
 import { HOLD_IN, tier } from '../timeline.js';
 import { TEST_CHAPTERS } from './testprints.js';
 import { trayNutIds } from './rack.js';
+import { CRIMP_CHAPTERS } from './crimp.js';
 
 const CORNERS = ['FL', 'FR', 'RL', 'RR'];
 const each = (prefix) => CORNERS.map((k) => `${prefix}.${k}`);
@@ -47,7 +48,7 @@ function lower(c, ids, at, { rise, settle = 14, dur = 2.2, stagger = 0.3 } = {})
 export const SOYRACK_CHAPTERS = [
   ...TEST_CHAPTERS,
   {
-    id: 'power-base', title: 'Power base', view: 'base',
+    id: 'power-base', section: 'Build the rack', title: 'Power base', view: 'base',
     text: 'Push an M4 nut into the slot inside each corner of the base until it stops. Stick a 20 mm silicone pad under each corner.',
     script(c) {
       c.show(['base_tub']);
@@ -102,7 +103,7 @@ export const SOYRACK_CHAPTERS = [
   },
   {
     id: 'mid-deck', title: 'Mid deck', view: 'frame',
-    text: 'Lower the mid deck onto the posts, over their top feet.',
+    text: 'Take the four plugs out first: lift the deck off the plate, then push an M4 screw by hand through each corner hole, from the top, against its plug. Release is untested: if one stays, stop; never cut or push harder. Lower the deck over the post feet by hand; never force it.',
     script(c) {
       c.show(['mid_deck']);
       lower(c, ['mid_deck'], HOLD_IN, { rise: 60, dur: 2.0 });
@@ -173,9 +174,10 @@ export const SOYRACK_CHAPTERS = [
     text: 'Bring each Lenovo cord straight up behind the nodes and plug it in: node-0 takes the front one. The switch cord rises at the rear right, through the mid deck slot, to the switch.',
     script: hold(6.4),
   },
+  ...CRIMP_CHAPTERS,
   {
-    id: 'ethernet', title: 'Ethernet', view: 'rear',
-    text: 'Crimp Cat6 leads to length: the nodes up the rear left to switch ports 7, 6 and 5, port 1 to keystone 1 and port 4 to keystone 2. Keystone 1 goes out to the router on the wall.',
+    id: 'ethernet', section: 'Leads in and done', title: 'Ethernet', view: 'rear',
+    text: 'Plug in the leads you crimped: the blue ones from the nodes up the rear left to switch ports 7, 6 and 5, yellow from port 1 to keystone 1 and green from port 4 to keystone 2. Keystone 1 goes out to the router on the wall.',
     script: hold(6.4),
   },
   {

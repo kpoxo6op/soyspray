@@ -15,7 +15,17 @@ COMMON_PLAYBOOKS = (
     "playbooks/operations/recovery/cleanup-restore.yml",
     "playbooks/operations/recovery/validate-durable.yml",
 )
-PYTHON_MODULES = ("ansible", "bcrypt", "cryptography", "jmespath", "netaddr", "passlib", "yaml")
+PYTHON_MODULES = (
+    "ansible",
+    "bcrypt",
+    "cryptography",
+    "jmespath",
+    "jsonpatch",
+    "kubernetes",
+    "netaddr",
+    "passlib",
+    "yaml",
+)
 
 
 def run(argv, root=ROOT):

@@ -3,7 +3,7 @@
 This package defines native Argo ownership for the existing Prometheus,
 Alertmanager, and Grafana stack, its disposable dashboards and custom rules,
 and the Prometheus Operator CRDs. Prometheus
-metrics are disposable on this toy cluster. The deployment does not require
+metrics are disposable on this home cluster. The deployment does not require
 backup or restore evidence.
 
 The package keeps these Application identities and versions:
@@ -160,7 +160,7 @@ The legacy package, adoption operation, and Ansible submission path are removed.
 
 After adoption, verify all three Application UIDs, sources, projects, and health. Check
 the claim and volume identities without treating them as recovery evidence. Check
-both access paths, Alertmanager, the external watchdog, and all eight operations
+both access paths, Alertmanager, the external watchdog, and all five operations
 panels. The native root and stack source follow `main`.
 
 ## Monitoring limits

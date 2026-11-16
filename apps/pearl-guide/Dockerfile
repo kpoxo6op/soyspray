@@ -4,6 +4,8 @@ COPY app/package.json app/package-lock.json ./
 RUN npm ci
 COPY app/ ./
 RUN npm run build && npm test
+# A gzip copy beside every compressible file; nginx serves it as is (gzip_static in nginx.conf).
+RUN find dist -type f \( -name '*.html' -o -name '*.js' -o -name '*.css' -o -name '*.svg' -o -name '*.glb' -o -name '*.wasm' -o -name '*.stl' \) -exec gzip -9 -n -k {} +
 
 FROM nginxinc/nginx-unprivileged:1.30-alpine@sha256:ee7b7bc02a4af72c98d4365151f92d9b380c482c48d8c84bbbe44bd3192ba463
 ARG SOURCE_REVISION=unknown

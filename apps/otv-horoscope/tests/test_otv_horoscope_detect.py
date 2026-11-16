@@ -277,3 +277,36 @@ def test_cut_joins_buffer_minutes_into_one_upload_sized_clip(tmp_path):
     assert abs(float(info["format"]["duration"]) - 12) < 0.5
     assert {s["codec_type"] for s in info["streams"]} == {"video", "audio"}
     assert out.stat().st_size <= settings.max_upload_bytes
+
+
+def healthz(health, at):
+    import urllib.error
+    import urllib.request
+
+    server = horoscope.serve(health, 0, now=lambda: at)
+    try:
+        url = f"http://127.0.0.1:{server.server_address[1]}/healthz"
+        try:
+            with urllib.request.urlopen(url) as reply:
+                return reply.status, reply.read()
+        except urllib.error.HTTPError as error:
+            return error.code, error.read()
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_health_fails_when_live_segments_have_no_audio():
+    health = horoscope.Health(started=1000.0)
+    health.set(last_segment=1590.0)
+    assert healthz(health, 1595.0)[0] == 200  # inside the start-up grace
+    health.set(last_segment=1700.0)
+    assert healthz(health, 1700.0) == (503, b"live segments have no audio\n")
+    health.set(last_audio=1690.0)
+    assert healthz(health, 1700.0)[0] == 200
+
+
+def test_health_fails_without_live_segments():
+    health = horoscope.Health(started=1000.0)
+    health.set(last_segment=1000.0, last_audio=1300.0)
+    assert healthz(health, 1350.0) == (503, b"no recent live segment\n")

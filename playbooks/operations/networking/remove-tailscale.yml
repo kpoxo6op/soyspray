@@ -40,5 +40,3 @@
       ansible.builtin.file:
         path: /var/lib/tailscale
         state: absent
-        recurse: true
-      ignore_errors: true

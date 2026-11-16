@@ -34,6 +34,7 @@ const J2 = [BOARD.x + 6.35 * MM, PAD_TOP, BOARD.z - 1.27 * MM];
 const TANK = [0.4, -0.12];
 const NOZZLE = [TANK[0] + 0.078, 0.428, TANK[1]];
 const SCALE_AT = [-0.16, 0.06];
+const SWITCH_LEVER = [-0.006, -0.0032, 0.0018]; // the switch lever's tip under the hatch (pod_v3.SWITCH_X)
 
 const spin = (t, rps = 7) => (t * rps * TAU) % TAU;
 
@@ -87,10 +88,22 @@ const meet = {
       labels: (S, u) => (u > 0.35 && u < 0.86 ? [{ id: 'coins', text: 'trim coins', at: S.node('coins'), side: 'l' }] : []),
     },
     {
+      d: 9,
+      text: 'A slide switch on the hatch turns Pearl off. Its lever pokes through the floor, so the hatch stays shut.',
+      cam: { p: [0.1, 0.8, 0.16], t: [-0.006, 0.9, 0], fov: 28 },
+      labels: (S, u) => (u > 0.25 ? [{ id: 'sw', text: 'power switch', at: S.node('hatch', null, SWITCH_LEVER), side: 'b', strong: true }] : []),
+    },
+    {
       d: 8,
       text: 'Stage 0 gets you ready: buy the tools, print the pod, learn to solder and float your first orb.',
       cam: { p: [-0.95, 0.86, 1.42], t: [0, 1.12, 0], fov: 32 },
       cam2: { p: [-0.82, 0.9, 1.5], t: [0, 1.12, 0], fov: 32 },
+    },
+    {
+      d: 9,
+      text: "Stage 1 puts the same parts on a breadboard with Pearl's code, and checks the battery pin with the meter.",
+      cam: { p: [-0.82, 0.9, 1.5], t: [0, 1.12, 0], fov: 32 },
+      cam2: { p: [-0.7, 0.95, 1.58], t: [0, 1.12, 0], fov: 32 },
     },
   ],
 };
@@ -513,7 +526,7 @@ const print = {
     },
     {
       d: 8,
-      text: 'Weigh each part and write it down. The shell is about 6 g and all six together about 16 g.',
+      text: 'Weigh each part and write it down. The shell is about 6 g and all six together about 16.5 g.',
       cam: { p: [-0.22, 0.2, 0.3], t: [-0.16, 0.03, 0.06], fov: 30 },
       act(S, u) {
         S.a('plate').show(1 - smooth(u * 4));
@@ -563,7 +576,7 @@ const print = {
         for (const [n, [x, z]] of Object.entries(layout)) S.a(n).show().at(x, 0, z);
         S.a('print_shell').show().at(0, 0, 0);
         S.a('print_collar').show().at(0, 0.0425, 0).turn(0.44, Math.PI, 0);
-        S.a('scale').obj.userData.setReading('16.20');
+        S.a('scale').obj.userData.setReading('16.48');
       },
       check: true,
     },
@@ -576,6 +589,74 @@ function ironAt(S, p, yaw = -0.5, tilt = 0.72) {
 }
 const IRON_REST = [STAND[0] + 0.004, 0.034, STAND[1]];
 const SPONGE = [STAND[0] - 0.025, 0.024, STAND[1]];
+
+// The switched battery lead, laid along +x from its plug: the lead's red wire ends at a switch pin and a new red
+// wire leaves from the next pin, as in Pearl's pod. The two free ends splay apart so the divider spans them.
+const LEAD = { x: -0.175, z: 0.098 }; // lead3's plug end; its wires run 70 mm towards +x
+const WIRE_Y = MAT_Y + 0.0022; // the lead's wires above the mat
+const RED_Z = LEAD.z + 0.00175; // the lead's red wire (black is the mirror image)
+const BLACK_Z = LEAD.z - 0.00175;
+const TAIL = 0.03; // new wires, metres
+const SPLAY = 0.284; // radians each side: the ends land two resistor spans (20.3 mm) apart
+const SW = { x: LEAD.x + 0.0725, z: RED_Z + 0.00385 }; // pins face the red wire
+const METER = [-0.12, MAT_Y, -0.06];
+
+function switchedLead(S, a = 1) {
+  S.a('lead3').show(a).at(LEAD.x, WIRE_Y, LEAD.z).turn(Math.PI);
+  S.a('switch').show(a).at(SW.x, WIRE_Y - 0.00175, SW.z).turn(Math.PI);
+  const redStart = [SW.x, WIRE_Y, RED_Z];
+  const blackStart = [LEAD.x + 0.07, WIRE_Y, BLACK_Z];
+  S.a('swRed').show(a).at(...redStart).turn(-SPLAY);
+  S.a('swBlack').show(a).at(...blackStart).turn(SPLAY);
+  const end = (p, yaw) => [p[0] + TAIL * Math.cos(yaw), p[1], p[2] - TAIL * Math.sin(yaw)];
+  const redEnd = end(redStart, -SPLAY);
+  const blackEnd = end(blackStart, SPLAY);
+  if (a > 0.5) {
+    S.a('jS1').show().at(SW.x - 0.0025, WIRE_Y - 0.0003, RED_Z);
+    S.a('jS2').show().at(SW.x, WIRE_Y - 0.0003, RED_Z);
+    S.a('jS3').show().at(blackStart[0], WIRE_Y - 0.0003, BLACK_Z);
+  }
+  return {
+    redLead: [LEAD.x + 0.06, WIRE_Y, RED_Z],
+    redOut: end(redStart, -SPLAY).map((v, i) => lerp(redStart[i], v, 0.45)),
+    redEnd,
+    blackEnd,
+    mid: mix3(redEnd, blackEnd, 0.5),
+  };
+}
+
+function divider(S, L, a) {
+  if (a <= 0) return;
+  // each resistor stands on its legs, 10.16 mm apart, across one half of the gap
+  const yaw = Math.atan2(-(L.blackEnd[2] - L.redEnd[2]), L.blackEnd[0] - L.redEnd[0]);
+  const lift = (1 - a) * 0.03;
+  for (const [n, f] of [['resA', 0.25], ['resB', 0.75]]) {
+    const p = mix3(L.redEnd, L.blackEnd, f);
+    S.a(n).show(Math.min(1, a * 2)).at(p[0], p[1] + 0.0035 + lift, p[2]).turn(yaw);
+  }
+  if (a >= 1) for (const [n, p] of [['jS4', L.redEnd], ['jS5', L.blackEnd], ['jS6', L.mid]]) S.a(n).show().at(p[0], p[1] - 0.0003, p[2]);
+}
+
+function battery(S, a) {
+  // the battery's plug (bench.glb anchor at its +x end) pushes into the lead's socket
+  const plug = S.node('battery', 'A battery plug').position;
+  S.a('battery').show().at(LEAD.x - 0.006 - plug.x - 0.012 * (1 - a), MAT_Y, LEAD.z - plug.z);
+}
+
+function probes(S, a, red, black) {
+  S.a('multimeter').show().at(...METER);
+  const up = 0.03 * (1 - a);
+  const tilt = (p, rz) => [p[0], p[1] + 0.0004 + up, p[2], rz];
+  const tops = [];
+  for (const [n, [x, y, z, rz]] of [['probeR', tilt(red, 0.3)], ['probeB', tilt(black, -0.3)]]) {
+    S.a(n).show().at(x, y, z).turn(0, -0.35, rz);
+    // the handle's top, 80 mm up the probe after the roll (rz) and the lean back (-0.35)
+    tops.push(v3(x - 0.08 * Math.sin(rz), y + 0.08 * Math.cos(rz) * Math.cos(0.35), z - 0.08 * Math.cos(rz) * Math.sin(0.35)));
+  }
+  const jack = (dx) => v3(METER[0] + dx, MAT_Y + 0.041, METER[2] + 0.035); // V and COM sockets on the meter's face
+  S.a('cordR').show().obj.userData.setEnds(tops[0], jack(0.0));
+  S.a('cordB').show().obj.userData.setEnds(tops[1], jack(-0.028));
+}
 
 const solder = {
   id: 'solder',
@@ -711,13 +792,49 @@ const solder = {
       },
     },
     {
+      d: 10,
+      text: 'Solder a slide switch into the red wire of a spare lead. The meter beeps through it only when the switch is on.',
+      cam: { p: [SW.x + 0.02, 0.085, LEAD.z + 0.1], t: [SW.x - 0.004, 0.004, LEAD.z], fov: 28 },
+      act(S, u) {
+        const L = switchedLead(S, easeInOut(span(u, 0.0, 0.3)));
+        const on = u > 0.62 && u < 1;
+        S.a('switch').obj.userData.lever.position.x = (on ? 1 : -1) * MM;
+        if (u >= 1) return;
+        const p = easeInOut(span(u, 0.32, 0.5));
+        probes(S, p, L.redLead, L.redOut);
+      },
+      labels: (S, u) => (u > 0.66 && u < 0.97 ? [{ id: 'beep', text: 'on: beep', at: S.node('switch', null, [0, 0.006, 0]), side: 't', strong: true }] : u > 0.36 && u < 0.6 ? [{ id: 'off', text: 'off: silent', at: S.node('switch', null, [0, 0.006, 0]), side: 't' }] : []),
+    },
+    {
+      d: 11,
+      text: 'Solder two 10 kΩ resistors in a row from red to black. With the battery in, the middle reads half its voltage.',
+      cam: { p: [-0.05, 0.3, 0.3], t: [-0.11, 0.0, -0.005], fov: 34 },
+      act(S, u) {
+        const L = switchedLead(S, 1);
+        S.a('switch').obj.userData.lever.position.x = MM;
+        divider(S, L, easeInOut(span(u, 0.0, 0.3)));
+        if (u >= 1) return; // unplugged and put away before the checkpoint
+        battery(S, easeInOut(span(u, 0.3, 0.45)));
+        probes(S, easeInOut(span(u, 0.45, 0.6)), L.mid, L.blackEnd);
+      },
+      labels: (S, u) =>
+        u > 0.62 && u < 0.97
+          ? [
+              { id: 'v', text: '1.90 V: half of 3.80 V', at: S.node('multimeter', null, [0.02, 0.042, -0.05]), side: 'r', strong: true },
+              { id: 'r', text: 'two 10 kΩ', at: S.node('resA', null, [0, 0.005, 0]), side: 't' },
+            ]
+          : [],
+    },
+    {
       d: 9,
-      text: 'Ten joints that match the good one, two splices and four wires on a driver board. Good place to stop.',
+      text: 'Ten joints that match the good one, two splices, a driver board and a switched lead. Good place to stop.',
       cam: { p: [0.1, 0.25, 0.36], t: [0.0, 0.01, 0.0], fov: 32 },
       act(S) {
         S.a('jointA').show().at(J1[0], PAD_TOP - 0.0001, J1[2]);
         S.a('jointA2').show().at(J2[0], PAD_TOP - 0.0001, J2[2]);
         S.a('driver1').show().at(-0.1, MAT_Y, 0.03).turn(Math.PI / 2);
+        divider(S, switchedLead(S, 1), 1);
+        S.a('switch').obj.userData.lever.position.x = -MM;
       },
       check: true,
     },
@@ -830,6 +947,15 @@ const float = {
         S.a('thread').show(0);
       },
       labels: (S, u) => (u > 0.5 ? [{ id: 'r', text: '52.40 g: a pass', at: S.node('scale'), side: 'r', strong: true }] : []),
+    },
+    {
+      d: 10,
+      text: 'The pod weighs about 38 g, so 48 g leaves 10 g of trim. The sums expect about 15 g spare and at worst 1 g.',
+      cam: { p: [-0.12, 0.2, 0.3], t: [SCALE_AT[0] + 0.02, 0.03, SCALE_AT[1] - 0.02], fov: 32 },
+      labels: (S) => [
+        { id: 'r', text: '52.40 g lift', at: S.node('scale'), side: 'r', strong: true },
+        { id: 'p', text: 'a 38 g pod leaves 14 g', at: S.node('cup'), side: 'l' },
+      ],
     },
     {
       d: 9,

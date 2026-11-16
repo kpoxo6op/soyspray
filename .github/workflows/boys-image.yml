@@ -28,7 +28,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: boys-image-${{ github.ref }}
+  group: boys-image-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -181,7 +181,7 @@ jobs:
 
           The image passed the isolated HTTP check. Review configuration required by this source revision in this PR before deployment. Keep the existing PVC, database path, runtime Secret, and single-writer deployment.
 
-          Run \`make check\` and \`make go\`, then use the standard Ansible deployment path. Verify the deployed user journey before merge. Roll back by restoring the prior digest and its compatible configuration. This workflow does not merge or deploy.
+          Run \`make check APP=boys\`. After this promotion merges, Argo CD follows \`main\` and reconciles the tested digest. Verify the deployed user journey afterwards. Roll back through GitHub by reverting this promotion. This workflow does not merge or deploy.
 
           Commits, oldest first:
 

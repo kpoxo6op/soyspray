@@ -6,10 +6,11 @@
 namespace gi {
 
 enum class Action { NONE, RETRY, REBOOT, EXHAUSTED };
-enum class Reason : uint32_t { NONE, NOT_RUNNING, NO_ACK, MIC_STALE, STOP_TIMEOUT, BUSY_TIMEOUT, MANUAL };
+enum class Reason : uint32_t { NONE, NOT_RUNNING, NO_ACK, MIC_STALE, STOP_TIMEOUT, BUSY_TIMEOUT, MANUAL, NO_VOICE_CLIENT };
 
 struct Input {
   uint32_t now;
+  // Home Assistant subscribed to the voice assistant.
   bool connected;
   bool muted;
   bool ota;
@@ -18,6 +19,8 @@ struct Input {
   // 0: waiting, 1: interaction, 2: announcement/timer.
   uint32_t busy;
   uint32_t reboot_count;
+  // Home Assistant holds a native API connection, with or without voice.
+  bool ha_connected;
 };
 
 // Owns timeouts and recovery policy, independent of ESPHome and the audio content.
@@ -54,8 +57,9 @@ class Supervisor {
       connected_ = false;
       connected_ready_ = false;
       clear_wait_(in.now);
-      return Action::NONE;
+      return orphaned_(in);
     }
+    orphan_seen_ = false;
     if (!connected_) { connected_ = true; connected_at_ = in.now; }
     connected_ready_ = connected_ready_ || elapsed(in.now, connected_at_) >= 45000;
     if (!boot_ready_ || !connected_ready_ || in.muted || in.ota ||
@@ -102,9 +106,23 @@ class Supervisor {
 
  private:
   bool boot_seen_{false}, boot_ready_{false}, connected_{false}, connected_ready_{false}, backend_seen_{false};
-  bool was_expected_{false}, healthy_{false}, fault_seen_{false}, stop_failed_{false};
+  bool was_expected_{false}, healthy_{false}, fault_seen_{false}, stop_failed_{false}, orphan_seen_{false};
   uint32_t boot_at_{0}, connected_at_{0}, backend_at_{0}, expectation_at_{0};
-  uint32_t busy_{0}, busy_at_{0}, healthy_at_{0}, fault_at_{0}, attempt_at_{0};
+  uint32_t busy_{0}, busy_at_{0}, healthy_at_{0}, fault_at_{0}, attempt_at_{0}, orphan_at_{0};
+  // Home Assistant can come back after a network drop without resubscribing to voice.
+  // Nothing on the device can resubscribe it; a reboot makes Home Assistant set up voice again.
+  Action orphaned_(const Input &in) {
+    if (!in.ha_connected || !boot_ready_ || in.muted || in.ota) {
+      orphan_seen_ = false;
+      return Action::NONE;
+    }
+    if (!orphan_seen_) { orphan_seen_ = true; orphan_at_ = in.now; }
+    if (elapsed(in.now, orphan_at_) < 120000) return Action::NONE;
+    reason = Reason::NO_VOICE_CLIENT;
+    if (in.reboot_count >= 3) return Action::EXHAUSTED;
+    orphan_at_ = in.now;
+    return Action::REBOOT;
+  }
   void clear_wait_(uint32_t now) {
     was_expected_ = false;
     healthy_ = false;

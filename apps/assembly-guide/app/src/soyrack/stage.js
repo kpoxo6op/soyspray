@@ -7,6 +7,7 @@ import { chapterAt } from '../timeline.js';
 import { polyLength } from '../cablepath.js';
 import { CABLES, TIES } from './cables.js';
 import { buildTie } from './models.js';
+import { CRIMP_VIEWS } from './crimp.js';
 
 const box = ([min, max]) => new Box3(new Vector3(...min), new Vector3(...max));
 
@@ -27,6 +28,7 @@ export const VIEWS = {
   tall: { box: [[-5, -5, -115], [258, 245, 295]], view: { azimuth: 0.55, elevation: 0.26 } },
   rear: { box: [[-5, -5, -115], [262, 252, 295]], view: { azimuth: 2.6, elevation: 0.3 } },
   zigbee: { box: [[-990, -10, -115], [262, 320, 295]], view: { azimuth: 3.6, elevation: 0.42 } },
+  ...CRIMP_VIEWS,
 };
 
 const FADE_IN = 1.1;
@@ -51,7 +53,9 @@ class Laid {
     const c = this.chapter;
     const alpha = Math.max(0, Math.min(1, (t - (c.start - 0.3)) / FADE_IN));
     const active = t >= c.start && t < c.end;
-    this.object.visible = alpha > 0.003;
+    const visible = alpha > 0.003;
+    const changed = this.object.visible !== visible; // it casts a shadow whenever it shows
+    this.object.visible = visible;
     if (alpha !== this.alpha) {
       this.alpha = alpha;
       for (const m of this.materials) {
@@ -70,6 +74,7 @@ class Laid {
         m.emissiveIntensity = active ? 0.19 : 0;
       }
     }
+    return changed;
   }
 }
 
@@ -112,10 +117,13 @@ export class SoyrackStage {
     this.time = 0;
   }
 
+  /** Returns whether a cord or strap appeared or left, which is when the shadows need redrawing. */
   setTime(t) {
     this.time = t;
-    for (const l of this.leads) l.update(t);
-    for (const l of this.ties) l.update(t);
+    let changed = false;
+    for (const l of this.leads) if (l.update(t)) changed = true;
+    for (const l of this.ties) if (l.update(t)) changed = true;
+    return changed;
   }
 
   camera() {

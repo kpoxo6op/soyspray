@@ -11,6 +11,7 @@ import { CABLES, CABLE_BY_ID, MAST_RUN, TIES } from '../src/soyrack/cables.js';
 import { DEVICES, DEVICE_BY_ID, FLOOR_Z } from '../src/soyrack/rack.js';
 import { BUY, PRINTED, TEST_PRINTS, soyrackSheetHTML } from '../src/soyrack/sheet.js';
 import { PIECES, HOLES, JOINT, FOOT_TOP, BASE_NUT, NUT_Y, WINDOWS, onPiece } from '../src/soyrack/testprints.js';
+import { CRIMP_IDS } from '../src/soyrack/crimp.js';
 
 const tl = buildSoyrackTimeline(meshes);
 const shown = [...tl.nodes.values()].filter((n) => n.kind !== 'group');
@@ -48,7 +49,7 @@ test('the guide opens with the test prints alone and ends with everything else i
   const base = evaluate(tl, tl.chapters.find((c) => c.id === 'power-base').start);
   for (const n of shown.filter((n) => TEST_PIECE.test(n.id))) assert.ok(base.get(n.id).alpha < 0.01, `${n.id} cleared away`);
   const end = evaluate(tl, tl.duration);
-  for (const n of shown.filter((n) => !TEST_PIECE.test(n.id))) {
+  for (const n of shown.filter((n) => !TEST_PIECE.test(n.id) && !CRIMP_IDS.test(n.id))) {
     const s = end.get(n.id);
     assert.ok(s.alpha > 0.999, `${n.id} shown at the end`);
     assert.ok(s.glow < 1e-6, `${n.id} settled at the end`);
@@ -216,6 +217,21 @@ test('the guide asks for screws and nuts only and drills nothing', () => {
   const copy = [...tl.chapters.flatMap((c) => [c.title, c.text, ...c.tags.map((t) => t.text)]), soyrackSheetHTML()].join('\n');
   for (const re of [/solder/i, /\biron\b/i, /\binserts?\b/i, /\brods?\b/i, /drill/i]) assert.doesNotMatch(copy, re);
   assert.match(copy, /no holes, screws or glue in the unit/);
+});
+
+// Contract: the mid deck is printed from its flat preset, not the on-edge STL that failed, and the
+// guide never promises that a stuck plug can be cut or forced out.
+test('the sheet sends the mid deck to its preset with a hand-only plug release', () => {
+  const entry = soyrackSheetHTML().split('<li>').find((li) => li.includes('<strong>Mid deck</strong>'));
+  assert.match(entry, /Print preset <strong>mid_deck_flat<\/strong>/);
+  assert.match(entry, /mid_deck\.stl ↗<\/a> is only the assembled shape.*do not print it/);
+  assert.match(entry, /untested/);
+  const chapter = tl.chapters.find((c) => c.id === 'mid-deck').text;
+  for (const copy of [entry, chapter]) {
+    assert.match(copy, /M4 screw by hand/);
+    assert.match(copy, /stop/);
+    assert.doesNotMatch(copy, /pliers|flush cutter|breakaway|carve|snap/i);
+  }
 });
 
 // Contract: the buy list covers every fastener the scene installs. The node trays carry over

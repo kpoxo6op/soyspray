@@ -66,13 +66,17 @@ allowed so casting keeps working.
 
 ## Casting from a phone
 
-Google's YouTube TV app is disabled, so the phone's YouTube Cast button has no
-receiver. Phones cast to SmartTube instead: in SmartTube open Settings → Remote
-control, switch it on and choose Add device for a code, then on the phone open
-YouTube (ReVanced works) → Settings → General → Watch on TV → Link with TV code.
-The playbook grants SmartTube the overlay permission its remote control needs;
-the switch and linked phones are SmartTube preferences, so repeat them after
-clearing its data or a factory reset.
+SmartTube is the receiver for YouTube on this TV. Open **Settings → Remote
+control** in SmartTube and enable it. Previously linked phones can select the
+TV in YouTube or ReVanced. For a new pairing, choose **Add device** on the TV
+and **Watch on TV → Link with TV code** on the phone. The TV playbook grants
+the overlay permission. SmartTube stores its remote-control switch and linked
+phones locally.
+
+Set **Settings → Player → Video buffer → High** on the Sony. To check the whole
+path, start a cartoon from the phone, pause it there and confirm the picture
+stops on the TV. Resume from the phone and watch past the point where it
+previously buffered. A video started directly on the TV tests only the receiver.
 
 ## Limits
 
@@ -96,23 +100,36 @@ does not reapply it.
 
 Before trying USB fastboot or rooting, read the [26 October attempt and recovery](usb-fastboot-recovery.md). A bootloader reboot with the C-to-A connection left this TV at the Sony logo and required a physical factory reset. An A-to-A connection remains untested.
 
-## Moonfin appearance and sign-in
+## Moonfin setup and playback
 
-Moonfin 2.7.0 opens the same Jellyfin library at https://tv.soyspray.vip.
+Moonfin 3.0.0 opens the same Jellyfin library at https://tv.soyspray.vip.
 Approve its fresh Quick Connect code from a signed-in Jellyfin browser. The
 code expires; reopen the client sign-in flow to request another one.
 
 After sign-in, choose Left Sidebar, Banner home header, Modern rows, Modern
-details and Glass theme in the setup wizard. Under Personalization → Home
+details and Glass theme in the setup wizard. Under Settings → Appearance → Home
 Screen, disable Modern cards on My Media row to use landscape library artwork.
 Then set Settings →
-Personalization → General Style → Glass Quality to **Reduced**. Auto quality
+Appearance → Glass Quality to **Reduced**. Auto quality
 crashed in the Sony Mali graphics driver during the first Live TV launch;
 Reduced passed the subsequent channel playback check. Keep this setting when
 repeating setup, and test both a library title and Live TV before switching the
 launcher tile. These display preferences live in the client and need repeating
 after clearing its data or a factory reset; the playbook pins the APK but does
 not restore private client preferences or authentication.
+
+On the Sony, open **Settings → Playback → Audio → Transcode Audio Codecs**,
+select **AC3**, **MP3** and **MP2**, and save. Keep the built-in Media3 player.
+These audio tracks are common in the cartoon library's MPEG-4 AVI files.
+With the default profile the Sony can buffer the file while the picture stays
+at zero. With these selections Jellyfin serves the affected cartoons as H.264
+and AAC. The TV can keep its normal streaming bitrate for other videos.
+
+After setup, play an AC3 cartoon and an MP3 cartoon from their Moonfin detail
+pages. Check for moving pictures and advancing playback after the first minute.
+The TV exposes position and buffered position separately in
+`adb -s 192.168.20.232:5555 shell dumpsys media_session`. Reapply the audio
+selections if Moonfin's settings are reset.
 
 The official Jellyfin client remains installed and signed in as a fallback.
 The home-screen Guide continues to use it for indirect streams. To roll back

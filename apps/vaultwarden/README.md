@@ -45,7 +45,7 @@ backups. Use the [isolated recovery procedure](../../playbooks/operations/recove
 to check SQLite integrity, encrypted records and attachments, and restricted-record
 decryption. Human unlock and seven-day recovery-point proof remain separate checks.
 Run `make restore-check APP=vaultwarden` from a committed, pushed branch. It runs
-`make go`, selects the newest complete critical-s3 backup, restores a separate
+`make check`, selects the newest complete critical-s3 backup, restores a separate
 volume, and starts the observed pinned stock image with network isolation. It
 checks SQLite with its WAL, recorded attachment sizes, and the restricted record's login
 fields through a private TLS endpoint. It never uses the human master password.

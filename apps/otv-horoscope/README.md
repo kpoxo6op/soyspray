@@ -10,7 +10,7 @@ the twelve zodiac signs read in order (Овен to Рыбы, a few missed words 
 as one episode. It starts the clip at the spoken «Гороскоп» title, or the first
 sign, minus a 45-second lead-in and ends it a minute after the last sign. The
 clip is re-encoded to fit the 50 MB bot upload limit and sent to each chat in
-the Secret. A repeat airing within 10 hours is not sent again.
+the Secret. A repeat airing within 1 hour is not sent again.
 
 The channel also publishes each day's text, without video, at
 <https://otvprim.tv/programs/goroskop/>.
@@ -27,7 +27,10 @@ kubectl -n otv-horoscope exec deploy/otv-horoscope -- python3 -c \
 
 The log prints every phrase with a sign name and each detected episode with its
 Vladivostok airtime. `/healthz` fails when no live segment arrived for five
-minutes; `/metrics` counts found, sent and failed episodes.
+minutes, or when ten minutes of segments had no decodable audio (the recorder
+once kept writing segments without sound after a stream glitch); the liveness
+probe then restarts the container, which keeps the buffer and the sent-readings
+state; `/metrics` counts found, sent and failed episodes.
 
 Tune detection with environment variables on the Deployment:
 `LEAD_IN_SECONDS`, `TAIL_SECONDS`, `MIN_SIGNS`, `SIGN_GAP_SECONDS`,

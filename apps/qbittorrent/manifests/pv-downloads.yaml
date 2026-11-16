@@ -4,6 +4,7 @@ metadata:
   name: media-downloads-local-node-0
   annotations:
     argocd.argoproj.io/sync-wave: "0"
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
 spec:
   capacity:
     storage: 1800Gi

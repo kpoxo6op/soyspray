@@ -93,7 +93,7 @@ class FakeCloudflare:
 
 def test_reconcile_creates_extendable_status_page_without_duplicates() -> None:
     status = load_module("configure_status_page", ROOT / "scripts/configure_status_page.py")
-    config = json.loads((ROOT / "platform/public-status.json").read_text())
+    config = json.loads((ROOT / "apps/status-page/public-status.json").read_text())
     config["services"].append(
         {
             "name": "Future service",
@@ -146,7 +146,7 @@ def test_fallback_switch_is_idempotent_and_removes_the_custom_domain() -> None:
     status = load_module(
         "configure_status_page_fallback", ROOT / "scripts/configure_status_page.py"
     )
-    config = json.loads((ROOT / "platform/public-status.json").read_text())
+    config = json.loads((ROOT / "apps/status-page/public-status.json").read_text())
     better_stack = FakeBetterStack()
     cloudflare = FakeCloudflare()
     status.reconcile(config, better_stack, cloudflare)

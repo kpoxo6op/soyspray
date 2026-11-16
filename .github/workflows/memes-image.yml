@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: memes-image-${{ github.ref }}
+  group: memes-image-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -105,5 +105,5 @@ jobs:
           manifest: apps/memes/manifests/kustomization.yaml
           commit-subject: Promote the tested ${{ matrix.name }} image digest
           promotion-title: Promote the tested ${{ matrix.name }} image
-          evidence: Isolated image checks passed; assets contain only source and public model weights. Workloads remain stopped and the Argo child remains unregistered.
-          verification: Goal 03 must register Argo and deliberately enable workloads after verified private storage/import and off-cluster backup plus isolated restore. No invitation or deployment is approved by this promotion alone.
+          evidence: Isolated image checks passed; assets contain only source and public model weights.
+          verification: Check the memes Argo Application is Synced and Healthy after the merge.

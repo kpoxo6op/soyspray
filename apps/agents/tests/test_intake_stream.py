@@ -11,10 +11,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from types import SimpleNamespace
 
+from kubernetes import client
 from kubernetes.stream.ws_client import WSClient
 from operations.intake import receiver_result, stream_archive
-
-from kubernetes import client
 
 
 class ExecPeer(BaseHTTPRequestHandler):

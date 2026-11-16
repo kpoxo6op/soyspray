@@ -32,7 +32,9 @@ class NodeBackup(unittest.TestCase):
         self.database = self.jellyfin / "data" / "jellyfin.db"
         with sqlite3.connect(self.database) as database:
             database.execute("CREATE TABLE item(id INTEGER PRIMARY KEY, value TEXT NOT NULL)")
-            database.executemany("INSERT INTO item(value) VALUES (?)", [(f"item-{n}",) for n in range(1000)])
+            database.executemany(
+                "INSERT INTO item(value) VALUES (?)", [(f"item-{n}",) for n in range(1000)]
+            )
         # These files must never be collected with the shadow database.
         (self.jellyfin / "data" / "jellyfin.db-wal").write_bytes(b"original wal")
         (self.jellyfin / "data" / "jellyfin.db-shm").write_bytes(b"original shm")
@@ -105,7 +107,9 @@ else:
                 database.execute("PRAGMA journal_mode=WAL")
                 writer_started.set()
                 for n in range(2000):
-                    database.execute("UPDATE item SET value=? WHERE id=?", (f"changed-{n}", n % 1000 + 1))
+                    database.execute(
+                        "UPDATE item SET value=? WHERE id=?", (f"changed-{n}", n % 1000 + 1)
+                    )
                     database.commit()
                     if stop_writer.is_set():
                         break

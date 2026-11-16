@@ -1,22 +1,32 @@
 # Soyspray assembly guide
 
 The static 3D rack assembly player is served by a Kubernetes Deployment and
-Service through the existing private `soyspray.vip` ingress. Tailscale split DNS
-resolves `assembly.soyspray.vip` through OpenWrt to the cluster ingress. Do not
-create a public DNS record or Cloudflare Tunnel for this host.
+Service through the existing private `soyspray.vip` ingress, at
+`https://explain.soyspray.vip/assembly/` beside the other guides (`apps/explain`).
+Tailscale split DNS resolves it through OpenWrt to the cluster ingress. Do not
+create a public DNS record or Cloudflare Tunnel for it.
+
+`assembly.soyspray.vip` moved there for good on 15 Nov 2026: `nginx.conf`
+answers every request on that host with a 301 to the same path under
+`/assembly/`, and the browser keeps the `#chapter`. The guide stores nothing in
+the browser, so nothing needs carrying across. Keep `manifests/ingress.yaml` and
+its certificate so old links keep landing on the redirect.
 
 The source is in `app/`. `npm ci && npm run build && npm test` builds the three
 static files in `app/dist/` and checks the player and 3D assembly contracts.
 The Dockerfile packages that build into an immutable nginx image. The image
 workflow tests the packaged HTTP server, publishes on `main`, and reports its
 digest. A separate promotion PR pins that digest in the Deployment. Built asset
-URLs contain content revisions so returning phone browsers fetch the promoted
-player instead of reusing an older cached script.
+URLs contain content revisions, so `nginx.conf` lets a browser keep a revisioned
+file for a year while the page itself is checked on every visit: a promoted
+player is picked up at once and nothing else is downloaded twice. The image also
+carries a gzip copy of each file, which nginx serves as is; the 1 MB script
+travels as about 340 KB.
 
 The app stores no state and requires no backup. To roll back, promote the
 previous known-good image digest through a PR. Check the Argo Application is
 Synced and Healthy, the ingress serves the page and two assets, and public DNS
-has no record for `assembly.soyspray.vip`.
+has no record for `explain.soyspray.vip` or `assembly.soyspray.vip`.
 
 The guide shows one rack, Soyrack: a printed PETG rack around the three
 ventilated node trays from the old rack. It has a power base for the bricks, a
@@ -34,11 +44,27 @@ Every stock cord is drawn at its real length, its spare wound into strapped
 loops (`app/src/soyrack/cables.js`). The guide opens with four small test prints
 and how to check each fit, with tags in the 3D view naming every piece and
 fastener (`app/src/soyrack/testprints.js`, `app/src/tags.js`). The Parts sheet
-links the STLs in `cad/stl/`. `cad/soyrack.scad` is the source;
+links the STLs in `cad/stl/`, except that the mid deck is printed from its
+`mid_deck_flat` preset. Its `mid_deck.stl` and browser mesh stay the assembled deck,
+with no plugs. `cad/soyrack.scad` is the source;
 `cd cad && npm ci && node render.mjs` renders the print STLs (lying on the bed
 origin), the browser meshes and the print list in `app/data/v3/`. The node tray
 mesh is `app/data/trays.bin`, which `app/tools/regenerate-data.sh` repacks from a
 RackStack checkout. `cad/` and `app/tools/` stay out of the image.
+
+Before the leads go in, the Ethernet leads section teaches crimping with the
+kit in the case: five short leads cut to their routes (44, 40 and 34 cm for the
+nodes, 19 cm for each keystone lead), the boot on first, a 3 cm strip, T568B
+order with a colour strip on screen, a 13 mm trim, the clear plug, the crimp and
+the 468 tester, including what its lamps show for an open, swapped or shorted
+wire (`app/src/soyrack/crimp.js`, `crimp-layout.js`, `crimp-models.js`). The
+Chapters button (or `C`) lists every chapter by section, and a `#chapter-id`
+link such as `#crimp-plan` opens the guide at that chapter.
+
+The mast's standalone STL is not a qualified print job. The Parts sheet keeps
+its reference link, but warns against printing it alone or using the old combined
+preset with the superseded on-edge deck. An existing mast can be assembled;
+a new mast needs a separately qualified job.
 
 Before a print, the trusted preparer renders committed CAD into a new isolated
 job directory and slices **those fresh bytes**, ignoring cached repository STLs.
@@ -163,7 +189,8 @@ part name, the shared profile and a moved load line are each refused.
 The deck's first layer is 1.59 mm from the load line, its nearest stroke, measured between beads from
 the start G-code and the actual first layer, and 5.6 mm from the excluded corner. No brim or skirt.
 
-**Nothing here proves it comes out, fits or holds.** The first ceiling layer spans 20 mm, and its walls
+**Nothing here proves it comes out, fits or holds.** A deck of this version finished all 40 layers
+on 2026-11-07; its plug release, fit and strength have not been tried. The first ceiling layer spans 20 mm, and its walls
 cross each open side face in a 32 mm line. Sag or stringing may still tack beads to fins, and the
 seat under a bridge can sit up to about 0.4 mm low, so a post may stop that much short of the seat
 plane. Bed adhesion of the plates, warp of a 245 mm deck and strength are also unknown. If a plug
@@ -179,8 +206,8 @@ its convex hull, so a notch does not help. It now prints turned a quarter in pla
 96 mm, its rear left corner cut straight from 6.8 mm in front of the rear face to 72 mm along it.
 The rear lip stops 59 mm from that corner, where the cut would thin it below 1.2 mm. The trough
 floor runs on to the cut. Nothing in front of the cut changed: the corner blocks, nut slots, screw
-axes, comb, bricks' bays, vents and the rails under the board are the old tub's, and the guide's
-mesh is unchanged. The rear rail stands 0.4 mm shorter on its 4 mm stub left of the board, which
+axes, comb, bricks' bays, vents and the rails under the board are the old tub's. The guide's mesh
+keeps the square corner and shows only the moved strap slots below. The rear rail stands 0.4 mm shorter on its 4 mm stub left of the board, which
 sits wholly on solid rail. A board deeper than the rail may hang over the cut at that end.
 
 The layer check then found two defects no one had reached. Two brick strap slots ran under the
@@ -198,9 +225,24 @@ load line leg at x 240; watch that first layer. The bed levelling box overlaps t
 how the printer probes there has not been observed. `check-preflight.py` compares it with the old tub section by section
 (`check-base-tub.py`) and refuses each of the three defects when put back.
 
+Performance is checked by count, not by feel. `app/src/loop.js` runs the player: one animation-frame callback
+per displayed frame, however often the player or the camera asks for one. Every shader compiles before the
+page appears (`Viewer.warmUp` in `app/src/scene.js`), so playback never stops to compile one. Name tags are
+placed from boxes measured once and again after a resize, never per frame (`app/src/tags.js`). The shadow map
+is redrawn only on frames where something that casts a shadow moved, appeared or left (`Viewer.setTime`),
+about a third of them. Phones render at up to 1.5x, desktops at up to 2x, and `Viewer.adapt` lowers the
+resolution a step when frames stay slow. After a build,
+`PLAYWRIGHT_PATH=<playwright> node tools/perf-audit.mjs --max-frame-requests 1 --max-new-programs 0 --max-layout-reads 1`
+(in `app/`) plays the guide in a headless Chromium and reports frame requests per frame, shader programs
+compiled after the page was ready, layout reads per frame and draw calls per chapter; each `--max-*` flag turns
+a number into a pass or fail. It needs a Playwright with Chromium and is not part of `npm test`.
+
 Tests check the chapters, where each test check leaves its hardware, the tags,
 that every screw meets its own nut, cord lengths and overlaps, the buy list,
 Zigbee spacing, the 260 × 240 × 450 mm envelope, and that the copy asks for no
 drilling. Manufacturing fit belongs to the real slicer/layer E2E, not a nominal
 256 mm bounding-box test. Original CAD, photos and private
 notes stay outside the runtime package.
+
+Two web replicas run on separate nodes so a single node outage leaves the guide
+available. The currently loaded player also runs entirely in the browser.

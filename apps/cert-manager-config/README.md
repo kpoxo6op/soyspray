@@ -41,7 +41,7 @@ ansible-playbook -i inventory/soycluster/hosts.yml \
   -e @"$HOME/.config/soyspray/recovery/cert-manager-config.vault.yml" --check
 ```
 
-After a pushed-commit `make go`, remove `--check` to restore the missing input.
+After a pushed-commit `make check`, remove `--check` to restore the missing input.
 Run this bootstrap only for the documented private input. Merge manifest changes
 to `main` for delivery through the native root. Existing ACME and TLS keys remain
 unchanged. Do not rotate keys or force renewal as a test.

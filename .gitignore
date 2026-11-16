@@ -5,8 +5,6 @@ soyspray-venv
 !requirements-dev.txt
 !requirements-docs.txt
 !requirements-recovery.txt
-!.agents/skills/**/LICENSE.txt
-!.agents/skills/**/NOTICE.txt
 .router-backups/
 .build/
 site/

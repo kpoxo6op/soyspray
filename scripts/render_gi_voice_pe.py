@@ -222,6 +222,18 @@ def add_voice_health(source: str) -> str:
         "    - micro_wake_word.start:\n    - voice_assistant.start_continuous:",
         "    - micro_wake_word.start:\n    - script.execute: restart_streaming_wake_word",
     )
+    # Count Home Assistant API clients separately from the voice subscription.
+    source = replace_once(
+        source,
+        "  id: api_id\n  on_client_connected:\n    - script.execute: control_leds\n"
+        "  on_client_disconnected:\n    - script.execute: control_leds\n",
+        "  id: api_id\n  on_client_connected:\n"
+        '    - lambda: if (client_info.rfind("Home Assistant", 0) == 0) ++id(gi_ha_clients);\n'
+        "    - script.execute: control_leds\n"
+        "  on_client_disconnected:\n"
+        '    - lambda: if (client_info.rfind("Home Assistant", 0) == 0 && id(gi_ha_clients) > 0) --id(gi_ha_clients);\n'
+        "    - script.execute: control_leds\n",
+    )
     source = replace_once(
         source,
         "  on_client_disconnected:\n    - voice_assistant.stop:",

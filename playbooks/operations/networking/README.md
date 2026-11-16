@@ -49,3 +49,12 @@ Check it from a LAN-only device, for example the TV's Jellyfin client reaching
 Tailscale path and drops replies from Tailscale addresses on its LAN interface.
 Remove it with `uci delete firewall.soyspray_lan_hairpin && uci commit firewall
 && fw4 reload` on the router.
+
+`renegotiate-node-link.yml -e network_node=node-1` (or node-2) retries normal
+Ethernet negotiation once on an explicitly selected host. Run with the full
+inventory and `--user ubuntu`, first with `--check`. It requires three Ready
+nodes, the expected hostname/interface, an up 100/1000 Mbps link and advertised
+gigabit capability. It briefly interrupts that link and verifies reconnection;
+it never forces speed, alters addressing, or touches another node. Wait for a
+stable cluster and database rollout before applying. A remaining 100 Mbps result
+requires cable/switch inspection, not repeated resets or forced gigabit.

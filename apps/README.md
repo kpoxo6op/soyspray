@@ -5,18 +5,8 @@ near its source. The native root lists every application in
 [its Kustomization](../argocd/kustomization.yaml). Application ownership records
 are in [`argocd/catalog/`](../argocd/catalog/).
 
-- [Cert-manager](cert-manager): certificate controllers, admission and CRDs.
-- [Certificate configuration](cert-manager-config): issuers, wildcard certificates and TLS reflection.
-- [Media helper](media-helper): internal channel catalog, playlist and guide.
-- [Obsidian sync](obsidian-livesync): CouchDB note sync and recovery.
-- [Vaultwarden](vaultwarden): private human vault and restricted reader.
-- [Domain health](domain-health): domain checks and Prometheus metrics.
-- [ОТВ Прим horoscope](otv-horoscope): records the daily horoscope from the live stream and sends it to Telegram.
-- [DeepSeek Harness Remote](ai): private phone access to the official laptop-hosted DeepSeek Harness.
-- [ExternalDNS](external-dns): maintain ingress DNS through the existing Cloudflare identity.
-- [Boys](boys): shared calendar and accommodation links.
-- [Headlamp](headlamp): browse the cluster through Authentik OIDC.
-- [Autism traits](autism-traits): static assessment with scoring in the browser.
+Run `ls apps` to see every app folder, or `make list-apps` to list the Argo CD
+Applications.
 
 Read current health and sources through native Argo CD:
 
@@ -32,8 +22,8 @@ user journey or recovery. Native backup alerts remain in Prometheus.
 
 ## Check, compare, and merge
 
-Boys, autism traits, ExternalDNS, domain health, Vaultwarden, Obsidian sync,
-Headlamp, and Media Helper have app command files. Use the Application name:
+An app has command files when it has an `apps/<name>/Makefile`; run
+`ls apps/*/Makefile` to see them. Use the Application name:
 
 ```sh
 make check APP=boys
@@ -44,7 +34,7 @@ make restore-check APP=boys
 ```
 
 `check APP=...` runs that app's maintained local checks. `make check` without
-`APP`, `make full-check`, and `make go` run the full repository gate. Merge the
+`APP` and `make full-check` run the full repository gate. Merge the
 pull request to deploy. Argo follows `main`. App Makefiles share command
 settings in `apps/common.mk`.
 
@@ -69,13 +59,11 @@ sync policy. An Application without a maintained operation file reports `unknown
 with its cause. The native app Makefiles are command entrypoints; they do not
 replace the Application metadata inventory.
 
-Boys, Vaultwarden, and Obsidian have maintained isolated `restore-check` operations.
-They read encrypted off-cluster inputs, verify a completed backup through the
-restored app, and clean up temporary resources. Each app README states its tested
-coverage and remaining human-login, note, or attachment gaps.
+An app that maintains an isolated `restore-check` defines it in
+`apps/<name>/Makefile`. Each app README states its tested coverage and
+remaining gaps.
 Unsupported restore operations report `unknown` with their cause. A completed backup is separate from a successful isolated restore.
 
 `smoke APP=boys` checks the deployed public phone and desktop journey and reports
 authenticated coverage as unknown. See [Boys](boys#check-the-live-public-journey).
-Other apps report an unsupported operation with its cause until their smoke
-procedure is maintained.
+Read `apps/<name>/Makefile` to see whether an app maintains `smoke`.

@@ -11,12 +11,7 @@ from pathlib import Path
 APP_PATHS = {
     "media_helper": ("apps/media-helper/", "tests/test_live_tv.py"),
     "domain_health": ("apps/domain-health/",),
-    "immich": (
-        "apps/immich/",
-        "apps/immich/bootstrap/",
-        "apps/immich/manifests/",
-        "apps/immich-offsite-backup/manifests/",
-    ),
+    "immich": ("apps/immich/", "apps/immich-offsite-backup/"),
     "boys": ("apps/boys/",),
     "autism": ("apps/autism-traits/",),
     "gi": ("apps/gi/",),

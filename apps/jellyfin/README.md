@@ -12,8 +12,7 @@ Jellyfin gets the Live TV lineup from Dispatcharr's HDHomeRun interface. Program
 
 The television uses Moonfin for the artwork-led library interface. The official
 Android TV application remains installed for playback fallback. Both connect
-to the same server and retain server-side watch history. See
-[the Android TV guide](../../soydocs/android-tv).
+to the same server and retain server-side watch history.
 
 ## Access and storage
 
