@@ -1,15 +1,15 @@
-// Crimping the rack's Ethernet leads: a work mat beside the rack, Boris's bswjdz kit on it, and one
-// lead made step by step, then tested on the 468 tester. The steps follow the kit leaflet: strip,
+// Crimping the rack's Ethernet leads, a standalone explainer at explain.soyspray.vip/crimping/: a work mat,
+// Boris's bswjdz kit on it, and one lead made step by step, then tested on the 468 tester. The steps follow the kit leaflet: strip,
 // untwist, line up T568B, trim, slide into the plug, crimp, test and read the lamps.
 //
-// Every node id starts with `crimp.`; the section clears the mat away before the leads go in.
+// Every node id starts with `crimp.`. The lead lengths come from the Soyrack cord routes (soyrack/cables.js).
 
 import { add3, qaxis, qmul } from '../math.js';
 import { polyLength } from '../cablepath.js';
 import { CONNECTORS } from '../ports.js';
 import { HOLD_IN } from '../timeline.js';
-import { CABLE_BY_ID } from './cables.js';
-import { FLOOR_Z } from './rack.js';
+import { CABLE_BY_ID } from '../soyrack/cables.js';
+import { FLOOR_Z } from '../soyrack/rack.js';
 import {
   BOOT, BOOT_ON, BOOT_PARKED, JACKET_END, LAMP_PATTERNS, LED_X, MAIN, MAT, PIN_PITCH, PLUG, REMOTE, STRIP, TESTER_TOP, TRIM, TRIM_TIP,
 } from './crimp-layout.js';
@@ -173,8 +173,8 @@ const lamp = (unit, k) => [LED_X[k] - unit.centre[0], unit.ledY - unit.centre[1]
 
 export const CRIMP_CHAPTERS = [
   {
-    id: 'crimp-plan', section: 'Ethernet leads', title: 'Five short leads', view: 'crimp-plan',
-    text: `Short leads you crimp yourself replace the long loose ones. Practise on a spare cable first. Then cut five pieces: ${cutList()}. Each loses about 2 cm at each end on its way to done.`,
+    id: 'crimp-plan', section: 'Get ready', title: 'Five short leads', view: 'crimp-plan',
+    text: `Short leads you crimp yourself replace the long loose cords in the Soyrack. Practise on a spare cable first. Then cut five pieces: ${cutList()}. Each loses about 2 cm at each end on its way to done.`,
     tags: LEADS.map((l, i) => ({ text: `${l.name} · cut ${cm(l.cut)}`, node: PIECES[i], at: [l.cut / 2, 0, 2], side: 'e', from: 1.4 + i * 0.5, until: 9.2 })),
     script(c) {
       c.show(['crimp.mat']);
@@ -237,7 +237,7 @@ export const CRIMP_CHAPTERS = [
     },
   },
   {
-    id: 'crimp-strip', title: 'Strip 3 cm of jacket', view: 'crimp-strip',
+    id: 'crimp-strip', section: 'Make the plug', title: 'Strip 3 cm of jacket', view: 'crimp-strip',
     text: 'Slide the yellow stripper on 3 cm from the end, squeeze gently and turn it two or three times, then pull the jacket off. Only the jacket is cut: if a coloured wire is nicked, cut the end off and strip again. Snip off any string or plastic cross inside.',
     tags: [
       { text: '3 cm from the end', node: 'crimp.stripper', at: [0, 0, 12], side: 'n', from: 3.4, until: 5.0 },
@@ -367,7 +367,7 @@ export const CRIMP_CHAPTERS = [
     },
   },
   {
-    id: 'crimp-test', title: 'Test with the 468', view: 'crimp-test',
+    id: 'crimp-test', section: 'Test it', title: 'Test with the 468', view: 'crimp-test',
     text: 'Plug one end into the tester and the other into its remote, and slide the switch to ON (S steps slowly). A good lead lights lamps 1 to 8 one after another on both, together. The remote’s G stays dark on unshielded cable; that is fine.',
     tags: [
       { text: 'Switch to ON', node: 'crimp.switch', at: [0, 0, 1], side: 'n', from: 3.0, until: 5.0 },
@@ -400,7 +400,7 @@ export const CRIMP_CHAPTERS = [
       t = sweep(c, t + 0.3, LAMP_PATTERNS.short45);
       const sw = MAIN.switch;
       slide(c, 'crimp.switch', t + 0.3, 0.4, at(K([sw.x.ON, sw.y, TESTER_TOP + 0.8])), at(K([sw.x.OFF, sw.y, TESTER_TOP + 0.8])), false);
-      fade(c, ['crimp.mat', 'crimp.crimper', 'crimp.stripper', 'crimp.main', 'crimp.remote', 'crimp.switch', 'crimp.shield', 'crimp.lead'], t + 2.6, [1, 0], 0.8);
+      c.end = Math.max(c.end, c.start + t + 2.6);
     },
   },
 ];

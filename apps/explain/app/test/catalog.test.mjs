@@ -10,13 +10,13 @@ const guides = JSON.parse(readFileSync(resolve(app, 'data/guides.json'), 'utf8')
 const html = readFileSync(resolve(app, 'dist/index.html'), 'utf8');
 
 test('every chapter of every guide is listed with a link that opens its guide there', () => {
-  assert.deepEqual(guides.map((g) => g.path), ['/assembly/', '/pearl/', '/network/']);
+  assert.deepEqual(guides.map((g) => g.path), ['/assembly/', '/crimping/', '/pearl/', '/network/']);
   for (const g of guides) {
     assert.ok(g.chapters.length > 0);
     assert.equal(new Set(g.chapters.map((c) => c.id)).size, g.chapters.length, `${g.slug} chapter ids are unique`);
     for (const c of g.chapters) {
       const href = chapterHref(g, c);
-      assert.match(href, g.link === 'id' ? /^\/(assembly|network)\/#[a-z0-9-]+$/ : /^\/pearl\/#t=\d+(\.\d)?$/);
+      assert.match(href, g.link === 'id' ? /^\/(assembly|crimping|network)\/#[a-z0-9-]+$/ : /^\/pearl\/#t=\d+(\.\d)?$/);
       assert.ok(html.includes(`<soy-chapter href="${href}"`), `${href} is on the page`);
     }
   }

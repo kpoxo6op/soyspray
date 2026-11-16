@@ -1,5 +1,5 @@
 // Reads the chapter lists of the guides from their own sources and writes data/guides.json, which the catalog
-// ships. Run it after a guide changes its chapters: `node tools/extract-guides.mjs` (in app/), with `npm ci` done
+// ships (the crimping explainer is built in the assembly guide's image). Run it after a guide changes its chapters: `node tools/extract-guides.mjs` (in app/), with `npm ci` done
 // in apps/pearl-guide/app and apps/assembly-guide/app. `npm test` fails when the file is stale. The network
 // explainer lives in this app (network/), so its list is always checked.
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -21,6 +21,13 @@ export async function extractGuides() {
     return { id: c.id, title: c.title, section: section || 'Chapters', start: round(c.start), length: round(c.end - c.start) };
   });
 
+  const { buildCrimpTimeline } = await load('assembly-guide/app/src/crimping/index.js');
+  section = '';
+  const crimping = buildCrimpTimeline().chapters.map((c) => {
+    if (c.section) section = c.section;
+    return { id: c.id, title: c.title, section: section || 'Chapters', start: round(c.start), length: round(c.end - c.start) };
+  });
+
   const { buildTimeline } = await load('pearl-guide/app/src/story.js');
   const pearl = buildTimeline().chapters.map((c) => ({
     id: c.id,
@@ -35,11 +42,20 @@ export async function extractGuides() {
     {
       slug: 'assembly',
       title: 'Soyrack assembly',
-      summary: 'Print, crimp and bolt together the PETG rack that holds the three cluster nodes, the switch and the power base.',
+      summary: 'Print and bolt together the PETG rack that holds the three cluster nodes, the switch and the power base.',
       path: '/assembly/',
       store: 'explain.assembly.done',
       link: 'id',
       chapters: assembly,
+    },
+    {
+      slug: 'crimping',
+      title: 'Crimping Ethernet leads',
+      summary: 'Cut, strip, line up T568B, crimp and test the five short Ethernet leads for the rack with the crimp kit.',
+      path: '/crimping/',
+      store: 'explain.crimping.done',
+      link: 'id',
+      chapters: crimping,
     },
     {
       slug: 'pearl',

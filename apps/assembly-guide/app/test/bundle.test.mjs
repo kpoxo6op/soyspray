@@ -11,6 +11,19 @@ const html = readFileSync(resolve(SITE, 'index.html'), 'utf8');
 const js = readFileSync(resolve(SITE, 'app.js'), 'utf8');
 const css = readFileSync(resolve(SITE, 'app.css'), 'utf8');
 
+test('the crimping page loads its own relative, revisioned assets', () => {
+  const dir = resolve(SITE, 'crimping');
+  const page = readFileSync(resolve(dir, 'index.html'), 'utf8');
+  const refs = [...page.matchAll(/\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]).filter((r) => !r.startsWith('data:'));
+  assert.deepEqual(refs.map((r) => r.split('?')[0]).sort(), ['app.css', 'app.js']);
+  for (const ref of refs) {
+    const url = new URL(ref, 'https://crimping.invalid/');
+    const digest = createHash('sha256').update(readFileSync(resolve(dir, url.pathname.slice(1)))).digest('hex');
+    assert.ok(digest.startsWith(url.searchParams.get('v') || '-'), `${ref} identifies its content`);
+  }
+  assert.doesNotMatch(page, /btnParts/);
+});
+
 test('every runtime reference in index.html is relative and present', () => {
   const refs = [...html.matchAll(/\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]).filter(r => !r.startsWith('data:'));
   assert.deepEqual(refs.map(r => r.split('?')[0]).sort(), ['app.css', 'app.js']);

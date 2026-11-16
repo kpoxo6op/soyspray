@@ -1,4 +1,4 @@
-# The same guide at explain.soyspray.vip/assembly/, beside the catalog (apps/explain). ingress-nginx merges this
+# The same guide at explain.soyspray.vip/assembly/, and the crimping explainer from the same image at /crimping/, beside the catalog (apps/explain). ingress-nginx merges this
 # rule into the explain.soyspray.vip server, which takes its certificate from the explain Ingress; nginx.conf
 # strips the prefix. This is the guide's address; assembly.soyspray.vip (ingress.yaml) only redirects here.
 apiVersion: networking.k8s.io/v1
@@ -19,6 +19,13 @@ spec:
       http:
         paths:
           - path: /assembly
+            pathType: Prefix
+            backend:
+              service:
+                name: assembly-guide
+                port:
+                  name: http
+          - path: /crimping
             pathType: Prefix
             backend:
               service:

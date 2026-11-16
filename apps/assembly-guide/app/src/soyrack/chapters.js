@@ -4,7 +4,6 @@ import { add3 } from '../math.js';
 import { HOLD_IN, tier } from '../timeline.js';
 import { TEST_CHAPTERS } from './testprints.js';
 import { trayNutIds } from './rack.js';
-import { CRIMP_CHAPTERS } from './crimp.js';
 
 const CORNERS = ['FL', 'FR', 'RL', 'RR'];
 const each = (prefix) => CORNERS.map((k) => `${prefix}.${k}`);
@@ -174,10 +173,9 @@ export const SOYRACK_CHAPTERS = [
     text: 'Bring each Lenovo cord straight up behind the nodes and plug it in: node-0 takes the front one. The switch cord rises at the rear right, through the mid deck slot, to the switch.',
     script: hold(6.4),
   },
-  ...CRIMP_CHAPTERS,
   {
     id: 'ethernet', section: 'Leads in and done', title: 'Ethernet', view: 'rear',
-    text: 'Plug in the leads you crimped: the blue ones from the nodes up the rear left to switch ports 7, 6 and 5, yellow from port 1 to keystone 1 and green from port 4 to keystone 2. Keystone 1 goes out to the router on the wall.',
+    text: 'Plug in the leads you crimped (the crimping explainer at explain.soyspray.vip/crimping/ shows how): the blue ones from the nodes up the rear left to switch ports 7, 6 and 5, yellow from port 1 to keystone 1 and green from port 4 to keystone 2. Keystone 1 goes out to the router on the wall.',
     script: hold(6.4),
   },
   {
