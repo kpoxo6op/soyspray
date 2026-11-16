@@ -326,8 +326,29 @@ export function createUI({ root, player, timeline, viewer, reducedMotion, onUser
         break;
       case 'k':
       case 'K':
+      case 'MediaPlayPause':
         if (player.playing) player.pause();
         else player.play();
+        break;
+      // TV remotes and media keyboards.
+      case 'MediaPlay':
+        player.play();
+        break;
+      case 'MediaPause':
+      case 'MediaStop':
+        player.pause();
+        break;
+      case 'MediaTrackNext':
+        player.nextChapter();
+        break;
+      case 'MediaTrackPrevious':
+        player.prevChapter();
+        break;
+      case 'MediaFastForward':
+        player.seekBy(10);
+        break;
+      case 'MediaRewind':
+        player.seekBy(-10);
         break;
       case 'ArrowLeft':
         if (chapterJump) player.prevChapter();
