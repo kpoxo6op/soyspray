@@ -699,6 +699,7 @@ module print_part(name) {
     multmatrix([[0, 0, 1, 0], [1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1]]) world_part(name);
   else if (name == "top_cap") rotate([180, 0, 0]) world_part(name);
   else if (name == "mid_deck") rotate([-90, 0, 0]) world_part(name);
+  else if (name == "asa_tile") cube([20, 20, 1.2]);
   else if (name == "mid_deck_flat") mid_deck_flat();
   else if (name == "mid_deck_pocket_coupon") mid_deck_pocket_coupon();
   else if (name == "base_tub") rotate(90) world_part(name);
