@@ -2,4 +2,4 @@
 import { startGuide } from './boot.js';
 import { buildCrimpTimeline, CrimpStage, FLOOR_Z, legendHTML } from './crimping/index.js';
 
-startGuide({ timeline: buildCrimpTimeline(), Stage: CrimpStage, floorZ: FLOOR_Z, legends: { t568b: legendHTML() }, eyebrow: 'CRIMPING' });
+startGuide({ timeline: buildCrimpTimeline(), Stage: CrimpStage, floorZ: FLOOR_Z, legends: { t568b: legendHTML() }, eyebrow: 'CRIMPING', loop: true });

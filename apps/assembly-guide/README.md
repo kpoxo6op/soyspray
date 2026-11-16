@@ -64,7 +64,11 @@ an open, swapped or shorted wire. It loads no rack meshes. The Soyrack guide's
 Ethernet chapter points to it. Both pages share the player (`app/src/boot.js`): the
 Chapters button (or `C`) lists every chapter by section, and a `#chapter-id` link
 such as `/crimping/#crimp-trim` opens a page at that chapter. Audit the explainer
-with `tools/perf-audit.mjs --page crimping`.
+with `tools/perf-audit.mjs --page crimping`. The explainer loops back to chapter 1
+2.5 s after it ends, for a TV left playing; `?loop` turns that on for the Soyrack
+guide and `?loop=0` off. A click on the 3D view that does not drag it plays or
+pauses (OK on TV Bro's cursor on the Sony TV), and media keys (play/pause,
+next/previous track, fast-forward, rewind) work where the browser passes them on.
 
 The mast's standalone STL is not a qualified print job. The Parts sheet keeps
 its reference link, but warns against printing it alone or using the old combined

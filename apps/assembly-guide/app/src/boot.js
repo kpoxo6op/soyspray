@@ -9,7 +9,11 @@ import { createTags } from './tags.js';
 import { createLoop } from './loop.js';
 import { Viewer } from './scene.js';
 
-export function startGuide({ timeline, meshes = {}, Stage, floorZ, sheet = null, legends = {}, eyebrow }) {
+export function startGuide({ timeline, meshes = {}, Stage, floorZ, sheet = null, legends = {}, eyebrow, loop: loopByDefault = false }) {
+// A looping page (the crimping explainer, or any page opened with ?loop) starts again from chapter 1 a moment
+// after the last chapter ends, so it can run on a TV unattended. ?loop=0 turns it off.
+const loopParam = new URLSearchParams(window.location.search).get('loop');
+const looping = loopParam === null ? loopByDefault : loopParam !== '0';
 const root = document.getElementById('app');
 const stage = document.getElementById('stage');
 const hud = document.getElementById('hud');
@@ -79,6 +83,32 @@ function schedule() {
 viewer.controls.addEventListener('change', schedule);
 viewer.controls.addEventListener('start', schedule);
 viewer.onRequestFrame = schedule;
+
+let loopTimer = 0;
+player.on((reason) => {
+  clearTimeout(loopTimer);
+  if (reason === 'ended' && looping && player.time >= timeline.duration - 1e-6) {
+    loopTimer = setTimeout(() => {
+      player.seek(0, 'loop');
+      player.play();
+    }, 2500);
+  }
+});
+
+// A click on the 3D view that does not drag it (a mouse click, or OK on a TV browser's cursor) plays or pauses.
+{
+  let downX = 0;
+  let downY = 0;
+  viewer.canvas.addEventListener('pointerdown', (e) => {
+    downX = e.clientX;
+    downY = e.clientY;
+  });
+  viewer.canvas.addEventListener('click', (e) => {
+    if (e.detail > 1 || Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
+    if (player.playing) player.pause();
+    else player.play();
+  });
+}
 
 let hashTimer = 0;
 player.on((reason) => {
