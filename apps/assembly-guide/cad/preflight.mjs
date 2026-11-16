@@ -44,6 +44,10 @@ function heightOf(stl) {
   return top;
 }
 
+function filamentFile(part) {
+  return part === 'asa_tile' ? 'asa.json' : 'filament.json';
+}
+
 function slice(part, stl, dir) {
   mkdirSync(dir);   // a new run never replaces an earlier job or its evidence
   let processFile = `${PROFILES}/process.json`;
@@ -56,7 +60,7 @@ function slice(part, stl, dir) {
   try {
     const r = run(STUDIO[0], [...STUDIO.slice(1), '--debug', '2',
       '--load-settings', `${PROFILES}/machine.json;${processFile}`,
-      '--load-filaments', `${PROFILES}/filament.json`,
+      '--load-filaments', resolve(PROFILES, filamentFile(part)),
       '--arrange', '1', '--orient', '0', '--slice', '0',
       '--export-3mf', `${part}.gcode.3mf`, '--outputdir', dir, stl], { stdio: ['ignore', log, log] });
     if (r.error || r.status !== 0) throw new Error(`slicer failed (${r.error?.message ?? r.signal ?? r.status}); see ${dir}/slicing.log`);
@@ -167,7 +171,7 @@ saveReport();   // interruption or a renderer crash cannot leave a successful re
 try {
   const inputs = ['soyrack.scad', 'render.mjs', 'preflight.mjs',
     'check-support.py', 'check-support.py.lock', 'package.json', 'package-lock.json',
-    'print/machine.json', 'print/process.json', 'print/filament.json'];
+    'print/machine.json', 'print/process.json', ...new Set(parts.map((p) => 'print/' + filamentFile(p)))];
   const status = git('status', '--porcelain', '--', ...inputs);
   if (status) throw new Error(`uncommitted manufacturing inputs: ${status}`);
   const inputHashes = Object.fromEntries(inputs.map((f) => [f, sha256(resolve(here, f))]));
@@ -180,7 +184,7 @@ try {
   report.dependencies = sha256(resolve(here, 'package-lock.json'));
   report.support_checker = sha256(resolve(here, 'check-support.py'));
   report.support_dependencies = sha256(resolve(here, 'check-support.py.lock'));
-  for (const f of ['machine', 'process', 'filament']) report.profiles[`${f}.json`] = sha256(resolve(PROFILES, `${f}.json`));
+  for (const f of new Set(['machine.json', 'process.json', ...parts.map(filamentFile)])) report.profiles[f] = sha256(resolve(PROFILES, f));
   for (const part of parts) {
     let r;
     try { r = check(part); }
