@@ -12,8 +12,8 @@ answers every request on that host with a 301 to the same path under
 the browser, so nothing needs carrying across. Keep `manifests/ingress.yaml` and
 its certificate so old links keep landing on the redirect.
 
-The source is in `app/`. `npm ci && npm run build && npm test` builds the three
-static files in `app/dist/` and checks the player and 3D assembly contracts.
+The source is in `app/`. `npm ci && npm run build && npm test` builds the static
+files in `app/dist/` (and `app/dist/crimping/`) and checks the player and 3D assembly contracts.
 The Dockerfile packages that build into an immutable nginx image. The image
 workflow tests the packaged HTTP server, publishes on `main`, and reports its
 digest. A separate promotion PR pins that digest in the Deployment. Built asset
@@ -52,14 +52,19 @@ origin), the browser meshes and the print list in `app/data/v3/`. The node tray
 mesh is `app/data/trays.bin`, which `app/tools/regenerate-data.sh` repacks from a
 RackStack checkout. `cad/` and `app/tools/` stay out of the image.
 
-Before the leads go in, the Ethernet leads section teaches crimping with the
-kit in the case: five short leads cut to their routes (44, 40 and 34 cm for the
-nodes, 19 cm for each keystone lead), the boot on first, a 3 cm strip, T568B
-order with a colour strip on screen, a 13 mm trim, the clear plug, the crimp and
-the 468 tester, including what its lamps show for an open, swapped or shorted
-wire (`app/src/soyrack/crimp.js`, `crimp-layout.js`, `crimp-models.js`). The
-Chapters button (or `C`) lists every chapter by section, and a `#chapter-id`
-link such as `#crimp-plan` opens the guide at that chapter.
+The same image also serves the crimping explainer at
+`https://explain.soyspray.vip/crimping/` (built into `dist/crimping/` from
+`app/src/crimping-main.js` and `app/src/crimping/`; `manifests/ingress-explain.yaml`
+routes `/crimping` here, and `nginx.conf` serves it without a prefix strip). It
+teaches making the rack's leads with the kit in the case: five short leads cut to
+their Soyrack routes (44, 40 and 34 cm for the nodes, 19 cm for each keystone lead),
+the boot on first, a 3 cm strip, T568B order with a colour strip on screen, a 13 mm
+trim, the clear plug, the crimp and the 468 tester, including what its lamps show for
+an open, swapped or shorted wire. It loads no rack meshes. The Soyrack guide's
+Ethernet chapter points to it. Both pages share the player (`app/src/boot.js`): the
+Chapters button (or `C`) lists every chapter by section, and a `#chapter-id` link
+such as `/crimping/#crimp-trim` opens a page at that chapter. Audit the explainer
+with `tools/perf-audit.mjs --page crimping`.
 
 The mast's standalone STL is not a qualified print job. The Parts sheet keeps
 its reference link, but warns against printing it alone or using the old combined

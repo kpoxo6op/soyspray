@@ -2,7 +2,7 @@
  {
   "slug": "assembly",
   "title": "Soyrack assembly",
-  "summary": "Print, crimp and bolt together the PETG rack that holds the three cluster nodes, the switch and the power base.",
+  "summary": "Print and bolt together the PETG rack that holds the three cluster nodes, the switch and the power base.",
   "path": "/assembly/",
   "store": "explain.assembly.done",
   "link": "id",
@@ -155,116 +155,126 @@
     "length": 8.1
    },
    {
-    "id": "crimp-plan",
-    "title": "Five short leads",
-    "section": "Ethernet leads",
-    "start": 197.8,
-    "length": 11.6
-   },
-   {
-    "id": "crimp-kit",
-    "title": "The kit",
-    "section": "Ethernet leads",
-    "start": 209.4,
-    "length": 11.3
-   },
-   {
-    "id": "crimp-plugs",
-    "title": "Clear or metal plugs",
-    "section": "Ethernet leads",
-    "start": 220.7,
-    "length": 11.2
-   },
-   {
-    "id": "crimp-boot",
-    "title": "Boot on first",
-    "section": "Ethernet leads",
-    "start": 231.9,
-    "length": 7.5
-   },
-   {
-    "id": "crimp-strip",
-    "title": "Strip 3 cm of jacket",
-    "section": "Ethernet leads",
-    "start": 239.4,
-    "length": 12.2
-   },
-   {
-    "id": "crimp-untwist",
-    "title": "Untwist and line up",
-    "section": "Ethernet leads",
-    "start": 251.6,
-    "length": 11.1
-   },
-   {
-    "id": "crimp-trim",
-    "title": "Trim to 13 mm",
-    "section": "Ethernet leads",
-    "start": 262.7,
-    "length": 11.1
-   },
-   {
-    "id": "crimp-plug",
-    "title": "Into the plug",
-    "section": "Ethernet leads",
-    "start": 273.7,
-    "length": 10.9
-   },
-   {
-    "id": "crimp-check",
-    "title": "Look before you crimp",
-    "section": "Ethernet leads",
-    "start": 284.6,
-    "length": 8.3
-   },
-   {
-    "id": "crimp-press",
-    "title": "Crimp",
-    "section": "Ethernet leads",
-    "start": 292.9,
-    "length": 12.8
-   },
-   {
-    "id": "crimp-boot-on",
-    "title": "Boot over, then the other end",
-    "section": "Ethernet leads",
-    "start": 305.7,
-    "length": 9.9
-   },
-   {
-    "id": "crimp-test",
-    "title": "Test with the 468",
-    "section": "Ethernet leads",
-    "start": 315.6,
-    "length": 12.4
-   },
-   {
-    "id": "crimp-faults",
-    "title": "When the lamps are wrong",
-    "section": "Ethernet leads",
-    "start": 328.1,
-    "length": 15.8
-   },
-   {
     "id": "ethernet",
     "title": "Ethernet",
     "section": "Leads in and done",
-    "start": 343.8,
+    "start": 197.8,
     "length": 8.1
    },
    {
     "id": "usb-zigbee",
     "title": "USB and Zigbee",
     "section": "Leads in and done",
-    "start": 351.9,
+    "start": 205.9,
     "length": 8.1
    },
    {
     "id": "soyrack",
     "title": "Soyrack",
     "section": "Leads in and done",
-    "start": 360,
+    "start": 214,
     "length": 6.5
+   }
+  ]
+ },
+ {
+  "slug": "crimping",
+  "title": "Crimping Ethernet leads",
+  "summary": "Cut, strip, line up T568B, crimp and test the five short Ethernet leads for the rack with the crimp kit.",
+  "path": "/crimping/",
+  "store": "explain.crimping.done",
+  "link": "id",
+  "chapters": [
+   {
+    "id": "crimp-plan",
+    "title": "Five short leads",
+    "section": "Get ready",
+    "start": 0,
+    "length": 11.6
+   },
+   {
+    "id": "crimp-kit",
+    "title": "The kit",
+    "section": "Get ready",
+    "start": 11.6,
+    "length": 11.3
+   },
+   {
+    "id": "crimp-plugs",
+    "title": "Clear or metal plugs",
+    "section": "Get ready",
+    "start": 22.9,
+    "length": 11.2
+   },
+   {
+    "id": "crimp-boot",
+    "title": "Boot on first",
+    "section": "Get ready",
+    "start": 34.1,
+    "length": 7.5
+   },
+   {
+    "id": "crimp-strip",
+    "title": "Strip 3 cm of jacket",
+    "section": "Make the plug",
+    "start": 41.6,
+    "length": 12.2
+   },
+   {
+    "id": "crimp-untwist",
+    "title": "Untwist and line up",
+    "section": "Make the plug",
+    "start": 53.8,
+    "length": 11.1
+   },
+   {
+    "id": "crimp-trim",
+    "title": "Trim to 13 mm",
+    "section": "Make the plug",
+    "start": 64.9,
+    "length": 11
+   },
+   {
+    "id": "crimp-plug",
+    "title": "Into the plug",
+    "section": "Make the plug",
+    "start": 75.9,
+    "length": 10.9
+   },
+   {
+    "id": "crimp-check",
+    "title": "Look before you crimp",
+    "section": "Make the plug",
+    "start": 86.8,
+    "length": 8.3
+   },
+   {
+    "id": "crimp-press",
+    "title": "Crimp",
+    "section": "Make the plug",
+    "start": 95.1,
+    "length": 12.8
+   },
+   {
+    "id": "crimp-boot-on",
+    "title": "Boot over, then the other end",
+    "section": "Make the plug",
+    "start": 107.9,
+    "length": 9.9
+   },
+   {
+    "id": "crimp-test",
+    "title": "Test with the 468",
+    "section": "Test it",
+    "start": 117.8,
+    "length": 12.4
+   },
+   {
+    "id": "crimp-faults",
+    "title": "When the lamps are wrong",
+    "section": "Test it",
+    "start": 130.2,
+    "length": 15
    }
   ]
  },

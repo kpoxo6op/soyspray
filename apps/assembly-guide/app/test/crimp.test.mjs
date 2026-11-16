@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import { meshes } from './helpers.mjs';
 import { evaluate } from '../src/timeline.js';
 import { buildSoyrackTimeline } from '../src/soyrack/index.js';
-import { CRIMP_IDS, LEADS, WORK } from '../src/soyrack/crimp.js';
+import { buildCrimpTimeline } from '../src/crimping/index.js';
+import { CRIMP_IDS, LEADS, WORK } from '../src/crimping/crimp.js';
 import {
   BOOT_ON, BOOT_PARKED, JACKET_END, LAMP_PATTERNS, PLUG, T568B, TRIM, TRIM_TIP, wirePaths,
-} from '../src/soyrack/crimp-layout.js';
+} from '../src/crimping/crimp-layout.js';
 import { CONNECTORS } from '../src/ports.js';
 
-const tl = buildSoyrackTimeline(meshes);
+const tl = buildCrimpTimeline();
 const chapter = (id) => tl.chapters.find((c) => c.id === id);
 const at = (id, t) => evaluate(tl, t).get(id);
 const onCable = (p) => p.map((v, k) => v - WORK[k]);
@@ -76,15 +77,13 @@ test('every cut length covers its route, its plugs and the trim', () => {
   for (const l of LEADS) assert.match(text, new RegExp(`${l.cut / 10} cm`));
 });
 
-// Contract: the mat and the kit appear with the crimping section and are cleared before the leads go in.
-test('the crimping section clears its mat before the leads go into the rack', () => {
-  const crimp = [...tl.nodes.values()].filter((n) => n.kind !== 'group' && CRIMP_IDS.test(n.id));
-  const before = evaluate(tl, chapter('crimp-plan').start - 0.7);
-  const after = evaluate(tl, chapter('ethernet').start);
-  for (const n of crimp) {
-    assert.ok(before.get(n.id).alpha < 0.01, `${n.id} hidden before the section`);
-    assert.ok(after.get(n.id).alpha < 0.01, `${n.id} cleared before the leads go in`);
-  }
-  const crimpChapters = tl.chapters.filter((c) => c.id.startsWith('crimp-'));
-  assert.equal(crimpChapters.at(-1).index + 1, chapter('ethernet').index, 'the leads go in right after');
+// Contract: crimping is its own explainer. The Soyrack guide has no crimping chapter or kit, and the
+// explainer ends with the finished lead and the kit still on the mat.
+test('crimping stands alone, apart from the Soyrack guide', () => {
+  const rack = buildSoyrackTimeline(meshes);
+  assert.ok(!rack.chapters.some((c) => c.id.startsWith('crimp-')), 'no crimping chapter in Soyrack');
+  assert.ok(![...rack.nodes.keys()].some((id) => CRIMP_IDS.test(id)), 'no crimping kit in Soyrack');
+  assert.ok(tl.chapters.every((c) => c.id.startsWith('crimp-')), 'only crimping chapters here');
+  const end = evaluate(tl, tl.duration);
+  for (const id of ['crimp.mat', 'crimp.main', 'crimp.remote', 'crimp.lead']) assert.ok(end.get(id).alpha > 0.99, `${id} shown at the end`);
 });

@@ -15,8 +15,10 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const dist = resolve(here, '../dist');
 const args = process.argv.slice(2);
+// `--page crimping` audits the crimping explainer (dist/crimping/) instead of the Soyrack guide.
+const pageArg = args.indexOf('--page');
+const dist = resolve(here, '../dist', pageArg < 0 ? '' : args[pageArg + 1]);
 const flag = (name) => {
   const i = args.indexOf(`--${name}`);
   return i < 0 ? null : Number(args[i + 1]);
