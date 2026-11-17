@@ -6,14 +6,17 @@ Nothing here runs in the cluster and Argo CD does not deploy it. Each board is
 flashed from the laptop and then talks to Home Assistant over the LAN through
 the ESPHome native API. No vendor cloud and no phone apps.
 
-Status (November 2026): the parts are ordered and not yet wired. The configs
-validate with `esphome config`. They have not run on hardware yet.
+Status (17 November 2026): the scale bridge runs on hardware and is in Home
+Assistant as device "Scale bridge" (`sensor.scale_bridge_weight`). The IR and
+presence configs validate with `esphome config` but have not run on hardware.
 
 ## Why
 
 - **Scale.** A cheap AliExpress body-fat scale. A BLE scan from the laptop
-  found that it broadcasts every reading in the clear as `Yoda0`, manufacturer
-  ID `0x1AC0`, weight in bytes 0-1 (big-endian, hundredths of a kg). The
+  found that it broadcasts every reading in the clear as `Yoda0`, weight in
+  bytes 0-1 of the manufacturer data (big-endian, hundredths of a kg). The
+  company ID field is a rolling counter (`0x1AC0`, `0x1DC0`, ...), so the
+  decoder matches the name instead. The
   decoding notes are at the top of [`devices/scale.yaml`](devices/scale.yaml).
   The Home Assistant pod has no Bluetooth, so an ESP32 near the scale listens
   for those packets.
@@ -27,7 +30,7 @@ validate with `esphome config`. They have not run on hardware yet.
 
 | Part | Qty | Used by |
 | --- | --- | --- |
-| ESP32 DevKitC (WROOM-32, CH340C, USB-C) | 3 | scale, IR, presence |
+| ESP32 DevKit (ESP-WROOM-32, USB-C; the scale board has a CP2102) | 3 | scale, IR, presence |
 | HLK-LD2410C mmWave radar | 2 | presence |
 | 38 kHz IR transmitter + receiver module set | 1 | IR |
 | Dupont jumper leads, 20 cm | 120 | all wiring |
@@ -67,8 +70,7 @@ entry lives in the `home-assistant-config` PVC, like the Tapo entries.
 
 ## Next steps
 
-1. Wire and flash the scale bridge. Weigh someone barefoot to confirm what
-   bytes 2-3 (impedance) and byte 6 (status) mean.
+1. Weigh someone barefoot to confirm what bytes 2-3 (impedance) mean.
 2. Flash the IR bridge, learn the AC and fan codes, note the AC brand, and pick
    a native climate platform or template buttons.
 3. Flash the presence boards, place them, and tune the gates with the LD2410
@@ -80,4 +82,10 @@ entry lives in the `home-assistant-config` PVC, like the Tapo entries.
 
 - The scale reports body weight only. Body-fat numbers need the impedance
   formula and the user's height, age and sex. That is not done here.
-- These configs are validated, not compiled or run.
+- Only the scale config has been compiled and run. Some of these boards'
+  charge-only USB cables carry no data; use a data cable for the first flash.
+  On Linux the CP2102 port needs `dialout` access (or a temporary ACL).
+- esptool may misreport the crystal as 26 MHz at 460800 baud. It is 40 MHz;
+  do not set `CONFIG_XTAL_FREQ_26`. Flash at 115200 if the stub fails.
+- Give each board a DHCP reservation on the router so its HA entry keeps
+  working; the scale bridge has one.

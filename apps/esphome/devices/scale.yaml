@@ -1,14 +1,17 @@
 # Bathroom scale bridge. The AliExpress body-fat scale broadcasts its reading in
-# BLE advertisements named "Yoda0" with manufacturer ID 0x1AC0. Nothing pairs
-# with the scale and no vendor app is involved.
+# BLE advertisements named "Yoda0". Nothing pairs with the scale and no vendor
+# app is involved.
 #
-# Manufacturer data seen on 2026-11-01 (13 bytes, company ID already stripped):
+# The 16-bit "company ID" is not fixed: its low byte is always 0xC0 and its high
+# byte is a counter (0x1A, 0x1C, 0x1D, 0x1E, 0x1F ... seen on 2026-11-17), so the
+# decoder matches the advertised name, not a manufacturer ID.
+# Manufacturer data (13 bytes after the company ID):
 #   idle      00 00 00 00 00 00 24 <6-byte scale MAC>
 #   weighing  02 8f 13 88 00 00 25 <6-byte scale MAC>   display showed 6.55 kg
 # bytes 0-1  weight, big-endian, hundredths of a kg (0x028f = 655)
 # bytes 2-3  probably impedance; 0x1388 (5000) when nobody stands barefoot
-# byte  6    0x24 idle, 0x25 with a weight (bit 0 assumed to mean "reading")
-# Verify bytes 2-3 and 6 with a barefoot weigh-in before trusting body-fat maths.
+# byte  6    0x24 idle, 0x25 with a weight (bit 0 = "reading")
+# Verify bytes 2-3 with a barefoot weigh-in before trusting body-fat maths.
 substitutions:
   name: scale-bridge
   friendly_name: Scale bridge
@@ -23,19 +26,34 @@ packages:
 esp32_ble_tracker:
   scan_parameters:
     active: false
-  on_ble_manufacturer_data_advertise:
-    - manufacturer_id: "1AC0"
-      then:
+  on_ble_advertise:
+    - then:
         - lambda: |-
-            if (x.size() < 7) return;
-            const uint16_t raw_weight = (uint16_t(x[0]) << 8) | x[1];
-            const uint16_t raw_impedance = (uint16_t(x[2]) << 8) | x[3];
-            const bool reading = (x[6] & 0x01) && raw_weight > 0;
-            if (!reading) return;
-            const float kg = raw_weight / 100.0f;
-            if (id(scale_weight).state != kg) id(scale_weight).publish_state(kg);
-            if (id(scale_impedance_raw).state != raw_impedance) id(scale_impedance_raw).publish_state(raw_impedance);
-            id(scale_last_byte6).publish_state(x[6]);
+            if (x.get_name().find("Yoda") != 0) return;
+            for (auto &m : x.get_manufacturer_datas()) {
+              const auto &d = m.data;
+              ESP_LOGV("scale", "data=%s", format_hex_pretty(d).c_str());
+              if (d.size() < 7) continue;
+              const uint16_t raw_weight = (uint16_t(d[0]) << 8) | d[1];
+              const uint16_t raw_impedance = (uint16_t(d[2]) << 8) | d[3];
+              if (!(d[6] & 0x01) || raw_weight == 0) {
+                id(scale_raw_weight) = 0;  // idle frame: the next weigh-in publishes even if equal
+                continue;
+              }
+              const float kg = raw_weight / 100.0f;
+              // Publish only changes; the debounce filter below keeps the settled value.
+              if (id(scale_raw_weight) != raw_weight) {
+                id(scale_raw_weight) = raw_weight;
+                id(scale_weight).publish_state(kg);
+                id(scale_impedance_raw).publish_state(raw_impedance);
+                id(scale_last_byte6).publish_state(d[6]);
+              }
+            }
+
+globals:
+  - id: scale_raw_weight
+    type: uint16_t
+    initial_value: "0"
 
 # Lets Home Assistant use this board for other Bluetooth devices too.
 bluetooth_proxy:
@@ -49,6 +67,9 @@ sensor:
     device_class: weight
     state_class: measurement
     accuracy_decimals: 2
+    filters:
+      # The display settles over a few seconds; send only the value that held for 3 s.
+      - debounce: 3s
   - platform: template
     id: scale_impedance_raw
     name: Impedance raw
