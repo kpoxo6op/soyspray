@@ -289,13 +289,35 @@ const ethernet = (id, colour, a, via, b, chapter = 'ethernet', lead = 6) => CABL
   const z = a.exit[2];
   ethernet(`eth${i}`, 0x3f7fe0, a, [[a.exit[0], 220, z + 10], [x, 194, z + 30], [x, 194, 200], [x, 190, 216], [75 + 20 * i, 166, 236], [b.exit[0], 150, b.exit[2]]], b);
 });
-ethernet('uplink', 0xf0c232, plugAt('switch', 'p1'), [], plugAt('key1', 'in'));
-ethernet('spareLan', 0x48b36a, plugAt('switch', 'p4'), [], plugAt('key2', 'in'));
+// The keystone leads are the shortest that is easy to crimp, 15 cm with the plugs. The 3 cm gap
+// between the switch and the panel takes far less, so the rest droops in a U under the plugs.
+export const KEY_LEAD = 150;
+[['uplink', 0xf0c232, 'p1', 'key1'], ['spareLan', 0x48b36a, 'p4', 'key2']].forEach(([id, colour, port, key]) => {
+  const a = plugAt('switch', port);
+  const b = plugAt(key, 'in');
+  const want = KEY_LEAD - 2 * CONNECTORS.rj45.len;
+  const droop = (d) => {
+    const x = (a.exit[0] + b.exit[0]) / 2;
+    const z = Math.min(a.exit[2], b.exit[2]) - d;
+    return lay([a.exit, [a.exit[0], a.exit[1] + 6, z + 0.45 * d], [x, (a.exit[1] + b.exit[1]) / 2, z], [b.exit[0], b.exit[1] - 6, z + 0.45 * d], b.exit],
+      a.dir, scale3(b.dir, -1), 6);
+  };
+  let [lo, hi] = [0, 60];
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (polyLength(droop(mid)) < want) lo = mid; else hi = mid;
+  }
+  CABLES.push({
+    id, colour, od: ETH, length: want, turns: 0, slack: true,
+    parts: [{ chapter: 'keystone-leads', points: droop(lo), plugs: [a, b] }],
+    ends: [a.at, b.at],
+  });
+});
 {
   const a = plugAt('key1', 'out');
   CABLES.push({
     id: 'routerLink', colour: 0xf0c232, od: ETH, length: null, turns: 0,
-    parts: [{ chapter: 'ethernet', points: lay([a.exit, [174.5, 262, 232], [176, 270, 120], [178, 278, FLOOR_Z + 30], [182, 345, FLOOR_Z + ETH / 2]], Y, Y), plugs: [a] }],
+    parts: [{ chapter: 'keystone-leads', points: lay([a.exit, [174.5, 262, 232], [176, 270, 120], [178, 278, FLOOR_Z + 30], [182, 345, FLOOR_Z + ETH / 2]], Y, Y), plugs: [a] }],
     ends: [a.at, null],
   });
 }

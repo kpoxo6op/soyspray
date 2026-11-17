@@ -7,7 +7,7 @@ import { polyLength } from '../src/cablepath.js';
 import { PORTS, CONNECTORS } from '../src/ports.js';
 import { buildSoyrackTimeline, SoyrackStage } from '../src/soyrack/index.js';
 import { VIEWS } from '../src/soyrack/stage.js';
-import { CABLES, CABLE_BY_ID, MAST_RUN, TIES } from '../src/soyrack/cables.js';
+import { CABLES, CABLE_BY_ID, KEY_LEAD, MAST_RUN, TIES } from '../src/soyrack/cables.js';
 import { DEVICES, DEVICE_BY_ID, FLOOR_Z } from '../src/soyrack/rack.js';
 import { BUY, PRINTED, TEST_PRINTS, soyrackSheetHTML } from '../src/soyrack/sheet.js';
 import { PIECES, HOLES, JOINT, FOOT_TOP, BASE_NUT, NUT_Y, WINDOWS, onPiece } from '../src/soyrack/testprints.js';
@@ -143,6 +143,16 @@ test('every stock cord is drawn at its full length', () => {
   for (const cable of stock) {
     const full = fullLength(cable);
     assert.ok(Math.abs(full - REAL_MM[stockKind(cable.id)]) < 2, `${cable.id} is ${full.toFixed(1)} mm`);
+  }
+});
+
+// Contract: the keystone leads are drawn at the length they are crimped to, plugs included, their
+// slack drooping between the switch and the panel instead of being cut out of the picture.
+test('the keystone leads are drawn at their crimped length', () => {
+  for (const id of ['uplink', 'spareLan']) {
+    const cable = CABLES.find((c) => c.id === id);
+    assert.ok(Math.abs(fullLength(cable) - KEY_LEAD) < 2, `${id} is ${fullLength(cable).toFixed(1)} mm`);
+    assert.equal(cable.parts[0].plugs.length, 2, `${id} has a plug at each end`);
   }
 });
 

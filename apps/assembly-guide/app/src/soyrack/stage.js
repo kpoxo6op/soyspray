@@ -26,6 +26,7 @@ export const VIEWS = {
   'rear-upper': { box: [[-5, -5, 195], [258, 262, 290]], view: { azimuth: 2.6, elevation: 0.26 } },
   tall: { box: [[-5, -5, -115], [258, 245, 295]], view: { azimuth: 0.55, elevation: 0.26 } },
   rear: { box: [[-5, -5, -115], [262, 252, 295]], view: { azimuth: 2.6, elevation: 0.3 } },
+  'keystone-leads': { box: [[115, 95, 205], [205, 250, 268]], view: { azimuth: 1.64, elevation: 0.2 } },
   zigbee: { box: [[-990, -10, -115], [262, 320, 295]], view: { azimuth: 3.6, elevation: 0.42 } },
 };
 
