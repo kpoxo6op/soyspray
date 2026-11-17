@@ -188,6 +188,12 @@ A same-weight repeat within two minutes counts once. `sensor.body_weight`
 keeps long-term statistics and `sensor.weight_7_day_average` averages it. The
 Home dashboard shows them in the Weight section. Everything stays on the LAN.
 
+Weigh-in reminders work like the bin reminders: the Pixel gets "Weigh in" at
+07:30 and a nudge at 09:30 unless today's weigh-in is already recorded, with
+"In 30 min" and "Skip today" buttons. A weigh-in clears the reminder.
+`input_boolean.weight_reminders_paused` (Pause reminders on the dashboard)
+stops them.
+
 To check it, step on the scale and confirm `input_number.last_weigh_in` matches
 the display and the phone note arrives.
 
