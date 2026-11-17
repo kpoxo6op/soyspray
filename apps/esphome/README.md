@@ -7,7 +7,10 @@ flashed from the laptop and then talks to Home Assistant over the LAN through
 the ESPHome native API. No vendor cloud and no phone apps.
 
 Status (17 November 2026): the scale bridge runs on hardware and is in Home
-Assistant as device "Scale bridge" (`sensor.scale_bridge_weight`). The IR and
+Assistant as device "Scale bridge" (`sensor.scale_bridge_weight`). It publishes
+one settled weight per weigh-in (the value the display held longest) and blanks
+the sensor for a second first, so equal weights on different days still reach
+Home Assistant. Home Assistant's side is in `apps/home-assistant` (Bathroom scale). The IR and
 presence configs validate with `esphome config` but have not run on hardware.
 
 ## Why

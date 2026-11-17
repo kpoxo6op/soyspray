@@ -10,7 +10,8 @@
 #   weighing  02 8f 13 88 00 00 25 <6-byte scale MAC>   display showed 6.55 kg
 # bytes 0-1  weight, big-endian, hundredths of a kg (0x028f = 655)
 # bytes 2-3  probably impedance; 0x1388 (5000) when nobody stands barefoot
-# byte  6    0x24 idle, 0x25 with a weight (bit 0 = "reading")
+# byte  6    0x24 idle, 0x25 with a weight (bit 0 = "reading"); the scale only
+#            broadcasts the locked value, then idle frames when you step off
 # Verify bytes 2-3 with a barefoot weigh-in before trusting body-fat maths.
 substitutions:
   name: scale-bridge
@@ -32,28 +33,79 @@ esp32_ble_tracker:
             if (x.get_name().find("Yoda") != 0) return;
             for (auto &m : x.get_manufacturer_datas()) {
               const auto &d = m.data;
-              ESP_LOGV("scale", "data=%s", format_hex_pretty(d).c_str());
               if (d.size() < 7) continue;
               const uint16_t raw_weight = (uint16_t(d[0]) << 8) | d[1];
-              const uint16_t raw_impedance = (uint16_t(d[2]) << 8) | d[3];
               if (!(d[6] & 0x01) || raw_weight == 0) {
-                id(scale_raw_weight) = 0;  // idle frame: the next weigh-in publishes even if equal
+                // An idle frame ends the weigh-in.
+                if (!id(session_weights).empty() && !id(finish_weigh_in).is_running()) id(finish_weigh_in).execute();
                 continue;
               }
-              const float kg = raw_weight / 100.0f;
-              // Publish only changes; the debounce filter below keeps the settled value.
-              if (id(scale_raw_weight) != raw_weight) {
-                id(scale_raw_weight) = raw_weight;
-                id(scale_weight).publish_state(kg);
-                id(scale_impedance_raw).publish_state(raw_impedance);
-                id(scale_last_byte6).publish_state(d[6]);
+              // Count frames per displayed value; the settled value is the one shown longest.
+              auto &w = id(session_weights);
+              auto &c = id(session_counts);
+              bool found = false;
+              for (size_t i = 0; i < w.size(); i++) {
+                if (w[i] == raw_weight) { c[i]++; found = true; break; }
               }
+              if (!found && w.size() < 32) {
+                w.push_back(raw_weight);
+                c.push_back(1);
+                ESP_LOGD("scale", "new value %.2f kg (byte6 %02X)", raw_weight / 100.0f, d[6]);
+              }
+              id(session_impedance) = (uint16_t(d[2]) << 8) | d[3];
+              id(session_last_ms) = millis();
             }
 
 globals:
-  - id: scale_raw_weight
+  - id: session_weights
+    type: std::vector<uint16_t>
+  - id: session_counts
+    type: std::vector<uint16_t>
+  - id: session_impedance
     type: uint16_t
     initial_value: "0"
+  - id: settled_weight
+    type: uint16_t
+    initial_value: "0"
+  - id: session_last_ms
+    type: uint32_t
+    initial_value: "0"
+
+script:
+  - id: finish_weigh_in
+    mode: single
+    then:
+      - lambda: |-
+          auto &w = id(session_weights);
+          auto &c = id(session_counts);
+          id(settled_weight) = 0;
+          if (w.empty()) return;
+          size_t best = 0;
+          for (size_t i = 1; i < w.size(); i++) if (c[i] > c[best]) best = i;
+          // Ignore brushes and objects lighter than 2 kg, and values seen only once or twice.
+          ESP_LOGD("scale", "weigh-in ended: %u values, longest %.2f kg x%u", (unsigned) w.size(), w[best] / 100.0f, c[best]);
+          id(settled_weight) = (c[best] >= 3 && w[best] >= 200) ? w[best] : 0;
+          w.clear();
+          c.clear();
+      - if:
+          condition:
+            lambda: "return id(settled_weight) > 0;"
+          then:
+            # Blank the sensor first so Home Assistant sees a state change even when
+            # today's weight equals the last one; the weigh-in automation keys on it.
+            - lambda: "id(scale_weight).publish_state(NAN);"
+            - delay: 1s
+            - lambda: |-
+                id(scale_weight).publish_state(id(settled_weight) / 100.0f);
+                id(scale_impedance_raw).publish_state(id(session_impedance));
+
+interval:
+  - interval: 5s
+    then:
+      - lambda: |-
+          // If the scale switches off without an idle frame, close the weigh-in after 15 s.
+          if (!id(session_weights).empty() && millis() - id(session_last_ms) > 15000 && !id(finish_weigh_in).is_running())
+            id(finish_weigh_in).execute();
 
 # Lets Home Assistant use this board for other Bluetooth devices too.
 bluetooth_proxy:
@@ -67,16 +119,8 @@ sensor:
     device_class: weight
     state_class: measurement
     accuracy_decimals: 2
-    filters:
-      # The display settles over a few seconds; send only the value that held for 3 s.
-      - debounce: 3s
   - platform: template
     id: scale_impedance_raw
     name: Impedance raw
-    entity_category: diagnostic
-    accuracy_decimals: 0
-  - platform: template
-    id: scale_last_byte6
-    name: Status byte
     entity_category: diagnostic
     accuracy_decimals: 0
