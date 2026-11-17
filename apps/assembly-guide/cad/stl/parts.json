@@ -40,14 +40,14 @@
     "grams": 10
   },
   "coupon_keystone": {
-    "triangles": 1792,
+    "triangles": 1462,
     "size": [
       72,
-      34,
+      38,
       2.4
     ],
-    "volumeCm3": 4.3,
-    "grams": 5
+    "volumeCm3": 5.29,
+    "grams": 7
   },
   "coupon_post": {
     "triangles": 1824,
@@ -70,13 +70,13 @@
     "grams": 92
   },
   "keystone_panel": {
-    "triangles": 2656,
+    "triangles": 2752,
     "size": [
       224,
       34,
       9.4
     ],
-    "volumeCm3": 22.37,
+    "volumeCm3": 22.15,
     "grams": 28
   },
   "mid_deck": {

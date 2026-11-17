@@ -93,7 +93,7 @@ test('each test-print check ends with its hardware where the fit is tested', () 
   });
 
   const strip = pose('keystone', 'test-keystone');
-  WINDOWS.forEach((w, i) => near(poseAt(['coupon.key24', 'coupon.key20'][i], 'test-keystone').p, onPiece('keystone', strip, w), `coupler ${i + 1} seated`));
+  WINDOWS.forEach((w, i) => near(poseAt(['coupon.key15', 'coupon.key18'][i], 'test-keystone').p, onPiece('keystone', strip, w), `coupler ${i + 1} seated`));
 });
 
 // Contract: a tag names something that is on screen while the tag shows, inside its chapter.

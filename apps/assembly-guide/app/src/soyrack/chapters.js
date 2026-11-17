@@ -147,7 +147,7 @@ export const SOYRACK_CHAPTERS = [
   },
   {
     id: 'keystone-panel', title: 'Keystone panel', view: 'rear-upper',
-    text: 'Snap RJ45 couplers into slots 1 and 2 and blanks into 3 and 4. Fix the panel across the rear upper posts with four M4 × 12.',
+    text: 'Snap RJ45 couplers into slots 1 and 2 from outside, clip catching the thinned rim, and blanks into 3 and 4. Fix the panel across the rear upper posts with four M4 × 12.',
     script(c) {
       c.show(['keystone_panel']);
       const p = c.move('keystone_panel', HOLD_IN, 2.0, { from: [0, 90, 0], via: [0, 12, 0] });
