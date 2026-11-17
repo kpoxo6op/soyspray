@@ -61,6 +61,9 @@ data:
       bins_reminders_paused:
         name: Pause bin reminders
         icon: mdi:bell-off-outline
+      weight_reminders_paused:
+        name: Pause weigh-in reminders
+        icon: mdi:bell-off-outline
 
     input_number:
       last_weigh_in:
@@ -78,6 +81,11 @@ data:
         icon: mdi:clock-outline
         has_date: true
         has_time: true
+      weight_reminder_skipped_on:
+        name: Weigh-in reminder skipped on
+        icon: mdi:calendar-remove-outline
+        has_date: true
+        has_time: false
       bins_out_for:
         name: Bins put out for
         icon: mdi:check-circle-outline
@@ -644,7 +652,73 @@ data:
               group: weight
               tag: weight-weigh-in
               clickAction: /dashboard-home/home
+        - action: notify.mobile_app_pixel_9_pro_xl
+          data:
+            message: clear_notification
+            data:
+              tag: weight-reminder
       mode: queued
+    - id: weight_morning_reminder
+      alias: Weight reminds the phone to weigh in each morning
+      description: >-
+        Like the bin reminders: 07:30 and a 09:30 nudge, skipped once today's
+        weigh-in is recorded, when paused, or after "Skip today".
+      triggers:
+        - trigger: time
+          at: "07:30:00"
+          id: morning
+        - trigger: time
+          at: "09:30:00"
+          id: nudge
+      conditions:
+        - condition: state
+          entity_id: input_boolean.weight_reminders_paused
+          state: "off"
+        - condition: template
+          value_template: >-
+            {{ states('input_datetime.last_weigh_in_at')[:10] != now().strftime('%Y-%m-%d')
+               and states('input_datetime.weight_reminder_skipped_on') != now().strftime('%Y-%m-%d') }}
+      actions:
+        - action: script.weight_notify
+          data:
+            headline: "{{ 'Weigh in' if trigger.id == 'morning' else 'Still time to weigh in' }}"
+      mode: single
+    - id: weight_reminder_buttons
+      alias: Weight handles the phone reminder buttons
+      triggers:
+        - trigger: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: WEIGHT_SKIP
+          id: skip
+        - trigger: event
+          event_type: mobile_app_notification_action
+          event_data:
+            action: WEIGHT_SNOOZE
+          id: snooze
+      actions:
+        - choose:
+            - conditions:
+                - condition: trigger
+                  id: skip
+              sequence:
+                - action: input_datetime.set_datetime
+                  target:
+                    entity_id: input_datetime.weight_reminder_skipped_on
+                  data:
+                    date: "{{ now().strftime('%Y-%m-%d') }}"
+            - conditions:
+                - condition: trigger
+                  id: snooze
+              sequence:
+                - delay: "00:30:00"
+                - condition: template
+                  value_template: >-
+                    {{ states('input_datetime.last_weigh_in_at')[:10] != now().strftime('%Y-%m-%d') }}
+                - action: script.weight_notify
+                  data:
+                    headline: Weigh-in reminder
+      mode: restart
   scripts.yaml: |
     tapo_relax:
       alias: Tapo Relax
@@ -694,6 +768,38 @@ data:
                   title: They're out
                 - action: BINS_SNOOZE
                   title: In an hour
+    weight_notify:
+      alias: Weight reminds the phone
+      description: Phone reminder to step on the scale, with the last weigh-in and buttons.
+      mode: queued
+      fields:
+        headline:
+          description: Notification title
+          example: Weigh in
+      sequence:
+        - action: notify.mobile_app_pixel_9_pro_xl
+          data:
+            title: "{{ headline }}"
+            message: >-
+              {% set last = states('input_number.last_weigh_in') | float(0) %}
+              {% set at = as_datetime(states('input_datetime.last_weigh_in_at')) %}
+              {%- if last >= 30 and at -%}
+                Last {{ '%.2f' | format(last) }} kg on {{ (at | as_local).strftime('%a %-d %b') }}.
+              {%- else -%}No weigh-in recorded yet.{%- endif %}
+              {%- set avg = states('sensor.weight_7_day_average') %}
+              {%- if is_number(avg) %} 7-day average {{ '%.2f' | format(avg | float) }} kg.{% endif %}
+              Step on the scale before breakfast.
+            data:
+              tag: weight-reminder
+              group: weight
+              channel: Weight
+              notification_icon: mdi:scale-bathroom
+              clickAction: /dashboard-home/home
+              actions:
+                - action: WEIGHT_SNOOZE
+                  title: In 30 min
+                - action: WEIGHT_SKIP
+                  title: Skip today
     bins_mark_out:
       alias: Bins are out
       description: Record that the bins are out for the next collection and clear the reminder.
@@ -1358,6 +1464,11 @@ data:
           icon: mdi:chart-line
           color: teal
           vertical: true
+        - type: tile
+          entity: input_boolean.weight_reminders_paused
+          name: Pause reminders
+          grid_options:
+            columns: full
         - type: statistics-graph
           entities:
           - entity: sensor.body_weight

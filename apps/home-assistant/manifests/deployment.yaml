@@ -17,7 +17,7 @@ spec:
   template:
     metadata:
       annotations:
-        soyspray.vip/bootstrap-config-revision: "2026-11-17-weigh-ins"
+        soyspray.vip/bootstrap-config-revision: "2026-11-17-weigh-in-reminders"
       labels:
         app: home-assistant
         component: main
