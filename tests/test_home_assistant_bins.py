@@ -244,6 +244,7 @@ def test_home_is_one_page_and_every_other_screen_opens_from_its_section() -> Non
         "Vacuum",
         "Bins",
         "Power",
+        "Weight",
         "System",
     ]
     # Each page is opened by the arrow on exactly one Home section heading.
