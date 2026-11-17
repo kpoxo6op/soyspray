@@ -1364,7 +1364,7 @@ data:
             name: Weight
           chart_type: line
           period: day
-          days_to_show: 30
+          days_to_show: 90
           stat_types:
           - mean
           hide_legend: true
