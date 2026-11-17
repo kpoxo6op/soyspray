@@ -174,6 +174,23 @@ Inorganic collection is booked separately and is not on this calendar. To
 roll back, delete the config entry and revert the installer and dashboard
 commit; the component files remain on the PVC until removed.
 
+## Bathroom scale
+
+An ESP32 "Scale bridge" (ESPHome, `apps/esphome/`) listens for the scale's
+open BLE broadcasts and publishes one settled weight per weigh-in to
+`sensor.scale_bridge_weight`. Its ESPHome config entry (added by IP,
+`192.168.20.231`, reserved on the router) lives in the HA PVC.
+
+The `scale_weigh_in` automation stores weigh-ins of 30 kg or more in
+`input_number.last_weigh_in` and `input_datetime.last_weigh_in_at`, and sends
+the Pixel a note with the change since the last weigh-in and the 7-day average.
+A same-weight repeat within two minutes counts once. `sensor.body_weight`
+keeps long-term statistics and `sensor.weight_7_day_average` averages it. The
+Home dashboard shows them in the Weight section. Everything stays on the LAN.
+
+To check it, step on the scale and confirm `input_number.last_weigh_in` matches
+the display and the phone note arrives.
+
 ## Fellow Stagg EKG Pro
 
 The Deployment installs the unofficial `bramboe/stagg-ekg-plus-ha` custom

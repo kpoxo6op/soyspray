@@ -62,7 +62,22 @@ data:
         name: Pause bin reminders
         icon: mdi:bell-off-outline
 
+    input_number:
+      last_weigh_in:
+        name: Last weigh-in
+        icon: mdi:scale-bathroom
+        unit_of_measurement: kg
+        min: 0
+        max: 250
+        step: 0.05
+        mode: box
+
     input_datetime:
+      last_weigh_in_at:
+        name: Last weigh-in time
+        icon: mdi:clock-outline
+        has_date: true
+        has_time: true
       bins_out_for:
         name: Bins put out for
         icon: mdi:check-circle-outline
@@ -77,6 +92,17 @@ data:
           - light.top
           - light.middle
           - light.bottom
+
+    sensor:
+      - platform: statistics
+        name: Weight 7-day average
+        unique_id: weight_7_day_average
+        entity_id: sensor.body_weight
+        state_characteristic: mean
+        max_age:
+          days: 7
+        sampling_size: 50
+        precision: 2
 
     template: !include templates.yaml
     automation: !include automations.yaml
@@ -567,6 +593,58 @@ data:
               tag: bins-stale
               clickAction: /config/integrations/integration/waste_collection_schedule
       mode: single
+    - id: scale_weigh_in
+      alias: Scale records a weigh-in and sends a note to the phone
+      description: >-
+        The scale bridge publishes one settled weight per weigh-in. Reconnects
+        (from unavailable) and anything under 30 kg (bags, pets, a hand) are ignored. The board blanks the sensor before each value, so equal weights on different days still trigger.
+      triggers:
+        - trigger: state
+          entity_id: sensor.scale_bridge_weight
+      conditions:
+        - condition: template
+          value_template: >-
+            {{ trigger.from_state is not none and trigger.from_state.state != 'unavailable'
+               and is_number(trigger.to_state.state) and trigger.to_state.state | float >= 30 }}
+        # Stepping off and back on within two minutes at the same weight is one weigh-in.
+        - condition: template
+          value_template: >-
+            {% set last_at = as_datetime(states('input_datetime.last_weigh_in_at')) %}
+            {{ not (last_at and (now() - (last_at | as_local)).total_seconds() < 120
+                    and (states('input_number.last_weigh_in') | float(0) - trigger.to_state.state | float) | abs < 0.05) }}
+      actions:
+        - variables:
+            kg: "{{ trigger.to_state.state | float | round(2) }}"
+            previous: "{{ states('input_number.last_weigh_in') | float(0) }}"
+            previous_at: "{{ states('input_datetime.last_weigh_in_at') }}"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.last_weigh_in
+          data:
+            value: "{{ kg }}"
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.last_weigh_in_at
+          data:
+            datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+        - delay:
+            seconds: 2
+        - action: notify.mobile_app_pixel_9_pro_xl
+          data:
+            title: "Weight {{ '%.2f' | format(kg) }} kg"
+            message: >-
+              {% set avg = states('sensor.weight_7_day_average') %}
+              {%- if previous >= 30 -%}
+                {% set diff = kg - previous %}
+                {%- if diff | abs < 0.05 %}Same as{% elif diff < 0 %}Down {{ '%.2f' | format(-diff) }} kg since{% else %}Up {{ '%.2f' | format(diff) }} kg since{% endif %}
+                {{- ' ' ~ (as_datetime(previous_at) | as_local).strftime('%a %-d %b') if as_datetime(previous_at) else ' last time' }}.
+              {%- else -%}First weigh-in recorded.{%- endif %}
+              {%- if is_number(avg) %} 7-day average {{ '%.2f' | format(avg | float) }} kg.{% endif %}
+            data:
+              group: weight
+              tag: weight-weigh-in
+              clickAction: /dashboard-home/home
+      mode: queued
   scripts.yaml: |
     tapo_relax:
       alias: Tapo Relax
@@ -942,6 +1020,17 @@ data:
             {% elif d == 0 %}Collection today
             {% elif d == 1 %}Put out tonight
             {% else %}Next {{ state_attr('sensor.bins_next_collection', 'when') }}{% endif %}
+    # Body weight from the bathroom scale, one value per weigh-in (see the
+    # scale_weigh_in automation). state_class keeps long-term statistics.
+    - sensor:
+        - name: Body weight
+          unique_id: body_weight
+          icon: mdi:scale-bathroom
+          unit_of_measurement: kg
+          device_class: weight
+          state_class: measurement
+          availability: "{{ states('input_number.last_weigh_in') | float(0) >= 30 }}"
+          state: "{{ states('input_number.last_weigh_in') | float | round(2) }}"
   home-dashboard.yaml: |
     # Home dashboard (url /dashboard-home, the default panel and the only item
     # in the sidebar). One rule for every screen: each thing in the house is a
@@ -1252,6 +1341,35 @@ data:
           tap_action:
             action: navigate
             navigation_path: /dashboard-home/power
+      - type: grid
+        cards:
+        - type: heading
+          heading: Weight
+          icon: mdi:scale-bathroom
+        - type: tile
+          entity: sensor.body_weight
+          name: Last
+          icon: mdi:scale-bathroom
+          color: teal
+          vertical: true
+        - type: tile
+          entity: sensor.weight_7_day_average
+          name: 7-day average
+          icon: mdi:chart-line
+          color: teal
+          vertical: true
+        - type: statistics-graph
+          entities:
+          - entity: sensor.body_weight
+            name: Weight
+          chart_type: line
+          period: day
+          days_to_show: 30
+          stat_types:
+          - mean
+          hide_legend: true
+          grid_options:
+            columns: full
       - type: grid
         cards:
         - type: heading
