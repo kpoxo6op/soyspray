@@ -1,9 +1,10 @@
 // Builds the cast from the loaded models and the props drawn in code, and the small context the story poses it
 // through (S.a, S.node, S.clip, S.glow).
 
-import { Box3, BoxGeometry, Color, CylinderGeometry, DoubleSide, Group, Mesh, MeshStandardMaterial, Object3D, SphereGeometry } from 'three';
+import { Box3, BoxGeometry, Color, CylinderGeometry, DoubleSide, Group, Mesh, MeshStandardMaterial, Object3D } from 'three';
 import { Cast } from './cast.js';
 import * as P from './props.js';
+import { penIron } from './soldering/props.js';
 import { buildP1S, offcut, PETG_COLOR, petgCoil } from './p1s.js';
 
 const MM = 0.001;
@@ -51,9 +52,16 @@ export function buildScene(stage, assets) {
   cast.wrap('mat', stage.benchMat, { own: false, shown: true });
 
   // tools and loose parts from the Blender bench
-  for (const n of ['station', 'stand', 'third_hand', 'multimeter', 'iron', 'solder_tube', 'flux_pen', 'braid', 'cutters', 'tweezers', 'practice_board', 'helium_tank', 'balloon_flat', 'battery', 'stripper']) {
+  for (const n of ['stand', 'third_hand', 'multimeter', 'solder_tube', 'flux_pen', 'braid', 'cutters', 'tweezers', 'practice_board', 'helium_tank', 'balloon_flat', 'battery', 'stripper']) {
     cast.add(n, bench(n));
   }
+  // Boris's CXG pen iron (drawn in code, tip at the origin, handle along +x), with a short stub of its cord
+  const pen = penIron();
+  const stub = new Mesh(new CylinderGeometry(1.6 * MM, 1.6 * MM, 70 * MM, 10), new MeshStandardMaterial({ color: 0x1b1c1e, roughness: 0.7 }));
+  stub.rotation.z = Math.PI / 2 - 0.25;
+  stub.position.set((pen.userData.back.x + 0.034), -0.009, 0);
+  pen.add(stub);
+  cast.add('iron', pen);
   const twins = (src, names) => names.forEach((n) => cast.add(n, bench(src).clone(true)));
   twins('coin_2', ['coin1', 'coin2', 'coin3', 'coin4', 'coin5', 'coin6']);
   twins('coin_10c', ['coin7', 'coin8']);
@@ -89,21 +97,10 @@ export function buildScene(stage, assets) {
   cast.add('plate', P.buildPlate());
   cast.add('head', P.toolhead());
   cast.add('lamp', P.lamp());
-  cast.add('solder', P.solderWire(70));
-  cast.add('bead', new Mesh(new SphereGeometry(0.9 * MM, 16, 10), P.MAT.tin));
   cast.add('resistor', P.resistor());
-  for (const [n, kind] of [['jointA', 'good'], ['jointA2', 'good'], ['jGood', 'good'], ['jCold', 'cold'], ['jBlob', 'blob']]) cast.add(n, P.joint(kind));
-  cast.add('jBridge', P.bridge());
+  for (const n of ['jointA', 'jointA2']) cast.add(n, P.joint('good'));
   cast.add('jointP', P.joint('good', 0.85));
-  cast.add('wireL', P.wire('red', 45, 5));
-  cast.add('wireR', P.wire('red', 45, 5));
   cast.add('wireP', P.wire('red', 30, 2));
-  cast.add('shrinkS', P.heatshrink(12, 1.4, 'black'));
-  const splice = new Mesh(new CylinderGeometry(0.75 * MM, 0.75 * MM, 5 * MM, 16), P.MAT.tin);
-  splice.rotation.z = Math.PI / 2;
-  const spliceGroup = new Group();
-  spliceGroup.add(splice);
-  cast.add('spliceJoint', spliceGroup);
   cast.add('sleeve1', P.heatshrink(14, 0.75, 'white'));
   cast.add('sleeve2', P.heatshrink(14, 0.75, 'white'));
   const wires = new Group();
