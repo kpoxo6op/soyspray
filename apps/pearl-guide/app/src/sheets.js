@@ -165,5 +165,11 @@ export function createSheets({ root, timeline, player, onOpen, keys, chapters, k
   root.querySelector('#crumbChapter').addEventListener('click', () => open('chapters'));
   if (kit) root.querySelector('#btnKit')?.addEventListener('click', () => open('kit'));
   if (files) root.querySelector('#btnFiles')?.addEventListener('click', () => open('files'));
-  return { open, anyOpen: () => Object.values(dialogs).some((d) => d.open) };
+  return {
+    open,
+    close: () => {
+      for (const d of Object.values(dialogs)) if (d.open) d.close();
+    },
+    anyOpen: () => Object.values(dialogs).some((d) => d.open),
+  };
 }

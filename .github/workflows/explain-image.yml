@@ -67,6 +67,7 @@ jobs:
             --dump-header "$RUNNER_TEMP/explain-index.headers" -o "$RUNNER_TEMP/explain-index.html" "$base/"
           grep -q '<title>Soyspray explainers' "$RUNNER_TEMP/explain-index.html"
           grep -q '<soy-chapter href="/crimping/#crimp-plan"' "$RUNNER_TEMP/explain-index.html"
+          grep -q '<soy-chapter href="/soldering/#bench"' "$RUNNER_TEMP/explain-index.html"
           grep -q '<soy-chapter href="/assembly/#ethernet"' "$RUNNER_TEMP/explain-index.html"
           grep -qi '^cache-control: no-cache' "$RUNNER_TEMP/explain-index.headers"
           for asset in $(grep -oE 'app\.(js|css)\?v=[0-9a-f]{16}' "$RUNNER_TEMP/explain-index.html"); do

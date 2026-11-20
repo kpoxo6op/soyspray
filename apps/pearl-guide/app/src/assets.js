@@ -5,7 +5,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
 // File names carry a content revision added by the build (see build.mjs).
-const FILES = typeof __PEARL_ASSETS__ !== 'undefined' ? __PEARL_ASSETS__ : { pearl: 'data/pearl.glb', prints: 'data/prints.glb', bench: 'data/bench.glb' };
+const FILES = typeof __PEARL_BUNDLED__ !== 'undefined' ? __PEARL_ASSETS__ : { pearl: 'data/pearl.glb', prints: 'data/prints.glb', bench: 'data/bench.glb' };
 
 export const PLA = new MeshStandardMaterial({ color: 0xf3f1ec, roughness: 0.66, metalness: 0, side: DoubleSide });
 

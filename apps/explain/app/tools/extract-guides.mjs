@@ -38,6 +38,8 @@ export async function extractGuides() {
     goal: c.goal,
   }));
 
+  const { GUIDE, buildSolderTimeline } = await load('pearl-guide/app/src/soldering/story.js');
+
   return [
     {
       slug: 'assembly',
@@ -65,6 +67,14 @@ export async function extractGuides() {
       store: 'pearl.stage0.done',
       link: 'time',
       chapters: pearl,
+    },
+    {
+      slug: 'soldering', title: GUIDE.title, summary: GUIDE.summary, path: '/soldering/',
+      store: 'explain.soldering.done', link: 'id',
+      chapters: buildSolderTimeline().chapters.map((c) => ({
+        id: c.id, title: c.title, section: c.section || GUIDE.section,
+        start: round(c.start), length: round(c.end - c.start), goal: c.goal,
+      })),
     },
     await networkGuide(),
   ];

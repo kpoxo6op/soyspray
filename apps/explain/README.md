@@ -3,7 +3,7 @@
 One private site for the 3D guides: `https://explain.soyspray.vip` lists every guide
 and chapter, `/assembly/` is the Soyrack assembly guide, `/crimping/` teaches crimping its
 Ethernet leads (served by the assembly guide's image), `/pearl/` is the Pearl
-guide and `/network/` explains the home network from zero (built into this image,
+guide, `/soldering/` teaches first joints (served by the Pearl image), and `/network/` explains the home network from zero (built into this image,
 `app/network/`). It is served like the guides: a static image behind the private
 `soyspray.vip` ingress, reachable over Tailscale split DNS and the LAN only. Do not
 add a public DNS record or a tunnel for this host.
@@ -12,17 +12,20 @@ add a public DNS record or a tunnel for this host.
 
 This app serves the catalog page at `/` and the network explainer at `/network/`.
 The Soyrack and Pearl guides keep their own images and Deployments. Each guide has a second Ingress, `ingress-explain.yaml`, for
-`explain.soyspray.vip` with the path `/assembly` or `/pearl` (the assembly guide's also routes `/crimping`). ingress-nginx merges
+`explain.soyspray.vip` with the path `/assembly` or `/pearl` (the assembly guide's also routes `/crimping`; Pearl's also routes `/soldering`). ingress-nginx merges
 the three Ingresses into one server, with the certificate from this app's Ingress.
 Each guide's `nginx.conf` strips its prefix, so `/pearl/app.js?v=…` is the same file
 as `pearl.soyspray.vip/app.js?v=…`, and `/pearl` redirects to `/pearl/` so the page's
-relative asset URLs resolve.
+relative asset URLs resolve. `/soldering/` is a real folder in the Pearl image;
+its prefix is retained and `/soldering` redirects to `/soldering/`.
 
 The old hosts moved here for good: `assembly.soyspray.vip` answers with a 301 to
 `/assembly/`, and `pearl.soyspray.vip` answers with a page that carries the reader's
 ticks across before forwarding (see each guide's README). Because the guides share
 an origin with the catalog, the catalog shows each guide's own Done ticks
-(`pearl.stage0.done`, `explain.network.done` in local storage).
+(`pearl.stage0.done`, `explain.soldering.done`, `explain.network.done` in local storage).
+Soldering chapter links use ids, such as `/soldering/#bench`; its Kit panel shares
+`pearl.stage0.kit` with Pearl.
 
 ## Network explainer
 
@@ -60,7 +63,9 @@ the bridge leaves them out as a screen reader does.
 The chapter list is rendered into the HTML at build time from `app/data/guides.json`,
 so it shows before the script runs. `node tools/extract-guides.mjs` (in `app/`, after
 `npm ci` in both guide apps) regenerates that file from the guides' sources, and
-`npm test` fails when it no longer matches them.
+`npm test` fails when it no longer matches them. Soldering is extracted from
+`apps/pearl-guide/app/src/soldering/story.js`. Regenerate `guides.json` last, after
+the content builder's final chapter changes; never hand-edit it.
 
 ## Checks
 
@@ -93,6 +98,10 @@ paths and turn the old hosts into redirects to this site. Until then the old hos
 keep serving the guides as before. Roll back by reverting a promotion.
 
 Check the Application is Synced and Healthy, that `/`, `/network/`,
-`/assembly/#ethernet`, `/crimping/#crimp-plan` and `/pearl/#t=191` load from a tailnet device, that
+`/assembly/#ethernet`, `/crimping/#crimp-plan`, `/soldering/#bench` and `/pearl/#t=191` load from a tailnet device, that
 `assembly.soyspray.vip/#ethernet` and `pearl.soyspray.vip/#t=191` land on those, and that public DNS has no record for
 `explain.soyspray.vip`. The app stores nothing and needs no backup.
+
+For the soldering release, promote the Pearl image first and verify `/soldering/`
+loads before promoting this catalog image. Check a Soldering Done tick appears in
+the catalog. Roll back in the reverse order: catalog first, Pearl second.

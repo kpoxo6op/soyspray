@@ -1,7 +1,7 @@
 // Headless performance audit of the built guide (dist/). Not part of `npm test`: it needs Playwright with a
 // Chromium, which the app does not depend on. Run `npm run build` first, then:
 //   PLAYWRIGHT_PATH=/path/to/node_modules/playwright node tools/perf-audit.mjs [--max-frame-requests N]
-//     [--max-new-programs N] [--max-draw-calls N]
+//     [--max-new-programs N] [--max-draw-calls N] [--max-programs N] [--max-triangles N] [--page soldering]
 // It prints one JSON report. With a --max-* flag it exits 1 when that budget is exceeded.
 // The numbers are counts, not timings, so they are the same on any machine:
 //   frameRequests    requestAnimationFrame calls per displayed frame during playback (1 is correct)
@@ -14,13 +14,16 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const dist = resolve(here, '../dist');
 const args = process.argv.slice(2);
+const pageIndex = args.indexOf('--page');
+const pageName = pageIndex < 0 ? 'pearl' : args[pageIndex + 1];
+if (!['pearl', 'soldering'].includes(pageName)) throw new Error('--page must be pearl or soldering');
+const dist = resolve(here, '../dist', pageName === 'pearl' ? '' : pageName);
 const flag = (name) => {
   const i = args.indexOf(`--${name}`);
   return i < 0 ? null : Number(args[i + 1]);
 };
-const budgets = { frameRequests: flag('max-frame-requests'), newPrograms: flag('max-new-programs'), maxDrawCalls: flag('max-draw-calls') };
+const budgets = { frameRequests: flag('max-frame-requests'), newPrograms: flag('max-new-programs'), maxDrawCalls: flag('max-draw-calls'), programsAtReady: flag('max-programs'), maxTriangles: flag('max-triangles') };
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_PATH || 'playwright');
@@ -109,6 +112,7 @@ try {
       newPrograms: known - programsAtReady,
       lateCompiles,
       maxDrawCalls: Math.max(...chapters.map((c) => c.calls)),
+      maxTriangles: Math.max(...chapters.map((c) => c.triangles)),
       chapters,
     };
   });
@@ -124,5 +128,7 @@ if (report.pageErrors.length) failures.push(`page errors: ${report.pageErrors.jo
 if (budgets.frameRequests !== null && report.frameRequests > budgets.frameRequests) failures.push(`${report.frameRequests} frame requests per displayed frame (budget ${budgets.frameRequests})`);
 if (budgets.newPrograms !== null && report.newPrograms > budgets.newPrograms) failures.push(`${report.newPrograms} shader programs compiled after ready (budget ${budgets.newPrograms})`);
 if (budgets.maxDrawCalls !== null && report.maxDrawCalls > budgets.maxDrawCalls) failures.push(`${report.maxDrawCalls} draw calls in one frame (budget ${budgets.maxDrawCalls})`);
+if (budgets.programsAtReady !== null && report.programsAtReady > budgets.programsAtReady) failures.push(`${report.programsAtReady} programs at ready (budget ${budgets.programsAtReady})`);
+if (budgets.maxTriangles !== null && report.maxTriangles > budgets.maxTriangles) failures.push(`${report.maxTriangles} triangles in one frame (budget ${budgets.maxTriangles})`);
 for (const f of failures) console.error(`FAIL ${f}`);
 process.exit(failures.length ? 1 : 0);

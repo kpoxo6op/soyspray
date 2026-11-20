@@ -33,3 +33,23 @@ export function createLoop(step, { request = (cb) => requestAnimationFrame(cb), 
     },
   };
 }
+
+// Restart only a completed forward playthrough. Any subsequent player event cancels the wait.
+export function autoLoop(player, enabled, reducedMotion) {
+  let timer;
+  const cancel = () => {
+    clearTimeout(timer);
+    timer = undefined;
+  };
+  player.on((reason) => {
+    cancel();
+    if (!enabled || reducedMotion.matches || reason !== 'ended' || player.time !== player.duration) return;
+    timer = setTimeout(() => {
+      timer = undefined;
+      if (reducedMotion.matches) return;
+      player.seek(0, 'loop');
+      player.play();
+    }, 2500);
+  });
+  return cancel;
+}

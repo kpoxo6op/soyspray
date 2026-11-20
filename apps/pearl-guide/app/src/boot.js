@@ -5,9 +5,10 @@ import { buildTimeline, makeDirector } from './director.js';
 import { Player } from './player.js';
 import { createUI } from './ui.js';
 import { createSheets } from './sheets.js';
-import { createLoop } from './loop.js';
+import { autoLoop, createLoop } from './loop.js';
+import { loopWanted, parseHash } from './nav.js';
 
-export function startGuide({ chapters, buildScene, canvasLabel, loop, sheets: sheetOptions }) {
+export function startGuide({ chapters, buildScene, canvasLabel, loop: loopDefault = false, sheets: sheetOptions }) {
   const root = document.getElementById('app');
   const stageEl = document.getElementById('stage');
   const loading = document.getElementById('loading');
@@ -50,6 +51,7 @@ export function startGuide({ chapters, buildScene, canvasLabel, loop, sheets: sh
     const timeline = buildTimeline(chapters);
     const direct = makeDirector(stage, S, timeline);
     const player = new Player(timeline);
+    const cancelLoop = autoLoop(player, loopWanted(window.location.search, loopDefault), reducedMotion);
     let sheets = null;
     const ui = createUI({ root, player, timeline, stage, reducedMotion, onActivity: () => schedule(), dialogsOpen: () => sheets?.anyOpen() });
     sheets = createSheets({
@@ -58,7 +60,10 @@ export function startGuide({ chapters, buildScene, canvasLabel, loop, sheets: sh
       timeline,
       player,
       onOpen: (open) => {
-        if (open) player.pause();
+        if (open) {
+          cancelLoop();
+          player.pause();
+        }
       },
     });
 
@@ -98,35 +103,81 @@ export function startGuide({ chapters, buildScene, canvasLabel, loop, sheets: sh
     stage.controls.addEventListener('change', schedule);
     stage.controls.addEventListener('start', schedule);
 
+    // A tap toggles playback; drags, pinches and the second click of a double click do not.
+    let tap = null;
+    const pointers = new Set();
+    stage.canvas.addEventListener('pointerdown', (e) => {
+      pointers.add(e.pointerId);
+      tap = pointers.size === 1 && e.button === 0 ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
+    });
+    stage.canvas.addEventListener('pointermove', (e) => {
+      if (tap?.id === e.pointerId && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) >= 6) tap = null;
+    });
+    stage.canvas.addEventListener('pointerup', (e) => {
+      pointers.delete(e.pointerId);
+      if (tap?.id === e.pointerId && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) >= 6) tap = null;
+    });
+    stage.canvas.addEventListener('pointercancel', (e) => {
+      pointers.delete(e.pointerId);
+      tap = null;
+    });
+    stage.canvas.addEventListener('click', (e) => {
+      if (e.detail < 2 && (tap || e.detail === 0)) player.toggle();
+      tap = null;
+    });
+
     let hashTimer = 0;
+    let navigating = false;
     player.on((reason) => {
       schedule();
-      if (reason === 'tick' || reason === 'play' || reason === 'scrub') return;
+      if (navigating || sheets.anyOpen() || reason === 'play' || reason === 'scrub') return;
+      // While playing, write at most once a second without postponing forever on each tick.
+      if (reason === 'tick' && hashTimer) return;
       clearTimeout(hashTimer);
       hashTimer = setTimeout(() => {
+        hashTimer = 0;
+        if (sheets.anyOpen()) return;
         try {
           history.replaceState(null, '', `#t=${player.time.toFixed(1)}`);
         } catch {
           /* some browsers refuse replaceState on file:// */
         }
-      }, 250);
+      }, reason === 'tick' ? 1000 : 250);
     });
     reducedMotion.addEventListener?.('change', () => {
       stage.controls.enableDamping = !reducedMotion.matches;
-      if (reducedMotion.matches) player.pause();
+      if (reducedMotion.matches) {
+        cancelLoop();
+        player.pause();
+      }
     });
 
-    const m = /(?:^|[#&])t=(\d+(?:\.\d+)?)/.exec(window.location.hash);
-    if (m) player.seek(Number(m[1]), 'restore');
-    const panel = /(?:^|[#&])(chapters|kit|files)(?=&|$)/.exec(window.location.hash); // e.g. #files
+    function navigate() {
+      clearTimeout(hashTimer);
+      hashTimer = 0;
+      cancelLoop();
+      const target = parseHash(window.location.hash, timeline.chapters);
+      navigating = true;
+      try {
+        if (target.time !== null) {
+          sheets.close();
+          player.seek(target.time, 'restore');
+        }
+        if (target.panel) sheets.open(target.panel);
+      } finally {
+        navigating = false;
+      }
+      return target;
+    }
+    const target = navigate();
+    window.addEventListener('hashchange', navigate);
     syncInsets();
     ui.update();
     schedule();
     loading.hidden = true;
     root.classList.add('ready');
-    if (panel) sheets.open(panel[1]);
     window.__pearl = { player, timeline, stage, S, sheets };
-    if (!m && !reducedMotion.matches) {
+    if (target.time === null && !reducedMotion.matches) {
       setTimeout(() => {
         if (!player.playing && player.time === 0 && !player.scrubbing && !sheets.anyOpen()) player.play();
       }, 900);

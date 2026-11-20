@@ -27,3 +27,12 @@ test('a damaged or foreign carry changes nothing but the address', () => {
   assert.equal(b.calls.length, 2);
   assert.equal(adoptCarried({ search: '', pathname: '/pearl/', hash: '' }, b.hist), false);
 });
+
+// A carry is untrusted input: adding a page must not let old-host links write that page's progress.
+test('carried progress cannot write soldering Done ticks', () => {
+  const b = browser({ 'explain.soldering.done': '["bench"]' });
+  const payload = { 'explain.soldering.done': ['light'], 'pearl.stage0.done': ['buy'] };
+  adoptCarried({ search: `?carry=${encodeURIComponent(JSON.stringify(payload))}`, pathname: '/pearl/', hash: '' }, b.hist);
+  assert.deepEqual(JSON.parse(b.data['explain.soldering.done']), ['bench']);
+  assert.deepEqual(JSON.parse(b.data['pearl.stage0.done']), ['buy']);
+});
