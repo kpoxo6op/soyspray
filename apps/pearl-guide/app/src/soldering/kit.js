@@ -3,10 +3,10 @@
 
 import { CHECKED, GROUPS } from '../kit.js';
 
-/** Kit item ids this page uses, in ../kit.js. `station` is the pen iron's id until kit.js names it `iron`. */
+/** Kit item ids this page uses, in ../kit.js. `station` is the pen iron: the id kept the iron's ticks. */
 export const KIT_IDS = [
-  'iron', 'station', 'solder', 'flux', 'braid', 'multimeter', 'cutters', 'tweezers', 'third_hand', 'practice', 'heatshrink',
-  'mat', 'stripper', 'wire', 'jst', 'drivers', 'battery', 'glasses',
+  'station', 'solder', 'flux', 'braid', 'multimeter', 'cutters', 'tweezers', 'third_hand', 'practice', 'heatshrink', 'mat',
+  'stripper', 'wire', 'jst', 'drivers', 'battery', 'glasses', 'sponge',
 ];
 
 const groups = GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => KIT_IDS.includes(i.id)) })).filter((g) => g.items.length);
