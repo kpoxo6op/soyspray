@@ -55,9 +55,10 @@ test('the soldering chapter keeps its id and leads to the soldering page', () =>
   assert.equal(links.length, 1);
 });
 
-test('the guide names only the kit Boris has: no Jaycar trip, no stale total', () => {
+test('the guide names only the kit Boris has: no Jaycar tool trip, no station, no stale total', () => {
   const said = timeline.chapters.flatMap((c) => [c.goal, c.work, ...c.beats.map((b) => b.text)]).join('\n');
-  assert.ok(!/Jaycar/.test(said), 'no chapter sends him to Jaycar');
+  // The tools came by post; Jaycar is only for the switches and resistors still to buy.
+  assert.ok(!/One trip to Jaycar|soldering station/i.test(said), 'no chapter sends him to Jaycar for tools or names a station');
   assert.ok(!/\$\d/.test(said), 'no chapter quotes a total; the Kit panel adds it up');
   assert.ok(!/station/i.test(said), 'he has a pen iron, not a station');
 });

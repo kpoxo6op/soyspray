@@ -670,7 +670,7 @@ const solder = {
   id: 'solder',
   title: 'Solder the switched lead',
   goal: 'Put a switch in a spare battery lead, add a divider, and check both with the meter.',
-  work: 'After the switches and 10 kΩ resistors arrive',
+  work: 'After a Jaycar trip for the switches and 10 kΩ resistors',
   bench: true,
   setup(S) {
     S.a('stand').show().at(STAND[0], 0, STAND[1]);

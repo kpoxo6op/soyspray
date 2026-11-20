@@ -1,7 +1,7 @@
 // Stage 0 shopping list. Everything in "Arrived by post" came from AliExpress (orders of 1 November 2026, all arrived
 // by 20 November); it carries no price, and its links are searches for buying another. In "Still to buy", the Jaycar
-// and PB Tech prices were read on their NZ sites on 20 November 2026, the Spotlight helium price on 31 October 2026,
-// and the switch price is a typical AliExpress asking price, not a quote.
+// and PB Tech prices were read on their NZ sites on 20 November 2026 (the switch moved from AliExpress to Jaycar that
+// day so it does not take two more weeks), the Spotlight helium price on 31 October 2026.
 // Item ids are the keys of the Kit ticks (pearl.stage0.kit), shared with the soldering page: keep an id when the role
 // stays the same. `station` is the soldering iron, now the CXG pen iron, so a tick made for the iron still counts.
 
@@ -42,10 +42,10 @@ export const GROUPS = [
   {
     id: 'buy',
     title: 'Still to buy',
-    when: 'Glasses before your first joint, switches and resistors before Pearl’s switched lead. Helium is click and collect only.',
+    when: 'One Jaycar trip: glasses before your first joint, switches and resistors before Pearl’s switched lead. Helium is click and collect only.',
     items: [
       { id: 'glasses', name: 'Wrap-around clear safety glasses', code: 'TH3002', why: 'Clipped leads and solder can flick. Wear them from the first cut leg.', shop: 'Jaycar', url: jaycar('TH3002'), price: 5.9 },
-      { id: 'switch', name: 'SS-12D00 sub-miniature slide switches, 10', why: 'Pearl’s power switch, and one for the practice lead. Body about 8.5 × 3.7 mm.', shop: 'AliExpress', url: ali('ss-12d00 slide switch'), price: 3, est: true },
+      { id: 'switch', name: 'SPDT micro slide switches, 2', code: 'SS0834', why: 'One for the practice lead and one for Pearl. Check it fits the hatch’s switch cradle, drawn for an SS-12D00.', shop: 'Jaycar', url: jaycar('SS0834'), price: 6 },
       { id: 'resistors', name: '10 kΩ resistors, pack of 8', code: 'RR0596', why: 'Two make the battery divider you check with the meter.', shop: 'Jaycar', url: jaycar('RR0596'), price: 1 },
       { id: 'sleeve', name: '1.5 mm white heatshrink', code: 'WH5570', why: 'Sleeves Pearl’s red and blue motor leads so they disappear on the white pod.', shop: 'Jaycar', url: jaycar('WH5570'), price: 2.1 },
       { id: 'helium', name: 'Alpen Jumbo helium balloon tank', why: '90% helium, 10% oxygen. Enough for the first fill and several top-ups.', shop: 'Spotlight', url: 'https://www.spotlightstores.com/en-nz/p/alpen-jumbo-helium-balloon-tank/BP80530768-blue', price: 85 },
@@ -81,7 +81,7 @@ export const money = (n) => `$${n.toFixed(2).replace(/\.00$/, '')}`;
 
 export const KIT = {
   title: 'Kit for Stage 0',
-  lede: `The tools and parts came by post. What is still to buy adds up to the total under its heading. List checked ${CHECKED}; the switch price is a typical AliExpress asking price.`,
+  lede: `The tools and parts came by post. What is still to buy adds up to the total under its heading. List checked ${CHECKED}.`,
   checked: CHECKED,
   groups: GROUPS,
 };
