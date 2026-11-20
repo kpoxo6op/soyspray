@@ -27,7 +27,6 @@ const PRINT_AT = {
   print_duct2: [0.05, 0.055],
 };
 const STAND = [0.0, -0.19];
-const STATION = [-0.17, -0.2];
 const BOARD = { x: 0.0, y: 0.0046, z: 0.02 }; // practice board resting on its resistor
 const PAD_TOP = BOARD.y + 1.65 * MM;
 const J1 = [BOARD.x - 3.81 * MM, PAD_TOP, BOARD.z - 1.27 * MM];
@@ -128,12 +127,11 @@ const ONLINE = [
   ['wires', -0.33, 0, 0.1, 0],
   ['stripper', -0.42, 0.004, 0.16, 0],
 ];
-const JAYCAR = [
-  ['station', STATION[0], 0, STATION[1], 0],
+const POSTED = [
   ['stand', 0.06, 0, -0.205, 0],
   ['third_hand', 0.28, 0, -0.2, -0.3],
   ['multimeter', -0.13, MAT_Y, 0.02, 0],
-  ['iron', -0.05, MAT_Y + 0.0098, -0.08, 0],
+  ['iron', -0.05, MAT_Y + 0.012, -0.08, 0],
   ['solder_tube', -0.04, MAT_Y + 0.0075, -0.035, 0],
   ['flux_pen', -0.04, MAT_Y + 0.007, -0.005, 0],
   ['braid', 0.15, MAT_Y, -0.03, 0],
@@ -168,8 +166,8 @@ function lay(S, list, u, stagger = 0.045) {
 const buy = {
   id: 'buy',
   title: 'Buy the kit',
-  goal: 'Order the online parts first, then make one trip to Jaycar.',
-  work: '1 hour, then 1 to 3 weeks of post',
+  goal: 'Everything came by post except a few things still to buy.',
+  work: '30 minutes to unpack and order the rest',
   bench: true,
   setup(S) {
     S.a('mat').show(0);
@@ -177,7 +175,7 @@ const buy = {
   beats: [
     {
       d: 9,
-      text: 'Order these online today: a 0.01 g scale, balloons, motors, props, a small battery, leads and fine wire.',
+      text: 'These came by post: a 0.01 g scale, balloons, motors, props, a small battery, leads and fine wire.',
       cam: { p: [-0.42, 0.62, 0.42], t: [-0.43, 0, -0.01], fov: 32 },
       act(S, u) {
         lay(S, ONLINE, u * 1.15, 0.04);
@@ -194,31 +192,31 @@ const buy = {
     },
     {
       d: 9,
-      text: 'One trip to Jaycar: a temperature-controlled iron, solder, flux, a multimeter, hand tools and a practice kit.',
+      text: 'The soldering tools came by post: a pen iron, solder, flux, a meter, hand tools and a practice kit.',
       cam: { p: [0.03, 0.74, 0.62], t: [0.04, 0, -0.06], fov: 32 },
       act(S, u) {
         lay(S, ONLINE, 1);
         S.a('mat').show(smooth(u * 3));
-        lay(S, JAYCAR, u * 1.12, 0.045);
+        lay(S, POSTED, u * 1.12, 0.045);
       },
       labels: (S, u) =>
         u > 0.75
           ? [
-              { id: 'st', text: 'soldering station', at: S.node('station'), side: 't' },
+              { id: 'pen', text: 'pen iron', at: S.node('iron'), side: 't' },
               { id: 'mm', text: 'multimeter', at: S.node('multimeter'), side: 'l' },
               { id: 'kit', text: 'practice kit', at: S.node('practice_board'), side: 'r' },
-              { id: 'th', text: 'third hand', at: S.node('third_hand'), side: 't' },
+              { id: 'th', text: 'helping hands', at: S.node('third_hand'), side: 't' },
             ]
           : [],
     },
     {
-      d: 9,
-      text: 'Then a helium tank from Spotlight and a spool of matte white PLA. Coins, a cup and thread come from home.',
+      d: 10,
+      text: 'Still to buy: a helium tank from Spotlight, matte white PLA, glasses, switches and resistors. The rest is from home.',
       cam: { p: [0.56, 0.86, 0.98], t: [0.42, 0.12, -0.03], fov: 32 },
       act(S, u) {
         lay(S, ONLINE, 1);
         S.a('mat').show();
-        lay(S, JAYCAR, 1);
+        lay(S, POSTED, 1);
         lay(S, OTHER, u * 1.2, 0.05);
       },
       labels: (S, u) =>
@@ -231,12 +229,12 @@ const buy = {
     },
     {
       d: 8,
-      text: 'About $530 in all, and the tools last the whole build. Open Kit for every link and price.',
+      text: 'All of Stage 0 on one mat. Open Kit to tick what you have and to see what is still to buy.',
       cam: { p: [0.02, 1.3, 1.18], t: [0.02, 0.06, -0.06], fov: 34 },
       act(S) {
         lay(S, ONLINE, 1);
         S.a('mat').show();
-        lay(S, JAYCAR, 1);
+        lay(S, POSTED, 1);
         lay(S, OTHER, 1);
       },
       check: true,
@@ -659,138 +657,43 @@ function probes(S, a, red, black) {
   S.a('cordB').show().obj.userData.setEnds(tops[1], jack(-0.028));
 }
 
+// The practice driver board from the soldering page's last chapter: one red wire soldered to its VIN pad.
+function practiceDriver(S) {
+  const d = S.a('driver1').show().at(-0.1, MAT_Y, 0.03).turn(Math.PI / 2);
+  d.obj.updateMatrixWorld(true);
+  const pad = S.node('driver1', 'A driver VIN').getWorldPosition(new Vector3());
+  S.a('wireP').show().at(pad.x + 0.029, pad.y + 0.0004, pad.z).turn(Math.PI);
+  S.a('jointP').show().at(pad.x, pad.y - 0.0002, pad.z);
+}
+
 const solder = {
   id: 'solder',
-  title: 'Learn to solder',
-  goal: 'Practise until every joint looks like the good one.',
-  work: '1 to 2 evenings',
+  title: 'Solder the switched lead',
+  goal: 'Put a switch in a spare battery lead, add a divider, and check both with the meter.',
+  work: 'After the switches and 10 kΩ resistors arrive',
   bench: true,
   setup(S) {
-    S.a('station').show().at(STATION[0], 0, STATION[1]).turn(0.25);
     S.a('stand').show().at(STAND[0], 0, STAND[1]);
     S.a('practice_board').show().at(BOARD.x, BOARD.y, BOARD.z);
     S.a('resistor').show().at(BOARD.x + 1.27 * MM, 0.00645, BOARD.z - 1.27 * MM).turn(0, Math.PI, 0);
+    S.a('jointA').show().at(J1[0], PAD_TOP - 0.0001, J1[2]);
+    S.a('jointA2').show().at(J2[0], PAD_TOP - 0.0001, J2[2]);
     S.a('solder_tube').show().at(0.1, MAT_Y + 0.0075, -0.07).turn(0.4);
     S.a('flux_pen').show().at(0.11, MAT_Y + 0.007, -0.045).turn(0.4);
     S.a('braid').show().at(0.15, MAT_Y, 0.095);
     ironAt(S, IRON_REST, 0, 0.47);
+    practiceDriver(S);
   },
   beats: [
     {
       d: 8,
-      text: 'Set the iron to 330 °C. Wet the sponge, open a window and put your glasses on.',
-      cam: { p: [0.05, 0.36, 0.5], t: [-0.03, 0.03, -0.07], fov: 32 },
+      text: 'Learn on the soldering page first: 39 short steps that end with wires on a spare driver board.',
+      link: { href: '../soldering/', text: 'Open the soldering page' },
+      cam: { p: [0.06, 0.34, 0.44], t: [-0.03, 0.02, -0.07], fov: 32 },
       labels: (S) => [
-        { id: 'knob', text: '330 °C', at: S.node('station', null, [-0.018, 0.052, 0.062]), side: 't', strong: true },
-        { id: 'sp', text: 'wet sponge', at: S.node('stand', null, [-0.025, 0.024, 0]), side: 't' },
+        { id: 'pen', text: 'pen iron', at: S.a('iron').obj.userData.grip, side: 't' },
+        { id: 'drv', text: 'spare driver board', at: S.node('driver1'), side: 'l' },
       ],
-    },
-    {
-      d: 9,
-      text: 'Tin the tip: melt a little solder onto it, then wipe it on the sponge. A shiny tip passes heat well.',
-      cam: { p: [0.1, 0.115, 0.02], t: [0.03, 0.08, -0.09], fov: 30 },
-      act(S, u) {
-        const up = easeInOut(span(u, 0.0, 0.25));
-        const wipe = easeInOut(span(u, 0.62, 0.8));
-        const back = easeInOut(span(u, 0.85, 1));
-        const air = [0.03, 0.08, -0.09];
-        let p = mix3(IRON_REST, air, up);
-        p = mix3(p, [SPONGE[0] + 0.006, SPONGE[1] + 0.002, SPONGE[2]], wipe);
-        p = mix3(p, air, back);
-        ironAt(S, p, lerp(0, -0.5, up), lerp(0.47, 0.7, up));
-        if (wipe > 0 && wipe < 1) S.a('iron').obj.position.z += 0.012 * Math.sin(span(u, 0.62, 0.8) * TAU * 1.5);
-        const feed = span(u, 0.28, 0.55);
-        if (feed > 0 && feed < 1) {
-          const tip = mix3([air[0] - 0.03, air[1] + 0.004, air[2]], [air[0] - 0.0012, air[1] + 0.0006, air[2]], easeOut(feed * 1.6));
-          S.a('solder').show().at(tip[0], tip[1], tip[2]).turn(Math.PI, 0, 0.35);
-          S.a('bead').show().at(air[0] + 0.0004, air[1] + 0.0002, air[2]).size(0.4 + 0.8 * span(feed, 0.4, 1));
-        }
-      },
-    },
-    {
-      d: 8,
-      text: 'Touch the iron to the pad and the lead together, and count one second while they heat.',
-      cam: { p: [0.045, 0.06, 0.07], t: [J1[0], J1[1] + 0.001, J1[2]], fov: 28 },
-      act(S, u) {
-        const w = easeInOut(span(u, 0.05, 0.4));
-        ironAt(S, mix3([0.04, 0.07, -0.03], [J1[0] + 0.0009, J1[1] + 0.0008, J1[2]], w), -0.5, 0.72);
-      },
-      labels: (S, u) => (u > 0.45 ? [{ id: 'pl', text: 'pad and lead', at: v3(J1[0], J1[1], J1[2]), side: 'l' }] : []),
-    },
-    {
-      d: 8,
-      text: 'Feed solder into the joint, not onto the iron. Take the solder away first, then the iron.',
-      cam: { p: [0.04, 0.05, 0.065], t: [J1[0], J1[1] + 0.001, J1[2]], fov: 28 },
-      act(S, u) {
-        const away = easeInOut(span(u, 0.7, 0.92));
-        ironAt(S, mix3([J1[0] + 0.0009, J1[1] + 0.0008, J1[2]], [0.04, 0.07, -0.03], away), -0.5, 0.72);
-        const feed = easeInOut(span(u, 0.08, 0.35));
-        const out = easeInOut(span(u, 0.5, 0.68));
-        const tip = mix3(mix3([J1[0] - 0.02, J1[1] + 0.01, J1[2]], [J1[0] - 0.0012, J1[1] + 0.0009, J1[2]], feed), [J1[0] - 0.02, J1[1] + 0.012, J1[2]], out);
-        if (out < 1) S.a('solder').show().at(tip[0], tip[1], tip[2]).turn(Math.PI, 0, 0.45);
-        const g = smooth(span(u, 0.25, 0.55));
-        S.a('jointA').show(g > 0 ? 1 : 0).at(J1[0], PAD_TOP - 0.0001, J1[2]).size([0.3 + 0.7 * g, Math.max(0.01, g), 0.3 + 0.7 * g]);
-      },
-    },
-    {
-      d: 9,
-      text: 'Compare yours with these. Reheat a dull joint with a dab of flux. Soak up extra solder with braid.',
-      cam: { p: [0.0, 0.07, 0.065], t: [0.0, PAD_TOP, BOARD.z + 0.008], fov: 30 },
-      act(S) {
-        S.a('jointA').show().at(J1[0], PAD_TOP - 0.0001, J1[2]);
-        const row = BOARD.z + 1.27 * MM + 2.54 * 3 * MM;
-        S.a('jGood').show().at(BOARD.x - 8.89 * MM, PAD_TOP, row);
-        S.a('jCold').show().at(BOARD.x - 3.81 * MM, PAD_TOP, row);
-        S.a('jBlob').show().at(BOARD.x + 1.27 * MM, PAD_TOP, row);
-        S.a('jBridge').show().at(BOARD.x + 7.62 * MM, PAD_TOP, row);
-      },
-      labels: (S) => {
-        const row = BOARD.z + 1.27 * MM + 2.54 * 3 * MM;
-        return [
-          { id: 'g', text: 'good: shiny cone', at: v3(BOARD.x - 8.89 * MM, PAD_TOP + 0.002, row), side: 't', strong: true },
-          { id: 'c', text: 'cold: dull lump', at: v3(BOARD.x - 3.81 * MM, PAD_TOP + 0.002, row), side: 'b' },
-          { id: 'b', text: 'too much', at: v3(BOARD.x + 1.27 * MM, PAD_TOP + 0.003, row), side: 't' },
-          { id: 'br', text: 'bridge', at: v3(BOARD.x + 7.62 * MM, PAD_TOP + 0.002, row), side: 'b' },
-        ];
-      },
-    },
-    {
-      d: 11,
-      text: 'Splice two wires: heatshrink on first, twist the bare ends, solder them, then slide it over and shrink it.',
-      cam: { p: [0.0, 0.07, 0.15], t: [0.0, 0.02, 0.08], fov: 28 },
-      act(S, u) {
-        const y = 0.02;
-        const z = 0.08;
-        const meet = easeInOut(span(u, 0.0, 0.2));
-        S.a('wireL').show().at(lerp(-0.055, -0.047, meet), y, z);
-        S.a('wireR').show().at(lerp(0.055, 0.047, meet), y, z).turn(Math.PI);
-        const slide = easeInOut(span(u, 0.72, 0.88));
-        const shrink = smooth(span(u, 0.88, 1));
-        S.a('shrinkS').show().at(lerp(-0.025, 0.0, slide), y, z).size([1, 1, 1].map((s, i) => (i === 1 ? 1 : 1 - 0.38 * shrink)));
-        S.a('shrinkS').obj.rotation.set(0, 0, Math.PI / 2);
-        const sol = smooth(span(u, 0.35, 0.6));
-        if (sol > 0) S.a('spliceJoint').show().at(0, y, z).size([1, sol, sol]);
-        const iron = span(u, 0.3, 0.68);
-        if (iron > 0 && iron < 1) ironAt(S, [0.0015, y + 0.0012, z], -0.5, 0.72);
-        const feed = span(u, 0.38, 0.6);
-        if (feed > 0 && feed < 1) S.a('solder').show().at(-0.0015, y + 0.0012, z + 0.001).turn(Math.PI + 0.4, 0, 0.5);
-      },
-    },
-    {
-      d: 9,
-      text: "Pearl's joints are this small: 28 AWG wire on a 1 mm pad. Practise four of them on a spare driver board.",
-      cam: { p: [0.03, 0.045, 0.05], t: [-0.1, 0.004, 0.03], fov: 26 },
-      act(S, u) {
-        const d = S.a('driver1').show().at(-0.1, MAT_Y, 0.03).turn(Math.PI / 2);
-        const pad = S.node('driver1', 'A driver VIN').getWorldPosition(new Vector3());
-        d.obj.updateMatrixWorld(true);
-        const lay = easeInOut(span(u, 0.05, 0.3));
-        S.a('wireP').show().at(pad.x + 0.029 + 0.03 * (1 - lay), pad.y + 0.0004, pad.z).turn(Math.PI);
-        const heat = span(u, 0.35, 0.75);
-        if (heat > 0 && heat < 1) ironAt(S, [pad.x - 0.0006, pad.y + 0.0007, pad.z], 2.4, 0.8);
-        const g = smooth(span(u, 0.45, 0.7));
-        S.a('jointP').show(g > 0 ? 1 : 0).at(pad.x, pad.y - 0.0002, pad.z).size([0.5 + 0.5 * g, Math.max(0.01, g * 0.7), 0.5 + 0.5 * g]);
-      },
     },
     {
       d: 10,
@@ -828,12 +731,9 @@ const solder = {
     },
     {
       d: 9,
-      text: 'Ten joints that match the good one, two splices, a driver board and a switched lead. Good place to stop.',
-      cam: { p: [0.1, 0.25, 0.36], t: [0.0, 0.01, 0.0], fov: 32 },
+      text: 'A lead that beeps only when switched on, and a divider that reads half the battery. Good place to stop.',
+      cam: { p: [-0.05, 0.16, 0.25], t: [-0.1, 0.0, 0.07], fov: 32 },
       act(S) {
-        S.a('jointA').show().at(J1[0], PAD_TOP - 0.0001, J1[2]);
-        S.a('jointA2').show().at(J2[0], PAD_TOP - 0.0001, J2[2]);
-        S.a('driver1').show().at(-0.1, MAT_Y, 0.03).turn(Math.PI / 2);
         divider(S, switchedLead(S, 1), 1);
         S.a('switch').obj.userData.lever.position.x = -MM;
       },
@@ -1081,5 +981,5 @@ export const buildTimeline = (chapters = CHAPTERS) => timelineOf(chapters);
 
 export const GUIDE = {
   title: 'Stage 0: before the pod',
-  lede: 'Buy the tools, print Pearl’s pod, learn to solder and float your first orb. About three weeks with the post, and four evenings of work.',
+  lede: 'Check the kit, print Pearl’s pod, solder the switched lead and float your first orb. About four evenings of work.',
 };
