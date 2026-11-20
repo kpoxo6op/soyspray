@@ -11,7 +11,7 @@
 
 import { Vector3 } from 'three';
 import { clamp, drop, easeInOut, easeOut, lerp, mix3, smooth, span } from '../anim.js';
-import { buildTimeline } from '../story.js'; // moves to '../director.js' with the seam
+import { buildTimeline } from '../director.js';
 
 export const GUIDE = {
   slug: 'soldering',
@@ -237,11 +237,10 @@ const bench = {
       d: 9,
       text: 'Put glasses on and open a window. The smoke is burnt flux and should drift away from your face.',
       cam: { p: [-0.05, 0.13, 0.42], t: [-0.03, 0.035, 0.0], fov: 32 },
-      act(S, u, k) {
+      act(S, u) {
+        // no smoke yet: the iron is cold until 1.5, and smoke rises only while solder or flux is on heat
         const { dy, alpha } = drop(span(u, 0.05, 0.4), 0.05);
         S.a('glasses').show(alpha).at(-0.075, MAT_Y + dy, 0.122);
-        // one wisp from where the tip will be, bending away from you
-        smokeAt(S, ironPt(IRON_MAT, 0, 0), smooth(span(u, 0.35, 0.55)), k);
       },
       labels: (S, u) =>
         u > 0.4
