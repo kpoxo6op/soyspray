@@ -54,7 +54,10 @@ test('soldering ships only its revisioned runtime, bench and decoder', () => {
     assert.ok(statSync(resolve(dist, 'soldering/draco', file)).size > 1000);
     assert.equal(digest(`soldering/draco/${file}`), digest(`draco/${file}`));
   }
-  assert.ok(statSync(resolve(dist, 'soldering/app.js')).size < statSync(resolve(dist, 'app.js')).size, 'Pearl story and printer stay out of soldering');
+  for (const pearlOnly of ['Stage 0 gets you ready', 'purge chute']) {
+    assert.ok(readFileSync(resolve(dist, 'app.js'), 'utf8').includes(pearlOnly), `Pearl bundle has "${pearlOnly}"`);
+    assert.equal(bundle.includes(pearlOnly), false, `Pearl story and printer stay out of soldering ("${pearlOnly}")`);
+  }
   assert.doesNotMatch(solder, /btnFiles|filesSheet/);
 });
 

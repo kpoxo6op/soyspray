@@ -15,8 +15,9 @@ and its certificate so old links keep landing on the redirect.
 
 Stage 0 is a 3D player in seven chapters: meet Pearl, buy the kit, load the
 printer (about 2 m of leftover PETG through Boris's Bambu Lab P1S, and a first
-side duct), print the pod, learn to solder (ending with a battery lead that has
-Pearl's power switch and its 2 × 10 kΩ battery divider, checked on the meter),
+side duct), print the pod, solder the switched lead (it points to the soldering
+page first, then solders Pearl's power switch and its 2 × 10 kΩ battery divider
+into a battery lead, checked on the meter, once those parts arrive),
 float the first orb (lift test, with the pod's margin) and spin a fan (thrust
 test). It follows the Pearl repository's v3.1 design as of its 9 Nov 2026 design
 check: switch cradle on the hatch, 10 kΩ divider on D10, slicer print weight in
@@ -32,7 +33,12 @@ It builds from `app/src/soldering-main.js` and the content in `app/src/soldering
 Its folder ships only `data/bench.glb`, its own Draco decoder and revisioned JS/CSS;
 there is no Files panel. A null kit omits the Kit button and dialog.
 
-**Content placeholder:** Soldering chapters: (content builder fills in)
+It is six chapters and 39 beats, about 6 minutes a loop, written for a first-time
+solderer with the kit Boris bought: set up the bench, your first joint, fix a bad
+joint, build the traffic light, join two wires and Pearl-size pads. Each chapter ends
+at a checkpoint, and `#bench`, `#first`, `#fix`, `#light`, `#wires` or `#small` opens
+one. The page loops by default (`?loop=0` turns that off) so it can run on the TV at
+the bench. Its Kit panel shows the soldering part of Pearl's list.
 
 Both pages accept `#<chapter-id>`, `#t=<seconds>`, `#chapters`, `#kit` and
 `#t=<seconds>&kit` on load and when the hash changes. Pearl also accepts `#files`.
