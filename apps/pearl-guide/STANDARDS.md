@@ -57,9 +57,10 @@ chapter. Change them only with a dated line at the end.
 
 ## Kit and files
 
-- Each item: the exact product, shop and code, the price with the date it was
-  read, and one line on why it is needed. AliExpress items get a search link,
-  what to pick and a typical price marked "about".
+- Each item: the exact product and one line on why it is needed. Items already
+  on the bench carry no price; items still to buy carry the shop and code and
+  the price with the date it was read. AliExpress items get a search link, what
+  to pick and, when still to buy, a typical price marked "about".
 - Files come from the current design, with settings for the printer Boris owns
   (Bambu Lab P1S) and the weights to expect.
 - Printer steps follow Bambu's own instructions for the P1S. Temperatures name
@@ -78,3 +79,5 @@ chapter. Change them only with a dated line at the end.
 - 31 Oct 2026: written with Stage 0.
 - 31 Oct 2026: performance rules added after the first version lagged on Boris's phone.
 - 1 Nov 2026: printer steps rule and the printer drawn in code, for the loading chapter.
+- 20 Nov 2026: kit split into arrived and still to buy; soldering page added (loops, beat links); short landscape
+  screens such as a TV step the camera back as portrait does.

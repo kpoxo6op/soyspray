@@ -81,7 +81,7 @@ export const money = (n) => `$${n.toFixed(2).replace(/\.00$/, '')}`;
 
 export const KIT = {
   title: 'Kit for Stage 0',
-  lede: `The tools and parts came by post. What is still to buy comes to about ${money(Math.round(totals().by.buy / 10) * 10)}. List checked ${CHECKED}; the switch price is a typical AliExpress asking price.`,
+  lede: `The tools and parts came by post. What is still to buy adds up to the total under its heading. List checked ${CHECKED}; the switch price is a typical AliExpress asking price.`,
   checked: CHECKED,
   groups: GROUPS,
 };

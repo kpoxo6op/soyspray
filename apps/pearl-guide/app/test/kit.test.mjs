@@ -2,7 +2,7 @@
 // working kind of link, a price with its date and a reason.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CHECKED, GROUPS, KIT, money, totals } from '../src/kit.js';
+import { CHECKED, GROUPS, KIT, totals } from '../src/kit.js';
 import { KIT as SOLDERING_KIT, KIT_IDS } from '../src/soldering/kit.js';
 import { checkCopy, checkTitles, kitStrings } from './rules.mjs';
 
@@ -50,11 +50,12 @@ test('ticks carry over: ids keep their roles', () => {
   }
 });
 
-test('the Kit panel quotes the total of what is still to buy', () => {
+test('the Kit panel shows one total for what is still to buy, under its heading', () => {
   const t = totals();
   const sum = GROUPS.flatMap((g) => g.items).reduce((s, i) => s + (i.price || 0), 0);
   assert.equal(Math.round(t.all * 100), Math.round(sum * 100));
-  assert.ok(KIT.lede.includes(money(Math.round(t.by.buy / 10) * 10)), KIT.lede);
+  // the panel adds each group up under its heading; a second, rounded figure in the lede would disagree with it
+  assert.ok(!/\$\d/.test(KIT.lede), KIT.lede);
   assert.ok(KIT.lede.includes(CHECKED));
   checkCopy([KIT.title, KIT.lede, ...kitStrings(GROUPS)]);
   checkTitles([KIT.title, ...GROUPS.map((g) => g.title)]);
