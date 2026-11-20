@@ -80,3 +80,10 @@ export function totals() {
 }
 
 export const money = (n) => `$${n.toFixed(2).replace(/\.00$/, '')}`;
+
+export const KIT = {
+  title: 'Kit for Stage 0',
+  lede: `About ${money(Math.round(totals().all / 10) * 10)} in all. The tools carry on through the whole build. Prices checked ${CHECKED}; AliExpress ones are typical asking prices.`,
+  checked: CHECKED,
+  groups: GROUPS,
+};

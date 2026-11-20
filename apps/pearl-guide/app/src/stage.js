@@ -90,7 +90,7 @@ function matTexture() {
 }
 
 export class Stage {
-  constructor({ container, labelLayer, reducedMotion = false, phone = false }) {
+  constructor({ container, labelLayer, reducedMotion = false, phone = false, canvasLabel = 'Pearl, 3D view. Drag to turn, scroll or pinch to zoom.' }) {
     this.container = container;
     this.labelLayer = labelLayer;
     this.reducedMotion = reducedMotion;
@@ -122,7 +122,7 @@ export class Stage {
     this.renderer = renderer;
     this.canvas = renderer.domElement;
     this.canvas.setAttribute('role', 'img');
-    this.canvas.setAttribute('aria-label', 'Pearl, 3D view. Drag to turn, scroll or pinch to zoom.');
+    this.canvas.setAttribute('aria-label', canvasLabel);
 
     const scene = new Scene();
     const pmrem = new PMREMGenerator(renderer);
