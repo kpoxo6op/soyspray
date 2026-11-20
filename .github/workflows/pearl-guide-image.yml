@@ -97,22 +97,30 @@ jobs:
           curl --silent "${host[@]}" --dump-header "$RUNNER_TEMP/solder-prefix.headers" --output /dev/null "$base/soldering"
           grep -qi '^HTTP/1.1 301' "$RUNNER_TEMP/solder-prefix.headers"
           grep -qi '^location: /soldering/\s*$' "$RUNNER_TEMP/solder-prefix.headers"
+          curl --silent "${host[@]}" --dump-header "$RUNNER_TEMP/solder-alias.headers" --output /dev/null "$base/pearl/soldering/"
+          grep -qi '^HTTP/1.1 301' "$RUNNER_TEMP/solder-alias.headers"
+          grep -qi '^location: /soldering/\s*$' "$RUNNER_TEMP/solder-alias.headers"
           curl --fail --silent "${host[@]}" --dump-header "$RUNNER_TEMP/solder-index.headers" \
             --output "$RUNNER_TEMP/solder-index.html" "$base/soldering/"
           grep -qi '^HTTP/1.1 200' "$RUNNER_TEMP/solder-index.headers"
           grep -qi '^cache-control: no-cache' "$RUNNER_TEMP/solder-index.headers"
           grep -q '<title>Soldering' "$RUNNER_TEMP/solder-index.html"
           script="$(grep -oE 'app\.js\?v=[0-9a-f]{16}' "$RUNNER_TEMP/solder-index.html" | head -1)"
-          curl --fail --silent "${host[@]}" --header 'Accept-Encoding: gzip' \
-            --dump-header "$RUNNER_TEMP/solder-app.headers" --output /dev/null "$base/soldering/$script"
-          grep -qi '^HTTP/1.1 200' "$RUNNER_TEMP/solder-app.headers"
-          grep -qi '^content-encoding: gzip' "$RUNNER_TEMP/solder-app.headers"
-          grep -qi '^cache-control: public, max-age=31536000, immutable' "$RUNNER_TEMP/solder-app.headers"
-          for path in data/bench.glb draco/draco_decoder.wasm; do
+          style="$(grep -oE 'app\.css\?v=[0-9a-f]{16}' "$RUNNER_TEMP/solder-index.html" | head -1)"
+          test -n "$script" && test -n "$style"
+          for path in "$script" "$style"; do
+            curl --fail --silent "${host[@]}" --header 'Accept-Encoding: gzip' \
+              --dump-header "$RUNNER_TEMP/solder-app.headers" --output /dev/null "$base/soldering/$path"
+            grep -qi '^HTTP/1.1 200' "$RUNNER_TEMP/solder-app.headers"
+            grep -qi '^content-encoding: gzip' "$RUNNER_TEMP/solder-app.headers"
+            grep -qi '^cache-control: public, max-age=31536000, immutable' "$RUNNER_TEMP/solder-app.headers"
+          done
+          for path in data/bench.glb draco/draco_decoder.wasm draco/draco_wasm_wrapper.js; do
             curl --fail --silent "${host[@]}" --header 'Accept-Encoding: gzip' \
               --dump-header "$RUNNER_TEMP/solder-asset.headers" --output /dev/null "$base/soldering/$path"
             grep -qi '^HTTP/1.1 200' "$RUNNER_TEMP/solder-asset.headers"
             grep -qi '^content-encoding: gzip' "$RUNNER_TEMP/solder-asset.headers"
+            grep -qi '^cache-control: no-cache' "$RUNNER_TEMP/solder-asset.headers"
           done
           test "$(curl --silent "${host[@]}" --output /dev/null --write-out '%{http_code}' "$base/soldering/missing")" = 404
           test "$(curl --silent --header 'Host: pearl.soyspray.vip' --output /dev/null \

@@ -5,8 +5,8 @@ import { buildTimeline, makeDirector } from './director.js';
 import { Player } from './player.js';
 import { createUI } from './ui.js';
 import { createSheets } from './sheets.js';
-import { autoLoop, createLoop } from './loop.js';
-import { loopWanted, parseHash } from './nav.js';
+import { autoplay, autoLoop, createLoop } from './loop.js';
+import { createTapTracker, loopWanted, parseHash } from './nav.js';
 
 export function startGuide({ chapters, buildScene, canvasLabel, loop: loopDefault = false, sheets: sheetOptions }) {
   const root = document.getElementById('app');
@@ -51,7 +51,8 @@ export function startGuide({ chapters, buildScene, canvasLabel, loop: loopDefaul
     const timeline = buildTimeline(chapters);
     const direct = makeDirector(stage, S, timeline);
     const player = new Player(timeline);
-    const cancelLoop = autoLoop(player, loopWanted(window.location.search, loopDefault), reducedMotion);
+    const looping = loopWanted(window.location.search, loopDefault);
+    const cancelLoop = autoLoop(player, looping, reducedMotion, stage.controls);
     let sheets = null;
     const ui = createUI({ root, player, timeline, stage, reducedMotion, onActivity: () => schedule(), dialogsOpen: () => sheets?.anyOpen() });
     sheets = createSheets({
@@ -104,27 +105,8 @@ export function startGuide({ chapters, buildScene, canvasLabel, loop: loopDefaul
     stage.controls.addEventListener('start', schedule);
 
     // A tap toggles playback; drags, pinches and the second click of a double click do not.
-    let tap = null;
-    const pointers = new Set();
-    stage.canvas.addEventListener('pointerdown', (e) => {
-      pointers.add(e.pointerId);
-      tap = pointers.size === 1 && e.button === 0 ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
-    });
-    stage.canvas.addEventListener('pointermove', (e) => {
-      if (tap?.id === e.pointerId && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) >= 6) tap = null;
-    });
-    stage.canvas.addEventListener('pointerup', (e) => {
-      pointers.delete(e.pointerId);
-      if (tap?.id === e.pointerId && Math.hypot(e.clientX - tap.x, e.clientY - tap.y) >= 6) tap = null;
-    });
-    stage.canvas.addEventListener('pointercancel', (e) => {
-      pointers.delete(e.pointerId);
-      tap = null;
-    });
-    stage.canvas.addEventListener('click', (e) => {
-      if (e.detail < 2 && (tap || e.detail === 0)) player.toggle();
-      tap = null;
-    });
+    const tapEvents = createTapTracker(() => player.toggle());
+    for (const [type, handler] of Object.entries(tapEvents)) stage.canvas.addEventListener(type, handler);
 
     let hashTimer = 0;
     let navigating = false;
@@ -177,11 +159,7 @@ export function startGuide({ chapters, buildScene, canvasLabel, loop: loopDefaul
     loading.hidden = true;
     root.classList.add('ready');
     window.__pearl = { player, timeline, stage, S, sheets };
-    if (target.time === null && !reducedMotion.matches) {
-      setTimeout(() => {
-        if (!player.playing && player.time === 0 && !player.scrubbing && !sheets.anyOpen()) player.play();
-      }, 900);
-    }
+    autoplay(player, target, looping, reducedMotion, () => sheets.anyOpen());
   }
 
   // Compile every shader before playback. Without this each new object compiles its shaders the first time it

@@ -42,7 +42,9 @@ the bench. Its Kit panel shows the soldering part of Pearl's list.
 
 Both pages accept `#<chapter-id>`, `#t=<seconds>`, `#chapters`, `#kit` and
 `#t=<seconds>&kit` on load and when the hash changes. Pearl also accepts `#files`.
-Playback writes `#t=` so a reload resumes there. Beat links appear below the caption.
+Playback writes `#t=` so a reload restores that position. Looping pages start playing
+from restored times and chapter links; Pearl keeps restored positions paused by default.
+Panel links and reduced motion suppress autoplay. Beat links appear below the caption.
 Soldering Done ticks use `explain.soldering.done`; Pearl keeps `pearl.stage0.done`.
 Both Kit panels use `pearl.stage0.kit`. Only Pearl adopts carried old-host ticks.
 
@@ -54,7 +56,8 @@ TrackPrevious, FastForward (+10 seconds) and Rewind (−10 seconds).
 
 Soldering loops by default; Pearl does not. `?loop` forces looping on and `?loop=0`
 turns it off. A completed forward playthrough restarts after 2.5 seconds; any other
-player event cancels the pending restart. Reduced motion disables looping.
+player event cancels the pending restart. Dragging or pinching the view defers the
+restart until 2.5 seconds after release. Reduced motion disables looping.
 
 ## Source
 

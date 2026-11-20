@@ -34,22 +34,51 @@ export function createLoop(step, { request = (cb) => requestAnimationFrame(cb), 
   };
 }
 
-// Restart only a completed forward playthrough. Any subsequent player event cancels the wait.
-export function autoLoop(player, enabled, reducedMotion) {
+// A looping page resumes bookmarks too; explicit panels and reduced motion stay paused.
+export function autoplay(player, target, looping, reducedMotion, anyOpen) {
+  if ((target.time !== null && !looping) || target.panel || reducedMotion.matches) return;
+  const restoredTime = player.time;
+  setTimeout(() => {
+    if (!reducedMotion.matches && !player.playing && player.time === restoredTime && !player.scrubbing && !anyOpen()) player.play();
+  }, 900);
+}
+
+// Restart only a completed forward playthrough. Player activity cancels it; a view gesture defers it.
+export function autoLoop(player, enabled, reducedMotion, controls) {
   let timer;
-  const cancel = () => {
+  let waiting = false;
+  let interacting = false;
+  const clear = () => {
     clearTimeout(timer);
     timer = undefined;
   };
-  player.on((reason) => {
-    cancel();
-    if (!enabled || reducedMotion.matches || reason !== 'ended' || player.time !== player.duration) return;
+  const cancel = () => {
+    clear();
+    waiting = false;
+  };
+  const schedule = () => {
+    clear();
+    if (!waiting || interacting || reducedMotion.matches) return;
     timer = setTimeout(() => {
-      timer = undefined;
+      cancel();
       if (reducedMotion.matches) return;
       player.seek(0, 'loop');
       player.play();
     }, 2500);
+  };
+  controls?.addEventListener('start', () => {
+    interacting = true;
+    clear();
+  });
+  controls?.addEventListener('end', () => {
+    interacting = false;
+    schedule();
+  });
+  player.on((reason) => {
+    cancel();
+    if (!enabled || reducedMotion.matches || reason !== 'ended' || player.time !== player.duration) return;
+    waiting = true;
+    schedule();
   });
   return cancel;
 }

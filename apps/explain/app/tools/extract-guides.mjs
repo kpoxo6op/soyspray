@@ -65,7 +65,7 @@ export async function extractGuides() {
       summary: 'Buy the kit, print the pod, learn to solder and float the first orb of the indoor helium camera robot.',
       path: '/pearl/',
       store: 'pearl.stage0.done',
-      link: 'time',
+      link: 'id',
       chapters: pearl,
     },
     {

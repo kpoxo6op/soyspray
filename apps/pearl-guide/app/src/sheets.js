@@ -4,12 +4,21 @@
 // Only the old Pearl origin may supply carried ticks. Panel keys are supplied by the page.
 const KEY = { kit: 'pearl.stage0.kit', done: 'pearl.stage0.done' };
 
-function load(key) {
+function load(key, fallback = new Set()) {
   try {
     return new Set(JSON.parse(localStorage.getItem(key) || '[]'));
   } catch {
-    return new Set();
+    return new Set(fallback);
   }
+}
+
+// Merge this one change with the latest saved ticks, including changes from another page.
+export function updateTick(key, id, checked, fallback) {
+  const fresh = load(key, fallback);
+  if (checked) fresh.add(id);
+  else fresh.delete(id);
+  save(key, fresh);
+  return fresh;
 }
 function save(key, set) {
   try {
@@ -55,8 +64,8 @@ function shell(dialog, title, body) {
 
 export function createSheets({ root, timeline, player, onOpen, keys, chapters, kit, files, carry }) {
   if (carry) adoptCarried();
-  const kitTicks = kit ? load(keys.kit) : new Set();
-  const doneTicks = load(keys.done);
+  let kitTicks = kit ? load(keys.kit) : new Set();
+  let doneTicks = load(keys.done);
   const dialogs = {
     chapters: root.querySelector('#chaptersSheet'),
     ...(kit ? { kit: root.querySelector('#kitSheet') } : {}),
@@ -87,10 +96,8 @@ export function createSheets({ root, timeline, player, onOpen, keys, chapters, k
     );
     dialogs.chapters.querySelectorAll('[data-done]').forEach((box) =>
       box.addEventListener('change', () => {
-        if (box.checked) doneTicks.add(box.dataset.done);
-        else doneTicks.delete(box.dataset.done);
-        save(keys.done, doneTicks);
-        box.closest('.chap').classList.toggle('is-done', box.checked);
+        doneTicks = updateTick(keys.done, box.dataset.done, box.checked, doneTicks);
+        syncTicks(dialogs.chapters, 'done', doneTicks, '.chap', 'is-done');
       }),
     );
   }
@@ -120,10 +127,8 @@ export function createSheets({ root, timeline, player, onOpen, keys, chapters, k
     );
     dialogs.kit.querySelectorAll('[data-kit]').forEach((box) =>
       box.addEventListener('change', () => {
-        if (box.checked) kitTicks.add(box.dataset.kit);
-        else kitTicks.delete(box.dataset.kit);
-        save(keys.kit, kitTicks);
-        box.closest('.item').classList.toggle('is-got', box.checked);
+        kitTicks = updateTick(keys.kit, box.dataset.kit, box.checked, kitTicks);
+        syncTicks(dialogs.kit, 'kit', kitTicks, '.item', 'is-got');
       }),
     );
   }
@@ -147,6 +152,24 @@ export function createSheets({ root, timeline, player, onOpen, keys, chapters, k
   renderChapters();
   if (kit) renderKit();
   if (files) renderFiles();
+
+  function syncTicks(dialog, kind, ticks, row, className) {
+    dialog.querySelectorAll(`[data-${kind}]`).forEach((box) => {
+      box.checked = ticks.has(box.dataset[kind]);
+      box.closest(row).classList.toggle(className, box.checked);
+    });
+  }
+  window.addEventListener('storage', (event) => {
+    if (event.storageArea !== localStorage) return;
+    if (event.key === null || event.key === keys.done) {
+      doneTicks = load(keys.done, doneTicks);
+      syncTicks(dialogs.chapters, 'done', doneTicks, '.chap', 'is-done');
+    }
+    if (kit && (event.key === null || event.key === keys.kit)) {
+      kitTicks = load(keys.kit, kitTicks);
+      syncTicks(dialogs.kit, 'kit', kitTicks, '.item', 'is-got');
+    }
+  });
 
   for (const d of Object.values(dialogs)) {
     d.addEventListener('click', (e) => {

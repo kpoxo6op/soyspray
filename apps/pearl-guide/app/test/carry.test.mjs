@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { adoptCarried } from '../src/sheets.js';
+import { adoptCarried, updateTick } from '../src/sheets.js';
 
 // The old pearl.soyspray.vip hands its ticks to explain.soyspray.vip/pearl/ once (public/moved.html).
 function browser(store = {}) {
@@ -35,4 +35,32 @@ test('carried progress cannot write soldering Done ticks', () => {
   adoptCarried({ search: `?carry=${encodeURIComponent(JSON.stringify(payload))}`, pathname: '/pearl/', hash: '' }, b.hist);
   assert.deepEqual(JSON.parse(b.data['explain.soldering.done']), ['bench']);
   assert.deepEqual(JSON.parse(b.data['pearl.stage0.done']), ['buy']);
+});
+
+// Carry tests cover migration, not two live pages saving changes from stale snapshots.
+test('sequential tab changes preserve other ticks and respect removals', () => {
+  const b = browser();
+  const stale = new Set();
+  updateTick('pearl.stage0.kit', 'iron', true, stale);
+  updateTick('pearl.stage0.kit', 'solder', true, stale);
+  assert.deepEqual(JSON.parse(b.data['pearl.stage0.kit']), ['iron', 'solder']);
+  updateTick('pearl.stage0.kit', 'iron', false, stale);
+  updateTick('pearl.stage0.kit', 'meter', true, new Set(['iron', 'solder']));
+  assert.deepEqual(JSON.parse(b.data['pearl.stage0.kit']), ['solder', 'meter']);
+  updateTick('explain.soldering.done', 'bench', true, stale);
+  updateTick('explain.soldering.done', 'light', true, stale);
+  assert.deepEqual(JSON.parse(b.data['explain.soldering.done']), ['bench', 'light']);
+  assert.equal(b.data['pearl.stage0.done'], undefined);
+});
+
+test('blocked storage preserves ticks for this visit', () => {
+  globalThis.localStorage = {
+    getItem() { throw new Error('blocked'); },
+    setItem() { throw new Error('blocked'); },
+  };
+  let ticks = updateTick('kit', 'iron', true, new Set());
+  ticks = updateTick('kit', 'solder', true, ticks);
+  assert.deepEqual([...ticks], ['iron', 'solder']);
+  ticks = updateTick('kit', 'iron', false, ticks);
+  assert.deepEqual([...ticks], ['solder']);
 });

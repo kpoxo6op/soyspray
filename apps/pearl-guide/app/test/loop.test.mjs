@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createLoop } from '../src/loop.js';
+import { autoLoop, createLoop } from '../src/loop.js';
+import { Player } from '../src/player.js';
 
 /** A stand-in for the browser's frame queue: `flush()` runs the callbacks queued for the next frame. */
 function fakeFrames() {
@@ -96,4 +97,44 @@ test('stop cancels the pending frame, and a step that throws does not wedge the 
   loop.schedule();
   assert.equal(frames.flush(), 1, 'schedule works again after the failed step');
   assert.equal(steps, 2);
+});
+
+// Completion tests do not cover OrbitControls gestures spanning the restart deadline.
+for (const startBeforeEnd of [false, true]) {
+  test(`view gestures defer a restart until release (started before end: ${startBeforeEnd})`, (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const controls = new EventTarget();
+    const player = new Player({ duration: 1, chapters: [] });
+    autoLoop(player, true, { matches: false }, controls);
+    if (startBeforeEnd) controls.dispatchEvent(new Event('start'));
+    player.seek(0.95);
+    player.play();
+    player.tick(0.1);
+    if (!startBeforeEnd) controls.dispatchEvent(new Event('start'));
+    t.mock.timers.tick(5000);
+    assert.equal(player.time, 1);
+    assert.equal(player.playing, false);
+    controls.dispatchEvent(new Event('end'));
+    t.mock.timers.tick(2499);
+    assert.equal(player.playing, false);
+    t.mock.timers.tick(1);
+    assert.equal(player.time, 0);
+    assert.equal(player.playing, true);
+  });
+}
+
+test('player activity during a view gesture cancels the deferred restart', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const controls = new EventTarget();
+  const player = new Player({ duration: 1, chapters: [] });
+  autoLoop(player, true, { matches: false }, controls);
+  player.seek(0.95);
+  player.play();
+  player.tick(0.1);
+  controls.dispatchEvent(new Event('start'));
+  player.seek(0.5);
+  controls.dispatchEvent(new Event('end'));
+  t.mock.timers.tick(3000);
+  assert.equal(player.time, 0.5);
+  assert.equal(player.playing, false);
 });

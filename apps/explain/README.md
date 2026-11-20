@@ -98,8 +98,8 @@ paths and turn the old hosts into redirects to this site. Until then the old hos
 keep serving the guides as before. Roll back by reverting a promotion.
 
 Check the Application is Synced and Healthy, that `/`, `/network/`,
-`/assembly/#ethernet`, `/crimping/#crimp-plan`, `/soldering/#bench` and `/pearl/#t=191` load from a tailnet device, that
-`assembly.soyspray.vip/#ethernet` and `pearl.soyspray.vip/#t=191` land on those, and that public DNS has no record for
+`/assembly/#ethernet`, `/crimping/#crimp-plan`, `/soldering/#bench` and `/pearl/#print` load from a tailnet device, that
+`assembly.soyspray.vip/#ethernet` and `pearl.soyspray.vip/#print` land on those, and that public DNS has no record for
 `explain.soyspray.vip`. The app stores nothing and needs no backup.
 
 For the soldering release, promote the Pearl image first and verify `/soldering/`

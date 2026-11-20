@@ -15,7 +15,7 @@ test('every chapter of every guide is listed with a link that opens its guide th
     assert.equal(new Set(g.chapters.map((c) => c.id)).size, g.chapters.length, `${g.slug} chapter ids are unique`);
     for (const c of g.chapters) {
       const href = chapterHref(g, c);
-      assert.match(href, g.link === 'id' ? /^\/(assembly|crimping|soldering|network)\/#[a-z0-9-]+$/ : /^\/pearl\/#t=\d+(\.\d)?$/);
+      assert.match(href, /^\/(assembly|crimping|pearl|soldering|network)\/#[a-z0-9-]+$/);
       assert.ok(html.includes(`<soy-chapter href="${href}"`), `${href} is on the page`);
     }
   }

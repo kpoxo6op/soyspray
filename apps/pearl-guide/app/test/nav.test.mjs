@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseHash, loopWanted } from '../src/nav.js';
-import { autoLoop } from '../src/loop.js';
+import { createTapTracker, parseHash, loopWanted } from '../src/nav.js';
+import { autoplay, autoLoop } from '../src/loop.js';
 import { Player } from '../src/player.js';
 
 const chapters = [{ id: 'bench', start: 0, end: 191 }, { id: 'light', start: 191, end: 200 }];
@@ -90,4 +90,84 @@ test('rewinding to the start does not loop', (t) => {
   t.mock.timers.tick(3000);
   assert.equal(player.time, 0);
   assert.equal(player.playing, false);
+});
+
+// Reloads exercise startup policy, which the completion-delay tests do not cover.
+for (const [hash, looping, reduced, expectedTime, playing] of [
+  ['#t=100', true, false, 100, true], ['#light', true, false, 191, true],
+  ['#t=200', true, false, 0, true], ['#t=999', true, false, 0, true],
+  ['#t=100', false, false, 100, false], ['', false, false, 0, true],
+  ['#t=100&kit', true, false, 100, false], ['#kit', true, false, 0, false],
+  ['#t=100', true, true, 100, false],
+]) test(`startup ${hash || 'bare URL'}, loop=${looping}, reduced=${reduced}`, (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const player = new Player({ duration: 200, chapters });
+  const target = parseHash(hash, chapters);
+  if (target.time !== null) player.seek(target.time, 'restore');
+  autoplay(player, target, looping, { matches: reduced }, () => false);
+  t.mock.timers.tick(899);
+  assert.equal(player.playing, false);
+  t.mock.timers.tick(1);
+  assert.equal(player.playing, playing);
+  assert.equal(player.time, expectedTime);
+});
+
+for (const action of ['seek', 'scrub', 'panel', 'motion']) {
+  test(`startup respects ${action} during its delay`, (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const player = new Player({ duration: 200, chapters });
+    const motion = { matches: false };
+    let open = false;
+    autoplay(player, parseHash('', chapters), true, motion, () => open);
+    if (action === 'seek') player.seek(50);
+    if (action === 'scrub') player.beginScrub();
+    if (action === 'panel') open = true;
+    if (action === 'motion') motion.matches = true;
+    t.mock.timers.tick(900);
+    assert.equal(player.playing, false);
+  });
+}
+
+// Hash and loop tests do not cover a missing pointer-up poisoning subsequent canvas taps.
+for (const reset of ['pointercancel', 'lostpointercapture']) {
+  test(`${reset} recovers tap-to-play after a missing pointer-up`, () => {
+    let toggles = 0;
+    const taps = createTapTracker(() => toggles++);
+    const pointer = { pointerId: 1, button: 0, clientX: 10, clientY: 10 };
+    taps.pointerdown(pointer);
+    taps[reset](pointer);
+    taps.click({ detail: 1 });
+    assert.equal(toggles, 0);
+    const next = { ...pointer, pointerId: 2 };
+    taps.pointerdown(next);
+    taps.pointerup(next);
+    taps.lostpointercapture(next);
+    taps.click({ detail: 1 });
+    assert.equal(toggles, 1);
+  });
+}
+
+test('capture cleanup preserves taps but rejects drags, pinches and double clicks', () => {
+  let toggles = 0;
+  const taps = createTapTracker(() => toggles++);
+  const a = { pointerId: 1, button: 0, clientX: 10, clientY: 10 };
+  const b = { ...a, pointerId: 2 };
+  taps.pointerdown(a);
+  taps.pointermove({ ...a, clientX: 16 });
+  taps.pointerup(a);
+  taps.click({ detail: 1 });
+  taps.pointerdown(a);
+  taps.pointerdown(b);
+  taps.pointerup(a);
+  taps.pointerup(b);
+  taps.click({ detail: 1 });
+  assert.equal(toggles, 0);
+  taps.pointerdown(a);
+  taps.pointerup(a);
+  taps.lostpointercapture(a);
+  taps.click({ detail: 1 });
+  taps.pointerdown(a);
+  taps.pointerup(a);
+  taps.click({ detail: 2 });
+  assert.equal(toggles, 1);
 });
