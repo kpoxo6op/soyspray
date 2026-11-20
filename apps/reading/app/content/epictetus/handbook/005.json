@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "book": "epictetus",
+  "work": "handbook",
+  "part": null,
+  "chapter": 5,
+  "title": "It is judgements that disturb people",
+  "titleBy": "editor",
+  "setting": null,
+  "themes": [
+    "assent",
+    "loss",
+    "progress"
+  ],
+  "sections": [
+    {
+      "n": 1,
+      "para": 1,
+      "original": "It isn’t the things themselves that disturb people, but the [[judgements|judgment]] that they form about them. Death, for instance, is nothing terrible, or else it would have seemed so to [[Socrates|socrates]] too; no, it is in the judgement that death is terrible that the terror lies. So accordingly, whenever we’re impeded, disturbed, or distressed, we should never blame anyone else, but only ourselves, that is to say, our judgements. It is the act of an [[ill-educated|educated]] person to cast blame on others when things are going badly for him; one who has taken the first step towards becoming properly educated casts blame on himself; while one who is fully educated casts blame neither on another nor on himself.",
+      "modern": "It is not things that disturb people but their judgements about things. Death, for instance, is nothing terrible, or Socrates would have found it so. What is terrible is the judgement that death is terrible. So whenever we are blocked, disturbed or distressed, we should never blame anyone else, only ourselves, that is, our own judgements. An uneducated person blames others when things go badly for him. Someone who has begun his education blames himself. Someone whose education is complete blames neither others nor himself."
+    }
+  ],
+  "glosses": {
+    "socrates": {
+      "term": "Socrates",
+      "plain": "Athenian philosopher, executed in 399 BC. He spent his last day talking calmly with friends, then drank the poison.",
+      "why": "Epictetus’s favourite example of a man who lived what he taught."
+    },
+    "educated": {
+      "term": "ill-educated",
+      "plain": "Untrained in philosophy, however learned otherwise. Education here means training in how to judge.",
+      "why": "The three people in the last sentence are stages of that training, and the middle one is not the goal.",
+      "translit": "apaideutos",
+      "greek": "ἀπαίδευτος"
+    }
+  },
+  "takeaway": "What upsets you is the judgement you add to an event, not the event. Look there first, before blaming anyone, and in the end stop blaming altogether.",
+  "carry": "When something upsets you, finish the sentence: ‘What I am telling myself is…’",
+  "questions": [
+    "‘Death is nothing terrible, or it would have seemed so to Socrates.’ Is one calm man evidence about death? What else could explain Socrates’ calm, and does the argument survive it?",
+    "A reader concludes: since only my judgements upset me, anyone upset by being mistreated has only himself to blame. What has he missed?",
+    "Think of the last time you blamed someone for how you felt. Which of the three people at the end of the chapter were you in that moment, and which were you an hour later?",
+    "((handbook/1)) has you say to an impression, ‘You’re an impression and not at all what you appear to be.’ As these two chapters use the words, what is the difference between an impression and a judgement?"
+  ],
+  "exercises": [
+    {
+      "title": "Therefore",
+      "do": "The next time something annoys you, write two lines as soon as you can: the bare event, as a camera would record it (‘The build failed at 4 p.m.’), and the ‘therefore’ you added (‘so my evening is ruined’). Underline the words in the second line that no camera could record.",
+      "time": "two minutes, once a day for three days",
+      "doneWhen": "you have three pairs of lines with something underlined in each",
+      "stopIf": "Stop if it turns into proving that every reaction was wrong; some judgements are true."
+    },
+    {
+      "title": "Which of the three",
+      "do": "For one day, each time you catch yourself blaming someone, aloud or in your head, make a mark on a piece of paper. In the evening, write next to each mark which of the chapter’s three people you were.",
+      "time": "a second each time, five minutes in the evening",
+      "doneWhen": "every mark has a line beside it, or you have written that there were none",
+      "stopIf": "Stop if it becomes a reason to blame yourself instead; that is only the middle step."
+    }
+  ],
+  "objection": {
+    "says": "Some things really are terrible: a child’s death, an injustice. Calling the distress ‘my judgement’ denies plain facts and lets wrongdoers off.",
+    "reply": "Epictetus does not deny that the event happened, or that it should be answered. He denies that ‘terrible’ is part of it: Socrates met the same death without terror. Blaming ‘our judgements’ means looking at your own reading of events, not excusing anyone else’s conduct. The fully educated person blames neither himself nor others, and that leaves him free to act against a wrong without the added torment.",
+    "open": "Whether a grief that feels right, such as a parent’s, is really a false judgement is asserted here, not argued."
+  },
+  "prompts": [
+    "Write down one event from this month that upset you. Then write, as exactly as you can, the judgement you formed about it at the time, and whether you still hold it.",
+    "Name one situation this week that you expect to be upsetting. Write its bare facts in one sentence, then the judgement you are likely to add to them.",
+    "Write the strongest case you can that some things are terrible in themselves, whatever anyone judges. Use an example of your own, not death."
+  ],
+  "seeAlso": [
+    {
+      "ref": "handbook/20",
+      "why": "insult, too, lies in the judgement",
+      "relation": "echo"
+    },
+    {
+      "ref": "handbook/48",
+      "why": "the layman, the philosopher, and the signs of progress",
+      "relation": "echo"
+    },
+    {
+      "ref": "discourses/3/19",
+      "why": "the layman and the philosopher on blame",
+      "relation": "echo"
+    }
+  ],
+  "compare": null
+}

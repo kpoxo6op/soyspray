@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: reading
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: reading
+    soyspray.vip/owner: platform
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+    soyspray.vip/access-url: https://reading.soyspray.vip
+    soyspray.vip/access-method: Private Tailscale split DNS and LAN ingress; no public DNS or tunnel
+    soyspray.vip/data: none
+    soyspray.vip/backup: not-required
+    soyspray.vip/backup-cause: Static image with no persistent state.
+spec:
+  project: reading
+  source:
+    repoURL: https://github.com/kpoxo6op/soyspray.git
+    targetRevision: main
+    path: apps/reading/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: reading
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    managedNamespaceMetadata:
+      labels:
+        app.kubernetes.io/part-of: reading
+        pod-security.kubernetes.io/enforce: restricted
+        pod-security.kubernetes.io/enforce-version: v1.35
+        pod-security.kubernetes.io/warn: restricted
+        pod-security.kubernetes.io/warn-version: v1.35

@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "book": "epictetus",
+  "work": "handbook",
+  "part": null,
+  "chapter": 2,
+  "title": "What desire and aversion promise",
+  "titleBy": "editor",
+  "setting": null,
+  "themes": [
+    "up-to-us",
+    "assent"
+  ],
+  "sections": [
+    {
+      "n": 1,
+      "para": 1,
+      "original": "Consider what you want.",
+      "modern": "Examine what you want."
+    },
+    {
+      "n": 2,
+      "para": 2,
+      "original": "Consider what you avoid.",
+      "modern": "Examine what you avoid."
+    }
+  ],
+  "glosses": {},
+  "takeaway": "Examine desire and aversion.",
+  "carry": "Name one thing you want today.",
+  "questions": [
+    "What do you want?",
+    "What do you avoid?",
+    "Which choice is yours?"
+  ],
+  "exercises": [
+    {
+      "title": "Name it",
+      "do": "Write down one desire.",
+      "time": "one minute",
+      "doneWhen": "you have one line"
+    }
+  ],
+  "objection": null,
+  "prompts": [
+    "Name a desire.",
+    "Describe an aversion."
+  ],
+  "seeAlso": [],
+  "compare": null
+}

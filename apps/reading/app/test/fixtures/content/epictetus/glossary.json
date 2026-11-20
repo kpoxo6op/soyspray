@@ -1,0 +1,58 @@
+{
+  "terms": {
+    "up-to-us": {
+      "term": "within our power",
+      "plain": "Up to us: settled by your own mind alone, so that nobody can block it.",
+      "why": "The whole book rests on this test. Epictetus asks it of every event before anything else.",
+      "translit": "eph’ hēmin",
+      "greek": "ἐφ’ ἡμῖν"
+    },
+    "opinion": {
+      "term": "opinion",
+      "plain": "Your judgement of what a thing is and whether it is good or bad. Not taste.",
+      "why": "For the Stoics the judgement, not the event, is what upsets you. See chapter 5.",
+      "translit": "hypolēpsis",
+      "greek": "ὑπόληψις"
+    },
+    "impulse": {
+      "term": "motivation",
+      "plain": "The impulse to act: the inner “go” before you do something.",
+      "why": "Other translators write “impulse”. Not motivation in the sense of feeling keen.",
+      "translit": "hormē",
+      "greek": "ὁρμή"
+    },
+    "office": {
+      "term": "office",
+      "plain": "Public posts and rank. For us: job title, promotion, standing.",
+      "why": null,
+      "translit": "archai",
+      "greek": "ἀρχαί"
+    },
+    "slavish": {
+      "term": "slavish",
+      "plain": "Dependent on someone or something else. A description, not an insult.",
+      "why": "Epictetus was born a slave. Free and enslaved are his working terms for the mind, not figures of speech.",
+      "translit": "doula",
+      "greek": "δοῦλα"
+    },
+    "great-things": {
+      "term": "such great things",
+      "plain": "The freedom and calm promised in section 3.",
+      "why": null
+    },
+    "impression": {
+      "term": "impression",
+      "plain": "The first picture of an event that lands in your mind, before you have judged it. A disagreeable one is upsetting.",
+      "why": "You cannot stop impressions arriving. What you do with them is yours.",
+      "translit": "phantasia",
+      "greek": "φαντασία"
+    },
+    "rules": {
+      "term": "these rules that you possess",
+      "plain": "The tests you have already learned. The first one follows.",
+      "why": "A _kanōn_ is a builder’s straightedge: you hold it against the thing and look.",
+      "translit": "kanones",
+      "greek": "κανόνες"
+    }
+  }
+}

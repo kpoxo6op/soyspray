@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "book": "epictetus",
+  "work": "handbook",
+  "part": null,
+  "chapter": 1,
+  "title": "What is up to us, and what is not",
+  "titleBy": "editor",
+  "setting": null,
+  "themes": [
+    "up-to-us",
+    "assent"
+  ],
+  "sections": [
+    {
+      "n": 1,
+      "para": 1,
+      "original": "Some things are [[within our power|up-to-us]], while others are not. Within our power are [[opinion|opinion]], [[motivation|impulse]], desire, aversion, and, in a word, whatever is of our own doing; not within our power are our body, our property, reputation, [[office|office]], and, in a word, whatever is not of our own doing.",
+      "modern": "Some things are up to us and some are not. Up to us: what we judge to be true or good, what we move to do, what we want, and what we try to avoid. In short, everything that is our own doing. Not up to us: our body, our possessions, what people think of us, our rank. In short, everything that is not our own doing."
+    },
+    {
+      "n": 2,
+      "para": 1,
+      "original": "The things that are within our power are by nature free, and immune to hindrance and obstruction, while those that are not within our power are weak, [[slavish|slavish]], subject to hindrance, and not our own.",
+      "modern": "What is up to us is free by its nature. Nothing can block it or get in its way. What is not up to us is fragile and dependent. It can be blocked, and it sits in other hands."
+    },
+    {
+      "n": 3,
+      "para": 1,
+      "original": "Remember, then, that if you regard that which is by nature slavish as being free, and that which is not your own as being your own, you’ll have cause to lament, you’ll have a troubled mind, and you’ll find fault with both gods and human beings; but if you regard only that which is your own as being your own, and that which isn’t your own as not being your own (as is indeed the case), no one will ever be able to coerce you, no one will hinder you, you’ll find fault with no one, you’ll accuse no one, you’ll do nothing whatever against your will, you’ll have no enemy, and no one will ever harm you because no harm can affect you.",
+      "modern": "So remember this. If you treat dependent things as free, and things that belong to others as yours, you will have reason to grieve, your mind will be in turmoil, and you will end up blaming gods and people alike. But if you count as yours only what is yours, and leave to others what is theirs, nobody will ever force you and nobody will stop you. You will blame no one and accuse no one. You will do nothing against your will. Nobody will hurt you and you will have no enemy, because no harm will be able to reach you."
+    },
+    {
+      "n": 4,
+      "para": 2,
+      "original": "Since you’re aiming, then, at [[such great things|great-things]], remember that you’ll have to exert no small effort to attain them, and that you’ll have to renounce some things altogether, while postponing others for the present. But if you want to have both these things and public office and riches too, you’ll quite possibly not even gain the latter because you’re aiming at the former too, and you’ll certainly fail to get the former, through which alone happiness and freedom can be secured.",
+      "modern": "If that is what you are after, know that a half effort will not get you there. Some things you will have to give up completely, and others you will have to put off for now. If you want this and status and money too, you may well miss the status and the money, because part of you is aiming elsewhere. And you will certainly miss the one thing freedom and happiness depend on."
+    },
+    {
+      "n": 5,
+      "para": 2,
+      "original": "Practise, then, from the very beginning to say to every [[disagreeable impression|impression]], ‘You’re an impression and not at all what you appear to be.’ Then examine it and test it by [[these rules that you possess|rules]], and first and foremost by this one, whether the impression relates to those things that are within our power, or those that aren’t within our power; and if it relates to anything that isn’t within our power, be ready to reply, ‘That’s nothing to me.’",
+      "modern": "So start practising now. Whenever something upsetting strikes you, say to it: “You are an impression, and not at all the thing you claim to be.” Then test it with the rules you have, and with this one first: is it about something up to me, or not? If it is not, have your answer ready: “Then it is nothing to me.”"
+    }
+  ],
+  "glosses": {},
+  "takeaway": "Sort whatever happens into two piles: your own doing (judgements, choices, wants) and everything else (body, property, reputation, rank). Stake your effort and your peace of mind on the first pile only.",
+  "carry": "Before you react to anything, ask: is this up to me?",
+  "questions": [
+    "Epictetus puts the body and reputation on the “not up to us” list, although we plainly influence both. Where is the line between influencing a thing and deciding it? Use your own health as the test case.",
+    "Think of the last time you were angry at work. Which item from his second list were you treating as yours?",
+    "Section 4 says you cannot go after freedom and also status and money with the same seriousness. Do you believe that? Where would he say you are trying to have it both ways?",
+    "“It does not concern you” sounds cold when the thing outside your control is a child’s illness. What could the sentence mean that is not indifference?"
+  ],
+  "exercises": [
+    {
+      "title": "Two lists",
+      "do": "For the next three working days, each time something irritates you (a failed deploy, a late reply, a review comment), stop and write one line: the event, what you can attempt, and what in it is yours. For example: “Disk died. Attempt: restore from last night’s backup. Mine: doing it with care, and blaming no one.”",
+      "time": "a minute a go, three times a day, for three days.",
+      "doneWhen": "you have nine lines.",
+      "stopIf": null
+    },
+    {
+      "title": "Name the impression",
+      "do": "Once today, when you feel a jolt of worry or annoyance, say to it before you do anything else: ‘You’re an impression and not at all what you appear to be.’ Then ask whether it is about something up to you.",
+      "time": "ten seconds, once.",
+      "doneWhen": "you can tell someone this evening what the impression was and what it turned out to be.",
+      "stopIf": null
+    }
+  ],
+  "objection": null,
+  "prompts": [
+    "Take one thing that worries you this week and write the two lists for it. Be strict: for each item under “mine”, could anyone stop you doing it?",
+    "Describe a time you got something from the second list (the promotion, the praise) and it settled less than you expected. What had you been asking it to do for you?",
+    "Rewrite section 5 as an instruction to yourself for one particular situation you expect tomorrow."
+  ],
+  "seeAlso": [
+    {
+      "ref": "handbook/5",
+      "why": "on judgements"
+    },
+    {
+      "ref": "discourses/1/1",
+      "why": "the same division at length",
+      "relation": "source"
+    }
+  ],
+  "compare": null
+}

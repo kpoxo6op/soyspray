@@ -1,0 +1,99 @@
+{
+  "terms": {
+    "aversion": {
+      "term": "aversion",
+      "plain": "Wanting to avoid something and turning away from it. Aversion promises that you will not meet it.",
+      "why": "Moved onto your own faults, aversion cannot fail. Fixed on illness, death or poverty, it fails sooner or later.",
+      "translit": "ekklisis",
+      "greek": "ἔκκλισις",
+      "not": "Not disgust or dislike. Any wish to avoid something, from illness to embarrassment.",
+      "long": "Two passages, two uses. In ((handbook/2)) aversion can be moved at will: take it off what is not up to you and put it on ‘what is contrary to nature among those things that are within our power’. In ((handbook/31)) fleeing whatever seems harmful is a fixed fact about every living creature, so aversion cannot be switched off, only pointed somewhere else. The training is in the pointing, and where it points depends on what you judge harmful."
+    },
+    "desire": {
+      "term": "desire",
+      "plain": "Wanting something and reaching for it. Desire promises that you will get what you want.",
+      "why": "Epictetus trains this first: in ((discourses/3/2)) he says strong emotions come only from desire that fails and aversion that is met.",
+      "translit": "orexis",
+      "greek": "ὄρεξις",
+      "not": "Not only cravings. Any wanting counts, including wanting your children safe.",
+      "long": "The word is the same in both passages; what changes is the reader’s stage. In ((handbook/2)) a beginner is told to suppress desire entirely ‘for the present’, even for the good things that are up to him, because he cannot reach them yet. In ((handbook/31)) whoever ‘takes care to exercise his desires and aversions as he ought’ is by that alone acting with piety, which assumes desire has been trained rather than abolished. ((handbook/48)) puts the giving up of desire among the signs of progress."
+    },
+    "impression": {
+      "term": "impression",
+      "plain": "The first picture of an event that lands in your mind, before you have judged it.",
+      "why": "You cannot stop impressions arriving. What you do with them is yours.",
+      "translit": "phantasia",
+      "greek": "φαντασία",
+      "not": "Not a vague feeling, and not your first impression of a person.",
+      "also": ["appearance", "presentation"],
+      "long": "Epictetus uses the word in two ways that pull against each other. In ((handbook/1)) an impression is something to be challenged: ‘You’re an impression and not at all what you appear to be.’ In ((handbook/6)) ‘the use of impressions’ is the one thing that is your own, so impressions are also the material every choice works on, and ((discourses/1/1)) presents the power to use them as a gift from Zeus. They are neither enemies nor guides. They arrive, and what you assent to is your business ((handbook/45))."
+    },
+    "impulse": {
+      "term": "motivation",
+      "plain": "The pull to act: the inner ‘go’ before you do something.",
+      "why": "Other translators write ‘impulse’. It is on the ‘up to us’ list because it follows from your own judgement.",
+      "translit": "hormē",
+      "greek": "ὁρμή",
+      "not": "Not motivation in the sense of feeling keen. It is the move to act.",
+      "also": ["impulse", "motive", "choice to act"]
+    },
+    "judgment": {
+      "term": "judgement",
+      "plain": "What you tell yourself an event means: that it is good, bad, terrible or nothing.",
+      "why": "The judgement is the part of being upset that is yours, and so the part you can change.",
+      "translit": "dogma",
+      "greek": "δόγμα",
+      "not": "Not a verdict on other people. It is the view you take of events.",
+      "also": ["opinion", "belief", "principle"],
+      "long": "The plural is _dogmata_. In ((handbook/5)) judgements, not things, are what disturb people. The same word means a principle you hold, the settled beliefs a philosopher lives by, which is why Epictetus can treat changing a judgement and changing a life as one job. Hard uses ‘opinion’ for a near neighbour, _hypolēpsis_ ((handbook/1))."
+    },
+    "nature": {
+      "term": "nature",
+      "plain": "The way things are, and in particular what a human being is: a reasoning animal that lives with others.",
+      "why": "‘In harmony with nature’ is the Stoic test of a good act. ‘Contrary to nature’, among things up to you, means a bad judgement or choice.",
+      "translit": "physis",
+      "greek": "φύσις",
+      "not": "Not the countryside or wildlife, and not ‘natural’ in the sense of instinctive.",
+      "long": "Epictetus uses the word for two things. One is the course of the world: in ((handbook/26)) ‘the will of nature’ is learned from what happens to everyone alike, as when someone else’s cup breaks and we shrug. The other is your own nature as a reasoning being: in ((handbook/4)) and ((handbook/30)) you keep your choice ‘in harmony with nature’, and you can fail to. The first you accept; the second you live up to."
+    },
+    "opinion": {
+      "term": "opinion",
+      "plain": "Your judgement of what a thing is and whether it is good or bad.",
+      "why": "For the Stoics the judgement, not the event, is what upsets you: see ((handbook/5)).",
+      "translit": "hypolēpsis",
+      "greek": "ὑπόληψις",
+      "not": "Not a passing view or a matter of taste: a settled belief about value.",
+      "also": ["judgement", "conception", "belief"],
+      "long": "Hard uses ‘opinion’ for _hypolēpsis_ here and in ((handbook/20)), and ‘judgement’ for _dogma_ in ((handbook/5)). The Greek words differ, but Epictetus uses both for the same thing: what you take to be true about what is good or bad. It heads the list of what is up to you because impulse, desire and aversion all follow from it."
+    },
+    "prohairesis": {
+      "term": "choice",
+      "plain": "Your power to decide what to make of things: to accept or reject an impression, to want or not want.",
+      "why": "For Epictetus this is what you are. Everything else, body included, is on loan.",
+      "translit": "prohairesis",
+      "greek": "προαίρεσις",
+      "not": "Not willpower, and not control over what happens.",
+      "also": ["will", "volition", "moral purpose"],
+      "long": "Two passages show its two sides. In ((handbook/9)) choice is what nothing outside can obstruct: disease hampers the body and lameness the leg, ‘but not choice, unless choice wills it to be so’. In ((handbook/4)) and ((handbook/30)) it is something you keep in harmony with nature or fail to, and at the baths what spoils it is your own annoyance. Put together: no one else can damage your choice, and you can. That is why Epictetus treats it as the one thing worth guarding."
+    },
+    "reservation": {
+      "term": "reservation",
+      "plain": "A silent ‘if nothing prevents me’ attached to a plan, so that being stopped is part of the plan.",
+      "why": "It lets you act fully without staking your peace of mind on the result.",
+      "translit": "hypexairesis",
+      "greek": "ὑπεξαίρεσις",
+      "not": "Not hesitation or half-heartedness. You act fully, and accept being stopped.",
+      "also": ["reserve", "exception"]
+    },
+    "up-to-us": {
+      "term": "within our power",
+      "plain": "Up to us: settled by your own mind alone, so that nobody can block it.",
+      "why": "The whole book rests on this test. Epictetus asks it of every event before anything else.",
+      "translit": "eph’ hēmin",
+      "greek": "ἐφ’ ἡμῖν",
+      "not": "Not ‘what I can influence’. You influence your health, yet it is not up to you.",
+      "also": ["up to us", "in our power", "under our control"],
+      "long": "Hard writes ‘within our power’; many recent translators write ‘up to us’. The test is not whether you can affect a thing but whether anyone or anything else can stop you. You can work on your health or your child’s schooling, and nothing in the Handbook forbids it, but each can be blocked from outside, so neither is up to you. What is left is a short list: opinion, motivation, desire and aversion ((handbook/1)). ((discourses/1/1)) argues the same division at length."
+    }
+  }
+}

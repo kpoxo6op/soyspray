@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "book": "epictetus",
+  "work": "handbook",
+  "part": null,
+  "chapter": 2,
+  "title": "What desire and aversion promise",
+  "titleBy": "editor",
+  "setting": null,
+  "themes": [
+    "desire",
+    "progress"
+  ],
+  "sections": [
+    {
+      "n": 1,
+      "para": 1,
+      "original": "Remember that [[desire|desire]] promises the attaining of what you desire, and [[aversion|aversion]] the avoiding of what you want to avoid, and that he who falls into desire is [[unfortunate|unfortunate]], while he who falls into what he wants to avoid suffers misfortune. If you seek to avoid, then, only what is [[contrary to nature|nature]] among those things that are within your own power, you’ll never fall into anything that you want to avoid; but if you attempt to avoid illness, or death, or poverty, you’ll suffer misfortune.",
+      "modern": "Remember: desire promises that you will get what you want, and aversion that you will avoid what you do not want. Fail to get what you desire and you are unlucky; meet what you were avoiding and you are miserable. So if you avoid only those things within your power that go against nature, you will never meet anything you are avoiding. But if you try to avoid illness, or death, or poverty, you will be miserable."
+    },
+    {
+      "n": 2,
+      "para": 1,
+      "original": "Remove your aversion, then, from everything that is not within our power, and transfer it to what is contrary to nature among those things that are within our power. For the present, however, suppress your desires entirely; for if you desire any of the things that are not within our power, you’re bound to be unfortunate, while those that are within our power, which it would be right for you to desire, aren’t yet within your reach. But use only your [[motives to act or not to act|impulse]], and even those lightly, with [[reservations|reservation]] and without straining.",
+      "modern": "So take your aversion off everything that is not up to you, and move it onto the things up to you that go against nature. For now, though, give up desire altogether. If you desire anything that is not up to you, you are bound to be unlucky; and the things that are up to you, which you would be right to desire, are not yet within your reach. Use only your impulses to act or not to act, and use them lightly, with reservation, without strain."
+    }
+  ],
+  "glosses": {
+    "unfortunate": {
+      "term": "unfortunate",
+      "plain": "Unlucky: someone who failed to get what he wanted. Its partner, misfortune, is meeting what he wanted to avoid.",
+      "why": "In the Greek the two words are near twins, _atychēs_ and _dystychēs_: missing the good, and meeting the bad.",
+      "translit": "atychēs",
+      "greek": "ἀτυχής"
+    },
+    "impulse": {
+      "term": "motives to act",
+      "plain": "Your impulses to act and to hold back. The same thing Hard calls ‘motivation’ in chapter 1.",
+      "why": null,
+      "translit": "horman, aphorman",
+      "greek": "ὁρμᾶν, ἀφορμᾶν"
+    }
+  },
+  "takeaway": "Desire and aversion promise results, so stake them only where they cannot fail. Avoid nothing but your own faults, for now want nothing, and act lightly, ready to be stopped.",
+  "carry": "When you dread something today, ask: is this a fault of mine, or an event?",
+  "questions": [
+    "Section 1 promises that if you avoid only your own faults, you will never meet what you avoid. But people fall into their own faults all the time. Is the promise as safe as he makes it sound, and what would make it fail?",
+    "Name one thing you are working hard to avoid at the moment. By the sorting in section 2, where does your aversion sit now, and what would it look like moved onto something of your own doing?",
+    "Why would a teacher tell a beginner to suppress even the desires that would be right, for things that are up to him? ((handbook/48)) lists giving up desire among the signs of progress. What could a beginner lose by wanting to be good too early?",
+    "A reader concludes from section 1: illness is not up to me, so I need not bother looking after my health. What has he missed?"
+  ],
+  "exercises": [
+    {
+      "title": "If nothing prevents me",
+      "do": "Tomorrow morning, write down three things you intend to do during the day, each with the reservation attached: ‘I will finish the backup script, if nothing prevents me.’ When one of them is blocked, read its line again before you decide what to do next.",
+      "time": "three minutes in the morning, a few seconds when something is blocked",
+      "doneWhen": "by evening you can say, for each line, whether it was blocked and what you did",
+      "stopIf": "Stop if the reservation starts to become an excuse for not starting."
+    },
+    {
+      "title": "Move the aversion",
+      "do": "The next time you notice dread about an outcome, such as a meeting, a test result or a release, write two lines: what you are trying to avoid, and the fault of your own you could avoid instead. For example, ‘being criticised’ becomes ‘being evasive when I am asked about the delay’.",
+      "time": "two minutes, once",
+      "doneWhen": "you have both lines for one real worry",
+      "stopIf": "Stop if the second line turns into a list of reproaches against yourself."
+    }
+  ],
+  "objection": {
+    "says": "Wanting nothing and acting ‘lightly’ sounds like a recipe for a half-hearted life. Nobody builds anything they do not want.",
+    "reply": "He is speaking to beginners, and he says ‘for the present’. What he takes away is desire staked on outcomes, not effort: you still act, through impulse. ‘Lightly’ describes the grip, not the work. You can give a migration everything and still hold its success with reservation: ‘I will ship it, if nothing prevents me.’ The work is no weaker. What goes is the misery when something does prevent it.",
+    "open": "Whether a person can act fully while desiring nothing, even for a while, is a claim about human beings that he asserts rather than shows."
+  },
+  "prompts": [
+    "Recall a time you got exactly what you wanted and it still disappointed you, or a time the thing you dreaded happened and you came through. Write, in one sentence, what the desire or the dread had promised you.",
+    "List three things you are averse to this month. Rewrite each as an aversion to something of your own doing, as section 2 asks. If one cannot be rewritten, say why.",
+    "Argue against section 2 in five sentences, using one desire you think a good person should hold even though its object is not up to him."
+  ],
+  "seeAlso": [
+    {
+      "ref": "handbook/48",
+      "why": "the same rules, as signs of progress",
+      "relation": "echo"
+    },
+    {
+      "ref": "discourses/1/4",
+      "why": "on progress, where desire is given up or put off",
+      "relation": "echo"
+    }
+  ],
+  "compare": null
+}

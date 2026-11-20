@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "book": "epictetus",
+  "work": "handbook",
+  "part": null,
+  "chapter": 4,
+  "title": "Know what kind of action it is",
+  "titleBy": "editor",
+  "setting": null,
+  "themes": [
+    "action",
+    "desire"
+  ],
+  "sections": [
+    {
+      "n": 1,
+      "para": 1,
+      "original": "When you’re about to embark on any action, remind yourself what kind of action it is. If you’re going out to take a bath, set before your mind the things that happen at [[the baths|baths]], that people splash you, that people knock up against you, that people steal from you. And you’ll thus undertake the action in a surer manner if you say to yourself at the outset, ‘I want to take a bath and ensure at the same time that [[my choice|prohairesis]] remains [[in harmony with nature|nature]].’ And follow the same course in every action that you embark on. So if anything gets in your way while you’re taking your bath, you’ll be ready to tell yourself, ‘Well, this wasn’t the only thing that I wanted to do, but I also wanted to keep my choice in harmony with nature; and I won’t keep it so if I get annoyed at what is happening.’",
+      "modern": "Whenever you are about to do something, remind yourself what kind of thing it is. If you are going out to the baths, picture what happens there: people splash you, people barge into you, people steal from you. You will go about it more steadily if you tell yourself at the start: ‘I want to have a bath, and also to keep my choice in line with nature.’ Do the same with everything you do. Then if something gets in the way of your bath, you will be ready to say: ‘This was not the only thing I wanted. I also wanted to keep my choice in line with nature, and I will not do that if I get annoyed at what is happening.’"
+    }
+  ],
+  "glosses": {
+    "baths": {
+      "term": "the baths",
+      "plain": "Public bathhouses: crowded, noisy places where people washed, exercised and met. Theft of clothes was common.",
+      "why": null,
+      "translit": "balaneion",
+      "greek": "βαλανεῖον"
+    }
+  },
+  "takeaway": "Every plan has two aims: the thing itself, and acting well while you do it. Picture the usual obstacles beforehand, so that when one comes you still have the second aim, which no obstacle can block.",
+  "carry": "Before you start something today, name one likely snag and how you will meet it.",
+  "questions": [
+    "The bath is a trivial errand. Does the method still work when the obstacle defeats the main aim entirely, say a cancelled operation or a failed launch? What is left of ‘this wasn’t the only thing that I wanted’ then?",
+    "Take a situation that reliably annoys you, such as the school run or a weekly meeting. What happens there every time that you still treat as a surprise, and why has knowing it not helped so far?",
+    "((handbook/2)) tells you to act ‘with reservations’. In what way is the bath sentence a reservation, and what does it add?",
+    "A reader concludes: if I picture everything that could go wrong before each thing I do, nothing will upset me. What has he missed?"
+  ],
+  "exercises": [
+    {
+      "title": "Before you go",
+      "do": "Tomorrow, before one ordinary outing or task that usually has friction, such as getting the children out of the house or a maintenance window, write three lines beginning ‘I intend to’, ‘A likely obstruction is’ and ‘If that happens, I can still’. Make the third line about how you will behave, not about a fallback prize.",
+      "time": "two minutes before, one minute after",
+      "doneWhen": "you have the three lines and, afterwards, a fourth: whether the obstruction came and what you did",
+      "stopIf": "Stop if you find yourself listing every possible disaster; one likely obstruction is the whole exercise."
+    },
+    {
+      "title": "The second aim",
+      "do": "The next time something gets in the way of what you are doing, say the chapter’s sentence to yourself, shortened, before you respond: ‘This wasn’t the only thing that I wanted.’",
+      "time": "five seconds, once",
+      "doneWhen": "you have said it once at the moment of the obstruction and can say what you did next",
+      "stopIf": null
+    }
+  ],
+  "objection": {
+    "says": "Expecting to be splashed, shoved and robbed lowers your standards. Sometimes the right response to theft is anger and a complaint, not calm.",
+    "reply": "Foreseeing the thief is not approving of him. Keeping your choice in harmony with nature may well mean reporting the theft or asking someone to stop. What Epictetus removes is the annoyance that adds nothing: the sense that the baths owed you a quiet visit. You can complain clearly without being angry, and he would say you complain better.",
+    "open": "Whether anger at a real wrong is ever right, and not merely useless, is a question this chapter does not face."
+  },
+  "prompts": [
+    "Describe the last errand that went wrong and annoyed you. Write the sentence you could have said at the outset, in the form of the bath sentence.",
+    "Write your own bath sentence for one thing you will do this week: ‘I want to … and at the same time …’. Name exactly what you would be keeping.",
+    "Write three sentences against the chapter from the point of view of someone whose cloak really was stolen at the baths. Then write one on what you think Epictetus has right."
+  ],
+  "seeAlso": [
+    {
+      "ref": "handbook/2",
+      "why": "acting with reservation",
+      "relation": "echo"
+    },
+    {
+      "ref": "handbook/9",
+      "why": "what an obstacle can and cannot block",
+      "relation": "echo"
+    }
+  ],
+  "compare": null
+}
