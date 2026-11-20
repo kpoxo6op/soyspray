@@ -18,9 +18,9 @@ export const ACTORS = [
   'mat', 'frame',
   // bench.glb
   'stand', 'third_hand', 'multimeter', 'solder_tube', 'flux_pen', 'braid', 'cutters', 'tweezers', 'practice_board',
-  'glasses', 'battery', 'stripper', 'driver1', 'driver2', 'driver3',
+  'battery', 'driver1', 'driver2', 'driver3',
   // drawn in code
-  'iron', 'cord', 'solder', 'bead', 'smoke', 'resistor', 'legCut', 'jointA', 'jointA2', 'jFix1', 'jFix3', 'jFix4',
+  'glasses', 'stripper', 'iron', 'cord', 'solder', 'bead', 'smoke', 'resistor', 'legCut', 'jointA', 'jointA2', 'jFix1', 'jFix3', 'jFix4',
   'jCold', 'jBridge', 'cutGood', 'cutCold', 'braidStrip', 'resT1', 'resT2', 'resT3', 'ledR', 'ledA', 'ledG', 'chip', 'cap',
   'jT1', 'jT2', 'jT3', 'probeR', 'probeB', 'cordR', 'cordB', 'wireL', 'wireR', 'slug', 'shrinkS', 'spliceJoint',
   'wireP1', 'wireP2', 'wireP3', 'wireP4', 'jointP1', 'jointP2', 'jointP3', 'jointP4', 'lead', 'dim3', 'dim40', 'dim254',
@@ -59,7 +59,11 @@ export function buildScene(stage, assets) {
   const meter = bench('multimeter');
   const screen = SP.meterScreen();
   meter.add(screen);
-  for (const n of ['stand', 'third_hand', 'multimeter', 'solder_tube', 'flux_pen', 'braid', 'cutters', 'tweezers', 'practice_board', 'glasses', 'battery', 'stripper']) add(n, bench(n));
+  // the practice board's component side (its underside) carries the traffic light's printed marks
+  bench('practice_board').add(SP.trafficPrint());
+  for (const n of ['stand', 'third_hand', 'multimeter', 'solder_tube', 'flux_pen', 'braid', 'cutters', 'tweezers', 'practice_board', 'battery']) add(n, bench(n));
+  add('glasses', SP.glasses());
+  add('stripper', SP.stripper());
   for (const n of ['driver1', 'driver2', 'driver3']) add(n, bench('driver').clone(true));
 
   const iron = SP.penIron();
@@ -101,12 +105,13 @@ export function buildScene(stage, assets) {
   const shrinkG = new Group();
   shrinkG.add(shrink);
   add('shrinkS', shrinkG);
-  const splice = new Mesh(new CylinderGeometry(0.42 * MM, 0.42 * MM, 3.4 * MM, 12), P.MAT.tin);
+  const splice = new Mesh(new CylinderGeometry(0.3 * MM, 0.3 * MM, 3.4 * MM, 12), P.MAT.tin);
   splice.rotation.z = Math.PI / 2;
   const spliceG = new Group();
   spliceG.add(splice);
   add('spliceJoint', spliceG);
-  ['red', 'black', 'blue', 'white'].forEach((c, i) => add(`wireP${i + 1}`, P.wire(c, 30, 2)));
+  // onto GNDR, VIN, BOUT1, BOUT2: black on ground, red on the battery's plus, as on Pearl
+  ['black', 'red', 'blue', 'white'].forEach((c, i) => add(`wireP${i + 1}`, P.wire(c, 30, 2)));
   for (const n of ['jointP1', 'jointP2', 'jointP3', 'jointP4']) add(n, P.joint('good', 0.85));
   add('lead', SP.splitLead());
   add('dim3', SP.dimBar(3));
@@ -131,8 +136,9 @@ export function buildScene(stage, assets) {
   const leds = ['ledR', 'ledA', 'ledG'].map((n) => cast.get(n).obj);
   const wires = ['wireL', 'wireR'].map((n) => cast.get(n).obj.userData);
   const resistors = ['resistor', 'resT1', 'resT2', 'resT3'].map((n) => cast.get(n).obj.userData);
-  const web = cast.get('jBridge').obj.children[2];
+  const [blobA, blobB, web] = cast.get('jBridge').obj.children;
   const webScale = web.scale.clone();
+  const blobScale = blobA.scale.clone();
 
   // label anchors: an empty at the top centre of each actor's rest shape, made on first use
   const anchors = new Map();
@@ -161,6 +167,8 @@ export function buildScene(stage, assets) {
       }
       for (const r of resistors) for (const i of [0, 1]) r.cut(i, r.rise);
       web.scale.copy(webScale);
+      blobA.scale.copy(blobScale);
+      blobB.scale.copy(blobScale);
     },
     commit() {
       cast.commit();
@@ -263,6 +271,11 @@ export function buildScene(stage, assets) {
     /** The solder web of the bridge, 1 whole, 0 soaked away. */
     bridgeWeb(f) {
       web.scale.set(webScale.x * Math.max(0.001, f), webScale.y, webScale.z * Math.max(0.001, f));
+    },
+    /** The bridge's two blobs: 1 as bridged, 0.5 two separate joints with a gap between them. */
+    bridgeBlobs(f) {
+      blobA.scale.copy(blobScale).multiplyScalar(f);
+      blobB.scale.copy(blobScale).multiplyScalar(f);
     },
     tinWire(i, f, end = 'copper') {
       SP.tinWire(wires[i][end], f);
