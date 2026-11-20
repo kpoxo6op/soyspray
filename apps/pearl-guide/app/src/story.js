@@ -676,8 +676,8 @@ const solder = {
   },
   beats: [
     {
-      d: 8,
-      text: 'Set the iron to 330 °C. Wet the sponge, open a window and put your glasses on.',
+      d: 9,
+      text: 'Set the iron to 330 °C. Wet the sponge, open a window and put your glasses on. Wash your hands after.',
       cam: { p: [0.05, 0.36, 0.5], t: [-0.03, 0.03, -0.07], fov: 32 },
       labels: (S) => [
         { id: 'knob', text: '330 °C', at: S.node('station', null, [-0.018, 0.052, 0.062]), side: 't', strong: true },
@@ -1023,8 +1023,8 @@ const spinFan = {
       labels: (S, u) => (u > 0.6 ? [{ id: 'z', text: 'zeroed', at: S.node('scale'), side: 'r' }] : []),
     },
     {
-      d: 9,
-      text: 'Plug in the battery for five seconds. The fan blows upwards, so the scale shows how hard it pushes down.',
+      d: 10,
+      text: 'Plug in the battery for five seconds, fingers clear. The fan blows upwards, so the scale shows how hard it pushes down.',
       cam: { p: [0.2, 0.15, 0.24], t: [RIG[0], 0.06, RIG[1]], fov: 30 },
       act(S, u, k) {
         const on = smooth(span(u, 0.2, 0.3)) * (1 - smooth(span(u, 0.85, 0.95)));
