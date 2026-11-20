@@ -9,7 +9,6 @@
 // Sizes marked "about" are working figures until Boris sends photos of his iron, stand, kit and meter.
 
 import {
-  AdditiveBlending,
   BoxGeometry,
   CanvasTexture,
   CatmullRomCurve3,
@@ -185,7 +184,9 @@ export function tipState(iron, { tin = 0, black = 0, heat = 0 } = {}) {
   const m = iron.userData.tipMesh.material;
   m.color.copy(DULL).lerp(TIN, tin).lerp(BLACK_TIP, black);
   m.roughness = 0.55 - 0.4 * tin + 0.3 * black;
-  m.emissive.copy(GLOW).multiplyScalar(0.22 * heat);
+  m.metalness = 0.85 - 0.45 * tin - 0.6 * black; // tin reads silver-white, oxide reads black, not mirrors of the room
+  // the glow reads only on a clean tip: a black, oxidised tip stays black even when hot, and a tinned one stays silver
+  m.emissive.copy(GLOW).multiplyScalar(0.1 * heat * (1 - black) * (0.25 + 0.75 * (1 - tin)));
 }
 
 // ---------------------------------------------------------------- joints cut in half
@@ -292,7 +293,7 @@ export function led(color = 'red') {
   }
   const geo = lathe(pts, 28);
   const p = geo.attributes.position;
-  for (let i = 0; i < p.count; i++) if (p.getY(i) < 1.01 * MM && p.getX(i) < -2.5 * MM) p.setX(i, -2.5 * MM); // the flat
+  for (let i = 0; i < p.count; i++) if (p.getY(i) < 1.01 * MM && p.getX(i) < -2.2 * MM) p.setX(i, -2.2 * MM); // the flat
   geo.computeVertexNormals();
   const dome = mesh(geo, new MeshStandardMaterial({ color: LED_COLORS[color], roughness: 0.18, metalness: 0 }));
   g.add(dome);
@@ -309,7 +310,7 @@ export function led(color = 'red') {
 /** Light an LED: 0 off, 1 fully on. */
 export function ledState(l, on = 0) {
   const ud = l.userData;
-  ud.domeMesh.material.emissive.copy(ud.color).multiplyScalar(1.6 * on);
+  ud.domeMesh.material.emissive.copy(ud.color).multiplyScalar(3 * on);
 }
 
 /** An 8-pin DIP chip, 9.6 × 6.4 × 3.3 mm, notch at -x, legs down through 7.62 mm rows. Origin under its body. */
@@ -409,7 +410,7 @@ export function cutLeg() {
  * setFlow(phase 0..1, strength 0..1). Same material settings as props.js airflow(). */
 export function smoke(height = 30, drift = 8) {
   const g = new Group();
-  // a soft streak: bright down the middle, black at the edges and ends (black adds nothing when blended additively)
+  // a soft streak: the falloff is in alpha, so the edges and ends fade to nothing over any background
   const { g: ctx, t } = textCanvas(32, 128);
   const img = ctx.createImageData(32, 128);
   for (let y = 0; y < 128; y++) {
@@ -417,16 +418,16 @@ export function smoke(height = 30, drift = 8) {
       const dx = (x - 15.5) / 9;
       const v = Math.exp(-dx * dx) * Math.sin((Math.PI * (y + 0.5)) / 128) * 255;
       const i = (y * 32 + x) * 4;
-      img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
-      img.data[i + 3] = 255;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = 255;
+      img.data[i + 3] = v;
     }
   }
   ctx.putImageData(img, 0, 0);
   t.needsUpdate = true;
   const wisps = [];
   for (let i = 0; i < 3; i++) {
-    const mat = new MeshBasicMaterial({ map: t, color: 0xd9d4ca, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false, side: DoubleSide, toneMapped: false });
-    const s = new Mesh(new PlaneGeometry(3 * MM, 14 * MM), mat);
+    const mat = new MeshBasicMaterial({ map: t, color: 0xb9bbbd, transparent: true, opacity: 0, depthWrite: false, side: DoubleSide, toneMapped: false });
+    const s = new Mesh(new PlaneGeometry(4 * MM, 14 * MM), mat);
     s.castShadow = false;
     s.userData.offset = i / 3;
     s.userData.x = (i - 1) * 0.9 * MM;
@@ -439,7 +440,7 @@ export function smoke(height = 30, drift = 8) {
       const k = (phase + s.userData.offset) % 1;
       // read the material now: the cast swapped in its own clone
       // brightest just above the joint, thinning as it climbs; most close-ups only see the first 10 mm
-      s.material.opacity = 0.6 * strength * (1 - k) ** 1.5 * Math.min(1, k * 5);
+      s.material.opacity = 0.9 * strength * (1 - k) ** 1.2 * Math.min(1, k * 5);
       s.position.set(s.userData.x + Math.sin((k + s.userData.offset) * 6) * 0.6 * MM, (5 + k * height) * MM, -k * k * drift * MM);
       s.scale.y = 0.6 + k;
     }
@@ -536,4 +537,165 @@ export function resistorT(rise = 6.6) {
   g.userData.rise = rise;
   g.userData.cut = (i, h) => legs[i].scale.set(1, Math.max(0.05, h / rise), 1);
   return g;
+}
+
+/**
+ * The traffic-light board's printed component side, as one canvas on a plane just under the board (the practice
+ * board's underside is its component side). Built in the board's own millimetres: bench.glb's practice_board is
+ * 39.6 (x) by 49.8 (z) mm, and the story turns it a quarter turn into the frame, so frame x is board z and frame z is
+ * board -x. The marks sit where story.js places the parts (RES_T, LED_X, LED_Z, CHIP, CAP, POWER): three resistor
+ * outlines with their value (the resistors' bands read 10k), an outline with a flat and a + by each LED's anode hole,
+ * the chip's outline with its notch and the capacitor's circle with the striped side shaded. The real kit's print
+ * waits for Boris's photo.
+ */
+export function trafficPrint() {
+  const W = 396; // 10 px per mm across the board's 39.6 mm
+  const H = 498;
+  const { g, t } = textCanvas(W, H);
+  const px = (fx, fz) => [(0.5 - fz / 39.6) * W, (0.5 - fx / 49.8) * H]; // board x = -frame z, board z = frame x
+  const mm = 10;
+  g.fillStyle = '#c9a46a';
+  g.fillRect(0, 0, W, H);
+  // the hole grid, 2.54 mm pitch
+  g.fillStyle = '#5a3d1a';
+  for (let i = -9; i <= 8; i++) {
+    for (let j = -7; j <= 6; j++) {
+      const [x, y] = px((i + 0.5) * 2.54, (j + 0.5) * 2.54);
+      g.beginPath();
+      g.arc(x, y, 0.45 * mm, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+  g.strokeStyle = '#f4f1ea';
+  g.fillStyle = '#f4f1ea';
+  g.lineWidth = 0.28 * mm;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  const text = (s, fx, fz, size = 1.7) => {
+    const [x, y] = px(fx, fz);
+    g.save();
+    g.translate(x, y);
+    g.rotate(-Math.PI / 2); // reads along frame x, the board's long side
+    g.font = `700 ${size * mm}px ${MONO}`;
+    g.fillText(s, 0, 0);
+    g.restore();
+  };
+  const rect = (fx0, fz0, fx1, fz1) => {
+    const [x0, y0] = px(fx0, fz0);
+    const [x1, y1] = px(fx1, fz1);
+    g.strokeRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
+  };
+  // resistors: body centred at x 1.27, legs at -3.81 and 6.35
+  for (const z of [-1.27, -6.35, -11.43]) {
+    rect(-2.1, z - 1.35, 4.64, z + 1.35);
+    text('10k', 1.27, z, 1.5);
+  }
+  // LEDs: 5 mm outline, flat on the cathode (z 6.35) side, + by the anode hole (z 8.89)
+  for (const x of [-11.43, -1.27, 8.89]) {
+    const [cx, cy] = px(x, 7.62);
+    const r = 2.9 * mm;
+    const flat = 2.2 * mm; // the flat's distance from the centre, towards frame -z (canvas +x)
+    const a = Math.acos(flat / r);
+    g.beginPath();
+    g.arc(cx, cy, r, a, Math.PI * 2 - a); // the long way round, leaving the flat open on the right
+    g.closePath();
+    g.stroke();
+    text('+', x, 7.62 + 4.6, 2.4);
+  }
+  // the chip: 9.6 by 6.4 mm, notch at its -x end
+  rect(-15.24 - 4.9, -5.08 - 3.3, -15.24 + 4.9, -5.08 + 3.3);
+  {
+    const [nx, ny] = px(-15.24 - 4.9, -5.08);
+    g.beginPath();
+    g.arc(nx, ny, 1.1 * mm, -Math.PI / 2, Math.PI / 2, true);
+    g.stroke();
+  }
+  // the capacitor: a 5 mm circle, its striped (-x) half shaded
+  {
+    const [cx, cy] = px(15.24, -5.08);
+    g.beginPath();
+    g.arc(cx, cy, 2.7 * mm, 0, Math.PI * 2);
+    g.stroke();
+    g.save();
+    g.beginPath();
+    g.arc(cx, cy, 2.7 * mm, 0, Math.PI * 2);
+    g.clip();
+    g.globalAlpha = 0.75;
+    g.fillRect(cx - 3 * mm, cy, 6 * mm, 3 * mm); // canvas +y is frame -x
+    g.restore();
+  }
+  // the power pads
+  rect(-21.59 - 1.6, -13.97 - 1.6, -21.59 + 1.6, -11.43 + 1.6);
+  t.needsUpdate = true;
+  const m = mesh(new PlaneGeometry(39.6 * MM, 49.8 * MM), new MeshStandardMaterial({ map: t, roughness: 0.75 }), false);
+  m.rotation.x = Math.PI / 2; // faces -y, the underside
+  m.position.y = -0.03 * MM;
+  m.name = 'board_print';
+  return m;
+}
+
+/** Safety glasses folded on the mat: a dark frame, two tinted lenses and the arms folded flat behind them. */
+export function glasses() {
+  const g = new Group();
+  const frame = merge([
+    put(new BoxGeometry(140 * MM, 5 * MM, 3 * MM), [0, 40, 0]),
+    put(new BoxGeometry(3 * MM, 38 * MM, 3 * MM), [-68.5, 21, 0]),
+    put(new BoxGeometry(3 * MM, 38 * MM, 3 * MM), [68.5, 21, 0]),
+    put(new BoxGeometry(12 * MM, 8 * MM, 3 * MM), [0, 33, 0]),
+    put(new BoxGeometry(128 * MM, 2.5 * MM, 3 * MM), [-4, 1.5, -9]),
+    put(new BoxGeometry(128 * MM, 2.5 * MM, 3 * MM), [4, 4.5, -14]),
+  ]);
+  g.add(mesh(frame, SMAT.handle));
+  const lens = new MeshStandardMaterial({ color: 0x9fc3da, roughness: 0.08, transparent: true, opacity: 0.45, depthWrite: false });
+  const lenses = merge([
+    put(new BoxGeometry(60 * MM, 36 * MM, 1.4 * MM), [-35, 21, 0.5]),
+    put(new BoxGeometry(60 * MM, 36 * MM, 1.4 * MM), [35, 21, 0.5]),
+  ]);
+  const l = mesh(lenses, lens, false);
+  l.renderOrder = 2;
+  g.add(l);
+  g.userData.bridge = (() => {
+    const a = new Object3D();
+    a.position.set(0, 44 * MM, 0);
+    g.add(a);
+    return a;
+  })();
+  return g;
+}
+
+/**
+ * A precision wire stripper (Pro'sKit 8PK-3001D style, about): two steel jaws with a row of sized notches, blue
+ * handles. Posed to close across a wire running along x: the jaws point at -z from the origin (their tip), one jaw
+ * above the wire and one below, the notches open along x. userData.notch28 is the 28 AWG notch, 8.6 mm back from the
+ * tip and 1.6 mm along +x.
+ */
+export function stripper() {
+  const outer = new Group();
+  const g = new Group();
+  // built with the jaws along +x, flat in xz; turned so x -> -z, y -> +x, z -> -y
+  g.quaternion.setFromRotationMatrix(new Matrix4().makeBasis(new Vector3(0, 0, -1), new Vector3(1, 0, 0), new Vector3(0, -1, 0)));
+  outer.add(g);
+  const jaw = merge([
+    put(new BoxGeometry(34 * MM, 3 * MM, 7 * MM), [17, 1.6, 3.6]),
+    put(new BoxGeometry(34 * MM, 3 * MM, 7 * MM), [17, 1.6, -3.6]),
+    put(new BoxGeometry(10 * MM, 4 * MM, 16 * MM), [38, 1.6, 0]),
+  ]);
+  g.add(mesh(jaw, MAT.steel));
+  // the notches: dark half-rounds along the jaws' meeting line, smallest (30 AWG) at the tip
+  const notches = [];
+  for (let i = 0; i < 6; i++) notches.push(put(new CylinderGeometry((0.35 + i * 0.14) * MM, (0.35 + i * 0.14) * MM, 3.2 * MM, 10), [4 + i * 4.6, 1.6, 0]));
+  g.add(mesh(merge(notches), SMAT.epoxy, false));
+  const handles = merge([
+    put(new BoxGeometry(86 * MM, 6 * MM, 9 * MM), [84, 1.6, 9], [0, 0.12, 0]),
+    put(new BoxGeometry(86 * MM, 6 * MM, 9 * MM), [84, 1.6, -9], [0, -0.12, 0]),
+  ]);
+  g.add(mesh(handles, SMAT.sleeve));
+  g.userData.notch28 = (() => {
+    const a = new Object3D();
+    a.position.set(8.6 * MM, 1.6 * MM, 0);
+    g.add(a);
+    return a;
+  })();
+  outer.userData.notch28 = g.userData.notch28;
+  return outer;
 }

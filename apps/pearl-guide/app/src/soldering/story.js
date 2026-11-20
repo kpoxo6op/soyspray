@@ -172,6 +172,11 @@ function probes(S, a, red, black) {
   S.a('cordR').show().obj.userData.setEnds(tops[0], jack(0.006));
   S.a('cordB').show().obj.userData.setEnds(tops[1], jack(-0.018));
 }
+/** A point on the iron's cord three quarters of the way down to the bench, in world space. */
+function cordAt(S) {
+  const cord = S.a('cord').obj; // a straight cylinder, centred between its ends, its y axis along the cord
+  return new Vector3(0, 0.25 * cord.scale.y, 0).applyQuaternion(cord.quaternion).add(cord.position);
+}
 const meterKnobAt = (S) => S.node('multimeter', null, [0, 0.042, 0.014]);
 const meterSideAt = (S) => S.node('multimeter', null, [0.026, 0.037, -0.039]); // right edge of the screen
 
@@ -217,8 +222,8 @@ const bench = {
     {
       d: 10,
       text: 'Lay the tools on the silicone mat. Keep food and drink off the bench: this solder contains lead.',
-      cam: { p: [0.02, 0.46, 0.4], t: [0.0, 0.0, 0.01], fov: 34 },
-      cam2: { p: [0.0, 0.44, 0.43], t: [0.0, 0.0, 0.01], fov: 34 },
+      cam: { p: [0.01, 0.6, 0.35], t: [0, 0, 0.03], fov: 38 },
+      cam2: { p: [0.0, 0.6, 0.37], t: [0, 0, 0.03], fov: 38 },
       act(S, u) {
         lay(S, LAYOUT, u * 1.2);
       },
@@ -228,25 +233,25 @@ const bench = {
               L('iron', 'pen iron', S.a('iron').obj.userData.grip, 'b'),
               L('solder', '60/40 solder, 0.8 mm', S.node('solder_tube'), 't'),
               L('flux', 'flux pen', S.node('flux_pen'), 'b'),
-              L('hands', 'helping hands', S.node('third_hand'), 't'),
+              L('hands', 'helping hands', S.node('third_hand'), 'b'),
               L('kit', 'practice kit', S.F(0, 2, 0), 't'),
             ]
           : [],
     },
     {
       d: 9,
-      text: 'Put glasses on and open a window. The smoke is burnt flux and should drift away from your face.',
-      cam: { p: [-0.05, 0.13, 0.42], t: [-0.03, 0.035, 0.0], fov: 32 },
+      text: 'Put on glasses, any pair until the safety ones come, and open a window. Flux smoke should drift away from you.',
+      cam: { p: [-0.1, 0.22, 0.52], t: [-0.1, 0.02, 0.1], fov: 32 },
       act(S, u) {
         // no smoke yet: the iron is cold until 1.5, and smoke rises only while solder or flux is on heat
         const { dy, alpha } = drop(span(u, 0.05, 0.4), 0.05);
-        S.a('glasses').show(alpha).at(-0.075, MAT_Y + dy, 0.122);
+        S.a('glasses').show(alpha).at(-0.14, MAT_Y + dy, 0.19); // in front of the mat, clear of the tools
       },
       labels: (S, u) =>
         u > 0.4
           ? [
-              L('glasses', 'glasses on', S.node('glasses'), 't', true),
-              L('window', 'window open', v3([-0.2, 0.17, -0.25]), 'r'),
+              L('glasses', 'glasses on', S.a('glasses').obj.userData.bridge, 't', true),
+              L('window', 'window open', v3([-0.1, 0.1, -0.12]), 'r'),
             ]
           : [],
     },
@@ -254,7 +259,7 @@ const bench = {
       d: 10,
       text: 'Stand the iron in its holder with the cord clear of your arms. It rests there whenever you put it down.',
       cam: { p: [0.33, 0.2, 0.25], t: [0.12, 0.04, -0.06], fov: 32 },
-      cam2: { p: [0.4, 0.24, -0.02], t: [0.12, 0.04, -0.07], fov: 32 },
+      cam2: { p: [0.42, 0.26, 0.1], t: [0.14, 0.05, -0.1], fov: 32 },
       act(S, u) {
         const up = easeInOut(span(u, 0.05, 0.35));
         const into = easeInOut(span(u, 0.35, 0.65));
@@ -265,7 +270,7 @@ const bench = {
         u > 0.68
           ? [
               L('stand', 'iron stand', S.node('stand', null, [-0.03, 0.02, 0.035]), 'b', true),
-              L('cord', 'cord behind', S.a('cord').obj, 't'),
+              L('cord', 'cord behind', cordAt(S), 't'),
             ]
           : [],
     },
@@ -301,8 +306,8 @@ const bench = {
     {
       d: 10,
       text: 'Hold the iron like a pen by the grip only. Metal ahead of the grip burns. Unplug the iron if you stop here.',
-      cam: { p: [-0.07, 0.17, 0.3], t: [0.06, 0.08, 0.03], fov: 32 },
-      cam2: { p: [0.02, 0.15, 0.33], t: [0.06, 0.08, 0.03], fov: 32 },
+      cam: { p: [-0.07, 0.19, 0.3], t: [0.05, 0.1, 0.03], fov: 32 },
+      cam2: { p: [0.02, 0.17, 0.33], t: [0.05, 0.1, 0.03], fov: 32 },
       act(S, u) {
         const out = easeInOut(span(u, 0.05, 0.45));
         const hold = { p: [KIT_AT[0] + 0.005, 0.03, KIT_AT[2] - 0.004], yaw: 0.4, pitch: 0.785 };
@@ -381,7 +386,8 @@ const first = {
     {
       d: 10,
       text: 'Push a resistor through the board, bend its legs apart and clip the board in the helping hands, legs facing up.',
-      cam: { p: [0.06, 0.2, 0.32], t: [0.0, 0.035, 0.015], fov: 32 },
+      cam: { p: [0.01, 0.075, 0.16], t: [-0.01, 0.004, 0.07], fov: 30 },
+      cam2: { p: [0.05, 0.2, 0.3], t: [0, 0.06, -0.01], fov: 32 },
       move: 2,
       act(S, u) {
         ironOn(S);
@@ -392,7 +398,7 @@ const first = {
         put(S, 'practice_board', 0, 0, 0).turn(Math.PI / 2);
       },
       labels: (S, u) => {
-        if (u > 0.2 && u < 0.38) return [L('legs', 'legs bent: it stays put', S.F(RES[0], 5.5, RES[2]), 't')];
+        if (u > 0.2 && u < 0.38) return [L('legs', 'legs through the holes', S.F(RES[0], 5.5, RES[2]), 'r')];
         if (u > 0.82) return [L('clips', 'clips on the board edges', S.node('third_hand', null, [-0.026, 0.078, -0.007]), 'l')];
         return [];
       },
@@ -424,10 +430,11 @@ const first = {
       cam2: fcam(J1, [-8, 10, 39], 28),
       act(S, u, k) {
         ironTo(S, ironOnPad(S, J1));
-        solderAt(S, solderPad(S, J1, easeInOut(span(u, 0.05, 0.3))));
         const g = smooth(span(u, 0.28, 0.75));
         joint(S, 'jointA', J1, g * 0.8);
         S.wet('jointA', 1);
+        if (u >= 1) return; // 2.5 carries the wire and the smoke on
+        solderAt(S, solderPad(S, J1, easeInOut(span(u, 0.05, 0.3))));
         smokeAt(S, S.W(...J1), smooth(span(u, 0.28, 0.4)), k);
       },
       labels: (S, u) =>
@@ -444,9 +451,10 @@ const first = {
       cam: fcam(J1, [-8, 10, 39], 28),
       act(S, u, k) {
         ironTo(S, ironOnPad(S, J1));
-        solderAt(S, solderPad(S, J1, 1));
         joint(S, 'jointA', J1, 0.8 + 0.2 * smooth(span(u, 0.05, 0.5)));
         S.wet('jointA', 1);
+        if (u >= 1) return; // 2.6 takes the wire away; the bar and the smoke end with this beat
+        solderAt(S, solderPad(S, J1, 1));
         smokeAt(S, S.W(...J1), 1 - smooth(span(u, 0.6, 0.9)), k);
         // 3 mm of wire beside the solder, ending where it melts
         const end = solderPad(S, J1, 1);
@@ -469,7 +477,7 @@ const first = {
       cam: fcam(J1, [-4, 11, 42], 28),
       act(S, u) {
         const sOut = easeInOut(span(u, 0.05, 0.25));
-        if (sOut < 1) solderAt(S, mix3(solderPad(S, J1, 1), solderPad(S, J1, 0), sOut));
+        if (u < 1 && sOut < 1) solderAt(S, mix3(solderPad(S, J1, 1), solderPad(S, J1, 0), sOut));
         const iOut = easeInOut(span(u, 0.32, 0.55));
         ironTo(S, mixIron(ironOnPad(S, J1), ironOffPad(S, J1), iOut));
         joint(S, 'jointA', J1, 1);
@@ -501,7 +509,7 @@ const first = {
       labels: (S, u) =>
         u > 0.3
           ? [
-              L('flat', 'flat side down', S.node('cutters', null, [0.03, 0.004, 0]), 'r'),
+              L('flat', 'flat side down', S.node('cutters', null, [0.008, 0.004, 0]), 'r'),
               L('holdleg', 'hold the leg', S.F(J1[0], PAD + 5.5, J1[2]), 't', true),
               ...(u < 0.5 ? [L('cut', 'cut here', S.F(J1[0] - 0.4, PAD + CONE, J1[2]), 'l')] : []),
             ]
@@ -535,8 +543,8 @@ const first = {
 };
 
 // ---------------------------------------------------------------- chapter 3
-// a row of practice faults on the board's front row, 2.54 mm apart
-const ROW = 3.81;
+// a row of practice faults near the board's front edge, 2.54 mm apart, clear of the chapter 2 resistor
+const ROW = 8.89;
 const FA = [-8.89, PAD, ROW]; // dull joint, fixed with flux
 const FB = [-3.81, PAD, ROW]; // starved joint
 const FC = [1.27, PAD, ROW]; // a good one to compare
@@ -599,7 +607,7 @@ const fix = {
         const pen = easeInOut(span(u, 0.04, 0.2)) * (1 - easeInOut(span(u, 0.25, 0.38)));
         if (pen > 0) {
           const tip = S.W(FA[0] - 0.8, FA[1] + 2.2, FA[2] - 0.3);
-          S.a('flux_pen').show().at(tip.x - 0.03 * (1 - pen), tip.y + 0.02 * (1 - pen), tip.z).turn(Math.PI, 0, 0.6);
+          S.a('flux_pen').show().at(tip.x - 0.03 * (1 - pen), tip.y + 0.02 * (1 - pen), tip.z).turn(Math.PI, 0, 1.0);
         }
         const on = easeInOut(span(u, 0.35, 0.48));
         const off = easeInOut(span(u, 0.78, 0.92));
@@ -613,7 +621,7 @@ const fix = {
       labels: (S, u) => {
         const out = [];
         if (u > 0.08 && u < 0.35) out.push(L('flux', 'flux', S.F(FA[0] - 1.5, FA[1] + 2.5, FA[2]), 'l'));
-        if (u > 0.48) out.push(L('2s', '2 s', S.F(FA[0], FA[1] + 2.4, FA[2]), 't', true));
+        if (u > 0.48 && u < 0.78) out.push(L('2s', '2 s', S.F(FA[0], FA[1] + 2.4, FA[2]), 't', true));
         if (u > 0.55) out.push(L('5s', '5 s or more lifts the pad', S.F(FA[0] - 1.2, FA[1], FA[2] + 1), 'b'));
         return out;
       },
@@ -633,14 +641,16 @@ const fix = {
         const soak = smooth(span(u, 0.38, 0.72));
         S.soak(soak);
         S.bridgeWeb(1 - soak);
+        S.bridgeBlobs(1 - 0.5 * soak); // two separate joints with a clear gap
         smokeAt(S, S.W(FD[0], y, FD[2]), smooth(span(u, 0.36, 0.42)) * (1 - smooth(span(u, 0.7, 0.78))), k);
       },
       labels: (S, u) => {
         const out = [];
         if (u < 0.3) out.push(L('bridge', 'bridge', S.F(FD[0], PAD + 2.2, FD[2] + 1), 'b'));
-        if (u > 0.15 && u < 0.98) out.push(L('braid', 'braid, 1.5 mm', S.F(FD[0] + 16, PAD + 3.5, FD[2] - 3.5), 't'));
+        if (u > 0.15 && u < 0.8) out.push(L('braid', 'braid, 1.5 mm', S.F(FD[0] + 12, PAD + 3.2, FD[2] - 2.4), 'b'));
         if (u > 0.34 && u < 0.8) out.push(L('on', 'iron on the braid', S.a('iron').obj.userData.tipSide, 'r', true));
-        if (u > 0.2 && u < 0.98) out.push(L('back', 'fingers 30 mm back', S.F(FD[0] + 29, PAD + 3.5, FD[2] - 6), 'b'));
+        if (u > 0.2 && u < 0.8) out.push(L('back', 'fingers here', S.F(FD[0] + 20, PAD + 3.2, FD[2] - 4), 'b'));
+        if (u > 0.82) out.push(L('gap', 'gap: bridge gone', S.F(FD[0], PAD + 1.5, FD[2]), 'b', true));
         return out;
       },
     },
@@ -787,7 +797,8 @@ const light = {
         u > 0.3
           ? [
               L('first', 'resistors first', S.node('resT1', null, [0, -0.0014, 0]), 'l', true),
-              L('value', 'value printed here', S.F(1.27, -0.05, -3.81), 'r'),
+              // the third outline's value shows until its resistor covers it
+              ...(u < 0.52 ? [L('value', 'value printed here', S.F(1.27, -0.05, -11.43), 'r')] : []),
             ]
           : [],
     },
@@ -795,7 +806,7 @@ const light = {
       d: 10,
       text: 'Solder one leg of each part and check it sits flat. One leg can still be reheated and the part pressed down.',
       cam: fcam(JT1, [10, 22, 48], 30),
-      cam2: { p: fw(JT1[0] + 34, -1, JT1[2] + 34), t: fw(JT1[0] + 4, -1.5, JT1[2]), fov: 30 },
+      cam2: fcam(JT1, [16, 8, 44], 30),
       move: 1.2,
       act(S, u, k) {
         flipFrame(S, u, true);
@@ -817,7 +828,7 @@ const light = {
       },
       labels: (S, u) => {
         const out = [];
-        if (u > 0.4) out.push(L('one', 'one leg first', S.F(JT1[0], PAD + 2.4, JT1[2]), 't', true));
+        if (u > 0.4 && u < 0.6) out.push(L('one', 'one leg first', S.F(JT1[0], PAD + 2.4, JT1[2]), 't', true));
         if (u > 0.84) out.push(L('flat', 'flat on the board', S.F(1.27, -0.1, -1.27 + 1.4), 'b'));
         return out;
       },
@@ -825,7 +836,7 @@ const light = {
     {
       d: 10,
       text: "Fit each LED with its long leg in the hole marked +. The flat on the LED's rim goes on the other side.",
-      cam: fcam([-11.43, -10, LED_Z], [8, -18, -46], 28, FLIP),
+      cam: fcam([-11.43, -13, LED_Z], [10, -20, -58], 28, FLIP),
       act(S, u) {
         flipFrame(S, u, false);
         const turn = easeInOut(span(u, 0.2, 0.45));
@@ -837,9 +848,9 @@ const light = {
       labels: (S, u) =>
         u > 0.45 && u < 0.98
           ? [
-              L('long', 'long leg: +', S.node('ledR', null, [1.27 * MM, -12 * MM, 0]), 'r', true),
-              L('flatrim', 'flat on the rim: −', S.node('ledR', null, [-2.5 * MM, 0.6 * MM, 0]), 'l'),
-              L('plus', '+ on the board', S.F(-11.43, -0.05, LED_Z + 1.27), 'r'),
+              L('long', 'long leg: +', S.node('ledR', null, [1.27 * MM, 0, 0]), 'r', true),
+              L('flatrim', 'flat on the rim: −', S.node('ledR', null, [-2.2 * MM, 0.6 * MM, 0]), 'l'),
+              L('plus', '+ on the board', S.F(-11.43, -0.05, LED_Z + 4.6), 'r'),
             ]
           : [],
     },
@@ -905,7 +916,7 @@ const light = {
     {
       d: 10,
       text: 'Probe the two power pads: silence is right. Then power the kit. Red, amber and green light in turn.',
-      cam: { p: [-0.03, 0.17, 0.2], t: [-0.07, 0.05, -0.03], fov: 32 },
+      cam: { p: [-0.02, 0.2, 0.22], t: [-0.05, 0.065, -0.03], fov: 32 },
       cam2: { p: [-0.005, 0.13, 0.12], t: [-0.005, 0.07, -0.04], fov: 32 },
       act(S, u) {
         const toComp = easeInOut(span(u, 0.5, 0.62));
@@ -960,20 +971,21 @@ const wires = {
     {
       d: 10,
       text: "Strip 3 mm from a 28 AWG wire in the stripper's 28 notch and twist the strands tight. No strand is cut.",
-      cam: { p: [WEND + 0.012, WY + 0.016, WZ + 0.032], t: [WEND - 0.004, WY, WZ], fov: 28 },
+      cam: { p: [WEND + 0.02, WY + 0.045, WZ + 0.1], t: [WEND + 0.006, WY, WZ], fov: 28 },
+      cam2: { p: [WEND + 0.012, WY + 0.016, WZ + 0.032], t: [WEND - 0.004, WY, WZ], fov: 28 },
       act(S, u) {
         const inn = easeInOut(span(u, 0.05, 0.3));
         const pull = easeInOut(span(u, 0.38, 0.62));
         const away = easeInOut(span(u, 0.66, 0.8));
-        // from the right: the jaws close just inside the 3 mm, the handles run off to the right, then it pulls
         const x = WEND - 0.0045 + 0.009 * pull + 0.03 * away;
-        if (away < 1) S.a('stripper').show().at(x + 0.03 * (1 - inn), WY, WZ + 0.02 * (1 - inn)).turn(-0.35, Math.PI / 2, 0);
+        // the jaws close across the wire, handles running back; the 28 notch (1.6 mm across, 8.6 mm in) on the wire
+        if (away < 1) S.a('stripper').show().at(x - 0.0016, WY + 0.02 * (1 - inn), WZ + 0.0086);
         if (u < 0.75) S.a('slug').show(1 - smooth(span(u, 0.55, 0.7))).at(WEND - 0.0015 + 0.009 * pull, WY, WZ - 0.00045);
         if (u > 0.62 && u < 1) S.a('dim3').show(smooth(span(u, 0.62, 0.7))).at(WEND - 0.0015, WY + 0.0025, WZ);
       },
       labels: (S, u) => {
         const out = [];
-        if (u > 0.2 && u < 0.62) out.push(L('notch', '28 notch', v3([WEND - 0.0015, WY + 0.0035, WZ]), 't', true));
+        if (u > 0.2 && u < 0.45) out.push(L('notch', '28 notch', S.a('stripper').obj.userData.notch28, 't', true));
         if (u > 0.66) out.push(L('3mm', '3 mm', S.node('dim3', null, [0, 0.0012, 0]), 't'));
         if (u > 0.76) out.push(L('tw', 'strands twisted', v3([WEND, WY, WZ]), 'r'));
         return out;
@@ -1005,11 +1017,11 @@ const wires = {
     {
       d: 9,
       text: 'Slide 12 mm of the thinnest heatshrink onto one wire and push it 40 mm away from the heat.',
-      cam: { p: [WEND - 0.02, WY + 0.03, WZ + 0.1], t: [WEND - 0.022, WY, WZ], fov: 28 },
+      cam: { p: [WEND - 0.02, WY + 0.02, WZ + 0.07], t: [WEND - 0.02, WY, WZ], fov: 28 },
       act(S, u) {
         const on = easeInOut(span(u, 0.05, 0.25));
         const slide = easeInOut(span(u, 0.25, 0.6));
-        S.a('shrinkS').show(smooth(on * 2)).at(lerp(WEND + 0.03, WEND + 0.004, on) - 0.046 * slide, WY, WZ - 0.00045);
+        S.a('shrinkS').show(smooth(on * 2)).at(lerp(WEND + 0.015, WEND + 0.004, on) - 0.046 * slide, WY, WZ - 0.00045);
         if (u > 0.6 && u < 1) S.a('dim40').show(smooth(span(u, 0.6, 0.7))).at(WEND - 0.02, WY + 0.004, WZ);
       },
       labels: (S, u) => [
@@ -1048,7 +1060,7 @@ const wires = {
       act(S, u) {
         const slide = easeInOut(span(u, 0.05, 0.3));
         const shrink = smooth(span(u, 0.5, 0.8));
-        S.a('shrinkS').show().at(lerp(WEND + 0.004 - 0.046, 0, slide), WY, WZ).size([1, 1 - 0.38 * shrink, 1 - 0.38 * shrink]);
+        S.a('shrinkS').show().at(lerp(WEND + 0.004 - 0.046, 0, slide), WY, WZ).size([1, 1 - 0.2 * shrink, 1 - 0.05 * shrink]); // the two wires lie side by side in z
         // the barrel's middle, 40 mm up from the tip, sits 2 mm below the sleeve
         const yaw = 0.6;
         const at = [0, WY - 0.00075 - 0.002 - 0.00325, WZ];
@@ -1068,12 +1080,12 @@ const wires = {
     {
       d: 9,
       text: 'Tug the splice gently, then put a probe on each end. It holds and the meter beeps. Fine place to stop.',
-      cam: { p: [-0.02, 0.2, 0.26], t: [-0.06, 0.03, -0.01], fov: 32 },
+      cam: { p: [-0.05, 0.2, 0.26], t: [-0.09, 0.03, -0.01], fov: 32 },
       act(S, u) {
         const tug = Math.sin(Math.PI * span(u, 0.05, 0.25)) * 0.001;
         wireL(S, -tug);
         wireR(S, tug);
-                const land = easeInOut(span(u, 0.3, 0.5));
+        const land = easeInOut(span(u, 0.3, 0.5));
         probes(S, land, [WL + 0.0015, WY, WZ - 0.00045], [-WL - 0.0015, WY, WZ + 0.00045]);
         S.meter(land >= 1 ? '0.00' : 'OL', 'Ω');
       },
@@ -1094,7 +1106,7 @@ function spliceDone(S) {
   S.tinWire(0, 1);
   S.tinWire(1, 1);
   S.a('spliceJoint').show().at(...SPLICE);
-  S.a('shrinkS').show().at(0, WY, WZ).size([1, 0.62, 0.62]);
+  S.a('shrinkS').show().at(0, WY, WZ).size([1, 0.8, 0.95]);
 }
 
 // ---------------------------------------------------------------- chapter 6
@@ -1193,9 +1205,9 @@ const small = {
     },
     {
       d: 9,
-      text: 'Solder wires to the next three pads, 2.54 mm apart. Clear copper shows between every pair of joints.',
+      text: 'Solder wires to the next three pads, 2.54 mm apart. Clear board shows between every pair of joints.',
       cam: { p: add3(padAt('BOUT1'), [0.0, 0.03, 0.045]), t: add3(padAt('BOUT1'), [0.0013, 0, 0]), fov: 30 },
-      cam2: { p: add3(padAt('BOUT1'), [0.004, 0.011, 0.05]), t: add3(padAt('BOUT1'), [0.0013, 0.0008, 0]), fov: 26 },
+      cam2: { p: add3(padAt('BOUT1'), [0.004, 0.02, 0.05]), t: add3(padAt('BOUT1'), [0.0013, 0.0008, 0]), fov: 26 },
       move: 1.2,
       act(S, u, k) {
         let pose = REST;
@@ -1203,12 +1215,12 @@ const small = {
           const a = 0.05 + (i - 1) * 0.18;
           const g = smooth(span(u, a + 0.06, a + 0.12));
           padJoint(S, i, 0.4 + 0.3 * g);
-          wireOnPad(S, i, g, 0.01 * (1 - easeInOut(span(u, a, a + 0.06))));
+          wireOnPad(S, i, g, 0.004 * (1 - easeInOut(span(u, a, a + 0.06))));
           if (u > a + 0.03 && u < a + 0.16) pose = padIron(PADS[i]);
           smokeAt(S, padAt(PADS[i]), u > a + 0.07 && u < a + 0.13 ? 1 : 0, k);
         }
         ironTo(S, pose);
-        if (u > 0.62) {
+        if (u > 0.62 && u < 1) {
           const a = padAt('GNDR');
           const b = padAt('VIN');
           S.a('dim254').show(smooth(span(u, 0.62, 0.7))).at((a[0] + b[0]) / 2, a[1] + 0.0022, a[2] - 0.0015);
@@ -1225,7 +1237,7 @@ const small = {
     {
       d: 10,
       text: 'Set the meter to DC volts and plug the battery into a lead. Red probe on red reads about 3.8 V, with no minus sign.',
-      cam: { p: [-0.06, 0.25, 0.3], t: [-0.07, 0.01, 0.03], fov: 32 },
+      cam: { p: [-0.09, 0.27, 0.3], t: [-0.1, 0.03, 0.03], fov: 32 },
       act(S, u) {
         S.a('lead').show().at(...LEADP);
         battery(S, easeInOut(span(u, 0.05, 0.25)));
@@ -1237,20 +1249,20 @@ const small = {
       labels: (S, u) => [
         ...(u > 0.12 ? [L('apart', 'bare ends apart', v3(add3(LEADP, [0.066, 0.003, 0])), 'r')] : []),
         ...(u > 0.5 ? [L('v', '3.80 V', meterSideAt(S), 'r', true)] : []),
-        ...(u > 0.66 ? [L('minus', 'a minus sign: lead is backwards', S.node('multimeter', null, [-0.035, 0.03, 0.02]), 't')] : []),
       ],
     },
     {
       d: 9,
       text: 'Unplug the battery. Melt fresh solder onto the tip and leave it there: the coat stops the tip rusting.',
-      cam: { p: [0.1, 0.22, 0.33], t: [0.0, 0.02, 0.03], fov: 32 },
-      cam2: { p: add3(IRON_REST, [0.03, 0.055, 0.1]), t: add3(IRON_REST, [-0.004, 0, 0]), fov: 30 },
+      cam: { p: [-0.02, 0.24, 0.36], t: [-0.02, 0.03, 0.06], fov: 34 },
+      cam2: { p: add3(AIR, [-0.05, 0.04, 0.12]), t: add3(AIR, [-0.012, -0.012, 0]), fov: 30 },
+      move: 1.2,
       act(S, u, k) {
         S.a('lead').show().at(...LEADP);
         const out = easeInOut(span(u, 0.04, 0.2));
         if (u < 1) battery(S, 1 - out);
         const up = easeInOut(span(u, 0.28, 0.4));
-        const home = easeInOut(span(u, 0.72, 0.92));
+        const home = easeInOut(span(u, 0.86, 0.98)); // the coated tip is held still a moment first
         const pose = home > 0 ? mixIron(AIR_POSE, REST, home) : mixIron(REST, AIR_POSE, up);
         ironTo(S, pose);
         const feed = span(u, 0.42, 0.68);
@@ -1264,7 +1276,7 @@ const small = {
       },
       labels: (S, u) => [
         ...(u > 0.1 && u < 0.32 ? [L('out', 'battery out', S.node('battery'), 't')] : []),
-        ...(u > 0.6 ? [L('coat', 'solder left on the tip', S.a('bead').obj, 'l', true)] : []),
+        ...(u > 0.6 && u < 0.86 ? [L('coat', 'solder left on the tip', S.a('bead').obj, 'l', true)] : []),
       ],
     },
     {

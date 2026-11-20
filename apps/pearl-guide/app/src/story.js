@@ -691,7 +691,7 @@ const solder = {
       link: { href: '../soldering/', text: 'Open the soldering page' },
       cam: { p: [0.06, 0.34, 0.44], t: [-0.03, 0.02, -0.07], fov: 32 },
       labels: (S) => [
-        { id: 'pen', text: 'pen iron', at: S.a('iron').obj.userData.grip, side: 't' },
+        { id: 'pen', text: 'pen iron', at: S.a('iron').obj.userData.grip, side: 'b' },
         { id: 'drv', text: 'spare driver board', at: S.node('driver1'), side: 'l' },
       ],
     },
