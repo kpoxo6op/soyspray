@@ -94,12 +94,22 @@ jobs:
           css=$(grep -oE '/assets/site.css\?v=[0-9a-f]{16}' "$RUNNER_TEMP/reading-chapter.html")
           curl --fail --silent --show-error "$base$css" > "$RUNNER_TEMP/reading.css"
           grep -oE '/assets/fonts/[^) ]+\.woff2' "$RUNNER_TEMP/reading.css" | sort -u > "$RUNNER_TEMP/reading-fonts"
-          test "$(wc -l < "$RUNNER_TEMP/reading-fonts")" = 3
+          test "$(wc -l < "$RUNNER_TEMP/reading-fonts")" = 5
           while IFS= read -r font; do
             curl --fail --silent --show-error --dump-header "$RUNNER_TEMP/reading-font.headers" \
               --output /dev/null "$base$font"
             grep -qi '^cache-control: public, max-age=31536000, immutable' "$RUNNER_TEMP/reading-font.headers"
           done < "$RUNNER_TEMP/reading-fonts"
+          # Chapter engravings carry a content hash in the name and are cached for good.
+          grep -oE '/assets/art/[^" ,]+\.[0-9a-f]{8}\.(avif|webp)' "$RUNNER_TEMP/reading-chapter.html" \
+            | sort -u > "$RUNNER_TEMP/reading-art"
+          test "$(wc -l < "$RUNNER_TEMP/reading-art")" = 6
+          while IFS= read -r art; do
+            curl --fail --silent --show-error --dump-header "$RUNNER_TEMP/reading-art.headers" \
+              --output /dev/null "$base$art"
+            grep -qiE '^content-type: image/(avif|webp)' "$RUNNER_TEMP/reading-art.headers"
+            grep -qi '^cache-control: public, max-age=31536000, immutable' "$RUNNER_TEMP/reading-art.headers"
+          done < "$RUNNER_TEMP/reading-art"
           # A revision query must never turn a chapter's HTML into immutable content.
           curl --fail --silent --show-error --dump-header "$RUNNER_TEMP/reading-html.headers" \
             --output /dev/null "$base/epictetus/handbook/1/index.html?v=0123456789abcdef"
