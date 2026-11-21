@@ -357,14 +357,14 @@
     "title": "Set up the bench",
     "section": "First joints",
     "start": 0,
-    "length": 57,
+    "length": 58,
     "goal": "A safe bench and an iron at 330 °C."
    },
    {
     "id": "first",
     "title": "Your first joint",
     "section": "First joints",
-    "start": 57,
+    "start": 58,
     "length": 78,
     "goal": "One resistor soldered and clipped."
    },
@@ -372,7 +372,7 @@
     "id": "fix",
     "title": "Read the joint and fix it",
     "section": "First joints",
-    "start": 135,
+    "start": 136,
     "length": 57,
     "goal": "Name each fault and repair it."
    },
@@ -380,7 +380,7 @@
     "id": "light",
     "title": "Build the traffic light",
     "section": "First joints",
-    "start": 192,
+    "start": 193,
     "length": 68,
     "goal": "The practice kit soldered and lit."
    },
@@ -388,7 +388,7 @@
     "id": "wires",
     "title": "Join two wires",
     "section": "First joints",
-    "start": 260,
+    "start": 261,
     "length": 58,
     "goal": "A splice that holds a tug and beeps."
    },
@@ -396,7 +396,7 @@
     "id": "small",
     "title": "Pearl-size joints, then pack up",
     "section": "First joints",
-    "start": 318,
+    "start": 319,
     "length": 58,
     "goal": "Four wires on a spare driver board and a clean bench."
    }
