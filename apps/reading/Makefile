@@ -10,7 +10,7 @@ diff:
 	cd $(ROOT) && $(PYTHON) -m scripts.app_diff --app reading --package apps/reading/manifests
 
 smoke:
-	@printf 'unknown: open https://reading.soyspray.vip from a tailnet device, then a book and chapter.\n'; exit 2
+	@printf 'unknown: open https://reading.soyspray.vip from outside the tailnet (public tunnel) and from a tailnet device, then a book and chapter.\n'; exit 2
 
 restore-check:
 	@printf 'not-required: reading has no persistent state.\n'
