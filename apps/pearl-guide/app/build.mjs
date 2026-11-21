@@ -11,7 +11,7 @@ const dist = resolve(here, 'dist');
 const rev = (file) => createHash('sha256').update(readFileSync(file)).digest('hex').slice(0, 16);
 const pages = [
   { entry: 'main.js', html: 'index.html', path: '', assets: ['pearl', 'prints', 'bench'], kit: true, files: true },
-  { entry: 'soldering-main.js', html: 'soldering.html', path: 'soldering', assets: ['bench'], photos: ['table.jpg'], kit: !!SOLDER_KIT, files: false },
+  { entry: 'soldering-main.js', html: 'soldering.html', path: 'soldering', assets: ['bench'], photos: ['table.jpg', 'sort.jpg'], kit: !!SOLDER_KIT, files: false },
 ];
 
 rmSync(dist, { recursive: true, force: true });

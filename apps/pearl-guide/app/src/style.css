@@ -661,6 +661,18 @@ button {
 }
 
 /* What is what: the real kit photo with numbered marks, and its legend */
+.tsort {
+  margin: 10px 0 16px;
+  max-width: 560px;
+}
+
+.tsort img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
 .tphoto {
   position: relative;
   margin: 10px 0 6px;
