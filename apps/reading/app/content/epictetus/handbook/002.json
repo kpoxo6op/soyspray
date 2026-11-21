@@ -55,14 +55,14 @@
       "do": "Tomorrow morning, write down three things you intend to do during the day, each with the reservation attached: ‘I will finish the backup script, if nothing prevents me.’ When one of them is blocked, read its line again before you decide what to do next.",
       "time": "three minutes in the morning, a few seconds when something is blocked",
       "doneWhen": "by evening you can say, for each line, whether it was blocked and what you did",
-      "stopIf": "Stop if the reservation starts to become an excuse for not starting."
+      "stopIf": "the reservation starts to become an excuse for not starting."
     },
     {
       "title": "Move the aversion",
       "do": "The next time you notice dread about an outcome, such as a meeting, a test result or a release, write two lines: what you are trying to avoid, and the fault of your own you could avoid instead. For example, ‘being criticised’ becomes ‘being evasive when I am asked about the delay’.",
       "time": "two minutes, once",
       "doneWhen": "you have both lines for one real worry",
-      "stopIf": "Stop if the second line turns into a list of reproaches against yourself."
+      "stopIf": "the second line turns into a list of reproaches against yourself."
     }
   ],
   "objection": {

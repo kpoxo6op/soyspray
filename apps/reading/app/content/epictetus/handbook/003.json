@@ -49,7 +49,7 @@
       "do": "Tonight, pick up one thing you are fond of, a mug or a tool, and say aloud what it is: ‘This is a mug. Mugs break.’ Then do the same, silently, when you say goodnight to someone you love.",
       "time": "two minutes, once",
       "doneWhen": "you have said both and written one line on which was harder",
-      "stopIf": "Stop if it turns into dwelling on a death rather than a plain statement of fact."
+      "stopIf": "it turns into dwelling on a death rather than a plain statement of fact."
     },
     {
       "title": "Start small",

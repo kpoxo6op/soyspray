@@ -86,14 +86,14 @@
       "do": "For the next three working days, each time something irritates you (a failed deploy, a late reply, a review comment), stop and write one line: the event, what you can attempt, and what in it is yours. For example: ‘Disk died. Attempt: restore from last night’s backup. Mine: doing it with care, and blaming no one.’",
       "time": "a minute a go, three times a day, for three days",
       "doneWhen": "you have nine lines",
-      "stopIf": "Stop if writing the line starts to delay the fix itself: deal with the problem first, write afterwards."
+      "stopIf": "writing the line starts to delay the fix itself: deal with the problem first, write afterwards."
     },
     {
       "title": "Name the impression",
       "do": "Once today, when you feel a jolt of worry or annoyance, say to it before you do anything else: ‘You’re an impression and not at all what you appear to be.’ Then ask whether it is about something up to you.",
       "time": "ten seconds, once",
       "doneWhen": "you can tell someone this evening what the impression was and what it turned out to be",
-      "stopIf": "Stop if naming it becomes a way to brush off a worry that needs action."
+      "stopIf": "naming it becomes a way to brush off a worry that needs action."
     }
   ],
   "objection": {

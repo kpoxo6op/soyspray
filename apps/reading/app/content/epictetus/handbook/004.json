@@ -42,7 +42,7 @@
       "do": "Tomorrow, before one ordinary outing or task that usually has friction, such as getting the children out of the house or a maintenance window, write three lines beginning ‘I intend to’, ‘A likely obstruction is’ and ‘If that happens, I can still’. Make the third line about how you will behave, not about a fallback prize.",
       "time": "two minutes before, one minute after",
       "doneWhen": "you have the three lines and, afterwards, a fourth: whether the obstruction came and what you did",
-      "stopIf": "Stop if you find yourself listing every possible disaster; one likely obstruction is the whole exercise."
+      "stopIf": "you find yourself listing every possible disaster; one likely obstruction is the whole exercise."
     },
     {
       "title": "The second aim",

@@ -26,7 +26,7 @@
       "greek": "φαντασία",
       "not": "Not a vague feeling, and not your first impression of a person.",
       "also": ["appearance", "presentation"],
-      "long": "Epictetus uses the word in two ways that pull against each other. In ((handbook/1)) an impression is something to be challenged: ‘You’re an impression and not at all what you appear to be.’ In ((handbook/6)) ‘the use of impressions’ is the one thing that is your own, so impressions are also the material every choice works on, and ((discourses/1/1)) presents the power to use them as a gift from Zeus. They are neither enemies nor guides. They arrive, and what you assent to is your business ((handbook/45))."
+      "long": "Epictetus uses the word in two ways that pull against each other. In ((handbook/1)) an impression is something to be challenged: ‘You’re an impression and not at all what you appear to be.’ In ((handbook/6)) ‘the use of impressions’ is the one thing that is your own, so impressions are also the material every choice works on, and ((discourses/1/1)) presents the power to use them as a gift from Zeus. They are neither enemies nor guides. They arrive, and what you assent to is your business (((handbook/45)))."
     },
     "impulse": {
       "term": "motivation",
@@ -45,7 +45,7 @@
       "greek": "δόγμα",
       "not": "Not a verdict on other people. It is the view you take of events.",
       "also": ["opinion", "belief", "principle"],
-      "long": "The plural is _dogmata_. In ((handbook/5)) judgements, not things, are what disturb people. The same word means a principle you hold, the settled beliefs a philosopher lives by, which is why Epictetus can treat changing a judgement and changing a life as one job. Hard uses ‘opinion’ for a near neighbour, _hypolēpsis_ ((handbook/1))."
+      "long": "The plural is _dogmata_. In ((handbook/5)) judgements, not things, are what disturb people. The same word means a principle you hold, the settled beliefs a philosopher lives by, which is why Epictetus can treat changing a judgement and changing a life as one job. Hard uses ‘opinion’ for a near neighbour, _hypolēpsis_ (((handbook/1)))."
     },
     "nature": {
       "term": "nature",
@@ -93,7 +93,7 @@
       "greek": "ἐφ’ ἡμῖν",
       "not": "Not ‘what I can influence’. You influence your health, yet it is not up to you.",
       "also": ["up to us", "in our power", "under our control"],
-      "long": "Hard writes ‘within our power’; many recent translators write ‘up to us’. The test is not whether you can affect a thing but whether anyone or anything else can stop you. You can work on your health or your child’s schooling, and nothing in the Handbook forbids it, but each can be blocked from outside, so neither is up to you. What is left is a short list: opinion, motivation, desire and aversion ((handbook/1)). ((discourses/1/1)) argues the same division at length."
+      "long": "Hard writes ‘within our power’; many recent translators write ‘up to us’. The test is not whether you can affect a thing but whether anyone or anything else can stop you. You can work on your health or your child’s schooling, and nothing in the Handbook forbids it, but each can be blocked from outside, so neither is up to you. What is left is a short list: opinion, motivation, desire and aversion (((handbook/1))). ((discourses/1/1)) argues the same division at length."
     }
   }
 }

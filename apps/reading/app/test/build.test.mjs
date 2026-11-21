@@ -23,7 +23,7 @@ test('Handbook 1 renders the complete paired document, margin notes and editoria
  }
  assert.equal((chapter.match(/class="mn" role="note"/g)||[]).length,8);
  for(const title of ['In plain English','The point','Questions','Practice','Write','Words in this chapter'])assert.ok(chapter.includes('>'+title+'</h2>'),title);
- assert.match(chapter,/class="o r4 same" id="o3"/);assert.match(chapter,/class="o r5" id="o4"/);
+ assert.match(chapter,/class="o same" id="o3"/);assert.match(chapter,/class="o" id="o4"/);
  assert.match(chapter,/<span class="lead">Some things are<\/span>/);
  assert.match(chapter,/href="\/epictetus\/handbook\/2\/" rel="next"/);
  assert.doesNotMatch(chapter,/href="\/epictetus\/handbook\/5\//);

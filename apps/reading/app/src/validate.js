@@ -112,7 +112,7 @@ export function validateChapter(c, {book, glossary = {terms:{}}, path}) {
 
 function checkRefs(v,book,where) {
   if (typeof v === 'string') {
-    for (const m of v.matchAll(/\(\((.*?)\)\)/g)) if (!validRef(m[1],book)) fail(where,'inline ref outside book structure');
+    for (const m of v.matchAll(/\(\(([^()]*)\)\)/g)) if (!validRef(m[1],book)) fail(where,'inline ref outside book structure');
   } else if (v && typeof v === 'object') Object.values(v).forEach(x=>checkRefs(x,book,where));
 }
 export function validateAbout(about,book) {
