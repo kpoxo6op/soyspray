@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "title": "About Epictetus",
+  "sections": [
+    {
+      "title": "How to read him",
+      "paragraphs": [
+        "Read the original, then the plain version. Test the argument in one ordinary situation."
+      ]
+    }
+  ]
+}

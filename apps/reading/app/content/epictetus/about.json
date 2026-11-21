@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "title": "About Epictetus",
+  "sections": [
+    {
+      "title": "Who he was",
+      "paragraphs": [
+        "Epictetus was born a slave around AD 50 in Hierapolis, in Phrygia, in what is now south-western Turkey. His name means ‘acquired’. In Rome he belonged to Epaphroditus, a freedman who served the emperor Nero as a secretary. He was lame; ancient writers disagree about why. While still a slave he studied with the Stoic teacher Musonius Rufus, and later he was freed. When he says the body is not up to us, he speaks from experience: in law, his body had been another man’s property.",
+        "He taught philosophy in Rome until the emperor Domitian banished philosophers from the city, around AD 93. He moved to Nicopolis, on the north-western coast of Greece, and opened a school there. He taught there until his death, probably around AD 135."
+      ]
+    },
+    {
+      "title": "How his words reached us",
+      "paragraphs": [
+        "Epictetus wrote nothing. What we have comes from Arrian, a young man from Nicomedia in north-western Turkey who heard him at Nicopolis early in the second century and later became a Roman senator and the historian of Alexander the Great. In a letter that stands at the head of the _Discourses_, Arrian says he did not compose them: he wrote down what he heard, as nearly as he could in Epictetus’s own words, to keep a record of his thought and his frankness. Ancient readers knew eight books of them; four survive. That is why they sound like talk: answers to students and visitors, full of questions, jokes and impatience.",
+        "The _Fragments_ are short passages quoted by later writers, most of them from the fifth-century anthology of Stobaeus. Some of them may not be his."
+      ]
+    },
+    {
+      "title": "What a handbook was for",
+      "paragraphs": [
+        "The _Handbook_ is Arrian’s digest of the teaching in fifty-three short chapters. Much of it condenses passages that survive in the _Discourses_; the rest presumably comes from the lost books. Its Greek title, _Encheiridion_, means something held in the hand, and the same word could mean a dagger. It was made to be carried and reread until its sentences came to mind when they were needed. It gives instructions; the arguments for them are in the _Discourses_, and the chapters here point to them where the parallel is clear."
+      ]
+    },
+    {
+      "title": "The three disciplines",
+      "paragraphs": [
+        "In ((discourses/3/2)) Epictetus names three areas of training. The first is desire and aversion: learning to want and to avoid only what is up to you, so that you are neither frustrated nor afraid. The second is impulse and action: doing what your relationships call for, carefully and for good reasons. The third is assent: not accepting an impression as true until you have tested it. He calls the first the most urgent, because strong emotions come only from desire that fails and aversion that is met. The themes on the book page are built on these three."
+      ]
+    },
+    {
+      "title": "Three ways to misread him",
+      "paragraphs": [
+        "_‘Not up to me’ means ‘not worth trying’._ Take a home server that stops responding on a Sunday morning, with the family photographs on it. What happened is not up to you: the disk failed, as disks do.",
+        "What you can attempt is a good deal: restore from the backup, tell the family when the photographs will be back, order a new disk. Any of it can fail.",
+        "What makes your choice good or bad is up to you entirely: whether you check honestly instead of hoping, whether you blame yourself or anyone else, whether you give the job the effort it deserves and no more. A careful restore that fails was done well. A lucky one done in a temper, snapping at whoever asked, was done badly. Epictetus cares most about this third part, and he never tells you to skip the second.",
+        "_A Stoic feels nothing._ He wants you free of the distress that comes from false judgements, not free of affection. In ((discourses/3/2)) he says he should not be unfeeling like a statue, but should keep up his relationships as a son, a brother, a father and a citizen. ((handbook/16)) tells you to sympathise with a grieving friend, and even to join in his lament, though not inwardly.",
+        "_It is a technique for feeling better._ For Epictetus the good is judging and acting well; peace of mind follows from that. When acting well means objecting, repairing or refusing, an inner adjustment is no substitute. ((handbook/5)) does not say that whoever is upset by an injustice has only himself to blame. It says where the work of not being disturbed can be done."
+      ]
+    },
+    {
+      "title": "How to use this site",
+      "paragraphs": [
+        "Each chapter gives Hard’s translation first, then the same passage in plain English, section by section; the small numbers in the margin jump between the two. A word with a dotted underline is explained in the margin, or at the foot of the screen when you tap it. Keep, beside a section, saves that passage to the Notes page. Read the original first, even when it is slow. After the text come the point of the chapter, one sentence to carry through the day, questions, a practice and prompts for writing. The practice is the part that matters most.",
+        "Display, at the top of every page, changes the text size, the theme and the layout. Notes and the ‘read’ mark stay in this browser; the Notes page exports them to a file that another device can import, and can erase them. On a keyboard, j or the right arrow opens the next chapter and k or the left arrow the previous one; t changes the theme, + and − change the text size, s switches to side by side on a wide screen, and Escape closes a gloss or the Display panel.",
+        "The pictures at the foot of some chapters were generated with OpenAI’s image model to our direction, after the wood engravers Thomas Bewick, Gwen Raverat and Eric Ravilious. Each shows one of Epictetus’s own examples."
+      ]
+    }
+  ]
+}

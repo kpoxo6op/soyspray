@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "book": "epictetus",
+  "work": "handbook",
+  "part": null,
+  "chapter": 3,
+  "title": "Say what a thing is",
+  "titleBy": "editor",
+  "art": {
+    "alt": "Wood engraving of a plain one-handled earthenware jug standing close to the edge of a plank table, a folded cloth behind it.",
+    "caption": "A jug. Jugs break."
+  },
+  "setting": null,
+  "themes": [
+    "loss",
+    "assent"
+  ],
+  "sections": [
+    {
+      "n": 1,
+      "para": 1,
+      "original": "With regard to everything that is a source of delight to you, or is useful to you, or of which you are [[fond|fond]], remember to keep telling yourself [[what kind of thing it is|what-kind]], starting with the most insignificant. If you’re fond of a jug, say, ‘This is a jug that I’m fond of,’ and then, if it gets broken, you won’t be upset. If you kiss your child or your wife, say to yourself that it is a human being that you’re kissing; and then, if one of them should die, you won’t be upset.",
+      "modern": "With everything that delights you, or is useful to you, or that you love, keep reminding yourself what kind of thing it is. Start with the smallest. If you love a jug, say, ‘It is a jug that I love.’ Then if it breaks, you will not be upset. When you kiss your child or your wife, tell yourself that it is a human being you are kissing. Then if one of them dies, you will not be upset."
+    }
+  ],
+  "glosses": {
+    "fond": {
+      "term": "fond",
+      "plain": "Attached with love. The Greek verb is the one used for a parent’s love of a child.",
+      "why": "He uses it of the jug on purpose: the drill starts with a pot and is aimed at the people you love.",
+      "translit": "stergein",
+      "greek": "στέργειν"
+    },
+    "what-kind": {
+      "term": "what kind of thing it is",
+      "plain": "What the thing really is, including the facts you would rather forget: jugs break, people die.",
+      "why": "This is the Stoic habit of describing a thing exactly, without the value you have added to it.",
+      "translit": "hopoion esti",
+      "greek": "ὁποῖόν ἐστι"
+    }
+  },
+  "takeaway": "Keep saying what the things and people you love are: a jug that can break, a human being who will die. Start with small things, so that a loss does not also overturn what you believed.",
+  "carry": "When you pick up something you are fond of, say what it is.",
+  "questions": [
+    "The chapter moves from a jug to a child in two sentences. Where does the comparison hold, and where does it break down?",
+    "A reader concludes: the way to avoid grief is to love people a little less. What has he missed?",
+    "Pick the object at home whose breaking would upset you most, and say what kind of thing it is. What does the sentence change, and what does it leave alone, such as the cost or the work stored on it?",
+    "((handbook/11)) asks you to say ‘I’ve given it back’ instead of ‘I’ve lost it’. How does that differ from saying what a thing is before the loss, and which would you find harder?"
+  ],
+  "exercises": [
+    {
+      "title": "Say what it is",
+      "do": "Tonight, pick up one thing you are fond of, a mug or a tool, and say aloud what it is: ‘This is a mug. Mugs break.’ Then do the same, silently, when you say goodnight to someone you love.",
+      "time": "two minutes, once",
+      "doneWhen": "you have said both and written one line on which was harder",
+      "stopIf": "it turns into dwelling on a death rather than a plain statement of fact."
+    },
+    {
+      "title": "Start small",
+      "do": "For the next three days, each time something small breaks, spills or goes missing, say under your breath what kind of thing it was before you deal with it: ‘That was a glass. Glasses break.’",
+      "time": "a few seconds each time, for three days",
+      "doneWhen": "you have done it at least three times and can recall one of them",
+      "stopIf": null
+    }
+  ],
+  "objection": {
+    "says": "Rehearsing your child’s mortality while kissing them is cold, and if it really spares you grief at their death, it has made you love them less.",
+    "reply": "He does not tell you to kiss less, only to know what you are kissing. His claim is that the upset at a death comes partly from the judgement that this should not have happened, and that knowing beforehand that people die removes that part. Nothing in it asks for less love. ((handbook/11)) adds the other half: while you have them, take care of them as something not your own, the way travellers treat an inn.",
+    "open": "Whether a father could, or should want to, meet his child’s death without being upset is not settled by this reply."
+  },
+  "prompts": [
+    "Write about one loss, of a thing or a person, that took you by surprise. What had you been assuming about it, without ever saying so?",
+    "Write the chapter’s sentence for three things you are fond of, from the smallest to the largest: ‘This is a … that I’m fond of.’ Stop where you would not want to say it, and write a line on why you stopped there.",
+    "Argue in five sentences that being upset at a death is right, not a mistake of judgement. Use one real loss as your evidence."
+  ],
+  "seeAlso": [
+    {
+      "ref": "handbook/11",
+      "why": "on giving back instead of losing",
+      "relation": "echo"
+    },
+    {
+      "ref": "handbook/26",
+      "why": "meeting your own loss as you meet someone else’s",
+      "relation": "echo"
+    },
+    {
+      "ref": "discourses/3/24",
+      "why": "the same advice about kissing a child, at length",
+      "relation": "echo"
+    }
+  ],
+  "compare": null
+}

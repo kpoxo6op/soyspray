@@ -1,0 +1,30 @@
+# Private book reader; no public DNS record or tunnel.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: reading
+  labels:
+    app.kubernetes.io/name: reading
+    app.kubernetes.io/part-of: reading
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/ingress-hostname-source: annotation-only
+    external-dns.kubernetes.io/ingress-hostname-source: annotation-only
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - reading.soyspray.vip
+      secretName: reading-tls
+  rules:
+    - host: reading.soyspray.vip
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: reading
+                port:
+                  name: http

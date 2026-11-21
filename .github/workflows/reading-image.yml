@@ -1,0 +1,139 @@
+name: Reading image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/reading/**
+      - .github/workflows/reading-image.yml
+  pull_request:
+    paths:
+      - apps/reading/**
+      - .github/workflows/reading-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reading-image-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      packages: write
+      pull-requests: write
+    env:
+      IMAGE: ghcr.io/kpoxo6op/reading
+      IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12.13"
+      - name: Check the built reader pages
+        run: cd apps/reading/app && node build.mjs && node --test test/*.test.mjs
+      - name: Build and test the immutable runtime
+        run: |
+          docker build --build-arg SOURCE_REVISION="$GITHUB_SHA" \
+            --tag "$IMAGE:$IMAGE_TAG" apps/reading
+      - name: Check the real HTTP entrypoint
+        run: |
+          docker run --detach --name reading-check --read-only \
+            --cap-drop ALL --security-opt no-new-privileges \
+            --tmpfs /tmp:rw,size=16m,uid=101,gid=101 \
+            -p 127.0.0.1:4173:8080 "$IMAGE:$IMAGE_TAG"
+          trap 'docker logs reading-check' ERR
+          base=http://127.0.0.1:4173
+          test "$(curl --fail --retry 10 --retry-all-errors --retry-delay 1 \
+            --dump-header "$RUNNER_TEMP/reading-index.headers" \
+            --output "$RUNNER_TEMP/reading-index.html" --write-out '%{http_code}' "$base/")" = 200
+          grep -q '<title>Reading</title>' "$RUNNER_TEMP/reading-index.html"
+          grep -qi '^cache-control: no-cache' "$RUNNER_TEMP/reading-index.headers"
+          grep -qi '^content-security-policy:' "$RUNNER_TEMP/reading-index.headers"
+          grep -qi '^x-content-type-options: nosniff' "$RUNNER_TEMP/reading-index.headers"
+          grep -qi '^referrer-policy: no-referrer' "$RUNNER_TEMP/reading-index.headers"
+          test "$(curl --silent --show-error --output /dev/null \
+            --write-out '%{http_code} %{redirect_url}' "$base/epictetus")" = "301 $base/epictetus/"
+          test "$(curl --silent --show-error --output /dev/null \
+            --write-out '%{http_code} %{redirect_url}' "$base/epictetus/handbook/1?from=book")" \
+            = "301 $base/epictetus/handbook/1/?from=book"
+          test "$(curl --fail --silent --show-error --dump-header "$RUNNER_TEMP/reading-book.headers" \
+            --output "$RUNNER_TEMP/reading-book.html" --write-out '%{http_code}' "$base/epictetus/")" = 200
+          grep -q '<title>Epictetus' "$RUNNER_TEMP/reading-book.html"
+          grep -qi '^cache-control: no-cache' "$RUNNER_TEMP/reading-book.headers"
+          test "$(curl --fail --silent --show-error --dump-header "$RUNNER_TEMP/reading-chapter.headers" \
+            --output "$RUNNER_TEMP/reading-chapter.html" --write-out '%{http_code}' "$base/epictetus/handbook/1/")" = 200
+          grep -q '<title>Handbook 1' "$RUNNER_TEMP/reading-chapter.html"
+          grep -qi '^cache-control: no-cache' "$RUNNER_TEMP/reading-chapter.headers"
+          # The Russian edition mirrors every page and names its English twin.
+          test "$(curl --fail --silent --show-error --output "$RUNNER_TEMP/reading-ru.html" \
+            --write-out '%{http_code}' "$base/ru/epictetus/handbook/1/")" = 200
+          grep -q '<html lang="ru" data-alt="/epictetus/handbook/1/"' "$RUNNER_TEMP/reading-ru.html"
+          grep -q '<a class="lang" href="/ru/epictetus/handbook/1/" data-lang="ru"' "$RUNNER_TEMP/reading-chapter.html"
+          test "$(curl --silent --show-error --output /dev/null \
+            --write-out '%{http_code} %{redirect_url}' "$base/ru")" = "301 $base/ru/"
+          test "$(curl --silent --show-error --dump-header "$RUNNER_TEMP/reading-missing.headers" \
+            --output "$RUNNER_TEMP/reading-missing.html" --write-out '%{http_code}' "$base/missing")" = 404
+          grep -q '<title>Not found' "$RUNNER_TEMP/reading-missing.html"
+          grep -qi '^cache-control: no-cache' "$RUNNER_TEMP/reading-missing.headers"
+          grep -qi '^content-security-policy:' "$RUNNER_TEMP/reading-missing.headers"
+          # All pages, including the error page, must serve gzip revisions.
+          grep -hoE '/assets/[^" ]+\?v=[0-9a-f]{16}' \
+            "$RUNNER_TEMP"/reading-{index,book,chapter,missing}.html \
+            | sort -u > "$RUNNER_TEMP/reading-assets"
+          test -s "$RUNNER_TEMP/reading-assets"
+          while IFS= read -r asset; do
+            curl --fail --silent --show-error --header 'Accept-Encoding: gzip' \
+              --dump-header "$RUNNER_TEMP/reading-asset.headers" --output /dev/null "$base$asset"
+            grep -qi '^content-encoding: gzip' "$RUNNER_TEMP/reading-asset.headers"
+            grep -qi '^cache-control: public, max-age=31536000, immutable' "$RUNNER_TEMP/reading-asset.headers"
+          done < "$RUNNER_TEMP/reading-assets"
+          css=$(grep -oE '/assets/site.css\?v=[0-9a-f]{16}' "$RUNNER_TEMP/reading-chapter.html")
+          curl --fail --silent --show-error "$base$css" > "$RUNNER_TEMP/reading.css"
+          grep -oE '/assets/fonts/[^) ]+\.woff2' "$RUNNER_TEMP/reading.css" | sort -u > "$RUNNER_TEMP/reading-fonts"
+          test "$(wc -l < "$RUNNER_TEMP/reading-fonts")" = 5
+          while IFS= read -r font; do
+            curl --fail --silent --show-error --dump-header "$RUNNER_TEMP/reading-font.headers" \
+              --output /dev/null "$base$font"
+            grep -qi '^cache-control: public, max-age=31536000, immutable' "$RUNNER_TEMP/reading-font.headers"
+          done < "$RUNNER_TEMP/reading-fonts"
+          # Chapter engravings carry a content hash in the name and are cached for good.
+          grep -oE '/assets/art/[^" ,]+\.[0-9a-f]{8}\.(avif|webp)' "$RUNNER_TEMP/reading-chapter.html" \
+            | sort -u > "$RUNNER_TEMP/reading-art"
+          test "$(wc -l < "$RUNNER_TEMP/reading-art")" = 6
+          while IFS= read -r art; do
+            curl --fail --silent --show-error --dump-header "$RUNNER_TEMP/reading-art.headers" \
+              --output /dev/null "$base$art"
+            grep -qiE '^content-type: image/(avif|webp)' "$RUNNER_TEMP/reading-art.headers"
+            grep -qi '^cache-control: public, max-age=31536000, immutable' "$RUNNER_TEMP/reading-art.headers"
+          done < "$RUNNER_TEMP/reading-art"
+          # A revision query must never turn a chapter's HTML into immutable content.
+          curl --fail --silent --show-error --dump-header "$RUNNER_TEMP/reading-html.headers" \
+            --output /dev/null "$base/epictetus/handbook/1/index.html?v=0123456789abcdef"
+          grep -qi '^cache-control: no-cache' "$RUNNER_TEMP/reading-html.headers"
+      - name: Remove isolated test container
+        if: always()
+        run: docker rm --force reading-check || true
+      - uses: ./.github/actions/publish-image-promotion
+        with:
+          publish: ${{ github.event_name != 'pull_request' }}
+          app-slug: reading
+          app-name: Reading
+          image: ghcr.io/kpoxo6op/reading
+          image-tag: ${{ env.IMAGE_TAG }}
+          runtime-paths: apps/reading/app apps/reading/Dockerfile apps/reading/nginx.conf apps/reading/.dockerignore
+          manifest: apps/reading/manifests/deployment.yaml
+          commit-subject: Promote the tested reading image digest
+          promotion-title: Promote the tested reading image
+          evidence: The image passed its page and asset hash test, then served book and chapter routes, query-preserving redirects, revisioned gzip assets, no-cache HTML and security headers from a read-only container.
+          verification: Before first registration, merge this promotion and then a separate Argo registration PR. After Argo reports Synced and Healthy, open reading.soyspray.vip, /epictetus/ and /epictetus/handbook/1/ from a tailnet device and verify the host has no public DNS record.
