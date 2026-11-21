@@ -62,7 +62,7 @@ export const GROUPS = [
       { id: 'coins', name: 'Coins: six $2 and four 10c', why: '$2 weighs 10 g and 10c weighs 3.3 g: handy test weights.' },
       { id: 'cup', name: 'A paper cup and sewing thread', why: 'For the lift test.' },
       { id: 'tape', name: 'Tape measure, masking tape, a small block of foam or wood', why: 'For measuring the orb and the thrust test.' },
-      { id: 'stand', name: 'An old wooden board and two small wood blocks', why: 'The iron’s rest, as no stand came: the blocks hold the grip and the metal hangs past the edge.' },
+      { id: 'stand', name: 'An old wooden board and two small wood blocks', why: 'The iron’s rest, as no stand came. Tape or screw the blocks down so they cannot slide.' },
       { id: 'sponge', name: 'A piece of cellulose kitchen sponge', why: 'Sits on the board, damp, for wiping the tip. Synthetic foam melts.' },
     ],
   },

@@ -19,7 +19,7 @@ const MARKS = [
   ['solder', 16.9, 58.0, 'Desolder braid, Goot 1.5 mm', 'Small reel on a red and white card, from Jaycar.', 'Chapter 3, to lift extra solder.'],
   ['solder', 30.2, 72.1, 'Second desolder braid', 'Orange reel lying on the mat.', 'A spare. Use either one.'],
   ['solder', 57.0, 93.1, 'Flush cutters', 'Blue handles.', 'Chapter 2, to cut legs. Glasses on.'],
-  ['solder', 54.1, 85.6, 'Helping hands', 'Two bags of jointed arms with clips.', 'Chapter 2, to hold the board.'],
+  ['solder', 54.1, 85.6, 'Helping hands', 'Two bags of jointed arms with clips.', 'Fit the arms to their base before chapter 2.'],
   ['solder', 41.9, 50.5, 'Tweezers, set of 6', 'Black tweezers on a yellow card.', 'Chapter 6, to hold a wire on a pad.'],
   ['solder', 38.4, 63.3, 'Wire stripper', 'Teal handles.', 'Chapter 5. Use the notch marked 28.'],
   ['solder', 51.2, 97.3, 'Multimeter, ANENG M126', 'Black and orange box.', 'Chapters 4 to 6: the beep checks a joint.'],
@@ -28,7 +28,7 @@ const MARKS = [
   ['solder', 81.4, 39.6, 'Driver boards, probably', 'Silver bag with a white label.', 'Chapter 6. Keep two boards untouched for Pearl.'],
   ['solder', 74.4, 69.1, '28 AWG silicone wire, probably', 'The big white bag.', 'Chapters 5 and 6.'],
   ['solder', 18.6, 38.0, 'JST battery leads, 10 pairs', 'Red and black wires in a small bag.', 'Chapter 6, to read the battery.'],
-  ['pearl', 27.9, 48.9, 'LiPo battery, 300 mAh', 'Small yellow battery in a white zip bag.', 'Chapter 6 reads it. Never touch it with the iron.'],
+  ['pearl', 27.9, 48.9, 'LiPo battery, 300 mAh', 'Small yellow battery in a white zip bag.', 'Stays in its bag until chapter 6 reads it. Never near the iron.'],
   ['pearl', 30.8, 32.4, '10 kΩ resistors, 8', 'Blue resistors taped on a strip, Jaycar label.', 'Pearl’s battery divider.'],
   ['pearl', 9.5, 76.6, 'White heatshrink, 1.5 mm', 'The long white tube across the table.', 'Pearl’s motor leads.'],
   ['pearl', 52.3, 11.2, 'Pocket scale', 'Gold case.', 'Weighing prints and lift.'],
@@ -46,7 +46,7 @@ const MARKS = [
 
 export const TABLE = {
   title: 'What is what',
-  lede: 'Your table, filmed on 21 Nov. Find each number, then put the “For this page” things on the mat.',
+  lede: 'Your table, filmed on 21 Nov. Open the bags marked probably, then put the “For this page” things on the mat.',
   // The build adds a content revision (build.mjs).
   src: typeof __PEARL_PHOTOS__ !== 'undefined' ? __PEARL_PHOTOS__.table : 'data/table.jpg',
   alt: 'Boris’s soldering tools and Pearl parts laid out on an oak table, with numbered marks.',

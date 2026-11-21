@@ -241,7 +241,7 @@ const bench = {
     },
     {
       d: 9,
-      text: 'Put on glasses, any pair until the safety ones come, and open a window. Flux smoke should drift away from you.',
+      text: 'Put on glasses, safety ones once you have them, and open a window. Keep your face out of the flux smoke.',
       cam: { p: [-0.1, 0.22, 0.52], t: [-0.1, 0.02, 0.1], fov: 32 },
       act(S, u) {
         // no smoke yet: the iron is cold until 1.5, and smoke rises only while solder or flux is on heat
@@ -258,7 +258,7 @@ const bench = {
     },
     {
       d: 10,
-      text: 'Lay the iron on your old board, grip between two blocks, metal in the air past the edge. It cannot roll off there.',
+      text: 'Lay the iron on your old board, grip between the fixed blocks, metal past the edge, tip away from you. Cord behind.',
       cam: { p: standPt(10, 170, 300), t: standPt(-25, 35, 0), fov: 34 },
       cam2: { p: standPt(20, 230, 400), t: standPt(-10, 35, 0), fov: 34 },
       act(S, u) {
@@ -285,8 +285,8 @@ const bench = {
       labels: (S, u) => (u > 0.6 ? [L('damp', 'damp, not dripping', v3(SPONGE), 't', true)] : []),
     },
     {
-      d: 9,
-      text: 'Push the plug fully into its adapter and plug in. Press the handle buttons until the screen reads 330 °C.',
+      d: 10,
+      text: 'Check the plug sits firm in its adapter and the adapter in the wall. Press the handle buttons until it reads 330 °C.',
       cam: { p: add3(ironPt(REST, 145, 12), [0.034, 0.1, 0.062]), t: ironPt(REST, 148, 12), fov: 30 },
       act(S, u) {
         const on = span(u, 0.08, 0.2);
@@ -386,7 +386,7 @@ const first = {
     },
     {
       d: 10,
-      text: 'Push a resistor through the board, bend its legs apart and clip the board in the helping hands, legs facing up.',
+      text: 'Push one practice-kit resistor into its place on the kit board, bend its legs apart, clip the board in the hands.',
       cam: { p: [0.01, 0.075, 0.16], t: [-0.01, 0.004, 0.07], fov: 30 },
       cam2: { p: [0.05, 0.2, 0.3], t: [0, 0.06, -0.01], fov: 32 },
       move: 2,
@@ -518,7 +518,7 @@ const first = {
     },
     {
       d: 10,
-      text: 'One shiny cone and one cut leg. Do the other leg the same way, then tin the tip and rest the iron.',
+      text: 'One shiny cone, one cut leg. Do the other leg the same. If you stop here: tin the tip, unplug, wash your hands.',
       cam: fcam([1.27, PAD, -1.27], [10, 18, 46], 30),
       cam2: fcam([1.27, PAD, -1.27], [-14, 16, 45], 30),
       act(S, u, k) {
@@ -718,7 +718,7 @@ const fix = {
     },
     {
       d: 9,
-      text: 'Four faults, four fixes: dull, bridged, starved, dirty tip. Tin the tip and rest the iron. Fine place to stop.',
+      text: 'Four faults, four fixes: dull, bridged, starved, dirty tip. If you stop: tin the tip, unplug, wash your hands.',
       cam: { p: fw(0, 62, 40), t: fw(0, PAD, ROW - 2), fov: 30 },
       cam2: { p: fw(-6, 60, 44), t: fw(0, PAD, ROW - 2), fov: 30 },
       act(S) {
@@ -1080,7 +1080,7 @@ const wires = {
     },
     {
       d: 9,
-      text: 'Tug the splice gently, then put a probe on each end. It holds and the meter beeps. Fine place to stop.',
+      text: 'Tug the splice, then a probe on each end: it holds and beeps. If you stop: unplug the iron and wash your hands.',
       cam: { p: [-0.05, 0.2, 0.26], t: [-0.09, 0.03, -0.01], fov: 32 },
       act(S, u) {
         const tug = Math.sin(Math.PI * span(u, 0.05, 0.25)) * 0.001;
@@ -1237,7 +1237,7 @@ const small = {
     },
     {
       d: 10,
-      text: 'Set the meter to DC volts and plug the battery into a lead. Red probe on red reads about 3.8 V, with no minus sign.',
+      text: 'Hold the lead’s two bare ends apart, then plug in the battery. On DC volts, red probe on red reads about 3.8 V.',
       cam: { p: [-0.09, 0.27, 0.3], t: [-0.1, 0.03, 0.03], fov: 32 },
       act(S, u) {
         S.a('lead').show().at(...LEADP);
@@ -1282,7 +1282,7 @@ const small = {
     },
     {
       d: 10,
-      text: 'Unplug the iron, leave it on its board for 10 minutes and wash your hands with soap. Four wires, a clean bench.',
+      text: 'Unplug the iron and leave it on its board to cool. Bin the cut legs, wipe the bench, wash your hands with soap.',
       cam: { p: [0.09, 0.47, 0.5], t: [0.06, 0.05, -0.02], fov: 36 },
       cam2: { p: [0.07, 0.49, 0.53], t: [0.06, 0.05, -0.02], fov: 36 },
       act(S, u) {
