@@ -9,9 +9,9 @@ import { checkCopy, checkTitles, kitStrings } from './rules.mjs';
 const SHOP_URL = /^https:\/\/www\.(jaycar\.co\.nz|aliexpress\.com|spotlightstores\.com|pbtech\.co\.nz)\//;
 const group = (id) => GROUPS.find((g) => g.id === id);
 
-test('the list is what arrived, what is still to buy and what is at home', () => {
+test('the list is what is on the bench, what is still to buy and what is at home', () => {
   assert.match(CHECKED, /^\d{1,2} [A-Z][a-z]{2} 20\d\d$/);
-  assert.deepEqual(GROUPS.map((g) => g.title), ['Arrived by post', 'Still to buy', 'From home']);
+  assert.deepEqual(GROUPS.map((g) => g.title), ['On your bench', 'Still to buy', 'From home']);
   const ids = new Set();
   for (const g of GROUPS) {
     for (const i of g.items) {
@@ -25,9 +25,9 @@ test('the list is what arrived, what is still to buy and what is at home', () =>
   }
 });
 
-test('what arrived came from AliExpress and has no price to pay', () => {
+test('what is on the bench came from AliExpress or Jaycar and has no price to pay', () => {
   for (const i of group('post').items) {
-    assert.equal(i.shop, 'AliExpress', i.id);
+    assert.ok(['AliExpress', 'Jaycar'].includes(i.shop), i.id);
     assert.ok(!i.price, `${i.id} is paid for`);
   }
   const drivers = group('post').items.find((i) => i.id === 'drivers');

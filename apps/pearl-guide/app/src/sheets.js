@@ -123,14 +123,44 @@ export function createSheets({ root, timeline, player, onOpen, keys, chapters, k
     shell(
       dialogs.kit,
       kit.title,
-      `<p class="lede">${esc(kit.lede)}</p>${groups}`,
+      `<p class="lede">${esc(kit.lede)}</p>${kit.table ? renderTable(kit.table) : ''}${groups}`,
     );
+    if (kit.table) wireTable(dialogs.kit);
     dialogs.kit.querySelectorAll('[data-kit]').forEach((box) =>
       box.addEventListener('change', () => {
         kitTicks = updateTick(keys.kit, box.dataset.kit, box.checked, kitTicks);
         syncTicks(dialogs.kit, 'kit', kitTicks, '.item', 'is-got');
       }),
     );
+  }
+
+  // ---------------------------------------------------------- what is what (a photo of the real kit)
+  function renderTable(t) {
+    const marks = t.marks
+      .map((m) => `<button type="button" class="tmark" data-mark="${m.n}" style="left:${m.x}%;top:${m.y}%" aria-label="${m.n}: ${esc(m.name)}">${m.n}</button>`)
+      .join('');
+    const legend = t.groups
+      .map((g) => {
+        const rows = t.marks
+          .filter((m) => m.group === g.id)
+          .map((m) => `<li class="trow" data-row="${m.n}"><span class="tno">${m.n}</span><div class="item-main"><span class="item-name">${esc(m.name)}</span><span class="item-why">${esc(m.looks)} ${esc(m.use)}</span></div></li>`)
+          .join('');
+        return rows ? `<h4 class="tgroup">${esc(g.title)}</h4><ol class="items tlist">${rows}</ol>` : '';
+      })
+      .join('');
+    return `<section class="kgroup ktable"><h3>${esc(t.title)}</h3><p class="group-when">${esc(t.lede)}</p>
+      <figure class="tphoto"><img src="${esc(t.src)}" alt="${esc(t.alt)}" width="640" height="1399" loading="lazy" decoding="async">${marks}</figure>
+      ${legend}<p class="tmissing">${esc(t.missing)}</p></section>`;
+  }
+  // A tap on a number marks its row and a tap on a row marks its number, so the photo and the list point at each other.
+  function wireTable(dialog) {
+    const pick = (n, scrollTo) => {
+      dialog.querySelectorAll('.tmark, .trow').forEach((el) => el.classList.toggle('is-on', (el.dataset.mark || el.dataset.row) === n));
+      const target = dialog.querySelector(scrollTo === 'row' ? `[data-row="${n}"]` : `[data-mark="${n}"]`);
+      target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    };
+    dialog.querySelectorAll('.tmark').forEach((b) => b.addEventListener('click', () => pick(b.dataset.mark, 'row')));
+    dialog.querySelectorAll('.trow').forEach((r) => r.addEventListener('click', () => pick(r.dataset.row, 'mark')));
   }
 
   // ---------------------------------------------------------- files

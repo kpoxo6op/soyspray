@@ -179,6 +179,32 @@ export function penIron() {
   return g;
 }
 
+/**
+ * Boris's iron rest (21 Nov 2026): his iron came without a stand, so it rests on an old board. Origin on the bench
+ * under the board, the iron's axis along +x (tip towards -x). Board 170 × 110 × 18 mm, x -35 to 135. Two blocks near
+ * the front edge leave a 14 mm slot that cradles the grip, so the iron cannot roll and all its metal hangs in the air
+ * past the edge; the back of the handle rests on the board. A piece of cellulose sponge sits beside the handle.
+ * userData.slot is an anchor at the cradle for labels.
+ */
+export function restBoard() {
+  const g = new Group();
+  const wood = std(0x5e4c3b, 0.85); // old, darker than the oak bench
+  const block = std(0x463829, 0.85);
+  g.add(mesh(put(new BoxGeometry(170 * MM, 18 * MM, 110 * MM), [50, 9, 0]), wood));
+  g.add(mesh(merge([
+    put(new BoxGeometry(20 * MM, 22 * MM, 15 * MM), [-25, 29, 14.5]),
+    put(new BoxGeometry(20 * MM, 22 * MM, 15 * MM), [-25, 29, -14.5]),
+  ]), block));
+  const sponge = std(0xd9c27a, 0.95);
+  sponge.name = 'sponge';
+  g.add(mesh(put(new BoxGeometry(60 * MM, 12 * MM, 30 * MM), [60, 24, 36]), sponge));
+  const slot = new Object3D();
+  slot.position.set(-25 * MM, 40 * MM, 0);
+  g.add(slot);
+  g.userData.slot = slot;
+  return g;
+}
+
 /** Tip state: tin 0 (dull grey) to 1 (bright tin), black 0..1 (a dirty tip), heat 0..1 (a faint orange glow). */
 export function tipState(iron, { tin = 0, black = 0, heat = 0 } = {}) {
   const m = iron.userData.tipMesh.material;

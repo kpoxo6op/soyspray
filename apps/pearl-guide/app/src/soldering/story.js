@@ -30,20 +30,21 @@ const add3 = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const MAT_Y = 0.002;
 const TH = [0, 0, -0.03]; // helping hands base
 const METER = [-0.145, MAT_Y, -0.035];
-const STAND = [0.135, -0.07];
-const STAND_YAW = 0.5;
-const REST_PITCH = 0.816; // along the stand's spring
+// The rest is an old board (no stand came with the iron): handle towards you on the right, tip to the back.
+const STAND = [0.23, -0.02];
+const STAND_YAW = -0.6;
+const REST_PITCH = -0.176; // grip in the cradle 31 mm above the board, back of the handle on the board
 const KIT_AT = [-0.01, MAT_Y, 0.07]; // the practice board lying on the mat
-const AIR = [0.085, 0.08, -0.005]; // where the iron is held to tin and wipe, in front of the stand
+const AIR = [0.085, 0.08, -0.005]; // where the iron is held to tin and wipe, beside the rest board
 
-/** A point in the stand's own millimetres, as world metres. */
+/** A point in the rest board's own millimetres, as world metres. */
 function standPt(x, y, z) {
   const c = Math.cos(STAND_YAW);
   const s = Math.sin(STAND_YAW);
   return [STAND[0] + (x * c + z * s) * MM, y * MM, STAND[1] + (-x * s + z * c) * MM];
 }
-const IRON_REST = standPt(15, 21, 0);
-const SPONGE = standPt(-25, 23.5, 0);
+const IRON_REST = standPt(-115.6, 64.8, 0); // the tip's end, in the air past the board's edge
+const SPONGE = standPt(60, 30, 36);
 const REST = { p: IRON_REST, yaw: STAND_YAW, pitch: REST_PITCH };
 
 /** A point on the iron: `along` mm from the tip's end up its axis, `up` mm towards the screen side. */
@@ -64,7 +65,7 @@ function mixIron(a, b, t) {
   return { p: mix3(a.p, b.p, t), yaw: lerp(a.yaw, b.yaw, t), pitch: lerp(a.pitch, b.pitch, t) };
 }
 
-/** The iron hot and on its stand, the screen at 330 °C. */
+/** The iron hot and on its rest, the screen at 330 °C. */
 function ironOn(S, tin = 1) {
   ironTo(S, REST);
   S.tip({ tin, heat: 1 });
@@ -257,9 +258,9 @@ const bench = {
     },
     {
       d: 10,
-      text: 'Stand the iron in its holder with the cord clear of your arms. It rests there whenever you put it down.',
-      cam: { p: [0.33, 0.2, 0.25], t: [0.12, 0.04, -0.06], fov: 32 },
-      cam2: { p: [0.42, 0.26, 0.1], t: [0.14, 0.05, -0.1], fov: 32 },
+      text: 'Lay the iron on your old board, grip between two blocks, metal in the air past the edge. It cannot roll off there.',
+      cam: { p: standPt(10, 170, 300), t: standPt(-25, 35, 0), fov: 34 },
+      cam2: { p: standPt(20, 230, 400), t: standPt(-10, 35, 0), fov: 34 },
       act(S, u) {
         const up = easeInOut(span(u, 0.05, 0.35));
         const into = easeInOut(span(u, 0.35, 0.65));
@@ -269,14 +270,14 @@ const bench = {
       labels: (S, u) =>
         u > 0.68
           ? [
-              L('stand', 'iron stand', S.node('stand', null, [-0.03, 0.02, 0.035]), 'b', true),
+              L('stand', 'grip held by blocks', S.a('stand').obj.userData.slot, 'b', true),
               L('cord', 'cord behind', cordAt(S), 't'),
             ]
           : [],
     },
     {
       d: 9,
-      text: 'Wet the sponge and squeeze it out, or use the brass wool. It should be damp with no water running off.',
+      text: 'Wet the piece of sponge on the board and squeeze it out. It should be damp with no water running off.',
       cam: { p: add3(SPONGE, [-0.05, 0.1, 0.11]), t: SPONGE, fov: 30 },
       act(S, u) {
         S.sponge(smooth(span(u, 0.15, 0.6)));
@@ -285,7 +286,7 @@ const bench = {
     },
     {
       d: 9,
-      text: 'Plug the iron in and press the buttons on its handle until the screen reads 330 °C. Wait for it to settle.',
+      text: 'Push the plug fully into its adapter and plug in. Press the handle buttons until the screen reads 330 °C.',
       cam: { p: add3(ironPt(REST, 145, 12), [0.034, 0.1, 0.062]), t: ironPt(REST, 148, 12), fov: 30 },
       act(S, u) {
         const on = span(u, 0.08, 0.2);
@@ -1281,7 +1282,7 @@ const small = {
     },
     {
       d: 10,
-      text: 'Unplug the iron, leave it in the stand for 10 minutes and wash your hands with soap. Four wires, a clean bench.',
+      text: 'Unplug the iron, leave it on its board for 10 minutes and wash your hands with soap. Four wires, a clean bench.',
       cam: { p: [0.09, 0.47, 0.5], t: [0.06, 0.05, -0.02], fov: 36 },
       cam2: { p: [0.07, 0.49, 0.53], t: [0.06, 0.05, -0.02], fov: 36 },
       act(S, u) {

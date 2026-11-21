@@ -61,7 +61,8 @@ export function buildScene(stage, assets) {
   meter.add(screen);
   // the practice board's component side (its underside) carries the traffic light's printed marks
   bench('practice_board').add(SP.trafficPrint());
-  for (const n of ['stand', 'third_hand', 'multimeter', 'solder_tube', 'flux_pen', 'braid', 'cutters', 'tweezers', 'practice_board', 'battery']) add(n, bench(n));
+  add('stand', SP.restBoard());
+  for (const n of ['third_hand', 'multimeter', 'solder_tube', 'flux_pen', 'braid', 'cutters', 'tweezers', 'practice_board', 'battery']) add(n, bench(n));
   add('glasses', SP.glasses());
   add('stripper', SP.stripper());
   for (const n of ['driver1', 'driver2', 'driver3']) add(n, bench('driver').clone(true));

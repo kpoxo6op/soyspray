@@ -11,7 +11,7 @@ const dist = resolve(here, 'dist');
 const rev = (file) => createHash('sha256').update(readFileSync(file)).digest('hex').slice(0, 16);
 const pages = [
   { entry: 'main.js', html: 'index.html', path: '', assets: ['pearl', 'prints', 'bench'], kit: true, files: true },
-  { entry: 'soldering-main.js', html: 'soldering.html', path: 'soldering', assets: ['bench'], kit: !!SOLDER_KIT, files: false },
+  { entry: 'soldering-main.js', html: 'soldering.html', path: 'soldering', assets: ['bench'], photos: ['table.jpg'], kit: !!SOLDER_KIT, files: false },
 ];
 
 rmSync(dist, { recursive: true, force: true });
@@ -23,6 +23,11 @@ for (const page of pages) {
     const f = `${name}.glb`;
     copyFileSync(resolve(here, 'data', f), resolve(out, 'data', f));
     assets[name] = `data/${f}?v=${rev(resolve(here, 'data', f))}`;
+  }
+  const photos = {};
+  for (const f of page.photos || []) {
+    copyFileSync(resolve(here, 'data', f), resolve(out, 'data', f));
+    photos[f.replace(/\.\w+$/, '')] = `data/${f}?v=${rev(resolve(here, 'data', f))}`;
   }
   const draco = resolve(here, 'node_modules/three/examples/jsm/libs/draco/gltf');
   for (const f of ['draco_decoder.wasm', 'draco_wasm_wrapper.js']) copyFileSync(resolve(draco, f), resolve(out, 'draco', f));
@@ -41,7 +46,7 @@ for (const page of pages) {
     minify: !process.env.PEARL_DEBUG,
     legalComments: 'eof',
     // DRACOLoader's default import.meta.url is unavailable in an IIFE bundle.
-    define: { __PEARL_BUNDLED__: 'true', __PEARL_ASSETS__: JSON.stringify(assets), 'import.meta.url': 'document.baseURI' },
+    define: { __PEARL_BUNDLED__: 'true', __PEARL_ASSETS__: JSON.stringify(assets), __PEARL_PHOTOS__: JSON.stringify(photos), 'import.meta.url': 'document.baseURI' },
     logLevel: 'info',
   });
   let html = readFileSync(resolve(here, 'src', page.html), 'utf8');

@@ -35,7 +35,7 @@ test('models, decoder and print files ship with the page', () => {
 });
 
 // The second page must ship independently; the Pearl build tests cannot catch leaked models or story code.
-test('soldering ships only its revisioned runtime, bench and decoder', () => {
+test('soldering ships only its revisioned runtime, bench, table photo and decoder', () => {
   const solder = readFileSync(resolve(dist, 'soldering/index.html'), 'utf8');
   const bundle = readFileSync(resolve(dist, 'soldering/app.js'), 'utf8');
   const refs = [...solder.matchAll(/\b(?:src|href)="([^"]+)"/g)].map((m) => m[1]).filter((r) => !r.startsWith('data:'));
@@ -45,10 +45,12 @@ test('soldering ships only its revisioned runtime, bench and decoder', () => {
     assert.match(revision || '', /^[0-9a-f]{16}$/);
     assert.ok(digest(`soldering/${file}`).startsWith(revision), `${r} identifies its bytes`);
   }
-  assert.deepEqual(readdirSync(resolve(dist, 'soldering/data')), ['bench.glb']);
-  const revision = bundle.match(/data\/bench\.glb\?v=([0-9a-f]{16})/);
-  assert.ok(revision);
-  assert.ok(digest('soldering/data/bench.glb').startsWith(revision[1]));
+  assert.deepEqual(readdirSync(resolve(dist, 'soldering/data')).sort(), ['bench.glb', 'table.jpg']);
+  for (const file of ['bench.glb', 'table.jpg']) {
+    const revision = bundle.match(new RegExp(`data/${file.replace('.', '\\.')}\\?v=([0-9a-f]{16})`));
+    assert.ok(revision, `bundle names ${file} with a revision`);
+    assert.ok(digest(`soldering/data/${file}`).startsWith(revision[1]));
+  }
   assert.equal(/data\/(?:pearl|prints)\.glb/.test(bundle), false, 'soldering has no Pearl model URLs');
   for (const file of ['draco_decoder.wasm', 'draco_wasm_wrapper.js']) {
     assert.ok(statSync(resolve(dist, 'soldering/draco', file)).size > 1000);
