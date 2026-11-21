@@ -92,9 +92,10 @@ export function startGuide({ chapters, buildScene, canvasLabel, loop: loopDefaul
       player.tick(dt);
       if (player.playing && dt > 0) stage.adapt(dt * 1000);
       const shot = direct(player.time);
-      if (film) film.update(shot.beat, player.time - shot.beat.start, player.playing);
+      // while a rendered film covers the stage, skip the WebGL frame so the TV spends its time on the video
+      const filmOn = film ? film.update(shot.beat, player.time - shot.beat.start, player.playing) : false;
       stage.controls.update();
-      stage.render();
+      if (!filmOn) stage.render();
       // Damping keeps the camera gliding after a drag: allow it 90 quiet frames, then rest.
       const more = player.playing || (stage.controls.enableDamping && idleFrames++ <= 90);
       if (!more) last = 0;
