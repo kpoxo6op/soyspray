@@ -1027,3 +1027,18 @@ button {
 }
 .step-link[hidden] { display: none; }
 .step-link:focus-visible { outline: 2px solid #e8ae62; outline-offset: 3px; }
+
+/* Rendered film clips cover the live 3D stage while their beat plays (film.js). */
+.film {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #000;
+  z-index: 1;
+}
+
+body.has-film .labels {
+  visibility: hidden;
+}
