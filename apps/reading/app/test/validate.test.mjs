@@ -19,6 +19,19 @@ const cases = [
  ['section sequence',c=>c.sections[1].n=3,/section numbers/],
  ['paragraph order',c=>c.sections[4].para=1,/para/],
  ['missing plain version',c=>delete c.sections[0].modern,/missing field modern/],
+ ['partial Russian version',c=>delete c.sections[0].russian,/russian must be present in every section or none/],
+ ['Russian straight quote',c=>c.sections[0].russian='Это "впечатление".',/straight quotes/],
+ ['Russian straight apostrophe',c=>c.sections[0].russian="Это 'впечатление'.",/straight quotes/],
+ ['Russian gloss',c=>c.sections[0].russian='[[впечатление|impression]]',/gloss outside/],
+ ['Russian reference structure',c=>c.sections[0].russian='См. ((handbook/54)).',/outside book/],
+ ['empty Russian version',c=>c.sections[0].russian='',/expected nonempty text/],
+ ['non-string Russian title',c=>c.russianTitle=1,/expected nonempty text/],
+ ['art without alt',c=>c.art={caption:'A jug.'},/missing field alt/],
+ ['art with an unknown field',c=>c.art={alt:'Wood engraving of a jug.',src:'jug.png'},/unknown field src/],
+ ['art alt that does not say what is drawn',c=>c.art={alt:'A jug on a table.'},/Wood engraving of/],
+ ['art caption too long',c=>c.art={alt:'Wood engraving of a jug.',caption:'A plain earthenware jug that stands much too near the edge of the table.'},/at most 60 characters/],
+ ['art caption quoting',c=>c.art={alt:'Wood engraving of a jug.',caption:'‘This is a jug.’'},/no quotation/],
+ ['art caption with HTML',c=>c.art={alt:'Wood engraving of a jug.',caption:'A <b>jug</b>.'},/HTML tags/],
  ['missing gloss',c=>c.sections[0].original+=' [[word|unknown]]',/unresolved gloss/],
  ['unused gloss',c=>c.glosses.unused={term:'word',plain:'A word.'},/unused gloss/],
  ['gloss outside original',c=>c.carry='[[word|opinion]]',/gloss outside/],
@@ -44,12 +57,46 @@ const cases = [
  ['objection length',c=>c.objection={says:'word '.repeat(30)+'word',reply:'A reply.'},/exceeds 30/],
 ];
 for(const [name,change,message] of cases)test(`rejects ${name}`,()=>{const c=structuredClone(chapter);change(c);assert.throws(()=>validateChapter(c,options),message);});
+test('Russian is optional; Cyrillic, Russian punctuation and plain inline markup are accepted',()=>{
+ const c=structuredClone(chapter);
+ for(const s of c.sections)delete s.russian;
+ delete c.russianTitle;
+ assert.doesNotThrow(()=>validateChapter(c,options));
+ c.title='Что зависит от нас';c.russianTitle='Своё и чужое';
+ for(const s of c.sections)s.russian='«Это „впечатление“ — ещё не факт». _Проверь_ его. См. ((handbook/2)).';
+ assert.doesNotThrow(()=>validateChapter(c,options));
+});
+test('Russian length warns above 1.6 times the original word count, without failing',()=>{
+ const c=structuredClone(chapter);
+ c.sections[0].original='Это простой пример из пяти слов.';
+ c.sections[0].russian='раз два три четыре пять шесть семь восемь девять';
+ assert.ok(!validateChapter(c,options).some(w=>w.includes('russian exceeds')));
+ c.sections[0].russian+=' десять';
+ assert.ok(validateChapter(c,options).some(w=>w.includes('section 1: russian exceeds 1.6')));
+});
 test('density and expansive plain text are warnings, not failures',()=>{
  const c=structuredClone(chapter);c.sections=[{n:1,para:1,original:'[[A|opinion]] [[B|impulse]] [[C|office]] [[D|slavish]] [[E|impression]].',modern:'This is a deliberately much longer plain version.'}];
+ for(const k of ['questions','prompts','exercises','takeaway','carry','objection'])c[k]=JSON.parse(JSON.stringify(c[k]).replace(/\b[Ss]ections? \d+/g,'that passage'));
  const warnings=validateChapter(c,options);assert.equal(warnings.length,3);assert.ok(warnings.some(w=>w.includes('four glosses')));assert.ok(warnings.some(w=>w.includes('25 words')));assert.ok(warnings.some(w=>w.includes('1.3')));
 });
 test('inline rendering escapes literal HTML and resolves only loaded citations',()=>{
  assert.equal(markup('<img src=x> _care_'), '&lt;img src=x&gt; <i>care</i>');
  assert.equal(markup('((handbook/5))',{book}), 'Handbook 5');
  assert.match(markup('((handbook/2))',{book,loaded:new Set(['handbook/2'])}),/href="\/epictetus\/handbook\/2\/"/);
+});
+test('section references link to the original and must exist in the chapter',()=>{
+ const secs=new Set([1,2,3,4]);
+ assert.equal(markup('Section 4 says',{book,sections:secs}),'<a class="sref" href="#o4">Section 4</a> says');
+ assert.equal(markup('sections 2 and 3',{book,sections:secs}),'<a class="sref" href="#o2">sections 2</a> and <a class="sref" href="#o3">3</a>');
+ assert.equal(markup('Section 4 says',{book}),'Section 4 says');
+ assert.equal(markup('Section 4 says',{book,sections:secs,original:true}),'Section 4 says');
+ const c=structuredClone(chapter);c.questions[0]='Which part of section 99 matters here, and why does it matter to you today?';
+ assert.throws(()=>validateChapter(c,options),/section 99" names a section/);
+ const d=structuredClone(chapter);d.questions[0]='How does this differ from what he said in chapter 2, and which do you believe?';
+ assert.throws(()=>validateChapter(d,options),/inline ref like/);
+});
+test('art is optional; alt alone, or alt with a caption or a null caption, is accepted',()=>{
+ for(const art of [{alt:'Wood engraving of a jug on a table.'},{alt:'Wood engraving of a jug on a table.',caption:'A jug. Jugs break.'},{alt:'Wood engraving of a jug on a table.',caption:null}]){
+  const c=structuredClone(chapter);c.art=art;assert.doesNotThrow(()=>validateChapter(c,options));
+ }
 });

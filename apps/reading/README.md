@@ -22,6 +22,14 @@ numbered filenames in the schema. The build validates content before rendering;
 errors fail the build, while gloss density and long plain versions produce
 warnings. It never substitutes fixture content for missing real content.
 
+A chapter may add `russian` to every section and an optional `russianTitle`.
+Russian follows the plain English, supports `_italics_` and `((references))`,
+and forbids gloss markup and straight quotes. Use «ёлочки», „лапки“ and the
+em dash. Partial translations fail validation; Russian over 1.6 times the
+original word count produces a warning. The Display panel’s Русский On/Off
+setting defaults to On and persists as `reading.ru`. Russian remains visible
+without JavaScript and in print, and spans both columns in facing view.
+
 ```sh
 cd apps/reading/app
 node build.mjs --content test/fixtures/content --out dist

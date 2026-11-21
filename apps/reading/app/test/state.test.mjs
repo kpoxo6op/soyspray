@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
 import {frame} from '../src/templates.js';
 const script=readFileSync(new URL('../src/site.js',import.meta.url),'utf8');
+const theme=readFileSync(new URL('../src/theme.js',import.meta.url),'utf8');
 const html=frame({title:'Test',body:'',assets:{}});
 const labels=Object.fromEntries([...html.match(/<span id="labels"[^>]+>/)[0].matchAll(/data-([a-z-]+)="([^"]*)"/g)].map(([,k,v])=>[k.replace(/-([a-z])/g,(_,c)=>c.toUpperCase()),v]));
 // The browser storage/event boundary owns persistence. Rendering and validator
@@ -24,11 +25,45 @@ function browser(page='chapter',initial={},blocked=false){
  nodes['.disp']=element();nodes['meta[name="theme-color"]']=element();
  if(page==='chapter'){nodes['#notes']=element('textarea');nodes['#done']=element('input');}
  if(page==='notes')for(const id of ['entries','export','erase','erase-no','erase-yes','confirm-erase','message','import'])nodes['#'+id]=element();
- const doc={documentElement:{dataset:{theme:'auto',size:'0',view:'stacked'}},body:{dataset:{book:'epictetus',ref:page==='chapter'?'handbook/1':'',page},append(){}},createElement:element,createTextNode:t=>({textContent:t}),querySelector:s=>nodes[s]||null,querySelectorAll:()=>[]};
+ const doc={documentElement:{dataset:{theme:'auto',size:'0',view:'stacked',ru:'on'}},body:{dataset:{book:'epictetus',ref:page==='chapter'?'handbook/1':'',page},append(){}},createElement:element,createTextNode:t=>({textContent:t}),querySelector:s=>nodes[s]||null,querySelectorAll:()=>[]};
  const storage={get length(){if(blocked)throw Error('blocked');return data.size},getItem(k){if(blocked)throw Error('blocked');return data.get(k)??null},setItem(k,v){if(blocked)throw Error('blocked');data.set(k,v)},removeItem(k){if(blocked)throw Error('blocked');data.delete(k)},key:i=>[...data.keys()][i]};
  runInNewContext(script,{document:doc,localStorage:storage,window:{},innerWidth:1440,matchMedia:()=>({addEventListener(){}}),getComputedStyle:()=>({getPropertyValue:()=> '#FBFBF8'}),addEventListener:(k,f)=>events[k]=f,setTimeout:f=>{timers.set(++serial,f);return serial},clearTimeout:i=>timers.delete(i),Blob,URL,location:{},console});
  return {nodes,data,doc,events,flush(){for(const f of timers.values())f();timers.clear()},async import(v){const target={files:[{text:async()=>JSON.stringify(v)}],value:'file'};await nodes['#import'].onchange({target})}};
 }
+// The synchronous head script owns first-paint settings; rendered markup alone
+// cannot catch a deferred or failed restoration that exposes hidden Russian.
+test('head script restores Russian Off synchronously and defaults On with absent or blocked storage',()=>{
+ for(const [storage,expected] of [[{'reading.ru':'off'},'off'],[{},'on'],[new Proxy({},{get(){throw Error('blocked')}}),'on']]){
+  const document={documentElement:{dataset:{ru:'on'}}};
+  runInNewContext(theme,{document,localStorage:storage});
+  assert.equal(document.documentElement.dataset.ru,expected);
+ }
+});
+// Display events and import/erase exercise the existing storage boundary for
+// the new setting; build tests cannot detect lost preferences or import errors.
+test('Russian Display control saves through settings and remains usable with blocked storage',()=>{
+ for(const blocked of [false,true]){
+  const b=browser('chapter',{},blocked);
+  for(const value of ['off','on']){
+   const button={dataset:{set:'ru',value},closest:s=>s==='button'?button:s==='.disp'?b.nodes['.disp']:null};
+   b.doc.onclick({target:button});
+   assert.equal(b.doc.documentElement.dataset.ru,value);
+   if(!blocked){assert.equal(b.data.get('reading.ru'),value);assert.ok(JSON.parse(b.data.get('reading.updated')).ru>0)}
+  }
+  if(blocked)assert.equal(b.data.size,0);
+ }
+});
+test('Russian preference imports with timestamps and resets to On when data is erased',async()=>{
+ const b=browser('notes',{'reading.updated':'{"ru":20}'});
+ await b.import({'reading.ru':'off','reading.updated':{ru:30}});
+ assert.equal(b.doc.documentElement.dataset.ru,'off');assert.equal(b.data.get('reading.ru'),'off');
+ await b.import({'reading.ru':'on','reading.updated':{ru:10}});
+ assert.equal(b.doc.documentElement.dataset.ru,'off');
+ await b.import({'reading.ru':'invalid','reading.updated':{ru:40}});
+ assert.match(b.nodes['#message'].textContent,/Import failed/);
+ b.nodes['#erase'].onclick();b.nodes['#erase-yes'].onclick();
+ assert.equal(b.doc.documentElement.dataset.ru,'on');assert.equal(b.data.has('reading.ru'),false);
+});
 test('typing saves after debounce and pagehide flushes the final edit',()=>{
  const b=browser();b.nodes['#notes'].value='A first note';b.nodes['#notes'].oninput();assert.equal(b.data.size,0);b.flush();assert.equal(JSON.parse(b.data.get('reading.epictetus.notes.handbook/1')).text,'A first note');
  b.nodes['#notes'].value='Last edit';b.nodes['#notes'].oninput();b.events.pagehide();assert.equal(JSON.parse(b.data.get('reading.epictetus.notes.handbook/1')).text,'Last edit');assert.equal(b.nodes['#saved'].textContent,'Saved in this browser.');

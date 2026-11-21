@@ -5,7 +5,12 @@
   "part": null,
   "chapter": 2,
   "title": "What desire and aversion promise",
+  "russianTitle": "Что обещают стремление и избегание",
   "titleBy": "editor",
+  "art": {
+    "alt": "Wood engraving of a deer leaping away from a cord strung with feathers and toward a hunting net half hidden in the scrub.",
+    "caption": "A deer runs from feathers, and into the net."
+  },
   "setting": null,
   "themes": [
     "desire",
@@ -16,13 +21,15 @@
       "n": 1,
       "para": 1,
       "original": "Remember that [[desire|desire]] promises the attaining of what you desire, and [[aversion|aversion]] the avoiding of what you want to avoid, and that he who falls into desire is [[unfortunate|unfortunate]], while he who falls into what he wants to avoid suffers misfortune. If you seek to avoid, then, only what is [[contrary to nature|nature]] among those things that are within your own power, you’ll never fall into anything that you want to avoid; but if you attempt to avoid illness, or death, or poverty, you’ll suffer misfortune.",
-      "modern": "Remember: desire promises that you will get what you want, and aversion that you will avoid what you do not want. Fail to get what you desire and you are unlucky; meet what you were avoiding and you are miserable. So if you avoid only those things within your power that go against nature, you will never meet anything you are avoiding. But if you try to avoid illness, or death, or poverty, you will be miserable."
+      "modern": "Remember: desire promises that you will get what you want, and aversion that you will avoid what you do not want. Fail to get what you desire and you are unlucky; meet what you were avoiding and you are miserable. So if you avoid only those things within your power that go against nature, you will never meet anything you are avoiding. But if you try to avoid illness, or death, or poverty, you will be miserable.",
+      "russian": "Помни: стремление обещает, что ты получишь то, к чему стремишься, а избегание — что ты не столкнёшься с тем, чего избегаешь. Кто не получил того, к чему стремился, — неудачлив, а кто столкнулся с тем, чего избегал, — несчастен. Поэтому, если ты будешь избегать лишь того, что идёт против природы и при этом в твоей власти, ты никогда не столкнёшься с тем, чего избегаешь. А если станешь избегать болезни, смерти или бедности, будешь несчастен."
     },
     {
       "n": 2,
       "para": 1,
       "original": "Remove your aversion, then, from everything that is not within our power, and transfer it to what is contrary to nature among those things that are within our power. For the present, however, suppress your desires entirely; for if you desire any of the things that are not within our power, you’re bound to be unfortunate, while those that are within our power, which it would be right for you to desire, aren’t yet within your reach. But use only your [[motives to act or not to act|impulse]], and even those lightly, with [[reservations|reservation]] and without straining.",
-      "modern": "So take your aversion off everything that is not up to you, and move it onto the things up to you that go against nature. For now, though, give up desire altogether. If you desire anything that is not up to you, you are bound to be unlucky; and the things that are up to you, which you would be right to desire, are not yet within your reach. Use only your impulses to act or not to act, and use them lightly, with reservation, without strain."
+      "modern": "So take your aversion off everything that is not up to you, and move it onto the things up to you that go against nature. For now, though, give up desire altogether. If you desire anything that is not up to you, you are bound to be unlucky; and the things that are up to you, which you would be right to desire, are not yet within your reach. Use only your impulses to act or not to act, and use them lightly, with reservation, without strain.",
+      "russian": "Так что отведи избегание от всего, что не в нашей власти, и обрати его на то, что в нашей власти и идёт против природы. А от стремления пока откажись совсем. Ведь если стремиться к тому, что не в нашей власти, неудачи не миновать; а то, что в нашей власти и к чему стремиться стоило бы, тебе пока недоступно. Довольствуйся побуждениями — к действию или к отказу от него, — да и ими пользуйся легко, с оговоркой, без напряжения."
     }
   ],
   "glosses": {
@@ -35,7 +42,7 @@
     },
     "impulse": {
       "term": "motives to act",
-      "plain": "Your impulses to act and to hold back. The same thing Hard calls ‘motivation’ in chapter 1.",
+      "plain": "Your impulses to act and to hold back. The same thing Hard calls ‘motivation’ in ((handbook/1)).",
       "why": null,
       "translit": "horman, aphorman",
       "greek": "ὁρμᾶν, ἀφορμᾶν"
