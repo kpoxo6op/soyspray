@@ -48,7 +48,7 @@ export const GROUPS = [
     title: 'Still to buy',
     when: 'One Jaycar trip: glasses before your first joint, switches before Pearl’s switched lead. Helium is click and collect only.',
     items: [
-      { id: 'glasses', name: 'Wrap-around clear safety glasses', code: 'TH3002', why: 'Clipped leads and solder can flick. Wear them from the first cut leg.', shop: 'Jaycar', url: jaycar('TH3002'), price: 5.9 },
+      { id: 'glasses', name: 'Wrap-around clear safety glasses', code: 'TH3002', why: 'Solder and cut legs can flick. Wear them whenever the iron is hot.', shop: 'Jaycar', url: jaycar('TH3002'), price: 5.9 },
       { id: 'switch', name: 'SPDT micro slide switches, 2', code: 'SS0834', why: 'One for the practice lead and one for Pearl. Check it fits the hatch’s switch cradle, drawn for an SS-12D00.', shop: 'Jaycar', url: jaycar('SS0834'), price: 6 },
       { id: 'helium', name: 'Alpen Jumbo helium balloon tank', why: '90% helium, 10% oxygen. Enough for the first fill and several top-ups.', shop: 'Spotlight', url: 'https://www.spotlightstores.com/en-nz/p/alpen-jumbo-helium-balloon-tank/BP80530768-blue', price: 85 },
       { id: 'filament', name: 'Bambu Lab PLA Matte, Ivory White, 1 kg', code: 'INKBAM0052', why: 'Matte white hides layer lines and lets less light through.', shop: 'PB Tech', url: 'https://www.pbtech.co.nz/product/INKBAM0052/Bambu-Lab-PLA-Matte-Filament---Ivory-White-1kg---1', price: 40 },

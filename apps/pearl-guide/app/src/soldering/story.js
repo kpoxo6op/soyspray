@@ -258,7 +258,7 @@ const bench = {
     },
     {
       d: 10,
-      text: 'Lay the iron on your old board, grip between the fixed blocks, metal past the board’s edge, tip away. Cord behind.',
+      text: 'Test the rest cold: grip between the fixed blocks, metal past the board’s edge, tip away. It must not rock or roll.',
       cam: { p: standPt(10, 170, 300), t: standPt(-25, 35, 0), fov: 34 },
       cam2: { p: standPt(20, 230, 400), t: standPt(-10, 35, 0), fov: 34 },
       act(S, u) {
@@ -386,7 +386,7 @@ const first = {
     },
     {
       d: 10,
-      text: 'Push one practice-kit resistor into its place on the kit board, bend its legs apart, clip the board in the hands.',
+      text: 'Match one resistor to the kit sheet, fit it from the marked side, spread its legs and clip the board in the hands.',
       cam: { p: [0.01, 0.075, 0.16], t: [-0.01, 0.004, 0.07], fov: 30 },
       cam2: { p: [0.05, 0.2, 0.3], t: [0, 0.06, -0.01], fov: 32 },
       move: 2,
@@ -805,7 +805,7 @@ const light = {
     },
     {
       d: 10,
-      text: 'Solder one leg of each part and check it sits flat. One leg can still be reheated and the part pressed down.',
+      text: 'For each part, solder one leg and check it sits flat. Then solder the other legs and clip each one.',
       cam: fcam(JT1, [10, 22, 48], 30),
       cam2: fcam(JT1, [16, 8, 44], 30),
       move: 1.2,
@@ -916,7 +916,7 @@ const light = {
     },
     {
       d: 10,
-      text: 'Probe the two power pads: silence is right. Unplug the iron, then power the kit. The lights run in turn. Wash hands.',
+      text: 'Iron unplugged, probe the power pads. Beep: a bridge, see chapter 3. Silence: power it, lights run. Wash hands.',
       cam: { p: [-0.02, 0.2, 0.22], t: [-0.05, 0.065, -0.03], fov: 32 },
       cam2: { p: [-0.005, 0.13, 0.12], t: [-0.005, 0.07, -0.04], fov: 32 },
       act(S, u) {
