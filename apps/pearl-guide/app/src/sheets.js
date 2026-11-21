@@ -148,10 +148,7 @@ export function createSheets({ root, timeline, player, onOpen, keys, chapters, k
         return rows ? `<h4 class="tgroup">${esc(g.title)}</h4><ol class="items tlist">${rows}</ol>` : '';
       })
       .join('');
-    const sort = t.sort
-      ? `<figure class="tsort"><a href="${esc(t.sort.src)}" target="_blank" rel="noopener"><img src="${esc(t.sort.src)}" alt="${esc(t.sort.alt)}" width="860" height="2193" decoding="async"></a><figcaption class="group-when">${esc(t.sort.caption)}</figcaption></figure>`
-      : '';
-    return `<section class="kgroup ktable"><h3>${esc(t.title)}</h3>${sort}<p class="group-when">${esc(t.lede)}</p>
+    return `<section class="kgroup ktable"><h3>${esc(t.title)}</h3><p class="group-when">${esc(t.lede)}</p>
       <figure class="tphoto"><img src="${esc(t.src)}" alt="${esc(t.alt)}" width="640" height="1399" loading="lazy" decoding="async">${marks}</figure>
       ${legend}<p class="tmissing">${esc(t.missing)}</p></section>`;
   }

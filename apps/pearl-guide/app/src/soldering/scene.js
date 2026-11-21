@@ -62,16 +62,69 @@ export function buildScene(stage, assets) {
   // the practice board's component side (its underside) carries the traffic light's printed marks
   bench('practice_board').add(SP.trafficPrint());
   add('stand', SP.restBoard());
-  for (const n of ['third_hand', 'multimeter', 'solder_tube', 'flux_pen', 'braid', 'cutters', 'tweezers', 'practice_board', 'battery']) add(n, bench(n));
+  // the practice board is drawn as a plain green circuit board with tinned pads, like the kit's own board, so it does
+  // not read as a wooden or special tool (Boris, 21 Nov)
+  // colours of Boris's own tools, from his 21 Nov photos: blue cutters, black tweezers, a white flux pen with a blue
+  // cap, a deeper orange meter holster
+  const recolour = (name, re, hex) =>
+    bench(name).traverse((o) => {
+      if (!o.isMesh || !re.test(o.material.name)) return;
+      o.material = o.material.clone();
+      o.material.color.setHex(hex);
+    });
+  recolour('cutters', /handle/, 0x1f4fa8);
+  recolour('tweezers', /steel/, 0x1c1c1e);
+  recolour('flux_pen', /flux pen/, 0xeeeeea);
+  recolour('flux_pen', /knob/, 0x1f3f9a);
+  recolour('multimeter', /holster/, 0xc8501a);
+  bench('practice_board').traverse((o) => {
+    if (!o.isMesh) return;
+    o.material = o.material.clone();
+    if (/perfboard/.test(o.material.name)) o.material.color.setHex(0x1d6b3c);
+    if (/copper/.test(o.material.name)) o.material.color.setHex(0xc9ccd0);
+  });
+  add('solder_tube', SP.solderSpool());
+  for (const n of ['third_hand', 'multimeter', 'flux_pen', 'braid', 'cutters', 'tweezers', 'practice_board', 'battery']) add(n, bench(n));
+  // a left hand on the cutters and the tweezers, at the handle end of their longest side, so neither floats
+  const toolHands = new Map();
+  const holdEnd = (name, end) => {
+    const o = cast.get(name).obj;
+    const box = new Box3();
+    o.traverse((m) => m.isMesh && (m.geometry.computeBoundingBox(), box.union(m.geometry.boundingBox.clone().applyMatrix4(m.matrix))));
+    const size = box.getSize(new Vector3());
+    const axis = size.x >= size.y && size.x >= size.z ? 'x' : size.y >= size.z ? 'y' : 'z';
+    const h = SP.hand({ r: Math.min(size.x, size.y, size.z) / MM / 2 + 2, left: true });
+    const c = box.getCenter(new Vector3());
+    c[axis] = end > 0 ? box.max[axis] - size[axis] * 0.3 : box.min[axis] + size[axis] * 0.3;
+    h.position.copy(c);
+    if (axis === 'y') h.rotation.z = end > 0 ? Math.PI / 2 : -Math.PI / 2;
+    if (axis === 'z') h.rotation.y = end > 0 ? -Math.PI / 2 : Math.PI / 2;
+    if (axis === 'x' && end < 0) h.rotation.y = Math.PI;
+    h.visible = false;
+    toolHands.set(name, h);
+    o.add(h);
+  };
+  holdEnd('cutters', 1);
+  holdEnd('tweezers', 1);
   add('glasses', SP.glasses());
   add('stripper', SP.stripper());
   for (const n of ['driver1', 'driver2', 'driver3']) add(n, bench('driver').clone(true));
 
   const iron = SP.penIron();
+  // the right hand holds the iron by its grip, behind the hot metal
+  const ironHand = SP.hand({ r: 11.4 });
+  ironHand.position.set(84 * MM, 0, 0);
+  iron.add(ironHand);
   add('iron', iron);
   add('cord', P.thread(1.4));
   cast.get('cord').mats.forEach((m) => m.color.setHex(0x1b1c1e));
-  add('solder', P.solderWire(70));
+  const solder = P.solderWire(70);
+  // the left hand feeds the solder, pinching it near its far end
+  const solderHand = SP.hand({ r: 0.4, left: true });
+  solderHand.position.set(62 * MM, 10 * MM, -4.5 * MM);
+  solderHand.rotation.set(0, 0.2, 0.3);
+  solder.add(solderHand);
+  add('solder', solder);
   add('bead', SP.bead());
   add('smoke', SP.smoke());
   add('resistor', SP.resistorT());
@@ -151,6 +204,7 @@ export function buildScene(stage, assets) {
     a: (n) => cast.get(n),
     reset() {
       cast.reset();
+      for (const h of toolHands.values()) h.visible = false;
       iron.userData.setReading('');
       SP.tipState(iron);
       screen.userData.setReading('', '');
@@ -220,7 +274,8 @@ export function buildScene(stage, assets) {
       return obj.getWorldPosition(out).clone();
     },
     /** The pen iron: the tip at world point p, the handle leaving along yaw (about y) and pitch (up from level). */
-    iron(p, yaw = 0, pitch = 0.6, alpha = 1) {
+    iron(p, yaw = 0, pitch = 0.6, alpha = 1, held = true) {
+      ironHand.visible = held;
       const a = cast.get('iron').show(alpha).at(p.x ?? p[0], p.y ?? p[1], p.z ?? p[2]).turn(yaw, 0, pitch);
       const back = iron.userData.back;
       iron.updateWorldMatrix(true, false);
@@ -228,6 +283,11 @@ export function buildScene(stage, assets) {
       // the cord drops from the back of the handle to the back edge of the bench
       cast.get('cord').show(alpha).obj.userData.setEnds(from, new Vector3(from.x + 0.12, 0.003, Math.min(from.z - 0.25, -0.2)));
       return a;
+    },
+    /** Show the hand that holds a tool (cutters, tweezers) this frame. */
+    hold(name) {
+      const h = toolHands.get(name);
+      if (h) h.visible = true;
     },
     /** Tip: { tin, black, heat } each 0..1. Screen: '' off, '330' etc. */
     tip(state) {
