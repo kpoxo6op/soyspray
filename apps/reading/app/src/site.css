@@ -2,3 +2,4 @@
 @media(max-width:600px){html[data-size="2"] .head{flex-wrap:wrap}}@media(max-width:400px){.head{gap:.6rem}.head .right{gap:.7rem}}
 .hint.resume{margin:.6rem 0 0}.sref{text-decoration-color:var(--accent)}.text p:target{animation:hl 2.6s ease-out}@keyframes hl{0%,45%{background:var(--surface);box-shadow:0 0 0 .45rem var(--surface)}}.back{position:fixed;right:1.25rem;bottom:calc(1.25rem + env(safe-area-inset-bottom));z-index:9;margin:0;padding:0 1.1rem;background:var(--surface);border:1px solid var(--rule);border-radius:2rem;font-size:.82rem;text-decoration:none}@media print{.back{display:none!important}}
 [lang=ru] .text :is(.m,.plain-head){display:none}@media(min-width:1200px){[lang=ru][data-view=facing] .text .m{display:block}}.lang{text-decoration:none;letter-spacing:.06em;font-size:.74rem}[lang=ru] .disp .row>span{flex-basis:3.6rem}
+[lang=ru] .sc{font-variant-caps:normal;letter-spacing:0;font-style:italic}
