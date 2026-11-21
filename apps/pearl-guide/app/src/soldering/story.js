@@ -916,7 +916,7 @@ const light = {
     },
     {
       d: 10,
-      text: 'Iron unplugged, probe the power pads. Beep: a bridge, see chapter 3. Silence: power it, lights run. Wash hands.',
+      text: 'Unplug the iron, kit power off. Probe + and −: a steady beep means check for bridges. Quiet: power it. Wash hands.',
       cam: { p: [-0.02, 0.2, 0.22], t: [-0.05, 0.065, -0.03], fov: 32 },
       cam2: { p: [-0.005, 0.13, 0.12], t: [-0.005, 0.07, -0.04], fov: 32 },
       act(S, u) {
