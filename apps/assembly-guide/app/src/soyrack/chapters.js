@@ -147,7 +147,7 @@ export const SOYRACK_CHAPTERS = [
   },
   {
     id: 'keystone-panel', title: 'Keystone panel', view: 'rear-upper',
-    text: 'Snap RJ45 couplers into slots 1 and 2 and blanks into 3 and 4. Fix the panel across the rear upper posts with four M4 × 12.',
+    text: 'Snap RJ45 couplers into slots 1 and 2 from outside, clip catching the thinned rim, and blanks into 3 and 4. Fix the panel across the rear upper posts with four M4 × 12.',
     script(c) {
       c.show(['keystone_panel']);
       const p = c.move('keystone_panel', HOLD_IN, 2.0, { from: [0, 90, 0], via: [0, 12, 0] });
@@ -175,8 +175,17 @@ export const SOYRACK_CHAPTERS = [
   },
   {
     id: 'ethernet', section: 'Leads in and done', title: 'Ethernet', view: 'rear',
-    text: 'Plug in the leads you crimped (the crimping explainer at explain.soyspray.vip/crimping/ shows how): the blue ones from the nodes up the rear left to switch ports 7, 6 and 5, yellow from port 1 to keystone 1 and green from port 4 to keystone 2. Keystone 1 goes out to the router on the wall.',
+    text: 'Plug in the leads you crimped (the crimping explainer at explain.soyspray.vip/crimping/ shows how): the blue ones from the nodes up the rear left to switch ports 7, 6 and 5.',
     script: hold(6.4),
+  },
+  {
+    id: 'keystone-leads', title: 'Keystone leads', view: 'keystone-leads',
+    text: 'Yellow goes from switch port 1 to the back of keystone 1, green from port 4 to keystone 2. Each is a 15 cm lead, so the spare droops in a U under the plugs. Outside, keystone 1 takes the yellow cable down to the router on the wall. Keystone 2 is a spare LAN jack.',
+    tags: [
+      { text: 'Keystone 1: out to the router', node: 'key1', at: [0, 18, 10], side: 'ne', from: 1.2 },
+      { text: 'Keystone 2: spare', node: 'key2', at: [0, 18, 10], side: 'n', from: 1.8 },
+    ],
+    script: hold(7.2),
   },
   {
     id: 'usb-zigbee', title: 'USB and Zigbee', view: 'zigbee',

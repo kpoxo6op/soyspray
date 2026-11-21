@@ -591,8 +591,16 @@ KEY_HOLES = [UPPER_HOLES[0], UPPER_HOLES[2]];
 KEY_X = [CX - 48, CX - 16, CX + 16, CX + 48];
 KEY_Z = (KEY_HOLES[0] + KEY_HOLES[1]) / 2;
 KEY_CUT = [14.9, 16.4];
+// A coupler's latch and the hooks opposite it only spring out behind a plate about 1.5 mm thick: in
+// the 2.4 mm plate they stayed pressed in and the couplers sat loose. Each window keeps the plate's
+// stiffness but is thinned to KEY_SNAP from the inside, 2 mm beyond its top and bottom edges.
+KEY_SNAP = 1.5;
+KEY_RIM = 2;
 
 module keystone_cut(t) translate([-KEY_CUT[0] / 2, -1, -KEY_CUT[1] / 2]) cube([KEY_CUT[0], t + 2, KEY_CUT[1]]);
+// The thinned rim round a window, from the inside face (y = 0) to KEY_SNAP short of the outside face.
+module keystone_snap(t, snap = KEY_SNAP) if (t > snap)
+  translate([-KEY_CUT[0] / 2, -1, -KEY_CUT[1] / 2 - KEY_RIM]) cube([KEY_CUT[0], 1 + t - snap, KEY_CUT[1] + 2 * KEY_RIM]);
 
 // Rear panel on the outside of the upper rear posts, four RJ45 keystone couplers.
 module keystone_panel() {
@@ -604,7 +612,7 @@ module keystone_panel() {
       for (z = [zb, zt - 2.4]) translate([25.5, y0 - 7, z]) cube([202, 7 + E, 2.4]);   // flanges between the posts
     }
     for (x = [HOLE_X, REF_W - HOLE_X], z = KEY_HOLES) translate([x, y0 + t, z]) mirror([0, 1, 0]) csk_y(t);
-    for (x = KEY_X) translate([x, y0, KEY_Z]) keystone_cut(t);
+    for (x = KEY_X) translate([x, y0, KEY_Z]) { keystone_cut(t); keystone_snap(t); }
     for (i = [0 : 3]) on_rear(y0 + t, [KEY_X[3 - i], KEY_Z + 12.5]) label(str(i + 1), 4);   // 1 at the left seen from behind
   }
 }
@@ -653,17 +661,14 @@ module coupon_base() intersection() {
   translate([X0 - 1, -1, BASE_Z[1] - 19]) cube([21, 41, 20]);
 }
 
-// Two keystone openings: 2.4 mm plate (left) and 2.0 mm plate (right).
+// Two keystone windows in the panel's 2.4 mm plate, thinned to 1.5 mm (left, what the panel uses)
+// and 1.8 mm (right) round the window, from the side that faces up on the bed.
 module coupon_keystone() {
   difference() {
-    union() {
-      translate([0, 0, 0]) cube([36, 2.4, 34]);
-      translate([36, 0, 0]) cube([36, 2.0, 34]);
-    }
-    translate([18, 0, 17]) keystone_cut(3);
-    translate([54, 0, 17]) keystone_cut(3);
-    on_rear(2.4, [18, 29]) label("2.4", 4);
-    on_rear(2.0, [54, 29]) label("2.0", 4);
+    cube([72, 2.4, 38]);
+    for (w = [[18, 1.5], [54, 1.8]]) translate([w[0], 0, 17]) { keystone_cut(2.4); keystone_snap(2.4, w[1]); }
+    on_rear(2.4, [18, 33]) label("1.5", 4);
+    on_rear(2.4, [54, 33]) label("1.8", 4);
   }
 }
 

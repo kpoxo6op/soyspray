@@ -13,7 +13,7 @@ export const TEST_PRINTS = [
   { part: 'coupon_post', name: 'Post end', detail: 'M4 nuts push into the side slots of holes 1 and 2; an M4 × 12 screw from the front should thread into each and pull tight without the nut turning.' },
   { part: 'coupon_corner', name: 'Deck corner', detail: 'The post end and its foot should press into the pocket by hand and not rock.' },
   { part: 'coupon_base', name: 'Base corner', detail: 'An M4 nut pushes into its slot. With the deck corner and the post end stacked on it, an M4 × 25 screw down through the foot should pull all three tight.' },
-  { part: 'coupon_keystone', name: 'Keystone strip', detail: 'Push a keystone coupler into each window. Keep the plate, 2.4 or 2.0 mm, where it clicks in and holds firm.' },
+  { part: 'coupon_keystone', name: 'Keystone strip', detail: 'Push a keystone coupler into each window from the numbered side. Keep the rim, 1.5 or 1.8 mm, where it clicks in and holds firm.' },
 ];
 
 export const PRINTED = [

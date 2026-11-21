@@ -41,12 +41,14 @@ const ROUTES = [
 const TRIM_LOSS = STRIP - TRIM; // stripped, then trimmed back: lost from each end
 const MIN_LEAD = 150; // shorter than this is hard to hold while crimping
 /**
- * Each lead finished: its route between the plugs, a plug and boot at each end and 3 cm to spare,
+ * Each lead finished: its route between the plugs, a plug and boot at each end and 3 cm to spare
+ * (the keystone leads are drawn with their slack),
  * rounded up to the centimetre and never under 15 cm. It is cut longer by what the trim takes off.
  */
 export const LEADS = ROUTES.map((r) => {
   const route = CABLE_BY_ID[r.id].parts.reduce((s, p) => s + polyLength(p.points), 0);
-  const finished = Math.max(MIN_LEAD, Math.ceil((route + 2 * CONNECTORS.rj45.len + 30) / 10) * 10);
+  const spare = CABLE_BY_ID[r.id].slack ? 0 : 30; // a lead drawn with its slack already has its spare
+  const finished = Math.max(MIN_LEAD, Math.ceil((route + 2 * CONNECTORS.rj45.len + spare) / 10) * 10);
   return { ...r, route, finished, cut: Math.ceil((finished + 2 * TRIM_LOSS) / 10) * 10 };
 });
 const cm = (mm) => `${mm / 10} cm`;

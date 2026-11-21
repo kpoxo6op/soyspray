@@ -130,7 +130,7 @@ export function buildPad(spec) {
 /**
  * RJ45 keystone coupler, a socket at each end: local y runs along it, the front end (+y) goes
  * through the panel first. The stop collar's front face is the origin plane (y = 0); the clip on
- * top springs up just beyond a 2.4 mm plate.
+ * top springs up behind the plate, into the thinned rim round the window.
  */
 export function buildCoupler() {
   const k = kit();

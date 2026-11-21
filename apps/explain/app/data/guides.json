@@ -162,17 +162,24 @@
     "length": 8.1
    },
    {
+    "id": "keystone-leads",
+    "title": "Keystone leads",
+    "section": "Leads in and done",
+    "start": 205.9,
+    "length": 8.9
+   },
+   {
     "id": "usb-zigbee",
     "title": "USB and Zigbee",
     "section": "Leads in and done",
-    "start": 205.9,
+    "start": 214.8,
     "length": 8.1
    },
    {
     "id": "soyrack",
     "title": "Soyrack",
     "section": "Leads in and done",
-    "start": 214,
+    "start": 222.9,
     "length": 6.5
    }
   ]

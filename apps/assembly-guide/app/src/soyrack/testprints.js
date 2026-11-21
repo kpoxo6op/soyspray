@@ -14,19 +14,20 @@ export const PIECES = {
   post: { id: 'coupon.post', part: 'coupon_post', centre: [14, 20.5, 19], size: [20, 35, 44] },
   corner: { id: 'coupon.corner', part: 'coupon_corner', centre: [26.5, 25.5, -4], size: [45, 51, 8] },
   base: { id: 'coupon.base', part: 'coupon_base', centre: [14, 20, -17.5], size: [20, 40, 19] },
-  keystone: { id: 'coupon.keystone', part: 'coupon_keystone', centre: [36, 1.2, 17], size: [72, 2.4, 34] },
+  keystone: { id: 'coupon.keystone', part: 'coupon_keystone', centre: [36, 1.2, 19], size: [72, 2.4, 38] },
 };
 
 // Features in rack millimetres: the corner screw axis through the post end's foot, the deck
 // corner and the base corner, the top of the foot and the underside of the nut in the base
 // corner's slot; tray holes 1 and 2 on the post end's front face and the depth of their nuts
-// behind it; the strip's windows on its plain face (2.4 mm plate, then 2.0 mm).
+// behind it; the strip's windows on its numbered face (rim thinned to 1.5 mm, then 1.8 mm, from the
+// plain face, where the clip catches).
 export const JOINT = [14, 32];
 export const FOOT_TOP = 5;
 export const BASE_NUT = -17.2;
 export const HOLES = [[18.97, 3, 25], [18.97, 3, 35]];
 export const NUT_Y = 6;
-export const WINDOWS = [[18, 0, 17], [54, 0, 17]];
+export const WINDOWS = [[18, 2.4, 17], [54, 2.4, 17]];
 
 /** World position of rack point `r` of a piece placed at `pose`. */
 export const onPiece = (piece, pose, r) => add3(pose.p, qrotate(pose.q, sub3(r, PIECES[piece].centre)));
@@ -36,7 +37,8 @@ export const POSES = {
   post: standing('post', 24, 88),
   corner: standing('corner', 78, 88),
   base: standing('base', 130, 88),
-  keystone: standing('keystone', 212, 88),
+  // Turned round so its numbered face, where the couplers go in, faces the camera.
+  keystone: { ...standing('keystone', 212, 88), q: qaxis([0, 0, 1], Math.PI) },
 };
 // The deck corner set on the base corner, and the post end pressed into its pocket: all three
 // keep their rack offsets.
@@ -53,11 +55,11 @@ const NUT = 'coupon.nut';
 const BOLT = 'coupon.bolt';
 const TRAY_NUTS = ['coupon.tnut1', 'coupon.tnut2'];
 const TRAY_SCREWS = ['coupon.m4a', 'coupon.m4b'];
-const KEYS = ['coupon.key24', 'coupon.key20'];
+const KEYS = ['coupon.key15', 'coupon.key18'];
 
 /** The pieces and the fasteners the checks use, in the shape of soyrackPlacements. */
 export function testPlacements() {
-  const instances = Object.entries(PIECES).map(([key, { id, part }]) => ({ id, group: 'world', part, p: POSES[key].p, q: ID_Q }));
+  const instances = Object.entries(PIECES).map(([key, { id, part }]) => ({ id, group: 'world', part, p: POSES[key].p, q: POSES[key].q }));
   const fastener = (id, type, head, dir, out, q) => ({ id, group: 'world', type, head, dir, out, ...(q && { q }) });
   const screws = [
     // The nut in the base corner's slot, and the M4 x 25 screw down through the foot and the deck corner into it.
@@ -174,12 +176,12 @@ export const TEST_CHAPTERS = [
   },
   {
     id: 'test-keystone', title: 'Keystone couplers in the strip', view: 'test-keystone',
-    text: 'A keystone coupler is the snap-in RJ45 socket block that sits in the rack\'s rear panel. Push one into each window from the plain side until its clip clicks. Keep the plate where it sits firm without wobbling: 2.4 mm is what the panel uses now.',
+    text: 'A keystone coupler is the snap-in RJ45 socket block that sits in the rack\'s rear panel. Push one into each window from the numbered side until its clip clicks into the thinned rim behind. Keep the rim where it sits firm without wobbling: 1.5 mm is what the panel uses now.',
     tags: [
       { text: 'Keystone coupler: an RJ45 socket at each end', node: KEYS[0], at: [0, -15, 8], side: 'nw', from: 1.2, until: 4.9 },
-      { text: '2.4 mm plate, as in the panel', node: STRIP, at: [-18, 0, 17], side: 'n', from: 3.4 },
-      { text: '2.0 mm plate', node: STRIP, at: [18, 0, 17], side: 'n', from: 5.9 },
-      { text: 'Clicks in and holds firm', node: KEYS[1], at: [0, -15, -8], side: 's', from: 6.3 },
+      { text: '1.5 mm rim, as in the panel', node: STRIP, at: [-18, 0, 17], side: 'n', from: 3.4 },
+      { text: '1.8 mm rim', node: STRIP, at: [18, 0, 17], side: 'n', from: 5.9 },
+      { text: 'Clicks in and holds firm', node: KEYS[0], at: [0, -15, -8], side: 's', from: 6.3 },
     ],
     script(c) {
       const tilt = qaxis([1, 0, 0], 0.16);
@@ -199,12 +201,12 @@ export const TEST_CHAPTERS = [
   },
   {
     id: 'test-report', title: 'Tell me how each one fits', view: 'test-report',
-    text: 'Send one word per check: good, tight or loose, and which plate held the coupler firmly. I adjust the files and send new pieces to print. When all are good, print the rack.',
+    text: 'Send one word per check: good, tight or loose, and which rim held the coupler firmly. I adjust the files and send new pieces to print. When all are good, print the rack.',
     tags: [
       { text: 'In by hand, no rocking?', node: CORNER, at: [-12.5, -5, 4], side: 'nw', until: 5.6 },
       { text: 'Screw pulls the joint tight?', node: BOLT, at: [0, 0, 0], side: 'n', until: 5.6 },
       { text: 'Nuts slide in, screws hold?', node: TRAY_SCREWS[1], at: [0, 0, 0], side: 'e', until: 5.6 },
-      { text: '2.4 or 2.0: which holds firm?', node: STRIP, at: [0, 0, 17], side: 'ne', until: 5.6 },
+      { text: '1.5 or 1.8: which holds firm?', node: STRIP, at: [0, 0, 17], side: 'ne', until: 5.6 },
     ],
     script(c) {
       fade(c, [...ALL, NUT, BOLT, ...TRAY_NUTS, ...TRAY_SCREWS, ...KEYS], HOLD_IN + 5.0, [1, 0], 0.8);
