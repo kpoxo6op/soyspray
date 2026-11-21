@@ -1,4 +1,4 @@
-# Private book reader; no public DNS record or tunnel.
+# The private LAN and Tailscale route. The public route is the reading-public Cloudflare Tunnel (cloudflared-deployment.yaml).
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

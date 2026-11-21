@@ -62,6 +62,7 @@ jobs:
           grep -qi '^content-security-policy:' "$RUNNER_TEMP/reading-index.headers"
           grep -qi '^x-content-type-options: nosniff' "$RUNNER_TEMP/reading-index.headers"
           grep -qi '^referrer-policy: no-referrer' "$RUNNER_TEMP/reading-index.headers"
+          grep -qi '^x-robots-tag: noindex, nofollow' "$RUNNER_TEMP/reading-index.headers"
           test "$(curl --silent --show-error --output /dev/null \
             --write-out '%{http_code} %{redirect_url}' "$base/epictetus")" = "301 $base/epictetus/"
           test "$(curl --silent --show-error --output /dev/null \

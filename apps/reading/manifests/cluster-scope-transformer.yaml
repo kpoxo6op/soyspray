@@ -1,0 +1,10 @@
+apiVersion: builtin
+kind: PatchTransformer
+metadata:
+  name: reading-cluster-scope
+patch: |-
+  - op: remove
+    path: /metadata/namespace
+target:
+  group: crd.projectcalico.org
+  labelSelector: reading-cluster-boundary=true

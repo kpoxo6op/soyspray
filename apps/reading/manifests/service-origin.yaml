@@ -1,0 +1,17 @@
+# The public tunnel's origin. Headless, so cloudflared connects straight to the pod IP and never crosses a
+# Service IP, which the host boundary (cloudflared-host-boundary.yaml) denies.
+apiVersion: v1
+kind: Service
+metadata:
+  name: reading-origin
+  labels:
+    app.kubernetes.io/name: reading
+    app.kubernetes.io/part-of: reading
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: reading
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

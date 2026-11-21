@@ -27,6 +27,13 @@ TASKS = yaml.safe_load((ROOT / "apps/bootstrap-secret-tasks.yml").read_text())
             "autism_traits_cloudflared_token",
             "manifests/namespace.yaml",
         ),
+        (
+            "reading",
+            "reading-cloudflared-token",
+            "token",
+            "reading_cloudflared_token",
+            "manifests/namespace.yaml",
+        ),
     ]
 )
 def identity(request):

@@ -1,9 +1,9 @@
 # Reading
 
-A private reader for owned books at `https://reading.soyspray.vip`: original text
+A reader for owned books at `https://reading.soyspray.vip`: original text
 with glosses, a modern version, questions, exercises and writing prompts per
-chapter. It uses the private
-Tailscale split DNS and LAN ingress, with no public DNS record or tunnel.
+chapter. Boris made it public on 21 Nov 2026 to share with a friend. Every
+response carries `X-Robots-Tag: noindex, nofollow`.
 
 ## Paths and content
 
@@ -52,7 +52,33 @@ With storage blocked, controls and writing remain available for the current visi
 Without JavaScript, the full chapter and gloss links remain readable.
 
 This repository and its runtime images must contain no secrets or personal data.
-Private ingress does not make source files private.
+Notes, kept passages and progress stay in each reader's browser; the server stores nothing.
+
+## Access
+
+The public route uses the dedicated Cloudflare Tunnel `reading-public`, whose
+public hostname `reading.soyspray.vip` points at
+`http://reading-origin.reading.svc.cluster.local:8080`, a headless Service, so the
+connector reaches the pod directly. The private LAN and Tailscale route keeps the
+existing Ingress through split DNS. The network policies allow the connector only
+node-local DNS, the web pod and the Cloudflare tunnel endpoints; Calico also closes
+node and Service addresses to it, and the web pod has no egress.
+
+`bootstrap.yml` creates the missing `reading-cloudflared-token` Secret through the
+shared `apps/bootstrap-secret-tasks.yml` procedure and never replaces an existing
+one. Put `reading_cloudflared_token` in an Ansible Vault variables file outside the
+checkout (the token is in the Cloudflare dashboard under the tunnel), then run from
+the repository root:
+
+```sh
+source soyspray-venv/bin/activate
+ansible-playbook -i inventory/soycluster/hosts.yml \
+  --become --become-user=root --user ubuntu apps/reading/bootstrap.yml \
+  --ask-vault-pass -e @/private/path/reading.vault.yml
+```
+
+Check the public route through public DNS (`dig @1.1.1.1 reading.soyspray.vip`),
+not the split-DNS address, and `kubectl -n reading logs deployment/reading-cloudflared`.
 
 ## Checks
 
@@ -64,7 +90,7 @@ The build needs no packages. The tests check authoring errors, rendered structur
 markup, payload budgets and asset revisions. Tests build into an isolated
 `dist-test/` directory and remove it without replacing production `dist/`. The image
 workflow checks routes, slash redirects, gzip, caching and CSP from a read-only
-container before publishing. `smoke` reports that a tailnet check is still needed;
+container before publishing. `smoke` reports that a tailnet and a public check are still needed;
 `restore-check` reports not-required because the app has no persistent state.
 
 ## Deploy and roll back
@@ -78,6 +104,5 @@ digest has been promoted.
 After the first promotion merges, a separate Argo registration PR adds
 `../apps/reading/argocd` to `argocd/kustomization.yaml`. Argo then follows `main`.
 Check the Application is Synced and Healthy, open `/`, `/epictetus/` and
-`/epictetus/handbook/1/` from a tailnet device, and verify public DNS has no record for this
-host. Later source merges leave the running image unchanged until promotion.
+`/epictetus/handbook/1/` from a tailnet device and from outside it. Later source merges leave the running image unchanged until promotion.
 Roll back by reverting a digest promotion. No backup is required.

@@ -21,6 +21,7 @@ spec:
       labels:
         app.kubernetes.io/name: reading
         app.kubernetes.io/part-of: reading
+        reading-component: web
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
