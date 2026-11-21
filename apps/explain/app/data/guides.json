@@ -339,7 +339,7 @@
     "title": "Spin a fan",
     "section": "Stage 0",
     "start": 360,
-    "length": 51,
+    "length": 52,
     "goal": "Solder a motor, fit it in a printed duct and weigh its push."
    }
   ]
