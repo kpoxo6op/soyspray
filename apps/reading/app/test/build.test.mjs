@@ -31,27 +31,26 @@ test('Handbook 1 renders the complete paired document, margin notes and editoria
  assert.ok(chapter.includes('you’ll do nothing whatever against your will'));
  assert.ok(chapter.indexOf('id="o5"')<chapter.indexOf('id="m1"'));
 });
-test('Russian follows plain English with its title, language, inline markup and matching section numbers',()=>{
- const block=chapter.match(/<section class="russian" lang="ru" aria-labelledby="russian">([\s\S]*?)<\/section>/)?.[1];
- assert.ok(block);
- assert.match(block,/<h2 class="russian-head" id="russian">По-русски<\/h2><h3>Что зависит от нас<\/h3>/);
- assert.ok(chapter.indexOf('id="m5"')<chapter.indexOf('id="russian"'));
- assert.ok(chapter.indexOf('id="r5"')<chapter.indexOf('id="h-point"'));
- for(let n=1;n<=5;n++)assert.match(block,new RegExp(`id="r${n}"><a class="n" href="#o${n}"[^>]*>${n}</a>`));
- assert.match(block,/<i>впечатление<\/i>/);
- assert.doesNotMatch(block,/class="g"|class="mn"|data-keep/);
- const c=JSON.parse(read(join(app,'test/fixtures/content/epictetus/handbook/001.json')));
- const book=JSON.parse(read(join(app,'test/fixtures/content/epictetus/book.json')));
- const glossary=JSON.parse(read(join(app,'test/fixtures/content/epictetus/glossary.json')));
- delete c.russianTitle;c.sections[0].russian+=' См. ((handbook/1)).';
- const untitled=chapterPage(c,book,glossary,[c],{});
- assert.match(untitled,/По-русски<\/h2><p/);
- assert.match(untitled,/См\. <a href="\/epictetus\/handbook\/1\/">Handbook 1<\/a>/);
+const ruChapter=read(join(out,'ru/epictetus/handbook/1/index.html'));
+test('the Russian chapter is the whole page in Russian, with Hard’s English only as the side-by-side column',()=>{
+ assert.match(ruChapter,/<html lang="ru" data-alt="\/epictetus\/handbook\/1\/"/);
+ for(const title of ['Главное','Вопросы','Практика','Напиши','Понятия главы'])assert.ok(ruChapter.includes('>'+title+'</h2>'),title);
+ for(const title of ['The point','Questions','In plain English'])assert.ok(!ruChapter.includes('>'+title),title);
+ for(let n=1;n<=5;n++){assert.match(ruChapter,new RegExp(`class="o[^"]*" id="o${n}"><a class="n" href="#m${n}"`));assert.match(ruChapter,new RegExp(`id="m${n}" lang="en">`));}
+ assert.ok(ruChapter.includes('Одно зависит от нас'));assert.ok(ruChapter.includes('you’ll do nothing whatever against your will'));
+ assert.match(ruChapter,/data-keep="1" aria-pressed="false">Отметить</);
+ assert.match(ruChapter,/href="\/ru\/epictetus\/handbook\/2\/" rel="next"/);
+ assert.match(ruChapter,/<a class="lang" href="\/epictetus\/handbook\/1\/" data-lang="en"/);
+ assert.match(ruChapter,/data-of=" из "/);
 });
-test('chapters without Russian omit the block and heading; Display offers Russian On and Off',()=>{
- const without=read(join(out,'epictetus/handbook/2/index.html'));
- assert.doesNotMatch(without,/class="russian"|По-русски/);
- for(const html of [chapter,without])assert.match(html,/<span lang="ru">Русский<\/span><button data-set="ru" data-value="on" aria-pressed="true">On<\/button><button data-set="ru" data-value="off" aria-pressed="false">Off<\/button>/);
+test('every English page links its Russian twin, and the old inline Russian block and toggle are gone',()=>{
+ for(const p of htmls.filter(p=>!p.includes('/ru/')&&!p.endsWith('404.html'))){
+  const html=read(p),twin=html.match(/data-alt="([^"]+)"/)?.[1];assert.ok(twin,p);
+  assert.ok(htmls.some(q=>q===join(out,twin.slice(1),'index.html')),`${p} → ${twin}`);
+  assert.match(html,new RegExp(`<a class="lang" href="${twin}" data-lang="ru"`));
+ }
+ assert.doesNotMatch(read(join(out,'404.html')),/data-alt|class="lang"/);
+ for(const html of [chapter,ruChapter])assert.doesNotMatch(html,/data-ru|class="russian"|Русский<\/span>/);
 });
 test('every internal href, asset and fragment resolves in the built output',()=>{
  for(const p of htmls){const html=read(p);for(const [,href]of html.matchAll(/(?:href|src)="([^"]+)"/g)){
@@ -75,10 +74,10 @@ export function budgets(){
  const rows=[];const bytes=p=>readFileSync(join(out,p));
  const add=(name,b,max,gzmax)=>{rows.push({item:name,bytes:b.length,gzip:gzipSync(b,{level:9}).length,budget:max,gzipBudget:gzmax||''});};
  add('Handbook 1 HTML',bytes('epictetus/handbook/1/index.html'),30*1024);
- add('site.css',bytes('assets/site.css'),15*1024,4.3*1024);
+ add('site.css',bytes('assets/site.css'),15.5*1024,4.3*1024);
  add('site.js + theme.js',Buffer.concat([bytes('assets/site.js'),bytes('assets/theme.js')]),10*1024,4.25*1024);
  rows.at(-1).gzip=gzipSync(bytes('assets/site.js'),{level:9}).length+gzipSync(bytes('assets/theme.js'),{level:9}).length;
- add('theme.js',bytes('assets/theme.js'),400);
+ add('theme.js',bytes('assets/theme.js'),512);
  const fonts=files(join(out,'assets/fonts')).filter(p=>p.endsWith('.woff2'));assert.equal(fonts.length,5);
  const fontBytes=Buffer.concat(fonts.map(p=>readFileSync(p)));
  add('Fonts (5)',fontBytes,104*1024);
@@ -99,23 +98,23 @@ test('chapter, stylesheet, script, font and first-visit budgets',()=>{
 // while Discourses navigation crosses its numbered books. The Handbook golden
 // case cannot exercise either branch of that contract.
 test('Discourses and Fragments build from the schema and preserve work boundaries',()=>{
- const content=join(app,'test/.route-content');cpSync(join(app,'test/fixtures/content'),content,{recursive:true});
+ const content=join(app,'test/.route-content');cpSync(join(app,'test/fixtures/content'),content,{recursive:true});rmSync(join(content,'epictetus/ru'),{recursive:true,force:true});
  try {
   const c=JSON.parse(read(join(content,'epictetus/handbook/002.json')));
   for(const [work,part,titleBy,path] of [['discourses',1,'source','discourses/1/01.json'],['discourses',2,'source','discourses/2/01.json'],['fragments',null,'editor','fragments/01.json']]) {
    const pathOut=join(content,'epictetus',path);mkdirSync(dirname(pathOut),{recursive:true});
    writeFileSync(pathOut,JSON.stringify({...c,work,part,titleBy,chapter:1}));
   }
-  build({content,out});
+  const out=join(app,'dist-test-routes');build({content,out});
   const first=read(join(out,'epictetus/discourses/1/1/index.html')),last=read(join(out,'epictetus/discourses/2/1/index.html'));
   assert.match(first,/Chapter 1 of 30/);assert.match(first,/href="\/epictetus\/discourses\/2\/1\/" rel="next"/);
   assert.match(first,/Condensed as <a href="\/epictetus\/handbook\/1\/">Handbook 1/);
   assert.match(last,/href="\/epictetus\/" rel="next"/);
   assert.match(read(join(out,'epictetus/fragments/1/index.html')),/<title>Fragment 1/);
   assert.match(read(join(out,'epictetus/handbook/2/index.html')),/href="\/epictetus\/" rel="next"/);
-  for(const p of htmls)assert.ok(readFileSync(p).length<150*1024);
+  for(const p of files(out).filter(p=>p.endsWith('.html')))assert.ok(readFileSync(p).length<150*1024);
   assert.ok(Buffer.byteLength(first)<150*1024);assert.ok(Buffer.byteLength(last)<150*1024);
- } finally {rmSync(content,{recursive:true,force:true});}
+ } finally {rmSync(content,{recursive:true,force:true});rmSync(join(app,'dist-test-routes'),{recursive:true,force:true});}
 });
 // The published site owns the illustration contract: a reserved box, both formats, real hashed files within budget.
 test('declared art renders one lazy tailpiece after the text; its files exist, match their hashes and fit the budgets',()=>{
@@ -148,7 +147,7 @@ test('declared art renders one lazy tailpiece after the text; its files exist, m
 test('a chapter that declares art without its six files fails the build',()=>{
  const content=join(app,'dist-test-content-art'),empty=join(app,'dist-test-no-art');
  try{
-  cpSync(join(app,'test/fixtures/content'),content,{recursive:true});mkdirSync(empty,{recursive:true});
+  cpSync(join(app,'test/fixtures/content'),content,{recursive:true});rmSync(join(content,'epictetus/ru'),{recursive:true,force:true});mkdirSync(empty,{recursive:true});
   const p=join(content,'epictetus/handbook/001.json'),c=JSON.parse(read(p));c.art={alt:'Wood engraving of a boat.'};writeFileSync(p,JSON.stringify(c));
   assert.throws(()=>build({content,out:join(app,'dist-test-art-out'),art:empty}),/art needs handbook-001 at 480, 960 and 1440/);
  } finally {for(const d of [content,empty,join(app,'dist-test-art-out')])rmSync(d,{recursive:true,force:true});}

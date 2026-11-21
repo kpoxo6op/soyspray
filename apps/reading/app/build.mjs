@@ -5,6 +5,8 @@ import {fileURLToPath} from 'node:url';
 import {validateBook,validateGlossary,validateChapter,validateAbout} from './src/validate.js';
 import {refOf} from './src/markup.js';
 import {chapterPage,otherPages,shelf,notFound} from './src/templates.js';
+import {localizeBook,localizeGlossary,localizeAbout,localizeChapter} from './src/localize.js';
+import {strings} from './src/i18n.js';
 const app=dirname(fileURLToPath(import.meta.url));
 const hash=b=>createHash('sha256').update(b).digest('hex');
 const json=p=>{try{return JSON.parse(readFileSync(p,'utf8'));}catch(e){throw new Error(`${p}: ${e.message}`);}};
@@ -21,10 +23,21 @@ export function build({content=join(app,'content'),out=join(app,'dist'),art=join
   const dir=join(content,id),book=json(join(dir,'book.json')),glossary=json(join(dir,'glossary.json')),about=json(join(dir,'about.json'));
   validateBook(book,id);validateGlossary(glossary,book);
   validateAbout(about,book);
-  const chapters=files(dir).filter(p=>p.endsWith('.json')&&!['book.json','glossary.json','about.json'].some(n=>p===join(dir,n))).map(p=>{
+  const chapters=files(dir).filter(p=>p.endsWith('.json')&&!p.startsWith(join(dir,'ru')+sep)&&!['book.json','glossary.json','about.json'].some(n=>p===join(dir,n))).map(p=>{
    const c=json(p);for(const w of validateChapter(c,{book,glossary,path:relative(content,p).split(sep).join('/')}))console.warn(`Warning: ${w}`);return c;
   }).sort((a,b)=>book.works.findIndex(w=>w.id===a.work)-book.works.findIndex(w=>w.id===b.work)||(a.part||0)-(b.part||0)||a.chapter-b.chapter);
-  return {book,glossary,about,chapters};
+  book.base=`/${id}/`;
+  // The Russian edition is all or nothing: every page of the book, every chapter, in the reader's one language.
+  const rudir=join(dir,'ru');let ru=null;
+  if(existsSync(rudir)){
+   const rbook=localizeBook(book,json(join(rudir,'book.json'))),rglossary=localizeGlossary(glossary,json(join(rudir,'glossary.json'))),rabout=localizeAbout(about,json(join(rudir,'about.json')));
+   validateGlossary(rglossary,rbook,'ru');validateAbout(rabout,rbook);
+   const rchapters=chapters.map(c=>{const rel=[c.work,c.part,String(c.chapter).padStart(c.part===null&&c.work==='handbook'?3:2,'0')].filter(x=>x!==null).join('/')+'.json',p=join(rudir,rel);
+    if(!existsSync(p))throw new Error(`${id}/ru/${rel}: missing Russian chapter`);
+    const r=localizeChapter(c,json(p),`${id}/ru/${rel}`);validateChapter(r,{book:rbook,glossary:rglossary,lang:'ru'});return r;});
+   ru={book:rbook,glossary:rglossary,about:rabout,chapters:rchapters};
+  }
+  return {book,glossary,about,chapters,ru};
  });
  rmSync(out,{recursive:true,force:true});mkdirSync(join(out,'assets/fonts'),{recursive:true});
  const assets={};
@@ -52,7 +65,9 @@ export function build({content=join(app,'content'),out=join(app,'dist'),art=join
   assets.art[`${book.id}/${refOf(c)}`]=set;
  }
  const pages={'/':shelf(books,assets),'/404.html':notFound(assets)};
- for(const data of books){Object.assign(pages,otherPages({...data,assets}));for(const c of data.chapters)pages[`/${data.book.id}/${refOf(c)}/`]=chapterPage(c,data.book,data.glossary,data.chapters,assets);}
+ for(const data of books){Object.assign(pages,otherPages({...data,assets}));for(const c of data.chapters)pages[`${data.book.base}${refOf(c)}/`]=chapterPage(c,data.book,data.glossary,data.chapters,assets);}
+ if(books.every(b=>b.ru)){const T=strings.ru,rb=books.map(b=>b.ru);pages['/ru/']=shelf(rb,assets,T);
+  for(const data of rb){Object.assign(pages,otherPages({...data,assets,T}));for(const c of data.chapters)pages[`${data.book.base}${refOf(c)}/`]=chapterPage(c,data.book,data.glossary,data.chapters,assets,T);}}
  for(const [url,html] of Object.entries(pages)){const p=join(out,url.slice(1)+(url.endsWith('/')?'index.html':''));mkdirSync(dirname(p),{recursive:true});writeFileSync(p,html);}
  return {out,pages:Object.keys(pages).length};
 }

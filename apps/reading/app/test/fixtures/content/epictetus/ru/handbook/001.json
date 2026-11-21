@@ -1,0 +1,67 @@
+{
+ "schema": 1,
+ "title": "Что зависит от нас",
+ "setting": null,
+ "sections": [
+  {
+   "n": 1,
+   "text": "Одно зависит от нас, другое — нет. От нас зависят наши суждения, побуждения, желания и стремление чего-то избежать: всё, что мы сами делаем. Наше тело, имущество, репутация и должность от нас не зависят."
+  },
+  {
+   "n": 2,
+   "text": "То, что зависит от нас, по природе свободно: этому нельзя помешать. То, что от нас не зависит, непрочно, подчинено другим и нам не принадлежит."
+  },
+  {
+   "n": 3,
+   "text": "Если считать чужое своим, а зависимое — свободным, будешь горевать, тревожиться и винить людей и богов. Если же считать своим только своё, никто не сможет тебя принудить или остановить. Ты не станешь никого обвинять и ничего не будешь делать против воли. Врагов у тебя не будет, и никто не сможет тебе навредить."
+  },
+  {
+   "n": 4,
+   "text": "Ради такой свободы придётся потрудиться: от чего-то отказаться совсем, а что-то отложить. Если одновременно гнаться за богатством и должностью, можно не получить и их. А свободу и счастье, ради которых ты начал, точно упустишь."
+  },
+  {
+   "n": 5,
+   "text": "Когда тебя что-то тревожит, учись говорить себе: «Это лишь _впечатление_, а не сама вещь». Проверь его: касается ли оно того, что зависит от тебя? Если нет, будь готов сказать: «Это не моё дело»."
+  }
+ ],
+ "glosses": {},
+ "takeaway": "По-русски Sort whatever happens into two piles: your own doing (judgements, choices, wants) and everything else (body, property, reputation, rank). Stake your effort and your peace of mind on the first pile only.",
+ "carry": "По-русски Before you react to anything, ask: is this up to me?",
+ "questions": [
+  "По-русски Epictetus puts the body and reputation on the “not up to us” list, although we plainly influence both. Where is the line between influencing a thing and deciding it? Use your own health as the test case.",
+  "По-русски Think of the last time you were angry at work. Which item from his second list were you treating as yours?",
+  "По-русски Section 4 says you cannot go after freedom and also status and money with the same seriousness. Do you believe that? Where would he say you are trying to have it both ways?",
+  "По-русски “It does not concern you” sounds cold when the thing outside your control is a child’s illness. What could the sentence mean that is not indifference?"
+ ],
+ "exercises": [
+  {
+   "title": "По-русски Two lists",
+   "do": "По-русски For the next three working days, each time something irritates you (a failed deploy, a late reply, a review comment), stop and write one line: the event, what you can attempt, and what in it is yours. For example: “Disk died. Attempt: restore from last night’s backup. Mine: doing it with care, and blaming no one.”",
+   "time": "По-русски a minute a go, three times a day, for three days.",
+   "doneWhen": "По-русски you have nine lines.",
+   "stopIf": null
+  },
+  {
+   "title": "По-русски Name the impression",
+   "do": "По-русски Once today, when you feel a jolt of worry or annoyance, say to it before you do anything else: ‘You’re an impression and not at all what you appear to be.’ Then ask whether it is about something up to you.",
+   "time": "По-русски ten seconds, once.",
+   "doneWhen": "По-русски you can tell someone this evening what the impression was and what it turned out to be.",
+   "stopIf": null
+  }
+ ],
+ "objection": null,
+ "prompts": [
+  "По-русски Take one thing that worries you this week and write the two lists for it. Be strict: for each item under “mine”, could anyone stop you doing it?",
+  "По-русски Describe a time you got something from the second list (the promotion, the praise) and it settled less than you expected. What had you been asking it to do for you?",
+  "По-русски Rewrite section 5 as an instruction to yourself for one particular situation you expect tomorrow."
+ ],
+ "seeAlso": [
+  {
+   "why": "По-русски on judgements"
+  },
+  {
+   "why": "По-русски the same division at length"
+  }
+ ],
+ "compare": null
+}

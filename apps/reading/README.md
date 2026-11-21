@@ -22,13 +22,16 @@ numbered filenames in the schema. The build validates content before rendering;
 errors fail the build, while gloss density and long plain versions produce
 warnings. It never substitutes fixture content for missing real content.
 
-A chapter may add `russian` to every section and an optional `russianTitle`.
-Russian follows the plain English, supports `_italics_` and `((references))`,
-and forbids gloss markup and straight quotes. Use «ёлочки», „лапки“ and the
-em dash. Partial translations fail validation; Russian over 1.6 times the
-original word count produces a warning. The Display panel’s Русский On/Off
-setting defaults to On and persists as `reading.ru`. Russian remains visible
-without JavaScript and in print, and spans both columns in facing view.
+The Russian edition lives in `app/content/<book>/ru/` (`book.json`,
+`glossary.json`, `about.json` and one overlay per chapter at the same path as
+the English). Overlays carry only the words and must mirror the English shape;
+the shape and writing rules are in the project notes (`ru-schema.md`). Every
+page is built twice: `/…` in English and `/ru/…` in Russian. On a Russian
+chapter the Russian text is the reading text with its own glosses, and Hard's
+English appears only as the right column of the side-by-side view. The header
+link (RU or EN) switches to the twin page; `theme.js` remembers the choice as
+`reading.lang` and sends later visits to the same language. A book with a `ru`
+folder must translate every chapter, or the build fails.
 
 ```sh
 cd apps/reading/app
