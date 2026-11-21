@@ -57,8 +57,10 @@ function ironPt(pose, along, up = 0) {
   return [p[0] + (ax[0] * along + nu[0] * up) * MM, p[1] + (ax[1] * along + nu[1] * up) * MM, p[2] + (ax[2] * along + nu[2] * up) * MM];
 }
 
+/** The iron in a hand, except when it lies on its rest or on the mat. */
 function ironTo(S, pose) {
-  return S.iron(pose.p, pose.yaw, pose.pitch);
+  const near = (q) => Math.hypot(pose.p[0] - q.p[0], pose.p[1] - q.p[1], pose.p[2] - q.p[2]) < 0.012;
+  return S.iron(pose.p, pose.yaw, pose.pitch, 1, !near(REST) && !near(IRON_MAT));
 }
 
 function mixIron(a, b, t) {
@@ -186,7 +188,7 @@ const LAYOUT = [
   ['third_hand', ...TH, 0],
   ['multimeter', ...METER, 0],
   ['stand', STAND[0], 0, STAND[1], STAND_YAW],
-  ['solder_tube', -0.185, MAT_Y + 0.0075, 0.06, 0],
+  ['solder_tube', -0.185, MAT_Y + 0.011, 0.06, 0],
   ['flux_pen', -0.185, MAT_Y + 0.007, 0.085, 0],
   ['practice_board', KIT_AT[0], KIT_AT[1], KIT_AT[2], Math.PI / 2],
   ['cutters', 0.03, MAT_Y + 0.004, 0.06, 0],
@@ -209,7 +211,7 @@ function lay(S, list, u, stagger = 0.06) {
   const local = clamp((u - list.length * stagger) / 0.35);
   if (local > 0) {
     const { dy, alpha } = drop(local, 0.06);
-    S.iron(add3(IRON_MAT.p, [0, dy, 0]), IRON_MAT.yaw, IRON_MAT.pitch, alpha);
+    S.iron(add3(IRON_MAT.p, [0, dy, 0]), IRON_MAT.yaw, IRON_MAT.pitch, alpha, false);
   }
 }
 
@@ -231,11 +233,11 @@ const bench = {
       labels: (S, u) =>
         u > 0.72
           ? [
-              L('iron', 'pen iron', S.a('iron').obj.userData.grip, 'b'),
-              L('solder', '60/40 solder, 0.8 mm', S.node('solder_tube'), 't'),
-              L('flux', 'flux pen', S.node('flux_pen'), 'b'),
+              L('iron', 'iron, red handle', S.a('iron').obj.userData.grip, 'b'),
+              L('solder', 'solder reel', S.node('solder_tube', null, [0, 0.012, 0]), 't'),
+              L('braid', 'braid, green reel', S.node('braid'), 'r'),
               L('hands', 'helping hands', S.node('third_hand'), 'b'),
-              L('kit', 'practice kit', S.F(0, 2, 0), 't'),
+              L('kit', 'kit board, bag 13', S.F(0, 2, 0), 't'),
             ]
           : [],
     },
@@ -338,7 +340,7 @@ function benchSet(S, { meter = false, kit = false } = {}) {
 }
 
 // ---------------------------------------------------------------- chapter 2
-const TIP_CAM = { p: add3(AIR, [-0.035, 0.03, 0.075]), t: add3(AIR, [-0.004, -0.004, 0]), fov: 30 };
+const TIP_CAM = { p: add3(AIR, [-0.07, 0.09, 0.2]), t: add3(AIR, [0.02, 0.01, 0]), fov: 32 }; // wide enough to show both hands
 const AIR_POSE = { p: AIR, yaw: 0.35, pitch: 0.5 };
 
 /** Lift the iron to the air, touch solder to its tip, wipe it once and hold it back up. */
@@ -399,6 +401,7 @@ const first = {
         put(S, 'practice_board', 0, 0, 0).turn(Math.PI / 2);
       },
       labels: (S, u) => {
+        if (u < 0.2) return [L('board', 'kit board, from silver bag 13', S.F(0, 2, 0), 't', true)];
         if (u > 0.2 && u < 0.38) return [L('legs', 'legs through the holes', S.F(RES[0], 5.5, RES[2]), 'r')];
         if (u > 0.82) return [L('clips', 'clips on the board edges', S.node('third_hand', null, [-0.026, 0.078, -0.007]), 'l')];
         return [];
@@ -500,6 +503,7 @@ const first = {
         const inn = easeInOut(span(u, 0.05, 0.4));
         const tip = S.W(J1[0] + 0.4, PAD + CONE + 0.2, J1[2] + 0.2);
         S.a('cutters').show().at(tip.x + 0.03 * (1 - inn), tip.y + 0.012 * (1 - inn), tip.z - 0.02 * (1 - inn)).turn(0.6, TILT, 0);
+        S.hold('cutters');
         if (u > 0.5) {
           S.cutLeg('resistor', 0, LEG_CUT);
           // the cut piece stays in your fingers: show the right way, not the flying piece
@@ -1157,7 +1161,7 @@ const small = {
   beats: [
     {
       d: 10,
-      text: 'Melt a small dome of solder onto one pad of a spare driver board. Keep two boards untouched for Pearl.',
+      text: 'Melt a small dome of solder onto one pad of a green driver board. You have 5. Keep two untouched for Pearl.',
       cam: { p: add3(padAt('VIN'), [0.012, 0.03, 0.035]), t: add3(padAt('VIN'), [-0.004, 0, -0.003]), fov: 30 },
       cam2: { p: add3(padAt('GNDR'), [0.006, 0.024, 0.028]), t: padAt('GNDR'), fov: 30 },
       act(S, u, k) {
@@ -1176,7 +1180,7 @@ const small = {
         smokeAt(S, p, smooth(span(u, 0.46, 0.5)) * (1 - smooth(span(u, 0.64, 0.7))), k);
       },
       labels: (S, u) => [
-        ...(u > 0.1 && u < 0.6 ? [L('spare', 'spare board', S.node('driver1'), 'l')] : []),
+        ...(u > 0.1 && u < 0.6 ? [L('spare', 'driver board, from silver bag 14', S.node('driver1'), 'l')] : []),
         ...(u > 0.66 ? [L('tinned', 'tinned pad', v3(add3(padAt('GNDR'), [0, 0.0008, 0])), 't', true)] : []),
       ],
     },
@@ -1189,7 +1193,10 @@ const small = {
         const sink = smooth(span(u, 0.5, 0.6));
         wireOnPad(S, 0, sink, 0.01 * (1 - inn));
         const p = padAt('GNDR');
-        if (u < 0.85) S.a('tweezers').show().at(p[0] + 0.0004, p[1] + 0.0009 + 0.01 * (1 - inn), p[2] + 0.004).turn(-Math.PI / 2, 0, 0.22);
+        if (u < 0.85) {
+          S.a('tweezers').show().at(p[0] + 0.0004, p[1] + 0.0009 + 0.01 * (1 - inn), p[2] + 0.004).turn(-Math.PI / 2, 0, 0.22);
+          S.hold('tweezers');
+        }
         const on = easeInOut(span(u, 0.36, 0.46));
         const off = easeInOut(span(u, 0.64, 0.8));
         ironTo(S, off > 0 ? mixIron(padIron('GNDR'), REST, off) : mixIron(REST, padIron('GNDR'), on));

@@ -11,6 +11,7 @@
 import {
   BoxGeometry,
   CanvasTexture,
+  CapsuleGeometry,
   CatmullRomCurve3,
   Color,
   CylinderGeometry,
@@ -41,7 +42,7 @@ const std = (color, roughness = 0.5, metalness = 0) => new MeshStandardMaterial(
 
 /** Materials only this page uses. Same class and features as props.js MAT: colours are uniforms, no new programs. */
 export const SMAT = {
-  handle: std(0x17181a, 0.42),
+  handle: std(0x8e1d1d, 0.42), // his CXG E60WT is red
   grip: std(0x2a2c2f, 0.88),
   button: std(0x5d6168, 0.5),
   tip: std(0x6e7175, 0.55, 0.85), // a dull tip; tipState() lerps it to bright tin
@@ -202,6 +203,57 @@ export function restBoard() {
   slot.position.set(-25 * MM, 40 * MM, 0);
   g.add(slot);
   g.userData.slot = slot;
+  return g;
+}
+
+/**
+ * Boris's JCD solder reel (21 Nov photos): a white plastic reel about 50 mm across and 22 mm tall with a navy, red and
+ * white label, 0.8 mm wire wound on its hub. Lies flat; origin at its centre.
+ */
+export function solderSpool() {
+  const g = new Group();
+  const reel = std(0xf1efe9, 0.55);
+  const navy = std(0x1f2a5c, 0.5);
+  const red = std(0xc3283a, 0.5);
+  const wire = std(0xb9bcc0, 0.35, 0.8);
+  g.add(mesh(merge([
+    put(new CylinderGeometry(25 * MM, 25 * MM, 1.6 * MM, 40), [0, 10.2, 0]),
+    put(new CylinderGeometry(25 * MM, 25 * MM, 1.6 * MM, 40), [0, -10.2, 0]),
+  ]), reel));
+  g.add(mesh(put(new CylinderGeometry(19 * MM, 19 * MM, 18.8 * MM, 40), [0, 0, 0]), wire));
+  // the label on top: navy half and a red wedge, with the white reel showing between
+  g.add(mesh(put(new CylinderGeometry(17 * MM, 17 * MM, 0.3 * MM, 40, 1, false, 0, Math.PI), [0, 11.1, 0]), navy, false));
+  g.add(mesh(put(new CylinderGeometry(17 * MM, 17 * MM, 0.3 * MM, 40, 1, false, Math.PI * 1.25, Math.PI * 0.45), [0, 11.1, 0]), red, false));
+  g.add(mesh(put(new CylinderGeometry(7 * MM, 7 * MM, 0.5 * MM, 32), [0, 11.2, 0]), std(0x2a2522, 0.9), false));
+  return g;
+}
+
+const SKIN = std(0xd6a183, 0.72);
+const SLEEVE = std(0x30343a, 0.85);
+
+/**
+ * A simple hand holding a thin object in a pen grip, so tools never float (Boris, 21 Nov). Hand frame: the held object
+ * runs along +x through the origin (the tip is towards -x), +y is up. `r` is the held object's radius in mm. Index
+ * finger on top, thumb on the near side, middle finger underneath, the palm above and behind the grip, and a forearm
+ * in a dark sleeve rising back towards the person. `left` mirrors it.
+ */
+export function hand({ r = 10, left = false } = {}) {
+  const g = new Group();
+  const cap = (rad, len, p, rot) => put(new CapsuleGeometry(rad * MM, len * MM, 4, 10), p, rot);
+  const along = (deg) => [0, 0, -Math.PI / 2 + (deg * Math.PI) / 180];
+  const skin = merge([
+    cap(7.5, 46, [8, r + 6.5, -2], along(-6)), // index finger on top
+    cap(8.5, 40, [16, 2, -(r + 7.5)], [0.35, 0, -Math.PI / 2 - 0.25]), // thumb on the near side
+    cap(7.5, 36, [12, -(r + 4), 4], along(4)), // middle finger underneath
+    cap(7, 26, [44, -(r - 2), 22], [0.9, 0, -Math.PI / 2]), // ring finger, curled
+    cap(6.2, 20, [52, -(r - 6), 34], [1.1, 0, -Math.PI / 2]), // little finger, curled
+    put(new SphereGeometry(1, 20, 14), [62, r + 14, 14], [0.2, 0, 0.32], [48 * MM, 20 * MM, 40 * MM]), // palm
+  ]);
+  g.add(mesh(skin, SKIN));
+  // wrist and forearm rise back towards the elbow
+  g.add(mesh(cap(27, 150, [175, r + 52, 18], [0, 0, -Math.PI / 2 + 0.42]), SLEEVE));
+  g.add(mesh(cap(22, 30, [106, r + 26, 16], [0, 0, -Math.PI / 2 + 0.42]), SKIN));
+  if (left) g.scale.z = -1;
   return g;
 }
 
@@ -580,10 +632,10 @@ export function trafficPrint() {
   const { g, t } = textCanvas(W, H);
   const px = (fx, fz) => [(0.5 - fz / 39.6) * W, (0.5 - fx / 49.8) * H]; // board x = -frame z, board z = frame x
   const mm = 10;
-  g.fillStyle = '#c9a46a';
+  g.fillStyle = '#1d6b3c'; // the same plain green board as its other face
   g.fillRect(0, 0, W, H);
   // the hole grid, 2.54 mm pitch
-  g.fillStyle = '#5a3d1a';
+  g.fillStyle = '#c9ccd0';
   for (let i = -9; i <= 8; i++) {
     for (let j = -7; j <= 6; j++) {
       const [x, y] = px((i + 0.5) * 2.54, (j + 0.5) * 2.54);
