@@ -340,7 +340,7 @@ function benchSet(S, { meter = false, kit = false } = {}) {
 }
 
 // ---------------------------------------------------------------- chapter 2
-const TIP_CAM = { p: add3(AIR, [-0.035, 0.03, 0.075]), t: add3(AIR, [-0.004, -0.004, 0]), fov: 30 };
+const TIP_CAM = { p: add3(AIR, [-0.07, 0.09, 0.2]), t: add3(AIR, [0.02, 0.01, 0]), fov: 32 }; // wide enough to show both hands
 const AIR_POSE = { p: AIR, yaw: 0.35, pitch: 0.5 };
 
 /** Lift the iron to the air, touch solder to its tip, wipe it once and hold it back up. */

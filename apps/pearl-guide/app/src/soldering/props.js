@@ -632,10 +632,10 @@ export function trafficPrint() {
   const { g, t } = textCanvas(W, H);
   const px = (fx, fz) => [(0.5 - fz / 39.6) * W, (0.5 - fx / 49.8) * H]; // board x = -frame z, board z = frame x
   const mm = 10;
-  g.fillStyle = '#c9a46a';
+  g.fillStyle = '#1d6b3c'; // the same plain green board as its other face
   g.fillRect(0, 0, W, H);
   // the hole grid, 2.54 mm pitch
-  g.fillStyle = '#5a3d1a';
+  g.fillStyle = '#c9ccd0';
   for (let i = -9; i <= 8; i++) {
     for (let j = -7; j <= 6; j++) {
       const [x, y] = px((i + 0.5) * 2.54, (j + 0.5) * 2.54);

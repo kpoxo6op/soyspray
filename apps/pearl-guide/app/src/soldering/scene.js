@@ -53,6 +53,12 @@ export function buildScene(stage, assets) {
   };
 
   cast.wrap('mat', stage.benchMat, { own: false, shown: true });
+  // his silicone mat is bright blue (21 Nov photos)
+  stage.benchMat.material = stage.benchMat.material.map((m, i) => {
+    const c = m.clone();
+    c.color.setHex(i === 2 ? 0x8fd0ff : 0x1f86c4);
+    return c;
+  });
   cast.wrap('frame', frame, { own: false, shown: true });
 
   // the meter's screen rides on the meter, so it moves and fades with it
@@ -141,8 +147,15 @@ export function buildScene(stage, assets) {
   add('ledG', SP.led('green'));
   add('chip', SP.dip());
   add('cap', SP.cap());
-  add('probeR', P.probe('red'));
-  add('probeB', P.probe('black'));
+  // meter probes are always in a hand when they are out: right hand red, left hand black
+  for (const [n, c, left] of [['probeR', 'red', false], ['probeB', 'black', true]]) {
+    const pr = P.probe(c);
+    const h = SP.hand({ r: 2.6, left });
+    h.position.set(0, 40 * MM, 0);
+    h.rotation.z = Math.PI / 2;
+    pr.add(h);
+    add(n, pr);
+  }
   for (const [n, c] of [['cordR', 0xc3261f], ['cordB', 0x18191b]]) {
     add(n, P.thread(1.4));
     cast.get(n).mats.forEach((m) => m.color.setHex(c));
