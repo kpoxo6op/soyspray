@@ -19,7 +19,7 @@ export const strings = {
   todayNoScript:'Today needs JavaScript to save and read this browser’s day pages.', morning:'Morning', evening:'Evening',
   morningAsk:['I intend to…','A likely obstruction is…','If that happens, I can still…'],
   eveningAsk:['Where did I go wrong?','What did I do?','What was left undone?','What resulted, and how did I act? Anything to repair?'],
-  notFound:'There is no page here.', backToShelf:'Back to the shelf',
+  notFoundTitle:'Not found', notFound:'There is no page here.', backToShelf:'Back to the shelf',
   labels:{stopped:'You stopped at section ',resume:'Continue with ',read:'chapters of the Handbook read.',heading:'# Reading notes',saved:'Saved in this browser.',storage:'Storage unavailable. Copy your writing before leaving.',empty:'No notes or kept passages in this browser.',erased:'All reading data erased.','erase-error':'Erasure could not be verified.',imported:'Imported into this browser.',invalid:'Invalid export','import-error':'Import failed: ',continue:'Continue there.',section:'Section ',kept:'Kept',keep:'Keep',of:' of ',done:' read',morning:'Morning',evening:'Evening',back:'← Back'},
  },
  ru: {
@@ -41,7 +41,7 @@ export const strings = {
   todayNoScript:'Для страницы «Сегодня» нужен JavaScript: он сохраняет и читает записи дней в этом браузере.', morning:'Утро', evening:'Вечер',
   morningAsk:['Я намерен…','Скорее всего, помешает…','Если так случится, я всё равно могу…'],
   eveningAsk:['В чём я ошибся?','Что я сделал?','Что осталось несделанным?','Что из этого вышло и как я себя повёл? Нужно ли что-то исправить?'],
-  notFound:'Такой страницы нет.', backToShelf:'Назад к полке',
+  notFoundTitle:'Не найдено', notFound:'Такой страницы нет.', backToShelf:'Назад к полке',
   labels:{stopped:'Ты остановился на разделе ',resume:'Продолжить: ',read:'глав «Энхиридиона» прочитано.',heading:'# Заметки о прочитанном',saved:'Сохранено в этом браузере.',storage:'Хранилище недоступно. Скопируй написанное, прежде чем уйти.',empty:'В этом браузере нет заметок и отмеченных отрывков.',erased:'Все данные чтения стёрты.','erase-error':'Не удалось убедиться, что всё стёрто.',imported:'Импортировано в этот браузер.',invalid:'Неверный файл экспорта','import-error':'Импорт не удался: ',continue:'Продолжить там.',section:'Раздел ',kept:'Отмечено',keep:'Отметить',of:' из ',done:' прочитано',morning:'Утро',evening:'Вечер',back:'← Назад'},
  },
 };

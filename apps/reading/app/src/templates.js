@@ -58,4 +58,4 @@ export function otherPages({book,glossary,about,chapters,assets,T=strings.en}) {
 export function shelf(books,assets,T=strings.en) {
  return frame({title:T.reading,page:'shelf',assets,T,path:T.prefix+'/',body:opening(T.reading)+books.map(({book,chapters})=>`<section class="shelf-book col" data-book="${book.id}" aria-labelledby="shelf-${book.id}"><h2 id="shelf-${book.id}"><a href="${book.base}">${e(book.author)}</a></h2><p class="src">${e(book.volume)}. ${e(dot(T.translatedBy(book.translator)))}</p><div class="progress needs-js"></div>${catalog(book,chapters,T)}</section>`).join('')});
 }
-export const notFound=(assets,T=strings.en)=>frame({title:`${T.notFound} · ${T.reading}`,assets,T,body:opening(T.notFound)+`<p><a href="${T.prefix}/">${T.backToShelf}</a></p>`});
+export const notFound=(assets,T=strings.en)=>frame({title:`${T.notFoundTitle} · ${T.reading}`,assets,T,body:opening(T.notFound)+`<p><a href="${T.prefix}/">${T.backToShelf}</a></p>`});
