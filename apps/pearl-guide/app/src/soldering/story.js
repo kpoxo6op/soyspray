@@ -236,7 +236,7 @@ const bench = {
               L('iron', 'iron, red handle', S.a('iron').obj.userData.grip, 'b'),
               L('solder', 'solder reel', S.node('solder_tube', null, [0, 0.012, 0]), 't'),
               L('braid', 'braid, green reel', S.node('braid'), 'r'),
-              L('hands', 'helping hands', S.node('third_hand'), 'b'),
+              L('hands', 'third hand, Jaycar TH1981', S.node('third_hand'), 'b'),
               L('kit', 'kit board, bag 13', S.F(0, 2, 0), 't'),
             ]
           : [],
@@ -388,7 +388,7 @@ const first = {
     },
     {
       d: 10,
-      text: 'Match one resistor to the kit sheet, fit it from the marked side, spread its legs and clip the board in the hands.',
+      text: 'Match one resistor to the kit sheet, fit it from the marked side, spread its legs and clip it in the third hand.',
       cam: { p: [0.01, 0.075, 0.16], t: [-0.01, 0.004, 0.07], fov: 30 },
       cam2: { p: [0.05, 0.2, 0.3], t: [0, 0.06, -0.01], fov: 32 },
       move: 2,
@@ -998,7 +998,7 @@ const wires = {
     },
     {
       d: 10,
-      text: 'Clip the wire in the helping hands. Hold the iron under the copper and touch solder on top. It turns silver.',
+      text: 'Clip the wire in the third hand. Hold the iron under the copper and touch solder on top. It turns silver.',
       cam: { p: [WEND + 0.01, WY + 0.02, WZ + 0.045], t: [WEND - 0.004, WY, WZ], fov: 28 },
       act(S, u, k) {
         const under = { p: [WEND - 0.0012, WY - 0.0006, WZ - 0.0002], yaw: -0.7, pitch: -0.5 };

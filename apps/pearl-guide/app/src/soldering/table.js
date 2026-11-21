@@ -19,7 +19,7 @@ const MARKS = [
   ['solder', 16.9, 58.0, 'Desolder braid, Goot 1.5 mm', 'Small green reel on a red and white card, from Jaycar.', 'Chapter 3, to lift extra solder.'],
   ['solder', 30.2, 72.1, 'Second desolder braid', 'Orange reel lying on the mat.', 'A spare. Use either one.'],
   ['solder', 57.0, 93.1, 'Flush cutters', 'Blue handles.', 'Chapter 2, to cut legs. Glasses on.'],
-  ['solder', 54.1, 85.6, 'Helping hands', 'Two bags of jointed arms with clips.', 'Their black magnetic base is probably in the bubble envelope (29). Fit the arms to it.'],
+  ['other', 54.1, 85.6, 'Helping-hand arms, no base', 'Two bags of jointed arms with clips.', 'Their base never came. Put them away: the Jaycar third hand TH1981 holds the board instead.'],
   ['solder', 41.9, 50.5, 'Tweezers, set of 6', 'Black tweezers on a yellow card.', 'Chapter 6, to hold a wire on a pad.'],
   ['solder', 38.4, 63.3, 'Wire stripper', 'Teal handles.', 'Chapter 5. Use the notch marked 28.'],
   ['solder', 51.2, 97.3, 'Multimeter, ANENG M126', 'Black and orange box.', 'Chapters 4 to 6: the beep checks a joint.'],
@@ -50,7 +50,7 @@ export const TABLE = {
   // The build adds a content revision (build.mjs).
   src: typeof __PEARL_PHOTOS__ !== 'undefined' ? __PEARL_PHOTOS__.table : 'data/table.jpg',
   alt: 'Boris’s soldering tools and Pearl parts laid out on an oak table, with numbered marks.',
-  missing: 'No stand came with the iron: an old board with two blocks is its rest, as chapter 1 shows. Still to buy: safety glasses and slide switches.',
+  missing: 'No stand came with the iron: an old board with two blocks is its rest, as chapter 1 shows. Still to buy at Jaycar: the TH1981 third hand, safety glasses and slide switches.',
   groups: TABLE_GROUPS,
   marks: MARKS.map(([group, x, y, name, looks, use], i) => ({ n: i + 1, group, x, y, name, looks, use })),
 };

@@ -2,7 +2,7 @@
 // heatshrink (bought by 21 November 2026, filmed on Boris's table). AliExpress items came (orders of 1 November 2026, all arrived
 // by 20 November); it carries no price, and its links are searches for buying another. In "Still to buy", the Jaycar
 // and PB Tech prices were read on their NZ sites on 20 November 2026 (the switch moved from AliExpress to Jaycar that
-// day so it does not take two more weeks), the Spotlight helium price on 31 October 2026.
+// day so it does not take two more weeks), the Spotlight helium price on 31 October 2026, the TH1981 third hand on 1 November 2026.
 // Item ids are the keys of the Kit ticks (pearl.stage0.kit), shared with the soldering page: keep an id when the role
 // stays the same. `station` is the soldering iron, now the CXG pen iron, so a tick made for the iron still counts.
 
@@ -25,7 +25,7 @@ export const GROUPS = [
       ['multimeter', 'ANENG M126 multimeter', 'Its beep checks joints and bridges. Volts check the battery lead.', 'aneng m126 multimeter'],
       ['cutters', 'PLATO 170 flush cutters', 'Cuts legs level with the joint, flat side down.', 'plato 170 flush cutter'],
       ['tweezers', 'ESD tweezers, set of 6', 'Hold a small wire on a pad. Use the fine straight pair.', 'esd tweezers set 6'],
-      ['third_hand', '4-arm magnetic helping hands', 'Hold the board and wires so both hands are free.', 'magnetic helping hands 4 arm soldering'],
+      ['arms', '4 magnetic helping-hand arms, no base', 'The base never came, so they cannot stand. Put them away; the Jaycar third hand replaces them.', 'magnetic helping hands 4 arm soldering'],
       ['practice', 'Traffic-light learn-to-solder kit', 'Your first through-hole joints, and it lights up when they are right.', 'traffic light diy soldering practice kit'],
       ['heatshrink', 'Heatshrink assortment, 127 pieces', 'Covers a splice. Use the thinnest size.', 'heat shrink tubing assortment 127 pcs'],
       ['mat', 'Silicone bench mat', 'A heatproof surface that grips parts.', 'silicone soldering mat'],
@@ -46,8 +46,9 @@ export const GROUPS = [
   {
     id: 'buy',
     title: 'Still to buy',
-    when: 'One Jaycar trip: glasses before your first joint, switches before Pearl’s switched lead. Helium is click and collect only.',
+    when: 'One Jaycar trip: the third hand and glasses before your first joint, switches before Pearl’s switched lead. Helium is click and collect only.',
     items: [
+      { id: 'third_hand', name: 'Third hand with magnifier', code: 'TH1981', why: 'A heavy base and two clips that hold the board and wires. Your AliExpress arms came without their base.', shop: 'Jaycar', url: jaycar('TH1981'), price: 19.9 },
       { id: 'glasses', name: 'Wrap-around clear safety glasses', code: 'TH3002', why: 'Solder and cut legs can flick. Wear them whenever the iron is hot.', shop: 'Jaycar', url: jaycar('TH3002'), price: 5.9 },
       { id: 'switch', name: 'SPDT micro slide switches, 2', code: 'SS0834', why: 'One for the practice lead and one for Pearl. Check it fits the hatch’s switch cradle, drawn for an SS-12D00.', shop: 'Jaycar', url: jaycar('SS0834'), price: 6 },
       { id: 'helium', name: 'Alpen Jumbo helium balloon tank', why: '90% helium, 10% oxygen. Enough for the first fill and several top-ups.', shop: 'Spotlight', url: 'https://www.spotlightstores.com/en-nz/p/alpen-jumbo-helium-balloon-tank/BP80530768-blue', price: 85 },

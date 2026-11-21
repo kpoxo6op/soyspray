@@ -6,7 +6,7 @@ import { TABLE } from './table.js';
 
 /** Kit item ids this page uses, in ../kit.js. `station` is the pen iron: the id kept the iron's ticks. */
 export const KIT_IDS = [
-  'station', 'solder', 'flux', 'braid', 'multimeter', 'cutters', 'tweezers', 'third_hand', 'practice', 'heatshrink', 'mat',
+  'station', 'solder', 'flux', 'braid', 'multimeter', 'cutters', 'tweezers', 'third_hand', 'arms', 'practice', 'heatshrink', 'mat',
   'stripper', 'wire', 'jst', 'drivers', 'battery', 'stand', 'glasses', 'sponge',
 ];
 
