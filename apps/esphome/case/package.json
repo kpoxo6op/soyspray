@@ -1,0 +1,13 @@
+{
+  "name": "esp32-case",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Printed case for the ESP32 scale bridge: OpenSCAD source and STL renderer",
+  "type": "module",
+  "scripts": {
+    "render": "node render.mjs"
+  },
+  "devDependencies": {
+    "openscad-wasm-prebuilt": "1.2.0"
+  }
+}
