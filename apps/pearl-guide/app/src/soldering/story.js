@@ -241,7 +241,7 @@ const bench = {
     },
     {
       d: 9,
-      text: 'Put on glasses, safety ones once you have them, and open a window. Keep your face out of the flux smoke.',
+      text: 'Put on safety glasses before the iron heats, and open a window. Keep your face out of the flux smoke.',
       cam: { p: [-0.1, 0.22, 0.52], t: [-0.1, 0.02, 0.1], fov: 32 },
       act(S, u) {
         // no smoke yet: the iron is cold until 1.5, and smoke rises only while solder or flux is on heat
@@ -258,7 +258,7 @@ const bench = {
     },
     {
       d: 10,
-      text: 'Lay the iron on your old board, grip between the fixed blocks, metal past the edge, tip away from you. Cord behind.',
+      text: 'Lay the iron on your old board, grip between the fixed blocks, metal past the board’s edge, tip away. Cord behind.',
       cam: { p: standPt(10, 170, 300), t: standPt(-25, 35, 0), fov: 34 },
       cam2: { p: standPt(20, 230, 400), t: standPt(-10, 35, 0), fov: 34 },
       act(S, u) {
@@ -916,7 +916,7 @@ const light = {
     },
     {
       d: 10,
-      text: 'Probe the two power pads: silence is right. Then power the kit. Red, amber and green light in turn.',
+      text: 'Probe the two power pads: silence is right. Unplug the iron, then power the kit. The lights run in turn. Wash hands.',
       cam: { p: [-0.02, 0.2, 0.22], t: [-0.05, 0.065, -0.03], fov: 32 },
       cam2: { p: [-0.005, 0.13, 0.12], t: [-0.005, 0.07, -0.04], fov: 32 },
       act(S, u) {
@@ -1237,7 +1237,7 @@ const small = {
     },
     {
       d: 10,
-      text: 'Hold the lead’s two bare ends apart, then plug in the battery. On DC volts, red probe on red reads about 3.8 V.',
+      text: 'Tape the lead’s wires to the mat, bare ends apart, then plug in the battery. On DC volts, red probe on red: about 3.8 V.',
       cam: { p: [-0.09, 0.27, 0.3], t: [-0.1, 0.03, 0.03], fov: 32 },
       act(S, u) {
         S.a('lead').show().at(...LEADP);
