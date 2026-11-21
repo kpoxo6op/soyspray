@@ -4,9 +4,15 @@ namespace: reading
 resources:
   - namespace.yaml
   - deployment.yaml
+  - cloudflared-deployment.yaml
   - service.yaml
+  - service-origin.yaml
   - ingress.yaml
   - networkpolicy.yaml
+  - cloudflared-calico-networkpolicy.yaml
+  - cloudflared-host-boundary.yaml
+transformers:
+  - cluster-scope-transformer.yaml
 labels:
   - pairs:
       app.kubernetes.io/instance: reading

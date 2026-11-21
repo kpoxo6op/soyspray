@@ -21,6 +21,7 @@ spec:
       labels:
         app.kubernetes.io/name: reading
         app.kubernetes.io/part-of: reading
+        reading-component: web
     spec:
       automountServiceAccountToken: false
       enableServiceLinks: false
@@ -32,7 +33,7 @@ spec:
           type: RuntimeDefault
       containers:
       - name: web
-        image: ghcr.io/kpoxo6op/reading@sha256:6e28c24bc85c6069eb20ed2e38d25e2a7ad16cfae5ebf6e5c7c278967987bf35
+        image: ghcr.io/kpoxo6op/reading@sha256:2c586ad205de5290247bd04a15d7f6c3f81b0d08071a1c4b01328d12407bda93
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
