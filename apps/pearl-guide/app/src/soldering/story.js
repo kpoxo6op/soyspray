@@ -379,6 +379,7 @@ const first = {
   beats: [
     {
       d: 10,
+      film: { src: 'films/ch2.mp4', from: 0 },
       text: 'Touch solder to the tip until it turns silver, then wipe it once. A silver tip passes heat, a black tip does not.',
       cam: TIP_CAM,
       act(S, u, k) {
@@ -409,6 +410,7 @@ const first = {
     },
     {
       d: 10,
+      film: { src: 'films/ch2.mp4', from: 10 },
       text: 'Lay the side of the tip against the pad and the leg together and count to two. The point alone heats neither.',
       cam: fcam(J1, [7, 9, 40], 28),
       act(S, u) {
@@ -429,6 +431,7 @@ const first = {
     },
     {
       d: 9,
+      film: { src: 'films/ch2.mp4', from: 20 },
       text: 'Feed solder to the pad on the far side of the leg, never onto the tip. It melts and runs around the leg.',
       cam: fcam(J1, [7, 9, 40], 28),
       cam2: fcam(J1, [-8, 10, 39], 28),
@@ -451,6 +454,7 @@ const first = {
     },
     {
       d: 9,
+      film: { src: 'films/ch2.mp4', from: 29 },
       text: 'Stop after about 3 mm of solder. The pad is covered and the leg still shows through a small cone.',
       cam: fcam(J1, [-8, 10, 39], 28),
       act(S, u, k) {
@@ -477,6 +481,7 @@ const first = {
     },
     {
       d: 10,
+      film: { src: 'films/ch2.mp4', from: 38 },
       text: 'Take the solder away first and the iron a second later. Hold everything still for 2 seconds while it sets.',
       cam: fcam(J1, [-4, 11, 42], 28),
       act(S, u) {
@@ -522,6 +527,7 @@ const first = {
     },
     {
       d: 10,
+      film: { src: 'films/ch2.mp4', from: 48 },
       text: 'One shiny cone, one cut leg. Do the other leg the same. If you stop here: tin the tip, unplug, wash your hands.',
       cam: fcam([1.27, PAD, -1.27], [10, 18, 46], 30),
       cam2: fcam([1.27, PAD, -1.27], [-14, 16, 45], 30),

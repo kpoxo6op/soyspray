@@ -3,6 +3,7 @@ import { Stage } from './stage.js';
 import { loadAssets } from './assets.js';
 import { buildTimeline, makeDirector } from './director.js';
 import { Player } from './player.js';
+import { createFilm } from './film.js';
 import { createUI } from './ui.js';
 import { createSheets } from './sheets.js';
 import { autoplay, autoLoop, createLoop } from './loop.js';
@@ -51,6 +52,7 @@ export function startGuide({ chapters, buildScene, canvasLabel, loop: loopDefaul
     const timeline = buildTimeline(chapters);
     const direct = makeDirector(stage, S, timeline);
     const player = new Player(timeline);
+    const film = timeline.chapters.some((c) => c.beats.some((b) => b.film)) ? createFilm({ container: stageEl }) : null;
     const looping = loopWanted(window.location.search, loopDefault);
     const cancelLoop = autoLoop(player, looping, reducedMotion, stage.controls);
     let sheets = null;
@@ -89,7 +91,8 @@ export function startGuide({ chapters, buildScene, canvasLabel, loop: loopDefaul
       last = now;
       player.tick(dt);
       if (player.playing && dt > 0) stage.adapt(dt * 1000);
-      direct(player.time);
+      const shot = direct(player.time);
+      if (film) film.update(shot.beat, player.time - shot.beat.start, player.playing);
       stage.controls.update();
       stage.render();
       // Damping keeps the camera gliding after a drag: allow it 90 quiet frames, then rest.
