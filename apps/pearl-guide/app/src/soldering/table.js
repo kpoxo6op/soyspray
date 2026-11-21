@@ -46,7 +46,7 @@ const MARKS = [
 
 export const TABLE = {
   title: 'What is what',
-  lede: 'Your table, filmed on 21 Nov. Open the bags marked probably, then put the “For this page” things on the mat.',
+  lede: 'Your table, filmed on 21 Nov. You practise on the kit board in bag 13 and the driver boards in bag 14: nothing else to buy.',
   // The build adds a content revision (build.mjs).
   src: typeof __PEARL_PHOTOS__ !== 'undefined' ? __PEARL_PHOTOS__.table : 'data/table.jpg',
   alt: 'Boris’s soldering tools and Pearl parts laid out on an oak table, with numbered marks.',

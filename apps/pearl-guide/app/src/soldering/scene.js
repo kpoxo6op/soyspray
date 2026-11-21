@@ -87,7 +87,8 @@ export function buildScene(stage, assets) {
     if (!o.isMesh) return;
     o.material = o.material.clone();
     if (/perfboard/.test(o.material.name)) o.material.color.setHex(0x1d6b3c);
-    if (/copper/.test(o.material.name)) o.material.color.setHex(0xc9ccd0);
+    // the drawn board had a hole and pad at every 2.54 mm, like a perforated board he does not own: hide that grid
+    if (/copper|plated hole/.test(o.material.name)) o.visible = false;
   });
   add('solder_tube', SP.solderSpool());
   for (const n of ['third_hand', 'multimeter', 'flux_pen', 'braid', 'cutters', 'tweezers', 'practice_board', 'battery']) add(n, bench(n));
@@ -151,7 +152,7 @@ export function buildScene(stage, assets) {
   for (const [n, c, left] of [['probeR', 'red', false], ['probeB', 'black', true]]) {
     const pr = P.probe(c);
     const h = SP.hand({ r: 2.6, left });
-    h.position.set(0, 40 * MM, 0);
+    h.position.set(0, 70 * MM, 0); // at the back of the grip, clear of the meter's screen
     h.rotation.z = Math.PI / 2;
     pr.add(h);
     add(n, pr);
