@@ -1,0 +1,71 @@
+{
+  "schema": 1,
+  "id": "epictetus",
+  "author": "Epictetus",
+  "volume": "Discourses, Fragments, Handbook",
+  "translator": "Robin Hard",
+  "works": [
+    {
+      "id": "handbook",
+      "title": "Handbook",
+      "cite": "Handbook",
+      "parts": null,
+      "chapters": 53
+    },
+    {
+      "id": "discourses",
+      "title": "Discourses",
+      "cite": "Discourses",
+      "parts": [
+        30,
+        26,
+        26,
+        13
+      ]
+    },
+    {
+      "id": "fragments",
+      "title": "Fragments",
+      "cite": "Fragment",
+      "parts": null,
+      "chapters": null
+    }
+  ],
+  "themes": [
+    {
+      "id": "up-to-us",
+      "title": "What is up to us",
+      "about": "The division underneath everything else: what is your own doing, and what is not."
+    },
+    {
+      "id": "desire",
+      "title": "What to want",
+      "about": "The discipline of desire and aversion: wanting and avoiding only what is up to you."
+    },
+    {
+      "id": "action",
+      "title": "What to do",
+      "about": "The discipline of action: roles, other people, and acting with reservation."
+    },
+    {
+      "id": "assent",
+      "title": "What to believe",
+      "about": "The discipline of assent: testing impressions and judgements before you accept them."
+    },
+    {
+      "id": "loss",
+      "title": "Death and loss",
+      "about": "Things and people that can be taken away, and how to hold them while you have them."
+    },
+    {
+      "id": "reputation",
+      "title": "Reputation and insult",
+      "about": "What other people think and say of you, and what it can and cannot touch."
+    },
+    {
+      "id": "progress",
+      "title": "Progress and practice",
+      "about": "How a beginner trains, and the signs that the training is working."
+    }
+  ]
+}

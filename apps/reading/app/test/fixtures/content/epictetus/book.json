@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "id": "epictetus",
+  "author": "Epictetus",
+  "volume": "Discourses, Fragments, Handbook",
+  "translator": "Robin Hard",
+  "works": [
+    {
+      "id": "handbook",
+      "title": "Handbook",
+      "cite": "Handbook",
+      "parts": null,
+      "chapters": 53
+    },
+    {
+      "id": "discourses",
+      "title": "Discourses",
+      "cite": "Discourses",
+      "parts": [
+        30,
+        26,
+        26,
+        13
+      ]
+    },
+    {
+      "id": "fragments",
+      "title": "Fragments",
+      "cite": "Fragment",
+      "parts": null,
+      "chapters": null
+    }
+  ],
+  "themes": [
+    {
+      "id": "up-to-us",
+      "title": "What is up to us",
+      "about": "Distinguishing our choices from their results."
+    },
+    {
+      "id": "assent",
+      "title": "What to believe",
+      "about": "Examining impressions before accepting them."
+    }
+  ]
+}
