@@ -1,0 +1,30 @@
+{
+ "schema": 1,
+ "author": "Эпиктет",
+ "volume": "Беседы, фрагменты, Энхиридион",
+ "translator": "Робин Хард",
+ "works": {
+  "handbook": {
+   "title": "Энхиридион",
+   "cite": "Энхиридион"
+  },
+  "discourses": {
+   "title": "Беседы",
+   "cite": "Беседы"
+  },
+  "fragments": {
+   "title": "Фрагменты",
+   "cite": "Фрагмент"
+  }
+ },
+ "themes": {
+  "up-to-us": {
+   "title": "По-русски What is up to us",
+   "about": "По-русски Distinguishing our choices from their results."
+  },
+  "assent": {
+   "title": "По-русски What to believe",
+   "about": "По-русски Examining impressions before accepting them."
+  }
+ }
+}

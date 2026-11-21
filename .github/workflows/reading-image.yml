@@ -75,6 +75,13 @@ jobs:
             --output "$RUNNER_TEMP/reading-chapter.html" --write-out '%{http_code}' "$base/epictetus/handbook/1/")" = 200
           grep -q '<title>Handbook 1' "$RUNNER_TEMP/reading-chapter.html"
           grep -qi '^cache-control: no-cache' "$RUNNER_TEMP/reading-chapter.headers"
+          # The Russian edition mirrors every page and names its English twin.
+          test "$(curl --fail --silent --show-error --output "$RUNNER_TEMP/reading-ru.html" \
+            --write-out '%{http_code}' "$base/ru/epictetus/handbook/1/")" = 200
+          grep -q '<html lang="ru" data-alt="/epictetus/handbook/1/"' "$RUNNER_TEMP/reading-ru.html"
+          grep -q '<a class="lang" href="/ru/epictetus/handbook/1/" data-lang="ru"' "$RUNNER_TEMP/reading-chapter.html"
+          test "$(curl --silent --show-error --output /dev/null \
+            --write-out '%{http_code} %{redirect_url}' "$base/ru")" = "301 $base/ru/"
           test "$(curl --silent --show-error --dump-header "$RUNNER_TEMP/reading-missing.headers" \
             --output "$RUNNER_TEMP/reading-missing.html" --write-out '%{http_code}' "$base/missing")" = 404
           grep -q '<title>Not found' "$RUNNER_TEMP/reading-missing.html"

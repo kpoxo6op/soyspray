@@ -6,8 +6,8 @@ export function citation(ref, book) {
 }
 export const plain = text => text.replace(/\[\[([^|]+)\|[^\]]+\]\]/g, '$1').replace(/_([^_]+)_/g, '$1');
 export const glossIds = text => [...text.matchAll(/\[\[([^|]+)\|([a-z0-9-]+)\]\]/g)].map(m => m[2]);
-// "section 4", "sections 2 and 3" in a chapter's own apparatus become links to that section of the original.
-export const sectionRefs = /\b([Ss]ections?)\s+(\d+(?:(?:,\s*|\s+(?:and|or)\s+|\s*[–-]\s*)\d+)*)\b/g;
+// "section 4", "sections 2 and 3" (or «раздел 4», «разделы 2 и 3») in a chapter's own apparatus become links to that section of the original.
+export const sectionRefs = /(?<![\p{L}\d])([Ss]ections?|[Рр]аздел(?:ами|ах|ам|ов|ом|ы|е|а|у)?)\s+(\d+(?:(?:,\s*|\s+(?:and|or|и|или)\s+|\s*[–-]\s*)\d+)*)(?![\p{L}\d])/gu;
 function linkSections(s, sections) {
   let out = '', at = 0;
   for (const m of s.matchAll(sectionRefs)) {
@@ -37,7 +37,7 @@ export function markup(text, {book, loaded = new Set(), glosses = {}, original =
       const g = glosses[m[2]];
       result += `<a class="g" href="#w-${m[2]}">${escape(m[1])}</a><span class="mn" role="note"><i>${markup(g.term,{book,loaded})}</i> ${markup(g.plain,{book,loaded})}</span>`;
     } else if (m[3]) result += `<i>${escape(m[3])}</i>`;
-    else if (m[4] && !original) result += loaded.has(m[4]) ? `<a href="/${escape(book.id)}/${m[4]}/">${escape(citation(m[4], book))}</a>` : escape(citation(m[4], book));
+    else if (m[4] && !original) result += loaded.has(m[4]) ? `<a href="${book.base || `/${escape(book.id)}/`}${m[4]}/">${escape(citation(m[4], book))}</a>` : escape(citation(m[4], book));
     else result += escape(m[0]);
     offset = m.index + m[0].length;
   }

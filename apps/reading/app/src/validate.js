@@ -3,6 +3,8 @@ const id = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const banned = /\b(?:fast-paced world|timeless wisdom|ancient wisdom|journey|unlock|mindset|game-changer|dive in|deep dive|delve|resilience hack|level up|toolkit|navigate (?:life|challenges|complexities|relationships)|powerful insight|it[’']s important to note|in other words|at its core|simply put|let that sink in)\b/i;
 const words = s => plain(s).trim().split(/\s+/u).filter(Boolean).length;
 function fail(where, message) { throw new Error(`${where}: ${message}`); }
+// Russian runs a little longer in words than the English limits allow; the limits stay a brake, not a word count.
+let slack = 1;
 function shape(v, required, optional, where) {
   if (!v || typeof v !== 'object' || Array.isArray(v)) fail(where, 'expected an object');
   for (const k of required) if (!(k in v)) fail(where, `missing field ${k}`);
@@ -15,7 +17,7 @@ function text(v, where, max, original = false, nullable = false) {
   if (banned.test(v)) fail(where, 'banned phrase');
   if (!original && /\[\[/.test(v)) fail(where, 'gloss outside original');
   if (original && /\(\(/.test(v)) fail(where, 'cross-reference in original');
-  if (max && words(v) > max) fail(where, `exceeds ${max} words`);
+  if (max && words(v) > Math.round(max * slack)) fail(where, `exceeds ${Math.round(max * slack)} words`);
 }
 function list(v, min, max, where) {
   if (!Array.isArray(v) || v.length < min || v.length > max) fail(where, `expected ${min}–${max} items`);
@@ -48,7 +50,8 @@ export function validateBook(book, expectedId = book?.id) {
     text(t.title,'theme.title'); text(t.about,'theme.about');
   }
 }
-export function validateGlossary(glossary, book) {
+export function validateGlossary(glossary, book, lang = 'en') {
+  slack = lang === 'ru' ? 1.3 : 1;
   shape(glossary,['terms'],[],'glossary');
   if (!glossary.terms || Array.isArray(glossary.terms) || typeof glossary.terms !== 'object') fail('glossary','expected terms');
   for (const [key,g] of Object.entries(glossary.terms)) { identifier(key,'glossary id'); gloss(g,`glossary.${key}`,true); }
@@ -62,9 +65,9 @@ function gloss(g, where, shared) {
   for (const k of ['translit','greek']) if (g[k] != null) text(g[k],where+'.'+k);
   if (g.also !== undefined) { list(g.also,0,30,where+'.also'); g.also.forEach(s => text(s,where+'.also')); }
 }
-export function validateChapter(c, {book, glossary = {terms:{}}, path}) {
-  const where = path || 'chapter', warnings = [];
-  shape(c,['schema','book','work','part','chapter','title','titleBy','themes','sections','glosses','takeaway','carry','questions','exercises','prompts','seeAlso'],['setting','objection','compare','russianTitle','art'],where);
+export function validateChapter(c, {book, glossary = {terms:{}}, path, lang = 'en'}) {
+  const where = path || 'chapter', warnings = []; slack = lang === 'ru' ? 1.3 : 1;
+  shape(c,['schema','book','work','part','chapter','title','titleBy','themes','sections','glosses','takeaway','carry','questions','exercises','prompts','seeAlso'],['setting','objection','compare','art'],where);
   if (c.schema !== 1) fail(where,'schema must be 1');
   const work = book.works.find(w => w.id === c.work);
   const expected = c.part === null ? `${c.book}/${c.work}/${String(c.chapter).padStart(c.work === 'handbook' ? 3 : 2,'0')}.json` : `${c.book}/${c.work}/${c.part}/${String(c.chapter).padStart(2,'0')}.json`;
@@ -73,11 +76,10 @@ export function validateChapter(c, {book, glossary = {terms:{}}, path}) {
   const ref = [c.work,c.part,c.chapter].filter(x => x !== null).join('/');
   if (!validRef(ref,book)) fail(where,'chapter outside book structure');
   text(c.title,where+'.title');
-  if ('russianTitle' in c) text(c.russianTitle,where+'.russianTitle');
   if ('art' in c) {
     shape(c.art,['alt'],['caption'],where+'.art'); text(c.art.alt,where+'.art.alt',40); text(c.art.caption,where+'.art.caption',0,false,true);
-    if (!c.art.alt.startsWith('Wood engraving of ')) fail(where+'.art.alt','must say what is drawn, starting ‘Wood engraving of’');
-    if (c.art.caption != null && (c.art.caption.length > 60 || /[‘’“”]|\(\(/.test(c.art.caption))) fail(where+'.art.caption','one line of at most 60 characters, ours, with no quotation or reference');
+    if (!c.art.alt.startsWith(lang === 'ru' ? 'Гравюра на дереве: ' : 'Wood engraving of ')) fail(where+'.art.alt',lang === 'ru' ? 'must say what is drawn, starting «Гравюра на дереве:»' : 'must say what is drawn, starting ‘Wood engraving of’');
+    if (c.art.caption != null && (c.art.caption.length > 60 || /[‘’“”«»„]|\(\(/.test(c.art.caption))) fail(where+'.art.caption','one line of at most 60 characters, ours, with no quotation or reference');
   }
   if (c.title.length > 60 || /[.]$/.test(c.title) || !/^\p{Lu}/u.test(c.title) || c.title === c.title.toUpperCase()) fail(where,'title must be sentence case, at most 60 characters, without a full stop');
   if (!['editor','source'].includes(c.titleBy) || (c.work === 'handbook' && c.titleBy !== 'editor') || (c.work === 'discourses' && c.titleBy !== 'source')) fail(where,'invalid titleBy');
@@ -86,14 +88,11 @@ export function validateChapter(c, {book, glossary = {terms:{}}, path}) {
   for (const t of c.themes) if (!book.themes.some(x => x.id === t)) fail(where,'unknown theme');
   if (!c.glosses || Array.isArray(c.glosses) || typeof c.glosses !== 'object') fail(where,'invalid glosses');
   list(c.sections,1,79,where+'.sections'); let para = 1, total = 0, count = 0; const used = new Set();
-  const russian = c.sections.some(s => s && Object.hasOwn(s,'russian'));
   for (const [i,s] of c.sections.entries()) {
-    shape(s,['n','para','original','modern'],['russian'],where+'.sections');
-    if (russian && !Object.hasOwn(s,'russian')) fail(where,'russian must be present in every section or none');
+    shape(s,['n','para','original','modern'],[],where+'.sections');
     if (s.n !== i+1) fail(where,'section numbers must be 1…n');
     if (!Number.isInteger(s.para) || s.para < para || (i === 0 && s.para !== 1)) fail(where,'para must start at 1 and never decrease'); para = s.para;
     text(s.original,where+'.original',0,true); text(s.modern,where+'.modern');
-    if (russian) text(s.russian,where+'.russian');
     const ids = glossIds(s.original);
     if (/\[\[|\]\]/.test(s.original.replace(/\[\[[^|\[\]]+\|[a-z0-9-]+\]\]/g,''))) fail(where,'malformed gloss');
     for (const key of ids) {
@@ -103,7 +102,6 @@ export function validateChapter(c, {book, glossary = {terms:{}}, path}) {
     count += ids.length; total += words(s.original);
     if (ids.length > 4) warnings.push(`${where} section ${s.n}: more than four glosses`);
     if (words(s.modern) > words(s.original)*1.3) warnings.push(`${where} section ${s.n}: modern exceeds 1.3 times original`);
-    if (russian && words(s.russian) > words(s.original)*1.6) warnings.push(`${where} section ${s.n}: russian exceeds 1.6 times original`);
   }
   if (count*25 > total) warnings.push(`${where}: more than one gloss per 25 words`);
   if (!c.glosses || Array.isArray(c.glosses) || typeof c.glosses !== 'object') fail(where,'invalid glosses');
@@ -117,7 +115,7 @@ export function validateChapter(c, {book, glossary = {terms:{}}, path}) {
   list(c.seeAlso,0,4,where+'.seeAlso');
   for (const r of c.seeAlso) { shape(r,['ref','why'],['relation'],where+'.seeAlso'); if (!validRef(r.ref,book)) fail(where,'seeAlso ref outside book structure'); text(r.why,where+'.seeAlso.why'); if (r.relation && !['source','echo','contrast'].includes(r.relation)) fail(where,'invalid relation'); }
   if (c.compare != null) { list(c.compare,0,10,where+'.compare'); for (const r of c.compare) { shape(r,['n','by','text'],[],where+'.compare'); if (!Number.isInteger(r.n) || r.n < 1 || r.n > c.sections.length) fail(where,'invalid compare section'); text(r.by,where+'.compare.by'); text(r.text,where+'.compare.text'); } }
-  checkRefs(c,book,where); checkPlainRefs({...c,sections:c.sections.map(({original,...rest})=>rest)},new Set(c.sections.map(s=>s.n)),where); return warnings;
+  checkRefs(c,book,where); checkPlainRefs({...c,sections:c.sections.map(({original,...rest})=>rest)},new Set(c.sections.map(s=>s.n)),where); return lang === 'en' ? warnings : [];
 }
 
 // Every cross-reference must be a link: "section N" must name a section of this chapter (the build links it),
@@ -126,7 +124,7 @@ function checkPlainRefs(v,sections,where) {
   if (typeof v === 'string') {
     const s = v.replace(/\(\([^()]*\)\)/g,'');
     for (const m of s.matchAll(sectionRefs)) for (const n of m[2].match(/\d+/g)) if (!sections.has(+n)) fail(where,`"${m[0]}" names a section this chapter does not have`);
-    const bare = s.match(/\b(?:chapters?|Handbook|Discourses|Fragments?)\s+\d+/i);
+    const bare = s.match(/(?<![\p{L}])(?:chapters?|Handbook|Discourses|Fragments?|глав(?:ах|ам|ой|ы|е|у|а)?|Энхиридион[аеу]?|Бесед(?:ах|ам|ы|е|а)?|Фрагмент[аеу]?)\s+\d+/iu);
     if (bare) fail(where,`write "${bare[0]}" as an inline ref like ((handbook/1)) so it becomes a link`);
   } else if (v && typeof v === 'object') Object.values(v).forEach(x=>checkPlainRefs(x,sections,where));
 }

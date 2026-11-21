@@ -1,0 +1,38 @@
+{
+ "schema": 1,
+ "title": "Чего желать",
+ "setting": null,
+ "sections": [
+  {
+   "n": 1,
+   "text": "Русский текст раздела."
+  },
+  {
+   "n": 2,
+   "text": "Русский текст раздела."
+  }
+ ],
+ "glosses": {},
+ "takeaway": "По-русски Examine desire and aversion.",
+ "carry": "По-русски Name one thing you want today.",
+ "questions": [
+  "По-русски What do you want?",
+  "По-русски What do you avoid?",
+  "По-русски Which choice is yours?"
+ ],
+ "exercises": [
+  {
+   "title": "По-русски Name it",
+   "do": "По-русски Write down one desire.",
+   "time": "По-русски one minute",
+   "doneWhen": "По-русски you have one line"
+  }
+ ],
+ "objection": null,
+ "prompts": [
+  "По-русски Name a desire.",
+  "По-русски Describe an aversion."
+ ],
+ "seeAlso": [],
+ "compare": null
+}

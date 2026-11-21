@@ -3,6 +3,7 @@ import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import {validateBook,validateGlossary,validateChapter} from '../src/validate.js';
 import {markup} from '../src/markup.js';
+import {localizeChapter} from '../src/localize.js';
 const read = p => JSON.parse(readFileSync(new URL(`fixtures/content/epictetus/${p}`,import.meta.url)));
 const chapter=read('handbook/001.json'), book=read('book.json'), glossary=read('glossary.json');
 const options={book,glossary,path:'epictetus/handbook/001.json'};
@@ -19,13 +20,6 @@ const cases = [
  ['section sequence',c=>c.sections[1].n=3,/section numbers/],
  ['paragraph order',c=>c.sections[4].para=1,/para/],
  ['missing plain version',c=>delete c.sections[0].modern,/missing field modern/],
- ['partial Russian version',c=>delete c.sections[0].russian,/russian must be present in every section or none/],
- ['Russian straight quote',c=>c.sections[0].russian='Это "впечатление".',/straight quotes/],
- ['Russian straight apostrophe',c=>c.sections[0].russian="Это 'впечатление'.",/straight quotes/],
- ['Russian gloss',c=>c.sections[0].russian='[[впечатление|impression]]',/gloss outside/],
- ['Russian reference structure',c=>c.sections[0].russian='См. ((handbook/54)).',/outside book/],
- ['empty Russian version',c=>c.sections[0].russian='',/expected nonempty text/],
- ['non-string Russian title',c=>c.russianTitle=1,/expected nonempty text/],
  ['art without alt',c=>c.art={caption:'A jug.'},/missing field alt/],
  ['art with an unknown field',c=>c.art={alt:'Wood engraving of a jug.',src:'jug.png'},/unknown field src/],
  ['art alt that does not say what is drawn',c=>c.art={alt:'A jug on a table.'},/Wood engraving of/],
@@ -57,22 +51,21 @@ const cases = [
  ['objection length',c=>c.objection={says:'word '.repeat(30)+'word',reply:'A reply.'},/exceeds 30/],
 ];
 for(const [name,change,message] of cases)test(`rejects ${name}`,()=>{const c=structuredClone(chapter);change(c);assert.throws(()=>validateChapter(c,options),message);});
-test('Russian is optional; Cyrillic, Russian punctuation and plain inline markup are accepted',()=>{
- const c=structuredClone(chapter);
- for(const s of c.sections)delete s.russian;
- delete c.russianTitle;
- assert.doesNotThrow(()=>validateChapter(c,options));
- c.title='Что зависит от нас';c.russianTitle='Своё и чужое';
- for(const s of c.sections)s.russian='«Это „впечатление“ — ещё не факт». _Проверь_ его. См. ((handbook/2)).';
- assert.doesNotThrow(()=>validateChapter(c,options));
-});
-test('Russian length warns above 1.6 times the original word count, without failing',()=>{
- const c=structuredClone(chapter);
- c.sections[0].original='Это простой пример из пяти слов.';
- c.sections[0].russian='раз два три четыре пять шесть семь восемь девять';
- assert.ok(!validateChapter(c,options).some(w=>w.includes('russian exceeds')));
- c.sections[0].russian+=' десять';
- assert.ok(validateChapter(c,options).some(w=>w.includes('section 1: russian exceeds 1.6')));
+test('a Russian overlay must mirror the English chapter, and its references still have to resolve',()=>{
+ const ru=JSON.parse(readFileSync(new URL('./fixtures/content/epictetus/ru/handbook/001.json',import.meta.url)));
+ const r=localizeChapter(chapter,ru,'ru/001');
+ assert.equal(r.sections[0].original,ru.sections[0].text);assert.doesNotMatch(r.sections[0].modern,/\[\[/);
+ for(const [k,g] of Object.entries(chapter.glosses))assert.equal(r.glosses[k].greek,g.greek);
+ for(const [name,change,message] of [
+  ['missing question',x=>x.questions.pop(),/expected \d+ items/],
+  ['extra field',x=>x.note='Лишнее',/unknown field note/],
+  ['empty text',x=>x.carry='',/expected Russian text/],
+  ['renumbered section',x=>x.sections[0].n=9,/section numbers must match/],
+ ]){const x=structuredClone(ru);change(x);assert.throws(()=>localizeChapter(chapter,x,'ru/001'),message,name);}
+ const bad=structuredClone(r);bad.questions[0]='Что сказано в разделе 9 и почему это важно для тебя сегодня?';
+ assert.throws(()=>validateChapter(bad,{...options,lang:'ru'}),/раздел.? 9" names a section/);
+ bad.questions[0]='Чем это отличается от того, что сказано в главе 2, и чему ты веришь?';
+ assert.throws(()=>validateChapter(bad,{...options,lang:'ru'}),/inline ref like/);
 });
 test('density and expansive plain text are warnings, not failures',()=>{
  const c=structuredClone(chapter);c.sections=[{n:1,para:1,original:'[[A|opinion]] [[B|impulse]] [[C|office]] [[D|slavish]] [[E|impression]].',modern:'This is a deliberately much longer plain version.'}];
