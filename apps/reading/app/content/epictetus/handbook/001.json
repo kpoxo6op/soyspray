@@ -78,19 +78,19 @@
   "takeaway": "Sort whatever happens into two piles: your own doing and everything else. Stake your effort and your peace of mind on the first pile only.",
   "carry": "Before you react to anything, ask: is this up to me?",
   "questions": [
-    "Epictetus puts the body and reputation on the ‘not up to us’ list, although we plainly influence both. Where is the line between influencing a thing and deciding it? Use your own health as the test case.",
-    "Think of the last time you were angry at work. Which item from his second list in section 1 were you treating as yours?",
+    "Epictetus puts the body and reputation on the ‘not up to us’ list, although we plainly influence both. Where is the line between influencing a thing and deciding it? Take health as the test case.",
+    "Think of the last time you were angry. Which item from his second list in section 1 were you treating as yours?",
     "Section 4 says you cannot go after freedom and also after status and money with the same seriousness. What would have to be true for him to be wrong, and where would he say you are trying to have it both ways?",
-    "‘That’s nothing to me’ sounds cold when the thing outside your control is a child’s illness. What could the sentence mean that is not indifference?",
+    "‘That’s nothing to me’ sounds cold when the thing outside your control is the illness of someone you love. What could the sentence mean that is not indifference?",
     "A reader concludes from section 5: if a worry is about something not up to me, the right thing is to stop thinking about it. What has he missed?"
   ],
   "exercises": [
     {
       "title": "Two lists",
-      "do": "For the next three working days, each time something irritates you (a failed deploy, a late reply, a review comment), stop and write one line: the event, what you can attempt, and what in it is yours. For example: ‘Disk died. Attempt: restore from last night’s backup. Mine: doing it with care, and blaming no one.’",
+      "do": "For the next three days, each time something irritates you (a missed train, a late reply, a sharp remark), stop and write one line: the event, what you can attempt, and what in it is yours. For example: ‘Missed the train. Attempt: catch the next one and send word ahead. Mine: staying civil, and blaming no one.’",
       "time": "a minute a go, three times a day, for three days",
       "doneWhen": "you have nine lines",
-      "stopIf": "writing the line starts to delay the fix itself: deal with the problem first, write afterwards."
+      "stopIf": "writing the line starts to delay dealing with the problem: deal with it first, write afterwards."
     },
     {
       "title": "Name the impression",
@@ -101,9 +101,9 @@
     }
   ],
   "objection": {
-    "says": "If my body, my job and my child’s health are not up to me, this is a recipe for giving up on everything that matters.",
-    "reply": "Epictetus does not say these things are not worth effort. He says the effort is yours and the outcome is not. When a disk dies, restoring the backup is something you can attempt; whether it works is not up to you; doing it carefully and blaming no one is. What changes is where you stake your peace of mind: on how you act, not on what results. ((discourses/2/5)) puts it as a ball game: the ball is neither good nor bad; the throwing and catching are what count.",
-    "open": "Whether a parent can really hold a child’s health as ‘not mine’, and stake no peace of mind on it, is left standing."
+    "says": "If my health, my livelihood and the people I love are not up to me, this is a recipe for giving up on everything that matters.",
+    "reply": "Epictetus does not say these things are not worth effort. He says the effort is yours and the outcome is not. When you fall ill, seeing a doctor and following the treatment is something you can attempt; whether you recover is not up to you; how you bear it is. What changes is where you stake your peace of mind: on how you act, not on what results. ((discourses/2/5)) puts it as a ball game: the ball is neither good nor bad; the throwing and catching are what count.",
+    "open": "Whether anyone can really hold the health of someone they love as ‘not mine’, and stake no peace of mind on it, is left standing."
   },
   "prompts": [
     "Take one thing that worries you this week and write the two lists for it. Be strict: for each item under ‘mine’, could anyone stop you doing it?",

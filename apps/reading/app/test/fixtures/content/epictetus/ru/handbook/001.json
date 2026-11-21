@@ -36,7 +36,7 @@
  "exercises": [
   {
    "title": "По-русски Two lists",
-   "do": "По-русски For the next three working days, each time something irritates you (a failed deploy, a late reply, a review comment), stop and write one line: the event, what you can attempt, and what in it is yours. For example: “Disk died. Attempt: restore from last night’s backup. Mine: doing it with care, and blaming no one.”",
+   "do": "По-русски For the next three days, each time something irritates you (a missed train, a late reply, a sharp remark), stop and write one line: the event, what you can attempt, and what in it is yours. For example: “Missed the train. Attempt: catch the next one. Mine: staying civil, and blaming no one.”",
    "time": "По-русски a minute a go, three times a day, for three days.",
    "doneWhen": "По-русски you have nine lines.",
    "stopIf": null

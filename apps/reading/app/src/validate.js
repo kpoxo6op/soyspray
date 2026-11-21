@@ -56,6 +56,7 @@ export function validateGlossary(glossary, book, lang = 'en') {
   if (!glossary.terms || Array.isArray(glossary.terms) || typeof glossary.terms !== 'object') fail('glossary','expected terms');
   for (const [key,g] of Object.entries(glossary.terms)) { identifier(key,'glossary id'); gloss(g,`glossary.${key}`,true); }
   if (book) checkRefs(glossary,book,'glossary');
+  checkGeneral(glossary,'glossary');
 }
 function gloss(g, where, shared) {
   shape(g,['term','plain'],['why','translit','greek','not',...(shared ? ['long','also'] : [])],where);
@@ -115,7 +116,7 @@ export function validateChapter(c, {book, glossary = {terms:{}}, path, lang = 'e
   list(c.seeAlso,0,4,where+'.seeAlso');
   for (const r of c.seeAlso) { shape(r,['ref','why'],['relation'],where+'.seeAlso'); if (!validRef(r.ref,book)) fail(where,'seeAlso ref outside book structure'); text(r.why,where+'.seeAlso.why'); if (r.relation && !['source','echo','contrast'].includes(r.relation)) fail(where,'invalid relation'); }
   if (c.compare != null) { list(c.compare,0,10,where+'.compare'); for (const r of c.compare) { shape(r,['n','by','text'],[],where+'.compare'); if (!Number.isInteger(r.n) || r.n < 1 || r.n > c.sections.length) fail(where,'invalid compare section'); text(r.by,where+'.compare.by'); text(r.text,where+'.compare.text'); } }
-  checkRefs(c,book,where); checkPlainRefs({...c,sections:c.sections.map(({original,...rest})=>rest)},new Set(c.sections.map(s=>s.n)),where); return lang === 'en' ? warnings : [];
+  checkRefs(c,book,where); checkGeneral({...c,sections:[]},where); checkPlainRefs({...c,sections:c.sections.map(({original,...rest})=>rest)},new Set(c.sections.map(s=>s.n)),where); return lang === 'en' ? warnings : [];
 }
 
 // Every cross-reference must be a link: "section N" must name a section of this chapter (the build links it),
@@ -129,6 +130,13 @@ function checkPlainRefs(v,sections,where) {
   } else if (v && typeof v === 'object') Object.values(v).forEach(x=>checkPlainRefs(x,sections,where));
 }
 
+// The apparatus is for any reader, not for the site's owner: examples stay general and timeless, never drawn from
+// one person's job, tools or home (design.md §11.00). Catch the tech vocabulary that slipped in before.
+const personal = /(?<![\p{L}])(?:deploy\p{L}*|backups?|disks?|servers?|migrations?|scripts?|clusters?|laptops?|code ?reviews?|review comments?|pull requests?|commits?|builds? failed|maintenance windows?|home ?lab|деплой\p{L}*|бэкап\p{L}*|диск(?:а|и|ов|у|ом)?|сервер\p{L}*|миграци\p{L}*|скрипт\p{L}*|кластер\p{L}*|ноутбук\p{L}*|ревью|коммит\p{L}*|сборк\p{L}*|релиз\p{L}*|прод)(?![\p{L}])/iu;
+function checkGeneral(v,where) {
+  if (typeof v === 'string') { const m = v.match(personal); if (m) fail(where,`"${m[0]}" is a personal or technical example; use a general one any reader would recognise`); }
+  else if (v && typeof v === 'object') Object.values(v).forEach(x=>checkGeneral(x,where));
+}
 function checkRefs(v,book,where) {
   if (typeof v === 'string') {
     for (const m of v.matchAll(/\(\(([^()]*)\)\)/g)) if (!validRef(m[1],book)) fail(where,'inline ref outside book structure');
@@ -142,5 +150,5 @@ export function validateAbout(about,book) {
     shape(s,['title','paragraphs'],[],'about.section');text(s.title,'about.section.title');
     list(s.paragraphs,1,100,'about.paragraphs');s.paragraphs.forEach(p=>text(p,'about.paragraph'));
   }
-  checkRefs(about,book,'about');
+  checkRefs(about,book,'about'); checkGeneral(about,'about');
 }
