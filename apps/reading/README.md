@@ -22,6 +22,11 @@ numbered filenames in the schema. The build validates content before rendering;
 errors fail the build, while gloss density and long plain versions produce
 warnings. It never substitutes fixture content for missing real content.
 
+The site is shared with friends, so every example in questions, exercises,
+objections, prompts, glosses and the about page is general and timeless: no
+job, tech, home-lab or family details from the owner's life. The validator
+rejects tech vocabulary in English and Russian.
+
 The Russian edition lives in `app/content/<book>/ru/` (`book.json`,
 `glossary.json`, `about.json` and one overlay per chapter at the same path as
 the English). Overlays carry only the words and must mirror the English shape;

@@ -93,3 +93,11 @@ test('art is optional; alt alone, or alt with a caption or a null caption, is ac
   const c=structuredClone(chapter);c.art=art;assert.doesNotThrow(()=>validateChapter(c,options));
  }
 });
+// Boris shares the reader with friends: examples must be general, never drawn from one person's job or home lab.
+test('personal and technical examples fail; the same words inside other words do not',()=>{
+ for (const [k,v] of [['carry','Before the deploy today, ask what is yours.'],['carry','When the disk dies, ask what is yours.'],['carry','Перед релизом спроси себя, что твоё.']]) {
+  const c=structuredClone(chapter);c[k]=v;assert.throws(()=>validateChapter(c,options),/personal or technical example/);
+ }
+ const c=structuredClone(chapter);c.carry='Give a plain description of the event before you react.';
+ assert.doesNotThrow(()=>validateChapter(c,options));
+});
