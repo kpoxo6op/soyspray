@@ -49,6 +49,12 @@ export const TABLE = {
   lede: 'Your table, filmed on 21 Nov. Open the bags marked probably, then put the “For this page” things on the mat.',
   // The build adds a content revision (build.mjs).
   src: typeof __PEARL_PHOTOS__ !== 'undefined' ? __PEARL_PHOTOS__.table : 'data/table.jpg',
+  // The same photo sorted for him (21 Nov): green outlines stay on the table, orange go in a box, grey are opened first.
+  sort: {
+    src: typeof __PEARL_PHOTOS__ !== 'undefined' ? __PEARL_PHOTOS__.sort : 'data/sort.jpg',
+    alt: 'The same table photo with every item outlined: green stays on the table, orange goes in a box, grey is opened and checked.',
+    caption: 'Green stays on the table. Orange goes in a box for Pearl. Grey: open the bag first. Tap to open it full size.',
+  },
   alt: 'Boris’s soldering tools and Pearl parts laid out on an oak table, with numbered marks.',
   missing: 'No stand came with the iron: an old board with two blocks is its rest, as chapter 1 shows. Still to buy: safety glasses and slide switches.',
   groups: TABLE_GROUPS,

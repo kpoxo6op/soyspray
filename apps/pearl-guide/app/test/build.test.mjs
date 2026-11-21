@@ -45,8 +45,8 @@ test('soldering ships only its revisioned runtime, bench, table photo and decode
     assert.match(revision || '', /^[0-9a-f]{16}$/);
     assert.ok(digest(`soldering/${file}`).startsWith(revision), `${r} identifies its bytes`);
   }
-  assert.deepEqual(readdirSync(resolve(dist, 'soldering/data')).sort(), ['bench.glb', 'table.jpg']);
-  for (const file of ['bench.glb', 'table.jpg']) {
+  assert.deepEqual(readdirSync(resolve(dist, 'soldering/data')).sort(), ['bench.glb', 'sort.jpg', 'table.jpg']);
+  for (const file of ['bench.glb', 'sort.jpg', 'table.jpg']) {
     const revision = bundle.match(new RegExp(`data/${file.replace('.', '\\.')}\\?v=([0-9a-f]{16})`));
     assert.ok(revision, `bundle names ${file} with a revision`);
     assert.ok(digest(`soldering/data/${file}`).startsWith(revision[1]));
