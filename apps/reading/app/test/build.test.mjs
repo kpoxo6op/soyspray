@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 import {gzipSync} from 'node:zlib';
 import {test,after} from 'node:test';
 import {build} from '../build.mjs';
+import {chapterPage} from '../src/templates.js';
 const app=fileURLToPath(new URL('../',import.meta.url)),out=join(app,'dist-test');
 build({content:join(app,'test/fixtures/content'),out});
 after(()=>rmSync(out,{recursive:true,force:true}));
@@ -30,6 +31,28 @@ test('Handbook 1 renders the complete paired document, margin notes and editoria
  assert.ok(chapter.includes('you’ll do nothing whatever against your will'));
  assert.ok(chapter.indexOf('id="o5"')<chapter.indexOf('id="m1"'));
 });
+test('Russian follows plain English with its title, language, inline markup and matching section numbers',()=>{
+ const block=chapter.match(/<section class="russian" lang="ru" aria-labelledby="russian">([\s\S]*?)<\/section>/)?.[1];
+ assert.ok(block);
+ assert.match(block,/<h2 class="russian-head" id="russian">По-русски<\/h2><h3>Что зависит от нас<\/h3>/);
+ assert.ok(chapter.indexOf('id="m5"')<chapter.indexOf('id="russian"'));
+ assert.ok(chapter.indexOf('id="r5"')<chapter.indexOf('id="h-point"'));
+ for(let n=1;n<=5;n++)assert.match(block,new RegExp(`id="r${n}"><a class="n" href="#o${n}"[^>]*>${n}</a>`));
+ assert.match(block,/<i>впечатление<\/i>/);
+ assert.doesNotMatch(block,/class="g"|class="mn"|data-keep/);
+ const c=JSON.parse(read(join(app,'test/fixtures/content/epictetus/handbook/001.json')));
+ const book=JSON.parse(read(join(app,'test/fixtures/content/epictetus/book.json')));
+ const glossary=JSON.parse(read(join(app,'test/fixtures/content/epictetus/glossary.json')));
+ delete c.russianTitle;c.sections[0].russian+=' См. ((handbook/1)).';
+ const untitled=chapterPage(c,book,glossary,[c],{});
+ assert.match(untitled,/По-русски<\/h2><p/);
+ assert.match(untitled,/См\. <a href="\/epictetus\/handbook\/1\/">Handbook 1<\/a>/);
+});
+test('chapters without Russian omit the block and heading; Display offers Russian On and Off',()=>{
+ const without=read(join(out,'epictetus/handbook/2/index.html'));
+ assert.doesNotMatch(without,/class="russian"|По-русски/);
+ for(const html of [chapter,without])assert.match(html,/<span lang="ru">Русский<\/span><button data-set="ru" data-value="on" aria-pressed="true">On<\/button><button data-set="ru" data-value="off" aria-pressed="false">Off<\/button>/);
+});
 test('every internal href, asset and fragment resolves in the built output',()=>{
  for(const p of htmls){const html=read(p);for(const [,href]of html.matchAll(/(?:href|src)="([^"]+)"/g)){
   assert.ok(!/^[a-z]+:/i.test(href),`${p}: ${href}`);
@@ -52,14 +75,18 @@ export function budgets(){
  const rows=[];const bytes=p=>readFileSync(join(out,p));
  const add=(name,b,max,gzmax)=>{rows.push({item:name,bytes:b.length,gzip:gzipSync(b,{level:9}).length,budget:max,gzipBudget:gzmax||''});};
  add('Handbook 1 HTML',bytes('epictetus/handbook/1/index.html'),30*1024);
- add('site.css',bytes('assets/site.css'),14*1024,4*1024);
- add('site.js + theme.js',Buffer.concat([bytes('assets/site.js'),bytes('assets/theme.js')]),10*1024,4*1024);
+ add('site.css',bytes('assets/site.css'),15*1024,4.3*1024);
+ add('site.js + theme.js',Buffer.concat([bytes('assets/site.js'),bytes('assets/theme.js')]),10*1024,4.25*1024);
  rows.at(-1).gzip=gzipSync(bytes('assets/site.js'),{level:9}).length+gzipSync(bytes('assets/theme.js'),{level:9}).length;
  add('theme.js',bytes('assets/theme.js'),400);
- const fonts=files(join(out,'assets/fonts')).filter(p=>p.endsWith('.woff2'));assert.equal(fonts.length,3);
- add('Fonts (3)',Buffer.concat(fonts.map(p=>readFileSync(p))),80*1024);
- const first=gzipSync(bytes('epictetus/handbook/1/index.html')).length+gzipSync(bytes('assets/site.css')).length+gzipSync(bytes('assets/site.js')).length+gzipSync(bytes('assets/theme.js')).length+readFileSync(fonts.find(p=>p.includes('roman'))).length;
- rows.push({item:'Core visit (roman only)',bytes:first,gzip:first,budget:110*1024,gzipBudget:''});
+ const fonts=files(join(out,'assets/fonts')).filter(p=>p.endsWith('.woff2'));assert.equal(fonts.length,5);
+ const fontBytes=Buffer.concat(fonts.map(p=>readFileSync(p)));
+ add('Fonts (5)',fontBytes,104*1024);
+ const assets=['assets/site.css','assets/site.js','assets/theme.js'].reduce((n,p)=>n+gzipSync(bytes(p)).length,0);
+ const first=assets+gzipSync(bytes('epictetus/handbook/1/index.html')).length+fontBytes.length;
+ rows.push({item:'Russian visit (all five fonts)',bytes:first,gzip:first,budget:110*1024,gzipBudget:''});
+ const english=assets+gzipSync(bytes('epictetus/handbook/2/index.html')).length+fonts.filter(p=>!p.includes('cyrillic')).reduce((n,p)=>n+readFileSync(p).length,0);
+ rows.push({item:'English visit (three fonts)',bytes:english,gzip:english,budget:110*1024,gzipBudget:''});
  return rows;
 }
 test('chapter, stylesheet, script, font and first-visit budgets',()=>{
@@ -89,4 +116,40 @@ test('Discourses and Fragments build from the schema and preserve work boundarie
   for(const p of htmls)assert.ok(readFileSync(p).length<150*1024);
   assert.ok(Buffer.byteLength(first)<150*1024);assert.ok(Buffer.byteLength(last)<150*1024);
  } finally {rmSync(content,{recursive:true,force:true});}
+});
+// The published site owns the illustration contract: a reserved box, both formats, real hashed files within budget.
+test('declared art renders one lazy tailpiece after the text; its files exist, match their hashes and fit the budgets',()=>{
+ const live=join(app,'dist-test-art');
+ try{
+  build({out:live});
+  const limits={480:20,960:40,1440:70};let figures=0;
+  for(const p of files(join(live,'epictetus/handbook')).filter(p=>p.endsWith('.html'))){
+   const html=read(p),json=JSON.parse(read(join(app,'content/epictetus/handbook',p.match(/handbook\/(\d+)\//)[1].padStart(3,'0')+'.json')));
+   const found=html.match(/<figure class="art">[\s\S]*?<\/figure>/g)||[];
+   assert.equal(found.length,json.art?1:0,p);if(!json.art)continue;figures++;
+   const fig=found[0];
+   assert.ok(html.indexOf('id="plain"')<html.indexOf(fig)&&html.indexOf(fig)<html.indexOf('id="h-point"'),p);
+   assert.match(fig,/<source type="image\/avif" srcset="[^"]+" sizes="[^"]+"><img src="[^"]+-960x\d+\.[0-9a-f]{8}\.webp" srcset=/);
+   assert.match(fig,/ loading="lazy" decoding="async">/);assert.ok(fig.includes(`alt="${json.art.alt}"`));
+   if(json.art.caption)assert.ok(fig.includes(`<figcaption>${json.art.caption}</figcaption>`));
+   const [,w,h]=fig.match(/ width="(\d+)" height="(\d+)"/),urls=[...fig.matchAll(/(\/assets\/art\/[^ "]+) (\d+)w/g)];
+   assert.equal(urls.length,6);assert.equal(w,'960');
+   for(const [,url,width] of urls){
+    const body=readFileSync(join(live,url)),[,fw,fh,rev]=url.match(/-(\d+)x(\d+)\.([0-9a-f]{8})\.(?:avif|webp)$/);
+    assert.equal(fw,width);assert.ok(Math.abs(fh/fw-h/w)<.01,url);
+    assert.equal(createHash('sha256').update(body).digest('hex').slice(0,8),rev);
+    assert.ok(body.length<=limits[width]*1024,`${url}: ${body.length}`);
+   }
+  }
+  assert.ok(figures>0);
+ } finally {rmSync(live,{recursive:true,force:true});}
+ assert.doesNotMatch(chapter,/class="art"/);
+});
+test('a chapter that declares art without its six files fails the build',()=>{
+ const content=join(app,'dist-test-content-art'),empty=join(app,'dist-test-no-art');
+ try{
+  cpSync(join(app,'test/fixtures/content'),content,{recursive:true});mkdirSync(empty,{recursive:true});
+  const p=join(content,'epictetus/handbook/001.json'),c=JSON.parse(read(p));c.art={alt:'Wood engraving of a boat.'};writeFileSync(p,JSON.stringify(c));
+  assert.throws(()=>build({content,out:join(app,'dist-test-art-out'),art:empty}),/art needs handbook-001 at 480, 960 and 1440/);
+ } finally {for(const d of [content,empty,join(app,'dist-test-art-out')])rmSync(d,{recursive:true,force:true});}
 });

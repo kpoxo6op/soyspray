@@ -42,7 +42,8 @@
       "title": "How to use this site",
       "paragraphs": [
         "Each chapter gives Hard’s translation first, then the same passage in plain English, section by section; the small numbers in the margin jump between the two. A word with a dotted underline is explained in the margin, or at the foot of the screen when you tap it. Keep, beside a section, saves that passage to the Notes page. Read the original first, even when it is slow. After the text come the point of the chapter, one sentence to carry through the day, questions, a practice and prompts for writing. The practice is the part that matters most.",
-        "Display, at the top of every page, changes the text size, the theme and the layout. Notes and the ‘read’ mark stay in this browser; the Notes page exports them to a file that another device can import, and can erase them. On a keyboard, j or the right arrow opens the next chapter and k or the left arrow the previous one; t changes the theme, + and − change the text size, s switches to side by side on a wide screen, and Escape closes a gloss or the Display panel."
+        "Display, at the top of every page, changes the text size, the theme and the layout. Notes and the ‘read’ mark stay in this browser; the Notes page exports them to a file that another device can import, and can erase them. On a keyboard, j or the right arrow opens the next chapter and k or the left arrow the previous one; t changes the theme, + and − change the text size, s switches to side by side on a wide screen, and Escape closes a gloss or the Display panel.",
+        "The pictures at the foot of some chapters were generated with OpenAI’s image model to our direction, after the wood engravers Thomas Bewick, Gwen Raverat and Eric Ravilious. Each shows one of Epictetus’s own examples."
       ]
     }
   ]
