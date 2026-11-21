@@ -224,6 +224,7 @@ const bench = {
   beats: [
     {
       d: 10,
+      film: { src: 'films/ch1.mp4', from: 0 },
       text: 'Lay the tools on the silicone mat. Keep food and drink off the bench: this solder contains lead.',
       cam: { p: [0.01, 0.6, 0.35], t: [0, 0, 0.03], fov: 38 },
       cam2: { p: [0.0, 0.6, 0.37], t: [0, 0, 0.03], fov: 38 },
@@ -243,6 +244,7 @@ const bench = {
     },
     {
       d: 9,
+      film: { src: 'films/ch1.mp4', from: 10 },
       text: 'Put on safety glasses before the iron heats, and open a window. Keep your face out of the flux smoke.',
       cam: { p: [-0.1, 0.22, 0.52], t: [-0.1, 0.02, 0.1], fov: 32 },
       act(S, u) {
@@ -260,6 +262,7 @@ const bench = {
     },
     {
       d: 10,
+      film: { src: 'films/ch1.mp4', from: 19 },
       text: 'Test the rest cold: grip between the fixed blocks, metal past the board’s edge, tip away. It must not rock or roll.',
       cam: { p: standPt(10, 170, 300), t: standPt(-25, 35, 0), fov: 34 },
       cam2: { p: standPt(20, 230, 400), t: standPt(-10, 35, 0), fov: 34 },
@@ -279,6 +282,7 @@ const bench = {
     },
     {
       d: 9,
+      film: { src: 'films/ch1.mp4', from: 29 },
       text: 'Wet the piece of sponge on the board and squeeze it out. It should be damp with no water running off.',
       cam: { p: add3(SPONGE, [-0.05, 0.1, 0.11]), t: SPONGE, fov: 30 },
       act(S, u) {
@@ -288,6 +292,7 @@ const bench = {
     },
     {
       d: 10,
+      film: { src: 'films/ch1.mp4', from: 38 },
       text: 'Check the plug sits firm in its adapter and the adapter in the wall. Press the handle buttons until it reads 330 °C.',
       cam: { p: add3(ironPt(REST, 145, 12), [0.034, 0.1, 0.062]), t: ironPt(REST, 148, 12), fov: 30 },
       act(S, u) {
@@ -308,6 +313,7 @@ const bench = {
     },
     {
       d: 10,
+      film: { src: 'films/ch1.mp4', from: 48 },
       text: 'Hold the iron like a pen by the grip only. Metal ahead of the grip burns. Unplug the iron if you stop here.',
       cam: { p: [-0.07, 0.19, 0.3], t: [0.05, 0.1, 0.03], fov: 32 },
       cam2: { p: [0.02, 0.17, 0.33], t: [0.05, 0.1, 0.03], fov: 32 },
