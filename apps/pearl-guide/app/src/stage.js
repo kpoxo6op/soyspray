@@ -90,7 +90,7 @@ function matTexture() {
 }
 
 export class Stage {
-  constructor({ container, labelLayer, reducedMotion = false, phone = false }) {
+  constructor({ container, labelLayer, reducedMotion = false, phone = false, canvasLabel = 'Pearl, 3D view. Drag to turn, scroll or pinch to zoom.' }) {
     this.container = container;
     this.labelLayer = labelLayer;
     this.reducedMotion = reducedMotion;
@@ -122,7 +122,7 @@ export class Stage {
     this.renderer = renderer;
     this.canvas = renderer.domElement;
     this.canvas.setAttribute('role', 'img');
-    this.canvas.setAttribute('aria-label', 'Pearl, 3D view. Drag to turn, scroll or pinch to zoom.');
+    this.canvas.setAttribute('aria-label', canvasLabel);
 
     const scene = new Scene();
     const pmrem = new PMREMGenerator(renderer);
@@ -234,8 +234,12 @@ export class Stage {
   }
 
   applyPose({ p, t, fov }) {
-    // Portrait screens are narrow: step back along the same line so the subject still fits across.
-    const k = this.camera.aspect < 1 ? Math.min(2.1, (1.25 / this.camera.aspect) ** 0.62) : 1;
+    // Portrait screens are narrow: step back along the same line so the subject still fits across. Short landscape
+    // screens (a TV at 960x540) lose most of their height to the top bar and the caption: step back until the free
+    // band between them holds what 60 % of the screen's height would.
+    const h = this.container.clientHeight || window.innerHeight;
+    const band = Math.max(1, h - this.insets.top - this.insets.bottom);
+    const k = this.camera.aspect < 1 ? Math.min(2.1, (1.25 / this.camera.aspect) ** 0.62) : Math.min(1.5, Math.max(1, (0.6 * h) / band));
     this.camera.position.set(t[0] + (p[0] - t[0]) * k, t[1] + (p[1] - t[1]) * k, t[2] + (p[2] - t[2]) * k);
     this.controls.target.set(t[0], t[1], t[2]);
     if (fov && this.camera.fov !== fov) {
@@ -249,6 +253,7 @@ export class Stage {
   setInsets(top, bottom) {
     this.insets = { top, bottom };
     this.updateProjection();
+    if (this.pose && this.pristine) this.applyPose(this.pose); // the step-back depends on the free band
   }
 
   updateProjection() {

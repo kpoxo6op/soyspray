@@ -1,17 +1,24 @@
 // The three panels: Chapters (the stage at a glance, with your progress), Kit (what to buy) and Files (what to
 // print). Ticks are kept in this browser only; the page works the same when storage is blocked.
 
-import { CHECKED, GROUPS, money, totals } from './kit.js';
-import { PLATE_NOTE, SETTINGS, STL } from './files.js';
-
+// Only the old Pearl origin may supply carried ticks. Panel keys are supplied by the page.
 const KEY = { kit: 'pearl.stage0.kit', done: 'pearl.stage0.done' };
 
-function load(key) {
+function load(key, fallback = new Set()) {
   try {
     return new Set(JSON.parse(localStorage.getItem(key) || '[]'));
   } catch {
-    return new Set();
+    return new Set(fallback);
   }
+}
+
+// Merge this one change with the latest saved ticks, including changes from another page.
+export function updateTick(key, id, checked, fallback) {
+  const fresh = load(key, fallback);
+  if (checked) fresh.add(id);
+  else fresh.delete(id);
+  save(key, fresh);
+  return fresh;
 }
 function save(key, set) {
   try {
@@ -55,14 +62,14 @@ function shell(dialog, title, body) {
   dialog.querySelector('.sheet-close').addEventListener('click', () => dialog.close());
 }
 
-export function createSheets({ root, timeline, player, onOpen }) {
-  adoptCarried();
-  const kitTicks = load(KEY.kit);
-  const doneTicks = load(KEY.done);
+export function createSheets({ root, timeline, player, onOpen, keys, chapters, kit, files, carry }) {
+  if (carry) adoptCarried();
+  let kitTicks = kit ? load(keys.kit) : new Set();
+  let doneTicks = load(keys.done);
   const dialogs = {
     chapters: root.querySelector('#chaptersSheet'),
-    kit: root.querySelector('#kitSheet'),
-    files: root.querySelector('#filesSheet'),
+    ...(kit ? { kit: root.querySelector('#kitSheet') } : {}),
+    ...(files ? { files: root.querySelector('#filesSheet') } : {}),
   };
 
   // ---------------------------------------------------------- chapters
@@ -78,8 +85,8 @@ export function createSheets({ root, timeline, player, onOpen }) {
       .join('');
     shell(
       dialogs.chapters,
-      'Stage 0: before the pod',
-      `<p class="lede">Buy the tools, print Pearl’s pod, learn to solder and float your first orb. About three weeks with the post, and four evenings of work.</p><ol class="chaps">${items}</ol>`,
+      chapters.title,
+      `<p class="lede">${esc(chapters.lede)}</p><ol class="chaps">${items}</ol>`,
     );
     dialogs.chapters.querySelectorAll('[data-go]').forEach((b) =>
       b.addEventListener('click', () => {
@@ -89,18 +96,16 @@ export function createSheets({ root, timeline, player, onOpen }) {
     );
     dialogs.chapters.querySelectorAll('[data-done]').forEach((box) =>
       box.addEventListener('change', () => {
-        if (box.checked) doneTicks.add(box.dataset.done);
-        else doneTicks.delete(box.dataset.done);
-        save(KEY.done, doneTicks);
-        box.closest('.chap').classList.toggle('is-done', box.checked);
+        doneTicks = updateTick(keys.done, box.dataset.done, box.checked, doneTicks);
+        syncTicks(dialogs.chapters, 'done', doneTicks, '.chap', 'is-done');
       }),
     );
   }
 
   // ---------------------------------------------------------- kit
   function renderKit() {
-    const t = totals();
-    const groups = GROUPS.map((g) => {
+    const money = (n) => `$${n.toFixed(2).replace(/\.00$/, '')}`;
+    const groups = kit.groups.map((g) => {
       const rows = g.items
         .map((i) => {
           const got = kitTicks.has(i.id);
@@ -111,43 +116,90 @@ export function createSheets({ root, timeline, player, onOpen }) {
             <div class="item-side"><span class="item-price">${price}</span>${where}</div></li>`;
         })
         .join('');
-      const sub = t.by[g.id] ? `<span class="group-total">${g.items.some((i) => i.est) ? 'about ' : ''}${money(t.by[g.id])}</span>` : '';
+      const total = g.items.reduce((s, i) => s + (i.price || 0), 0);
+      const sub = total ? `<span class="group-total">${g.items.some((i) => i.est) ? 'about ' : ''}${money(total)}</span>` : '';
       return `<section class="kgroup"><h3>${esc(g.title)}${sub}</h3><p class="group-when">${esc(g.when)}</p><ul class="items">${rows}</ul></section>`;
     }).join('');
     shell(
       dialogs.kit,
-      'Kit for Stage 0',
-      `<p class="lede">About ${money(Math.round(t.all / 10) * 10)} in all. The tools carry on through the whole build. Prices checked ${CHECKED}; AliExpress ones are typical asking prices.</p>${groups}`,
+      kit.title,
+      `<p class="lede">${esc(kit.lede)}</p>${kit.table ? renderTable(kit.table) : ''}${groups}`,
     );
+    if (kit.table) wireTable(dialogs.kit);
     dialogs.kit.querySelectorAll('[data-kit]').forEach((box) =>
       box.addEventListener('change', () => {
-        if (box.checked) kitTicks.add(box.dataset.kit);
-        else kitTicks.delete(box.dataset.kit);
-        save(KEY.kit, kitTicks);
-        box.closest('.item').classList.toggle('is-got', box.checked);
+        kitTicks = updateTick(keys.kit, box.dataset.kit, box.checked, kitTicks);
+        syncTicks(dialogs.kit, 'kit', kitTicks, '.item', 'is-got');
       }),
     );
   }
 
+  // ---------------------------------------------------------- what is what (a photo of the real kit)
+  function renderTable(t) {
+    const marks = t.marks
+      .map((m) => `<button type="button" class="tmark" data-mark="${m.n}" style="left:${m.x}%;top:${m.y}%" aria-label="${m.n}: ${esc(m.name)}">${m.n}</button>`)
+      .join('');
+    const legend = t.groups
+      .map((g) => {
+        const rows = t.marks
+          .filter((m) => m.group === g.id)
+          .map((m) => `<li class="trow" data-row="${m.n}"><span class="tno">${m.n}</span><div class="item-main"><span class="item-name">${esc(m.name)}</span><span class="item-why">${esc(m.looks)} ${esc(m.use)}</span></div></li>`)
+          .join('');
+        return rows ? `<h4 class="tgroup">${esc(g.title)}</h4><ol class="items tlist">${rows}</ol>` : '';
+      })
+      .join('');
+    return `<section class="kgroup ktable"><h3>${esc(t.title)}</h3><p class="group-when">${esc(t.lede)}</p>
+      <figure class="tphoto"><img src="${esc(t.src)}" alt="${esc(t.alt)}" width="640" height="1399" loading="lazy" decoding="async">${marks}</figure>
+      ${legend}<p class="tmissing">${esc(t.missing)}</p></section>`;
+  }
+  // A tap on a number marks its row and a tap on a row marks its number, so the photo and the list point at each other.
+  function wireTable(dialog) {
+    const pick = (n, scrollTo) => {
+      dialog.querySelectorAll('.tmark, .trow').forEach((el) => el.classList.toggle('is-on', (el.dataset.mark || el.dataset.row) === n));
+      const target = dialog.querySelector(scrollTo === 'row' ? `[data-row="${n}"]` : `[data-mark="${n}"]`);
+      target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    };
+    dialog.querySelectorAll('.tmark').forEach((b) => b.addEventListener('click', () => pick(b.dataset.mark, 'row')));
+    dialog.querySelectorAll('.trow').forEach((r) => r.addEventListener('click', () => pick(r.dataset.row, 'mark')));
+  }
+
   // ---------------------------------------------------------- files
   function renderFiles() {
-    const rows = STL.map(
+    const rows = files.parts.map(
       (f) => `<li class="item"><div class="item-main"><span class="item-name">${esc(f.name)}${f.qty > 1 ? ` × ${f.qty}` : ''}</span><span class="item-why">${esc(f.note)} About ${f.grams} g each.</span></div>
         <div class="item-side"><a href="files/${esc(f.file)}" download>${esc(f.file)}</a></div></li>`,
     ).join('');
-    const settings = SETTINGS.map(([k, v]) => `<div class="setting"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
+    const settings = files.settings.map(([k, v]) => `<div class="setting"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('');
     shell(
       dialogs.files,
-      'Files to print',
-      `<p class="lede">Pearl v3.1’s printed parts, straight from the design model. ${esc(PLATE_NOTE)}</p>
-       <section class="kgroup"><h3>Parts</h3><ul class="items">${rows}</ul></section>
-       <section class="kgroup"><h3>Bambu Studio</h3><dl class="settings">${settings}</dl></section>`,
+      files.title,
+      `<p class="lede">${esc(files.lede)}</p>
+       <section class="kgroup"><h3>${esc(files.partsTitle)}</h3><ul class="items">${rows}</ul></section>
+       <section class="kgroup"><h3>${esc(files.settingsTitle)}</h3><dl class="settings">${settings}</dl></section>`,
     );
   }
 
   renderChapters();
-  renderKit();
-  renderFiles();
+  if (kit) renderKit();
+  if (files) renderFiles();
+
+  function syncTicks(dialog, kind, ticks, row, className) {
+    dialog.querySelectorAll(`[data-${kind}]`).forEach((box) => {
+      box.checked = ticks.has(box.dataset[kind]);
+      box.closest(row).classList.toggle(className, box.checked);
+    });
+  }
+  window.addEventListener('storage', (event) => {
+    if (event.storageArea !== localStorage) return;
+    if (event.key === null || event.key === keys.done) {
+      doneTicks = load(keys.done, doneTicks);
+      syncTicks(dialogs.chapters, 'done', doneTicks, '.chap', 'is-done');
+    }
+    if (kit && (event.key === null || event.key === keys.kit)) {
+      kitTicks = load(keys.kit, kitTicks);
+      syncTicks(dialogs.kit, 'kit', kitTicks, '.item', 'is-got');
+    }
+  });
 
   for (const d of Object.values(dialogs)) {
     d.addEventListener('click', (e) => {
@@ -156,6 +208,7 @@ export function createSheets({ root, timeline, player, onOpen }) {
     d.addEventListener('close', () => onOpen?.(false));
   }
   const open = (name) => {
+    if (!dialogs[name]) return;
     for (const d of Object.values(dialogs)) if (d.open) d.close();
     dialogs[name].showModal();
     dialogs[name].querySelector('.sheet-body').scrollTop = 0;
@@ -163,7 +216,13 @@ export function createSheets({ root, timeline, player, onOpen }) {
   };
   root.querySelector('#btnChapters').addEventListener('click', () => open('chapters'));
   root.querySelector('#crumbChapter').addEventListener('click', () => open('chapters'));
-  root.querySelector('#btnKit').addEventListener('click', () => open('kit'));
-  root.querySelector('#btnFiles').addEventListener('click', () => open('files'));
-  return { open, anyOpen: () => Object.values(dialogs).some((d) => d.open) };
+  if (kit) root.querySelector('#btnKit')?.addEventListener('click', () => open('kit'));
+  if (files) root.querySelector('#btnFiles')?.addEventListener('click', () => open('files'));
+  return {
+    open,
+    close: () => {
+      for (const d of Object.values(dialogs)) if (d.open) d.close();
+    },
+    anyOpen: () => Object.values(dialogs).some((d) => d.open),
+  };
 }

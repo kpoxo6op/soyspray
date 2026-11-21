@@ -28,6 +28,10 @@ export function createUI({ root, player, timeline, stage, reducedMotion, onActiv
   const chapterTitle = $('chapterTitle');
   const stepText = $('stepText');
   const stepTag = $('stepTag');
+  const stepLink = document.createElement('a');
+  stepLink.className = 'step-link';
+  stepLink.hidden = true;
+  caption.appendChild(stepLink);
   const crumb = $('crumbChapter');
   const live = $('live');
   const timeNow = $('timeNow');
@@ -102,10 +106,13 @@ export function createUI({ root, player, timeline, stage, reducedMotion, onActiv
     probe.style.cssText = `position:absolute;visibility:hidden;pointer-events:none;left:0;top:0;width:${caption.clientWidth}px;min-height:0`;
     caption.parentNode.appendChild(probe);
     const text = probe.querySelector('.step-text');
+    const link = probe.querySelector('.step-link');
     let max = 0;
     for (const c of chapters) {
       for (const b of c.beats) {
         text.textContent = b.text;
+        link.hidden = !b.link;
+        link.textContent = b.link?.text || '';
         max = Math.max(max, probe.offsetHeight);
       }
     }
@@ -119,6 +126,10 @@ export function createUI({ root, player, timeline, stage, reducedMotion, onActiv
     chapterNo.textContent = String(c.index + 1);
     chapterTitle.textContent = c.title;
     stepText.textContent = b.text;
+    stepLink.hidden = !b.link;
+    stepLink.textContent = b.link?.text || '';
+    if (b.link) stepLink.setAttribute('href', b.link.href);
+    else stepLink.removeAttribute('href');
     stepTag.hidden = !b.check;
     caption.classList.toggle('is-check', !!b.check);
     crumb.textContent = `${c.index + 1} of ${chapters.length} · ${c.title}`;
@@ -261,9 +272,26 @@ export function createUI({ root, player, timeline, stage, reducedMotion, onActiv
       case ' ':
       case 'k':
       case 'K':
+      case 'MediaPlayPause':
         if (e.key === ' ' && tag === 'BUTTON') return;
         if (player.playing) player.pause();
         else player.play();
+        break;
+      case 'MediaPlay':
+        player.play();
+        break;
+      case 'MediaPause':
+        player.pause();
+        break;
+      case 'MediaStop':
+        player.pause();
+        player.seek(0);
+        break;
+      case 'MediaFastForward':
+        player.seekBy(10);
+        break;
+      case 'MediaRewind':
+        player.seekBy(-10);
         break;
       case 'ArrowLeft':
         if (jump) player.prevChapter();
@@ -275,10 +303,12 @@ export function createUI({ root, player, timeline, stage, reducedMotion, onActiv
         break;
       case 'ArrowUp':
       case 'PageUp':
+      case 'MediaTrackNext':
         player.nextChapter();
         break;
       case 'ArrowDown':
       case 'PageDown':
+      case 'MediaTrackPrevious':
         player.prevChapter();
         break;
       case ',':

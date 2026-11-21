@@ -284,7 +284,7 @@
   "summary": "Buy the kit, print the pod, learn to solder and float the first orb of the indoor helium camera robot.",
   "path": "/pearl/",
   "store": "pearl.stage0.done",
-  "link": "time",
+  "link": "id",
   "chapters": [
    {
     "id": "meet",
@@ -299,14 +299,14 @@
     "title": "Buy the kit",
     "section": "Stage 0",
     "start": 52,
-    "length": 35,
-    "goal": "Order the online parts first, then make one trip to Jaycar."
+    "length": 36,
+    "goal": "Everything came by post except a few things still to buy."
    },
    {
     "id": "load",
     "title": "Load the printer",
     "section": "Stage 0",
-    "start": 87,
+    "start": 88,
     "length": 104,
     "goal": "Feed the leftover PETG into your P1S and print one side duct."
    },
@@ -314,23 +314,23 @@
     "id": "print",
     "title": "Print the pod",
     "section": "Stage 0",
-    "start": 191,
+    "start": 192,
     "length": 63,
     "goal": "Six parts on your P1S, weighed and test-fitted."
    },
    {
     "id": "solder",
-    "title": "Learn to solder",
+    "title": "Solder the switched lead",
     "section": "Stage 0",
-    "start": 254,
-    "length": 92,
-    "goal": "Practise until every joint looks like the good one."
+    "start": 255,
+    "length": 38,
+    "goal": "Put a switch in a spare battery lead, add a divider, and check both with the meter."
    },
    {
     "id": "float",
     "title": "Float the orb",
     "section": "Stage 0",
-    "start": 346,
+    "start": 293,
     "length": 67,
     "goal": "Fill one balloon and measure what it can lift. This decides the pod."
    },
@@ -338,9 +338,67 @@
     "id": "spin",
     "title": "Spin a fan",
     "section": "Stage 0",
-    "start": 413,
-    "length": 51,
+    "start": 360,
+    "length": 52,
     "goal": "Solder a motor, fit it in a printed duct and weigh its push."
+   }
+  ]
+ },
+ {
+  "slug": "soldering",
+  "title": "Soldering, first joints",
+  "summary": "Set up the pen iron, make and fix your first joints, build the traffic-light kit, join two wires and solder Pearl-size pads.",
+  "path": "/soldering/",
+  "store": "explain.soldering.done",
+  "link": "id",
+  "chapters": [
+   {
+    "id": "bench",
+    "title": "Set up the bench",
+    "section": "First joints",
+    "start": 0,
+    "length": 58,
+    "goal": "A safe bench and an iron at 330 °C."
+   },
+   {
+    "id": "first",
+    "title": "Your first joint",
+    "section": "First joints",
+    "start": 58,
+    "length": 78,
+    "goal": "One resistor soldered and clipped."
+   },
+   {
+    "id": "fix",
+    "title": "Read the joint and fix it",
+    "section": "First joints",
+    "start": 136,
+    "length": 57,
+    "goal": "Name each fault and repair it."
+   },
+   {
+    "id": "light",
+    "title": "Build the traffic light",
+    "section": "First joints",
+    "start": 193,
+    "length": 68,
+    "goal": "The practice kit soldered and lit."
+   },
+   {
+    "id": "wires",
+    "title": "Join two wires",
+    "section": "First joints",
+    "start": 261,
+    "length": 58,
+    "goal": "A splice that holds a tug and beeps."
+   },
+   {
+    "id": "small",
+    "title": "Pearl-size joints, then pack up",
+    "section": "First joints",
+    "start": 319,
+    "length": 58,
+    "goal": "Four wires on a spare driver board and a clean bench."
    }
   ]
  },
