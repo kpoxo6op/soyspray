@@ -53,6 +53,8 @@ export function startGuide({ chapters, buildScene, canvasLabel, loop: loopDefaul
     const direct = makeDirector(stage, S, timeline);
     const player = new Player(timeline);
     const film = timeline.chapters.some((c) => c.beats.some((b) => b.film)) ? createFilm({ container: stageEl }) : null;
+    const allBeats = timeline.chapters.flatMap((c) => c.beats);
+    const beatAt = (t) => allBeats.find((b) => t < b.end) || allBeats[allBeats.length - 1];
     const looping = loopWanted(window.location.search, loopDefault);
     const cancelLoop = autoLoop(player, looping, reducedMotion, stage.controls);
     let sheets = null;
@@ -91,11 +93,15 @@ export function startGuide({ chapters, buildScene, canvasLabel, loop: loopDefaul
       last = now;
       player.tick(dt);
       if (player.playing && dt > 0) stage.adapt(dt * 1000);
-      const shot = direct(player.time);
-      // while a rendered film covers the stage, skip the WebGL frame so the TV spends its time on the video
-      const filmOn = film ? film.update(shot.beat, player.time - shot.beat.start, player.playing) : false;
-      stage.controls.update();
-      if (!filmOn) stage.render();
+      // while a rendered film covers the stage, skip posing the 3D scene and the WebGL frame entirely, so the TV
+      // spends its time on the video (measured 21 Nov: posing + drawing under the film cost 60+ ms a frame)
+      const beat = film ? beatAt(player.time) : null;
+      const filmOn = beat ? film.update(beat, player.time - beat.start, player.playing) : false;
+      if (!filmOn) {
+        direct(player.time);
+        stage.controls.update();
+        stage.render();
+      }
       // Damping keeps the camera gliding after a drag: allow it 90 quiet frames, then rest.
       const more = player.playing || (stage.controls.enableDamping && idleFrames++ <= 90);
       if (!more) last = 0;
