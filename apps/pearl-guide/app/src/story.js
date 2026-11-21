@@ -924,8 +924,8 @@ const spinFan = {
       labels: (S, u) => (u > 0.6 ? [{ id: 'z', text: 'zeroed', at: S.node('scale'), side: 'r' }] : []),
     },
     {
-      d: 9,
-      text: 'Plug in the battery for five seconds. The fan blows upwards, so the scale shows how hard it pushes down.',
+      d: 10,
+      text: 'Plug in the battery for five seconds, fingers clear. The fan blows upwards, so the scale shows how hard it pushes down.',
       cam: { p: [0.2, 0.15, 0.24], t: [RIG[0], 0.06, RIG[1]], fov: 30 },
       act(S, u, k) {
         const on = smooth(span(u, 0.2, 0.3)) * (1 - smooth(span(u, 0.85, 0.95)));
