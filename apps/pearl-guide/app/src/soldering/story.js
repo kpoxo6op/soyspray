@@ -18,7 +18,7 @@ export const GUIDE = {
   title: 'Soldering, first joints',
   summary: 'Set up the pen iron, make and fix your first joints, build the traffic-light kit, join two wires and solder Pearl-size pads.',
   section: 'First joints',
-  lede: 'Six short chapters for the bench, about 6 minutes a loop. Each one ends at a checkpoint and a fine place to stop.',
+  lede: 'You practise on the traffic-light kit board from silver bag 13, which you have. Six short chapters, each ending at a fine place to stop.',
 };
 
 const MM = 0.001;

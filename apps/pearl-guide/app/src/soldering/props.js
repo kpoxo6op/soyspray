@@ -634,16 +634,7 @@ export function trafficPrint() {
   const mm = 10;
   g.fillStyle = '#1d6b3c'; // the same plain green board as its other face
   g.fillRect(0, 0, W, H);
-  // the hole grid, 2.54 mm pitch
-  g.fillStyle = '#c9ccd0';
-  for (let i = -9; i <= 8; i++) {
-    for (let j = -7; j <= 6; j++) {
-      const [x, y] = px((i + 0.5) * 2.54, (j + 0.5) * 2.54);
-      g.beginPath();
-      g.arc(x, y, 0.45 * mm, 0, Math.PI * 2);
-      g.fill();
-    }
-  }
+  // no hole grid: his kit board is a printed board with holes only where parts go, not a perforated board
   g.strokeStyle = '#f4f1ea';
   g.fillStyle = '#f4f1ea';
   g.lineWidth = 0.28 * mm;
