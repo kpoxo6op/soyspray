@@ -1328,7 +1328,7 @@ const small = {
 export const CHAPTERS = [bench, first, fix, light, wires, small];
 
 // Every beat plays video so the TV never draws WebGL (measured 21 Nov on the Sony TV: live 3D 61-81 ms a frame,
-// the same page as plain MP4 9 ms). Chapters 1-4 are Blender films with captions burned in; the beats still
+// the same page as plain MP4 9 ms). Chapters 1-5 are Blender films with captions burned in; the beats still
 // drawn in 3D were recorded from this player frame by frame into one clip per chapter (~/code/pearl-solder-film/capture_all.sh).
 first.beats[1].film = { src: 'films/ch2b2.mp4', from: 0 };
 first.beats[6].film = { src: 'films/ch2b7.mp4', from: 0 };
