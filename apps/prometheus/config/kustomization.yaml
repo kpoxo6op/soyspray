@@ -86,6 +86,7 @@ resources:
   - alerts/domain-health.yaml
   - alerts/authentik.yaml
   - alerts/cnpg.yaml
+  - alerts/longhorn.yaml
   - alerts/node-hardware.yaml
   - alerts/job-failures.yaml
   - alerts/runtime-signals.yaml
