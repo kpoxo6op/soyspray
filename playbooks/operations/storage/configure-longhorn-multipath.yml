@@ -1,0 +1,87 @@
+---
+# Keep multipathd away from every Longhorn iSCSI LUN on every node.
+# Longhorn LUNs reuse WWIDs per LUN slot, so after a node reboot multipathd can
+# group a fresh Longhorn device into a stale map and block its mount
+# ("already mounted or mount point busy"). The Longhorn troubleshooting guide
+# recommends excluding the Longhorn target (vendor IET, product VIRTUAL-DISK).
+- name: Exclude Longhorn LUNs from multipath on all nodes
+  hosts: kube_node
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Create the multipath configuration fragment directory
+      ansible.builtin.file:
+        path: /etc/multipath/conf.d
+        state: directory
+        mode: '0755'
+
+    - name: Exclude the Longhorn iSCSI target from multipath
+      ansible.builtin.copy:
+        dest: /etc/multipath/conf.d/soyspray-longhorn.conf
+        mode: '0644'
+        content: |
+          # Managed by Soyspray configure-longhorn-multipath.yml.
+          blacklist {
+              device {
+                  vendor "IET"
+                  product "VIRTUAL-DISK"
+              }
+          }
+      register: longhorn_blacklist
+
+    - name: Read the effective multipath configuration
+      ansible.builtin.command:
+        argv: [multipath, '-t']
+      register: longhorn_multipath_config
+      changed_when: false
+      check_mode: false
+
+    - name: Require the Longhorn exclusion in the effective configuration
+      ansible.builtin.assert:
+        that: >-
+          longhorn_multipath_config.stdout is search(
+            'blacklist\s*\{(.|\n)*vendor\s+"IET"\s*\n\s*product\s+"VIRTUAL-DISK"')
+      when: not ansible_check_mode
+
+    - name: Reload multipath without restarting other storage
+      ansible.builtin.command:
+        argv: [multipathd, reconfigure]
+      changed_when: true
+      when:
+        - longhorn_blacklist.changed
+        - not ansible_check_mode
+
+    - name: Find unused maps built only from Longhorn LUNs
+      ansible.builtin.command:
+        argv: [python3, '-']
+        stdin: |
+          import json, pathlib, subprocess
+          stale = []
+          for dm in pathlib.Path('/sys/block').glob('dm-*'):
+              uuid = (dm / 'dm/uuid').read_text().strip()
+              if not uuid.startswith('mpath-'):
+                  continue
+              slaves = [s.name for s in (dm / 'slaves').iterdir()]
+              def target(name):
+                  dev = pathlib.Path('/sys/block') / name / 'device'
+                  return ((dev / 'vendor').read_text().strip(), (dev / 'model').read_text().strip())
+              if not slaves or any(target(s) != ('IET', 'VIRTUAL-DISK') for s in slaves):
+                  continue
+              if list((dm / 'holders').iterdir()):
+                  continue
+              name = (dm / 'dm/name').read_text().strip()
+              opened = subprocess.check_output(
+                  ['dmsetup', 'info', '-C', '--noheadings', '-o', 'open', name], text=True)
+              if int(opened.strip()) == 0:
+                  stale.append(name)
+          print(json.dumps(stale))
+      register: longhorn_stale_maps
+      changed_when: false
+      check_mode: false
+
+    - name: Release only unused Longhorn maps
+      ansible.builtin.command:
+        argv: [multipath, '-f', "{{ item }}"]
+      changed_when: true
+      loop: "{{ longhorn_stale_maps.stdout | from_json }}"
+      when: not ansible_check_mode
