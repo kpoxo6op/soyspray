@@ -171,7 +171,7 @@ export function startGuide({ chapters, buildScene, canvasLabel, loop: loopDefaul
     loading.hidden = true;
     root.classList.add('ready');
     window.__pearl = { player, timeline, stage, S, sheets };
-    autoplay(player, target, looping, reducedMotion, () => sheets.anyOpen());
+    autoplay(player, target, looping, reducedMotion, () => sheets.anyOpen() || !!document.querySelector('.intro'));
   }
 
   // Compile every shader before playback. Without this each new object compiles its shaders the first time it
