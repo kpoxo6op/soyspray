@@ -28,6 +28,7 @@ export function createUI({ root, player, timeline, stage, reducedMotion, onActiv
   const chapterTitle = $('chapterTitle');
   const stepText = $('stepText');
   const stepTag = $('stepTag');
+  const stepNo = $('stepNo');
   const stepLink = document.createElement('a');
   stepLink.className = 'step-link';
   stepLink.hidden = true;
@@ -59,9 +60,9 @@ export function createUI({ root, player, timeline, stage, reducedMotion, onActiv
     const el = document.createElement('div');
     el.className = 'seg';
     el.style.flexGrow = String(c.end - c.start);
-    el.innerHTML = '<div class="buf"></div><div class="fill"></div>';
+    el.innerHTML = `<div class="buf"></div><div class="fill"></div><span class="seg-title">${c.index + 1}. ${c.title}</span>`;
     track.appendChild(el);
-    return { el, fill: el.lastChild, buf: el.firstChild, c };
+    return { el, fill: el.children[1], buf: el.firstChild, c };
   });
 
   let geoCache = null;
@@ -126,13 +127,15 @@ export function createUI({ root, player, timeline, stage, reducedMotion, onActiv
     chapterNo.textContent = String(c.index + 1);
     chapterTitle.textContent = c.title;
     stepText.textContent = b.text;
+    stepNo.textContent = `Step ${c.beats.indexOf(b) + 1} of ${c.beats.length}`;
+    for (const s of segs) s.el.classList.toggle('is-current', s.c === c);
     stepLink.hidden = !b.link;
     stepLink.textContent = b.link?.text || '';
     if (b.link) stepLink.setAttribute('href', b.link.href);
     else stepLink.removeAttribute('href');
     stepTag.hidden = !b.check;
     caption.classList.toggle('is-check', !!b.check);
-    crumb.textContent = `${c.index + 1} of ${chapters.length} · ${c.title}`;
+    crumb.textContent = `Chapter ${c.index + 1} of ${chapters.length} · ${c.title}`;
     clearTimeout(liveTimer);
     liveTimer = setTimeout(() => {
       live.textContent = `${c.title}. ${b.check ? 'Checkpoint. ' : ''}${b.text}`;
