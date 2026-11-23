@@ -12,6 +12,22 @@ export function createFilm({ container, base = '' }) {
   video.setAttribute('aria-hidden', 'true');
   video.hidden = true;
   container.appendChild(video);
+  // ?stats shows the browser's own playback counters in a corner, to measure smoothness on the TV
+  if (/[?&]stats\b/.test(location.search)) {
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;right:12px;top:60px;z-index:9;font:600 22px monospace;color:#7f7;background:#000c;padding:6px 10px';
+    document.body.appendChild(box);
+    let lastT = performance.now(), lastF = 0, lastD = 0;
+    setInterval(() => {
+      const q = video.getVideoPlaybackQuality ? video.getVideoPlaybackQuality() : null;
+      const now = performance.now();
+      const tot = q ? q.totalVideoFrames : (video.webkitDecodedFrameCount || 0);
+      const drop = q ? q.droppedVideoFrames : (video.webkitDroppedFrameCount || 0);
+      const fps = ((tot - lastF) * 1000) / (now - lastT);
+      box.textContent = `video ${fps.toFixed(1)} fps  dropped ${drop - lastD}/2s  total ${tot}/${drop}  ${video.videoWidth}x${video.videoHeight}`;
+      lastT = now; lastF = tot; lastD = drop;
+    }, 2000);
+  }
   let src = '';
   let lastVT = -1;
   return {
