@@ -101,6 +101,7 @@ export function createUI({ root, player, timeline, stage, reducedMotion, onActiv
 
   // Keep the caption block the height of its longest text so the 3D framing never jumps.
   function reserveCaptionHeight() {
+    if (document.body.classList.contains('tvui')) return;
     const probe = caption.cloneNode(true);
     probe.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
     probe.removeAttribute('id');
@@ -354,19 +355,26 @@ export function createUI({ root, player, timeline, stage, reducedMotion, onActiv
   let idleTimer = 0;
   function setIdle(on) {
     hud.classList.toggle('idle', on);
+    root.classList.toggle('idle', on);
   }
   function activity() {
     setIdle(false);
     clearTimeout(idleTimer);
-    if (player.playing) idleTimer = setTimeout(() => player.playing && !hud.matches(':hover, :focus-within') && setIdle(true), IDLE_MS);
+    if (player.playing) idleTimer = setTimeout(() => player.playing && (document.body.classList.contains('tvui') || !hud.matches(':hover, :focus-within')) && setIdle(true), IDLE_MS);
     onActivity?.();
   }
-  for (const ev of ['pointermove', 'pointerdown', 'wheel', 'touchstart']) window.addEventListener(ev, activity, { passive: true });
+  for (const ev of ['pointermove', 'pointerdown', 'wheel', 'touchstart', 'keydown']) window.addEventListener(ev, activity, { passive: true });
   hud.addEventListener('focusin', () => setIdle(false));
 
+  let lastTick = -1;
   player.on((reason) => {
     if (reason === 'play') activity();
-    update();
+    // Captions and progress change on a human timescale. Leave the decoder and compositor
+    // free to present each video frame on slower TV browsers.
+    if (reason !== 'tick' || !document.body.classList.contains('tvui') || Math.floor(player.time * 5) !== lastTick) {
+      lastTick = Math.floor(player.time * 5);
+      update();
+    }
   });
   let resizeTimer = 0;
   window.addEventListener('resize', () => {

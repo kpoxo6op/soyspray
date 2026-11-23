@@ -40,6 +40,8 @@ at a checkpoint, and `#bench`, `#first`, `#fix`, `#light`, `#wires` or `#small` 
 one. The page loops by default (`?loop=0` turns that off) so it can run on the TV at
 the bench. Its Kit panel shows the soldering part of Pearl's list.
 
+On the soldering page the film fills the player, with step captions over the picture. During playback the header and transport hide after inactivity. Move the pointer or use the remote to bring them back.
+
 Both pages accept `#<chapter-id>`, `#t=<seconds>`, `#chapters`, `#kit` and
 `#t=<seconds>&kit` on load and when the hash changes. Pearl also accepts `#files`.
 Playback writes `#t=` so a reload restores that position. Looping pages start playing

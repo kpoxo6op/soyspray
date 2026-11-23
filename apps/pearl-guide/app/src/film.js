@@ -15,16 +15,6 @@ export function createFilm({ container, base = '' }) {
   document.body.classList.add('tvui');   // every beat is a film: TV-app layout (style.css, body.tvui)
   // Opening card: what we are making, before any step (Boris, 23 Nov: "show at the start what we are doing")
   if (base === '' && !sessionStorage.getItem('introSeen')) showIntro();
-  // the film sits between the top bar and the bottom panel, never under them
-  const fit = () => {
-    const top = document.getElementById('top'), hud = document.getElementById('hud');
-    if (top) document.documentElement.style.setProperty('--tv-top', `${top.getBoundingClientRect().bottom}px`);
-    if (hud) document.documentElement.style.setProperty('--tv-bottom', `${hud.offsetHeight}px`);
-  };
-  if (window.ResizeObserver) for (const id of ['top', 'hud']) { const el = document.getElementById(id); if (el) new ResizeObserver(fit).observe(el); }
-  window.addEventListener('resize', fit);
-  setTimeout(fit, 0);
-  setTimeout(fit, 1500);
   // ?stats shows the browser's own playback counters in a corner, to measure smoothness on the TV
   if (/[?&]stats\b/.test(location.search)) {
     const box = document.createElement('div');
@@ -79,7 +69,7 @@ export function createFilm({ container, base = '' }) {
         video.currentTime = target;
         lastVT = -1;
       }
-      if (playing && video.paused) video.play().catch(() => {});
+      if (playing && video.paused && !video.ended) video.play().catch(() => {});
       if (!playing && !video.paused) video.pause();
       return true;
     },
