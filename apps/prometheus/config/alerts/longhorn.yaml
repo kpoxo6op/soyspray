@@ -1,0 +1,40 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: longhorn
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: longhorn.availability
+      rules:
+        # After the 2026-11-20 node-1 reboot, 24 volumes stayed degraded for
+        # three days behind one orphaned rebuild. A one-at-a-time rebuild queue
+        # clears a node in hours, so six hours means it is stuck.
+        - alert: LonghornVolumeDegradedTooLong
+          expr: |
+            max by (volume, pvc, pvc_namespace) (longhorn_volume_robustness == 2)
+          for: 6h
+          labels:
+            severity: warning
+          annotations:
+            summary: Longhorn volume has been degraded for six hours
+            description: >-
+              {{ $labels.pvc_namespace }}/{{ $labels.pvc }} ({{ $labels.volume }})
+              is running with fewer replicas than requested. Check for a replica
+              stuck in rebuilding that is absent from the engine's replica map;
+              it blocks the node's rebuild queue.
+
+        - alert: LonghornVolumeFaulted
+          expr: |
+            max by (volume, pvc, pvc_namespace) (longhorn_volume_robustness == 3)
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Longhorn volume is faulted
+            description: >-
+              {{ $labels.pvc_namespace }}/{{ $labels.pvc }} ({{ $labels.volume }})
+              has no healthy replica. Preserve the volume and follow the app's
+              restore procedure.
