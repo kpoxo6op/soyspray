@@ -1,0 +1,41 @@
+rule_files:
+- longhorn.yaml
+evaluation_interval: 1m
+tests:
+- name: Degraded pages after six hours, healthy never, faulted after five minutes
+  interval: 1m
+  input_series:
+  - series: longhorn_volume_robustness{volume="pvc-a",pvc="agents-evidence",pvc_namespace="agents",node="node-0",instance="m0"}
+    values: 2+0x600
+  - series: longhorn_volume_robustness{volume="pvc-b",pvc="data",pvc_namespace="boys",node="node-1",instance="m1"}
+    values: 1+0x600
+  - series: longhorn_volume_robustness{volume="pvc-c",pvc="db",pvc_namespace="media",node="node-2",instance="m2"}
+    values: 3+0x600
+  alert_rule_test:
+  - alertname: LonghornVolumeDegradedTooLong
+    eval_time: 5h
+    exp_alerts: []
+  - alertname: LonghornVolumeDegradedTooLong
+    eval_time: 7h
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        volume: pvc-a
+        pvc: agents-evidence
+        pvc_namespace: agents
+      exp_annotations:
+        summary: Longhorn volume has been degraded for six hours
+        description: >-
+          agents/agents-evidence (pvc-a) is running with fewer replicas than requested. Check for a replica stuck in rebuilding that is absent from the engine's replica map; it blocks the node's rebuild queue.
+  - alertname: LonghornVolumeFaulted
+    eval_time: 20m
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        volume: pvc-c
+        pvc: db
+        pvc_namespace: media
+      exp_annotations:
+        summary: Longhorn volume is faulted
+        description: >-
+          media/db (pvc-c) has no healthy replica. Preserve the volume and follow the app's restore procedure.
