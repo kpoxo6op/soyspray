@@ -78,6 +78,21 @@ Both replica-capacity operations run on the laptop with its existing kubeconfig
 and Kubernetes Python client in `soyspray-venv`; no extra Python packages are
 installed on cluster nodes. Override `kubeconfig_path` for another private config.
 
+## Longhorn LUNs excluded from multipath
+
+[`configure-longhorn-multipath.yml`](configure-longhorn-multipath.yml) is the
+standing fix. It excludes the Longhorn iSCSI target (vendor `IET`, product
+`VIRTUAL-DISK`) from multipath on every node and releases only unused maps
+built entirely from Longhorn LUNs. Longhorn reuses LUN WWIDs, so the old
+per-WWID exclusion could not cover every volume; without this, a node reboot
+can leave a pod stuck on `already mounted or mount point busy` (Prometheus,
+2026-11-20). Run it after adding or reinstalling a node:
+
+```sh
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu \
+  playbooks/operations/storage/configure-longhorn-multipath.yml
+```
+
 ## Longhorn mounts during failover
 
 `repair-longhorn-multipath.yml` applies the same device/WWID, exclusive-slave and
