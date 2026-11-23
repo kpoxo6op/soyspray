@@ -1,0 +1,104 @@
+---
+# Rebuild one broken CNPG standby from the current primary.
+# Use it when a standby cannot rejoin (diverged timeline, pg_rewind fails).
+# It deletes only the named standby's pod and PVCs; CNPG then clones a new
+# standby from the primary under the next instance serial.
+- name: Rebuild one diverged CNPG standby
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  vars:
+    kubeconfig_path: /etc/kubernetes/admin.conf
+    cnpg_backup_max_age_hours: 26
+  tasks:
+    - name: Require an explicit cluster and instance
+      ansible.builtin.assert:
+        that:
+          - cnpg_namespace | default('') is match('^[a-z0-9-]+$')
+          - cnpg_cluster | default('') is match('^[a-z0-9-]+$')
+          - cnpg_instance | default('') is match('^' ~ cnpg_cluster | default('x') ~ '-[0-9]+$')
+
+    - name: Read the CNPG cluster
+      kubernetes.core.k8s_info:
+        api_version: postgresql.cnpg.io/v1
+        kind: Cluster
+        namespace: "{{ cnpg_namespace }}"
+        name: "{{ cnpg_cluster }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: cnpg
+
+    - name: Read the cluster's backups
+      kubernetes.core.k8s_info:
+        api_version: postgresql.cnpg.io/v1
+        kind: Backup
+        namespace: "{{ cnpg_namespace }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: cnpg_backups
+
+    - name: Select the newest completed backup
+      ansible.builtin.set_fact:
+        cnpg_status: "{{ cnpg.resources[0].status }}"
+        cnpg_last_backup: >-
+          {{ cnpg_backups.resources
+             | selectattr('spec.cluster.name', 'equalto', cnpg_cluster)
+             | selectattr('status.phase', 'defined')
+             | selectattr('status.phase', 'equalto', 'completed')
+             | map(attribute='status.stoppedAt') | sort | last | default('') }}
+
+    - name: Require a healthy primary, a recent backup and a non-primary target
+      ansible.builtin.assert:
+        that:
+          - cnpg.resources | length == 1
+          - cnpg_status.currentPrimary == cnpg_status.targetPrimary
+          - cnpg_instance != cnpg_status.currentPrimary
+          - cnpg_status.currentPrimary in cnpg_status.instancesStatus.healthy | default([])
+          - cnpg_instance not in cnpg_status.instancesStatus.healthy | default([])
+          - cnpg_last_backup | length > 0
+          - >-
+            ((now(utc=true) - (cnpg_last_backup | to_datetime('%Y-%m-%dT%H:%M:%SZ'))).total_seconds()
+            / 3600) < cnpg_backup_max_age_hours
+        fail_msg: >-
+          Refusing: primary={{ cnpg_status.currentPrimary | default('?') }}
+          target={{ cnpg_status.targetPrimary | default('?') }}
+          healthy={{ cnpg_status.instancesStatus.healthy | default([]) }}
+          last_backup={{ cnpg_last_backup }}
+
+    - name: Read the standby's PVCs
+      kubernetes.core.k8s_info:
+        kind: PersistentVolumeClaim
+        namespace: "{{ cnpg_namespace }}"
+        label_selectors:
+          - cnpg.io/cluster={{ cnpg_cluster }}
+          - cnpg.io/instanceName={{ cnpg_instance }}
+        kubeconfig: "{{ kubeconfig_path }}"
+      register: cnpg_pvcs
+
+    - name: Require only the standby's own data PVCs
+      ansible.builtin.assert:
+        that:
+          - cnpg_pvcs.resources | length in [1, 2]
+          - item.metadata.labels['cnpg.io/pvcRole'] | default('') in ['PG_DATA', 'PG_WAL']
+      loop: "{{ cnpg_pvcs.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Delete the standby's PVCs
+      kubernetes.core.k8s:
+        state: absent
+        kind: PersistentVolumeClaim
+        namespace: "{{ cnpg_namespace }}"
+        name: "{{ item.metadata.name }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        wait: false
+      loop: "{{ cnpg_pvcs.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+
+    - name: Delete the standby's pod so its PVCs are released
+      kubernetes.core.k8s:
+        state: absent
+        kind: Pod
+        namespace: "{{ cnpg_namespace }}"
+        name: "{{ cnpg_instance }}"
+        kubeconfig: "{{ kubeconfig_path }}"
+        wait: true

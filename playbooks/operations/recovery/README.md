@@ -455,3 +455,19 @@ The recovery-input README names the include set and root of trust. One human
 step remains: store the recovery Vault password, Restic password, restricted S3
 AWS key pair and repository address in an independently accessible password
 manager. No independent unlock copy was established by the automated restore.
+
+## Rebuild a diverged CNPG standby
+
+When a standby cannot rejoin its primary (for example `requested timeline does
+not contain minimum recovery point` or `pg_rewind: could not find common
+ancestor`), `rebuild-cnpg-replica.yml` deletes only that standby's pod and PVCs.
+CNPG then clones a fresh standby from the primary under the next serial. It
+refuses a primary, a healthy instance, an unsettled switchover, or a cluster
+whose newest completed backup is older than 26 hours. Take a logical dump first
+when the primary is the only healthy copy.
+
+```sh
+ansible-playbook -i inventory/soycluster/hosts.yml --become --become-user=root --user ubuntu \
+  playbooks/operations/recovery/rebuild-cnpg-replica.yml \
+  -e cnpg_namespace=authentik -e cnpg_cluster=authentik-postgresql -e cnpg_instance=authentik-postgresql-2
+```
