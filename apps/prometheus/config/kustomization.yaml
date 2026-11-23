@@ -85,6 +85,7 @@ resources:
   - alerts/cert-expiry.yaml
   - alerts/domain-health.yaml
   - alerts/authentik.yaml
+  - alerts/cnpg.yaml
   - alerts/node-hardware.yaml
   - alerts/job-failures.yaml
   - alerts/runtime-signals.yaml
