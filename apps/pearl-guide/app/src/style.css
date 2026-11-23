@@ -1036,9 +1036,13 @@ button {
   height: 100%;
   object-fit: cover;
   background: #000;
-  z-index: 1;
+  z-index: 0;            /* not above the HUD: the step text and transport must stay on top of the film */
 }
 
 body.has-film .labels {
   visibility: hidden;
+}
+
+body.has-film .hud {
+  z-index: 2;
 }
