@@ -12,6 +12,35 @@ export function createFilm({ container, base = '' }) {
   video.setAttribute('aria-hidden', 'true');
   video.hidden = true;
   container.appendChild(video);
+  document.body.classList.add('tvui');   // every beat is a film: TV-app layout (style.css, body.tvui)
+  // Opening card: what we are making, before any step (Boris, 23 Nov: "show at the start what we are doing")
+  if (base === '' && !sessionStorage.getItem('introSeen')) showIntro();
+  // the film sits between the top bar and the bottom panel, never under them
+  const fit = () => {
+    const top = document.getElementById('top'), hud = document.getElementById('hud');
+    if (top) document.documentElement.style.setProperty('--tv-top', `${top.getBoundingClientRect().bottom}px`);
+    if (hud) document.documentElement.style.setProperty('--tv-bottom', `${hud.offsetHeight}px`);
+  };
+  if (window.ResizeObserver) for (const id of ['top', 'hud']) { const el = document.getElementById(id); if (el) new ResizeObserver(fit).observe(el); }
+  window.addEventListener('resize', fit);
+  setTimeout(fit, 0);
+  setTimeout(fit, 1500);
+  // ?stats shows the browser's own playback counters in a corner, to measure smoothness on the TV
+  if (/[?&]stats\b/.test(location.search)) {
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;right:12px;top:60px;z-index:9;font:600 22px monospace;color:#7f7;background:#000c;padding:6px 10px';
+    document.body.appendChild(box);
+    let lastT = performance.now(), lastF = 0, lastD = 0;
+    setInterval(() => {
+      const q = video.getVideoPlaybackQuality ? video.getVideoPlaybackQuality() : null;
+      const now = performance.now();
+      const tot = q ? q.totalVideoFrames : (video.webkitDecodedFrameCount || 0);
+      const drop = q ? q.droppedVideoFrames : (video.webkitDroppedFrameCount || 0);
+      const fps = ((tot - lastF) * 1000) / (now - lastT);
+      box.textContent = `video ${fps.toFixed(1)} fps  dropped ${drop - lastD}/2s  total ${tot}/${drop}  ${video.videoWidth}x${video.videoHeight}`;
+      lastT = now; lastF = tot; lastD = drop;
+    }, 2000);
+  }
   let src = '';
   let lastVT = -1;
   return {
@@ -57,3 +86,43 @@ export function createFilm({ container, base = '' }) {
     video,
   };
 }
+
+const INTRO_CHAPTERS = [
+  ['Set up the bench', 'a safe bench and the iron at 330 °C'],
+  ['Your first joint', 'one resistor soldered and its leg cut'],
+  ['Read the joint and fix it', 'spot a bad joint and repair it'],
+  ['Build the traffic light', 'the practice kit soldered and lit'],
+  ['Join two wires', 'a covered splice that holds a tug'],
+  ['Pearl-size joints, then pack up', 'four wires on a spare driver board'],
+];
+
+function showIntro() {
+  const el = document.createElement('section');
+  el.className = 'intro';
+  el.innerHTML = `
+    <div class="intro-body">
+      <div class="intro-text">
+        <h1>Soldering: your first joints</h1>
+        <p class="intro-what">You will solder the practice traffic-light kit until its three lights work, then join two wires and solder four wires onto a spare driver board. Those last joints are the ones Pearl's camera pod needs.</p>
+        <ol class="intro-chapters">${INTRO_CHAPTERS.map(([t, g]) => `<li><b>${t}</b><span>${g}</span></li>`).join('')}</ol>
+        <p class="intro-kit">You need: the CXG iron, solder, flux pen, braid, flush cutters, wire stripper, tweezers, the multimeter, the Jaycar TH1981 third hand and the practice kit.</p>
+        <button type="button" class="intro-start">Start</button>
+      </div>
+      <figure class="intro-pic"><img src="films/intro_done.jpg" alt="The finished traffic-light kit, lit"><figcaption>What you will have at the end of chapter 4</figcaption></figure>
+    </div>`;
+  document.body.appendChild(el);
+  const start = el.querySelector('.intro-start');
+  setTimeout(() => start.focus(), 50);
+  const go = (e) => {
+    if (e) { e.preventDefault(); e.stopPropagation(); }
+    el.remove();
+    document.removeEventListener('keydown', onKey, true);
+    try { sessionStorage.setItem('introSeen', '1'); } catch (_) {}
+    const play = document.getElementById('btnPlay');
+    if (play && play.getAttribute('aria-label') === 'Play') play.click();
+  };
+  const onKey = (e) => { if (['Enter', ' ', 'MediaPlayPause', 'MediaPlay'].includes(e.key)) go(e); };
+  start.addEventListener('click', go);
+  document.addEventListener('keydown', onKey, true);
+}
+
