@@ -1,0 +1,47 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cnpg
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: cnpg.availability
+      rules:
+        # Authentik and Immich require one synchronous standby. A primary with
+        # no streaming standby blocks every write, which is how Authentik sat
+        # down from 2026-11-20 with no page.
+        - alert: CNPGPrimaryWithoutStandby
+          expr: |
+            max by (namespace, cluster) (
+              label_replace(cnpg_pg_replication_streaming_replicas, "cluster", "$1", "job", "[^/]+/(.+)")
+              and on (namespace, pod)
+              cnpg_pg_replication_in_recovery == 0
+            ) < 1
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: CNPG primary has no streaming standby
+            description: >-
+              {{ $labels.namespace }}/{{ $labels.cluster }} has had no streaming
+              standby for ten minutes; synchronous writes are blocked. Check the
+              standby pod logs; a diverged standby is rebuilt with
+              playbooks/operations/recovery/rebuild-cnpg-replica.yml.
+
+        - alert: CNPGStandbyNotStreaming
+          expr: |
+            max by (namespace, pod) (
+              cnpg_pg_replication_in_recovery == 1
+              and on (namespace, pod)
+              cnpg_pg_replication_is_wal_receiver_up == 0
+            )
+          for: 15m
+          labels:
+            severity: warning
+          annotations:
+            summary: CNPG standby is not receiving WAL
+            description: >-
+              {{ $labels.namespace }}/{{ $labels.pod }} is in recovery without a
+              WAL receiver for fifteen minutes.

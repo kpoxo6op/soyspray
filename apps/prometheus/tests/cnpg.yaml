@@ -1,0 +1,51 @@
+rule_files:
+- cnpg.yaml
+evaluation_interval: 1m
+tests:
+- name: A primary with no standby pages; a standby or a replicated primary does not
+  interval: 1m
+  input_series:
+  - series: cnpg_pg_replication_streaming_replicas{namespace="authentik",job="authentik/authentik-postgresql",pod="authentik-postgresql-3"}
+    values: 0+0x30
+  - series: cnpg_pg_replication_in_recovery{namespace="authentik",job="authentik/authentik-postgresql",pod="authentik-postgresql-3"}
+    values: 0+0x30
+  - series: cnpg_pg_replication_streaming_replicas{namespace="authentik",job="authentik/authentik-postgresql",pod="authentik-postgresql-1"}
+    values: 0+0x30
+  - series: cnpg_pg_replication_in_recovery{namespace="authentik",job="authentik/authentik-postgresql",pod="authentik-postgresql-1"}
+    values: 1+0x30
+  - series: cnpg_pg_replication_is_wal_receiver_up{namespace="authentik",job="authentik/authentik-postgresql",pod="authentik-postgresql-1"}
+    values: 0+0x30
+  - series: cnpg_pg_replication_streaming_replicas{namespace="postgresql",job="postgresql/immich-db-a",pod="immich-db-a-3"}
+    values: 2+0x30
+  - series: cnpg_pg_replication_in_recovery{namespace="postgresql",job="postgresql/immich-db-a",pod="immich-db-a-3"}
+    values: 0+0x30
+  - series: cnpg_pg_replication_in_recovery{namespace="postgresql",job="postgresql/immich-db-a",pod="immich-db-a-2"}
+    values: 1+0x30
+  - series: cnpg_pg_replication_is_wal_receiver_up{namespace="postgresql",job="postgresql/immich-db-a",pod="immich-db-a-2"}
+    values: 1+0x30
+  alert_rule_test:
+  - alertname: CNPGPrimaryWithoutStandby
+    eval_time: 5m
+    exp_alerts: []
+  - alertname: CNPGPrimaryWithoutStandby
+    eval_time: 20m
+    exp_alerts:
+    - exp_labels:
+        severity: critical
+        namespace: authentik
+        cluster: authentik-postgresql
+      exp_annotations:
+        summary: CNPG primary has no streaming standby
+        description: >-
+          authentik/authentik-postgresql has had no streaming standby for ten minutes; synchronous writes are blocked. Check the standby pod logs; a diverged standby is rebuilt with playbooks/operations/recovery/rebuild-cnpg-replica.yml.
+  - alertname: CNPGStandbyNotStreaming
+    eval_time: 20m
+    exp_alerts:
+    - exp_labels:
+        severity: warning
+        namespace: authentik
+        pod: authentik-postgresql-1
+      exp_annotations:
+        summary: CNPG standby is not receiving WAL
+        description: >-
+          authentik/authentik-postgresql-1 is in recovery without a WAL receiver for fifteen minutes.
