@@ -32,7 +32,7 @@ spec:
     synchronous:
       method: any
       number: 1
-      dataDurability: required
+      dataDurability: preferred
     parameters:
       archive_timeout: 5min
   backup:
