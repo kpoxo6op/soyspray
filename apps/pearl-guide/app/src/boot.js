@@ -91,7 +91,9 @@ export function startGuide({ chapters, buildScene, canvasLabel, loop: loopDefaul
     const loop = createLoop((now) => {
       const dt = last ? Math.min(0.1, (now - last) / 1000) : 0;
       last = now;
-      player.tick(dt);
+      // while a film plays, its own clock drives the timeline (see film.advance)
+      const vdt = film && player.playing ? film.advance() : null;
+      player.tick(vdt !== null ? vdt : dt);
       if (player.playing && dt > 0) stage.adapt(dt * 1000);
       // while a rendered film covers the stage, skip posing the 3D scene and the WebGL frame entirely, so the TV
       // spends its time on the video (measured 21 Nov: posing + drawing under the film cost 60+ ms a frame)
