@@ -38,9 +38,12 @@ report a complete monitoring or internet failure.
 
 ## Notification noise
 
-Warnings and critical alerts repeat every four hours while unresolved. The
-CPU failover-capacity warning sends its initial notification normally, then
-repeats daily; it remains visible in Prometheus throughout.
+Workload crash loops, unavailable pods, replica mismatches and CPU overcommit
+page at onset and repeat daily while unresolved. Other warnings and critical
+alerts repeat every four hours. A critical crash-loop page covers the matching
+container warning and its owning Deployment's replica mismatch. A mismatch in
+another Deployment still pages, including in the same namespace. Prometheus
+retains all three signals.
 
 `job-failures.yaml` replaces the chart's `KubeJobFailed` rule. A retained failed
 Job stops alerting only when a later-started Job in the same namespace and task
