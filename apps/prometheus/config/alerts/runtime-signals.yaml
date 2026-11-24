@@ -19,13 +19,25 @@ spec:
         # Replaces KubernetesPodCrashLoopingLogs (Loki, critical, 10m).
         # kube-state-metrics carries the same CrashLoopBackOff fact, so the
         # detection no longer depends on log or event delivery.
-        - alert: SoysprayPodCrashLooping
+        - record: soyspray:pod_container_crashloop:recent
           expr: |
             max_over_time(
               kube_pod_container_status_waiting_reason{
                 job="kube-state-metrics", reason="CrashLoopBackOff"
               }[10m]
             ) >= 1
+        - alert: SoysprayPodCrashLooping
+          expr: |
+            (
+              soyspray:pod_container_crashloop:recent
+              * on (cluster, namespace, pod) group_left (deployment)
+              max by (cluster, namespace, pod, deployment) (
+                label_replace(
+                  namespace_workload_pod:kube_pod_owner:relabel{workload_type="deployment"},
+                  "deployment", "$1", "workload", "(.+)"
+                )
+              )
+            ) or on (cluster, namespace, pod, container) soyspray:pod_container_crashloop:recent
           for: 10m
           labels:
             severity: critical
