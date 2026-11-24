@@ -70,11 +70,11 @@ spec:
           requests:
             cpu: 500m
             memory: 1Gi
-            ephemeral-storage: 4Gi
+            ephemeral-storage: 6Gi
           limits:
             cpu: '2'
             memory: 2Gi
-            ephemeral-storage: 8Gi
+            ephemeral-storage: 12Gi
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
@@ -89,7 +89,7 @@ spec:
       volumes:
       - name: work
         emptyDir:
-          sizeLimit: 6Gi
+          sizeLimit: 10Gi
       - name: tmp
         emptyDir:
           sizeLimit: 256Mi
