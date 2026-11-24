@@ -35,6 +35,20 @@ tests:
         alertname: SoysprayPodCrashLooping
         exp_alerts: []
 
+  - name: Crash loop identifies the exact owning deployment for notification inhibition
+    interval: 1m
+    input_series:
+      - series: 'kube_pod_container_status_waiting_reason{job="kube-state-metrics",namespace="media",pod="relay-abc",container="relay",reason="CrashLoopBackOff"}'
+        values: "1x30"
+      - series: 'namespace_workload_pod:kube_pod_owner:relabel{namespace="media",pod="relay-abc",workload_type="deployment",workload="relay"}'
+        values: "1x30"
+    promql_expr_test:
+      - expr: 'count by (namespace, pod, deployment) (ALERTS{alertname="SoysprayPodCrashLooping",alertstate="firing"})'
+        eval_time: 20m
+        exp_samples:
+          - labels: '{namespace="media",pod="relay-abc",deployment="relay"}'
+            value: 1
+
   - name: Volume attach failure pages at critical severity
     interval: 1m
     input_series:

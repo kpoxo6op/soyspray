@@ -226,6 +226,24 @@ alertmanager:
   config:
     global:
       resolve_timeout: 5m
+    # Helm replaces lists. Keep the chart's severity and InfoInhibitor rules.
+    inhibit_rules:
+      - source_matchers: ['severity="critical"']
+        target_matchers: ['severity=~"warning|info"']
+        equal: [namespace, alertname]
+      - source_matchers: ['severity="warning"']
+        target_matchers: ['severity="info"']
+        equal: [namespace, alertname]
+      - source_matchers: ['alertname="InfoInhibitor"']
+        target_matchers: ['severity="info"']
+        equal: [namespace]
+      - target_matchers: ['alertname="InfoInhibitor"']
+      - source_matchers: ['alertname="SoysprayPodCrashLooping"', 'pod!=""', 'container!=""']
+        target_matchers: ['alertname="KubePodCrashLooping"', 'severity="warning"']
+        equal: [cluster, namespace, pod, container]
+      - source_matchers: ['alertname="SoysprayPodCrashLooping"', 'deployment!=""']
+        target_matchers: ['alertname="KubeDeploymentReplicasMismatch"', 'severity="warning"']
+        equal: [cluster, namespace, deployment]
     route:
       group_by: ["alertname","namespace","severity"]
       group_wait: 30s
@@ -245,10 +263,10 @@ alertmanager:
         - matchers:
             - severity=~"none|info"
           receiver: "null"
-        # Capacity planning is actionable, but not a four-hour incident page.
+        # Repeat ongoing workload and capacity incidents once per day.
         - matchers:
-            - alertname="KubeCPUOvercommit"
-            - severity="warning"
+            - alertname=~"KubeCPUOvercommit|SoysprayPodCrashLooping|KubePodCrashLooping|KubeDeploymentReplicasMismatch|KubePodNotReady"
+            - severity=~"warning|critical"
           receiver: "telegram"
           repeat_interval: 24h
         - matchers:
