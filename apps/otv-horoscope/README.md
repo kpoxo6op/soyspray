@@ -77,3 +77,9 @@ sent episodes, so an episode airing during a restart can be missed or sent twice
 Detection depends on the horoscope being read aloud; a silent or captions-only
 version is not recognised. The stream URL is the channel's public CDN address
 and may change; `apps/media-helper/app/channels.json` holds the same source.
+
+The 90-minute stream buffer uses about 5 GiB at the observed bitrate. The
+10 GiB work volume also holds clips and incoming segments during transcription
+and encoding. If old pods still report a scratch-volume eviction after the
+recorder recovers, run `apps/otv-horoscope/cleanup-evictions.yml` with the
+inventory and privilege options above. Use `--check` to preview the cleanup.
