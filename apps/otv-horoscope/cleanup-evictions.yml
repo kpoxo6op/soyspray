@@ -1,0 +1,50 @@
+---
+- name: Remove evicted recorder pods after their replacement is available
+  hosts: kube_control_plane[0]
+  gather_facts: false
+  become: true
+  module_defaults:
+    group/kubernetes.core.k8s:
+      kubeconfig: /etc/kubernetes/admin.conf
+      namespace: otv-horoscope
+  tasks:
+    - name: Read the recorder deployment
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        name: otv-horoscope
+      register: recorder
+
+    - name: Require the current recorder to be available
+      ansible.builtin.assert:
+        that:
+          - recorder.resources | length == 1
+          - recorder.resources[0].status.observedGeneration == recorder.resources[0].metadata.generation
+          - recorder.resources[0].status.availableReplicas | default(0) == 1
+          - recorder.resources[0].status.updatedReplicas | default(0) == 1
+
+    - name: Find failed recorder pods
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        label_selectors: [app.kubernetes.io/name=otv-horoscope]
+        field_selectors: [status.phase=Failed]
+      register: recorder_failed
+
+    - name: Remove only terminal recorder pods evicted for exhausting the work buffer
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Pod
+        name: "{{ item.metadata.name }}"
+        state: absent
+        delete_options:
+          preconditions:
+            uid: "{{ item.metadata.uid }}"
+            resourceVersion: "{{ item.metadata.resourceVersion }}"
+      loop: "{{ recorder_failed.resources }}"
+      loop_control:
+        label: "{{ item.metadata.name }}"
+      when:
+        - item.status.reason | default('') == 'Evicted'
+        - "'Usage of EmptyDir volume \"work\" exceeds the limit' in item.status.message | default('')"
+        - item.metadata.ownerReferences | selectattr('kind', 'equalto', 'ReplicaSet') | selectattr('name', 'match', '^otv-horoscope-') | length == 1
