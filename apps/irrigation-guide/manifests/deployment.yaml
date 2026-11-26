@@ -69,7 +69,7 @@ spec:
         volumeMounts:
         - name: edition
           mountPath: /usr/share/nginx/html/irrigation
-          subPath: release-03
+          subPath: release-04
           readOnly: true
         - name: tmp
           mountPath: /tmp
