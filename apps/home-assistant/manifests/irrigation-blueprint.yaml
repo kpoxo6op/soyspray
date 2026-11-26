@@ -7,6 +7,8 @@ blueprint:
     valve_b: {name: Клапан Б, selector: {entity: {domain: switch}}}
     soil_a: {name: Влажность А в процентах, selector: {entity: {domain: sensor}}}
     soil_b: {name: Влажность Б в процентах, selector: {entity: {domain: sensor}}}
+    seen_a: {name: Время последнего сообщения Zigbee от А, default: sensor.irrigation_seen_a, selector: {entity: {domain: sensor}}}
+    seen_b: {name: Время последнего сообщения Zigbee от Б, default: sensor.irrigation_seen_b, selector: {entity: {domain: sensor}}}
     enabled_a: {name: Разрешение А, selector: {entity: {domain: input_boolean}}}
     enabled_b: {name: Разрешение Б, selector: {entity: {domain: input_boolean}}}
     threshold_a: {name: Порог А по замеру грунта, selector: {number: {min: 1, max: 95, unit_of_measurement: "%"}}}
@@ -27,8 +29,8 @@ variables:
   v_a: !input valve_a
   v_b: !input valve_b
   zones:
-    - {id: А, valve: !input valve_a, probe: !input soil_a, enable: !input enabled_a, limit: !input threshold_a, minutes: !input minutes_a}
-    - {id: Б, valve: !input valve_b, probe: !input soil_b, enable: !input enabled_b, limit: !input threshold_b, minutes: !input minutes_b}
+    - {id: А, valve: !input valve_a, probe: !input soil_a, seen: !input seen_a, enable: !input enabled_a, limit: !input threshold_a, minutes: !input minutes_a}
+    - {id: Б, valve: !input valve_b, probe: !input soil_b, seen: !input seen_b, enable: !input enabled_b, limit: !input threshold_b, minutes: !input minutes_b}
   local_rain: !input local_rain
   falling_pressure: !input falling_pressure
 actions:
@@ -60,7 +62,9 @@ actions:
             before: "{{ states(repeat.item.probe) | float(-1) }}"
             fresh: >-
               {% set p=states[repeat.item.probe] %}
-              {{ p is not none and now().timestamp()-as_timestamp(p.last_reported,0) < 7200 }}
+              {% set heard=as_timestamp(states(repeat.item.seen),0) %}
+              {{ p is not none and 0 <= now().timestamp()-heard < 7200 and
+                 0 <= now().timestamp()-as_timestamp(p.last_reported,0) < 7200 }}
         - if:
             - condition: template
               value_template: "{{ is_state(z.enable,'on') }}"
