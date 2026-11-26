@@ -13,6 +13,12 @@
           - guide_source is match('^/')
           - guide_edition is defined
           - guide_edition is match('^release-[a-z0-9-]+$')
+    - name: Validate the complete private export before upload
+      ansible.builtin.command:
+        argv: [python3, "{{ playbook_dir }}/check_edition.py", "{{ guide_source }}"]
+      delegate_to: localhost
+      become: false
+      changed_when: false
     - name: Create the dedicated serving directory
       ansible.builtin.file:
         path: "{{ guide_root }}"
@@ -71,7 +77,7 @@
       ansible.builtin.assert:
         that: manifest.stat.checksum == (lookup('ansible.builtin.file', guide_source + '/SHA256SUMS', rstrip=False) | hash('sha256'))
     - name: Check the published edition
-      ansible.builtin.command:
-        argv: [sha256sum, --strict, --check, SHA256SUMS]
-        chdir: "{{ guide_root }}/{{ guide_edition }}"
+      ansible.builtin.script:
+        cmd: "check_edition.py {{ guide_root }}/{{ guide_edition }}"
+        executable: python3
       changed_when: false

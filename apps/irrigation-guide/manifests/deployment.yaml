@@ -67,6 +67,10 @@ spec:
             drop:
             - ALL
         volumeMounts:
+        - name: edition
+          mountPath: /usr/share/nginx/html/irrigation
+          subPath: release-01
+          readOnly: true
         - name: tmp
           mountPath: /tmp
       volumes:
