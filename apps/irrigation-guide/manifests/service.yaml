@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: irrigation-guide
+  labels:
+    app.kubernetes.io/name: irrigation-guide
+    app.kubernetes.io/part-of: irrigation-guide
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: irrigation-guide
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

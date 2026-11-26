@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: irrigation-guide
+  annotations:
+    external-dns.alpha.kubernetes.io/ingress-hostname-source: annotation-only
+    external-dns.kubernetes.io/ingress-hostname-source: annotation-only
+    nginx.ingress.kubernetes.io/whitelist-source-range: 192.168.20.0/24,100.64.0.0/10,10.233.0.0/16
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: explain.soyspray.vip
+      http:
+        paths:
+          - path: /irrigation
+            pathType: Prefix
+            backend:
+              service: {name: irrigation-guide, port: {name: http}}

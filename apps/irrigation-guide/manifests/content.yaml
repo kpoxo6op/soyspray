@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: irrigation-guide-node-0
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  capacity: {storage: 512Mi}
+  accessModes: [ReadWriteOnce]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  claimRef:
+    name: irrigation-guide
+    namespace: irrigation-guide
+  local:
+    path: /srv/private-guides/irrigation
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values: [node-0]
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: irrigation-guide
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=false,Delete=false
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: ""
+  volumeName: irrigation-guide-node-0
+  resources:
+    requests: {storage: 512Mi}
