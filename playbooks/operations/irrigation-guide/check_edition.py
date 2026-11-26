@@ -30,6 +30,9 @@ if actual != expected.keys():
     sys.exit("File inventory differs from the checksum manifest.")
 for name, wanted in expected.items():
     with (root / name).open("rb") as stream:
-        calculated = hashlib.file_digest(stream, "sha256").hexdigest()
+        digest = hashlib.sha256()
+        for chunk in iter(lambda: stream.read(1048576), b""):
+            digest.update(chunk)
+        calculated = digest.hexdigest()
     if calculated != wanted:
         sys.exit("Hash mismatch: " + name)
