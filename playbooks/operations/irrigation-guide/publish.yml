@@ -1,0 +1,83 @@
+---
+- name: Stage a private read-only guide edition on its assigned node
+  hosts: node-0
+  become: true
+  gather_facts: false
+  vars:
+    guide_root: /srv/private-guides/irrigation
+  tasks:
+    - name: Require an explicit private source and immutable edition name
+      ansible.builtin.assert:
+        that:
+          - guide_source is defined
+          - guide_source is match('^/')
+          - guide_edition is defined
+          - guide_edition is match('^release-[a-z0-9-]+$')
+    - name: Validate the complete private export before upload
+      ansible.builtin.command:
+        argv: [python3, "{{ playbook_dir }}/check_edition.py", "{{ guide_source }}"]
+      delegate_to: localhost
+      become: false
+      changed_when: false
+    - name: Create the dedicated serving directory
+      ansible.builtin.file:
+        path: "{{ guide_root }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+    - name: Look for the requested edition
+      ansible.builtin.stat:
+        path: "{{ guide_root }}/{{ guide_edition }}"
+      register: existing
+    - name: Prepare edition outside the served directory
+      when: not existing.stat.exists
+      block:
+        - name: Create staging directory on the same filesystem
+          ansible.builtin.tempfile:
+            state: directory
+            path: "{{ guide_root }}"
+            prefix: ".upload-"
+          register: staging
+        - name: Transfer the controller's generated files
+          ansible.builtin.copy:
+            src: "{{ guide_source }}/"
+            dest: "{{ staging.path }}/"
+            local_follow: false
+            owner: root
+            group: root
+            mode: "0644"
+            directory_mode: "0755"
+        - name: Verify transferred files against the release manifest
+          ansible.builtin.command:
+            argv: [sha256sum, --strict, --check, SHA256SUMS]
+            chdir: "{{ staging.path }}"
+          changed_when: false
+        - name: Make the completed edition traversable
+          ansible.builtin.file:
+            path: "{{ staging.path }}"
+            state: directory
+            mode: "0755"
+        - name: Publish the completed directory
+          ansible.builtin.command:
+            argv: [mv, -T, "{{ staging.path }}", "{{ guide_root }}/{{ guide_edition }}"]
+          changed_when: true
+      always:
+        - name: Remove the private temporary directory
+          ansible.builtin.file:
+            path: "{{ staging.path }}"
+            state: absent
+          when: staging.path is defined
+    - name: Verify the edition contains the requested manifest
+      ansible.builtin.stat:
+        path: "{{ guide_root }}/{{ guide_edition }}/SHA256SUMS"
+        checksum_algorithm: sha256
+      register: manifest
+    - name: Reject an edition name reused for different content
+      ansible.builtin.assert:
+        that: manifest.stat.checksum == (lookup('ansible.builtin.file', guide_source + '/SHA256SUMS', rstrip=False) | hash('sha256'))
+    - name: Check the published edition
+      ansible.builtin.script:
+        cmd: "check_edition.py {{ guide_root }}/{{ guide_edition }}"
+        executable: python3
+      changed_when: false

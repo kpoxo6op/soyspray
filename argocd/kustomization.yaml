@@ -8,6 +8,7 @@ resources:
   - ../apps/autism-traits/argocd
   - ../apps/assembly-guide/argocd
   - ../apps/pearl-guide/argocd
+  - ../apps/irrigation-guide/argocd
   - ../apps/explain/argocd
   - ../apps/reading/argocd
   - ../apps/boys/argocd
