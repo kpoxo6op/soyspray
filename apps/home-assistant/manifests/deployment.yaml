@@ -77,7 +77,6 @@ spec:
             - -c
             - |
               set -euo pipefail
-              apk add --no-cache ca-certificates unzip wget >/dev/null
               version="v2.0.0b23"
               expected_sha256="7cd8e3af9d90c3a4b018970b9a05faa48c4c43d40cb007b0e7b031e174db068e"
               install_dir="/config/custom_components/dreame_vacuum"
@@ -87,6 +86,7 @@ spec:
                 exit 0
               fi
 
+              apk add --no-cache ca-certificates unzip wget >/dev/null
               tmp_dir="$(mktemp -d)"
               wget -q -O "${tmp_dir}/dreame_vacuum.zip" "https://github.com/Tasshack/dreame-vacuum/releases/download/${version}/dreame_vacuum.zip"
               echo "${expected_sha256}  ${tmp_dir}/dreame_vacuum.zip" | sha256sum -c -
@@ -105,7 +105,6 @@ spec:
             - -c
             - |
               set -euo pipefail
-              apk add --no-cache ca-certificates unzip wget >/dev/null
               revision="28b6ada497d934ebabd5d34e541f9d1f1280c697"
               expected_sha256="9fc99a49695d360ddda0d2a5bcc37272ddabfdd4a190d863672110da83f4188f"
               install_dir="/config/custom_components/fellow_stagg"
@@ -115,6 +114,7 @@ spec:
                 exit 0
               fi
 
+              apk add --no-cache ca-certificates unzip wget >/dev/null
               tmp_dir="$(mktemp -d)"
               trap 'rm -rf "${tmp_dir}"' EXIT
               wget -q -O "${tmp_dir}/fellow.zip" "https://codeload.github.com/bramboe/stagg-ekg-plus-ha/zip/${revision}"
@@ -136,7 +136,6 @@ spec:
             - -c
             - |
               set -euo pipefail
-              apk add --no-cache ca-certificates git >/dev/null
               # bkintanar/home-assistant-mercury-co-nz v2.1.1
               revision="1a5774e3d8dbd7a7c8f7ce75be6248cda8143c5d"
               expected_tree="13c1b9760c0fe8fdae1800ea3eb16d7129f6b3ea"
@@ -147,6 +146,7 @@ spec:
                 exit 0
               fi
 
+              apk add --no-cache ca-certificates git >/dev/null
               tmp_dir="$(mktemp -d)"
               trap 'rm -rf "${tmp_dir}"' EXIT
               git -C "${tmp_dir}" init -q
@@ -172,7 +172,6 @@ spec:
             - -c
             - |
               set -euo pipefail
-              apk add --no-cache ca-certificates git >/dev/null
               # mampfes/hacs_waste_collection_schedule v2.36.0 (Auckland Council source)
               revision="67cb32c01a65331cc0acc51eaa4311225a908e90"
               expected_tree="db613968d04c6ad0237b6382b33e585bfaf0d4c2"
@@ -183,6 +182,7 @@ spec:
                 exit 0
               fi
 
+              apk add --no-cache ca-certificates git >/dev/null
               tmp_dir="$(mktemp -d)"
               trap 'rm -rf "${tmp_dir}"' EXIT
               git -C "${tmp_dir}" init -q
@@ -208,7 +208,6 @@ spec:
             - -c
             - |
               set -euo pipefail
-              apk add --no-cache ca-certificates unzip wget >/dev/null
               version="v1.1.1"
               expected_sha256="9ce9e6153f80c781e360b93e097ff7d87d09235430fc48e7a67d97dda5fc3322"
               install_dir="/config/custom_components/auth_oidc"
@@ -218,6 +217,7 @@ spec:
                 exit 0
               fi
 
+              apk add --no-cache ca-certificates unzip wget >/dev/null
               tmp_dir="$(mktemp -d)"
               wget -q -O "${tmp_dir}/hass-oidc-auth.zip" "https://github.com/christiaangoossens/hass-oidc-auth/releases/download/${version}/hass-oidc-auth.zip"
               echo "${expected_sha256}  ${tmp_dir}/hass-oidc-auth.zip" | sha256sum -c -
