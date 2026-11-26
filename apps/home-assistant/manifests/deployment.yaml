@@ -50,6 +50,8 @@ spec:
               cp /bootstrap/scripts.yaml /config/scripts.yaml
               cp /bootstrap/scenes.yaml /config/scenes.yaml
               cp /bootstrap/templates.yaml /config/templates.yaml
+              mkdir -p /config/blueprints/automation/irrigation
+              cp /irrigation/poliv.yaml /config/blueprints/automation/irrigation/poliv.yaml
               mkdir -p /config/dashboards
               cp /bootstrap/home-dashboard.yaml /config/dashboards/home.yaml
               # Power and Bins used to be separate sidebar dashboards.
@@ -63,6 +65,9 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /config
+            - name: irrigation-blueprint
+              mountPath: /irrigation
+              readOnly: true
             - name: bootstrap
               mountPath: /bootstrap
         - name: install-dreame-vacuum
@@ -250,6 +255,9 @@ spec:
         - name: config
           persistentVolumeClaim:
             claimName: home-assistant-config
+        - name: irrigation-blueprint
+          configMap:
+            name: home-assistant-irrigation
         - name: bootstrap
           configMap:
             name: home-assistant-bootstrap

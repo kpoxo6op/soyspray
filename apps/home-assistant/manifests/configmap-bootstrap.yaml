@@ -55,6 +55,10 @@ data:
         admin: cluster-admins
 
     input_boolean:
+      irrigation_enabled_a:
+        name: Garden irrigation A commissioned
+      irrigation_enabled_b:
+        name: Garden irrigation B commissioned
       tapo_bedtime_motion_guard:
         name: Tapo bedtime motion guard
         icon: mdi:weather-night
@@ -101,6 +105,17 @@ data:
           - light.middle
           - light.bottom
 
+    binary_sensor:
+      - platform: trend
+        sensors:
+          irrigation_pressure_falling:
+            entity_id: sensor.irrigation_pressure
+            friendly_name: Garden pressure falling
+            sample_duration: 10800
+            min_samples: 4
+            max_samples: 180
+            min_gradient: -0.0001852
+
     sensor:
       - platform: statistics
         name: Weight 7-day average
@@ -117,6 +132,21 @@ data:
     script: !include scripts.yaml
     scene: !include scenes.yaml
   automations.yaml: |
+    - id: local_garden_irrigation
+      alias: Garden irrigation
+      use_blueprint:
+        path: irrigation/poliv.yaml
+        input:
+          valve_a: switch.irrigation_valve_a
+          valve_b: switch.irrigation_valve_b
+          soil_a: sensor.irrigation_soil_a
+          soil_b: sensor.irrigation_soil_b
+          enabled_a: input_boolean.irrigation_enabled_a
+          enabled_b: input_boolean.irrigation_enabled_b
+          threshold_a: 27
+          threshold_b: 35
+          minutes_a: 3
+          minutes_b: 3
     - id: door_open_10min
       alias: Door open
       triggers:

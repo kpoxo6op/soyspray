@@ -15,3 +15,8 @@ namespace: home-automation
 commonLabels:
   app: home-assistant
   managed-by: argocd
+
+configMapGenerator:
+  - name: home-assistant-irrigation
+    files:
+      - poliv.yaml=irrigation-blueprint.yaml

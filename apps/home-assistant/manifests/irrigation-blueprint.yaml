@@ -1,0 +1,92 @@
+blueprint:
+  name: "Двор · две зоны капельного полива"
+  description: "Один экземпляр для всего узла. Включай разрешения зон только после первого пуска и настройки физического Auto Off на обоих реле."
+  domain: automation
+  input:
+    valve_a: {name: Клапан А, selector: {entity: {domain: switch}}}
+    valve_b: {name: Клапан Б, selector: {entity: {domain: switch}}}
+    soil_a: {name: Влажность А в процентах, selector: {entity: {domain: sensor}}}
+    soil_b: {name: Влажность Б в процентах, selector: {entity: {domain: sensor}}}
+    enabled_a: {name: Разрешение А, selector: {entity: {domain: input_boolean}}}
+    enabled_b: {name: Разрешение Б, selector: {entity: {domain: input_boolean}}}
+    threshold_a: {name: Порог А по замеру грунта, selector: {number: {min: 1, max: 95, unit_of_measurement: "%"}}}
+    threshold_b: {name: Порог Б по замеру грунта, selector: {number: {min: 1, max: 95, unit_of_measurement: "%"}}}
+    minutes_a: {name: Доза А в минутах, default: 3, selector: {number: {min: 1, max: 6, step: 1}}}
+    minutes_b: {name: Доза Б в минутах, default: 3, selector: {number: {min: 1, max: 6, step: 1}}}
+    local_rain: {name: Локальный уличный датчик дождя, default: binary_sensor.irrigation_rain, selector: {entity: {domain: binary_sensor}}}
+    falling_pressure: {name: Падение давления на локальном барометре, default: binary_sensor.irrigation_pressure_falling, selector: {entity: {domain: binary_sensor}}}
+mode: single
+max_exceeded: silent
+triggers:
+  - trigger: homeassistant
+    event: start
+    id: startup
+  - trigger: time
+    at: ["07:00:00", "11:00:00"]
+variables:
+  v_a: !input valve_a
+  v_b: !input valve_b
+  zones:
+    - {id: А, valve: !input valve_a, probe: !input soil_a, enable: !input enabled_a, limit: !input threshold_a, minutes: !input minutes_a}
+    - {id: Б, valve: !input valve_b, probe: !input soil_b, enable: !input enabled_b, limit: !input threshold_b, minutes: !input minutes_b}
+  local_rain: !input local_rain
+  falling_pressure: !input falling_pressure
+actions:
+  - if:
+      - condition: template
+        value_template: "{{ trigger.id | default('') == 'startup' }}"
+    then:
+      - repeat:
+          for_each: "{{ zones }}"
+          sequence:
+            - if:
+                - condition: template
+                  value_template: "{{ is_state(repeat.item.enable, 'on') and is_state(repeat.item.valve, 'on') }}"
+              then:
+                - action: switch.turn_off
+                  target: {entity_id: "{{ repeat.item.valve }}"}
+      - stop: После старта полив ждёт следующего окна и свежего сообщения каждого датчика
+  - variables:
+      rain: >-
+        {% set obs=states[local_rain] %}
+        {% set trend=states[falling_pressure] %}
+        {{ (obs is not none and is_state(local_rain,'on') and now().timestamp()-as_timestamp(obs.last_reported,0)<7200)
+           or (trend is not none and is_state(falling_pressure,'on') and now().timestamp()-as_timestamp(trend.last_reported,0)<7200) }}
+  - repeat:
+      for_each: "{{ zones }}"
+      sequence:
+        - variables:
+            z: "{{ repeat.item }}"
+            before: "{{ states(repeat.item.probe) | float(-1) }}"
+            fresh: >-
+              {% set p=states[repeat.item.probe] %}
+              {{ p is not none and now().timestamp()-as_timestamp(p.last_reported,0) < 7200 }}
+        - if:
+            - condition: template
+              value_template: "{{ is_state(z.enable,'on') }}"
+          then:
+            - if:
+                - condition: template
+                  value_template: "{{ not fresh or not (0 <= before <= 100) or not is_state(v_a,'off') or not is_state(v_b,'off') }}"
+              then:
+                - action: persistent_notification.create
+                  data: {notification_id: "irrigation_{{ z.id }}", message: "Зона {{ z.id }} пропускает цикл. Проверь датчик и состояние клапанов. Следующее окно повторит проверку."}
+              else:
+                - if:
+                    - condition: template
+                      value_template: "{{ before < z.limit|float and not (rain and now().hour == 7 and before > z.limit|float - 8) }}"
+                  then:
+                    - action: switch.turn_on
+                      target: {entity_id: "{{ z.valve }}"}
+                    - delay: {minutes: "{{ z.minutes|int }}"}
+                    - action: switch.turn_off
+                      target: {entity_id: "{{ z.valve }}"}
+                    - delay: {minutes: 35}
+                    - if:
+                        - condition: template
+                          value_template: "{{ not is_state(z.valve,'off') or states(z.probe)|float(-1) <= before or not (0 <= states(z.probe)|float(-1) <= 100) }}"
+                      then:
+                        - action: input_boolean.turn_off
+                          target: {entity_id: "{{ z.enable }}"}
+                        - action: persistent_notification.create
+                          data: {notification_id: "irrigation_{{ z.id }}", message: "Зона {{ z.id }} остановлена после полива. Проверь влажность, клапан и проходимость трубки."}
